@@ -1,15 +1,14 @@
 const express    = require('express');
 const router     = express.Router();
-const { authenticate }  = require('../middleware/auth.middleware');
+const { authenticate }   = require('../middleware/auth.middleware');
 const { requireMinRole } = require('../middleware/role.middleware');
-const orgIsolation = require('../middleware/orgIsolation.middleware');
 const {
   listOrders, getOrder, getStats,
   createOrder, startOrder, completeOrder, cancelOrder,
   recordQualityTest,
 } = require('../controllers/production.controller');
 
-router.use(authenticate, orgIsolation);
+router.use(authenticate);
 
 router.get('/stats',              getStats);
 router.get('/',                   listOrders);
