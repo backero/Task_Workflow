@@ -45,4 +45,19 @@ router.get('/health', (req, res) => {
   res.json({ success: true, message: 'Backero API is running', timestamp: new Date().toISOString() });
 });
 
+router.get('/wa-status', (req, res) => {
+  const { WHATSAPP_PROVIDER } = require('../config/env');
+  const waReady = WHATSAPP_PROVIDER === 'local'
+    ? require('../services/wa-client').isReady()
+    : null;
+  res.json({
+    success: true,
+    provider: WHATSAPP_PROVIDER,
+    connected: waReady,
+    message: WHATSAPP_PROVIDER === 'local'
+      ? (waReady ? 'WhatsApp connected and ready' : 'WhatsApp connecting — check terminal for QR code')
+      : `Using provider: ${WHATSAPP_PROVIDER}`,
+  });
+});
+
 module.exports = router;

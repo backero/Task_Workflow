@@ -33,9 +33,10 @@ if (NODE_ENV !== 'test') {
 
 const globalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 200,
+  max: 500,
   standardHeaders: true,
   legacyHeaders: false,
+  skip: (req) => req.path === '/api/health',
   message: { success: false, message: 'Too many requests, please try again later.' },
 });
 app.use(globalLimiter);
