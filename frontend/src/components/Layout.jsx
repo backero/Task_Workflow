@@ -12,6 +12,7 @@ const PAGE_TITLES = {
   '/analytics':  'Analytics',
   '/employees':  'Employees',
   '/inventory':  'Inventory',
+  '/production': 'Production',
   '/finance':    'Finance',
   '/reports':    'Reports & Analytics',
   '/members':    'Members',

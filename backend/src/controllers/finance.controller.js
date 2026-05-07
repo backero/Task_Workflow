@@ -1,6 +1,8 @@
-const Transaction = require('../models/Transaction');
-const Invoice     = require('../models/Invoice');
-const Organization = require('../models/Organization');
+const Transaction   = require('../models/Transaction');
+const Invoice       = require('../models/Invoice');
+const Organization  = require('../models/Organization');
+const Product       = require('../models/Product');
+const StockMovement = require('../models/StockMovement');
 const { success, created, notFound, badRequest } = require('../utils/response');
 const { log }         = require('../services/activityLog.service');
 const { emitToOrg }   = require('../sockets/index');
@@ -300,24 +302,52 @@ const updateInvoice = async (req, res) => {
   }
 };
 
+const deductInvoiceInventory = async (invoice, orgId, userId) => {
+  for (const item of invoice.items) {
+    if (!item.productId) continue;
+    const qty = Number(item.quantity);
+    if (qty <= 0) continue;
+    const product = await Product.findOne({ _id: item.productId, organizationId: orgId });
+    if (!product) continue;
+    const before = product.quantity;
+    const after  = Math.max(0, before - qty);
+    await Product.findByIdAndUpdate(product._id, { $set: { quantity: after } });
+    await StockMovement.create({
+      productId: product._id, organizationId: orgId,
+      type: 'SALE', quantity: qty,
+      quantityBefore: before, quantityAfter: after,
+      note: `Invoice ${invoice.invoiceNumber}`,
+      reference: invoice.invoiceNumber, referenceId: invoice._id,
+      performedBy: userId,
+    });
+  }
+};
+
 const updateInvoiceStatus = async (req, res) => {
   const orgId = req.user.organizationId;
   const { status } = req.body;
   try {
+    const invoice = await Invoice.findOne({ _id: req.params.id, organizationId: orgId });
+    if (!invoice) return notFound(res, 'Invoice not found');
+
     const updates = { status };
     if (status === 'PAID') updates.paidDate = new Date();
 
-    const invoice = await Invoice.findOneAndUpdate(
-      { _id: req.params.id, organizationId: orgId },
-      { $set: updates },
-      { new: true }
+    // Deduct inventory once when invoice is first sent (goods dispatched)
+    if (status === 'SENT' && !invoice.inventoryDeducted) {
+      await deductInvoiceInventory(invoice, orgId, req.user._id);
+      updates.inventoryDeducted = true;
+      emitToOrg(orgId.toString(), 'inventory:stock_updated', {});
+    }
+
+    const updated = await Invoice.findByIdAndUpdate(
+      req.params.id, { $set: updates }, { new: true }
     );
-    if (!invoice) return notFound(res, 'Invoice not found');
 
-    await log({ userId: req.user._id, organizationId: orgId, action: 'INVOICE_STATUS_CHANGED', entity: 'Invoice', entityId: invoice._id, meta: { status } });
-    emitToOrg(orgId.toString(), 'finance:invoice_updated', { invoice });
+    await log({ userId: req.user._id, organizationId: orgId, action: 'INVOICE_STATUS_CHANGED', entity: 'Invoice', entityId: updated._id, meta: { status } });
+    emitToOrg(orgId.toString(), 'finance:invoice_updated', { invoice: updated });
 
-    return success(res, { invoice }, `Invoice marked as ${status}`);
+    return success(res, { invoice: updated }, `Invoice marked as ${status}`);
   } catch (err) {
     logger.error(`updateInvoiceStatus: ${err.message}`);
     throw err;

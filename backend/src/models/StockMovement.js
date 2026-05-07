@@ -14,17 +14,19 @@ const stockMovementSchema = new mongoose.Schema(
     },
     type: {
       type: String,
-      enum: ['IN', 'OUT', 'ADJUSTMENT'],
+      enum: ['IN', 'OUT', 'ADJUSTMENT', 'SALE', 'PRODUCTION_USE', 'PRODUCTION_OUTPUT', 'QUALITY_TEST'],
       required: true,
     },
     quantity: {
       type: Number,
       required: true,
-      min: [1, 'Movement quantity must be at least 1'],
+      min: [0.01, 'Movement quantity must be positive'],
     },
     quantityBefore: { type: Number, required: true },
     quantityAfter:  { type: Number, required: true },
-    note: { type: String, trim: true, default: null },
+    note:        { type: String, trim: true, default: null },
+    reference:   { type: String, trim: true, default: null },
+    referenceId: { type: mongoose.Schema.Types.ObjectId, default: null },
     performedBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',

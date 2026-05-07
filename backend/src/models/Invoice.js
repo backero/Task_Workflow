@@ -6,6 +6,8 @@ const invoiceItemSchema = new mongoose.Schema({
   unitPrice:   { type: Number, required: true, min: 0 },
   taxRate:     { type: Number, default: 0, min: 0, max: 100 },
   amount:      { type: Number, required: true },
+  unit:        { type: String, trim: true, default: null },
+  productId:   { type: mongoose.Schema.Types.ObjectId, ref: 'Product', default: null },
 }, { _id: true });
 
 const invoiceSchema = new mongoose.Schema(
@@ -40,7 +42,8 @@ const invoiceSchema = new mongoose.Schema(
     signature: { type: String, trim: true, default: null },
     issueDate: { type: Date, default: Date.now },
     dueDate:   { type: Date, default: null },
-    paidDate:  { type: Date, default: null },
+    paidDate:           { type: Date, default: null },
+    inventoryDeducted:  { type: Boolean, default: false },
     createdBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',

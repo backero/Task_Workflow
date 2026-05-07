@@ -18,6 +18,7 @@ import Employees from './pages/Employees'
 import EmployeeProfile from './pages/EmployeeProfile'
 import Inventory from './pages/Inventory'
 import Finance from './pages/Finance'
+import Production from './pages/Production'
 import Reports from './pages/Reports'
 
 const OrgGuard = ({ children }) => {
@@ -68,6 +69,10 @@ export default function App() {
               {/* Phase 7 — Finance Module */}
               <Route path="/finance"      element={<Protected><Finance /></Protected>} />
               <Route path="/finance/*"    element={<Protected><Finance /></Protected>} />
+
+              {/* Phase 9 — Production */}
+              <Route path="/production"   element={<Protected><Production /></Protected>} />
+              <Route path="/production/*" element={<Protected><Production /></Protected>} />
 
               {/* Phase 8 — Reports */}
               <Route path="/reports"      element={<Protected><Reports /></Protected>} />

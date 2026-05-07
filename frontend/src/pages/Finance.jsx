@@ -111,7 +111,7 @@ const TransactionModal = ({ initial, categories, onClose, onSave }) => {
 
 /* ─── InvoiceModal ───────────────────────────────────────────────────────────── */
 
-const EMPTY_ITEM = { description: '', quantity: 1, unitPrice: 0, taxRate: 18 }
+const EMPTY_ITEM = { description: '', quantity: 1, unitPrice: 0, taxRate: 18, productId: '', unit: '' }
 const EMPTY_INV  = {
   customer: { name: '', email: '', phone: '', address: '', gstin: '' },
   items: [{ ...EMPTY_ITEM }],
@@ -121,14 +121,34 @@ const EMPTY_INV  = {
 }
 
 const InvoiceModal = ({ initial, onClose, onSave }) => {
-  const [form, setForm]   = useState(initial || EMPTY_INV)
-  const [busy, setBusy]   = useState(false)
-  const [err, setErr]     = useState('')
+  const [form, setForm]       = useState(initial || EMPTY_INV)
+  const [busy, setBusy]       = useState(false)
+  const [err, setErr]         = useState('')
+  const [products, setProducts] = useState([])
+
+  useEffect(() => {
+    api.get('/inventory?limit=200').then(res => {
+      setProducts(res.data.data?.products || [])
+    }).catch(() => {})
+  }, [])
 
   const setCustomer = (k, v) => setForm(f => ({ ...f, customer: { ...f.customer, [k]: v } }))
   const setItem     = (i, k, v) => setForm(f => { const items = [...f.items]; items[i] = { ...items[i], [k]: v }; return { ...f, items } })
   const addItem     = () => setForm(f => ({ ...f, items: [...f.items, { ...EMPTY_ITEM }] }))
   const removeItem  = (i) => setForm(f => ({ ...f, items: f.items.filter((_, idx) => idx !== i) }))
+
+  const pickProduct = (i, pid) => {
+    const p = products.find(x => x._id === pid)
+    if (p) {
+      setForm(f => {
+        const items = [...f.items]
+        items[i] = { ...items[i], productId: pid, description: p.name, unitPrice: p.unitPrice || 0, unit: p.unit || 'pcs' }
+        return { ...f, items }
+      })
+    } else {
+      setItem(i, 'productId', '')
+    }
+  }
 
   const calcLine    = (item) => Number(item.quantity) * Number(item.unitPrice) * (1 + Number(item.taxRate || 0) / 100)
   const subtotal    = form.items.reduce((a, it) => a + Number(it.quantity) * Number(it.unitPrice), 0)
@@ -146,10 +166,12 @@ const InvoiceModal = ({ initial, onClose, onSave }) => {
         issueDate: form.issueDate || new Date().toISOString(),
         dueDate:   form.dueDate   || null,
         items: form.items.map(it => ({
-          ...it,
-          quantity:  Number(it.quantity),
-          unitPrice: Number(it.unitPrice),
-          taxRate:   Number(it.taxRate || 0),
+          description: it.description,
+          quantity:    Number(it.quantity),
+          unitPrice:   Number(it.unitPrice),
+          taxRate:     Number(it.taxRate || 0),
+          ...(it.unit      ? { unit:      it.unit }      : {}),
+          ...(it.productId ? { productId: it.productId } : {}),
         })),
       }
       if (!payload.notes)     delete payload.notes
@@ -209,20 +231,34 @@ const InvoiceModal = ({ initial, onClose, onSave }) => {
           {/* Line items */}
           <div>
             <p className="text-xs font-semibold uppercase tracking-wide text-gray-400 mb-3">Line Items</p>
-            <div className="space-y-2">
+            <div className="space-y-3">
               {/* Column headers */}
               <div className="hidden sm:grid grid-cols-[2fr_1fr_1fr_1fr_auto] gap-2 text-xs font-medium text-gray-400 px-1">
                 <span>Description</span><span>Qty</span><span>Unit Price</span><span>Tax %</span><span className="w-6" />
               </div>
               {form.items.map((item, i) => (
-                <div key={i} className="grid grid-cols-[2fr_1fr_1fr_1fr_auto] gap-2 items-center">
-                  <input className="input-field text-sm py-2" placeholder="Service or product" value={item.description} onChange={e => setItem(i,'description',e.target.value)} required />
-                  <input type="number" min="0.01" step="any" className="input-field text-sm py-2" placeholder="1" value={item.quantity} onChange={e => setItem(i,'quantity',e.target.value)} required />
-                  <input type="number" min="0" step="0.01" className="input-field text-sm py-2" placeholder="0.00" value={item.unitPrice} onChange={e => setItem(i,'unitPrice',e.target.value)} required />
-                  <input type="number" min="0" max="100" step="0.5" className="input-field text-sm py-2" placeholder="18" value={item.taxRate} onChange={e => setItem(i,'taxRate',e.target.value)} />
-                  {form.items.length > 1 && (
-                    <button type="button" onClick={() => removeItem(i)} className="w-7 h-7 flex items-center justify-center text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors">×</button>
-                  )}
+                <div key={i} className="space-y-1.5">
+                  {/* Product picker */}
+                  <select
+                    value={item.productId || ''}
+                    onChange={e => pickProduct(i, e.target.value)}
+                    className="w-full text-xs border border-gray-200 rounded-lg px-2.5 py-1.5 text-gray-500 bg-gray-50 focus:outline-none focus:border-indigo-300"
+                  >
+                    <option value="">— Link inventory product (optional) —</option>
+                    {products.map(p => (
+                      <option key={p._id} value={p._id}>{p.name}  |  ₹{p.unitPrice}  |  Stock: {p.quantity}</option>
+                    ))}
+                  </select>
+                  {/* Item inputs */}
+                  <div className="grid grid-cols-[2fr_1fr_1fr_1fr_auto] gap-2 items-center">
+                    <input className="input-field text-sm py-2" placeholder="Description" value={item.description} onChange={e => setItem(i,'description',e.target.value)} required />
+                    <input type="number" min="0.01" step="any" className="input-field text-sm py-2" placeholder="1" value={item.quantity} onChange={e => setItem(i,'quantity',e.target.value)} required />
+                    <input type="number" min="0" step="0.01" className="input-field text-sm py-2" placeholder="0.00" value={item.unitPrice} onChange={e => setItem(i,'unitPrice',e.target.value)} required />
+                    <input type="number" min="0" max="100" step="0.5" className="input-field text-sm py-2" placeholder="18" value={item.taxRate} onChange={e => setItem(i,'taxRate',e.target.value)} />
+                    {form.items.length > 1 && (
+                      <button type="button" onClick={() => removeItem(i)} className="w-7 h-7 flex items-center justify-center text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors">×</button>
+                    )}
+                  </div>
                 </div>
               ))}
               <button type="button" onClick={addItem} className="text-sm text-brand-600 hover:text-brand-700 font-medium flex items-center gap-1 mt-1">
@@ -663,7 +699,7 @@ export default function Finance() {
         <InvoiceModal
           initial={modal.data ? {
             customer:  modal.data.customer,
-            items:     modal.data.items?.map(it => ({ description: it.description, quantity: it.quantity, unitPrice: it.unitPrice, taxRate: it.taxRate || 0 })),
+            items:     modal.data.items?.map(it => ({ description: it.description, quantity: it.quantity, unitPrice: it.unitPrice, taxRate: it.taxRate || 0, productId: it.productId || '', unit: it.unit || '' })),
             notes:     modal.data.notes || '',
             signature: modal.data.signature || '',
             issueDate: modal.data.issueDate?.split('T')[0] || '',

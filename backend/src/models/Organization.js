@@ -38,7 +38,15 @@ const organizationSchema = new mongoose.Schema(
       pincode: String,
       country: { type: String, default: 'India' },
     },
-    gstin: { type: String, default: null },
+    gstin:  { type: String, trim: true, default: null },
+    phone:  { type: String, trim: true, default: null },
+    email:  { type: String, trim: true, default: null },
+    bankDetails: {
+      bankName:      { type: String, trim: true, default: null },
+      accountNumber: { type: String, trim: true, default: null },
+      ifsc:          { type: String, trim: true, default: null },
+      upiId:         { type: String, trim: true, default: null },
+    },
     createdBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',

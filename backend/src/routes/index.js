@@ -19,6 +19,7 @@ const exportRoutes       = require('./export.routes');
 const reportsRoutes      = require('./reports.routes');
 const importRoutes       = require('./import.routes');
 const uploadRoutes       = require('./upload.routes');
+const productionRoutes   = require('./production.routes');
 
 router.use('/auth',          authRoutes);
 router.use('/org',           orgRoutes);
@@ -38,6 +39,7 @@ router.use('/export',        exportRoutes);
 router.use('/reports',       reportsRoutes);
 router.use('/import',        importRoutes);
 router.use('/upload',        uploadRoutes);
+router.use('/production',    productionRoutes);
 
 router.get('/health', (req, res) => {
   res.json({ success: true, message: 'Backero API is running', timestamp: new Date().toISOString() });
