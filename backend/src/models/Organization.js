@@ -56,7 +56,6 @@ const organizationSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-organizationSchema.index({ slug: 1 });
 organizationSchema.index({ isActive: 1 });
 
 module.exports = mongoose.model('Organization', organizationSchema);

@@ -48,7 +48,6 @@ const userSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-userSchema.index({ phone: 1 });
 userSchema.index({ organizationId: 1, role: 1 });
 userSchema.index({ organizationId: 1, isActive: 1 });
 

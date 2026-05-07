@@ -4,6 +4,7 @@ const StockMovement   = require('../models/StockMovement');
 const { success, created, notFound, badRequest } = require('../utils/response');
 const { log }         = require('../services/activityLog.service');
 const { emitToOrg }   = require('../sockets/index');
+const { sendProductionStarted, sendProductionCompleted } = require('../services/whatsapp.service');
 const logger          = require('../utils/logger');
 
 const POPULATE_ORDER = [
@@ -153,6 +154,10 @@ const startOrder = async (req, res) => {
     await log({ userId: req.user._id, organizationId: orgId, action: 'PRODUCTION_STARTED', entity: 'ProductionOrder', entityId: order._id });
     emitToOrg(orgId.toString(), 'production:order_updated', { order: populated });
     emitToOrg(orgId.toString(), 'inventory:stock_updated', {});
+    if (req.user.phone) {
+      sendProductionStarted(req.user.phone, req.user.name || req.user.phone, order.name, order.orderNumber)
+        .catch(e => logger.error(`WA productionStarted: ${e.message}`));
+    }
     return success(res, { order: populated }, 'Production started — raw materials deducted from inventory');
   } catch (err) {
     logger.error(`startOrder: ${err.message}`);
@@ -192,6 +197,10 @@ const completeOrder = async (req, res) => {
     await log({ userId: req.user._id, organizationId: orgId, action: 'PRODUCTION_COMPLETED', entity: 'ProductionOrder', entityId: order._id });
     emitToOrg(orgId.toString(), 'production:order_updated', { order: populated });
     emitToOrg(orgId.toString(), 'inventory:stock_updated', {});
+    if (req.user.phone) {
+      sendProductionCompleted(req.user.phone, req.user.name || req.user.phone, order.name, order.orderNumber, qty, order.outputUnit || 'pcs')
+        .catch(e => logger.error(`WA productionCompleted: ${e.message}`));
+    }
     return success(res, { order: populated }, `Production completed — ${qty} units added to inventory`);
   } catch (err) {
     logger.error(`completeOrder: ${err.message}`);

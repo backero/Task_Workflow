@@ -3,21 +3,34 @@ const StockMovement = require('../models/StockMovement');
 const { success, created, notFound, badRequest } = require('../utils/response');
 const { log } = require('../services/activityLog.service');
 const { emitToOrg } = require('../sockets/index');
+const { sendLowStockAlert, sendStockReceived } = require('../services/whatsapp.service');
+const User   = require('../models/User');
 const logger = require('../utils/logger');
 
 /* ─── helpers ──────────────────────────────────────────────────────────────── */
 
-const emitLowStock = (orgId, product) => {
-  if (product.quantity <= product.minStockThreshold) {
-    emitToOrg(orgId, 'inventory:low_stock_alert', {
-      productId: product._id,
-      name: product.name,
-      sku: product.sku,
-      quantity: product.quantity,
-      minStockThreshold: product.minStockThreshold,
-    });
-  }
+const notifyLowStock = async (orgId, product) => {
+  if (product.quantity > product.minStockThreshold) return;
+  emitToOrg(orgId, 'inventory:low_stock_alert', {
+    productId: product._id, name: product.name, sku: product.sku,
+    quantity: product.quantity, minStockThreshold: product.minStockThreshold,
+  });
+  // Alert the org's admin/manager via WhatsApp
+  try {
+    const manager = await User.findOne({
+      organizationId: orgId,
+      role: { $in: ['MANAGER', 'ADMIN', 'ORG_ADMIN'] },
+      isActive: true,
+    }).lean();
+    if (manager?.phone) {
+      sendLowStockAlert(manager.phone, manager.name || manager.phone, product.name, product.quantity, product.minStockThreshold)
+        .catch(e => logger.error(`WA lowStock: ${e.message}`));
+    }
+  } catch { /* non-critical */ }
 };
+
+// Keep old name as thin wrapper so existing callers still work
+const emitLowStock = (orgId, product) => { notifyLowStock(orgId, product); };
 
 /* ─── list / search ─────────────────────────────────────────────────────────── */
 
@@ -119,18 +132,38 @@ const getInventoryStats = async (req, res) => {
 const getProduct = async (req, res) => {
   const orgId = req.user.organizationId;
   try {
-    const product = await Product.findOne({ _id: req.params.id, organizationId: orgId }).lean();
+    const product = await Product.findOne({ _id: req.params.id, organizationId: orgId })
+      .populate('bom.material', 'name sku quantity unit productType')
+      .lean();
     if (!product) return notFound(res, 'Product not found');
 
     const movements = await StockMovement.find({ productId: product._id })
       .sort({ createdAt: -1 })
-      .limit(20)
+      .limit(30)
       .populate('performedBy', 'name phone')
       .lean();
 
     return success(res, { product, movements });
   } catch (err) {
     logger.error(`getProduct: ${err.message}`);
+    throw err;
+  }
+};
+
+const updateBOM = async (req, res) => {
+  const orgId = req.user.organizationId;
+  const { bom = [] } = req.body;
+  try {
+    const product = await Product.findOneAndUpdate(
+      { _id: req.params.id, organizationId: orgId },
+      { $set: { bom } },
+      { new: true }
+    ).populate('bom.material', 'name sku unit productType');
+    if (!product) return notFound(res, 'Product not found');
+    await log({ userId: req.user._id, organizationId: orgId, action: 'PRODUCT_BOM_UPDATED', entity: 'Product', entityId: product._id });
+    return success(res, { bom: product.bom }, 'Bill of Materials saved');
+  } catch (err) {
+    logger.error(`updateBOM: ${err.message}`);
     throw err;
   }
 };
@@ -235,6 +268,12 @@ const stockIn = async (req, res) => {
 
     await log({ userId: req.user._id, organizationId: orgId, action: 'STOCK_IN', entity: 'Product', entityId: product._id, meta: { quantity, before, after: product.quantity } });
     emitToOrg(orgId.toString(), 'inventory:stock_changed', { product, movement });
+
+    // WhatsApp: notify the person who performed the stock-in
+    if (req.user.phone) {
+      sendStockReceived(req.user.phone, req.user.name || req.user.phone, product.name, Number(quantity), product.quantity)
+        .catch(e => logger.error(`WA stockReceived: ${e.message}`));
+    }
 
     return success(res, { product, movement }, `Stock increased by ${quantity}`);
   } catch (err) {

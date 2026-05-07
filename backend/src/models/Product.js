@@ -34,7 +34,18 @@ const productSchema = new mongoose.Schema(
       default: 0,
     },
     supplier: { type: String, trim: true, default: null },
-    description: { type: String, trim: true, default: null },
+    description:  { type: String, trim: true, default: null },
+    productType: {
+      type: String,
+      enum: ['raw_material', 'component', 'finished_good', 'consumable'],
+      default: 'finished_good',
+    },
+    unit: { type: String, trim: true, default: 'pcs' },
+    bom: [{
+      material:        { type: mongoose.Schema.Types.ObjectId, ref: 'Product' },
+      quantityPerUnit: { type: Number, required: true, min: 0.001 },
+      unit:            { type: String, default: 'pcs' },
+    }],
     isActive: { type: Boolean, default: true },
     organizationId: {
       type: mongoose.Schema.Types.ObjectId,

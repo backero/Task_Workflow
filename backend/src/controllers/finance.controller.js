@@ -7,6 +7,7 @@ const { success, created, notFound, badRequest } = require('../utils/response');
 const { log }         = require('../services/activityLog.service');
 const { emitToOrg }   = require('../sockets/index');
 const { generateInvoicePDF } = require('../services/pdf.service');
+const { sendInvoiceSent, sendInvoicePaid, sendInvoiceOverdue } = require('../services/whatsapp.service');
 const logger = require('../utils/logger');
 
 /* ─── Finance summary ───────────────────────────────────────────────────────── */
@@ -346,6 +347,17 @@ const updateInvoiceStatus = async (req, res) => {
 
     await log({ userId: req.user._id, organizationId: orgId, action: 'INVOICE_STATUS_CHANGED', entity: 'Invoice', entityId: updated._id, meta: { status } });
     emitToOrg(orgId.toString(), 'finance:invoice_updated', { invoice: updated });
+
+    // WhatsApp: notify customer on SENT or PAID
+    if (invoice.customer?.phone) {
+      if (status === 'SENT') {
+        sendInvoiceSent(invoice.customer.phone, invoice.customer.name, invoice.invoiceNumber, invoice.totalAmount)
+          .catch(e => logger.error(`WA invoiceSent: ${e.message}`));
+      } else if (status === 'PAID') {
+        sendInvoicePaid(invoice.customer.phone, invoice.customer.name, invoice.invoiceNumber, invoice.totalAmount)
+          .catch(e => logger.error(`WA invoicePaid: ${e.message}`));
+      }
+    }
 
     return success(res, { invoice: updated }, `Invoice marked as ${status}`);
   } catch (err) {

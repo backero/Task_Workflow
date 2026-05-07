@@ -4,6 +4,8 @@ const { success, created, notFound, badRequest, forbidden } = require('../utils/
 const { log } = require('../services/activityLog.service');
 const { emitToOrg } = require('../sockets/index');
 const { ROLE_HIERARCHY, ROLES } = require('../utils/constants');
+const { sendWelcomeEmployee } = require('../services/whatsapp.service');
+const Organization = require('../models/Organization');
 const logger = require('../utils/logger');
 
 const SAFE_SELECT = 'name phone email role department designation avatar joiningDate isActive lastLoginAt createdAt createdBy';
@@ -132,6 +134,14 @@ const createEmployee = async (req, res) => {
     await log({ userId: req.user._id, organizationId: orgId, action: 'EMPLOYEE_CREATED', entity: 'User', entityId: user._id });
     emitToOrg(orgId.toString(), 'employee:created', { employee: user });
     emitToOrg(orgId.toString(), 'dashboard:stats_updated', {});
+
+    // WhatsApp: send welcome message to the new employee
+    if (user.phone) {
+      Organization.findById(orgId).lean().then(org => {
+        sendWelcomeEmployee(user.phone, user.name || user.phone, org?.name || 'your organization', user.role)
+          .catch(e => logger.error(`WA welcome: ${e.message}`));
+      }).catch(() => {});
+    }
 
     return created(res, { employee: user }, 'Employee added successfully');
   } catch (err) {

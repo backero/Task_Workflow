@@ -2,12 +2,19 @@ require('dotenv').config();
 const http = require('http');
 const app = require('./src/app');
 const connectDB = require('./src/config/db');
-const { PORT, FRONTEND_URL } = require('./src/config/env');
+const { PORT, FRONTEND_URL, WHATSAPP_PROVIDER } = require('./src/config/env');
 const { initSocket } = require('./src/sockets/index');
 const logger = require('./src/utils/logger');
 
 const start = async () => {
   await connectDB();
+
+  // Start WhatsApp client when provider is 'local' (free, Baileys QR-based)
+  if (WHATSAPP_PROVIDER === 'local') {
+    const waClient = require('./src/services/wa-client');
+    waClient.init().catch(err => logger.error(`[WhatsApp] Startup error: ${err.message}`));
+    logger.info('[WhatsApp] Local client initializing — check terminal for QR code if first run');
+  }
 
   const httpServer = http.createServer(app);
 
