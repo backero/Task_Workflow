@@ -11,6 +11,7 @@ const path       = require('path');
 const fs         = require('fs');
 const logger     = require('../utils/logger');
 
+const IS_PROD       = process.env.NODE_ENV === 'production';
 const baileysLogger = pino({ level: 'silent' });
 const SESSION_PATH  = path.join(__dirname, '../../wa-session');
 
@@ -42,20 +43,37 @@ const _sendNow = async (phone, message) => {
   }
 };
 
-// Wipe corrupted session so Baileys can start fresh with a new QR
-const clearSession = () => {
-  try {
-    if (fs.existsSync(SESSION_PATH)) {
-      fs.rmSync(SESSION_PATH, { recursive: true, force: true });
-      logger.warn('[WhatsApp] Corrupted session cleared — will show fresh QR');
-    }
-  } catch { /* ignore */ }
+const clearSession = async () => {
+  if (IS_PROD) {
+    const { useMongoAuthState } = require('./wa-mongo-auth');
+    const { clearSession: mongoClear } = await useMongoAuthState('wa');
+    await mongoClear().catch(() => {});
+    logger.warn('[WhatsApp] MongoDB session cleared — will show fresh QR');
+  } else {
+    try {
+      if (fs.existsSync(SESSION_PATH)) {
+        fs.rmSync(SESSION_PATH, { recursive: true, force: true });
+        logger.warn('[WhatsApp] File session cleared — will show fresh QR');
+      }
+    } catch { /* ignore */ }
+  }
 };
 
 const init = async () => {
   try {
     const { version } = await fetchLatestBaileysVersion();
-    const { state, saveCreds } = await useMultiFileAuthState(SESSION_PATH);
+
+    let state, saveCreds;
+    if (IS_PROD) {
+      const { useMongoAuthState } = require('./wa-mongo-auth');
+      const mongoAuth = await useMongoAuthState('wa');
+      state      = mongoAuth.state;
+      saveCreds  = mongoAuth.saveCreds;
+    } else {
+      const fileAuth = await useMultiFileAuthState(SESSION_PATH);
+      state     = fileAuth.state;
+      saveCreds = fileAuth.saveCreds;
+    }
 
     sock = makeWASocket({
       version,
@@ -69,8 +87,11 @@ const init = async () => {
 
       if (qr) {
         latestQR = qr;
-        logger.info('[WhatsApp] New QR ready — open http://localhost:5000/api/whatsapp/qr in browser to scan');
-        qrcode.generate(qr, { small: true });
+        const qrUrl = IS_PROD
+          ? `${process.env.BACKEND_URL || ''}/api/whatsapp/qr`
+          : 'http://localhost:5000/api/whatsapp/qr';
+        logger.info(`[WhatsApp] New QR ready — open ${qrUrl} in browser to scan`);
+        if (!IS_PROD) qrcode.generate(qr, { small: true });
       }
 
       if (connection === 'open') {
@@ -89,8 +110,7 @@ const init = async () => {
 
         if (statusCode === DisconnectReason.loggedOut) {
           logger.warn('[WhatsApp] Logged out — clearing session and requesting new QR…');
-          clearSession();
-          setTimeout(init, 3000);
+          clearSession().finally(() => setTimeout(init, 3000));
         } else {
           retries++;
           const delay = Math.min(5000 * retries, 30000);
@@ -104,8 +124,7 @@ const init = async () => {
 
   } catch (err) {
     logger.error(`[WhatsApp] Init error: ${err.message}`);
-    // If session files are corrupt, wipe and retry
-    if (err.message?.includes('JSON') || err.message?.includes('parse')) {
+    if (!IS_PROD && (err.message?.includes('JSON') || err.message?.includes('parse'))) {
       clearSession();
     }
     retries++;
