@@ -5,7 +5,7 @@ const { success, created, notFound, badRequest } = require('../utils/response');
 const { emitToOrg, emitToProject, emitToUser } = require('../sockets/index');
 const { log } = require('../services/activityLog.service');
 const { queueNotification } = require('../queues/index');
-const { sendTaskAssigned }  = require('../services/whatsapp.service');
+const { sendTaskAssigned, sendTaskStatusUpdate } = require('../services/whatsapp.service');
 const logger = require('../utils/logger');
 
 const TASK_POPULATE = [
@@ -150,6 +150,16 @@ const updateTaskStatus = async (req, res) => {
     emitToProject(task.projectId.toString(), 'task:status_changed', { taskId: task._id, status, task });
     emitToOrg(req.user.organizationId.toString(), 'task:status_changed', { taskId: task._id, status, task });
     emitToOrg(req.user.organizationId.toString(), 'dashboard:stats_updated', {});
+
+    // WhatsApp notification to assignee when someone else changes the status
+    if (task.assigneeId && task.assigneeId._id.toString() !== req.user._id.toString()) {
+      const assigneePhone = task.assigneeId.phone;
+      const assigneeName  = task.assigneeId.name;
+      if (assigneePhone) {
+        sendTaskStatusUpdate(assigneePhone, assigneeName, task.title, status)
+          .catch(err => logger.error(`WA status update: ${err.message}`));
+      }
+    }
 
     await log({ userId: req.user._id, organizationId: req.user.organizationId, action: 'TASK_STATUS_CHANGED', entity: 'Task', entityId: task._id, meta: { status } });
 

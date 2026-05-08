@@ -180,6 +180,185 @@ const CompleteModal = ({ order, onClose, onConfirm }) => {
   )
 }
 
+/* ─── StockInModal ──────────────────────────────────────────────────────────── */
+
+const StockInModal = ({ products, onClose, onDone }) => {
+  const [mode, setMode]   = useState('existing') // 'existing' | 'new'
+  const [form, setForm]   = useState({ productId: '', quantity: 1, note: '' })
+  const [newP, setNewP]   = useState({ name: '', sku: '', unit: 'kg', category: 'Raw Material', supplier: '', description: '' })
+  const [busy, setBusy]   = useState(false)
+  const [err,  setErr]    = useState('')
+
+  const handleSubmit = async (e) => {
+    e.preventDefault(); setErr('')
+    if (Number(form.quantity) <= 0) { setErr('Quantity must be positive'); return }
+    if (mode === 'existing' && !form.productId) { setErr('Select a product'); return }
+    if (mode === 'new' && (!newP.name || !newP.sku)) { setErr('Name and SKU are required'); return }
+    setBusy(true)
+    try {
+      const payload = mode === 'existing'
+        ? { productId: form.productId, quantity: Number(form.quantity), note: form.note }
+        : { newProduct: newP, quantity: Number(form.quantity), note: form.note }
+      await api.post('/production/stock-in', payload)
+      onDone(); onClose()
+    } catch (ex) { setErr(ex.response?.data?.message || 'Failed') }
+    finally { setBusy(false) }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-start justify-center p-4 bg-black/50 backdrop-blur-sm overflow-y-auto">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md my-4">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 sticky top-0 bg-white rounded-t-2xl z-10">
+          <h2 className="text-lg font-semibold text-gray-900">Receive Raw Material</h2>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-2xl leading-none">×</button>
+        </div>
+        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+          {/* Mode toggle */}
+          <div className="flex gap-2">
+            {[['existing', 'Existing Product'], ['new', 'New Chemical / Material']].map(([v, l]) => (
+              <button key={v} type="button" onClick={() => setMode(v)}
+                className={`flex-1 py-2 rounded-xl text-sm font-medium border transition-colors ${mode === v ? 'bg-indigo-600 text-white border-indigo-600' : 'border-gray-200 text-gray-500 hover:bg-gray-50'}`}>
+                {l}
+              </button>
+            ))}
+          </div>
+
+          {mode === 'existing' ? (
+            <div>
+              <label className="text-xs font-medium text-gray-600 block mb-1">Select Product *</label>
+              <select className="input-field text-sm py-2.5" value={form.productId}
+                onChange={e => setForm(f => ({ ...f, productId: e.target.value }))} required>
+                <option value="">— Select —</option>
+                {products.map(p => <option key={p._id} value={p._id}>{p.name} — Stock: {p.quantity} {p.unit}</option>)}
+              </select>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-medium text-gray-600 block mb-1">Name *</label>
+                  <input className="input-field text-sm py-2" placeholder="e.g. Sulphuric Acid" value={newP.name}
+                    onChange={e => setNewP(p => ({ ...p, name: e.target.value }))} required />
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-gray-600 block mb-1">SKU *</label>
+                  <input className="input-field text-sm py-2 uppercase" placeholder="e.g. CHEM-001" value={newP.sku}
+                    onChange={e => setNewP(p => ({ ...p, sku: e.target.value }))} required />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-medium text-gray-600 block mb-1">Unit</label>
+                  <input className="input-field text-sm py-2" placeholder="kg / L / pcs" value={newP.unit}
+                    onChange={e => setNewP(p => ({ ...p, unit: e.target.value }))} />
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-gray-600 block mb-1">Category</label>
+                  <input className="input-field text-sm py-2" placeholder="Raw Material" value={newP.category}
+                    onChange={e => setNewP(p => ({ ...p, category: e.target.value }))} />
+                </div>
+              </div>
+              <div>
+                <label className="text-xs font-medium text-gray-600 block mb-1">Supplier</label>
+                <input className="input-field text-sm py-2" placeholder="Supplier name" value={newP.supplier}
+                  onChange={e => setNewP(p => ({ ...p, supplier: e.target.value }))} />
+              </div>
+            </div>
+          )}
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs font-medium text-gray-600 block mb-1">Quantity Received *</label>
+              <input type="number" min="0.01" step="any" className="input-field text-sm py-2.5" value={form.quantity}
+                onChange={e => setForm(f => ({ ...f, quantity: e.target.value }))} required />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-gray-600 block mb-1">Note</label>
+              <input className="input-field text-sm py-2.5" placeholder="Batch #, supplier ref…" value={form.note}
+                onChange={e => setForm(f => ({ ...f, note: e.target.value }))} />
+            </div>
+          </div>
+
+          {err && <p className="text-sm text-red-500 bg-red-50 rounded-lg px-3 py-2">{err}</p>}
+          <div className="flex gap-3 pt-1">
+            <button type="button" onClick={onClose} className="flex-1 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-600 hover:bg-gray-50">Cancel</button>
+            <button type="submit" disabled={busy} className="flex-1 py-2.5 rounded-xl bg-green-600 text-white text-sm font-medium hover:bg-green-700 disabled:opacity-50">
+              {busy ? 'Saving…' : 'Add to Inventory'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  )
+}
+
+/* ─── UseMaterialModal ──────────────────────────────────────────────────────── */
+
+const UseMaterialModal = ({ products, onClose, onDone }) => {
+  const [form, setForm] = useState({ productId: '', quantity: 1, note: '' })
+  const [busy, setBusy] = useState(false)
+  const [err,  setErr]  = useState('')
+
+  const selected = products.find(p => p._id === form.productId)
+
+  const handleSubmit = async (e) => {
+    e.preventDefault(); setErr('')
+    if (!form.productId) { setErr('Select a material'); return }
+    if (Number(form.quantity) <= 0) { setErr('Quantity must be positive'); return }
+    if (selected && Number(form.quantity) > selected.quantity) {
+      setErr(`Only ${selected.quantity} ${selected.unit} available`); return
+    }
+    setBusy(true)
+    try {
+      await api.post('/production/use-material', { ...form, quantity: Number(form.quantity) })
+      onDone(); onClose()
+    } catch (ex) { setErr(ex.response?.data?.message || 'Failed') }
+    finally { setBusy(false) }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6">
+        <div className="flex items-center justify-between mb-5">
+          <h2 className="text-lg font-semibold text-gray-900">Log Material Usage</h2>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-2xl leading-none">×</button>
+        </div>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="text-xs font-medium text-gray-600 block mb-1">Material *</label>
+            <select className="input-field text-sm py-2.5" value={form.productId}
+              onChange={e => setForm(f => ({ ...f, productId: e.target.value }))} required>
+              <option value="">Select material</option>
+              {products.map(p => <option key={p._id} value={p._id}>{p.name} — Stock: {p.quantity} {p.unit}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="text-xs font-medium text-gray-600 block mb-1">Quantity Used *</label>
+            <input type="number" min="0.01" step="any" className="input-field text-sm py-2.5" value={form.quantity}
+              onChange={e => setForm(f => ({ ...f, quantity: e.target.value }))} required autoFocus />
+            {selected && (
+              <p className="text-xs text-gray-400 mt-1">Available: {selected.quantity} {selected.unit}</p>
+            )}
+          </div>
+          <div>
+            <label className="text-xs font-medium text-gray-600 block mb-1">Note</label>
+            <input className="input-field text-sm py-2.5" placeholder="Reason, batch ref…" value={form.note}
+              onChange={e => setForm(f => ({ ...f, note: e.target.value }))} />
+          </div>
+          {err && <p className="text-sm text-red-500 bg-red-50 rounded-lg px-3 py-2">{err}</p>}
+          <div className="flex gap-3">
+            <button type="button" onClick={onClose} className="flex-1 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-600 hover:bg-gray-50">Cancel</button>
+            <button type="submit" disabled={busy}
+              className="flex-1 py-2.5 rounded-xl bg-orange-500 text-white text-sm font-medium hover:bg-orange-600 disabled:opacity-50">
+              {busy ? 'Deducting…' : 'Log Usage'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  )
+}
+
 /* ─── QualityTestModal ──────────────────────────────────────────────────────── */
 
 const QualityTestModal = ({ products, onClose, onDone }) => {
@@ -338,7 +517,15 @@ export default function Production() {
           <p className="text-sm text-gray-400 mt-0.5">Manage production orders, materials, and quality tests</p>
         </div>
         {canWrite && (
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
+            <button onClick={() => setModal('stockIn')}
+              className="border border-green-200 text-green-700 bg-green-50 px-3 py-2.5 rounded-xl text-sm font-medium hover:bg-green-100 transition-colors">
+              + Receive Material
+            </button>
+            <button onClick={() => setModal('useMaterial')}
+              className="border border-orange-200 text-orange-700 bg-orange-50 px-3 py-2.5 rounded-xl text-sm font-medium hover:bg-orange-100 transition-colors">
+              Log Usage
+            </button>
             <button onClick={() => setModal('qualityTest')}
               className="border border-amber-200 text-amber-700 bg-amber-50 px-3 py-2.5 rounded-xl text-sm font-medium hover:bg-amber-100 transition-colors">
               Quality Test
@@ -504,6 +691,22 @@ export default function Production() {
 
       {modal === 'qualityTest' && (
         <QualityTestModal
+          products={products}
+          onClose={() => setModal(null)}
+          onDone={() => { fetchProducts() }}
+        />
+      )}
+
+      {modal === 'stockIn' && (
+        <StockInModal
+          products={products}
+          onClose={() => setModal(null)}
+          onDone={() => { fetchProducts() }}
+        />
+      )}
+
+      {modal === 'useMaterial' && (
+        <UseMaterialModal
           products={products}
           onClose={() => setModal(null)}
           onDone={() => { fetchProducts() }}

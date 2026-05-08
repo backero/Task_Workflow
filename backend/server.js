@@ -4,6 +4,7 @@ const app = require('./src/app');
 const connectDB = require('./src/config/db');
 const { PORT, FRONTEND_URL, WHATSAPP_PROVIDER } = require('./src/config/env');
 const { initSocket } = require('./src/sockets/index');
+const { startReminderJobs } = require('./src/jobs/reminderJob');
 const logger = require('./src/utils/logger');
 
 const start = async () => {
@@ -20,6 +21,8 @@ const start = async () => {
 
   initSocket(httpServer, FRONTEND_URL);
   logger.info('Socket.io initialized');
+
+  startReminderJobs();
 
   httpServer.listen(PORT, () => {
     logger.info(`Backero API server running on http://localhost:${PORT}`);

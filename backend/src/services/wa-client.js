@@ -14,9 +14,10 @@ const logger     = require('../utils/logger');
 const baileysLogger = pino({ level: 'silent' });
 const SESSION_PATH  = path.join(__dirname, '../../wa-session');
 
-let sock    = null;
-let ready   = false;
-let retries = 0;
+let sock      = null;
+let ready     = false;
+let retries   = 0;
+let latestQR  = null;
 
 // Buffer messages that arrive before the connection is open
 const pendingQueue = [];
@@ -67,16 +68,15 @@ const init = async () => {
       const { connection, lastDisconnect, qr } = update;
 
       if (qr) {
-        logger.info('\n========================================');
-        logger.info('  SCAN THIS QR CODE WITH WHATSAPP');
-        logger.info('  Phone → Linked Devices → Link a Device');
-        logger.info('========================================\n');
+        latestQR = qr;
+        logger.info('[WhatsApp] New QR ready — open http://localhost:5000/api/whatsapp/qr in browser to scan');
         qrcode.generate(qr, { small: true });
       }
 
       if (connection === 'open') {
-        ready   = true;
-        retries = 0;
+        ready    = true;
+        retries  = 0;
+        latestQR = null;
         logger.info('[WhatsApp] Connected — flushing any queued messages…');
         flushQueue();
       }
@@ -140,6 +140,22 @@ const send = async (phone, message) => {
   });
 };
 
-const isReady = () => ready;
+const sendFile = async (phone, buffer, filename, mimetype) => {
+  if (!phone) return { success: false, error: 'no_phone' };
+  if (!ready || !sock) return { success: false, error: 'not_connected' };
+  try {
+    const number = phone.replace(/\D/g, '');
+    const jid    = `${number}@s.whatsapp.net`;
+    await sock.sendMessage(jid, { document: buffer, mimetype, fileName: filename });
+    logger.info(`[WhatsApp] File "${filename}" sent to ${phone}`);
+    return { success: true };
+  } catch (err) {
+    logger.error(`[WhatsApp] Failed to send file to ${phone}: ${err.message}`);
+    return { success: false, error: err.message };
+  }
+};
 
-module.exports = { init, send, isReady };
+const isReady     = () => ready;
+const getLatestQR = () => latestQR;
+
+module.exports = { init, send, sendFile, isReady, getLatestQR };

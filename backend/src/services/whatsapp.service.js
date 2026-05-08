@@ -250,6 +250,26 @@ const sendWelcomeEmployee = (phone, employeeName, orgName, role) => {
   );
 };
 
+/* ─── Daily production report ───────────────────────────────────────────────── */
+
+const sendDailyProductionReport = async (phone, name, reportDate, textSummary, pdfBuffer) => {
+  if (!phone) return;
+  // Send text first
+  await dispatch(
+    phone, null, [],
+    `Hi ${name || 'Admin'} 👋\n\n${textSummary}\n\n— Backero Production`
+  ).catch(err => logger.error(`[WA:DailyReport] text error: ${err.message}`));
+
+  // Send PDF if we have a buffer and provider is local
+  if (pdfBuffer && WHATSAPP_PROVIDER === 'local') {
+    const waClient = require('./wa-client');
+    if (waClient.isReady()) {
+      await waClient.sendFile(phone, pdfBuffer, `production-report-${reportDate}.pdf`, 'application/pdf')
+        .catch(err => logger.error(`[WA:DailyReport] pdf error: ${err.message}`));
+    }
+  }
+};
+
 module.exports = {
   sendTaskAssigned,
   sendTaskStatusUpdate,
@@ -262,4 +282,5 @@ module.exports = {
   sendProductionStarted,
   sendProductionCompleted,
   sendWelcomeEmployee,
+  sendDailyProductionReport,
 };

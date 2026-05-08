@@ -265,4 +265,105 @@ const recordQualityTest = async (req, res) => {
   }
 };
 
-module.exports = { listOrders, getOrder, getStats, createOrder, startOrder, completeOrder, cancelOrder, recordQualityTest };
+/* ─── Stock-In Raw Material (from production floor) ─────────────────────────── */
+
+const stockInRawMaterial = async (req, res) => {
+  const orgId = req.user.organizationId;
+  const { productId, newProduct, quantity, note } = req.body;
+  try {
+    if (!quantity || Number(quantity) <= 0) return badRequest(res, 'Quantity must be positive');
+
+    let product;
+
+    if (productId) {
+      // Add stock to existing product
+      product = await Product.findOne({ _id: productId, organizationId: orgId });
+      if (!product) return notFound(res, 'Product not found');
+    } else if (newProduct) {
+      // Create new raw material / chemical in inventory
+      const { name, sku, unit = 'kg', category = 'Raw Material', supplier, description } = newProduct;
+      if (!name || !sku) return badRequest(res, 'Product name and SKU are required');
+
+      const existing = await Product.findOne({ sku: sku.toUpperCase(), organizationId: orgId });
+      if (existing) return badRequest(res, `SKU "${sku.toUpperCase()}" already exists`);
+
+      product = await Product.create({
+        name, sku: sku.toUpperCase(), unit, category,
+        supplier: supplier || null,
+        description: description || null,
+        productType: 'raw_material',
+        quantity: 0,
+        organizationId: orgId,
+        createdBy: req.user._id,
+      });
+    } else {
+      return badRequest(res, 'Provide productId or newProduct details');
+    }
+
+    const before = product.quantity;
+    const after  = before + Number(quantity);
+    await Product.findByIdAndUpdate(product._id, { $set: { quantity: after } });
+    await StockMovement.create({
+      productId: product._id, organizationId: orgId,
+      type: 'IN', quantity: Number(quantity),
+      quantityBefore: before, quantityAfter: after,
+      note: note || `Stock received via production floor`,
+      performedBy: req.user._id,
+    });
+
+    emitToOrg(orgId.toString(), 'inventory:stock_updated', {});
+    await log({ userId: req.user._id, organizationId: orgId, action: 'PRODUCTION_STOCK_IN', entity: 'Product', entityId: product._id });
+
+    const updated = await Product.findById(product._id).lean();
+    return success(res, { product: updated }, `${quantity} ${product.unit} of "${product.name}" added to inventory`);
+  } catch (err) {
+    logger.error(`stockInRawMaterial: ${err.message}`);
+    throw err;
+  }
+};
+
+/* ─── Ad-hoc Material Usage ─────────────────────────────────────────────────── */
+
+const adHocMaterialUsage = async (req, res) => {
+  const orgId = req.user.organizationId;
+  const { productId, quantity, note } = req.body;
+  try {
+    if (!productId) return badRequest(res, 'productId is required');
+    if (!quantity || Number(quantity) <= 0) return badRequest(res, 'Quantity must be positive');
+
+    const product = await Product.findOne({ _id: productId, organizationId: orgId });
+    if (!product) return notFound(res, 'Product not found');
+    if (product.quantity < Number(quantity)) {
+      return badRequest(res, `Insufficient stock. Available: ${product.quantity} ${product.unit}`);
+    }
+
+    const before = product.quantity;
+    const after  = before - Number(quantity);
+    await Product.findByIdAndUpdate(productId, { $set: { quantity: after } });
+    await StockMovement.create({
+      productId, organizationId: orgId,
+      type: 'PRODUCTION_USE', quantity: Number(quantity),
+      quantityBefore: before, quantityAfter: after,
+      note: note || 'Ad-hoc usage from production floor',
+      performedBy: req.user._id,
+    });
+
+    emitToOrg(orgId.toString(), 'inventory:stock_updated', {});
+    await log({ userId: req.user._id, organizationId: orgId, action: 'PRODUCTION_ADHOC_USAGE', entity: 'Product', entityId: productId });
+
+    // Low stock check
+    if (after <= product.minStockThreshold) {
+      emitToOrg(orgId.toString(), 'inventory:low_stock_alert', {
+        productId: product._id, name: product.name, quantity: after, minStockThreshold: product.minStockThreshold,
+      });
+    }
+
+    const updated = await Product.findById(productId).lean();
+    return success(res, { product: updated }, `${quantity} ${product.unit} of "${product.name}" deducted from inventory`);
+  } catch (err) {
+    logger.error(`adHocMaterialUsage: ${err.message}`);
+    throw err;
+  }
+};
+
+module.exports = { listOrders, getOrder, getStats, createOrder, startOrder, completeOrder, cancelOrder, recordQualityTest, stockInRawMaterial, adHocMaterialUsage };
