@@ -98,6 +98,18 @@ const taskSchema = new mongoose.Schema({
     nextRunDate: Date,
   },
 
+  // ── Workflow / Hierarchy fields ────────────────────────────────────────────
+  level: { type: Number, default: 0, index: true },           // 0 = root main task
+  path:  { type: String, index: true },                       // materialized path: "rootId/parentId/thisId"
+  autoProgress: { type: Boolean, default: false },             // compute progress from children
+  completionLocked: { type: Boolean, default: false },         // cannot be completed yet
+  completionLockReasons: [{ type: String }],
+  workflowData: {
+    x:         { type: Number },
+    y:         { type: Number },
+    collapsed: { type: Boolean, default: false },
+  },
+
   createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   updatedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
 }, { timestamps: true });

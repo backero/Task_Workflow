@@ -31,7 +31,8 @@ const departmentRoutes = require('./src/routes/department.routes');
 const organizationRoutes = require('./src/routes/organization.routes');
 const marketingRoutes = require('./src/routes/marketing.routes');
 const marketplaceRoutes = require('./src/routes/marketplace.routes');
-const whatsappRoutes = require('./src/routes/whatsapp.routes');
+const whatsappRoutes  = require('./src/routes/whatsapp.routes');
+const workflowRoutes  = require('./src/routes/workflow.routes');
 
 const app = express();
 const server = http.createServer(app);
@@ -106,7 +107,8 @@ app.use('/api/departments', departmentRoutes);
 app.use('/api/organizations', organizationRoutes);
 app.use('/api/marketing', marketingRoutes);
 app.use('/api/marketplace', marketplaceRoutes);
-app.use('/api/whatsapp', whatsappRoutes);
+app.use('/api/whatsapp',  whatsappRoutes);
+app.use('/api/workflow', workflowRoutes);
 
 // 404 handler
 app.use('*', (req, res) => {
@@ -120,8 +122,10 @@ app.use(errorHandler);
 if (process.env.NODE_ENV !== 'test') {
   const { startAutomationEngine } = require('./src/services/automation.service');
   const { initWhatsApp } = require('./src/services/whatsapp.service');
+  const { setSocketIO } = require('./src/services/workflowEngine.service');
   startAutomationEngine(io);
-  initWhatsApp(io); // starts async — won't block server boot
+  initWhatsApp(io);
+  setSocketIO(io);
 }
 
 const PORT = process.env.PORT || 5000;

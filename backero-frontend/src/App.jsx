@@ -59,6 +59,9 @@ import DepartmentAnalytics from './pages/management/DepartmentAnalytics';
 import Settings from './pages/settings/Settings';
 import WhatsAppSetup from './pages/settings/WhatsAppSetup';
 
+// Workflow
+import WorkflowView from './pages/workflow/WorkflowView';
+
 const SmartDashboard = () => {
   const { user } = useAuthStore();
   const role = user?.role;
@@ -147,6 +150,9 @@ export default function App() {
           <Route path="/management/employees" element={<PermissionRoute module="management"><EmployeeMonitoring /></PermissionRoute>} />
           <Route path="/management/team" element={<PermissionRoute module="management"><TeamManagement /></PermissionRoute>} />
           <Route path="/management/departments" element={<PermissionRoute module="management"><DepartmentAnalytics /></PermissionRoute>} />
+
+          {/* Workflow */}
+          <Route path="/workflow/:taskId" element={<WorkflowView />} />
 
           {/* Settings */}
           <Route path="/settings" element={<Settings />} />

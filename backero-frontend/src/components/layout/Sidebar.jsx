@@ -93,7 +93,13 @@ export default function Sidebar({ collapsed, onToggle }) {
   });
 
   // Work Management
-  const workItems = [{ label: 'Tasks', icon: ClipboardDocumentListIcon, children: taskChildren }];
+  const workItems = [
+    { label: 'Tasks', icon: ClipboardDocumentListIcon, children: taskChildren },
+  ];
+  // Workflow builder — manager and above
+  if (isManager) {
+    workItems.push({ label: 'Workflow Builder', to: '/workflow', icon: BoltIcon, color: 'text-indigo-600' });
+  }
   if (canCRM) {
     workItems.push({
       label: 'CRM & Sales', icon: UsersIcon, children: [
