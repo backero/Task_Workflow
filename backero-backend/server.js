@@ -70,25 +70,16 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
 }));
 
-// Rate limiting — generous for authenticated dashboard polling
-const limiter = rateLimit({
-  windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000,
-  max: parseInt(process.env.RATE_LIMIT_MAX) || 2000,
-  message: { success: false, message: 'Too many requests, please try again later.' },
+// Rate limiting — only applied to unauthenticated auth routes (login/register)
+// Authenticated API requests are NOT rate-limited at app level; JWT already
+// ensures only valid users reach those endpoints.
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 min
+  max: 30,
+  message: { success: false, message: 'Too many authentication attempts. Please try again later.' },
   standardHeaders: true,
   legacyHeaders: false,
-  skip: (req) => {
-    // Skip rate limiting for authenticated requests (they already have a valid JWT)
-    return !!req.headers.authorization;
-  },
-});
-app.use('/api/', limiter);
-
-// Stricter limit for auth routes only (unauthenticated)
-const authLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 30,
-  message: { success: false, message: 'Too many authentication attempts.' },
+  skip: (req) => !!req.headers.authorization, // skip if already logged in
 });
 app.use('/api/auth/', authLimiter);
 
