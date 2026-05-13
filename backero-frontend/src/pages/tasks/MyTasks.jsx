@@ -1,9 +1,10 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   FunnelIcon, ExclamationTriangleIcon, XMarkIcon, PaperAirplaneIcon,
-  CheckCircleIcon, ClockIcon, ArrowPathIcon, ChatBubbleLeftIcon, ArrowUturnLeftIcon, PlayIcon,
+  CheckCircleIcon, ClockIcon, ArrowPathIcon, ChatBubbleLeftIcon, ArrowUturnLeftIcon, PlayIcon, BoltIcon,
 } from '@heroicons/react/24/outline';
 import api from '../../api/axios';
 import { useAuthStore } from '../../store/useAuthStore';
@@ -24,6 +25,7 @@ const PRIORITY_TEXT   = { critical: 'text-red-600', high: 'text-orange-500', med
 function TaskDrawer({ task: initialTask, onClose, onUpdated }) {
   const { user } = useAuthStore();
   const qc = useQueryClient();
+  const navigate = useNavigate();
   const bottomRef = useRef();
   const [updateText, setUpdateText] = useState('');
   const [progress, setProgress] = useState(initialTask.progress || 0);
@@ -128,9 +130,19 @@ function TaskDrawer({ task: initialTask, onClose, onUpdated }) {
               )}
             </p>
           </div>
-          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 flex-shrink-0">
-            <XMarkIcon className="w-5 h-5 text-gray-500" />
-          </button>
+          <div className="flex items-center gap-1 flex-shrink-0">
+            <button
+              onClick={() => { onClose(); navigate(`/workflow/${initialTask._id}`); }}
+              title="Open Workflow"
+              className="flex items-center gap-1 px-2 py-1.5 text-xs font-medium text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 rounded-lg transition-colors"
+            >
+              <BoltIcon className="w-4 h-4" />
+              Workflow
+            </button>
+            <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800">
+              <XMarkIcon className="w-5 h-5 text-gray-500" />
+            </button>
+          </div>
         </div>
 
         {/* Progress bar */}

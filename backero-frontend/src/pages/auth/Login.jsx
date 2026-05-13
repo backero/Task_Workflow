@@ -18,7 +18,7 @@ export default function Login() {
   const otpRefs = useRef([]);
   const { setAuth } = useAuthStore();
   const navigate = useNavigate();
-
+ 
   useEffect(() => {
     if (resendTimer <= 0) return;
     const t = setTimeout(() => setResendTimer((r) => r - 1), 1000);
@@ -47,7 +47,11 @@ export default function Login() {
         setTimeout(() => otpRefs.current[0]?.focus(), 100);
       }
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to send OTP');
+      if (!err.response) {
+        toast.error('Cannot reach server. Make sure the backend is running on port 5000.');
+      } else {
+        toast.error(err.response?.data?.message || 'Failed to send OTP');
+      }
     } finally {
       setLoading(false);
     }
@@ -104,7 +108,11 @@ export default function Login() {
         setTimeout(() => otpRefs.current[0]?.focus(), 50);
       }
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to resend OTP');
+      if (!err.response) {
+        toast.error('Cannot reach server. Make sure the backend is running on port 5000.');
+      } else {
+        toast.error(err.response?.data?.message || 'Failed to resend OTP');
+      }
     } finally {
       setLoading(false);
     }

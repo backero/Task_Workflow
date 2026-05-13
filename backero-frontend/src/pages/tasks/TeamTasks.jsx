@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { PlusIcon } from '@heroicons/react/24/outline';
+import { PlusIcon, BoltIcon } from '@heroicons/react/24/outline';
+import { useNavigate } from 'react-router-dom';
 import api from '../../api/axios';
 import { useAuthStore } from '../../store/useAuthStore';
 import { format, isPast } from 'date-fns';
@@ -20,6 +21,7 @@ export default function TeamTasks() {
   const [status, setStatus] = useState('');
   const { isManagerOrAbove } = useAuthStore();
   const qc = useQueryClient();
+  const navigate = useNavigate();
 
   const { data, isLoading } = useQuery({
     queryKey: ['tasks', 'team', dept, status],
@@ -62,6 +64,7 @@ export default function TeamTasks() {
                 <th className="text-center py-3 px-4 text-gray-500 font-medium">Priority</th>
                 <th className="text-center py-3 px-4 text-gray-500 font-medium">Progress</th>
                 <th className="text-right py-3 px-4 text-gray-500 font-medium">Due Date</th>
+                <th className="py-3 px-4"></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
@@ -96,6 +99,16 @@ export default function TeamTasks() {
                     </td>
                     <td className={clsx('py-3 px-4 text-right text-xs', isOverdue ? 'text-red-600 font-medium' : 'text-gray-500')}>
                       {due ? format(due, 'dd MMM yyyy') : '—'}
+                    </td>
+                    <td className="py-3 px-4 text-right">
+                      <button
+                        onClick={() => navigate(`/workflow/${task._id}`)}
+                        title="Open Workflow"
+                        className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 rounded-lg transition-colors"
+                      >
+                        <BoltIcon className="w-3.5 h-3.5" />
+                        Workflow
+                      </button>
                     </td>
                   </tr>
                 );
