@@ -1,0 +1,482 @@
+import React, { useState } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useForm } from 'react-hook-form';
+import {
+  ArrowLeftIcon, PhoneIcon, EnvelopeIcon, BuildingOfficeIcon,
+  MapPinIcon, CurrencyRupeeIcon, UserIcon, CalendarDaysIcon,
+  ClockIcon, CheckCircleIcon, PencilIcon, XMarkIcon, ChatBubbleLeftIcon,
+} from '@heroicons/react/24/outline';
+import api from '../../api/axios';
+import { clsx } from 'clsx';
+import { format } from 'date-fns';
+import toast from 'react-hot-toast';
+
+const PIPELINE_STAGES = ['New Lead', 'Contacted', 'Interested', 'Follow-up', 'Proposal Sent', 'Negotiation', 'Won', 'Lost'];
+
+const STAGE_BADGE = {
+  'New Lead': 'bg-gray-100 text-gray-700',
+  'Contacted': 'bg-blue-100 text-blue-700',
+  'Interested': 'bg-indigo-100 text-indigo-700',
+  'Follow-up': 'bg-yellow-100 text-yellow-700',
+  'Proposal Sent': 'bg-orange-100 text-orange-700',
+  'Negotiation': 'bg-purple-100 text-purple-700',
+  'Won': 'bg-green-100 text-green-700',
+  'Lost': 'bg-red-100 text-red-700',
+};
+
+const FOLLOWUP_TYPES = ['call', 'whatsapp', 'meeting', 'email', 'demo', 'other'];
+const FOLLOWUP_ICONS = { call: '📞', whatsapp: '💬', meeting: '🤝', email: '✉️', demo: '🖥️', other: '📝' };
+
+export default function LeadDetails() {
+  const { id } = useParams();
+  const navigate = useNavigate();
+  const qc = useQueryClient();
+  const [editMode, setEditMode] = useState(false);
+
+  const { register: regFollowUp, handleSubmit: handleFollowUpSubmit, reset: resetFollowUp, formState: { errors: fuErrors } } = useForm();
+  const { register: regEdit, handleSubmit: handleEditSubmit, reset: resetEdit } = useForm();
+
+  const { data: lead, isLoading } = useQuery({
+    queryKey: ['crm', 'lead', id],
+    queryFn: () => api.get(`/crm/leads/${id}`).then(r => r.data.lead),
+  });
+
+  const { data: usersData } = useQuery({
+    queryKey: ['users'],
+    queryFn: () => api.get('/users?limit=100').then(r => r.data),
+  });
+
+  const statusMutation = useMutation({
+    mutationFn: (status) => api.put(`/crm/leads/${id}`, { status }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['crm', 'lead', id] });
+      qc.invalidateQueries({ queryKey: ['crm'] });
+      toast.success('Stage updated');
+    },
+  });
+
+  const followUpMutation = useMutation({
+    mutationFn: (data) => api.post(`/crm/leads/${id}/followup`, data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['crm', 'lead', id] });
+      qc.invalidateQueries({ queryKey: ['crm'] });
+      toast.success('Follow-up logged');
+      resetFollowUp();
+    },
+    onError: () => toast.error('Failed to save follow-up'),
+  });
+
+  const editMutation = useMutation({
+    mutationFn: (data) => api.put(`/crm/leads/${id}`, data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['crm', 'lead', id] });
+      toast.success('Lead updated');
+      setEditMode(false);
+    },
+    onError: () => toast.error('Failed to update lead'),
+  });
+
+  const onSubmitFollowUp = (data) => {
+    followUpMutation.mutate({
+      scheduledAt: data.scheduledAt || new Date().toISOString(),
+      type: data.type || 'call',
+      notes: data.notes || '',
+      outcome: data.notes || '',
+      nextAction: '',
+    });
+    if (data.nextFollowUpAt) {
+      api.put(`/crm/leads/${id}`, { nextFollowUpAt: data.nextFollowUpAt }).then(() => {
+        qc.invalidateQueries({ queryKey: ['crm', 'lead', id] });
+      }).catch(() => {});
+    }
+  };
+
+  const onSubmitEdit = (data) => {
+    editMutation.mutate({
+      name: data.name,
+      email: data.email,
+      phone: data.phone,
+      company: data.company,
+      city: data.city,
+      state: data.state,
+      priority: data.priority,
+      estimatedValue: data.estimatedValue ? Number(data.estimatedValue) : 0,
+      notes: data.notes,
+      assignedTo: data.assignedTo || undefined,
+    });
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex justify-center py-20">
+        <div className="w-8 h-8 border-2 border-brand-500 border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  if (!lead) {
+    return (
+      <div className="text-center py-20">
+        <p className="text-gray-500">Lead not found</p>
+        <button onClick={() => navigate('/crm/pipeline')} className="btn-secondary mt-4">Back to Pipeline</button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6 max-w-4xl mx-auto">
+      {/* Back + header */}
+      <div className="flex items-start gap-4">
+        <button
+          onClick={() => navigate('/crm/pipeline')}
+          className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 flex-shrink-0 mt-1"
+        >
+          <ArrowLeftIcon className="w-5 h-5 text-gray-500" />
+        </button>
+        <div className="flex-1">
+          <div className="flex items-center gap-3 flex-wrap">
+            <h1 className="page-title mb-0">{lead.name}</h1>
+            <span className={clsx('text-sm px-3 py-1 rounded-full font-medium', STAGE_BADGE[lead.status] || 'bg-gray-100 text-gray-700')}>
+              {lead.status}
+            </span>
+            <button
+              onClick={() => { setEditMode(true); resetEdit(lead); }}
+              className="btn-secondary gap-1.5 text-sm"
+            >
+              <PencilIcon className="w-4 h-4" /> Edit
+            </button>
+          </div>
+          <p className="text-sm text-gray-500 mt-1">
+            Added {format(new Date(lead.createdAt), 'dd MMM yyyy')}
+            {lead.source && ` • ${lead.source}`}
+          </p>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Left column: Info + pipeline */}
+        <div className="lg:col-span-2 space-y-6">
+
+          {/* Pipeline stage mover */}
+          <div className="card p-5">
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Pipeline Stage</p>
+            <div className="flex flex-wrap gap-2">
+              {PIPELINE_STAGES.map((stage, idx) => (
+                <button
+                  key={stage}
+                  onClick={() => statusMutation.mutate(stage)}
+                  disabled={statusMutation.isPending}
+                  className={clsx(
+                    'text-sm px-3 py-1.5 rounded-full font-medium transition-all border-2 flex items-center gap-1.5',
+                    lead.status === stage
+                      ? 'border-brand-500 ' + STAGE_BADGE[stage] + ' ring-2 ring-brand-200 ring-offset-1'
+                      : 'border-transparent ' + (STAGE_BADGE[stage] || 'bg-gray-100 text-gray-700') + ' opacity-60 hover:opacity-100 hover:border-gray-300'
+                  )}
+                >
+                  {lead.status === stage && <CheckCircleIcon className="w-3.5 h-3.5" />}
+                  {stage}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Contact details */}
+          <div className="card p-5">
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-4">Contact Details</p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <p className="text-xs text-gray-400 mb-1">Phone</p>
+                <div className="flex items-center gap-2">
+                  <a href={`tel:${lead.phone}`} className="flex items-center gap-2 text-sm font-medium text-gray-900 dark:text-white hover:text-green-600 transition-colors">
+                    <PhoneIcon className="w-4 h-4 text-gray-400" />
+                    {lead.phone}
+                  </a>
+                  <a
+                    href={`https://wa.me/91${lead.phone?.replace(/\D/g, '').slice(-10)}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-xs text-green-600 hover:text-green-700 flex items-center gap-1"
+                  >
+                    <ChatBubbleLeftIcon className="w-3.5 h-3.5" /> WA
+                  </a>
+                </div>
+              </div>
+
+              {lead.email && (
+                <div>
+                  <p className="text-xs text-gray-400 mb-1">Email</p>
+                  <a href={`mailto:${lead.email}`} className="flex items-center gap-2 text-sm font-medium text-gray-900 dark:text-white hover:text-brand-600 transition-colors">
+                    <EnvelopeIcon className="w-4 h-4 text-gray-400" />
+                    {lead.email}
+                  </a>
+                </div>
+              )}
+
+              {lead.company && (
+                <div>
+                  <p className="text-xs text-gray-400 mb-1">Company</p>
+                  <div className="flex items-center gap-2 text-sm font-medium text-gray-900 dark:text-white">
+                    <BuildingOfficeIcon className="w-4 h-4 text-gray-400" />
+                    {lead.company}
+                    {lead.designation && <span className="text-gray-400 font-normal">({lead.designation})</span>}
+                  </div>
+                </div>
+              )}
+
+              {(lead.city || lead.state) && (
+                <div>
+                  <p className="text-xs text-gray-400 mb-1">Location</p>
+                  <div className="flex items-center gap-2 text-sm font-medium text-gray-900 dark:text-white">
+                    <MapPinIcon className="w-4 h-4 text-gray-400" />
+                    {[lead.city, lead.state].filter(Boolean).join(', ')}
+                  </div>
+                </div>
+              )}
+
+              <div>
+                <p className="text-xs text-gray-400 mb-1">Priority</p>
+                <span className={clsx(
+                  'text-xs px-2 py-1 rounded-full font-medium',
+                  lead.priority === 'critical' ? 'bg-red-100 text-red-700' :
+                  lead.priority === 'high' ? 'bg-orange-100 text-orange-700' :
+                  lead.priority === 'medium' ? 'bg-yellow-100 text-yellow-700' : 'bg-gray-100 text-gray-600'
+                )}>
+                  {lead.priority}
+                </span>
+              </div>
+
+              {lead.estimatedValue > 0 && (
+                <div>
+                  <p className="text-xs text-gray-400 mb-1">Estimated Value</p>
+                  <div className="flex items-center gap-1 text-sm font-semibold text-green-600">
+                    <CurrencyRupeeIcon className="w-4 h-4" />
+                    {lead.estimatedValue.toLocaleString('en-IN')}
+                  </div>
+                </div>
+              )}
+
+              {lead.assignedTo && (
+                <div>
+                  <p className="text-xs text-gray-400 mb-1">Assigned To</p>
+                  <div className="flex items-center gap-2">
+                    <div className="w-6 h-6 rounded-full bg-brand-100 flex items-center justify-center text-xs font-bold text-brand-700">
+                      {lead.assignedTo.firstName?.[0]}
+                    </div>
+                    <span className="text-sm font-medium text-gray-900 dark:text-white">
+                      {lead.assignedTo.firstName} {lead.assignedTo.lastName}
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              {lead.nextFollowUpAt && (
+                <div>
+                  <p className="text-xs text-gray-400 mb-1">Next Follow-Up</p>
+                  <div className="flex items-center gap-2 text-sm font-medium text-orange-600">
+                    <CalendarDaysIcon className="w-4 h-4" />
+                    {format(new Date(lead.nextFollowUpAt), 'dd MMM yyyy, h:mm a')}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {lead.notes && (
+              <div className="mt-4 pt-4 border-t border-gray-100 dark:border-gray-800">
+                <p className="text-xs text-gray-400 mb-1">Notes</p>
+                <p className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap">{lead.notes}</p>
+              </div>
+            )}
+          </div>
+
+          {/* Log Follow-Up */}
+          <div className="card p-5">
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-4">Log Follow-Up</p>
+            <form onSubmit={handleFollowUpSubmit(onSubmitFollowUp)} className="space-y-4">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="label">Type</label>
+                  <select {...regFollowUp('type')} className="input">
+                    {FOLLOWUP_TYPES.map(t => (
+                      <option key={t} value={t}>{FOLLOWUP_ICONS[t]} {t.charAt(0).toUpperCase() + t.slice(1)}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="label">Contact Date & Time</label>
+                  <input
+                    {...regFollowUp('scheduledAt')}
+                    type="datetime-local"
+                    defaultValue={new Date().toISOString().slice(0, 16)}
+                    className="input"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="label">What happened / Notes *</label>
+                <textarea
+                  {...regFollowUp('notes', { required: 'Add a note about this interaction' })}
+                  rows={3}
+                  className="input resize-none"
+                  placeholder="e.g. Spoke with Rajesh. He is interested in the Enterprise plan. Will share pricing sheet by tomorrow..."
+                />
+                {fuErrors.notes && <p className="text-red-500 text-xs mt-1">{fuErrors.notes.message}</p>}
+              </div>
+
+              <div>
+                <label className="label">Schedule Next Follow-Up (optional)</label>
+                <input {...regFollowUp('nextFollowUpAt')} type="datetime-local" className="input" />
+                <p className="text-xs text-gray-400 mt-1">This will appear in your Follow-Up Calendar</p>
+              </div>
+
+              <button
+                type="submit"
+                disabled={followUpMutation.isPending}
+                className="btn-primary disabled:opacity-50"
+              >
+                {followUpMutation.isPending ? 'Saving…' : 'Save Follow-Up'}
+              </button>
+            </form>
+          </div>
+        </div>
+
+        {/* Right column: History */}
+        <div className="space-y-4">
+          <div className="card p-5">
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-4">
+              Follow-Up History
+              {lead.followUps?.length > 0 && (
+                <span className="ml-2 text-brand-600">({lead.followUps.length})</span>
+              )}
+            </p>
+
+            {!lead.followUps?.length ? (
+              <div className="text-center py-6">
+                <ClockIcon className="w-8 h-8 mx-auto text-gray-300 mb-2" />
+                <p className="text-sm text-gray-400">No interactions logged yet</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {[...lead.followUps].reverse().map((fu, idx) => (
+                  <div key={idx} className="flex gap-3">
+                    <div className="flex-shrink-0">
+                      <div className="w-8 h-8 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center text-base">
+                        {FOLLOWUP_ICONS[fu.type] || '📝'}
+                      </div>
+                      {idx < lead.followUps.length - 1 && (
+                        <div className="w-0.5 h-4 bg-gray-200 dark:bg-gray-700 mx-auto mt-1" />
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0 pb-2">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-xs font-semibold text-gray-700 dark:text-gray-300 capitalize">{fu.type}</span>
+                        <span className="text-xs text-gray-400">
+                          {format(new Date(fu.scheduledAt || fu.createdAt), 'dd MMM, h:mm a')}
+                        </span>
+                      </div>
+                      {fu.notes && (
+                        <p className="text-sm text-gray-600 dark:text-gray-400 mt-0.5">{fu.notes}</p>
+                      )}
+                      {fu.performedBy && (
+                        <p className="text-xs text-gray-400 mt-0.5">
+                          by {fu.performedBy.firstName} {fu.performedBy.lastName}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Lead metadata */}
+          <div className="card p-4 text-xs text-gray-500 space-y-1">
+            <p>Created: {format(new Date(lead.createdAt), 'dd MMM yyyy')}</p>
+            {lead.lastContactedAt && <p>Last contact: {format(new Date(lead.lastContactedAt), 'dd MMM yyyy')}</p>}
+            {lead.convertedAt && <p className="text-green-600">Won: {format(new Date(lead.convertedAt), 'dd MMM yyyy')}</p>}
+            {lead.sheetRowId && <p className="text-blue-600">Synced from Google Sheets</p>}
+          </div>
+        </div>
+      </div>
+
+      {/* Edit Modal */}
+      {editMode && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-gray-900/60 backdrop-blur-sm" onClick={() => setEditMode(false)} />
+          <div className="relative card w-full max-w-lg shadow-modal max-h-[90vh] overflow-y-auto">
+            <div className="p-5 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+              <h3 className="font-bold text-gray-900 dark:text-white">Edit Lead</h3>
+              <button onClick={() => setEditMode(false)} className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800">
+                <XMarkIcon className="w-5 h-5 text-gray-500" />
+              </button>
+            </div>
+            <form onSubmit={handleEditSubmit(onSubmitEdit)} className="p-5 space-y-4">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="label">Full Name</label>
+                  <input {...regEdit('name')} defaultValue={lead.name} className="input" />
+                </div>
+                <div>
+                  <label className="label">Phone</label>
+                  <input {...regEdit('phone')} defaultValue={lead.phone} className="input" />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="label">Email</label>
+                  <input {...regEdit('email')} defaultValue={lead.email} className="input" />
+                </div>
+                <div>
+                  <label className="label">Company</label>
+                  <input {...regEdit('company')} defaultValue={lead.company} className="input" />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="label">City</label>
+                  <input {...regEdit('city')} defaultValue={lead.city} className="input" />
+                </div>
+                <div>
+                  <label className="label">State</label>
+                  <input {...regEdit('state')} defaultValue={lead.state} className="input" />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="label">Priority</label>
+                  <select {...regEdit('priority')} defaultValue={lead.priority} className="input">
+                    {['low', 'medium', 'high', 'critical'].map(p => <option key={p} value={p}>{p}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="label">Estimated Value (₹)</label>
+                  <input {...regEdit('estimatedValue')} type="number" defaultValue={lead.estimatedValue} className="input" />
+                </div>
+              </div>
+              <div>
+                <label className="label">Assign To</label>
+                <select {...regEdit('assignedTo')} defaultValue={lead.assignedTo?._id} className="input">
+                  <option value="">Unassigned</option>
+                  {(usersData?.data || []).map(u => (
+                    <option key={u._id} value={u._id}>{u.firstName} {u.lastName}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="label">Notes</label>
+                <textarea {...regEdit('notes')} defaultValue={lead.notes} rows={3} className="input resize-none" />
+              </div>
+              <div className="flex gap-3">
+                <button type="button" onClick={() => setEditMode(false)} className="btn-secondary flex-1 justify-center">Cancel</button>
+                <button type="submit" disabled={editMutation.isPending} className="btn-primary flex-1 justify-center disabled:opacity-50">
+                  {editMutation.isPending ? 'Saving…' : 'Save Changes'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
