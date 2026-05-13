@@ -62,7 +62,7 @@ export default function DeptDashboard({ dept, color, lightColor, textColor, bord
   const { data: allTasksData, isLoading } = useQuery({
     queryKey: ['dept-dashboard', dept, 'all'],
     queryFn: () => api.get(`/tasks?department=${deptParam}&limit=300`).then(r => r.data),
-    refetchInterval: 60000,
+    refetchInterval: 5 * 60 * 1000,
   });
 
   const tasks = useMemo(() => allTasksData?.data || [], [allTasksData]);

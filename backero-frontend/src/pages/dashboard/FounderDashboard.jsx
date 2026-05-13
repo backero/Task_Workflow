@@ -89,7 +89,7 @@ export default function FounderDashboard() {
   const { data, isLoading } = useQuery({
     queryKey: ['dashboard', 'founder'],
     queryFn: () => api.get('/dashboard/founder').then((r) => r.data.dashboard),
-    refetchInterval: 60000,
+    refetchInterval: 5 * 60 * 1000,
   });
 
   if (isLoading) {

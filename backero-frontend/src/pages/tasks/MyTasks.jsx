@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -8,6 +8,7 @@ import {
 } from '@heroicons/react/24/outline';
 import api from '../../api/axios';
 import { useAuthStore } from '../../store/useAuthStore';
+import { useSocketStore } from '../../store/useSocketStore';
 import { format, isPast, isToday, formatDistanceToNow } from 'date-fns';
 import { clsx } from 'clsx';
 import toast from 'react-hot-toast';
@@ -36,7 +37,7 @@ function TaskDrawer({ task: initialTask, onClose, onUpdated }) {
   const { data: taskData } = useQuery({
     queryKey: ['task-detail', initialTask._id],
     queryFn: () => api.get(`/tasks/${initialTask._id}`).then((r) => r.data.task),
-    refetchInterval: 15000,
+    refetchInterval: 5 * 60 * 1000,
   });
   const task = taskData || initialTask;
 
@@ -370,6 +371,22 @@ export default function MyTasks() {
   const [openTask, setOpenTask] = useState(null);
   const { user } = useAuthStore();
   const qc = useQueryClient();
+  const { socket } = useSocketStore();
+
+  // Real-time: refresh task list when a task changes
+  const refreshMyTasks = useCallback(() => {
+    qc.invalidateQueries({ queryKey: ['tasks', 'my'] });
+  }, [qc]);
+
+  useEffect(() => {
+    if (!socket) return;
+    socket.on('task_updated', refreshMyTasks);
+    socket.on('task_created', refreshMyTasks);
+    return () => {
+      socket.off('task_updated', refreshMyTasks);
+      socket.off('task_created', refreshMyTasks);
+    };
+  }, [socket, refreshMyTasks]);
 
   const params = {
     assignedTo: user._id,
@@ -383,7 +400,7 @@ export default function MyTasks() {
   const { data, isLoading } = useQuery({
     queryKey: ['tasks', 'my', filter],
     queryFn: () => api.get('/tasks', { params }).then((r) => r.data),
-    refetchInterval: 30000,
+    refetchInterval: 5 * 60 * 1000,
   });
 
   const tasks = data?.data || [];

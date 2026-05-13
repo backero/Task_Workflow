@@ -213,7 +213,7 @@ export default function FollowUpCalendar() {
     queryFn: () =>
       api.get('/crm/leads', { params: { followUpOnly: 'true', limit: 200 } })
         .then(r => r.data.data || []),
-    refetchInterval: 60_000,
+    refetchInterval: 5 * 60 * 1000,
   });
 
   const logDoneMutation = useMutation({

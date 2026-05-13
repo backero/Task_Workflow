@@ -521,7 +521,7 @@ export default function LeadPipeline() {
   const { data, isLoading } = useQuery({
     queryKey: ['crm', 'pipeline'],
     queryFn: () => api.get('/crm/leads/pipeline').then((r) => r.data),
-    refetchInterval: 30000,
+    refetchInterval: 5 * 60 * 1000,
   });
 
   const { data: analyticsData } = useQuery({

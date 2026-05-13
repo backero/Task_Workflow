@@ -167,7 +167,7 @@ export default function Products() {
   const { data, isLoading } = useQuery({
     queryKey: ['inventory', 'products', search, lowStockOnly],
     queryFn: () => api.get('/inventory/products', { params: { search: search || undefined, isLowStock: lowStockOnly || undefined, limit: 50 } }).then((r) => r.data),
-    refetchInterval: 60000,
+    refetchInterval: 5 * 60 * 1000,
   });
 
   const products = data?.data || [];

@@ -9,9 +9,16 @@ import './index.css';
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      retry: 1,
-      staleTime: 5 * 60 * 1000,
+      retry: (failureCount, error) => {
+        // Don't retry on 401/403/404; do retry up to 2x on network/5xx errors
+        const status = error?.response?.status;
+        if (status === 401 || status === 403 || status === 404) return false;
+        return failureCount < 2;
+      },
+      staleTime: 2 * 60 * 1000,   // data considered fresh for 2 min
+      gcTime:    10 * 60 * 1000,  // keep unused cache 10 min
       refetchOnWindowFocus: false,
+      refetchOnReconnect: true,
     },
   },
 });

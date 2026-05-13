@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { PlusIcon, BoltIcon, MagnifyingGlassIcon, FunnelIcon } from '@heroicons/react/24/outline';
 import api from '../../api/axios';
 import { useAuthStore } from '../../store/useAuthStore';
+import { useSocketStore } from '../../store/useSocketStore';
 import { format, isPast } from 'date-fns';
 import { clsx } from 'clsx';
 import CreateTaskModal from '../../components/workflow/CreateTaskModal';
@@ -238,6 +239,7 @@ function StatCard({ label, value, color, icon }) {
 export default function WorkflowLanding() {
   const { user } = useAuthStore();
   const qc = useQueryClient();
+  const { socket } = useSocketStore();
 
   const userLevel = ROLE_LEVEL[user?.role] || 1;
   const isAdmin = userLevel >= 4;
@@ -247,6 +249,21 @@ export default function WorkflowLanding() {
   const [statusFilter, setStatusFilter] = useState('');
   const [search, setSearch] = useState('');
 
+  // Real-time: refresh board when any task changes
+  const refreshBoard = useCallback(() => {
+    qc.invalidateQueries({ queryKey: ['tasks', 'workflow-board'] });
+  }, [qc]);
+
+  useEffect(() => {
+    if (!socket) return;
+    socket.on('task_created', refreshBoard);
+    socket.on('task_updated', refreshBoard);
+    return () => {
+      socket.off('task_created', refreshBoard);
+      socket.off('task_updated', refreshBoard);
+    };
+  }, [socket, refreshBoard]);
+
   const params = { limit: 200, rootOnly: true };
   if (!isAdmin && user?.department) params.department = user.department;
   if (statusFilter) params.status = statusFilter;
@@ -254,7 +271,7 @@ export default function WorkflowLanding() {
   const { data, isLoading, refetch } = useQuery({
     queryKey: ['tasks', 'workflow-board', params],
     queryFn: () => api.get('/tasks', { params }).then(r => r.data),
-    refetchInterval: 30000,
+    refetchInterval: 5 * 60 * 1000,
   });
 
   const allTasks = (data?.data || []).filter(t =>

@@ -271,14 +271,14 @@ export default function MarketplaceDept() {
   const { data: tasksData, isLoading: tasksLoading } = useQuery({
     queryKey: ['marketplace', 'tasks', 'all'],
     queryFn: () => api.get('/marketplace/tasks?limit=200').then(r => r.data),
-    refetchInterval: 15000, // poll every 15 s as fallback
+    refetchInterval: 5 * 60 * 1000, // socket is primary; this is a slow fallback
   });
 
   // Platform analytics
   const { data: analyticsData } = useQuery({
     queryKey: ['marketplace', 'analytics'],
     queryFn: () => api.get('/marketplace/analytics').then(r => r.data.analytics),
-    refetchInterval: 15000,
+    refetchInterval: 5 * 60 * 1000,
   });
 
   // Today's pre-fill
@@ -291,7 +291,7 @@ export default function MarketplaceDept() {
   const { data: weekData } = useQuery({
     queryKey: ['marketplace', 'daily', 'week'],
     queryFn: () => api.get('/marketplace/daily/week').then(r => r.data),
-    refetchInterval: 30000,
+    refetchInterval: 5 * 60 * 1000,
   });
 
   useEffect(() => {

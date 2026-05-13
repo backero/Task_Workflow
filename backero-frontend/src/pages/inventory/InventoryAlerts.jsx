@@ -7,7 +7,7 @@ export default function InventoryAlerts() {
   const { data, isLoading } = useQuery({
     queryKey: ['inventory', 'alerts'],
     queryFn: () => api.get('/inventory/alerts').then((r) => r.data),
-    refetchInterval: 30000,
+    refetchInterval: 2 * 60 * 1000,
   });
 
   const alerts = data?.alerts || [];

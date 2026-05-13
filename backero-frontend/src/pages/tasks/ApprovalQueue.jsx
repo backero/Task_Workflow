@@ -178,7 +178,7 @@ export default function ApprovalQueue() {
   const { data, isLoading } = useQuery({
     queryKey: ['approvals'],
     queryFn: () => api.get('/approvals').then((r) => r.data),
-    refetchInterval: 30000,
+    refetchInterval: 5 * 60 * 1000,
   });
 
   const { data: statsData } = useQuery({

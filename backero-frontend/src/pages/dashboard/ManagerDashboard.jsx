@@ -73,7 +73,7 @@ export default function ManagerDashboard() {
   const { data, isLoading } = useQuery({
     queryKey: ['dashboard', 'manager'],
     queryFn: () => api.get('/dashboard/manager').then((r) => r.data.dashboard),
-    refetchInterval: 60000,
+    refetchInterval: 5 * 60 * 1000,
   });
 
   if (isLoading) {
