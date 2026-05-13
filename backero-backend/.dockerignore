@@ -1,0 +1,8 @@
+node_modules
+npm-debug.log
+.env
+wa_session
+logs
+*.log
+.git
+.gitignore

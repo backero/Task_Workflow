@@ -1,0 +1,43 @@
+# Fly.io configuration for Backero backend
+app = "backero-backend"
+primary_region = "sin"          # Singapore — closest to India
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  PORT = "8080"
+  NODE_ENV = "production"
+  WA_SESSION_PATH = "/data/wa_session"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = false    # NEVER sleep — keeps WhatsApp alive
+  auto_start_machines = true
+  min_machines_running = 1      # always 1 machine running
+
+  [http_service.concurrency]
+    type = "connections"
+    hard_limit = 100
+    soft_limit = 80
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "512mb"
+
+# Persistent volume for WhatsApp session
+[[mounts]]
+  source = "wa_data"
+  destination = "/data"
+  initial_size = "1gb"
+
+[checks]
+  [checks.health]
+    grace_period = "30s"
+    interval = "15s"
+    method = "get"
+    path = "/health"
+    port = 8080
+    timeout = "10s"
+    type = "http"
