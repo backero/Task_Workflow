@@ -54,7 +54,7 @@ const addSubtask = async (req, res) => {
     const { taskId } = req.params;
     const orgId  = req.user.organizationId;
     const userId = req.user._id;
-    const { title, description, assignedTo, priority, dueDate, estimatedHours, department, positionX, positionY } = req.body;
+    const { title, description, assignedTo, priority, dueDate, estimatedHours, department, positionX, positionY, platform } = req.body;
 
     if (!title?.trim()) return res.status(400).json({ success: false, message: 'Title is required' });
 
@@ -66,6 +66,7 @@ const addSubtask = async (req, res) => {
       title: title.trim(),
       description,
       department: department || parent.department,
+      platform:   platform  || parent.platform || undefined,
       priority: priority || 'medium',
       status: assignedTo ? TASK_STATUS.ASSIGNED : TASK_STATUS.PENDING,
       assignedTo:       assignedTo || undefined,
