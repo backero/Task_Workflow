@@ -1,14 +1,15 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import {
-  ArrowTrendingUpIcon, BanknotesIcon, ExclamationTriangleIcon,
+  ArrowTrendingUpIcon, BanknotesIcon,
   CheckCircleIcon, UserCircleIcon, ChartBarIcon,
 } from '@heroicons/react/24/outline';
 import { clsx } from 'clsx';
 import { format, startOfWeek, addDays } from 'date-fns';
 import api from '../../api/axios';
 import toast from 'react-hot-toast';
+import { useSocketStore } from '../../store/useSocketStore';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -132,7 +133,7 @@ function PlatformCard({ name, tasks, onSelect, active }) {
 
       {/* Members */}
       {members.length > 0 ? (
-        <div className="flex items-center gap-1.5 mb-3">
+        <div className="flex items-center gap-1.5 mb-3 flex-wrap">
           {members.map(m => (
             <div
               key={m._id}
@@ -145,7 +146,7 @@ function PlatformCard({ name, tasks, onSelect, active }) {
           ))}
         </div>
       ) : (
-        <p className="text-[10px] text-gray-400 mb-3">No members assigned yet</p>
+        <p className="text-[10px] text-gray-400 mb-3 italic">Assign subtasks from Workflow builder →</p>
       )}
 
       {/* Progress bar */}
@@ -248,18 +249,36 @@ export default function MarketplaceDept() {
   const [formSaved, setFormSaved] = useState(false);
   const queryClient = useQueryClient();
   const navigate = useNavigate();
+  const { socket } = useSocketStore();
+
+  // Real-time: invalidate tasks whenever any task is created/updated in the org
+  const refreshTasks = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: ['marketplace', 'tasks'] });
+    queryClient.invalidateQueries({ queryKey: ['marketplace', 'analytics'] });
+  }, [queryClient]);
+
+  useEffect(() => {
+    if (!socket) return;
+    socket.on('task_created', refreshTasks);
+    socket.on('task_updated', refreshTasks);
+    return () => {
+      socket.off('task_created', refreshTasks);
+      socket.off('task_updated', refreshTasks);
+    };
+  }, [socket, refreshTasks]);
 
   // All marketplace tasks (with subTasks populated)
   const { data: tasksData, isLoading: tasksLoading } = useQuery({
     queryKey: ['marketplace', 'tasks', 'all'],
     queryFn: () => api.get('/marketplace/tasks?limit=200').then(r => r.data),
-    refetchInterval: 60000,
+    refetchInterval: 15000, // poll every 15 s as fallback
   });
 
   // Platform analytics
   const { data: analyticsData } = useQuery({
     queryKey: ['marketplace', 'analytics'],
     queryFn: () => api.get('/marketplace/analytics').then(r => r.data.analytics),
+    refetchInterval: 15000,
   });
 
   // Today's pre-fill
@@ -293,10 +312,13 @@ export default function MarketplaceDept() {
 
   const saveMutation = useMutation({
     mutationFn: (data) => api.post('/marketplace/daily', data).then(r => r.data),
-    onSuccess: () => {
+    onSuccess: (responseData) => {
       toast.success('Numbers saved!');
       setFormSaved(true);
-      queryClient.invalidateQueries(['marketplace', 'daily']);
+      // Invalidate + force-refetch both daily queries immediately
+      queryClient.invalidateQueries({ queryKey: ['marketplace', 'daily'] });
+      queryClient.refetchQueries({ queryKey: ['marketplace', 'daily', 'week'] });
+      queryClient.refetchQueries({ queryKey: ['marketplace', 'daily', 'today'] });
     },
     onError: () => toast.error('Failed to save'),
   });
@@ -436,9 +458,14 @@ export default function MarketplaceDept() {
               {activePlatform ? `${activePlatform} Workflow Tasks` : 'All Marketplace Workflow Tasks'}
             </h3>
             <span className="text-[10px] text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full font-medium">
-              {displayTasks.length} tasks
+              {displayTasks.length} task{displayTasks.length !== 1 ? 's' : ''}
             </span>
           </div>
+          {/* Live indicator */}
+          <span className="flex items-center gap-1 text-[10px] text-green-600 font-semibold">
+            <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+            Live
+          </span>
         </div>
 
         {tasksLoading ? (
@@ -448,10 +475,14 @@ export default function MarketplaceDept() {
             ))}
           </div>
         ) : displayTasks.length === 0 ? (
-          <div className="text-center py-8 text-gray-400">
-            <ChartBarIcon className="w-8 h-8 mx-auto mb-2 opacity-30" />
-            <p className="text-sm">No tasks yet for {activePlatform || 'Marketplace'}</p>
-            <p className="text-xs mt-1">Assign subtasks with this platform from the Workflow builder</p>
+          <div className="text-center py-10 text-gray-400">
+            <ChartBarIcon className="w-10 h-10 mx-auto mb-3 opacity-20" />
+            <p className="text-sm font-medium text-gray-500">
+              No {activePlatform ? `${activePlatform} ` : ''}tasks yet
+            </p>
+            <p className="text-xs mt-1">
+              Open the Workflow builder → add a subtask → select <strong>{activePlatform || 'a platform'}</strong>
+            </p>
           </div>
         ) : (
           <div className="space-y-1.5">

@@ -97,24 +97,22 @@ router.post('/daily', asyncHandler(async (req, res) => {
 router.get('/daily/week', asyncHandler(async (req, res) => {
   const orgId = req.user.organizationId;
 
+  // Use a wide ±8-day window to avoid timezone edge cases, then return all
   const now = new Date();
-  const dayOfWeek = now.getUTCDay(); // 0=Sun
-  const daysFromMon = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+  const rangeStart = new Date(now);
+  rangeStart.setUTCDate(now.getUTCDate() - 7);
+  rangeStart.setUTCHours(0, 0, 0, 0);
 
-  const weekStart = new Date(now);
-  weekStart.setUTCDate(now.getUTCDate() - daysFromMon);
-  weekStart.setUTCHours(0, 0, 0, 0);
-
-  const weekEnd = new Date(weekStart);
-  weekEnd.setUTCDate(weekStart.getUTCDate() + 6);
-  weekEnd.setUTCHours(23, 59, 59, 999);
+  const rangeEnd = new Date(now);
+  rangeEnd.setUTCDate(now.getUTCDate() + 1);
+  rangeEnd.setUTCHours(23, 59, 59, 999);
 
   const entries = await MarketplaceDaily.find({
     organizationId: orgId,
-    date: { $gte: weekStart, $lte: weekEnd },
-  }).sort({ date: 1 });
+    date: { $gte: rangeStart, $lte: rangeEnd },
+  }).sort({ date: 1 }).limit(14); // at most 2 weeks
 
-  sendSuccess(res, { entries, weekStart, weekEnd });
+  sendSuccess(res, { entries });
 }));
 
 // GET /marketplace/daily/today — today's entry (pre-fill form)
