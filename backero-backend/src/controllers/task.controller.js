@@ -41,11 +41,17 @@ exports.getTasks = asyncHandler(async (req, res) => {
   }
   if (search) filter.$or = [{ title: { $regex: search, $options: 'i' } }, { description: { $regex: search, $options: 'i' } }];
 
+  // Root-only filter (board view — exclude subtasks)
+  if (req.query.rootOnly === 'true') {
+    filter.$or = [{ parentTask: null }, { parentTask: { $exists: false } }];
+  }
+
   const [tasks, total] = await Promise.all([
     Task.find(filter)
       .populate('assignedTo', 'firstName lastName avatar role department')
       .populate('assignedBy', 'firstName lastName avatar')
       .populate('reportingManager', 'firstName lastName')
+      .populate('subTasks', 'status title')
       .sort({ priority: -1, dueDate: 1, createdAt: -1 })
       .skip(skip)
       .limit(parseInt(limit))
@@ -61,10 +67,16 @@ exports.createTask = asyncHandler(async (req, res) => {
   const io = req.app.get('io');
   const { title, description, department, assignedTo, priority, dueDate, estimatedHours, tags, taskType, platform, relatedTo, isRecurring, recurringConfig, parentTask, watchers } = req.body;
 
-  // Validate assignee exists in org
+  // Validate assignee & department-based assignment rules
   if (assignedTo) {
     const assignee = await User.findOne({ _id: assignedTo, organizationId: req.user.organizationId });
     if (!assignee) return sendError(res, 'Assigned user not found in your organization.', 404);
+
+    const userLevel = ROLE_HIERARCHY[req.user.role] || 1;
+    // Manager (level 3) can only assign within their own department
+    if (userLevel === 3 && req.user.department && assignee.department !== req.user.department) {
+      return sendError(res, `Managers can only assign tasks to members in their own department (${req.user.department}).`, 403);
+    }
   }
 
   const task = await Task.create({
@@ -137,7 +149,7 @@ exports.createTask = asyncHandler(async (req, res) => {
 exports.getTask = asyncHandler(async (req, res) => {
   const task = await Task.findOne({ _id: req.params.id, organizationId: req.user.organizationId })
     .populate('assignedTo', 'firstName lastName avatar role department phone whatsapp')
-    .populate('assignedBy', 'firstName lastName avatar')
+    .populate('assignedBy', 'firstName lastName avatar role')
     .populate('reportingManager', 'firstName lastName avatar')
     .populate('watchers', 'firstName lastName avatar')
     .populate('comments.author', 'firstName lastName avatar')

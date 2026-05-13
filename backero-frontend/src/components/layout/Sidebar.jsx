@@ -68,20 +68,10 @@ function NavItem({ item, collapsed }) {
 export default function Sidebar({ collapsed, onToggle }) {
   const { user } = useAuthStore();
   const {
-    can, isAdmin, isManager,
+    can, isAdmin,
     canCRM, canInventory, canProduction, canFinance,
-    canManagement, canTeamTasks, canApprovals, canAnalytics, canCalendar,
+    canManagement, canApprovals,
   } = usePermissions();
-
-  // ── Tasks sub-items ─────────────────────────────────────────────────────────
-  const taskChildren = [
-    { label: 'My Tasks', to: '/tasks/my' },
-    { label: 'Kanban Board', to: '/tasks/kanban' },
-  ];
-  if (canTeamTasks)  taskChildren.push({ label: 'Team Tasks', to: '/tasks/team' });
-  if (canApprovals)  taskChildren.push({ label: 'Approval Queue', to: '/tasks/approvals' });
-  if (canCalendar)   taskChildren.push({ label: 'Calendar', to: '/tasks/calendar' });
-  if (canAnalytics)  taskChildren.push({ label: 'Analytics', to: '/tasks/analytics' });
 
   // ── Nav groups ──────────────────────────────────────────────────────────────
   const groups = [];
@@ -92,13 +82,12 @@ export default function Sidebar({ collapsed, onToggle }) {
     items: [{ label: 'Dashboard', to: '/', icon: HomeIcon, exact: true }],
   });
 
-  // Work Management
+  // Work Management — Workflow Builder is primary
   const workItems = [
-    { label: 'Tasks', icon: ClipboardDocumentListIcon, children: taskChildren },
+    { label: 'Workflow Builder', to: '/workflow', icon: BoltIcon, color: 'text-indigo-600' },
   ];
-  // Workflow builder — manager and above
-  if (isManager) {
-    workItems.push({ label: 'Workflow Builder', to: '/workflow', icon: BoltIcon, color: 'text-indigo-600' });
+  if (canApprovals) {
+    workItems.push({ label: 'Approval Queue', to: '/tasks/approvals', icon: ClipboardDocumentListIcon });
   }
   if (canCRM) {
     workItems.push({

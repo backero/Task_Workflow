@@ -109,6 +109,7 @@ function WorkflowCanvas({ rootTaskId }) {
     setAddSubtaskState({
       parentId,
       parentTitle: parentTitle || node?.data?.title || 'Task',
+      parentDepartment: node?.data?.department || null,
     });
   }, [graph.nodes]);
 
@@ -170,27 +171,29 @@ function WorkflowCanvas({ rootTaskId }) {
         nodeTypes={NODE_TYPES}
         edgeTypes={EDGE_TYPES}
         fitView
-        fitViewOptions={{ padding: 0.2 }}
-        minZoom={0.2}
-        maxZoom={2}
+        fitViewOptions={{ padding: 0.25 }}
+        minZoom={0.15}
+        maxZoom={2.5}
         defaultEdgeOptions={{
           type: 'smoothstep',
           markerEnd: { type: MarkerType.ArrowClosed },
+          style: { stroke: '#6366f1', strokeWidth: 2 },
+          animated: false,
         }}
-        connectionLineStyle={{ stroke: '#6366f1', strokeWidth: 2 }}
+        connectionLineStyle={{ stroke: '#6366f1', strokeWidth: 2, strokeDasharray: '6,3' }}
         snapToGrid
         snapGrid={[20, 20]}
         selectNodesOnDrag={false}
       >
-        <Background color="#e2e8f0" gap={20} />
-        <Controls showInteractive={false} className="shadow-lg" />
+        <Background color="#cbd5e1" gap={24} size={1.5} />
+        <Controls showInteractive={false} className="shadow-lg rounded-xl overflow-hidden" />
         <MiniMap
           nodeColor={getMinimapColor}
           nodeStrokeWidth={3}
           pannable
           zoomable
-          className="shadow-lg rounded-xl overflow-hidden border border-gray-200"
-          style={{ background: '#f8fafc' }}
+          className="shadow-xl rounded-xl overflow-hidden border border-gray-200"
+          style={{ background: '#f1f5f9' }}
         />
 
         {/* Custom toolbar */}
@@ -203,12 +206,18 @@ function WorkflowCanvas({ rootTaskId }) {
 
         {/* Stats bar */}
         {nodes.length > 0 && (
-          <div className="absolute bottom-4 left-4 flex items-center gap-3 bg-white border border-gray-200 rounded-xl shadow px-4 py-2 z-10">
-            <StatBadge color="bg-gray-400" label="Total" value={nodes.length} />
-            <StatBadge color="bg-green-500"  label="Done"  value={nodes.filter(n => n.data?.status === 'Completed').length} />
-            <StatBadge color="bg-yellow-500" label="Active" value={nodes.filter(n => n.data?.status === 'In Progress').length} />
-            <StatBadge color="bg-red-500"    label="Overdue" value={nodes.filter(n => n.data?.isOverdue && n.data?.status !== 'Completed').length} />
-            <StatBadge color="bg-indigo-500" label="Pending" value={nodes.filter(n => n.data?.status === 'Approval Pending').length} />
+          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-1 bg-white/90 backdrop-blur border border-gray-200 rounded-2xl shadow-lg px-4 py-2 z-10">
+            <StatBadge color="bg-slate-400"  label="Total"    value={nodes.length} />
+            <div className="w-px h-4 bg-gray-200 mx-1" />
+            <StatBadge color="bg-green-500"  label="Done"     value={nodes.filter(n => n.data?.status === 'Completed').length} />
+            <StatBadge color="bg-yellow-500" label="Active"   value={nodes.filter(n => n.data?.status === 'In Progress').length} />
+            <StatBadge color="bg-indigo-500" label="Approval" value={nodes.filter(n => n.data?.status === 'Approval Pending').length} />
+            {nodes.filter(n => n.data?.isOverdue && n.data?.status !== 'Completed').length > 0 && (
+              <>
+                <div className="w-px h-4 bg-gray-200 mx-1" />
+                <StatBadge color="bg-red-500" label="Overdue" value={nodes.filter(n => n.data?.isOverdue && n.data?.status !== 'Completed').length} />
+              </>
+            )}
           </div>
         )}
       </ReactFlow>
@@ -225,6 +234,7 @@ function WorkflowCanvas({ rootTaskId }) {
         <AddSubtaskModal
           parentTaskId={addSubtaskState.parentId}
           parentTitle={addSubtaskState.parentTitle}
+          parentDepartment={addSubtaskState.parentDepartment}
           onClose={() => setAddSubtaskState(null)}
         />
       )}
@@ -258,10 +268,10 @@ function WorkflowCanvas({ rootTaskId }) {
 
 function StatBadge({ color, label, value }) {
   return (
-    <div className="flex items-center gap-1.5">
-      <span className={`w-2 h-2 rounded-full ${color}`} />
-      <span className="text-[11px] text-gray-500">{label}:</span>
+    <div className="flex items-center gap-1.5 px-1">
+      <span className={`w-2 h-2 rounded-full flex-shrink-0 ${color}`} />
       <span className="text-[11px] font-bold text-gray-800">{value}</span>
+      <span className="text-[11px] text-gray-400">{label}</span>
     </div>
   );
 }

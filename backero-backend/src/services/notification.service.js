@@ -37,9 +37,9 @@ const createNotification = async (data, io) => {
 
     // Send WhatsApp if needed
     if (data.channels?.whatsapp) {
-      const recipient = await User.findById(data.recipient).select('phone whatsapp settings');
-      if (recipient?.settings?.notifications?.whatsapp && (recipient.whatsapp || recipient.phone)) {
-        const phone = recipient.whatsapp || recipient.phone;
+      const recipient = await User.findById(data.recipient).select('phone whatsapp');
+      const phone = recipient?.whatsapp || recipient?.phone;
+      if (phone) {
         sendWhatsAppNotification(phone, data.title, data.message).catch(logger.error);
       }
     }
@@ -53,16 +53,9 @@ const createNotification = async (data, io) => {
 
 const sendWhatsAppNotification = async (phone, title, message) => {
   try {
-    const { getWhatsAppClient } = require('./whatsapp.service');
-    const client = getWhatsAppClient();
-    if (!client) return;
-
-    const formattedPhone = phone.replace(/\D/g, '');
-    const jid = formattedPhone.includes('@') ? formattedPhone : `${formattedPhone}@s.whatsapp.net`;
-
-    await client.sendMessage(jid, {
-      text: `*🔔 Backero Alert*\n\n*${title}*\n${message}\n\n_Backero Enterprise Platform_`,
-    });
+    const { sendMessage } = require('./whatsapp.service');
+    const text = `*🔔 Backero Alert*\n\n*${title}*\n\n${message}\n\n_Backero Enterprise Platform_`;
+    await sendMessage(phone, text);
   } catch (error) {
     logger.error(`WhatsApp notification failed: ${error.message}`);
   }

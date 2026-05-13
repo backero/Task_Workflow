@@ -26,6 +26,8 @@ router.get('/:taskId/dependencies',     ctrl.getTaskDependencies);
 router.get('/:taskId/completion-check', ctrl.checkCompletion);
 
 router.post('/:taskId/subtask',         authorizeManagerOrAbove, ctrl.addSubtask);
+router.post('/:taskId/start',           ctrl.startTask);
+router.post('/:taskId/update',          ctrl.addUpdate);
 router.post('/:taskId/apply-template',  authorizeManagerOrAbove, ctrl.applyTemplate);
 
 router.put('/:taskId/progress',         ctrl.updateProgress);

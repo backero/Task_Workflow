@@ -61,6 +61,7 @@ import WhatsAppSetup from './pages/settings/WhatsAppSetup';
 
 // Workflow
 import WorkflowView from './pages/workflow/WorkflowView';
+import WorkflowLanding from './pages/workflow/WorkflowLanding';
 
 const SmartDashboard = () => {
   const { user } = useAuthStore();
@@ -152,6 +153,7 @@ export default function App() {
           <Route path="/management/departments" element={<PermissionRoute module="management"><DepartmentAnalytics /></PermissionRoute>} />
 
           {/* Workflow */}
+          <Route path="/workflow" element={<WorkflowLanding />} />
           <Route path="/workflow/:taskId" element={<WorkflowView />} />
 
           {/* Settings */}
