@@ -8,6 +8,7 @@ router.use(authenticate, orgIsolation);
 router.get('/', ctrl.getTasks);
 router.post('/', ctrl.createTask);
 router.get('/analytics', ctrl.getAnalytics);
+router.get('/extension-requests', ctrl.getExtensionRequests);
 router.get('/:id', ctrl.getTask);
 router.get('/:id/approvals', ctrl.getTaskApprovals);
 router.put('/:id', ctrl.updateTask);
@@ -17,5 +18,6 @@ router.post('/:id/request-completion', ctrl.requestCompletion);
 router.post('/:id/daily-update', ctrl.addDailyUpdate);
 router.post('/:id/comment', ctrl.addComment);
 router.post('/:id/extension-request', ctrl.requestExtension);
+router.patch('/:id/extension-request/:reqId', ctrl.reviewExtensionRequest);
 
 module.exports = router;

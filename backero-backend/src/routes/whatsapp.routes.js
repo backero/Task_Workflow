@@ -3,8 +3,10 @@ const QRCode = require('qrcode');
 const { authenticate } = require('../middleware/auth.middleware');
 const { authorizeAdminOrAbove } = require('../middleware/role.middleware');
 const { asyncHandler, sendSuccess } = require('../utils/helpers');
-const { getStatus, getQRCode, isConnected } = require('../services/whatsapp.service');
+const { getStatus, getQRCode, isConnected, sendTaskAssigned } = require('../services/whatsapp.service');
 const { runDailyReport } = require('../services/automation.service');
+const Task = require('../models/Task');
+const User = require('../models/User');
 
 // ── Public endpoint — no auth needed (only for initial WA setup) ──────────────
 // GET /api/whatsapp/qr/image — returns QR as PNG image
@@ -54,6 +56,47 @@ router.post('/test-report', asyncHandler(async (req, res) => {
   const phones = Array.isArray(req.body?.phones) && req.body.phones.length > 0 ? req.body.phones : null;
   runDailyReport(phones).catch(() => {});
   sendSuccess(res, {}, `Daily report triggered → ${phones ? phones.join(', ') : 'all admins'} — check WhatsApp in 10 seconds`);
+}));
+
+// POST /api/whatsapp/notify-assignments
+// Sends task-assigned WhatsApp to every active assignee in the org for tasks missing their WA notification.
+// Body: { taskIds: [...] } — optional array of specific task IDs; omit to send for ALL active assigned tasks
+router.post('/notify-assignments', asyncHandler(async (req, res) => {
+  const orgId = req.user.organizationId;
+  const specificIds = Array.isArray(req.body?.taskIds) && req.body.taskIds.length > 0 ? req.body.taskIds : null;
+
+  const filter = {
+    organizationId: orgId,
+    assignedTo: { $ne: null },
+    status: { $nin: ['Completed', 'Cancelled'] },
+  };
+  if (specificIds) filter._id = { $in: specificIds };
+
+  const tasks = await Task.find(filter)
+    .populate('assignedTo', 'firstName lastName phone whatsapp')
+    .populate('assignedBy',  'firstName lastName')
+    .lean();
+
+  let sent = 0, skipped = 0;
+  for (const task of tasks) {
+    const phone = task.assignedTo?.whatsapp || task.assignedTo?.phone;
+    if (!phone) { skipped++; continue; }
+    const assignedByName = task.assignedBy
+      ? `${task.assignedBy.firstName} ${task.assignedBy.lastName}`
+      : 'Admin';
+    await sendTaskAssigned(phone, {
+      title: task.title,
+      assignedByName,
+      priority: task.priority,
+      department: task.department,
+      dueDate: task.dueDate,
+      description: task.description,
+    });
+    sent++;
+  }
+
+  sendSuccess(res, { sent, skipped, total: tasks.length },
+    `Assignment notifications sent: ${sent} WhatsApp messages, ${skipped} skipped (no phone)`);
 }));
 
 module.exports = router;

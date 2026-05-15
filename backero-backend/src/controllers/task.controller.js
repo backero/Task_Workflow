@@ -154,6 +154,8 @@ exports.getTask = asyncHandler(async (req, res) => {
     .populate('watchers', 'firstName lastName avatar')
     .populate('comments.author', 'firstName lastName avatar')
     .populate('activity.performedBy', 'firstName lastName')
+    .populate('extensionRequests.requestedBy', 'firstName lastName')
+    .populate('extensionRequests.reviewedBy', 'firstName lastName')
     .populate('parentTask', 'title status')
     .populate('subTasks', 'title status priority assignedTo');
 
@@ -380,6 +382,86 @@ exports.requestExtension = asyncHandler(async (req, res) => {
   }, req.app.get('io'));
 
   sendSuccess(res, {}, 'Extension request submitted');
+});
+
+// GET /api/tasks/extension-requests — manager: tasks with pending extension requests
+exports.getExtensionRequests = asyncHandler(async (req, res) => {
+  const filter = {
+    organizationId: req.user.organizationId,
+    'extensionRequests.status': 'pending',
+  };
+
+  const level = ROLE_HIERARCHY[req.user.role] || 1;
+  if (level === 3 && req.user.department) filter.department = req.user.department;
+
+  const tasks = await Task.find(filter)
+    .populate('assignedTo', 'firstName lastName avatar')
+    .populate('assignedBy', 'firstName lastName')
+    .populate('extensionRequests.requestedBy', 'firstName lastName')
+    .select('title department status dueDate extensionRequests assignedTo assignedBy priority')
+    .lean();
+
+  const result = tasks.map((t) => ({
+    ...t,
+    extensionRequests: t.extensionRequests.filter((e) => e.status === 'pending'),
+  }));
+
+  sendSuccess(res, { tasks: result });
+});
+
+// PATCH /api/tasks/:id/extension-request/:reqId — manager approves or rejects
+exports.reviewExtensionRequest = asyncHandler(async (req, res) => {
+  const { status } = req.body;
+  if (!['approved', 'rejected'].includes(status)) {
+    return sendError(res, 'Status must be approved or rejected.', 400);
+  }
+
+  const task = await Task.findOne({ _id: req.params.id, organizationId: req.user.organizationId })
+    .populate('assignedTo', 'firstName lastName');
+  if (!task) return sendError(res, 'Task not found.', 404);
+
+  const request = task.extensionRequests.id(req.params.reqId);
+  if (!request) return sendError(res, 'Extension request not found.', 404);
+  if (request.status !== 'pending') return sendError(res, 'This request has already been reviewed.', 400);
+
+  request.status = status;
+  request.reviewedBy = req.user._id;
+  request.reviewedAt = new Date();
+
+  if (status === 'approved') {
+    task.dueDate = request.requestedDueDate;
+    task.isOverdue = false;
+    task.activity.push({
+      action: `Deadline extended to ${new Date(request.requestedDueDate).toLocaleDateString('en-IN')}`,
+      performedBy: req.user._id,
+    });
+  }
+
+  task.updatedBy = req.user._id;
+  await task.save();
+
+  const notifMsg = status === 'approved'
+    ? `Extension approved for "${task.title}" — new deadline: ${new Date(request.requestedDueDate).toLocaleDateString('en-IN')}`
+    : `Extension request rejected for "${task.title}"`;
+
+  await createNotification({
+    organizationId: req.user.organizationId,
+    recipient: task.assignedTo._id || task.assignedTo,
+    title: `Extension Request ${status === 'approved' ? 'Approved' : 'Rejected'}`,
+    message: notifMsg,
+    type: 'task',
+    priority: 'medium',
+    actionUrl: `/tasks/${task._id}`,
+    reference: { model: 'Task', id: task._id },
+    channels: { inApp: true, whatsapp: true },
+  }, req.app.get('io'));
+
+  req.app.get('io')?.to(`org:${req.user.organizationId}`).emit(SOCKET_EVENTS.TASK_UPDATED, {
+    taskId: task._id,
+    updates: { dueDate: task.dueDate },
+  });
+
+  sendSuccess(res, {}, `Extension request ${status}`);
 });
 
 // POST /api/tasks/:id/start — assignee marks task as In Progress

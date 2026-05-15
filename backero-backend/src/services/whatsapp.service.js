@@ -161,20 +161,73 @@ const sendDailyReport = async (phone, {
   incomeToday, expenseToday,
   lowStockCount, activeProductionOrders,
   topPerformerName, topPerformerCount,
+  departmentStats = [],
+  marketplaceToday = null,
+  platformListings = [],
 }) => {
   const netToday = (incomeToday || 0) - (expenseToday || 0);
+  const fmtD = (d) => d ? new Date(d).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' }) : '—';
+
+  // Department breakdown lines (compact: one line per dept)
+  let deptSection = '';
+  if (departmentStats && departmentStats.length > 0) {
+    const lines = departmentStats.map((d) => {
+      const parts = [];
+      if (d.completed)  parts.push(`✅${d.completed}`);
+      if (d.inProgress) parts.push(`🔄${d.inProgress}`);
+      if (d.overdue)    parts.push(`⏰${d.overdue}`);
+      if (d.pending)    parts.push(`🕐${d.pending}`);
+      const sub  = d.subtaskCount ? ` · ${d.subtaskCount} sub` : '';
+      const due  = d.nearestDue   ? ` · due ${fmtD(d.nearestDue)}` : '';
+      return `▸ *${d.department}*  ${d.total} tasks  ${parts.join(' ')}${sub}${due}`;
+    });
+    deptSection =
+      `━━━━━━━━━━━━━━━━━━━━\n` +
+      `📂 *DEPARTMENT BREAKDOWN*\n` +
+      lines.join('\n') + '\n\n';
+  }
+
+  // Marketplace section
+  let mktSection = '';
+  if (marketplaceToday) {
+    const net = (marketplaceToday.adRevenue || 0) - (marketplaceToday.adSpend || 0);
+    mktSection =
+      `━━━━━━━━━━━━━━━━━━━━\n` +
+      `🛒 *MARKETPLACE TODAY*\n` +
+      `💰 Total Sales: *₹${fmt(marketplaceToday.totalSales)}*\n` +
+      `📢 Ad Spend: *₹${fmt(marketplaceToday.adSpend)}*  |  Ad Revenue: *₹${fmt(marketplaceToday.adRevenue)}*\n` +
+      `${net >= 0 ? '📈' : '📉'} Ad Net: *₹${fmt(Math.abs(net))}* ${net < 0 ? '(loss)' : '(profit)'}\n` +
+      `📊 CTR: *${(marketplaceToday.ctr || 0).toFixed(2)}%*  |  CVR: *${(marketplaceToday.cvr || 0).toFixed(2)}%*\n` +
+      `🔄 Returns: *${fmt(marketplaceToday.returns)}*\n`;
+
+    if (platformListings.length > 0) {
+      const platLines = platformListings.map((p) => `  • ${p._id}: *${p.count}* listings`).join('\n');
+      mktSection += `📦 *Listings per Platform:*\n${platLines}\n`;
+    }
+    mktSection += '\n';
+  } else if (platformListings.length > 0) {
+    const platLines = platformListings.map((p) => `  • ${p._id}: *${p.count}* listings`).join('\n');
+    mktSection =
+      `━━━━━━━━━━━━━━━━━━━━\n` +
+      `🛒 *MARKETPLACE*\n` +
+      `📦 *Listings per Platform:*\n${platLines}\n\n`;
+  }
+
   const msg =
     `📊 *Daily Operations Report*\n` +
     `🏢 *${orgName}*\n` +
     `📅 *${date}*\n\n` +
 
     `━━━━━━━━━━━━━━━━━━━━\n` +
-    `📋 *TASKS*\n` +
+    `📋 *TASKS OVERVIEW*\n` +
     `✅ Completed Today: *${tasksCompleted}*\n` +
     `🔄 In Progress: *${tasksInProgress}*\n` +
     `⏰ Overdue: *${tasksOverdue}*\n` +
     `🔍 Pending Approvals: *${tasksPendingApproval}*\n` +
     `📝 Total Active: *${totalTasks}*\n\n` +
+
+    deptSection +
+    mktSection +
 
     `━━━━━━━━━━━━━━━━━━━━\n` +
     `👥 *CRM / LEADS*\n` +
@@ -199,8 +252,34 @@ const sendDailyReport = async (phone, {
 
     `━━━━━━━━━━━━━━━━━━━━\n` +
     `_Backero Enterprise Platform_\n` +
-    `_Automated Daily Report · 9 PM IST_`;
+    `_Automated Daily Report · 9 PM IST_\n` +
+    `_📄 Full PDF report attached_`;
   return sendMessage(phone, msg);
+};
+
+// 5. Send PDF report as WhatsApp document
+const sendDailyReportWithPDF = async (phone, pdfBuffer, fileName) => {
+  if (!pdfBuffer || !phone) return false;
+  const digits = phone.replace(/\D/g, '');
+  const withCC = digits.length === 10 ? `91${digits}` : digits;
+
+  if (sock && connectionStatus === 'connected') {
+    try {
+      await sock.sendMessage(`${withCC}@s.whatsapp.net`, {
+        document: pdfBuffer,
+        mimetype: 'application/pdf',
+        fileName: fileName || 'daily-report.pdf',
+        caption: '📊 Daily Operations Report — Full PDF',
+      });
+      logger.info(`[WhatsApp] ✅ PDF sent to +${withCC}`);
+      return true;
+    } catch (err) {
+      logger.error(`[WhatsApp] ❌ PDF send failed to +${withCC}: ${err.message}`);
+      return false;
+    }
+  }
+  logger.info(`[WhatsApp STUB] PDF → +${withCC} (${fileName})`);
+  return false;
 };
 
 // ── Status helpers ────────────────────────────────────────────────────────────
@@ -215,6 +294,7 @@ module.exports = {
   sendTaskOverdueEmployee,
   sendTaskOverdueManager,
   sendDailyReport,
+  sendDailyReportWithPDF,
   getStatus,
   getQRCode,
   isConnected,

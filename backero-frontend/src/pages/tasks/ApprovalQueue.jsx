@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
-import { CheckIcon, XMarkIcon, ArrowPathIcon, ClockIcon, ChatBubbleLeftIcon } from '@heroicons/react/24/outline';
+import { CheckIcon, XMarkIcon, ArrowPathIcon, ClockIcon, ChatBubbleLeftIcon, CalendarDaysIcon } from '@heroicons/react/24/outline';
 import api from '../../api/axios';
 import toast from 'react-hot-toast';
 import { formatDistanceToNow, format } from 'date-fns';
@@ -172,6 +172,7 @@ function RejectPrompt({ onConfirm, onCancel }) {
 export default function ApprovalQueue() {
   const [selected, setSelected] = useState(null);
   const [rejectTarget, setRejectTarget] = useState(null);
+  const [activeTab, setActiveTab] = useState('completions');
   const { isManagerOrAbove } = useAuthStore();
   const qc = useQueryClient();
 
@@ -186,6 +187,13 @@ export default function ApprovalQueue() {
     queryFn: () => api.get('/approvals/stats').then((r) => r.data.stats),
   });
 
+  const { data: extData, isLoading: extLoading } = useQuery({
+    queryKey: ['extension-requests'],
+    queryFn: () => api.get('/tasks/extension-requests').then((r) => r.data),
+    refetchInterval: 5 * 60 * 1000,
+    enabled: isManagerOrAbove(),
+  });
+
   const approveMutation = useMutation({
     mutationFn: ({ id, notes }) => api.post(`/approvals/${id}/approve`, { reviewNotes: notes }),
     onSuccess: () => { toast.success('Task approved!'); qc.invalidateQueries({ queryKey: ['approvals'] }); },
@@ -198,6 +206,15 @@ export default function ApprovalQueue() {
     onError: (err) => toast.error(err.response?.data?.message || 'Failed'),
   });
 
+  const reviewExtensionMutation = useMutation({
+    mutationFn: ({ taskId, reqId, status }) => api.patch(`/tasks/${taskId}/extension-request/${reqId}`, { status }),
+    onSuccess: (_, vars) => {
+      toast.success(`Extension request ${vars.status}`);
+      qc.invalidateQueries({ queryKey: ['extension-requests'] });
+    },
+    onError: (err) => toast.error(err.response?.data?.message || 'Failed'),
+  });
+
   const handleRejectConfirm = (notes) => {
     if (!rejectTarget) return;
     rejectMutation.mutate({ id: rejectTarget, notes });
@@ -205,13 +222,15 @@ export default function ApprovalQueue() {
   };
 
   const approvals = data?.data || [];
+  const extensionTasks = extData?.tasks || [];
+  const totalExtensions = extensionTasks.reduce((n, t) => n + t.extensionRequests.length, 0);
 
   return (
     <div className="space-y-6">
       <div className="page-header">
         <div>
           <h1 className="page-title">Approval Queue</h1>
-          <p className="text-gray-500 text-sm">{approvals.length} pending review</p>
+          <p className="text-gray-500 text-sm">{approvals.length} completions · {totalExtensions} extensions pending</p>
         </div>
       </div>
 
@@ -232,72 +251,173 @@ export default function ApprovalQueue() {
         </div>
       )}
 
-      {isLoading ? (
-        <div className="flex justify-center py-12"><div className="w-8 h-8 border-2 border-brand-500 border-t-transparent rounded-full animate-spin" /></div>
-      ) : approvals.length === 0 ? (
-        <div className="card p-12 text-center">
-          <CheckIcon className="w-12 h-12 text-green-400 mx-auto mb-3" />
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-white">All clear!</h3>
-          <p className="text-gray-500 text-sm mt-1">No pending approvals</p>
-        </div>
-      ) : (
-        <div className="space-y-3">
-          {approvals.map((approval) => (
-            <motion.div
-              key={approval._id}
-              initial={{ opacity: 0, y: 5 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="card p-5 hover:shadow-md transition-shadow"
-            >
-              <div className="flex items-start justify-between gap-4">
-                <div className="flex-1">
-                  <div className="flex items-center gap-2 flex-wrap mb-1">
-                    <span className={`badge ${PRIORITY_COLORS[approval.taskId?.priority]}`}>{approval.taskId?.priority}</span>
-                    <span className="badge badge-purple">Approval Pending</span>
-                    <span className="text-xs text-gray-400">{approval.taskId?.department}</span>
-                    {approval.round > 1 && (
-                      <span className="text-xs text-orange-600 font-semibold">Round #{approval.round}</span>
+      {/* Tab bar */}
+      <div className="flex gap-1 border-b border-gray-200 dark:border-gray-700">
+        {[
+          { key: 'completions', label: 'Completion Requests', count: approvals.length },
+          { key: 'extensions',  label: 'Extension Requests',  count: totalExtensions },
+        ].map(({ key, label, count }) => (
+          <button
+            key={key}
+            onClick={() => setActiveTab(key)}
+            className={clsx(
+              'px-4 py-2.5 text-sm font-medium border-b-2 transition-colors flex items-center gap-2',
+              activeTab === key
+                ? 'border-brand-600 text-brand-600 dark:text-brand-400'
+                : 'border-transparent text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
+            )}
+          >
+            {label}
+            {count > 0 && (
+              <span className={clsx(
+                'text-xs px-1.5 py-0.5 rounded-full',
+                activeTab === key ? 'bg-brand-100 text-brand-700' : 'bg-gray-100 text-gray-500'
+              )}>{count}</span>
+            )}
+          </button>
+        ))}
+      </div>
+
+      {/* ── Completion approvals ── */}
+      {activeTab === 'completions' && (
+        isLoading ? (
+          <div className="flex justify-center py-12"><div className="w-8 h-8 border-2 border-brand-500 border-t-transparent rounded-full animate-spin" /></div>
+        ) : approvals.length === 0 ? (
+          <div className="card p-12 text-center">
+            <CheckIcon className="w-12 h-12 text-green-400 mx-auto mb-3" />
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">All clear!</h3>
+            <p className="text-gray-500 text-sm mt-1">No pending approvals</p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {approvals.map((approval) => (
+              <motion.div
+                key={approval._id}
+                initial={{ opacity: 0, y: 5 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="card p-5 hover:shadow-md transition-shadow"
+              >
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 flex-wrap mb-1">
+                      <span className={`badge ${PRIORITY_COLORS[approval.taskId?.priority]}`}>{approval.taskId?.priority}</span>
+                      <span className="badge badge-purple">Approval Pending</span>
+                      <span className="text-xs text-gray-400">{approval.taskId?.department}</span>
+                      {approval.round > 1 && (
+                        <span className="text-xs text-orange-600 font-semibold">Round #{approval.round}</span>
+                      )}
+                    </div>
+                    <h3 className="font-semibold text-gray-900 dark:text-white">{approval.taskId?.title}</h3>
+                    <div className="flex items-center gap-4 mt-2 text-sm text-gray-500">
+                      <span>By: <strong className="text-gray-700 dark:text-gray-300">{approval.requestedBy?.firstName} {approval.requestedBy?.lastName}</strong></span>
+                      <span className="flex items-center gap-1">
+                        <ClockIcon className="w-3.5 h-3.5" />
+                        {formatDistanceToNow(new Date(approval.requestedAt), { addSuffix: true })}
+                      </span>
+                    </div>
+                    {approval.requestNotes && (
+                      <p className="text-sm text-gray-600 dark:text-gray-400 mt-2 italic line-clamp-2">"{approval.requestNotes}"</p>
                     )}
                   </div>
-                  <h3 className="font-semibold text-gray-900 dark:text-white">{approval.taskId?.title}</h3>
-                  <div className="flex items-center gap-4 mt-2 text-sm text-gray-500">
-                    <span>By: <strong className="text-gray-700 dark:text-gray-300">{approval.requestedBy?.firstName} {approval.requestedBy?.lastName}</strong></span>
-                    <span className="flex items-center gap-1">
-                      <ClockIcon className="w-3.5 h-3.5" />
-                      {formatDistanceToNow(new Date(approval.requestedAt), { addSuffix: true })}
-                    </span>
-                  </div>
-                  {approval.requestNotes && (
-                    <p className="text-sm text-gray-600 dark:text-gray-400 mt-2 italic line-clamp-2">"{approval.requestNotes}"</p>
+                  {isManagerOrAbove() && (
+                    <div className="flex gap-2 flex-shrink-0">
+                      <button onClick={() => setRejectTarget(approval._id)} className="btn-danger text-xs px-3 py-1.5">
+                        <XMarkIcon className="w-3.5 h-3.5" /> Reject
+                      </button>
+                      <button onClick={() => setSelected(approval)} className="btn-secondary text-xs px-3 py-1.5">
+                        Review
+                      </button>
+                      <button
+                        onClick={() => approveMutation.mutate({ id: approval._id, notes: '' })}
+                        className="btn-primary text-xs px-3 py-1.5 bg-green-600 hover:bg-green-700"
+                      >
+                        <CheckIcon className="w-3.5 h-3.5" /> Approve
+                      </button>
+                    </div>
                   )}
                 </div>
+              </motion.div>
+            ))}
+          </div>
+        )
+      )}
 
-                {isManagerOrAbove() && (
-                  <div className="flex gap-2 flex-shrink-0">
-                    <button
-                      onClick={() => setRejectTarget(approval._id)}
-                      className="btn-danger text-xs px-3 py-1.5"
-                    >
-                      <XMarkIcon className="w-3.5 h-3.5" /> Reject
-                    </button>
-                    <button
-                      onClick={() => setSelected(approval)}
-                      className="btn-secondary text-xs px-3 py-1.5"
-                    >
-                      Review
-                    </button>
-                    <button
-                      onClick={() => approveMutation.mutate({ id: approval._id, notes: '' })}
-                      className="btn-primary text-xs px-3 py-1.5 bg-green-600 hover:bg-green-700"
-                    >
-                      <CheckIcon className="w-3.5 h-3.5" /> Approve
-                    </button>
+      {/* ── Extension requests ── */}
+      {activeTab === 'extensions' && (
+        extLoading ? (
+          <div className="flex justify-center py-12"><div className="w-8 h-8 border-2 border-brand-500 border-t-transparent rounded-full animate-spin" /></div>
+        ) : extensionTasks.length === 0 ? (
+          <div className="card p-12 text-center">
+            <CalendarDaysIcon className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">No pending extensions</h3>
+            <p className="text-gray-500 text-sm mt-1">No team members have requested deadline extensions</p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {extensionTasks.map((task) =>
+              task.extensionRequests.map((ext) => (
+                <motion.div
+                  key={ext._id}
+                  initial={{ opacity: 0, y: 5 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="card p-5 hover:shadow-md transition-shadow border-l-4 border-l-orange-400"
+                >
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 flex-wrap mb-1">
+                        <span className={`badge ${PRIORITY_COLORS[task.priority]}`}>{task.priority}</span>
+                        <span className="badge badge-orange">Extension Requested</span>
+                        <span className="text-xs text-gray-400">{task.department}</span>
+                      </div>
+                      <h3 className="font-semibold text-gray-900 dark:text-white">{task.title}</h3>
+                      <div className="flex items-center gap-4 mt-2 text-sm text-gray-500 flex-wrap">
+                        <span>By: <strong className="text-gray-700 dark:text-gray-300">
+                          {(ext.requestedBy?.firstName || task.assignedTo?.firstName)} {(ext.requestedBy?.lastName || task.assignedTo?.lastName)}
+                        </strong></span>
+                        {task.dueDate && (
+                          <span className="flex items-center gap-1 text-red-500">
+                            <ClockIcon className="w-3.5 h-3.5" />
+                            Current: {format(new Date(task.dueDate), 'dd MMM yyyy')}
+                          </span>
+                        )}
+                        {ext.requestedDueDate && (
+                          <span className="flex items-center gap-1 text-green-600">
+                            <CalendarDaysIcon className="w-3.5 h-3.5" />
+                            Requested: {format(new Date(ext.requestedDueDate), 'dd MMM yyyy')}
+                          </span>
+                        )}
+                      </div>
+                      {ext.reason && (
+                        <p className="text-sm text-gray-600 dark:text-gray-400 mt-2 italic">"{ext.reason}"</p>
+                      )}
+                      <p className="text-xs text-gray-400 mt-1">
+                        Requested {ext.requestedAt ? formatDistanceToNow(new Date(ext.requestedAt), { addSuffix: true }) : ''}
+                      </p>
+                    </div>
+                    {isManagerOrAbove() && (
+                      <div className="flex gap-2 flex-shrink-0">
+                        <button
+                          onClick={() => reviewExtensionMutation.mutate({ taskId: task._id, reqId: ext._id, status: 'rejected' })}
+                          disabled={reviewExtensionMutation.isPending}
+                          className="btn-danger text-xs px-3 py-1.5"
+                        >
+                          <XMarkIcon className="w-3.5 h-3.5" /> Reject
+                        </button>
+                        <button
+                          onClick={() => reviewExtensionMutation.mutate({ taskId: task._id, reqId: ext._id, status: 'approved' })}
+                          disabled={reviewExtensionMutation.isPending}
+                          className="btn-primary text-xs px-3 py-1.5 bg-green-600 hover:bg-green-700"
+                        >
+                          <CheckIcon className="w-3.5 h-3.5" /> Approve
+                        </button>
+                      </div>
+                    )}
                   </div>
-                )}
-              </div>
-            </motion.div>
-          ))}
-        </div>
+                </motion.div>
+              ))
+            )}
+          </div>
+        )
       )}
 
       {selected && (

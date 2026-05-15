@@ -5,8 +5,10 @@ const Product = require('../models/Product');
 const Transaction = require('../models/Transaction');
 const User = require('../models/User');
 const Organization = require('../models/Organization');
+const MarketplaceDaily = require('../models/MarketplaceDaily');
 const { createNotification, bulkCreateNotifications } = require('./notification.service');
-const { sendTaskOverdueEmployee, sendTaskOverdueManager, sendDailyReport } = require('./whatsapp.service');
+const { sendTaskOverdueEmployee, sendTaskOverdueManager, sendDailyReport, sendDailyReportWithPDF } = require('./whatsapp.service');
+const { generateDailyReportPDF } = require('./reportPdf.service');
 const { autoSyncAllOrgs } = require('./googleSheets.service');
 const { TASK_STATUS, ROLES, ROLE_HIERARCHY, SOCKET_EVENTS } = require('../utils/constants');
 const logger = require('../utils/logger');
@@ -365,6 +367,9 @@ const runDailyReport = async (targetPhones = null) => {
       lowStockCount,
       activeProductionOrders,
       topPerformer,
+      departmentStats,
+      marketplaceToday,
+      platformListings,
     ] = await Promise.all([
       safe(Task.countDocuments({ organizationId: org._id, status: 'Completed', completedAt: { $gte: today } })),
       safe(Task.countDocuments({ organizationId: org._id, isOverdue: true })),
@@ -392,6 +397,32 @@ const runDailyReport = async (targetPhones = null) => {
         { $lookup: { from: 'users', localField: '_id', foreignField: '_id', as: 'user' } },
         { $unwind: { path: '$user', preserveNullAndEmpty: true } },
       ])),
+      // Department-wise breakdown: total, by-status counts, subtask count, nearest due date
+      safe(Task.aggregate([
+        { $match: { organizationId: org._id, status: { $nin: ['Cancelled'] } } },
+        { $group: {
+          _id: '$department',
+          total:        { $sum: 1 },
+          completed:    { $sum: { $cond: [{ $eq: ['$status', 'Completed'] }, 1, 0] } },
+          inProgress:   { $sum: { $cond: [{ $eq: ['$status', 'In Progress'] }, 1, 0] } },
+          overdue:      { $sum: { $cond: ['$isOverdue', 1, 0] } },
+          pending:      { $sum: { $cond: [{ $in: ['$status', ['Pending', 'Assigned']] }, 1, 0] } },
+          subtaskCount: { $sum: { $size: { $ifNull: ['$subTasks', []] } } },
+          nearestDue:   { $min: '$dueDate' },
+        }},
+        { $addFields: { department: '$_id' } },
+        { $sort: { department: 1 } },
+      ])),
+      // Today's marketplace aggregate
+      safe(MarketplaceDaily.findOne({ organizationId: org._id, date: { $gte: today, $lte: todayEnd } }).lean()),
+      // Active product listings per platform
+      safe(Product.aggregate([
+        { $match: { organizationId: org._id, isActive: true, 'marketplaceListings.0': { $exists: true } } },
+        { $unwind: '$marketplaceListings' },
+        { $match: { 'marketplaceListings.isActive': true } },
+        { $group: { _id: '$marketplaceListings.platform', count: { $sum: 1 } } },
+        { $sort: { count: -1 } },
+      ])),
     ]);
 
     const topP = (topPerformer || [])[0];
@@ -415,15 +446,26 @@ const runDailyReport = async (targetPhones = null) => {
       activeProductionOrders: activeProductionOrders || 0,
       topPerformerName,
       topPerformerCount: topP?.count || 0,
+      departmentStats: departmentStats || [],
+      marketplaceToday: marketplaceToday || null,
+      platformListings: platformListings || [],
     };
 
+    // Generate PDF (best-effort — don't block sending if PDF fails)
+    let pdfResult = null;
+    try {
+      pdfResult = await generateDailyReportPDF(reportData);
+      logger.info(`Daily report PDF saved: ${pdfResult.fileName}`);
+    } catch (pdfErr) {
+      logger.error(`PDF generation failed: ${pdfErr.message}`);
+    }
+
     if (targetPhones && targetPhones.length > 0) {
-      // Send to explicitly specified phones (e.g. manual test trigger)
       for (const phone of targetPhones) {
         await sendDailyReport(phone, reportData);
+        if (pdfResult) await sendDailyReportWithPDF(phone, pdfResult.buffer, pdfResult.fileName).catch(() => {});
       }
     } else {
-      // Send to all admins/founders via in-app + WhatsApp
       const admins = await User.find({
         organizationId: org._id,
         role: { $in: [ROLES.SUPER_ADMIN, ROLES.CHAIRMAN, ROLES.FOUNDER, ROLES.ADMIN] },
@@ -447,6 +489,7 @@ const runDailyReport = async (targetPhones = null) => {
         const adminPhone = admin.whatsapp || admin.phone;
         if (adminPhone) {
           await sendDailyReport(adminPhone, reportData);
+          if (pdfResult) await sendDailyReportWithPDF(adminPhone, pdfResult.buffer, pdfResult.fileName).catch(() => {});
         }
       }
     }

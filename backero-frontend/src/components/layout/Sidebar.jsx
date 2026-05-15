@@ -7,6 +7,7 @@ import {
   CubeIcon, BoltIcon, ChartBarIcon, CogIcon, MegaphoneIcon,
   BuildingStorefrontIcon, BeakerIcon, BanknotesIcon,
   ChevronDownIcon, ChevronRightIcon, Bars3Icon, UserGroupIcon,
+  WrenchScrewdriverIcon,
 } from '@heroicons/react/24/outline';
 import { clsx } from 'clsx';
 
@@ -134,10 +135,12 @@ export default function Sidebar({ collapsed, onToggle }) {
 
   // Departments — only show what the user can see
   const deptItems = [];
-  if (can('dept.marketing'))   deptItems.push({ label: 'Marketing',   to: '/departments/marketing',   icon: MegaphoneIcon,          color: 'text-purple-600' });
-  if (can('dept.marketplace')) deptItems.push({ label: 'Marketplace', to: '/departments/marketplace', icon: BuildingStorefrontIcon,  color: 'text-orange-600' });
-  if (can('dept.sales'))       deptItems.push({ label: 'Sales Dept',  to: '/departments/sales',       icon: ShoppingBagIcon,         color: 'text-green-600' });
-  if (can('dept.rnd'))         deptItems.push({ label: 'R&D',         to: '/departments/rnd',         icon: BeakerIcon,              color: 'text-cyan-600' });
+  if (can('dept.marketing'))   deptItems.push({ label: 'Marketing',   to: '/departments/marketing',   icon: MegaphoneIcon,           color: 'text-purple-600' });
+  if (can('dept.marketplace')) deptItems.push({ label: 'Marketplace', to: '/departments/marketplace', icon: BuildingStorefrontIcon,   color: 'text-orange-600' });
+  if (can('dept.sales'))       deptItems.push({ label: 'Sales Dept',  to: '/departments/sales',       icon: ShoppingBagIcon,          color: 'text-green-600' });
+  if (can('dept.rnd'))         deptItems.push({ label: 'R&D',         to: '/departments/rnd',         icon: BeakerIcon,               color: 'text-cyan-600' });
+  if (can('dept.operations'))  deptItems.push({ label: 'Operations',  to: '/departments/operations',  icon: WrenchScrewdriverIcon,    color: 'text-indigo-600' });
+  if (can('dept.hr'))          deptItems.push({ label: 'HR',          to: '/departments/hr',          icon: UserGroupIcon,            color: 'text-amber-600' });
   if (deptItems.length > 0) {
     groups.push({ label: 'Departments', items: deptItems });
   }

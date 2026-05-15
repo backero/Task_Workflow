@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   FunnelIcon, ExclamationTriangleIcon, XMarkIcon, PaperAirplaneIcon,
   CheckCircleIcon, ClockIcon, ArrowPathIcon, ChatBubbleLeftIcon, ArrowUturnLeftIcon, PlayIcon, BoltIcon,
+  CalendarDaysIcon,
 } from '@heroicons/react/24/outline';
 import api from '../../api/axios';
 import { useAuthStore } from '../../store/useAuthStore';
@@ -27,12 +28,18 @@ function TaskDrawer({ task: initialTask, onClose, onUpdated }) {
   const { user } = useAuthStore();
   const qc = useQueryClient();
   const navigate = useNavigate();
-  const bottomRef = useRef();
+  const updatesEndRef = useRef();
+  const commentsEndRef = useRef();
+
+  const [tab, setTab] = useState('updates');
   const [updateText, setUpdateText] = useState('');
   const [progress, setProgress] = useState(initialTask.progress || 0);
   const [hours, setHours] = useState('');
   const [showCompletion, setShowCompletion] = useState(false);
   const [completionNotes, setCompletionNotes] = useState('');
+  const [commentText, setCommentText] = useState('');
+  const [extDate, setExtDate] = useState('');
+  const [extReason, setExtReason] = useState('');
 
   const { data: taskData } = useQuery({
     queryKey: ['task-detail', initialTask._id],
@@ -51,15 +58,16 @@ function TaskDrawer({ task: initialTask, onClose, onUpdated }) {
   const pendingApproval = approvalsData?.find((a) => a.status === 'pending');
 
   const updates = (task.comments || []).filter((c) => c.type === 'daily_update');
+  const realComments = (task.comments || []).filter((c) => c.type === 'comment');
+
+  const isAssignee = (task.assignedTo?._id || task.assignedTo)?.toString() === user._id?.toString();
+  const hasPendingExtension = (task.extensionRequests || []).some((e) => e.status === 'pending');
+  const canRequestExtension = isAssignee && !!task.dueDate && !['Completed', 'Cancelled'].includes(task.status);
   const canAct = ['Assigned', 'In Progress', 'Changes Requested', 'Reopened'].includes(task.status);
 
-  useEffect(() => {
-    setProgress(task.progress || 0);
-  }, [task.progress]);
-
-  useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [updates.length]);
+  useEffect(() => { setProgress(task.progress || 0); }, [task.progress]);
+  useEffect(() => { updatesEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [updates.length]);
+  useEffect(() => { commentsEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [realComments.length]);
 
   const startMutation = useMutation({
     mutationFn: () => api.post(`/tasks/${task._id}/start`),
@@ -97,6 +105,27 @@ function TaskDrawer({ task: initialTask, onClose, onUpdated }) {
     onError: (err) => toast.error(err.response?.data?.message || 'Failed'),
   });
 
+  const commentMutation = useMutation({
+    mutationFn: (content) => api.post(`/tasks/${task._id}/comment`, { content }),
+    onSuccess: () => {
+      setCommentText('');
+      qc.invalidateQueries({ queryKey: ['task-detail', task._id] });
+      toast.success('Comment posted');
+    },
+    onError: (err) => toast.error(err.response?.data?.message || 'Failed'),
+  });
+
+  const extensionMutation = useMutation({
+    mutationFn: (data) => api.post(`/tasks/${task._id}/extension-request`, data),
+    onSuccess: () => {
+      setExtDate('');
+      setExtReason('');
+      qc.invalidateQueries({ queryKey: ['task-detail', task._id] });
+      toast.success('Extension request submitted — your manager has been notified');
+    },
+    onError: (err) => toast.error(err.response?.data?.message || 'Failed'),
+  });
+
   const handlePostUpdate = () => {
     if (!updateText.trim()) return toast.error('Please write what you did today');
     dailyMutation.mutate({ content: updateText, progress, hoursWorked: hours ? Number(hours) : undefined });
@@ -104,6 +133,17 @@ function TaskDrawer({ task: initialTask, onClose, onUpdated }) {
 
   const dueDate = task.dueDate ? new Date(task.dueDate) : null;
   const isOverdue = dueDate && isPast(dueDate) && task.status !== 'Completed';
+
+  // Min date for extension = tomorrow or 1 day after current due date, whichever is later
+  const minExtDate = dueDate
+    ? format(new Date(Math.max(Date.now(), dueDate.getTime()) + 86400000), 'yyyy-MM-dd')
+    : format(new Date(Date.now() + 86400000), 'yyyy-MM-dd');
+
+  const tabs = [
+    { key: 'updates',   label: 'Updates',   count: updates.length },
+    { key: 'comments',  label: 'Comments',  count: realComments.length },
+    ...(canRequestExtension ? [{ key: 'extension', label: 'Extension', count: hasPendingExtension ? 1 : 0, warn: hasPendingExtension }] : []),
+  ];
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end">
@@ -166,7 +206,7 @@ function TaskDrawer({ task: initialTask, onClose, onUpdated }) {
           </div>
         )}
 
-        {/* Rejection feedback banner */}
+        {/* Rejection feedback */}
         {task.status === 'Changes Requested' && lastRejection?.reviewNotes && (
           <div className="mx-5 mt-3 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl">
             <div className="flex items-start gap-2">
@@ -182,15 +222,45 @@ function TaskDrawer({ task: initialTask, onClose, onUpdated }) {
           </div>
         )}
 
-        {/* Work log */}
-        <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
-          {updates.length === 0 ? (
-            <div className="text-center py-8 text-gray-400">
-              <ChatBubbleLeftIcon className="w-8 h-8 mx-auto mb-2 opacity-40" />
-              <p className="text-sm">No updates yet — post your first daily update below</p>
-            </div>
-          ) : (
-            updates.map((upd, i) => (
+        {/* Tabs */}
+        <div className="flex border-b border-gray-100 dark:border-gray-800 mt-1">
+          {tabs.map(({ key, label, count, warn }) => (
+            <button
+              key={key}
+              onClick={() => setTab(key)}
+              className={clsx(
+                'flex-1 px-3 py-3 text-sm font-medium border-b-2 transition-colors flex items-center justify-center gap-1.5',
+                tab === key
+                  ? 'border-brand-600 text-brand-600 dark:text-brand-400'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
+              )}
+            >
+              {label}
+              {count > 0 && (
+                <span className={clsx(
+                  'text-xs px-1.5 py-0.5 rounded-full',
+                  warn ? 'bg-orange-100 text-orange-600 dark:bg-orange-900/30 dark:text-orange-400' :
+                  tab === key ? 'bg-brand-100 text-brand-700 dark:bg-brand-900/30 dark:text-brand-400' :
+                  'bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400'
+                )}>
+                  {count}
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
+
+        {/* Tab content */}
+        <div className="flex-1 overflow-y-auto px-5 py-4 space-y-3">
+
+          {/* ── Updates tab ── */}
+          {tab === 'updates' && (
+            updates.length === 0 ? (
+              <div className="text-center py-8 text-gray-400">
+                <ChatBubbleLeftIcon className="w-8 h-8 mx-auto mb-2 opacity-40" />
+                <p className="text-sm">No updates yet — post your first daily update below</p>
+              </div>
+            ) : updates.map((upd, i) => (
               <div key={upd._id || i} className="flex gap-3">
                 <div className="w-7 h-7 rounded-full bg-brand-100 dark:bg-brand-900/30 flex items-center justify-center flex-shrink-0 mt-0.5">
                   <span className="text-brand-700 dark:text-brand-400 text-xs font-bold">
@@ -213,153 +283,301 @@ function TaskDrawer({ task: initialTask, onClose, onUpdated }) {
               </div>
             ))
           )}
-          <div ref={bottomRef} />
+          {tab === 'updates' && <div ref={updatesEndRef} />}
+
+          {/* ── Comments tab ── */}
+          {tab === 'comments' && (
+            realComments.length === 0 ? (
+              <div className="text-center py-8 text-gray-400">
+                <ChatBubbleLeftIcon className="w-8 h-8 mx-auto mb-2 opacity-40" />
+                <p className="text-sm">No comments yet — start a discussion below</p>
+              </div>
+            ) : realComments.map((c, i) => (
+              <div key={c._id || i} className="flex gap-3">
+                <div className="w-7 h-7 rounded-full bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center flex-shrink-0 mt-0.5">
+                  <span className="text-indigo-700 dark:text-indigo-400 text-xs font-bold">
+                    {c.author?.firstName?.[0]}{c.author?.lastName?.[0]}
+                  </span>
+                </div>
+                <div className="flex-1 bg-gray-50 dark:bg-gray-800 rounded-xl p-3">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-xs font-semibold text-gray-700 dark:text-gray-300">
+                      {c.author?.firstName} {c.author?.lastName}
+                    </span>
+                    <span className="text-xs text-gray-400">
+                      {c.createdAt ? formatDistanceToNow(new Date(c.createdAt), { addSuffix: true }) : ''}
+                    </span>
+                  </div>
+                  <p className="text-sm text-gray-700 dark:text-gray-300">{c.content}</p>
+                </div>
+              </div>
+            ))
+          )}
+          {tab === 'comments' && <div ref={commentsEndRef} />}
+
+          {/* ── Extension tab ── */}
+          {tab === 'extension' && (
+            <div className="space-y-4">
+              {/* Request history */}
+              {(task.extensionRequests || []).length > 0 && (
+                <div className="space-y-2">
+                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Request History</p>
+                  {(task.extensionRequests || []).map((ext, i) => (
+                    <div key={ext._id || i} className={clsx(
+                      'p-3 rounded-xl border text-sm',
+                      ext.status === 'approved' ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800' :
+                      ext.status === 'rejected' ? 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800' :
+                      'bg-orange-50 dark:bg-orange-900/20 border-orange-200 dark:border-orange-800'
+                    )}>
+                      <div className="flex items-center justify-between mb-1">
+                        <span className={clsx(
+                          'text-xs font-bold uppercase',
+                          ext.status === 'approved' ? 'text-green-700 dark:text-green-400' :
+                          ext.status === 'rejected' ? 'text-red-700 dark:text-red-400' : 'text-orange-700 dark:text-orange-400'
+                        )}>{ext.status}</span>
+                        <span className="text-xs text-gray-400">
+                          {ext.requestedAt ? format(new Date(ext.requestedAt), 'dd MMM') : ''}
+                        </span>
+                      </div>
+                      <p className="text-xs text-gray-600 dark:text-gray-400">
+                        Requested deadline: <span className="font-medium">{ext.requestedDueDate ? format(new Date(ext.requestedDueDate), 'dd MMM yyyy') : '—'}</span>
+                      </p>
+                      {ext.reason && <p className="text-xs text-gray-500 mt-1 italic">"{ext.reason}"</p>}
+                      {ext.reviewedBy && (
+                        <p className="text-xs text-gray-400 mt-1">
+                          Reviewed by {ext.reviewedBy.firstName} {ext.reviewedBy.lastName}
+                        </p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* New request form */}
+              {hasPendingExtension ? (
+                <div className="p-4 bg-orange-50 dark:bg-orange-900/20 rounded-xl border border-orange-200 dark:border-orange-800">
+                  <p className="text-sm font-medium text-orange-800 dark:text-orange-300">
+                    You have a pending extension request. Wait for your manager to review it before submitting a new one.
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Request a New Deadline</p>
+                  <div>
+                    <label className="label">New Requested Deadline</label>
+                    <div className="relative">
+                      <CalendarDaysIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                      <input
+                        type="date"
+                        value={extDate}
+                        min={minExtDate}
+                        onChange={(e) => setExtDate(e.target.value)}
+                        className="input pl-9"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="label">Reason for Extension</label>
+                    <textarea
+                      value={extReason}
+                      onChange={(e) => setExtReason(e.target.value)}
+                      rows={3}
+                      className="input resize-none"
+                      placeholder="Explain why you need more time and what's blocking you..."
+                    />
+                  </div>
+                  <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg text-xs text-blue-800 dark:text-blue-300">
+                    Your manager will be notified via WhatsApp and can approve or reject this request.
+                  </div>
+                  <button
+                    onClick={() => {
+                      if (!extDate) return toast.error('Please select a new deadline');
+                      if (!extReason.trim()) return toast.error('Please provide a reason');
+                      extensionMutation.mutate({ requestedDueDate: extDate, reason: extReason });
+                    }}
+                    disabled={extensionMutation.isPending || !extDate || !extReason.trim()}
+                    className="btn-primary w-full justify-center disabled:opacity-50"
+                  >
+                    {extensionMutation.isPending ? 'Submitting…' : 'Submit Extension Request'}
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
-        {/* Action bar */}
-        {task.status === 'Completed' ? (
-          <div className="p-5 border-t border-gray-100 dark:border-gray-800">
-            <div className="flex items-center gap-2 justify-center text-green-600">
-              <CheckCircleIcon className="w-5 h-5" />
-              <span className="font-semibold">Task Completed</span>
-            </div>
-          </div>
-        ) : task.status === 'Approval Pending' ? (
-          <div className="p-5 border-t border-gray-100 dark:border-gray-800">
-            <div className="flex items-center gap-2 justify-center text-purple-600">
-              <ArrowPathIcon className="w-4 h-4 animate-spin" />
-              <span className="text-sm font-medium">Waiting for manager approval…</span>
-            </div>
-          </div>
-        ) : canAct ? (
-          <div className="border-t border-gray-100 dark:border-gray-800">
-            {/* Start Working — shown when task is still in Assigned state */}
-            {task.status === 'Assigned' && (
-              <div className="p-4 border-b border-gray-100 dark:border-gray-800 bg-blue-50 dark:bg-blue-900/20">
-                <p className="text-sm font-medium text-blue-900 dark:text-blue-300 mb-3">Ready to start? Click below to begin working.</p>
-                <button
-                  onClick={() => startMutation.mutate()}
-                  disabled={startMutation.isPending}
-                  className="btn-primary flex items-center gap-2"
-                >
-                  <PlayIcon className="w-4 h-4" />
-                  {startMutation.isPending ? 'Starting…' : 'Start Working'}
-                </button>
+        {/* Action bar — Updates tab */}
+        {tab === 'updates' && (
+          task.status === 'Completed' ? (
+            <div className="p-5 border-t border-gray-100 dark:border-gray-800">
+              <div className="flex items-center gap-2 justify-center text-green-600">
+                <CheckCircleIcon className="w-5 h-5" />
+                <span className="font-semibold">Task Completed</span>
               </div>
-            )}
-            {/* Daily update form */}
-            <div className="p-4 space-y-3">
-              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Post Today's Update</p>
-              <textarea
-                value={updateText}
-                onChange={(e) => setUpdateText(e.target.value)}
-                rows={2}
-                className="input resize-none text-sm"
-                placeholder="What did you work on today? Any blockers?"
-              />
-              <div className="flex items-center gap-3">
-                <div className="flex-1">
-                  <div className="flex justify-between text-xs text-gray-500 mb-1">
-                    <span>Progress</span>
-                    <span className="font-semibold text-brand-600">{progress}%</span>
+            </div>
+          ) : task.status === 'Approval Pending' ? (
+            <div className="p-5 border-t border-gray-100 dark:border-gray-800">
+              <div className="flex items-center gap-2 justify-center text-purple-600">
+                <ArrowPathIcon className="w-4 h-4 animate-spin" />
+                <span className="text-sm font-medium">Waiting for manager approval…</span>
+              </div>
+            </div>
+          ) : canAct ? (
+            <div className="border-t border-gray-100 dark:border-gray-800">
+              {task.status === 'Assigned' && (
+                <div className="p-4 border-b border-gray-100 dark:border-gray-800 bg-blue-50 dark:bg-blue-900/20">
+                  <p className="text-sm font-medium text-blue-900 dark:text-blue-300 mb-3">Ready to start? Click below to begin working.</p>
+                  <button
+                    onClick={() => startMutation.mutate()}
+                    disabled={startMutation.isPending}
+                    className="btn-primary flex items-center gap-2"
+                  >
+                    <PlayIcon className="w-4 h-4" />
+                    {startMutation.isPending ? 'Starting…' : 'Start Working'}
+                  </button>
+                </div>
+              )}
+              <div className="p-4 space-y-3">
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Post Today's Update</p>
+                <textarea
+                  value={updateText}
+                  onChange={(e) => setUpdateText(e.target.value)}
+                  rows={2}
+                  className="input resize-none text-sm"
+                  placeholder="What did you work on today? Any blockers?"
+                />
+                <div className="flex items-center gap-3">
+                  <div className="flex-1">
+                    <div className="flex justify-between text-xs text-gray-500 mb-1">
+                      <span>Progress</span>
+                      <span className="font-semibold text-brand-600">{progress}%</span>
+                    </div>
+                    <input
+                      type="range" min="0" max="100" step="5" value={progress}
+                      onChange={(e) => setProgress(Number(e.target.value))}
+                      className="w-full accent-brand-600"
+                    />
                   </div>
-                  <input
-                    type="range" min="0" max="100" step="5" value={progress}
-                    onChange={(e) => setProgress(Number(e.target.value))}
-                    className="w-full accent-brand-600"
-                  />
+                  <div className="w-20">
+                    <p className="text-xs text-gray-500 mb-1">Hours</p>
+                    <input
+                      type="number" min="0" max="24" step="0.5" value={hours}
+                      onChange={(e) => setHours(e.target.value)}
+                      className="input text-sm py-1.5"
+                      placeholder="0"
+                    />
+                  </div>
                 </div>
-                <div className="w-20">
-                  <p className="text-xs text-gray-500 mb-1">Hours</p>
-                  <input
-                    type="number" min="0" max="24" step="0.5" value={hours}
-                    onChange={(e) => setHours(e.target.value)}
-                    className="input text-sm py-1.5"
-                    placeholder="0"
-                  />
+                <div className="flex gap-2">
+                  <button
+                    onClick={handlePostUpdate}
+                    disabled={dailyMutation.isPending || !updateText.trim()}
+                    className="btn-primary flex-1 justify-center py-2 gap-2 disabled:opacity-50"
+                  >
+                    <PaperAirplaneIcon className="w-4 h-4" />
+                    {dailyMutation.isPending ? 'Posting...' : 'Post Update'}
+                  </button>
+                  {progress === 100 && !pendingApproval && (
+                    <button
+                      onClick={() => setShowCompletion(true)}
+                      className="btn-primary justify-center px-4 py-2 bg-green-600 hover:bg-green-700 gap-1.5"
+                    >
+                      <CheckCircleIcon className="w-4 h-4" />
+                      Request Completion
+                    </button>
+                  )}
                 </div>
-              </div>
-              <div className="flex gap-2">
-                <button
-                  onClick={handlePostUpdate}
-                  disabled={dailyMutation.isPending || !updateText.trim()}
-                  className="btn-primary flex-1 justify-center py-2 gap-2 disabled:opacity-50"
-                >
-                  <PaperAirplaneIcon className="w-4 h-4" />
-                  {dailyMutation.isPending ? 'Posting...' : 'Post Update'}
-                </button>
-                {progress === 100 && !pendingApproval && (
+                {progress < 100 && canAct && !pendingApproval && (
                   <button
                     onClick={() => setShowCompletion(true)}
-                    className="btn-primary justify-center px-4 py-2 bg-green-600 hover:bg-green-700 gap-1.5"
+                    className="w-full text-center text-xs text-gray-400 hover:text-green-600 py-1 transition-colors"
                   >
-                    <CheckCircleIcon className="w-4 h-4" />
-                    Request Completion
+                    Done with the task? → Request Completion
                   </button>
                 )}
               </div>
-              {progress < 100 && canAct && !pendingApproval && (
-                <button
-                  onClick={() => setShowCompletion(true)}
-                  className="w-full text-center text-xs text-gray-400 hover:text-green-600 py-1 transition-colors"
-                >
-                  Done with the task? → Request Completion
-                </button>
-              )}
+            </div>
+          ) : null
+        )}
+
+        {/* Action bar — Comments tab */}
+        {tab === 'comments' && (
+          <div className="border-t border-gray-100 dark:border-gray-800 p-4">
+            <div className="flex gap-2 items-end">
+              <textarea
+                value={commentText}
+                onChange={(e) => setCommentText(e.target.value)}
+                rows={2}
+                className="input resize-none text-sm flex-1"
+                placeholder="Write a comment… (Ctrl+Enter to send)"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && (e.ctrlKey || e.metaKey) && commentText.trim()) {
+                    e.preventDefault();
+                    commentMutation.mutate(commentText.trim());
+                  }
+                }}
+              />
+              <button
+                onClick={() => { if (commentText.trim()) commentMutation.mutate(commentText.trim()); }}
+                disabled={commentMutation.isPending || !commentText.trim()}
+                className="btn-primary px-3 py-2.5 disabled:opacity-50 self-stretch flex items-center"
+              >
+                <PaperAirplaneIcon className="w-4 h-4" />
+              </button>
             </div>
           </div>
-        ) : null}
-      </motion.div>
-
-      {/* Completion modal */}
-      <AnimatePresence>
-        {showCompletion && (
-          <motion.div
-            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="absolute inset-0 z-10 flex items-center justify-center p-4"
-          >
-            <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-modal w-full max-w-sm p-6 space-y-4 relative z-20">
-              <h3 className="font-bold text-gray-900 dark:text-white">
-                Request Task Completion
-                {task.rejectionCount > 0 && (
-                  <span className="ml-2 text-sm font-normal text-orange-600">(Resubmission #{task.rejectionCount + 1})</span>
-                )}
-              </h3>
-              <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                <p className="text-sm font-medium text-gray-700 dark:text-gray-300">{task.title}</p>
-              </div>
-              {task.status === 'Changes Requested' && lastRejection?.reviewNotes && (
-                <div className="p-3 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800">
-                  <p className="text-xs font-semibold text-red-600 mb-0.5">Previous feedback to address:</p>
-                  <p className="text-xs text-red-700 dark:text-red-300">{lastRejection.reviewNotes}</p>
-                </div>
-              )}
-              <div>
-                <label className="label">Summary of completed work</label>
-                <textarea
-                  value={completionNotes}
-                  onChange={(e) => setCompletionNotes(e.target.value)}
-                  rows={3} className="input resize-none"
-                  placeholder="Describe what you completed, any attachments or proof of work..."
-                />
-              </div>
-              <div className="p-3 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg text-xs text-yellow-800 dark:text-yellow-300">
-                Your manager will review this and mark it complete or send it back with feedback.
-              </div>
-              <div className="flex gap-3">
-                <button onClick={() => setShowCompletion(false)} className="btn-secondary flex-1 justify-center">Cancel</button>
-                <button
-                  onClick={() => completionMutation.mutate(completionNotes)}
-                  disabled={completionMutation.isPending}
-                  className="btn-primary flex-1 justify-center bg-green-600 hover:bg-green-700"
-                >
-                  {completionMutation.isPending ? 'Submitting...' : 'Submit for Review'}
-                </button>
-              </div>
-            </div>
-          </motion.div>
         )}
-      </AnimatePresence>
+
+        {/* Completion modal */}
+        <AnimatePresence>
+          {showCompletion && (
+            <motion.div
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              className="absolute inset-0 z-10 flex items-center justify-center p-4"
+            >
+              <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-modal w-full max-w-sm p-6 space-y-4 relative z-20">
+                <h3 className="font-bold text-gray-900 dark:text-white">
+                  Request Task Completion
+                  {task.rejectionCount > 0 && (
+                    <span className="ml-2 text-sm font-normal text-orange-600">(Resubmission #{task.rejectionCount + 1})</span>
+                  )}
+                </h3>
+                <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                  <p className="text-sm font-medium text-gray-700 dark:text-gray-300">{task.title}</p>
+                </div>
+                {task.status === 'Changes Requested' && lastRejection?.reviewNotes && (
+                  <div className="p-3 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800">
+                    <p className="text-xs font-semibold text-red-600 mb-0.5">Previous feedback to address:</p>
+                    <p className="text-xs text-red-700 dark:text-red-300">{lastRejection.reviewNotes}</p>
+                  </div>
+                )}
+                <div>
+                  <label className="label">Summary of completed work</label>
+                  <textarea
+                    value={completionNotes}
+                    onChange={(e) => setCompletionNotes(e.target.value)}
+                    rows={3} className="input resize-none"
+                    placeholder="Describe what you completed, any attachments or proof of work..."
+                  />
+                </div>
+                <div className="p-3 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg text-xs text-yellow-800 dark:text-yellow-300">
+                  Your manager will review this and mark it complete or send it back with feedback.
+                </div>
+                <div className="flex gap-3">
+                  <button onClick={() => setShowCompletion(false)} className="btn-secondary flex-1 justify-center">Cancel</button>
+                  <button
+                    onClick={() => completionMutation.mutate(completionNotes)}
+                    disabled={completionMutation.isPending}
+                    className="btn-primary flex-1 justify-center bg-green-600 hover:bg-green-700"
+                  >
+                    {completionMutation.isPending ? 'Submitting...' : 'Submit for Review'}
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </motion.div>
     </div>
   );
 }
@@ -373,7 +591,6 @@ export default function MyTasks() {
   const qc = useQueryClient();
   const { socket } = useSocketStore();
 
-  // Real-time: refresh task list when a task changes
   const refreshMyTasks = useCallback(() => {
     qc.invalidateQueries({ queryKey: ['tasks', 'my'] });
   }, [qc]);
@@ -422,7 +639,6 @@ export default function MyTasks() {
         </div>
       </div>
 
-      {/* Filter tabs */}
       <div className="flex gap-2 flex-wrap">
         {FILTERS.map((f) => (
           <button
@@ -449,10 +665,11 @@ export default function MyTasks() {
       ) : (
         <div className="space-y-3">
           {tasks.map((task) => {
-            const dueDate  = task.dueDate ? new Date(task.dueDate) : null;
+            const dueDate   = task.dueDate ? new Date(task.dueDate) : null;
             const isOverdue = dueDate && isPast(dueDate) && task.status !== 'Completed';
             const isDueToday = dueDate && isToday(dueDate);
             const lastUpdate = task.comments?.filter((c) => c.type === 'daily_update').slice(-1)[0];
+            const commentCount = task.comments?.filter((c) => c.type === 'comment').length || 0;
 
             return (
               <motion.div
@@ -474,7 +691,6 @@ export default function MyTasks() {
                     </div>
                     <h3 className="font-semibold text-gray-900 dark:text-white text-sm leading-snug">{task.title}</h3>
 
-                    {/* Last update preview */}
                     {lastUpdate ? (
                       <p className="text-xs text-gray-500 mt-1 line-clamp-1 italic">
                         Last update: "{lastUpdate.content}"
@@ -493,6 +709,11 @@ export default function MyTasks() {
                       {task.actualHours > 0 && (
                         <span className="text-xs text-gray-400 flex items-center gap-0.5">
                           <ClockIcon className="w-3 h-3" />{task.actualHours}h logged
+                        </span>
+                      )}
+                      {commentCount > 0 && (
+                        <span className="text-xs text-gray-400 flex items-center gap-0.5">
+                          <ChatBubbleLeftIcon className="w-3 h-3" />{commentCount}
                         </span>
                       )}
                     </div>

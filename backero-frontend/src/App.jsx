@@ -49,6 +49,8 @@ import MarketingDept from './pages/departments/Marketing';
 import MarketplaceDept from './pages/departments/Marketplace';
 import SalesDept from './pages/departments/Sales';
 import RnDDept from './pages/departments/RnD';
+import OperationsDept from './pages/departments/Operations';
+import HRDept from './pages/departments/HR';
 
 // Management
 import EmployeeMonitoring from './pages/management/EmployeeMonitoring';
@@ -84,9 +86,10 @@ export default function App() {
     return () => disconnect();
   }, [token]);
 
-  // Apply dark mode from user settings
+  // Apply dark mode: localStorage override → user.settings.theme → OS preference
   useEffect(() => {
-    const theme = user?.settings?.theme;
+    const stored = localStorage.getItem('backero-theme');
+    const theme = stored || user?.settings?.theme;
     if (theme === 'dark') {
       document.documentElement.classList.add('dark');
     } else if (theme === 'light') {
@@ -146,6 +149,8 @@ export default function App() {
           <Route path="/departments/marketplace" element={<PermissionRoute module="dept.marketplace"><MarketplaceDept /></PermissionRoute>} />
           <Route path="/departments/sales" element={<PermissionRoute module="dept.sales"><SalesDept /></PermissionRoute>} />
           <Route path="/departments/rnd" element={<PermissionRoute module="dept.rnd"><RnDDept /></PermissionRoute>} />
+          <Route path="/departments/operations" element={<PermissionRoute module="dept.operations"><OperationsDept /></PermissionRoute>} />
+          <Route path="/departments/hr" element={<PermissionRoute module="dept.hr"><HRDept /></PermissionRoute>} />
 
           {/* Management */}
           <Route path="/management/employees" element={<PermissionRoute module="management"><EmployeeMonitoring /></PermissionRoute>} />

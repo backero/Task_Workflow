@@ -9,7 +9,8 @@ const DEPT_MODULES = {
   'Sales':              ['tasks', 'crm', 'dept.sales'],
   'Production':         ['tasks', 'production', 'inventory'],
   'R&D':                ['tasks', 'production', 'dept.rnd'],
-  'Operations':         ['tasks', 'inventory', 'production'],
+  'Operations':         ['tasks', 'inventory', 'production', 'dept.operations'],
+  'HR':                 ['tasks', 'management', 'dept.hr'],
   'Accounts & Finance': ['tasks', 'finance'],
 };
 
