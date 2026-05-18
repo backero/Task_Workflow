@@ -1,13 +1,13 @@
 import React from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell,
 } from 'recharts';
 import {
   ClipboardDocumentListIcon, ExclamationTriangleIcon, ClockIcon, CheckCircleIcon,
-  UserGroupIcon, CubeIcon, ArrowRightIcon, BellAlertIcon,
+  UserGroupIcon, CubeIcon, ArrowRightIcon, BellAlertIcon, BoltIcon, ViewColumnsIcon,
 } from '@heroicons/react/24/outline';
 import api from '../../api/axios';
 import { useAuthStore } from '../../store/useAuthStore';
@@ -69,6 +69,12 @@ function SectionHead({ title, sub, to, toLabel = 'View all' }) {
 
 export default function ManagerDashboard() {
   const { user } = useAuthStore();
+  const navigate = useNavigate();
+
+  const toWorkflow = (task) => {
+    const parentId = task.parentTask?._id || task.parentTask;
+    navigate(parentId ? `/workflow/${parentId}?view=dept` : `/workflow/${task._id}`);
+  };
 
   const { data, isLoading } = useQuery({
     queryKey: ['dashboard', 'manager'],
@@ -202,7 +208,12 @@ export default function ManagerDashboard() {
                 return (
                   <div key={task._id} className="flex items-center gap-3 p-3 rounded-lg bg-gray-50 dark:bg-gray-800/50">
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-gray-900 dark:text-white truncate">{task.title}</p>
+                      <button
+                        onClick={() => toWorkflow(task)}
+                        className="text-sm font-medium text-gray-900 dark:text-white hover:text-brand-600 dark:hover:text-brand-400 truncate text-left w-full transition-colors"
+                      >
+                        {task.title}
+                      </button>
                       <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                         <span className={`badge ${PRIORITY_COLORS[task.priority] || 'badge-gray'}`}>{task.priority}</span>
                         {task.assignedTo && (
@@ -210,6 +221,16 @@ export default function ManagerDashboard() {
                         )}
                         {due && <span className={`text-xs ${due.cls}`}>{due.label}</span>}
                       </div>
+                    </div>
+                    <div className="flex items-center gap-1.5 flex-shrink-0">
+                      <button onClick={() => toWorkflow(task)} title="Open in Workflow Builder"
+                        className="p-1.5 rounded-lg hover:bg-brand-50 text-gray-400 hover:text-brand-600 transition-colors">
+                        <BoltIcon className="w-4 h-4" />
+                      </button>
+                      <Link to="/tasks/kanban" title="Open Kanban Board"
+                        className="p-1.5 rounded-lg hover:bg-indigo-50 text-gray-400 hover:text-indigo-600 transition-colors">
+                        <ViewColumnsIcon className="w-4 h-4" />
+                      </Link>
                     </div>
                   </div>
                 );
@@ -240,7 +261,12 @@ export default function ManagerDashboard() {
               {approvals.map((ap) => (
                 <div key={ap._id} className="flex items-center gap-3 p-3 rounded-lg bg-orange-50 dark:bg-orange-900/10 border border-orange-100 dark:border-orange-900/30">
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-gray-900 dark:text-white truncate">{ap.taskId?.title}</p>
+                    <button
+                      onClick={() => ap.taskId && toWorkflow(ap.taskId)}
+                      className="text-sm font-medium text-gray-900 dark:text-white hover:text-brand-600 truncate text-left w-full transition-colors"
+                    >
+                      {ap.taskId?.title}
+                    </button>
                     <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                       <span className={`badge ${PRIORITY_COLORS[ap.taskId?.priority] || 'badge-gray'}`}>{ap.taskId?.priority}</span>
                       <span className="text-xs text-gray-500">{ap.requestedBy?.firstName} {ap.requestedBy?.lastName}</span>
@@ -249,7 +275,17 @@ export default function ManagerDashboard() {
                       </span>
                     </div>
                   </div>
-                  <Link to="/tasks/approvals" className="btn-primary text-xs px-3 py-1.5 flex-shrink-0">Review</Link>
+                  <div className="flex items-center gap-1.5 flex-shrink-0">
+                    <button onClick={() => ap.taskId && toWorkflow(ap.taskId)} title="Open in Workflow Builder"
+                      className="p-1.5 rounded-lg hover:bg-brand-50 text-gray-400 hover:text-brand-600 transition-colors">
+                      <BoltIcon className="w-4 h-4" />
+                    </button>
+                    <Link to="/tasks/kanban" title="Open Kanban Board"
+                      className="p-1.5 rounded-lg hover:bg-indigo-50 text-gray-400 hover:text-indigo-600 transition-colors">
+                      <ViewColumnsIcon className="w-4 h-4" />
+                    </Link>
+                    <Link to="/tasks/approvals" className="btn-primary text-xs px-3 py-1.5">Review</Link>
+                  </div>
                 </div>
               ))}
             </div>
@@ -387,7 +423,12 @@ export default function ManagerDashboard() {
                       <span className={`badge ${STATUS_COLORS[task.status] || 'badge-gray'}`}>{task.status}</span>
                       <span className={`badge ${PRIORITY_COLORS[task.priority] || 'badge-gray'}`}>{task.priority}</span>
                     </div>
-                    <p className="text-sm font-medium text-gray-900 dark:text-white">{task.title}</p>
+                    <button
+                      onClick={() => toWorkflow(task)}
+                      className="text-sm font-medium text-gray-900 dark:text-white hover:text-brand-600 dark:hover:text-brand-400 text-left transition-colors"
+                    >
+                      {task.title}
+                    </button>
                     <div className="flex items-center gap-3 mt-0.5 text-xs text-gray-400 flex-wrap">
                       <span>{task.department}</span>
                       {task.assignedTo && (
@@ -396,9 +437,17 @@ export default function ManagerDashboard() {
                       {task.isOverdue && <span className="text-red-500 font-semibold">OVERDUE</span>}
                     </div>
                   </div>
-                  {due && (
-                    <span className={`text-xs flex-shrink-0 ${due.cls}`}>{due.label}</span>
-                  )}
+                  <div className="flex items-center gap-1.5 flex-shrink-0">
+                    {due && <span className={`text-xs ${due.cls}`}>{due.label}</span>}
+                    <button onClick={() => toWorkflow(task)} title="Open in Workflow Builder"
+                      className="p-1.5 rounded-lg hover:bg-brand-50 text-gray-400 hover:text-brand-600 transition-colors">
+                      <BoltIcon className="w-4 h-4" />
+                    </button>
+                    <Link to="/tasks/kanban" title="Open Kanban Board"
+                      className="p-1.5 rounded-lg hover:bg-indigo-50 text-gray-400 hover:text-indigo-600 transition-colors">
+                      <ViewColumnsIcon className="w-4 h-4" />
+                    </Link>
+                  </div>
                 </div>
               );
             })}

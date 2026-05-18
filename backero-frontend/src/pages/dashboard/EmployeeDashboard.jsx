@@ -1,10 +1,10 @@
 import React from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
   ClipboardDocumentListIcon, ExclamationTriangleIcon, CheckCircleIcon,
-  ClockIcon, ArrowRightIcon, ChevronRightIcon,
+  ClockIcon, ArrowRightIcon, ChevronRightIcon, BoltIcon, ViewColumnsIcon,
 } from '@heroicons/react/24/outline';
 import api from '../../api/axios';
 import { useAuthStore } from '../../store/useAuthStore';
@@ -41,6 +41,12 @@ function StatCard({ icon: Icon, label, value, color = 'blue', to, sub }) {
 
 export default function EmployeeDashboard() {
   const { user } = useAuthStore();
+  const navigate = useNavigate();
+
+  const toWorkflow = (task) => {
+    const parentId = task.parentTask?._id || task.parentTask;
+    navigate(parentId ? `/workflow/${parentId}?view=dept` : `/workflow/${task._id}`);
+  };
 
   const { data, isLoading } = useQuery({
     queryKey: ['dashboard', 'employee'],
@@ -167,11 +173,10 @@ export default function EmployeeDashboard() {
                 const due = task.dueDate ? getDueLabel(task.dueDate) : null;
                 const isChangesRequested = task.status === 'Changes Requested';
                 return (
-                  <Link
+                  <div
                     key={task._id}
-                    to="/tasks/my"
                     className={clsx(
-                      'flex items-start gap-3 p-3 rounded-lg transition-colors group block',
+                      'flex items-start gap-3 p-3 rounded-lg transition-colors',
                       due?.bg || 'hover:bg-gray-50 dark:hover:bg-gray-800/50'
                     )}
                   >
@@ -183,7 +188,12 @@ export default function EmployeeDashboard() {
                           <span className="text-xs text-red-600 font-semibold">Action needed</span>
                         )}
                       </div>
-                      <p className="text-sm font-medium text-gray-900 dark:text-white">{task.title}</p>
+                      <button
+                        onClick={() => toWorkflow(task)}
+                        className="text-sm font-medium text-gray-900 dark:text-white hover:text-brand-600 dark:hover:text-brand-400 text-left transition-colors"
+                      >
+                        {task.title}
+                      </button>
                       <div className="flex items-center gap-3 mt-0.5 text-xs text-gray-400">
                         <span>{task.department}</span>
                         {task.assignedBy && (
@@ -199,11 +209,18 @@ export default function EmployeeDashboard() {
                         </div>
                       )}
                     </div>
-                    <div className="flex flex-col items-end gap-1 flex-shrink-0">
-                      {due && <span className={`text-xs ${due.cls}`}>{due.label}</span>}
-                      <ChevronRightIcon className="w-4 h-4 text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+                    <div className="flex items-center gap-1 flex-shrink-0">
+                      {due && <span className={`text-xs ${due.cls} mr-1`}>{due.label}</span>}
+                      <button onClick={() => toWorkflow(task)} title="Open in Workflow Builder"
+                        className="p-1.5 rounded-lg hover:bg-brand-50 text-gray-400 hover:text-brand-600 transition-colors">
+                        <BoltIcon className="w-4 h-4" />
+                      </button>
+                      <Link to="/tasks/kanban" title="Open Kanban Board"
+                        className="p-1.5 rounded-lg hover:bg-indigo-50 text-gray-400 hover:text-indigo-600 transition-colors">
+                        <ViewColumnsIcon className="w-4 h-4" />
+                      </Link>
                     </div>
-                  </Link>
+                  </div>
                 );
               })}
             </div>

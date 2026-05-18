@@ -110,6 +110,27 @@ const taskSchema = new mongoose.Schema({
     collapsed: { type: Boolean, default: false },
   },
 
+  // Cross-manager assignment pending admin approval
+  pendingManagerAssignment: {
+    status: { type: String, enum: ['pending', 'approved', 'rejected'] },
+    requestedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    pendingAssignee: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    notes: { type: String },
+    reviewedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    requestedAt: { type: Date },
+    reviewedAt: { type: Date },
+  },
+
+  // Dept Hub approval (set on root hub tasks created by managers)
+  pendingHubApproval: { type: Boolean, default: false, index: true },
+  hubApproval: {
+    status: { type: String, enum: ['pending', 'approved', 'rejected'] },
+    requestedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    notes: { type: String },
+    reviewedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    reviewedAt: { type: Date },
+  },
+
   createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   updatedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
 }, { timestamps: true });

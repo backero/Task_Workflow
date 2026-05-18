@@ -1,6 +1,6 @@
 import React from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -10,7 +10,7 @@ import {
   ClipboardDocumentListIcon, UsersIcon, CubeIcon, BoltIcon, BanknotesIcon,
   ExclamationTriangleIcon, CheckCircleIcon, ClockIcon, ArrowTrendingUpIcon,
   ChartBarIcon, BuildingOfficeIcon, ShoppingCartIcon, BeakerIcon,
-  ArrowRightIcon, BellAlertIcon, UserGroupIcon, DocumentTextIcon,
+  ArrowRightIcon, BellAlertIcon, UserGroupIcon, DocumentTextIcon, ViewColumnsIcon,
 } from '@heroicons/react/24/outline';
 import api from '../../api/axios';
 import { useAuthStore } from '../../store/useAuthStore';
@@ -85,6 +85,12 @@ const ChartTooltip = ({ active, payload, label }) => {
 // ── Main Dashboard ───────────────────────────────────────────────────────────
 export default function FounderDashboard() {
   const { user } = useAuthStore();
+  const navigate = useNavigate();
+
+  const toWorkflow = (task) => {
+    const parentId = task.parentTask?._id || task.parentTask;
+    navigate(parentId ? `/workflow/${parentId}?view=dept` : `/workflow/${task._id}`);
+  };
 
   const { data, isLoading } = useQuery({
     queryKey: ['dashboard', 'founder'],
@@ -403,14 +409,29 @@ export default function FounderDashboard() {
               {approvals.map((ap) => (
                 <div key={ap._id} className="flex items-center gap-3 p-3 rounded-lg bg-gray-50 dark:bg-gray-800/50 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-gray-900 dark:text-white truncate">{ap.taskId?.title}</p>
+                    <button
+                      onClick={() => ap.taskId && toWorkflow(ap.taskId)}
+                      className="text-sm font-medium text-gray-900 dark:text-white hover:text-brand-600 truncate text-left w-full transition-colors"
+                    >
+                      {ap.taskId?.title}
+                    </button>
                     <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                       <span className={`badge ${PRIORITY_COLORS[ap.taskId?.priority] || 'badge-gray'}`}>{ap.taskId?.priority}</span>
                       <span className="text-xs text-gray-500">{ap.requestedBy?.firstName} {ap.requestedBy?.lastName}</span>
                       <span className="text-xs text-gray-400">{ap.requestedAt ? formatDistanceToNow(new Date(ap.requestedAt), { addSuffix: true }) : ''}</span>
                     </div>
                   </div>
-                  <Link to="/tasks/approvals" className="btn-primary text-xs px-3 py-1.5 flex-shrink-0">Review</Link>
+                  <div className="flex items-center gap-1.5 flex-shrink-0">
+                    <button onClick={() => ap.taskId && toWorkflow(ap.taskId)} title="Open in Workflow Builder"
+                      className="p-1.5 rounded-lg hover:bg-brand-50 text-gray-400 hover:text-brand-600 transition-colors">
+                      <BoltIcon className="w-4 h-4" />
+                    </button>
+                    <Link to="/tasks/kanban" title="Open Kanban Board"
+                      className="p-1.5 rounded-lg hover:bg-indigo-50 text-gray-400 hover:text-indigo-600 transition-colors">
+                      <ViewColumnsIcon className="w-4 h-4" />
+                    </Link>
+                    <Link to="/tasks/approvals" className="btn-primary text-xs px-3 py-1.5">Review</Link>
+                  </div>
                 </div>
               ))}
             </div>
@@ -477,14 +498,29 @@ export default function FounderDashboard() {
                       <span className={`badge ${STATUS_COLORS[task.status] || 'badge-gray'}`}>{task.status}</span>
                       <span className={`badge ${PRIORITY_COLORS[task.priority] || 'badge-gray'}`}>{task.priority}</span>
                     </div>
-                    <p className="text-sm font-medium text-gray-900 dark:text-white truncate">{task.title}</p>
+                    <button
+                      onClick={() => toWorkflow(task)}
+                      className="text-sm font-medium text-gray-900 dark:text-white hover:text-brand-600 dark:hover:text-brand-400 text-left transition-colors"
+                    >
+                      {task.title}
+                    </button>
                     <div className="flex items-center gap-3 mt-0.5 text-xs text-gray-400">
                       <span>{task.department}</span>
                       {task.assignedTo && <span>→ {task.assignedTo.firstName} {task.assignedTo.lastName}</span>}
                       {task.isOverdue && <span className="text-red-500 font-medium">Overdue</span>}
                     </div>
                   </div>
-                  <span className="text-xs text-gray-400 flex-shrink-0">{task.createdAt ? formatDistanceToNow(new Date(task.createdAt), { addSuffix: true }) : ''}</span>
+                  <div className="flex items-center gap-1 flex-shrink-0">
+                    <span className="text-xs text-gray-400 mr-1">{task.createdAt ? formatDistanceToNow(new Date(task.createdAt), { addSuffix: true }) : ''}</span>
+                    <button onClick={() => toWorkflow(task)} title="Open in Workflow Builder"
+                      className="p-1.5 rounded-lg hover:bg-brand-50 text-gray-400 hover:text-brand-600 transition-colors">
+                      <BoltIcon className="w-4 h-4" />
+                    </button>
+                    <Link to="/tasks/kanban" title="Open Kanban Board"
+                      className="p-1.5 rounded-lg hover:bg-indigo-50 text-gray-400 hover:text-indigo-600 transition-colors">
+                      <ViewColumnsIcon className="w-4 h-4" />
+                    </Link>
+                  </div>
                 </div>
               ))}
             </div>

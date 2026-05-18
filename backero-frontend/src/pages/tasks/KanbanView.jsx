@@ -43,7 +43,7 @@ const DEPARTMENTS = ['Marketing', 'Marketplace', 'Sales', 'Production', 'R&D', '
 // Task Detail Modal
 // ─────────────────────────────────────────────────────────────────────────────
 function TaskDetailModal({ taskId, onClose }) {
-  const { user, isManagerOrAbove } = useAuthStore();
+  const { user, isManagerOrAbove, ROLE_LEVEL } = useAuthStore();
   const qc = useQueryClient();
   const [updateText, setUpdateText] = useState('');
   const [progress, setProgress] = useState('');
@@ -120,7 +120,9 @@ function TaskDetailModal({ taskId, onClose }) {
   });
 
   const isAssignee = task?.assignedTo?._id === user?._id;
-  const canManage = isManagerOrAbove();
+  const userLevel = { super_admin: 7, chairman: 6, founder: 5, admin: 4, manager: 3, team_lead: 2, member: 1 }[user?.role] || 1;
+  // managers can only manage tasks in their own dept; admin+ can manage all
+  const canManage = isManagerOrAbove() && (userLevel >= 4 || !user?.department || task?.department === user?.department);
 
   const dueDate = task?.dueDate ? new Date(task.dueDate) : null;
   const isOverdue = dueDate && isPast(dueDate) && task.status !== 'Completed';

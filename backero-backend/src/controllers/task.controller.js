@@ -22,11 +22,21 @@ exports.getTasks = asyncHandler(async (req, res) => {
   if (userLevel <= 2) {
     // member / team_lead: only their own tasks
     filter.$or = [{ assignedTo: req.user._id }, { assignedBy: req.user._id }, { watchers: req.user._id }];
-  } else if (userLevel === 3) {
-    // manager: only their department's tasks
-    if (req.user.department) filter.department = req.user.department;
   }
-  // admin (4) and above: see everything — no extra filter
+  // manager (3) and above: see all org tasks — no dept restriction
+
+  // Fetch pending hub approval requests (admin only, explicit param)
+  if (req.query.pendingHubApproval === 'true' && userLevel >= 4) {
+    filter['hubApproval.status'] = 'pending';
+    filter.pendingHubApproval = true;
+  } else if (req.query.pendingManagerAssignment === 'true' && userLevel >= 4) {
+    // Fetch tasks pending cross-manager assignment approval
+    filter['pendingManagerAssignment.status'] = 'pending';
+  } else {
+    // Exclude pending hub drafts AND pending cross-manager assignments from regular board views
+    filter.pendingHubApproval = { $ne: true };
+    filter['pendingManagerAssignment.status'] = { $ne: 'pending' };
+  }
 
   if (status) filter.status = status;
   if (priority) filter.priority = priority;
@@ -51,7 +61,9 @@ exports.getTasks = asyncHandler(async (req, res) => {
       .populate('assignedTo', 'firstName lastName avatar role department')
       .populate('assignedBy', 'firstName lastName avatar')
       .populate('reportingManager', 'firstName lastName')
-      .populate('subTasks', 'status title')
+      .populate('pendingManagerAssignment.requestedBy', 'firstName lastName')
+      .populate('pendingManagerAssignment.pendingAssignee', 'firstName lastName department')
+      .populate({ path: 'subTasks', select: 'title status dueDate progress assignedTo isOverdue', populate: { path: 'assignedTo', select: 'firstName lastName' } })
       .sort({ priority: -1, dueDate: 1, createdAt: -1 })
       .skip(skip)
       .limit(parseInt(limit))
@@ -65,28 +77,70 @@ exports.getTasks = asyncHandler(async (req, res) => {
 // POST /api/tasks
 exports.createTask = asyncHandler(async (req, res) => {
   const io = req.app.get('io');
-  const { title, description, department, assignedTo, priority, dueDate, estimatedHours, tags, taskType, platform, relatedTo, isRecurring, recurringConfig, parentTask, watchers } = req.body;
+  const { title, description, department, assignedTo, priority, dueDate, estimatedHours, tags, taskType, platform, relatedTo, isRecurring, recurringConfig, parentTask, watchers, isDeptHub } = req.body;
+
+  const userLevel = ROLE_HIERARCHY[req.user.role] || 1;
+
+  // Determine if this is a manager-initiated hub root task or a hub subtask
+  let pendingHubApproval = false;
+  let hubApprovalData;
+  let isHubRoot = false;
+  let isHubSubtask = false;
+
+  if (userLevel === ROLE_HIERARCHY['manager'] && !parentTask && isDeptHub) {
+    // Manager creating a dept hub root → pending admin approval
+    pendingHubApproval = true;
+    isHubRoot = true;
+    hubApprovalData = { status: 'pending', requestedBy: req.user._id };
+  }
+
+  if (parentTask) {
+    const parentTask_ = await Task.findById(parentTask).select('pendingHubApproval hubApproval');
+    if (parentTask_?.pendingHubApproval) {
+      pendingHubApproval = true;
+      isHubSubtask = true;
+    }
+  }
 
   // Validate assignee & department-based assignment rules
+  let pendingManagerAssignmentData;
+  let actualAssignedTo = assignedTo;
+
   if (assignedTo) {
     const assignee = await User.findOne({ _id: assignedTo, organizationId: req.user.organizationId });
     if (!assignee) return sendError(res, 'Assigned user not found in your organization.', 404);
 
-    const userLevel = ROLE_HIERARCHY[req.user.role] || 1;
-    // Manager (level 3) can only assign within their own department
-    if (userLevel === 3 && req.user.department && assignee.department !== req.user.department) {
-      return sendError(res, `Managers can only assign tasks to members in their own department (${req.user.department}).`, 403);
+    const isManagerAssigningToManager =
+      userLevel === ROLE_HIERARCHY['manager'] &&
+      ROLE_HIERARCHY[assignee.role] >= ROLE_HIERARCHY['manager'] &&
+      assignee.department !== req.user.department;
+
+    if (isManagerAssigningToManager) {
+      // Route through admin approval — store pending assignee, leave assignedTo empty
+      pendingManagerAssignmentData = {
+        status: 'pending',
+        requestedBy: req.user._id,
+        pendingAssignee: assignedTo,
+        requestedAt: new Date(),
+      };
+      actualAssignedTo = undefined;
+    } else if (userLevel === ROLE_HIERARCHY['manager'] && req.user.department && assignee.department !== req.user.department && !isHubSubtask) {
+      // Cross-dept assignment to non-manager → still blocked
+      return sendError(res, `Managers can only assign to members in their own department (${req.user.department}).`, 403);
     }
   }
 
   const task = await Task.create({
     organizationId: req.user.organizationId,
-    title, description, department, assignedTo, priority, dueDate, estimatedHours, tags, taskType, platform, relatedTo, isRecurring, recurringConfig, parentTask, watchers,
+    title, description, department, assignedTo: actualAssignedTo, priority, dueDate, estimatedHours, tags, taskType, platform, relatedTo, isRecurring, recurringConfig, parentTask, watchers,
     assignedBy: req.user._id,
     reportingManager: req.user._id,
-    status: assignedTo ? TASK_STATUS.ASSIGNED : TASK_STATUS.PENDING,
+    status: (actualAssignedTo && !pendingManagerAssignmentData) ? TASK_STATUS.ASSIGNED : TASK_STATUS.PENDING,
     createdBy: req.user._id,
     updatedBy: req.user._id,
+    pendingHubApproval,
+    hubApproval: hubApprovalData,
+    pendingManagerAssignment: pendingManagerAssignmentData,
     activity: [{ action: 'Task created', performedBy: req.user._id, details: { title } }],
   });
 
@@ -99,8 +153,53 @@ exports.createTask = asyncHandler(async (req, res) => {
     .populate('assignedTo', 'firstName lastName avatar role department')
     .populate('assignedBy', 'firstName lastName');
 
-  // Notify assignee — in-app + WhatsApp
-  if (assignedTo) {
+  // Notify admins when a manager requests hub approval
+  if (isHubRoot) {
+    const admins = await User.find({
+      organizationId: req.user.organizationId,
+      role: { $in: ['admin', 'super_admin', 'founder', 'chairman'] },
+    }).select('_id');
+    for (const admin of admins) {
+      await createNotification({
+        organizationId: req.user.organizationId,
+        recipient: admin._id,
+        title: 'Dept Hub Approval Requested',
+        message: `${req.user.firstName} ${req.user.lastName} wants to create a Dept Hub: "${title}". Review and approve it on the Workflow Board.`,
+        type: 'task',
+        priority: 'high',
+        actionUrl: '/workflow',
+        reference: { model: 'Task', id: task._id },
+        channels: { inApp: true, whatsapp: false },
+      }, io);
+    }
+    return sendSuccess(res, { task: populatedTask }, 'Dept Hub submitted for admin approval', 201);
+  }
+
+  // Notify admins for cross-manager assignment approval
+  if (pendingManagerAssignmentData) {
+    const pendingAssignee = await User.findById(pendingManagerAssignmentData.pendingAssignee).select('firstName lastName department');
+    const admins = await User.find({
+      organizationId: req.user.organizationId,
+      role: { $in: ['admin', 'super_admin', 'founder', 'chairman'] },
+    }).select('_id');
+    for (const admin of admins) {
+      await createNotification({
+        organizationId: req.user.organizationId,
+        recipient: admin._id,
+        title: 'Manager Assignment Approval Needed',
+        message: `${req.user.firstName} ${req.user.lastName} wants to assign "${title}" to ${pendingAssignee?.firstName} ${pendingAssignee?.lastName} (${pendingAssignee?.department}). Review on the Workflow Board.`,
+        type: 'task',
+        priority: 'high',
+        actionUrl: '/workflow',
+        reference: { model: 'Task', id: task._id },
+        channels: { inApp: true, whatsapp: false },
+      }, io);
+    }
+    return sendSuccess(res, { task: populatedTask, pendingManagerAssignment: true }, 'Task submitted — assignment pending admin approval', 201);
+  }
+
+  // Notify assignee — in-app + WhatsApp (skip for pending hub subtasks, notify after approval)
+  if (assignedTo && !pendingHubApproval) {
     await createNotification({
       organizationId: req.user.organizationId,
       recipient: assignedTo,
@@ -143,6 +242,29 @@ exports.createTask = asyncHandler(async (req, res) => {
   io?.to(`org:${req.user.organizationId}`).emit(SOCKET_EVENTS.TASK_CREATED, { task: populatedTask });
 
   sendSuccess(res, { task: populatedTask }, 'Task created successfully', 201);
+});
+
+// GET /api/tasks/:id/tree — full recursive subtask tree (max 5 levels)
+exports.getTaskTree = asyncHandler(async (req, res) => {
+  const orgId = req.user.organizationId;
+
+  const populateNode = async (taskId, depth = 0) => {
+    if (depth > 5) return null;
+    const task = await Task.findOne({ _id: taskId, organizationId: orgId })
+      .populate('assignedTo', 'firstName lastName avatar department role')
+      .populate('assignedBy', 'firstName lastName')
+      .lean();
+    if (!task) return null;
+    if (task.subTasks?.length) {
+      const children = await Promise.all(task.subTasks.map((id) => populateNode(id, depth + 1)));
+      task.subTasks = children.filter(Boolean);
+    }
+    return task;
+  };
+
+  const tree = await populateNode(req.params.id);
+  if (!tree) return sendError(res, 'Task not found.', 404);
+  sendSuccess(res, { task: tree });
 });
 
 // GET /api/tasks/:id
@@ -546,7 +668,7 @@ exports.getAnalytics = asyncHandler(async (req, res) => {
   });
 });
 
-// DELETE /api/tasks/:id
+// DELETE /api/tasks/:id  (recursive — deletes all subtasks too)
 exports.deleteTask = asyncHandler(async (req, res) => {
   const task = await Task.findOne({ _id: req.params.id, organizationId: req.user.organizationId });
   if (!task) return sendError(res, 'Task not found.', 404);
@@ -555,7 +677,21 @@ exports.deleteTask = asyncHandler(async (req, res) => {
     return sendError(res, 'Only managers and above can delete tasks.', 403);
   }
 
-  await Task.findByIdAndDelete(task._id);
+  // Recursively collect all descendant IDs
+  const collectIds = async (id) => {
+    const t = await Task.findById(id).select('subTasks').lean();
+    if (!t) return [];
+    const nested = await Promise.all((t.subTasks || []).map(collectIds));
+    return [id, ...nested.flat()];
+  };
+  const allIds = await collectIds(task._id);
+  await Task.deleteMany({ _id: { $in: allIds } });
+
+  // Remove this task from its parent's subTasks array
+  if (task.parentTask) {
+    await Task.findByIdAndUpdate(task.parentTask, { $pull: { subTasks: task._id } });
+  }
+
   await ActivityLog.create({
     organizationId: req.user.organizationId,
     performedBy: req.user._id,
@@ -565,4 +701,208 @@ exports.deleteTask = asyncHandler(async (req, res) => {
   });
 
   sendSuccess(res, {}, 'Task deleted');
+});
+
+// POST /api/tasks/:id/hub-approve — admin approves a pending dept hub
+exports.approveDeptHub = asyncHandler(async (req, res) => {
+  const io = req.app.get('io');
+  const userLevel = ROLE_HIERARCHY[req.user.role] || 1;
+  if (userLevel < ROLE_HIERARCHY['admin']) return sendError(res, 'Only admins can approve hub requests.', 403);
+
+  const task = await Task.findOne({ _id: req.params.id, organizationId: req.user.organizationId });
+  if (!task) return sendError(res, 'Task not found.', 404);
+  if (!task.pendingHubApproval || task.hubApproval?.status !== 'pending') {
+    return sendError(res, 'No pending hub approval for this task.', 400);
+  }
+
+  const requestedBy = task.hubApproval.requestedBy;
+
+  task.pendingHubApproval = false;
+  task.hubApproval.status = 'approved';
+  task.hubApproval.reviewedBy = req.user._id;
+  task.hubApproval.reviewedAt = new Date();
+  task.activity.push({ action: 'Dept Hub approved', performedBy: req.user._id });
+  await task.save();
+
+  // Activate all subtasks (remove pending flag)
+  await Task.updateMany({ parentTask: task._id }, { $set: { pendingHubApproval: false } });
+
+  const populatedTask = await Task.findById(task._id)
+    .populate('assignedTo', 'firstName lastName avatar role department')
+    .populate('assignedBy', 'firstName lastName')
+    .populate('hubApproval.requestedBy', 'firstName lastName')
+    .populate('hubApproval.reviewedBy', 'firstName lastName');
+
+  // Notify the manager who requested
+  if (requestedBy) {
+    await createNotification({
+      organizationId: req.user.organizationId,
+      recipient: requestedBy,
+      title: 'Dept Hub Approved!',
+      message: `Your Dept Hub "${task.title}" has been approved by ${req.user.firstName} ${req.user.lastName}. It is now live.`,
+      type: 'task',
+      priority: 'high',
+      actionUrl: `/workflow/${task._id}`,
+      reference: { model: 'Task', id: task._id },
+      channels: { inApp: true, whatsapp: false },
+    }, io);
+  }
+
+  io?.to(`org:${req.user.organizationId}`).emit(SOCKET_EVENTS.TASK_UPDATED, { taskId: task._id, updates: { pendingHubApproval: false } });
+
+  sendSuccess(res, { task: populatedTask }, 'Dept Hub approved successfully');
+});
+
+// POST /api/tasks/:id/hub-reject — admin rejects a pending dept hub
+exports.rejectDeptHub = asyncHandler(async (req, res) => {
+  const io = req.app.get('io');
+  const userLevel = ROLE_HIERARCHY[req.user.role] || 1;
+  if (userLevel < ROLE_HIERARCHY['admin']) return sendError(res, 'Only admins can reject hub requests.', 403);
+
+  const task = await Task.findOne({ _id: req.params.id, organizationId: req.user.organizationId });
+  if (!task) return sendError(res, 'Task not found.', 404);
+  if (!task.pendingHubApproval || task.hubApproval?.status !== 'pending') {
+    return sendError(res, 'No pending hub approval for this task.', 400);
+  }
+
+  const { notes } = req.body;
+  const requestedBy = task.hubApproval.requestedBy;
+
+  // Delete all subtasks (they were draft-only)
+  const collectIds = async (id) => {
+    const t = await Task.findById(id).select('subTasks').lean();
+    if (!t) return [];
+    const nested = await Promise.all((t.subTasks || []).map(sid => collectIds(sid)));
+    return [id, ...nested.flat()];
+  };
+  const allSubIds = [];
+  for (const subId of task.subTasks || []) {
+    const ids = await collectIds(subId);
+    allSubIds.push(...ids);
+  }
+  if (allSubIds.length) await Task.deleteMany({ _id: { $in: allSubIds } });
+
+  task.pendingHubApproval = false;
+  task.subTasks = [];
+  task.hubApproval.status = 'rejected';
+  task.hubApproval.notes = notes || '';
+  task.hubApproval.reviewedBy = req.user._id;
+  task.hubApproval.reviewedAt = new Date();
+  task.status = TASK_STATUS.CANCELLED;
+  await task.save();
+
+  if (requestedBy) {
+    await createNotification({
+      organizationId: req.user.organizationId,
+      recipient: requestedBy,
+      title: 'Dept Hub Rejected',
+      message: `Your Dept Hub "${task.title}" was not approved${notes ? `: ${notes}` : '.'}`,
+      type: 'task',
+      priority: 'high',
+      actionUrl: '/workflow',
+      reference: { model: 'Task', id: task._id },
+      channels: { inApp: true, whatsapp: false },
+    }, io);
+  }
+
+  sendSuccess(res, {}, 'Dept Hub rejected');
+});
+
+// POST /api/tasks/:id/manager-assign-approve — admin approves a cross-manager assignment
+exports.approveManagerAssignment = asyncHandler(async (req, res) => {
+  const io = req.app.get('io');
+  const userLevel = ROLE_HIERARCHY[req.user.role] || 1;
+  if (userLevel < ROLE_HIERARCHY['admin']) return sendError(res, 'Only admins can approve manager assignments.', 403);
+
+  const task = await Task.findOne({ _id: req.params.id, organizationId: req.user.organizationId });
+  if (!task) return sendError(res, 'Task not found.', 404);
+  if (!task.pendingManagerAssignment || task.pendingManagerAssignment.status !== 'pending') {
+    return sendError(res, 'No pending manager assignment for this task.', 400);
+  }
+
+  const { requestedBy, pendingAssignee } = task.pendingManagerAssignment;
+
+  task.assignedTo = pendingAssignee;
+  task.status = TASK_STATUS.ASSIGNED;
+  task.pendingManagerAssignment.status = 'approved';
+  task.pendingManagerAssignment.reviewedBy = req.user._id;
+  task.pendingManagerAssignment.reviewedAt = new Date();
+  task.activity.push({ action: 'Cross-manager assignment approved', performedBy: req.user._id });
+  await task.save();
+
+  const populatedTask = await Task.findById(task._id)
+    .populate('assignedTo', 'firstName lastName avatar role department')
+    .populate('assignedBy', 'firstName lastName')
+    .populate('pendingManagerAssignment.requestedBy', 'firstName lastName')
+    .populate('pendingManagerAssignment.pendingAssignee', 'firstName lastName department');
+
+  // Notify Manager A (requester)
+  if (requestedBy) {
+    await createNotification({
+      organizationId: req.user.organizationId,
+      recipient: requestedBy,
+      title: 'Manager Assignment Approved',
+      message: `Your task "${task.title}" assignment has been approved by ${req.user.firstName} ${req.user.lastName}.`,
+      type: 'task', priority: 'high',
+      actionUrl: `/workflow/${task._id}`,
+      reference: { model: 'Task', id: task._id },
+      channels: { inApp: true, whatsapp: false },
+    }, io);
+  }
+
+  // Notify Manager B (assignee)
+  if (pendingAssignee) {
+    await createNotification({
+      organizationId: req.user.organizationId,
+      recipient: pendingAssignee,
+      title: 'New Task Assigned',
+      message: `"${task.title}" has been assigned to you (approved by ${req.user.firstName} ${req.user.lastName}).`,
+      type: 'task', priority: 'high',
+      actionUrl: `/workflow/${task._id}`,
+      reference: { model: 'Task', id: task._id },
+      channels: { inApp: true, whatsapp: false },
+    }, io);
+  }
+
+  io?.to(`org:${req.user.organizationId}`).emit(SOCKET_EVENTS.TASK_UPDATED, { taskId: task._id, updates: { assignedTo: pendingAssignee, status: TASK_STATUS.ASSIGNED } });
+
+  sendSuccess(res, { task: populatedTask }, 'Manager assignment approved');
+});
+
+// POST /api/tasks/:id/manager-assign-reject — admin rejects a cross-manager assignment
+exports.rejectManagerAssignment = asyncHandler(async (req, res) => {
+  const io = req.app.get('io');
+  const userLevel = ROLE_HIERARCHY[req.user.role] || 1;
+  if (userLevel < ROLE_HIERARCHY['admin']) return sendError(res, 'Only admins can reject manager assignments.', 403);
+
+  const task = await Task.findOne({ _id: req.params.id, organizationId: req.user.organizationId });
+  if (!task) return sendError(res, 'Task not found.', 404);
+  if (!task.pendingManagerAssignment || task.pendingManagerAssignment.status !== 'pending') {
+    return sendError(res, 'No pending manager assignment for this task.', 400);
+  }
+
+  const { notes } = req.body;
+  const { requestedBy } = task.pendingManagerAssignment;
+
+  task.pendingManagerAssignment.status = 'rejected';
+  task.pendingManagerAssignment.notes = notes || '';
+  task.pendingManagerAssignment.reviewedBy = req.user._id;
+  task.pendingManagerAssignment.reviewedAt = new Date();
+  task.activity.push({ action: 'Cross-manager assignment rejected', performedBy: req.user._id });
+  await task.save();
+
+  if (requestedBy) {
+    await createNotification({
+      organizationId: req.user.organizationId,
+      recipient: requestedBy,
+      title: 'Manager Assignment Rejected',
+      message: `The assignment for "${task.title}" was not approved${notes ? `: ${notes}` : '.'}`,
+      type: 'task', priority: 'high',
+      actionUrl: '/workflow',
+      reference: { model: 'Task', id: task._id },
+      channels: { inApp: true, whatsapp: false },
+    }, io);
+  }
+
+  sendSuccess(res, {}, 'Manager assignment rejected');
 });
