@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import companyLogo from '../../assets/Backero.png';
 import { NavLink, useLocation } from 'react-router-dom';
 import { useAuthStore } from '../../store/useAuthStore';
 import { usePermissions } from '../../store/usePermissions';
@@ -160,13 +161,10 @@ export default function Sidebar({ collapsed, onToggle }) {
   return (
     <div className="flex flex-col h-full bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800">
       {/* Logo */}
-      <div className="flex items-center gap-3 px-4 py-4 border-b border-gray-200 dark:border-gray-800">
-        <div className="w-8 h-8 rounded-lg gradient-brand flex items-center justify-center flex-shrink-0">
-          <span className="text-white font-bold text-sm">B</span>
-        </div>
+      <div className="flex items-center gap-3 px-4 py-5 border-b border-gray-200 dark:border-gray-800">
+        <img src={companyLogo} alt="Logo" className="h-10 w-auto max-w-[140px] object-contain flex-shrink-0" />
         {!collapsed && (
           <div className="min-w-0">
-            <h1 className="font-bold text-gray-900 dark:text-white text-base leading-none">Backero</h1>
             <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{user?.organizationId?.name || 'Enterprise'}</p>
           </div>
         )}

@@ -1,10 +1,15 @@
 const router = require('express').Router();
 const Task = require('../models/Task');
 const MarketplaceDaily = require('../models/MarketplaceDaily');
+const MarketplacePlan = require('../models/MarketplacePlan');
 const { authenticate } = require('../middleware/auth.middleware');
 const { orgIsolation } = require('../middleware/orgIsolation.middleware');
 const { asyncHandler, sendSuccess, paginate, paginateResponse } = require('../utils/helpers');
 const { MARKETPLACE_PLATFORMS } = require('../utils/constants');
+const multer = require('multer');
+const ExcelJS = require('exceljs');
+
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
 
 router.use(authenticate, orgIsolation);
 
@@ -123,6 +128,115 @@ router.get('/daily/today', asyncHandler(async (req, res) => {
 
   const entry = await MarketplaceDaily.findOne({ organizationId: orgId, date: today });
   sendSuccess(res, { entry: entry || null });
+}));
+
+// ── Platform Plans (Excel import/export) ──────────────────────────────────────
+
+// GET /marketplace/plans/:platform — fetch imported plan (or null)
+router.get('/plans/:platform', asyncHandler(async (req, res) => {
+  const plan = await MarketplacePlan.findOne({
+    organizationId: req.user.organizationId,
+    platform: req.params.platform,
+  }).lean();
+  sendSuccess(res, { plan: plan || null });
+}));
+
+// GET /marketplace/plans/:platform/template — download blank Excel template
+router.get('/plans/:platform/template', asyncHandler(async (req, res) => {
+  const platform = req.params.platform;
+  const wb = new ExcelJS.Workbook();
+  const ws = wb.addWorksheet('Plan');
+
+  ws.columns = [
+    { header: 'Week',              key: 'week',       width: 8  },
+    { header: 'Week Name',         key: 'name',       width: 20 },
+    { header: 'Focus',             key: 'focus',      width: 35 },
+    { header: 'Must (Non-Neg)',    key: 'mustNonNeg', width: 40 },
+    { header: 'Day',               key: 'day',        width: 8  },
+    { header: 'Task',              key: 'task',       width: 55 },
+    { header: 'Note',              key: 'note',       width: 30 },
+  ];
+
+  // Style header row
+  ws.getRow(1).font = { bold: true };
+  ws.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFA500' } };
+
+  // Add a sample row so user understands the format
+  ws.addRow({ week: 1, name: 'FOUNDATION', focus: 'Launch setup and baseline audit', mustNonNeg: 'All hero SKUs live and in stock', day: 'Mon', task: 'Audit all hero SKUs: CVR, margin, buy box', note: 'Use Seller Central reports' });
+  ws.addRow({ week: 1, name: 'FOUNDATION', focus: 'Launch setup and baseline audit', mustNonNeg: 'All hero SKUs live and in stock', day: 'Mon', task: 'Set weekly ad budget path based on last week P&L', note: '' });
+  ws.addRow({ week: 1, name: 'FOUNDATION', focus: 'Launch setup and baseline audit', mustNonNeg: 'All hero SKUs live and in stock', day: 'Tue', task: 'Check F-Assured / FBA eligibility for all SKUs', note: '' });
+
+  const infoWs = wb.addWorksheet('Instructions');
+  infoWs.getCell('A1').value = 'HOW TO USE THIS TEMPLATE';
+  infoWs.getCell('A1').font = { bold: true, size: 14 };
+  infoWs.getCell('A3').value = '1. Fill the "Plan" sheet with your week-wise tasks.';
+  infoWs.getCell('A4').value = '2. Week: number 1–12';
+  infoWs.getCell('A5').value = '3. Week Name: short label (e.g. FOUNDATION, LAUNCH, SCALE)';
+  infoWs.getCell('A6').value = '4. Focus: one-line focus for the week';
+  infoWs.getCell('A7').value = '5. Must (Non-Neg): the one non-negotiable rule for the week';
+  infoWs.getCell('A8').value = '6. Day: Mon / Tue / Wed / Thu / Fri / Sat';
+  infoWs.getCell('A9').value = '7. Task: the task description';
+  infoWs.getCell('A10').value = '8. Note: optional hint text';
+  infoWs.getCell('A12').value = 'Save file and upload using the Import Plan button in the app.';
+  infoWs.columns = [{ width: 65 }];
+
+  res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+  res.setHeader('Content-Disposition', `attachment; filename="${platform}-plan-template.xlsx"`);
+  await wb.xlsx.write(res);
+  res.end();
+}));
+
+// POST /marketplace/plans/:platform/import — parse Excel → save to DB
+router.post('/plans/:platform/import', upload.single('file'), asyncHandler(async (req, res) => {
+  if (!req.file) return res.status(400).json({ success: false, message: 'No file uploaded' });
+
+  const platform = req.params.platform;
+  const wb = new ExcelJS.Workbook();
+  await wb.xlsx.load(req.file.buffer);
+
+  const ws = wb.getWorksheet('Plan');
+  if (!ws) return res.status(400).json({ success: false, message: 'Sheet named "Plan" not found in Excel' });
+
+  const VALID_DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  const weeksMap = {};
+
+  ws.eachRow((row, rowNum) => {
+    if (rowNum === 1) return; // skip header
+    const [week, name, focus, mustNonNeg, day, task, note] = row.values.slice(1);
+    if (!week || !name || !day || !task) return;
+
+    const wNum = parseInt(week);
+    const dayStr = String(day).trim();
+    if (!VALID_DAYS.includes(dayStr)) return;
+
+    if (!weeksMap[wNum]) {
+      weeksMap[wNum] = {
+        week: wNum,
+        name: String(name).trim().toUpperCase(),
+        focus: focus ? String(focus).trim() : '',
+        mustNonNeg: mustNonNeg ? String(mustNonNeg).trim() : '',
+        specific: { Mon: [], Tue: [], Wed: [], Thu: [], Fri: [], Sat: [] },
+      };
+    }
+
+    const taskList = weeksMap[wNum].specific[dayStr];
+    taskList.push({
+      id: `imp_${wNum}_${dayStr}_${taskList.length + 1}`,
+      text: String(task).trim(),
+      note: note ? String(note).trim() : '',
+    });
+  });
+
+  const weeks = Object.values(weeksMap).sort((a, b) => a.week - b.week);
+  if (weeks.length === 0) return res.status(400).json({ success: false, message: 'No valid rows found. Check that Day is Mon/Tue/Wed/Thu/Fri/Sat and Task is filled.' });
+
+  await MarketplacePlan.findOneAndUpdate(
+    { organizationId: req.user.organizationId, platform },
+    { weeks, importedBy: req.user._id },
+    { upsert: true, new: true, setDefaultsOnInsert: true }
+  );
+
+  sendSuccess(res, { message: `${platform} plan imported — ${weeks.length} weeks loaded`, weeks: weeks.length });
 }));
 
 module.exports = router;

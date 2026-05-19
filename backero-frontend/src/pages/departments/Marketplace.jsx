@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { format, startOfWeek, addDays } from 'date-fns';
@@ -374,11 +374,714 @@ const RECURRING_TASKS = [
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-function lsKey(w, d, id)  { return `mkt_w${w}_d${d}_t${id}`; }
-function lsNotes(w, d)    { return `mkt_w${w}_d${d}_notes`; }
-function lsKpi(w, d)      { return `mkt_w${w}_d${d}_kpi`; }
-function lsBudget(w)      { return `mkt_w${w}_budget`; }
-function lsScorecard(w)   { return `mkt_w${w}_scorecard`; }
+function lsKey(plat, w, d, id) { return `mkt_${plat}_w${w}_d${d}_t${id}`; }
+function lsNotes(plat, w, d)   { return `mkt_${plat}_w${w}_d${d}_notes`; }
+function lsKpi(plat, w, d)     { return `mkt_${plat}_w${w}_d${d}_kpi`; }
+function lsBudget(plat, w)     { return `mkt_${plat}_w${w}_budget`; }
+function lsScorecard(plat, w)  { return `mkt_${plat}_w${w}_scorecard`; }
+
+// ── Flipkart Plan Data ────────────────────────────────────────────────────────
+
+const FLIPKART_RECURRING = [
+  { id: 'fr1', text: 'Flipkart Seller Hub: check account health, quality score, policy violations', note: '' },
+  { id: 'fr2', text: 'Monitor inventory — flag any SKU dropping below 15 units', note: '' },
+  { id: 'fr3', text: 'Process pending returns and buyer queries within 24h SLA', note: '' },
+];
+const FLIPKART_BASE = {
+  Mon: [
+    { id: 'fb1', text: 'Pull last week analytics: Impressions, CTR, CVR, ROAS from Flipkart Ads Manager', note: '' },
+    { id: 'fb2', text: 'Send agency weekly brief with platform targets for the week', note: '' },
+    { id: 'fb3', text: 'Set ad budget path based on last week P&L', note: 'P&L < −₹2k → Starter | −₹2k to +₹3k → Growth | >+₹3k → Scale' },
+    { id: 'fb4', text: 'Confirm all hero SKUs: live, in stock, F-Assured eligibility check', note: '' },
+  ],
+  Tue: [
+    { id: 'fb1', text: 'Catalog quality audit: white-bg images (1000×1000), title length, spec completeness', note: 'Target quality score ≥80% for all hero SKUs' },
+    { id: 'fb2', text: 'Fill all mandatory backend attributes: size, colour, material, brand', note: '' },
+  ],
+  Wed: [
+    { id: 'fb1', text: 'PLA campaign review: pause keywords with 0 clicks after 1,000+ impressions', note: '' },
+    { id: 'fb2', text: 'Bid adjustments: CVR ≥10% → raise +15% | ROAS <2× → reduce -10%', note: '' },
+    { id: 'fb3', text: 'Smart ROI review — campaigns below 3× Smart ROI get budget cut', note: '' },
+  ],
+  Thu: [
+    { id: 'fb1', text: 'Reply to all new 1–3 star ratings with public response', note: '' },
+    { id: 'fb2', text: 'Process all return requests: approve valid, dispute invalid with evidence', note: '' },
+    { id: 'fb3', text: 'Answer all new buyer Q&As within 24 hours', note: '' },
+  ],
+  Fri: [
+    { id: 'fb1', text: 'Competitor tracking: 5 rivals — price, ratings, F-Assured status, images', note: '' },
+    { id: 'fb2', text: 'Keyword rank check on Flipkart search for 6 priority keywords', note: '' },
+    { id: 'fb3', text: 'Pull weekly KPI snapshot → enter in scorecard panel', note: '' },
+  ],
+  Sat: [
+    { id: 'fb1', text: 'Pre-fill weekly scorecard: units, spend, revenue, P&L, return rate, rating', note: '' },
+    { id: 'fb2', text: 'Spillover buffer — complete any remaining Mon–Fri tasks', note: '' },
+    { id: 'fb3', text: 'Monday prep note: what must be ready before Monday begins', note: '' },
+  ],
+};
+const FLIPKART_MUST = {
+  Mon: ['Weekly brief sent to agency', 'Ad budget path decided and set', 'All hero SKUs confirmed live and in stock'],
+  Tue: ['Catalog quality score ≥80% for all heroes', 'All mandatory product attributes filled'],
+  Wed: ['PLA bid adjustments live in Ads Manager', 'Smart ROI reviewed for all active campaigns'],
+  Thu: ['Zero unanswered Q&As on hero pages', 'All return requests processed within SLA'],
+  Fri: ['Competitor sheet updated with this week\'s data', 'Weekly KPI snapshot saved'],
+  Sat: ['Weekly scorecard pre-filled', 'Zero tasks carrying over to next week'],
+};
+const FLIPKART_SCORECARD = [
+  { key: 'units',        label: 'Units Sold',              ph: '0' },
+  { key: 'target',       label: 'Target Units',            ph: '0' },
+  { key: 'bestSku',      label: 'Best Performing SKU',     ph: 'SKU name' },
+  { key: 'worstSku',     label: 'Weakest SKU',             ph: 'SKU name' },
+  { key: 'adSpend',      label: 'Total Ad Spend (₹)',      ph: '0' },
+  { key: 'adRevenue',    label: 'Total Ad Revenue (₹)',    ph: '0' },
+  { key: 'roas',         label: 'Overall ROAS (×)',        ph: '0.00' },
+  { key: 'returnRate',   label: 'Return Rate (%)',         ph: '0.00' },
+  { key: 'sellerRating', label: 'Seller Rating',           ph: '0.0 / 5.0' },
+  { key: 'fAssured',     label: 'F-Assured Badge Status',  ph: 'Active / Pending / Not Eligible' },
+  { key: 'netPnl',       label: 'Net P&L (₹)',            ph: '0' },
+  { key: 'adPath',       label: 'Ad Path Next Week',       ph: 'Starter / Growth / Scale' },
+  { key: 'wins',         label: 'Top 3 Wins',             ph: '1. ...\n2. ...\n3. ...', ml: true },
+  { key: 'misses',       label: 'Top 3 Misses',           ph: '1. ...\n2. ...\n3. ...', ml: true },
+  { key: 'decision',     label: 'Decision Needed From Founder', ph: '...', ml: true },
+];
+const FLIPKART_TRIGGERED = [
+  { id: 1,  level: 'red',   text: 'Stock <10 units on any hero → Create replenishment order TODAY' },
+  { id: 2,  level: 'amber', text: 'Stock <20 units → Schedule replenishment for next Tuesday' },
+  { id: 3,  level: 'red',   text: 'ROAS <2× for 2+ weeks → PAUSE campaign, reallocate budget' },
+  { id: 4,  level: 'amber', text: 'Return rate >15% → Review listing for misleading claims or sizing issues' },
+  { id: 5,  level: 'red',   text: 'Account health warning → STOP all other work, respond within 24 hours' },
+  { id: 6,  level: 'red',   text: 'Listing suppressed → Find reason same day, fix and resubmit' },
+  { id: 7,  level: 'amber', text: 'New 1–3 star rating → Reply publicly within 24 hours' },
+  { id: 8,  level: 'red',   text: 'Seller rating drops <3.5 → Emergency audit of all returns and responses' },
+  { id: 9,  level: 'green', text: 'ROAS >5× → Scale budget +25% on that campaign immediately' },
+  { id: 10, level: 'green', text: 'F-Assured badge earned → Raise PLA bids +20% on all hero SKUs' },
+  { id: 11, level: 'amber', text: 'Competitor drops price >10% → Decide: match / undercut ₹5–10 / hold within 48h' },
+];
+const FLIPKART_WEEK_DATA = [
+  { n:1,  title:'FOUNDATION',      desc:'Catalog audit, F-Assured eligibility check, first PLA launch',        nonNeg:'All mandatory product attributes filled by Tuesday',           budgets:{starter:1500,growth:2500,scale:4000}, ws:{ Mon:[{id:1,text:'Audit all SKUs: identify top 3 heroes by CVR and margin',note:'Use Seller Hub → Business Analytics → Product Performance'}], Tue:[{id:1,text:'Fix top quality issues: missing images, incomplete spec, wrong category',note:'Incomplete attributes = suppressed search visibility'},{id:2,text:'Image quality: white background, 1000×1000px minimum, no watermarks',note:''}], Wed:[{id:1,text:'Launch first PLA campaign on hero SKU — ₹1,000/wk Manual CPC',note:'Start at ₹5–8/click for broad reach'}], Thu:[{id:1,text:'Check F-Assured eligibility: seller rating ≥4.0, return rate <10%, SLA 100%',note:''}], Fri:[{id:1,text:'Build competitor tracker: 5 rivals — price, rating, F-Assured, images',note:''}], Sat:[{id:1,text:'Set up weekly KPI dashboard — bookmark Flipkart Analytics pages',note:''}] }},
+  { n:2,  title:'ADS LAUNCH',      desc:'PLA fully live on all heroes, Smart ROI activated',                   nonNeg:'PLA campaigns live on all 3 hero SKUs',                        budgets:{starter:1500,growth:2500,scale:4500}, ws:{ Mon:[{id:1,text:'Review Week 1 PLA data: CTR, CVR, CPC — note top and bottom keywords',note:''}], Tue:[{id:1,text:'Launch PLA campaigns on Hero #2 and Hero #3',note:'Separate campaigns per SKU for cleaner optimization'}], Wed:[{id:1,text:'Enable Smart ROI bidding on Hero #1 if 7+ days of data exists',note:'Smart ROI target: 4× minimum'}], Thu:[{id:1,text:'Q&A seeding: 3 buyer-style questions per hero from different accounts',note:'Focus: size/fit, ingredients, delivery time'}], Fri:[], Sat:[{id:1,text:'First weekly scorecard — benchmark starting metrics',note:''}] }},
+  { n:3,  title:'FIRST OPTIMIZE',  desc:'Pause losers, boost winners, CVR improvement focus',                  nonNeg:'All keywords with 0 conversions after 500+ clicks paused',     budgets:{starter:2000,growth:3000,scale:5000}, ws:{ Mon:[{id:1,text:'Pause all keywords with CTR <0.3% after 1,000 impressions',note:''}], Tue:[], Wed:[{id:1,text:'Raise bids +20% on any keyword with ROAS >4× consistently',note:''},{id:2,text:'Expand to phrase-match on top converting exact keywords',note:''}], Thu:[{id:1,text:'Return rate analysis: which SKUs have >10% returns? Investigate cause',note:''}], Fri:[], Sat:[] }},
+  { n:4,  title:'CONTENT UPGRADE', desc:'Enhanced images, A+ listing content, description refresh',            nonNeg:'Hero #1 enhanced content submitted and pending approval',        budgets:{starter:2000,growth:3000,scale:5000}, ws:{ Mon:[], Tue:[{id:1,text:'Upgrade Hero #1: lifestyle images, 360° view, product video if possible',note:''},{id:2,text:'Rewrite product description: benefit-led, keyword-rich, 500+ words',note:''}], Wed:[], Thu:[{id:1,text:'Submit enhanced content on all 3 hero listings',note:''}], Fri:[], Sat:[] }},
+  { n:5,  title:'RATING PUSH',     desc:'Review generation strategy, rating improvement',                      nonNeg:'All hero SKUs at 10+ reviews',                                 budgets:{starter:2000,growth:3500,scale:5500}, ws:{ Mon:[{id:1,text:'Check current rating and review count per hero — identify gaps',note:''}], Tue:[{id:1,text:'Set up post-delivery follow-up for review requests (WhatsApp/email)',note:''}], Wed:[], Thu:[{id:1,text:'Respond to every 1–3 star review with solution offer',note:''}], Fri:[], Sat:[] }},
+  { n:6,  title:'RETURN AUDIT',    desc:'Deep return analysis, listing corrections to reduce rate <12%',       nonNeg:'Return rate under 12% on all hero SKUs',                       budgets:{starter:2000,growth:3500,scale:5500}, ws:{ Mon:[{id:1,text:'Pull return reason report — categorize top 3 return reasons',note:''}], Tue:[{id:1,text:'Fix listing misleading claims: size charts, material, colour accuracy',note:''},{id:2,text:'Add FAQ section addressing top return reasons in listing',note:''}], Wed:[], Thu:[], Fri:[], Sat:[] }},
+  { n:7,  title:'SCALE WINNERS',   desc:'Double down on top performers, expand to new keywords',               nonNeg:'Top 3 performing keywords get +30% bid increase this week',     budgets:{starter:2500,growth:4000,scale:6000}, ws:{ Mon:[{id:1,text:'Identify top 3 converting keywords across all campaigns',note:''}], Wed:[{id:1,text:'Raise bids +30% on top keywords',note:''},{id:2,text:'Launch phrase-match campaign on high-volume category keywords',note:''}], Tue:[], Thu:[], Fri:[], Sat:[] }},
+  { n:8,  title:'COMPETITION',     desc:'Competitor gap analysis, pricing strategy review',                    nonNeg:'Competitor analysis document completed by Friday',              budgets:{starter:2500,growth:4000,scale:6000}, ws:{ Mon:[{id:1,text:'Expand competitor tracker to 10 rivals — add search rank equivalents',note:''}], Fri:[{id:1,text:'Write competitor gap doc: price, content, ratings, F-Assured — where losing?',note:''},{id:2,text:'Decide: 3 changes to close the gap with top competitor',note:''}], Tue:[], Wed:[], Thu:[], Sat:[] }},
+  { n:9,  title:'F-ASSURED PUSH',  desc:'Complete all F-Assured requirements, badge activation',               nonNeg:'F-Assured eligibility confirmed for at least 1 hero SKU',      budgets:{starter:2500,growth:4000,scale:6500}, ws:{ Mon:[{id:1,text:'F-Assured checklist: seller rating, return rate, SLA, policy compliance',note:''}], Tue:[{id:1,text:'Apply for F-Assured on Hero #1 if all criteria met',note:'F-Assured boosts CTR up to 25% in search results'}], Thu:[{id:1,text:'If not eligible: create action plan — which criteria to fix first?',note:''}], Wed:[], Fri:[], Sat:[] }},
+  { n:10, title:'BRAND BUILD',     desc:'Flipkart Brand Store launch, brand campaign setup',                   nonNeg:'Brand store application submitted this week',                  budgets:{starter:3000,growth:4500,scale:7000}, ws:{ Mon:[{id:1,text:'Apply for Flipkart Brand Store access if not already done',note:''}], Tue:[{id:1,text:'Design brand store: hero banner, category pages, featured products',note:''}], Wed:[{id:1,text:'Launch brand awareness PLA targeting category browser keywords',note:''}], Thu:[], Fri:[], Sat:[] }},
+  { n:11, title:'PEAK PREP',       desc:'Big Billion Days / sale event preparation, inventory pre-position',  nonNeg:'Inventory pre-positioned — minimum 60 days stock on all heroes', budgets:{starter:3500,growth:5000,scale:8000}, ws:{ Mon:[{id:1,text:'Forecast peak demand — 60-day inventory need per hero',note:''},{id:2,text:'Submit deals and offers for upcoming sale events',note:''}], Wed:[{id:1,text:'Pre-load ad budgets for sale week — 3× normal daily budget cap',note:''}], Tue:[], Thu:[], Fri:[], Sat:[] }},
+  { n:12, title:'HARVEST',         desc:'12-week audit, maintenance protocol, next quarter plan',              nonNeg:'12-week P&L audit delivered by Friday',                        budgets:{starter:3500,growth:5000,scale:8000}, ws:{ Mon:[{id:1,text:'Plan audit structure: P&L, Ad ROI, Organic growth, Return rate delta',note:''}], Fri:[{id:1,text:'12-WEEK AUDIT — full P&L, ROAS, return rate, seller rating review',note:'NON-NEGOTIABLE: audit document delivered by EOD Friday'},{id:2,text:'Write maintenance protocol — steady-state weekly routine going forward',note:''}], Sat:[{id:1,text:'Write Next Quarter Brief — top 3 objectives, budget plan, key experiments',note:''}], Tue:[], Wed:[], Thu:[] }},
+];
+
+// ── Meesho Plan Data ──────────────────────────────────────────────────────────
+
+const MEESHO_RECURRING = [
+  { id: 'mr1', text: 'Meesho Supplier Hub: check account health, supplier score, policy alerts', note: '' },
+  { id: 'mr2', text: 'Dispatch all pending orders within 24-hour SLA — non-negotiable', note: '' },
+  { id: 'mr3', text: 'Review return requests and buyer disputes — process within 48 hours', note: '' },
+];
+const MEESHO_BASE = {
+  Mon: [
+    { id: 'mb1', text: 'Pull last week performance: catalog score, ROAS, return rate, supplier rating', note: '' },
+    { id: 'mb2', text: 'Review top-selling products — flag any stock shortages', note: '' },
+    { id: 'mb3', text: 'Set weekly ad budget based on last week ROAS', note: 'ROAS <2× → reduce 20% | 2–4× → maintain | >4× → scale +25%' },
+  ],
+  Tue: [
+    { id: 'mb1', text: 'Catalog quality audit: images, description, size chart, weight, dimensions', note: 'Target: catalog quality score >80 for all active products' },
+    { id: 'mb2', text: 'Update size charts for all fashion products — #1 driver of returns', note: '' },
+  ],
+  Wed: [
+    { id: 'mb1', text: 'Meesho Ads review: pause products with ROAS <1.5× after ₹500+ spend', note: '' },
+    { id: 'mb2', text: 'Bid adjustment: products with ROAS >4× → raise bid +15%', note: '' },
+  ],
+  Thu: [
+    { id: 'mb1', text: 'Reply to all new buyer queries and complaints', note: '' },
+    { id: 'mb2', text: 'Dispute wrong return requests with product condition photos', note: '' },
+  ],
+  Fri: [
+    { id: 'mb1', text: 'Competitor catalog check: 5 rivals — price, listing quality, ad visibility', note: '' },
+    { id: 'mb2', text: 'Pull weekly KPI snapshot and enter in scorecard', note: '' },
+  ],
+  Sat: [
+    { id: 'mb1', text: 'Pre-fill weekly scorecard: orders, returns, ROAS, supplier score', note: '' },
+    { id: 'mb2', text: 'Plan next week: which products to boost, which to pause', note: '' },
+  ],
+};
+const MEESHO_MUST = {
+  Mon: ['All orders dispatched on time', 'Ad budget reviewed and set for the week'],
+  Tue: ['Catalog quality score >80 on all active products', 'Size charts accurate and complete'],
+  Wed: ['Meesho Ads bids adjusted based on ROAS data', 'Poor-performing products paused or repriced'],
+  Thu: ['Zero unanswered buyer queries', 'All pending returns processed'],
+  Fri: ['Weekly KPI snapshot completed', 'Competitor price check done'],
+  Sat: ['Scorecard pre-filled', 'Next week ad plan decided'],
+};
+const MEESHO_SCORECARD = [
+  { key: 'orders',        label: 'Orders Placed',              ph: '0' },
+  { key: 'dispatched',    label: 'Orders Dispatched on Time',  ph: '0' },
+  { key: 'returns',       label: 'Returns Received',           ph: '0' },
+  { key: 'returnRate',    label: 'Return Rate (%)',            ph: '0.00' },
+  { key: 'adSpend',       label: 'Total Ad Spend (₹)',         ph: '0' },
+  { key: 'adRevenue',     label: 'Total Ad Revenue (₹)',       ph: '0' },
+  { key: 'roas',          label: 'Overall ROAS (×)',           ph: '0.00' },
+  { key: 'catalogScore',  label: 'Catalog Quality Score',      ph: '0 / 100' },
+  { key: 'supplierScore', label: 'Supplier Score',             ph: '0 / 10' },
+  { key: 'netPnl',        label: 'Net P&L (₹)',               ph: '0' },
+  { key: 'bestProduct',   label: 'Best Selling Product',       ph: 'Product name' },
+  { key: 'wins',          label: 'Top 3 Wins',                ph: '1. ...\n2. ...\n3. ...', ml: true },
+  { key: 'misses',        label: 'Top 3 Misses',              ph: '1. ...\n2. ...\n3. ...', ml: true },
+  { key: 'decision',      label: 'Decision Needed From Founder', ph: '...', ml: true },
+];
+const MEESHO_TRIGGERED = [
+  { id: 1, level: 'red',   text: 'Supplier score drops <5 → Emergency: resolve all open disputes and quality flags today' },
+  { id: 2, level: 'red',   text: 'Return rate >20% → Pause ads, review listing accuracy and size charts immediately' },
+  { id: 3, level: 'amber', text: 'Return rate 15–20% → Audit top return reasons, fix within 48 hours' },
+  { id: 4, level: 'red',   text: 'Order dispatch SLA breach → Fix supply chain immediately — policy violation risk' },
+  { id: 5, level: 'amber', text: 'Catalog quality score <60 → Priority fix: images, size chart, description' },
+  { id: 6, level: 'red',   text: 'Account suspension warning → Stop all work, contact Meesho support immediately' },
+  { id: 7, level: 'green', text: 'ROAS >4× on a product → Scale ad budget by +25% on that product this week' },
+  { id: 8, level: 'green', text: 'Catalog score >90 → Apply for Meesho Boost program for additional visibility' },
+  { id: 9, level: 'amber', text: 'New negative buyer review → Respond with resolution within 24 hours' },
+];
+const MEESHO_WEEK_DATA = [
+  { n:1,  title:'CATALOG SETUP',   desc:'Product listing optimization, quality score baseline',             nonNeg:'Catalog quality score >70 for all active products',           budgets:{starter:1000,growth:2000,scale:3500}, ws:{ Mon:[{id:1,text:'Audit all listings: check quality score for each product',note:''}], Tue:[{id:1,text:'Fix top 3 quality issues: missing size chart, poor images, incomplete desc',note:''},{id:2,text:'Upload size charts for all fashion/apparel products',note:''}], Wed:[], Thu:[{id:1,text:'Set up dispatch process: packaging, shipping partner, label printing',note:''}], Fri:[], Sat:[] }},
+  { n:2,  title:'FIRST ADS',       desc:'Meesho Ads launch, initial budget and bidding setup',             nonNeg:'Ads live on top 5 products by Wednesday',                     budgets:{starter:1000,growth:2000,scale:4000}, ws:{ Mon:[], Tue:[], Wed:[{id:1,text:'Launch Meesho Ads on top 5 products by sales volume',note:'Start ₹50–80/day per product, Smart Ads enabled'}], Thu:[], Fri:[], Sat:[{id:1,text:'Record all KPIs as Week 2 baseline for future comparison',note:''}] }},
+  { n:3,  title:'CATALOG BOOST',   desc:'Improve catalog quality to >80 on all products',                 nonNeg:'Catalog quality >80 on all active listings',                  budgets:{starter:1500,growth:2500,scale:4500}, ws:{ Mon:[], Tue:[{id:1,text:'Image upgrade: white-background shots, minimum 4 images per product',note:''}], Wed:[], Thu:[], Fri:[], Sat:[] }},
+  { n:4,  title:'RETURN MANAGE',   desc:'Understand and reduce return rate below 15%',                     nonNeg:'Return root cause analysis completed this week',               budgets:{starter:1500,growth:2500,scale:4500}, ws:{ Mon:[{id:1,text:'Pull return reason breakdown — top 5 return reasons by category',note:''}], Tue:[{id:1,text:'Fix top 2 return causes: update listing, size chart, or product description',note:''}], Wed:[], Thu:[], Fri:[], Sat:[] }},
+  { n:5,  title:'RATING PUSH',     desc:'Improve supplier rating and product buyer ratings',               nonNeg:'Supplier rating ≥7 and improving week-on-week',               budgets:{starter:1500,growth:3000,scale:5000}, ws:{ Mon:[], Tue:[], Wed:[], Thu:[{id:1,text:'Send post-delivery follow-up messages requesting ratings for top products',note:''}], Fri:[], Sat:[] }},
+  { n:6,  title:'AD OPTIMIZE',     desc:'Full ad campaign optimization, pause losers, scale winners',     nonNeg:'All products with ROAS <1× paused this week',                 budgets:{starter:2000,growth:3000,scale:5500}, ws:{ Mon:[{id:1,text:'Full ad audit: ROAS by product, pause anything <1× after ₹500 spend',note:''}], Wed:[{id:1,text:'Scale top 3 products by ROAS — raise daily budget +30%',note:''}], Tue:[], Thu:[], Fri:[], Sat:[] }},
+  { n:7,  title:'SCALE UP',        desc:'Scale winning products, expand catalog with similar items',       nonNeg:'Top 5 products at 2× their Week 1 ad budget',                 budgets:{starter:2000,growth:3500,scale:6000}, ws:{ Mon:[{id:1,text:'Identify top 5 products by profit — plan expansion with similar items',note:''}], Wed:[{id:1,text:'Add 10–15 new product variations or complementary products',note:''}], Tue:[], Thu:[], Fri:[], Sat:[] }},
+  { n:8,  title:'CATALOG EXPAND',  desc:'Add more products, test new categories',                         nonNeg:'10+ new products listed this week with full quality compliance', budgets:{starter:2500,growth:4000,scale:6500}, ws:{ Tue:[{id:1,text:'List 10+ new products with full catalog quality compliance from day one',note:''}], Thu:[{id:1,text:'Launch Meesho Ads on new products immediately after listing',note:''}], Mon:[], Wed:[], Fri:[], Sat:[] }},
+  { n:9,  title:'MEESHO BOOST',    desc:'Apply for Meesho Boost program for additional visibility',       nonNeg:'Meesho Boost application submitted if eligible',               budgets:{starter:2500,growth:4000,scale:7000}, ws:{ Mon:[{id:1,text:'Check eligibility: supplier score >7, catalog score >80, return rate <10%',note:''}], Tue:[{id:1,text:'Apply for Meesho Boost if eligible — additional search visibility and badges',note:''}], Wed:[], Thu:[], Fri:[], Sat:[] }},
+  { n:10, title:'PRICING',         desc:'Price competitiveness, margin analysis, discount strategy',      nonNeg:'Price competitive within 5% of top 3 rivals on all heroes',   budgets:{starter:2500,growth:4500,scale:7000}, ws:{ Mon:[{id:1,text:'Run competitor price analysis on all hero products',note:''}], Wed:[{id:1,text:'Adjust pricing on heroes where competitor has >20% price advantage',note:''}], Tue:[], Thu:[], Fri:[], Sat:[] }},
+  { n:11, title:'SEASONAL PREP',   desc:'Festive season inventory, ad budget scaling, offer creation',   nonNeg:'Festive inventory pre-positioned — 60 days stock on top sellers', budgets:{starter:3000,growth:5000,scale:8000}, ws:{ Mon:[{id:1,text:'Calculate festive demand: 3–5× normal volume expected',note:''},{id:2,text:'Pre-position 60-day inventory for all top products',note:''}], Wed:[{id:1,text:'Create seasonal offers: bundle deals, combo packs, first-order discounts',note:''}], Tue:[], Thu:[], Fri:[], Sat:[] }},
+  { n:12, title:'AUDIT & PLAN',    desc:'Full quarter review, maintenance protocol, next quarter plan',  nonNeg:'12-week audit document delivered by Friday',                   budgets:{starter:3000,growth:5000,scale:8000}, ws:{ Mon:[], Fri:[{id:1,text:'12-WEEK AUDIT: orders, returns, ROAS, supplier score, net P&L',note:''},{id:2,text:'Write maintenance protocol — steady-state weekly routine',note:''}], Sat:[{id:1,text:'Write Next Quarter Plan: top products, budget, new catalog additions',note:''}], Tue:[], Wed:[], Thu:[] }},
+];
+
+// ── Myntra Plan Data ──────────────────────────────────────────────────────────
+
+const MYNTRA_RECURRING = [
+  { id: 'myr1', text: 'Myntra Seller Portal (MSP): check account health, style quotient, policy alerts', note: '' },
+  { id: 'myr2', text: 'Monitor inventory — flag any SKU dropping below 20 units', note: '' },
+  { id: 'myr3', text: 'Process returns and customer queries — fashion returns are high, respond fast', note: '' },
+];
+const MYNTRA_BASE = {
+  Mon: [
+    { id: 'myb1', text: 'Pull last week MSP analytics: impressions, CTR, CVR, return rate, style quotient', note: '' },
+    { id: 'myb2', text: 'Set ad budget based on last week performance', note: 'CVR <5% → reduce | 5–10% → maintain | >10% → scale +20%' },
+    { id: 'myb3', text: 'Check trending styles in your category — align product push accordingly', note: '' },
+  ],
+  Tue: [
+    { id: 'myb1', text: 'Style quotient audit: model shots, lifestyle images, white-bg product images, size chart accuracy', note: 'Style quotient <70 = suppressed visibility' },
+    { id: 'myb2', text: 'Size chart validation: measure actual product, ensure chart is accurate to ±1cm', note: 'Size inaccuracy = #1 return driver in fashion' },
+  ],
+  Wed: [
+    { id: 'myb1', text: 'Myntra Ads review: pause SKUs with CTR <0.5% after 2,000 impressions', note: '' },
+    { id: 'myb2', text: 'Bid adjustments: CVR ≥10% → raise +15% | return rate >30% on SKU → pause ads', note: '' },
+  ],
+  Thu: [
+    { id: 'myb1', text: 'Reply to all new 1–3 star ratings publicly within 24 hours', note: '' },
+    { id: 'myb2', text: 'Process return requests — approve, dispute, or exchange as applicable', note: '' },
+  ],
+  Fri: [
+    { id: 'myb1', text: 'Competitor analysis: 5 top brands — price, style quotient, images, ratings', note: '' },
+    { id: 'myb2', text: 'Pull weekly KPI snapshot and enter in scorecard', note: '' },
+  ],
+  Sat: [
+    { id: 'myb1', text: 'Pre-fill weekly scorecard: units, return rate, style quotient, ad metrics', note: '' },
+    { id: 'myb2', text: 'Monday prep note: which styles to push next week', note: '' },
+  ],
+};
+const MYNTRA_MUST = {
+  Mon: ['Weekly ad budget set', 'Trending styles reviewed and plan aligned'],
+  Tue: ['Style quotient ≥70 for all hero SKUs', 'Size charts validated and accurate'],
+  Wed: ['Ad bids adjusted based on CVR data', 'High-return SKUs flagged and ad paused'],
+  Thu: ['All new ratings replied to publicly', 'Pending return requests processed'],
+  Fri: ['Weekly KPI snapshot completed', 'Competitor analysis done'],
+  Sat: ['Scorecard pre-filled', 'Next week style push plan ready'],
+};
+const MYNTRA_SCORECARD = [
+  { key: 'units',        label: 'Units Sold',              ph: '0' },
+  { key: 'target',       label: 'Target Units',            ph: '0' },
+  { key: 'bestStyle',    label: 'Best Performing Style',   ph: 'Style/SKU name' },
+  { key: 'returnRate',   label: 'Return Rate (%)',         ph: '0.00' },
+  { key: 'styleQuotient',label: 'Avg Style Quotient',      ph: '0 / 100' },
+  { key: 'adSpend',      label: 'Total Ad Spend (₹)',      ph: '0' },
+  { key: 'adRevenue',    label: 'Total Ad Revenue (₹)',    ph: '0' },
+  { key: 'roas',         label: 'Overall ROAS (×)',        ph: '0.00' },
+  { key: 'netPnl',       label: 'Net P&L (₹)',            ph: '0' },
+  { key: 'brandStore',   label: 'Brand Store Status',      ph: 'Live / Pending / Not Applied' },
+  { key: 'wins',         label: 'Top 3 Wins',             ph: '1. ...\n2. ...\n3. ...', ml: true },
+  { key: 'misses',       label: 'Top 3 Misses',           ph: '1. ...\n2. ...\n3. ...', ml: true },
+  { key: 'decision',     label: 'Decision Needed From Founder', ph: '...', ml: true },
+];
+const MYNTRA_TRIGGERED = [
+  { id: 1, level: 'red',   text: 'Style quotient <60 on any hero → Emergency listing upgrade: images, size chart, description' },
+  { id: 2, level: 'red',   text: 'Return rate >35% on a SKU → Pause ads immediately, investigate root cause' },
+  { id: 3, level: 'amber', text: 'Return rate >25% → Review size chart accuracy and product claims' },
+  { id: 4, level: 'red',   text: 'Account health warning → STOP all work, contact Myntra support within 24 hours' },
+  { id: 5, level: 'amber', text: 'Rating drops <3.5 → Reply to all negative reviews publicly, consider exchange policy' },
+  { id: 6, level: 'green', text: 'Style quotient >85 → Apply for Myntra editorial or curated collection feature' },
+  { id: 7, level: 'green', text: 'CVR >12% on a style → Scale ad budget +25% on that style immediately' },
+  { id: 8, level: 'amber', text: 'Competitor drops price >15% → Review pricing strategy within 48 hours' },
+];
+const MYNTRA_WEEK_DATA = [
+  { n:1,  title:'BRAND SETUP',     desc:'Brand registration, catalog standards, first SKU launch',           nonNeg:'Style quotient ≥70 on all initial SKU listings',              budgets:{starter:2000,growth:3500,scale:5000}, ws:{ Mon:[{id:1,text:'Complete brand registration on Myntra Seller Portal',note:''}], Tue:[{id:1,text:'Upload first batch of SKUs: 4+ images per style, accurate size chart, model shots',note:''},{id:2,text:'Ensure style quotient ≥70 before going live',note:''}], Wed:[], Thu:[], Fri:[], Sat:[] }},
+  { n:2,  title:'LISTING LAUNCH',  desc:'Style quotient optimization, Myntra Ads first launch',              nonNeg:'Myntra Ads live on top 5 styles by Wednesday',                budgets:{starter:2000,growth:3500,scale:5500}, ws:{ Mon:[], Tue:[], Wed:[{id:1,text:'Launch Myntra Ads on top 5 styles — Manual CPC, ₹8–12/click starting bid',note:''}], Thu:[{id:1,text:'Q&A: 3 style/fit questions seeded per hero style',note:''}], Fri:[], Sat:[] }},
+  { n:3,  title:'SIZE & FIT',      desc:'Size chart accuracy deep audit, fit notes, return reason analysis', nonNeg:'Return rate under 25% — fix size inaccuracies first',          budgets:{starter:2500,growth:4000,scale:6000}, ws:{ Mon:[{id:1,text:'Pull return reason report — is "size issue" in top 3 reasons?',note:''}], Tue:[{id:1,text:'Physically measure products and re-do size charts with ±0.5cm accuracy',note:''},{id:2,text:'Add fit notes in description: "runs small/large, model is 5\'7\" wearing size M"',note:''}], Wed:[], Thu:[], Fri:[], Sat:[] }},
+  { n:4,  title:'RETURN REDUCE',   desc:'Fashion returns deep dive — bring rate under 30%',                  nonNeg:'Identify and fix top 3 return causes this week',               budgets:{starter:2500,growth:4000,scale:6000}, ws:{ Mon:[{id:1,text:'Analyze return feedback: collect top 10 return comments per hero style',note:''}], Tue:[{id:1,text:'Update product description: add fabric care, stretch factor, exact dimensions',note:''}], Wed:[], Thu:[], Fri:[], Sat:[] }},
+  { n:5,  title:'AD OPTIMIZE',     desc:'Myntra Ads CTR/CVR optimization, pause high-return styles\' ads',  nonNeg:'All styles with ROAS <2× and return rate >30% ads paused',     budgets:{starter:2500,growth:4000,scale:6500}, ws:{ Mon:[{id:1,text:'Full ad audit: CTR, CVR, return rate, ROAS per style — 4-week view',note:''}], Wed:[{id:1,text:'Scale top 3 styles by CVR — raise budget +30%',note:''},{id:2,text:'Pause ads on all styles with return rate >30%',note:''}], Tue:[], Thu:[], Fri:[], Sat:[] }},
+  { n:6,  title:'TREND ALIGN',     desc:'Align product push with current fashion trends on Myntra',         nonNeg:'Top 5 trending styles in your category actively promoted',      budgets:{starter:3000,growth:4500,scale:7000}, ws:{ Mon:[{id:1,text:'Research top 5 trending styles in your category this week on Myntra',note:''}], Wed:[{id:1,text:'Boost ad budget on styles matching current trends by +50%',note:''},{id:2,text:'Add trend-relevant keywords in product description',note:''}], Tue:[], Thu:[], Fri:[], Sat:[] }},
+  { n:7,  title:'RATING PUSH',     desc:'Improve product ratings and buyer satisfaction',                    nonNeg:'All hero styles at average rating ≥4.0',                      budgets:{starter:3000,growth:4500,scale:7000}, ws:{ Mon:[], Thu:[{id:1,text:'Post-purchase follow-up: request ratings for all recently delivered orders',note:''}], Fri:[{id:1,text:'Reply to every rating below 4 stars publicly with resolution',note:''}], Tue:[], Wed:[], Sat:[] }},
+  { n:8,  title:'SCALE',           desc:'Scale winning styles, expand catalog with new designs',             nonNeg:'Top 3 styles at 2× Week 1 ad budget with ROAS >3×',            budgets:{starter:3000,growth:5000,scale:8000}, ws:{ Mon:[{id:1,text:'Identify top 3 styles by CVR and margin — plan color/size expansion',note:''}], Tue:[{id:1,text:'List new design variants of top-performing styles',note:''}], Wed:[{id:1,text:'Launch ads on new variants immediately — use top style\'s bids as starting point',note:''}], Thu:[], Fri:[], Sat:[] }},
+  { n:9,  title:'BRAND STORE',     desc:'Complete Myntra brand store setup, editorial content',              nonNeg:'Brand store live and published this week',                    budgets:{starter:3500,growth:5000,scale:8000}, ws:{ Mon:[{id:1,text:'Apply for Myntra Brand Store if not done yet',note:'Needs Brand Registry approval + 10+ live styles'}], Tue:[{id:1,text:'Design brand store: hero banner, curated lookbooks, featured styles',note:''}], Thu:[{id:1,text:'Submit brand store for approval',note:''}], Wed:[], Fri:[], Sat:[] }},
+  { n:10, title:'CONTENT UPGRADE', desc:'Editorial quality images, lookbooks, lifestyle photography',        nonNeg:'Hero styles updated with lifestyle + editorial photography',    budgets:{starter:3500,growth:5000,scale:8000}, ws:{ Tue:[{id:1,text:'Shoot lifestyle images: model on location, natural light, aspirational styling',note:''}], Thu:[{id:1,text:'Update all hero styles with new editorial images — replace studio shots',note:''}], Mon:[], Wed:[], Fri:[], Sat:[] }},
+  { n:11, title:'FESTIVE PREP',    desc:'Festive/wedding season inventory, offers, ad budget scaling',      nonNeg:'Festive inventory pre-positioned — 60 days stock on top styles', budgets:{starter:4000,growth:6000,scale:9000}, ws:{ Mon:[{id:1,text:'Forecast festive demand: 5–8× normal volume during festive window',note:''},{id:2,text:'Pre-position 60-day inventory for all hero styles',note:''}], Wed:[{id:1,text:'Create festive offers: bundle deals, gift-ready packaging, limited editions',note:''}], Tue:[], Thu:[], Fri:[], Sat:[] }},
+  { n:12, title:'HARVEST',         desc:'12-week audit, maintenance protocol, next season plan',             nonNeg:'12-week audit document delivered by Friday',                   budgets:{starter:4000,growth:6000,scale:9000}, ws:{ Mon:[], Fri:[{id:1,text:'12-WEEK AUDIT: units, return rate, style quotient trend, ROAS, net P&L',note:'NON-NEGOTIABLE: audit delivered by EOD Friday'},{id:2,text:'Write maintenance protocol — steady-state weekly routine',note:''}], Sat:[{id:1,text:'Write Next Season Plan: top styles, new designs, budget, catalog targets',note:''}], Tue:[], Wed:[], Thu:[] }},
+];
+
+// ── JioMart Plan Data ─────────────────────────────────────────────────────────
+
+const JIOMART_RECURRING = [
+  { id: 'jr1', text: 'JioMart Seller Hub: check order queue, delivery SLA alerts, account health', note: '' },
+  { id: 'jr2', text: 'Dispatch all orders same-day (JioMart SLA requirement — critical)', note: '' },
+  { id: 'jr3', text: 'Monitor store rating and respond to customer feedback within 24 hours', note: '' },
+];
+const JIOMART_BASE = {
+  Mon: [
+    { id: 'jb1', text: 'Pull last week analytics: orders, on-time delivery %, store rating, return rate', note: '' },
+    { id: 'jb2', text: 'Review top-selling products — flag stock shortages before they become issues', note: '' },
+    { id: 'jb3', text: 'Check JioMart promotional calendar — any upcoming sale events to participate in?', note: '' },
+  ],
+  Tue: [
+    { id: 'jb1', text: 'Product listing quality audit: images, description, weight, price accuracy', note: '' },
+    { id: 'jb2', text: 'Update pricing to stay within 5% of JioMart recommended price (if applicable)', note: '' },
+  ],
+  Wed: [
+    { id: 'jb1', text: 'Review JioMart promotions dashboard — opt into relevant deals and offers', note: '' },
+    { id: 'jb2', text: 'Catalog expansion check — are there new subcategories to list products in?', note: '' },
+  ],
+  Thu: [
+    { id: 'jb1', text: 'Customer feedback review: respond to all new queries and complaints', note: '' },
+    { id: 'jb2', text: 'Process all return and refund requests within SLA', note: '' },
+  ],
+  Fri: [
+    { id: 'jb1', text: 'Competitor price check on JioMart for top 5 products', note: '' },
+    { id: 'jb2', text: 'Pull weekly KPI snapshot — orders, SLA %, store rating, return rate', note: '' },
+  ],
+  Sat: [
+    { id: 'jb1', text: 'Pre-fill weekly scorecard', note: '' },
+    { id: 'jb2', text: 'Inventory pre-check for next week — ensure adequate stock for 7 days', note: '' },
+  ],
+};
+const JIOMART_MUST = {
+  Mon: ['All pending orders dispatched', 'Promotional calendar checked for the week'],
+  Tue: ['All product listings have accurate weight/price/images', 'Pricing within JioMart guidelines'],
+  Wed: ['Promotional deals opted into for the week', 'Catalog fully updated'],
+  Thu: ['Zero unanswered customer queries', 'All return requests processed'],
+  Fri: ['Weekly KPI snapshot completed', 'Competitor price parity checked'],
+  Sat: ['Scorecard pre-filled', 'Next week inventory confirmed'],
+};
+const JIOMART_SCORECARD = [
+  { key: 'orders',       label: 'Orders Received',            ph: '0' },
+  { key: 'dispatched',   label: 'Orders Dispatched On-Time',  ph: '0' },
+  { key: 'sla',          label: 'Delivery SLA (%)',           ph: '0.00' },
+  { key: 'storeRating',  label: 'Store Rating',               ph: '0.0 / 5.0' },
+  { key: 'returnRate',   label: 'Return Rate (%)',            ph: '0.00' },
+  { key: 'revenue',      label: 'Total Revenue (₹)',          ph: '0' },
+  { key: 'netPnl',       label: 'Net P&L (₹)',               ph: '0' },
+  { key: 'bestProduct',  label: 'Best Selling Product',       ph: 'Product name' },
+  { key: 'promoRevenue', label: 'Revenue from Promotions (₹)', ph: '0' },
+  { key: 'wins',         label: 'Top 3 Wins',                ph: '1. ...\n2. ...\n3. ...', ml: true },
+  { key: 'misses',       label: 'Top 3 Misses',              ph: '1. ...\n2. ...\n3. ...', ml: true },
+  { key: 'decision',     label: 'Decision Needed From Founder', ph: '...', ml: true },
+];
+const JIOMART_TRIGGERED = [
+  { id: 1, level: 'red',   text: 'SLA breach (on-time delivery <90%) → Emergency: fix dispatch process today' },
+  { id: 2, level: 'red',   text: 'Store rating drops <3.5 → Stop ads, fix root cause (delivery, quality, or packaging)' },
+  { id: 3, level: 'amber', text: 'Return rate >10% → Audit packaging quality and product description accuracy' },
+  { id: 4, level: 'red',   text: 'Account suspension warning → Stop all work, respond to JioMart support immediately' },
+  { id: 5, level: 'amber', text: 'Stock below 3 days → Emergency restock — JioMart penalises stock-outs heavily' },
+  { id: 6, level: 'green', text: 'SLA >99% for 4+ weeks → Apply for JioMart Priority Seller badge' },
+  { id: 7, level: 'green', text: 'Store rating ≥4.5 → Eligible for JioMart featured slot — apply this week' },
+  { id: 8, level: 'amber', text: 'New negative review → Respond with resolution and partial refund offer within 12 hours' },
+];
+const JIOMART_WEEK_DATA = [
+  { n:1,  title:'SELLER SETUP',    desc:'Complete seller profile, catalog setup, SLA process definition',    nonNeg:'All products live with correct weight, price, and images',    budgets:{starter:500,growth:1000,scale:2000},  ws:{ Mon:[{id:1,text:'Complete seller profile: GSTIN, bank details, pickup address',note:''}], Tue:[{id:1,text:'List first batch of products: accurate weight, dimensions, MRP, selling price',note:''},{id:2,text:'Set up packaging: sturdy box/bag, branded if possible, fragile labels',note:''}], Wed:[], Thu:[{id:1,text:'Define dispatch process: who packs, who hands to delivery partner, cutoff time',note:''}], Fri:[], Sat:[] }},
+  { n:2,  title:'SLA MASTER',      desc:'Perfect delivery SLA — 100% on-time dispatch every single order',   nonNeg:'100% on-time dispatch this week — zero SLA breaches',          budgets:{starter:500,growth:1000,scale:2000},  ws:{ Mon:[{id:1,text:'Audit Week 1 dispatch times — any orders dispatched late?',note:''}], Tue:[{id:1,text:'If any SLA breach: identify cause and fix process (cutoff time, packaging speed)',note:''}], Wed:[], Thu:[], Fri:[], Sat:[] }},
+  { n:3,  title:'CATALOG EXPAND',  desc:'Add more products, optimize pricing, fill category gaps',           nonNeg:'20+ products live with complete listing quality',              budgets:{starter:800,growth:1500,scale:2500},  ws:{ Tue:[{id:1,text:'Add 10+ new products in top categories: groceries, household, personal care',note:''}], Thu:[{id:1,text:'Price check all products vs physical retail and other online channels',note:''}], Mon:[], Wed:[], Fri:[], Sat:[] }},
+  { n:4,  title:'RATING PUSH',     desc:'Improve store rating — target ≥4.2 by end of this week',            nonNeg:'Store rating ≥4.0 this week',                                 budgets:{starter:800,growth:1500,scale:2500},  ws:{ Mon:[{id:1,text:'Analyze all <4-star reviews: what is the top complaint?',note:''}], Thu:[{id:1,text:'Reply to every low rating with solution + discount on next order',note:''}], Fri:[{id:1,text:'Improve packaging for top complaint items (damaged in transit, poor quality)',note:''}], Tue:[], Wed:[], Sat:[] }},
+  { n:5,  title:'PROMOTIONS',      desc:'JioMart promotional deal participation, flash sale setup',          nonNeg:'At least 3 products in active JioMart promotional deals',      budgets:{starter:1000,growth:2000,scale:3500}, ws:{ Mon:[{id:1,text:'Check JioMart Deals Dashboard — opt in to relevant weekly deals',note:''}], Wed:[{id:1,text:'Set up flash sale on top 3 products for weekend — apply via seller hub',note:''}], Tue:[], Thu:[], Fri:[], Sat:[] }},
+  { n:6,  title:'QUALITY AUDIT',   desc:'Packaging quality, product quality, listing accuracy deep check',  nonNeg:'Return rate under 8% across all products',                    budgets:{starter:1000,growth:2000,scale:3500}, ws:{ Mon:[{id:1,text:'Audit return reasons: packaging damage, quality mismatch, wrong item',note:''}], Tue:[{id:1,text:'Fix top 2 return causes: better packaging, accurate listing images',note:''}], Wed:[], Thu:[], Fri:[], Sat:[] }},
+  { n:7,  title:'LOCAL STRATEGY',  desc:'Hyperlocal focus — which nearby pincodes to target for faster SLA', nonNeg:'SLA >98% sustained — eligible for hyperlocal priority badge',  budgets:{starter:1000,growth:2000,scale:4000}, ws:{ Mon:[{id:1,text:'Analyze orders by pincode — identify top 10 delivery locations',note:''}], Wed:[{id:1,text:'Negotiate with local delivery partner for same-day in top pincodes',note:''}], Tue:[], Thu:[], Fri:[], Sat:[] }},
+  { n:8,  title:'SCALE UP',        desc:'Scale top products, add bulk-buy packs, combos',                   nonNeg:'Top 5 products have bundle/pack variants live',               budgets:{starter:1200,growth:2500,scale:4500}, ws:{ Tue:[{id:1,text:'Create value packs for top 5 products: 2-pack, 3-pack at discounted bundle price',note:''}], Thu:[{id:1,text:'List bundle packs as separate products on JioMart',note:''}], Mon:[], Wed:[], Fri:[], Sat:[] }},
+  { n:9,  title:'PROMO POWER',     desc:'Participate in all major JioMart promotional events',               nonNeg:'All eligible products enrolled in JioMart sale events',        budgets:{starter:1200,growth:2500,scale:5000}, ws:{ Mon:[{id:1,text:'Check upcoming JioMart sale events for next 30 days — plan participation',note:''}], Wed:[{id:1,text:'Submit products for JioMart Flash Deals and Weekend Specials',note:''}], Tue:[], Thu:[], Fri:[], Sat:[] }},
+  { n:10, title:'CONTENT UPGRADE', desc:'Better product images, videos, and descriptions',                   nonNeg:'All hero products have 5+ images including lifestyle shots',  budgets:{starter:1500,growth:3000,scale:5000}, ws:{ Tue:[{id:1,text:'Photograph top 10 products: product-in-use shots, white-bg, pack shots',note:''}], Thu:[{id:1,text:'Update listings with new images — remove any blurry or dark images',note:''}], Mon:[], Wed:[], Fri:[], Sat:[] }},
+  { n:11, title:'FESTIVE PREP',    desc:'Festival season inventory, offers, and delivery readiness',         nonNeg:'60-day stock pre-positioned for all top products',             budgets:{starter:2000,growth:3500,scale:6000}, ws:{ Mon:[{id:1,text:'Calculate festive demand: 4–6× normal volume expected',note:''},{id:2,text:'Pre-stock 60 days inventory of top 20 products',note:''}], Wed:[{id:1,text:'Submit festival deals: discounts, free gifts, bundle offers',note:''}], Tue:[], Thu:[], Fri:[], Sat:[] }},
+  { n:12, title:'HARVEST',         desc:'12-week audit, maintenance protocol, next quarter growth plan',     nonNeg:'12-week audit document delivered by Friday',                   budgets:{starter:2000,growth:3500,scale:6000}, ws:{ Mon:[], Fri:[{id:1,text:'12-WEEK AUDIT: orders, SLA %, store rating, return rate, net P&L',note:'NON-NEGOTIABLE: delivered by EOD Friday'},{id:2,text:'Write maintenance protocol — steady-state weekly routine',note:''}], Sat:[{id:1,text:'Write Next Quarter Plan: top categories, budget, new product additions',note:''}], Tue:[], Wed:[], Thu:[] }},
+];
+
+// ── Snapdeal Plan Data ────────────────────────────────────────────────────────
+
+const SNAPDEAL_RECURRING = [
+  { id: 'sr1', text: 'Snapdeal Seller Hub: check account health, buyer rating, policy flags', note: '' },
+  { id: 'sr2', text: 'Dispatch all orders within 24-hour SLA — critical for seller score', note: '' },
+  { id: 'sr3', text: 'Monitor returns and buyer disputes — resolve within 48 hours', note: '' },
+];
+const SNAPDEAL_BASE = {
+  Mon: [
+    { id: 'sb1', text: 'Pull last week performance: catalog index, CPC ROAS, buyer rating, return rate', note: '' },
+    { id: 'sb2', text: 'Set weekly ad budget based on CPC performance', note: 'ROAS <2× → reduce 20% | 2–4× → maintain | >4× → scale +20%' },
+    { id: 'sb3', text: 'Check Snapdeal seller score — flag any drops for investigation', note: '' },
+  ],
+  Tue: [
+    { id: 'sb1', text: 'Catalog Quality Index audit: images, title, description, specifications, keywords', note: 'Target CQI >75% for all active products' },
+    { id: 'sb2', text: 'Keyword optimization: add high-search-volume keywords to title and description', note: '' },
+  ],
+  Wed: [
+    { id: 'sb1', text: 'Snapdeal Ads (CPC) review: pause keywords with 0 conversions after 1,000 clicks', note: '' },
+    { id: 'sb2', text: 'Bid adjustments: CVR ≥8% → raise +15% | CPC >₹15 with <5% CVR → reduce -20%', note: '' },
+  ],
+  Thu: [
+    { id: 'sb1', text: 'Reply to all new buyer queries within 24 hours', note: '' },
+    { id: 'sb2', text: 'Process all return requests — approve valid, dispute invalid with evidence', note: '' },
+  ],
+  Fri: [
+    { id: 'sb1', text: 'Competitor price check on Snapdeal for top 10 products', note: '' },
+    { id: 'sb2', text: 'Pull weekly KPI snapshot and enter in scorecard', note: '' },
+  ],
+  Sat: [
+    { id: 'sb1', text: 'Pre-fill weekly scorecard: units, buyer rating, CQI, CPC metrics, net P&L', note: '' },
+    { id: 'sb2', text: 'Next week plan: which products to boost, which keywords to expand', note: '' },
+  ],
+};
+const SNAPDEAL_MUST = {
+  Mon: ['All orders dispatched on time', 'Ad budget set for the week', 'Seller score checked'],
+  Tue: ['CQI >75% on all active products', 'Keywords updated and accurate'],
+  Wed: ['CPC bids adjusted based on performance data', 'Low-performing keywords paused'],
+  Thu: ['Zero unanswered buyer queries', 'All return requests processed'],
+  Fri: ['Competitor price parity checked', 'Weekly KPI snapshot completed'],
+  Sat: ['Scorecard pre-filled', 'Next week priorities identified'],
+};
+const SNAPDEAL_SCORECARD = [
+  { key: 'units',       label: 'Units Sold',                 ph: '0' },
+  { key: 'target',      label: 'Target Units',               ph: '0' },
+  { key: 'buyerRating', label: 'Buyer Rating',               ph: '0.0 / 5.0' },
+  { key: 'cqi',         label: 'Catalog Quality Index (%)',  ph: '0.00' },
+  { key: 'returnRate',  label: 'Return Rate (%)',            ph: '0.00' },
+  { key: 'adSpend',     label: 'Total Ad Spend (₹)',         ph: '0' },
+  { key: 'adRevenue',   label: 'Total Ad Revenue (₹)',       ph: '0' },
+  { key: 'roas',        label: 'Overall ROAS (×)',           ph: '0.00' },
+  { key: 'netPnl',      label: 'Net P&L (₹)',               ph: '0' },
+  { key: 'bestProduct', label: 'Best Performing Product',    ph: 'Product name' },
+  { key: 'wins',        label: 'Top 3 Wins',                ph: '1. ...\n2. ...\n3. ...', ml: true },
+  { key: 'misses',      label: 'Top 3 Misses',              ph: '1. ...\n2. ...\n3. ...', ml: true },
+  { key: 'decision',    label: 'Decision Needed From Founder', ph: '...', ml: true },
+];
+const SNAPDEAL_TRIGGERED = [
+  { id: 1, level: 'red',   text: 'Buyer rating drops <3.0 → Emergency: audit all returns, queries, and dispatch SLA' },
+  { id: 2, level: 'amber', text: 'Buyer rating <4.0 → Review top negative feedback and fix root causes' },
+  { id: 3, level: 'red',   text: 'ROAS <1.5× for 2+ weeks → PAUSE all CPC ads, fix listings first' },
+  { id: 4, level: 'amber', text: 'Return rate >12% → Review listing accuracy: images, description, sizing' },
+  { id: 5, level: 'red',   text: 'Account health warning → Stop all work, respond to Snapdeal support within 24 hours' },
+  { id: 6, level: 'red',   text: 'CQI <50% → Emergency listing quality fix — risk of delist' },
+  { id: 7, level: 'green', text: 'ROAS >4× → Scale CPC budget +25% on winning keywords this week' },
+  { id: 8, level: 'green', text: 'CQI >85% + Buyer Rating >4.5 → Apply for Snapdeal Premium Seller badge' },
+  { id: 9, level: 'amber', text: 'Competitor drops price >10% → Match or undercut by ₹5 within 48 hours' },
+];
+const SNAPDEAL_WEEK_DATA = [
+  { n:1,  title:'FOUNDATION',      desc:'Catalog setup, CQI optimization, account quality baseline',         nonNeg:'CQI >70% on all active products by Thursday',                 budgets:{starter:1000,growth:2000,scale:3500}, ws:{ Mon:[{id:1,text:'Audit all listings: check CQI score per product',note:'Use Seller Hub → Catalog Quality → Product Report'}], Tue:[{id:1,text:'Fix top CQI issues: missing specs, poor images, incomplete description',note:''},{id:2,text:'Add 5+ high-search keywords in title and description for each hero product',note:''}], Wed:[], Thu:[{id:1,text:'Confirm buyer rating above 4.0 — reply to any unanswered queries from past 30 days',note:''}], Fri:[], Sat:[] }},
+  { n:2,  title:'ADS LAUNCH',      desc:'Snapdeal CPC campaign launch, keyword bidding strategy',            nonNeg:'CPC ads live on top 5 products by Wednesday',                 budgets:{starter:1000,growth:2000,scale:4000}, ws:{ Mon:[], Tue:[], Wed:[{id:1,text:'Launch Snapdeal CPC campaigns on top 5 products',note:'Start at ₹8–12/click, Broad match, daily budget ₹100/product'}], Thu:[{id:1,text:'Q&A seeding: 2 buyer-style questions per hero product',note:''}], Fri:[], Sat:[{id:1,text:'Record baseline metrics for Week 2 comparison',note:''}] }},
+  { n:3,  title:'CPC OPTIMIZE',    desc:'First CPC optimization — pause losers, expand winners',             nonNeg:'All keywords with 0 sales after 500 clicks paused',            budgets:{starter:1500,growth:2500,scale:4500}, ws:{ Mon:[{id:1,text:'Review Week 2 CPC data: CPC, CTR, CVR, ROAS by keyword',note:''}], Wed:[{id:1,text:'Pause keywords with 0 conversions after 500+ clicks',note:''},{id:2,text:'Raise bids +20% on keywords with CVR >8%',note:''}], Tue:[], Thu:[], Fri:[], Sat:[] }},
+  { n:4,  title:'BUYER RATING',    desc:'Buyer rating improvement — target ≥4.2 by end of week',             nonNeg:'Buyer rating ≥4.0 this week',                                 budgets:{starter:1500,growth:2500,scale:4500}, ws:{ Mon:[{id:1,text:'Analyze all negative reviews — identify top 3 complaint themes',note:''}], Thu:[{id:1,text:'Reply to all <4-star buyer reviews publicly with solution',note:''},{id:2,text:'Improve packaging for products with damage-related complaints',note:''}], Tue:[], Wed:[], Fri:[], Sat:[] }},
+  { n:5,  title:'CATALOG BOOST',   desc:'Improve CQI to >80%, rich content, better images',                 nonNeg:'CQI >80% across all active products',                         budgets:{starter:2000,growth:3000,scale:5000}, ws:{ Tue:[{id:1,text:'Image upgrade: minimum 4 images per product, white bg, 1000×1000px',note:''},{id:2,text:'Add product videos for top 3 products if possible',note:''}], Thu:[{id:1,text:'Rewrite descriptions: benefit-led, keyword-rich, 300+ words',note:''}], Mon:[], Wed:[], Fri:[], Sat:[] }},
+  { n:6,  title:'RETURN MANAGE',   desc:'Return rate analysis, listing accuracy fixes',                      nonNeg:'Return rate under 10% on all hero products',                  budgets:{starter:2000,growth:3000,scale:5000}, ws:{ Mon:[{id:1,text:'Pull return reason report — top 5 return reasons by product',note:''}], Tue:[{id:1,text:'Fix top 2 return causes: listing inaccuracy, size issue, or quality claim',note:''}], Wed:[], Thu:[], Fri:[], Sat:[] }},
+  { n:7,  title:'SCALE WINNERS',   desc:'Scale top converting products and keywords',                        nonNeg:'Top 3 keywords at +30% bid vs Week 1',                        budgets:{starter:2000,growth:3500,scale:6000}, ws:{ Mon:[{id:1,text:'Identify top 3 products by ROAS and CVR for scaling',note:''}], Wed:[{id:1,text:'Raise CPC bids +30% on top converting keywords',note:''},{id:2,text:'Expand to phrase match on high-volume exact-match winners',note:''}], Tue:[], Thu:[], Fri:[], Sat:[] }},
+  { n:8,  title:'COMPETITION',     desc:'Competitor analysis, pricing adjustment, gap identification',       nonNeg:'Competitive price analysis completed and adjustments made',    budgets:{starter:2500,growth:4000,scale:6000}, ws:{ Mon:[{id:1,text:'Expand competitor tracker to 10 rivals: price, rating, CQI equivalent, keywords',note:''}], Fri:[{id:1,text:'Write competitor gap analysis: where are you losing on price, content, rating?',note:''},{id:2,text:'Make 3 pricing adjustments based on competitive gaps',note:''}], Tue:[], Wed:[], Thu:[], Sat:[] }},
+  { n:9,  title:'PREMIUM PUSH',    desc:'Apply for Snapdeal Premium Seller, unlock higher visibility',       nonNeg:'Premium Seller application submitted if eligible',            budgets:{starter:2500,growth:4000,scale:6500}, ws:{ Mon:[{id:1,text:'Check Premium Seller eligibility: buyer rating, CQI, order volume, SLA',note:''}], Tue:[{id:1,text:'Apply for Snapdeal Premium Seller badge if all criteria met',note:'Premium badge = priority placement in search results'}], Thu:[{id:1,text:'If not eligible: action plan to meet criteria within 4 weeks',note:''}], Wed:[], Fri:[], Sat:[] }},
+  { n:10, title:'DEAL POWER',      desc:'Snapdeal deal participation, flash sales, promotional events',      nonNeg:'3+ products in active Snapdeal promotional deals',            budgets:{starter:2500,growth:4500,scale:7000}, ws:{ Mon:[{id:1,text:'Check Snapdeal Deal Dashboard — opt into relevant flash deals',note:''}], Wed:[{id:1,text:'Submit products for Snapdeal Weekend Super Sale',note:''}], Tue:[], Thu:[], Fri:[], Sat:[] }},
+  { n:11, title:'PEAK PREP',       desc:'Sale season preparation, inventory, budget scaling',               nonNeg:'Inventory pre-positioned — 60 days stock on all top products', budgets:{starter:3000,growth:5000,scale:8000}, ws:{ Mon:[{id:1,text:'Forecast peak demand: 4–6× normal volume expected during sale window',note:''},{id:2,text:'Pre-stock 60 days inventory for all top 10 products',note:''}], Wed:[{id:1,text:'Pre-load CPC budgets for sale week: 3× normal daily caps',note:''}], Tue:[], Thu:[], Fri:[], Sat:[] }},
+  { n:12, title:'HARVEST',         desc:'12-week audit, maintenance protocol, next quarter plan',            nonNeg:'12-week audit document delivered by Friday',                   budgets:{starter:3000,growth:5000,scale:8000}, ws:{ Mon:[], Fri:[{id:1,text:'12-WEEK AUDIT: units, buyer rating, CQI, ROAS, return rate, net P&L',note:'NON-NEGOTIABLE: delivered by EOD Friday'},{id:2,text:'Write maintenance protocol — steady-state weekly routine',note:''}], Sat:[{id:1,text:'Write Next Quarter Plan: top products, budget, CPC keywords, catalog targets',note:''}], Tue:[], Wed:[], Thu:[] }},
+];
+
+// ── Platform Plan Config ──────────────────────────────────────────────────────
+
+const PLATFORM_PLAN_CONFIG = {
+  Amazon: {
+    color: '#FF9900',
+    budgetLabels: ['conservative', 'base', 'aggressive'],
+    emptyKpi: { units: '', sessions: '', ctr: '', cvr: '', acos: '', adSpend: '', adRevenue: '', reviews: '', fbaStock: '', cumPnl: '' },
+    getKpiFields: (week, budget) => [
+      { key: 'units',     label: 'Units Sold',      hint: 'Target varies by week',             placeholder: '0' },
+      { key: 'sessions',  label: 'Sessions',         hint: 'Total visits today',                placeholder: '0' },
+      { key: 'ctr',       label: 'CTR Hero #1 (%)',  hint: 'SAFE ≥1.25%',                      placeholder: '0.00' },
+      { key: 'cvr',       label: 'CVR Overall (%)',  hint: 'SAFE ≥10%',                        placeholder: '0.00' },
+      { key: 'acos',      label: 'ACOS Worst (%)',   hint: 'DANGER >70%',                      placeholder: '0.00' },
+      { key: 'adSpend',   label: 'Ad Spend ₹',      hint: `Budget: ₹${week?.budgets?.[budget]?.toLocaleString?.() || '—'}`, placeholder: '0' },
+      { key: 'adRevenue', label: 'Ad Revenue ₹',    hint: 'From Sponsored Products',           placeholder: '0' },
+      { key: 'reviews',   label: 'Reviews Posted',   hint: 'This week total',                  placeholder: '0' },
+      { key: 'fbaStock',  label: 'FBA Stock Days',   hint: 'DANGER <7 days',                   placeholder: '0' },
+      { key: 'cumPnl',    label: 'Cum. Net P&L ₹',  hint: 'DANGER < −₹15,000',               placeholder: '0' },
+    ],
+    scorecardFields: SCORECARD_FIELDS,
+    baseTasks: BASE_TASKS,
+    mustComplete: MUST_COMPLETE,
+    recurringTasks: RECURRING_TASKS,
+    weekData: WEEK_DATA,
+    triggeredConditions: TRIGGERED_CONDITIONS,
+    heroes: HEROES_DATA,
+    evalAlerts: evalStopLoss,
+    evalGood: evalTriggers,
+    inputColor: (key, kpi) => {
+      if (key === 'acos'    && parseFloat(kpi[key]) > 70)               return 'border-red-300 bg-red-50';
+      if (key === 'acos'    && parseFloat(kpi[key]) >= 40)              return 'border-amber-300 bg-amber-50';
+      if (key === 'cvr'     && parseFloat(kpi[key]) < 7  && kpi[key])  return 'border-red-300 bg-red-50';
+      if (key === 'cvr'     && parseFloat(kpi[key]) < 10 && kpi[key])  return 'border-amber-300 bg-amber-50';
+      if (key === 'ctr'     && parseFloat(kpi[key]) < 1.0 && kpi[key]) return 'border-red-300 bg-red-50';
+      if (key === 'ctr'     && parseFloat(kpi[key]) < 1.25 && kpi[key])return 'border-amber-300 bg-amber-50';
+      if (key === 'fbaStock'&& parseFloat(kpi[key]) < 7  && kpi[key])  return 'border-red-300 bg-red-50';
+      if (key === 'fbaStock'&& parseFloat(kpi[key]) < 14 && kpi[key])  return 'border-amber-300 bg-amber-50';
+      if (key === 'cumPnl'  && parseFloat(kpi[key]) < -15000)          return 'border-red-300 bg-red-50';
+      if (key === 'cumPnl'  && parseFloat(kpi[key]) < -5000)           return 'border-amber-300 bg-amber-50';
+      return 'border-gray-200';
+    },
+  },
+  Flipkart: {
+    color: '#2874f0',
+    budgetLabels: ['starter', 'growth', 'scale'],
+    emptyKpi: { units: '', impressions: '', ctr: '', cvr: '', roas: '', adSpend: '', adRevenue: '', returnRate: '', rating: '', cumPnl: '' },
+    getKpiFields: (week, budget) => [
+      { key: 'units',      label: 'Units Sold',     hint: 'Target varies by week',              placeholder: '0' },
+      { key: 'impressions',label: 'Impressions',     hint: 'Total ad impressions',              placeholder: '0' },
+      { key: 'ctr',        label: 'CTR (%)',         hint: 'SAFE ≥1.0%',                        placeholder: '0.00' },
+      { key: 'cvr',        label: 'CVR (%)',         hint: 'SAFE ≥8%',                          placeholder: '0.00' },
+      { key: 'roas',       label: 'ROAS (×)',        hint: 'SAFE ≥3×',                          placeholder: '0.00' },
+      { key: 'adSpend',    label: 'Ad Spend ₹',     hint: `Budget: ₹${week?.budgets?.[budget]?.toLocaleString?.() || '—'}`, placeholder: '0' },
+      { key: 'adRevenue',  label: 'Ad Revenue ₹',   hint: 'From PLA campaigns',                placeholder: '0' },
+      { key: 'returnRate', label: 'Return Rate (%)', hint: 'DANGER >15%',                      placeholder: '0.00' },
+      { key: 'rating',     label: 'Seller Rating',  hint: 'SAFE ≥4.0',                         placeholder: '0.0' },
+      { key: 'cumPnl',     label: 'Cum. Net P&L ₹', hint: 'Track weekly',                     placeholder: '0' },
+    ],
+    scorecardFields: FLIPKART_SCORECARD,
+    baseTasks: FLIPKART_BASE,
+    mustComplete: FLIPKART_MUST,
+    recurringTasks: FLIPKART_RECURRING,
+    weekData: FLIPKART_WEEK_DATA,
+    triggeredConditions: FLIPKART_TRIGGERED,
+    heroes: null,
+    evalAlerts: (kpi) => {
+      const a = [];
+      const roas = parseFloat(kpi.roas), ret = parseFloat(kpi.returnRate), rat = parseFloat(kpi.rating), pnl = parseFloat(kpi.cumPnl);
+      if (!isNaN(roas) && roas < 2   && kpi.roas)       a.push({ level: 'red',   text: `⛔ ROAS DANGER ${roas}×: Below 2×. Pause campaign and review bids immediately.` });
+      if (!isNaN(ret)  && ret > 15   && kpi.returnRate) a.push({ level: 'red',   text: `⛔ RETURN DANGER ${ret}%: Review listing claims and size charts immediately.` });
+      if (!isNaN(ret)  && ret > 10   && ret <= 15 && kpi.returnRate) a.push({ level: 'amber', text: `⚠️ RETURN WARNING ${ret}%: Approaching 15% threshold — investigate now.` });
+      if (!isNaN(rat)  && rat < 3.5  && kpi.rating)     a.push({ level: 'red',   text: `⛔ RATING DANGER ${rat}: Emergency audit — review all returns and responses.` });
+      if (!isNaN(pnl)  && pnl < -10000)                 a.push({ level: 'red',   text: `⛔ P&L DANGER ₹${pnl.toLocaleString()}: Switch to Starter budget for 2 weeks.` });
+      return a;
+    },
+    evalGood: (kpi) => {
+      const g = [];
+      const roas = parseFloat(kpi.roas), rat = parseFloat(kpi.rating);
+      if (!isNaN(roas) && roas >= 5)  g.push(`🚀 ROAS ${roas}× — Scale budget +25% on winning campaigns!`);
+      if (!isNaN(rat)  && rat >= 4.5) g.push(`⭐ Seller Rating ${rat} — F-Assured eligibility zone!`);
+      return g;
+    },
+    inputColor: (key, kpi) => {
+      if (key === 'roas'       && parseFloat(kpi[key]) < 2  && kpi[key]) return 'border-red-300 bg-red-50';
+      if (key === 'roas'       && parseFloat(kpi[key]) < 3  && kpi[key]) return 'border-amber-300 bg-amber-50';
+      if (key === 'returnRate' && parseFloat(kpi[key]) > 15 && kpi[key]) return 'border-red-300 bg-red-50';
+      if (key === 'returnRate' && parseFloat(kpi[key]) > 10 && kpi[key]) return 'border-amber-300 bg-amber-50';
+      if (key === 'rating'     && parseFloat(kpi[key]) < 3.5 && kpi[key])return 'border-red-300 bg-red-50';
+      if (key === 'cumPnl'     && parseFloat(kpi[key]) < -10000)         return 'border-red-300 bg-red-50';
+      return 'border-gray-200';
+    },
+  },
+  Meesho: {
+    color: '#f43397',
+    budgetLabels: ['starter', 'growth', 'scale'],
+    emptyKpi: { units: '', orders: '', roas: '', adSpend: '', adRevenue: '', returnRate: '', catalogScore: '', supplierScore: '', cumPnl: '' },
+    getKpiFields: (week, budget) => [
+      { key: 'units',        label: 'Units Sold',         hint: 'Target varies by week',         placeholder: '0' },
+      { key: 'orders',       label: 'Orders Dispatched',  hint: '100% on-time SLA target',       placeholder: '0' },
+      { key: 'roas',         label: 'ROAS (×)',           hint: 'SAFE ≥2×',                      placeholder: '0.00' },
+      { key: 'adSpend',      label: 'Ad Spend ₹',        hint: `Budget: ₹${week?.budgets?.[budget]?.toLocaleString?.() || '—'}`, placeholder: '0' },
+      { key: 'adRevenue',    label: 'Ad Revenue ₹',      hint: 'From Meesho Ads',               placeholder: '0' },
+      { key: 'returnRate',   label: 'Return Rate (%)',    hint: 'DANGER >20%',                   placeholder: '0.00' },
+      { key: 'catalogScore', label: 'Catalog Score',      hint: 'SAFE ≥80',                      placeholder: '0' },
+      { key: 'supplierScore',label: 'Supplier Score',     hint: 'DANGER <5',                     placeholder: '0.0' },
+      { key: 'cumPnl',       label: 'Cum. Net P&L ₹',   hint: 'Track weekly',                  placeholder: '0' },
+    ],
+    scorecardFields: MEESHO_SCORECARD,
+    baseTasks: MEESHO_BASE,
+    mustComplete: MEESHO_MUST,
+    recurringTasks: MEESHO_RECURRING,
+    weekData: MEESHO_WEEK_DATA,
+    triggeredConditions: MEESHO_TRIGGERED,
+    heroes: null,
+    evalAlerts: (kpi) => {
+      const a = [];
+      const ret = parseFloat(kpi.returnRate), sup = parseFloat(kpi.supplierScore), cat = parseFloat(kpi.catalogScore);
+      if (!isNaN(ret) && ret > 20  && kpi.returnRate)    a.push({ level: 'red',   text: `⛔ RETURN DANGER ${ret}%: Pause ads, review listing accuracy and size charts NOW.` });
+      if (!isNaN(ret) && ret > 15  && ret <= 20 && kpi.returnRate) a.push({ level: 'amber', text: `⚠️ RETURN WARNING ${ret}%: Audit return reasons, fix within 48 hours.` });
+      if (!isNaN(sup) && sup < 5   && kpi.supplierScore) a.push({ level: 'red',   text: `⛔ SUPPLIER SCORE DANGER ${sup}: Emergency — resolve all disputes and quality flags.` });
+      if (!isNaN(cat) && cat < 60  && kpi.catalogScore)  a.push({ level: 'red',   text: `⛔ CATALOG SCORE DANGER ${cat}: Fix images, size chart, and description immediately.` });
+      return a;
+    },
+    evalGood: (kpi) => {
+      const g = [];
+      const roas = parseFloat(kpi.roas), cat = parseFloat(kpi.catalogScore);
+      if (!isNaN(roas) && roas >= 4) g.push(`🚀 ROAS ${roas}× — Scale budget +25% on this product!`);
+      if (!isNaN(cat)  && cat >= 90) g.push(`📦 Catalog Score ${cat} — Apply for Meesho Boost program!`);
+      return g;
+    },
+    inputColor: (key, kpi) => {
+      if (key === 'returnRate'   && parseFloat(kpi[key]) > 20 && kpi[key]) return 'border-red-300 bg-red-50';
+      if (key === 'returnRate'   && parseFloat(kpi[key]) > 15 && kpi[key]) return 'border-amber-300 bg-amber-50';
+      if (key === 'supplierScore'&& parseFloat(kpi[key]) < 5  && kpi[key]) return 'border-red-300 bg-red-50';
+      if (key === 'catalogScore' && parseFloat(kpi[key]) < 60 && kpi[key]) return 'border-red-300 bg-red-50';
+      if (key === 'catalogScore' && parseFloat(kpi[key]) < 80 && kpi[key]) return 'border-amber-300 bg-amber-50';
+      return 'border-gray-200';
+    },
+  },
+  Myntra: {
+    color: '#ff3f6c',
+    budgetLabels: ['starter', 'growth', 'scale'],
+    emptyKpi: { units: '', styleQuotient: '', ctr: '', cvr: '', roas: '', adSpend: '', adRevenue: '', returnRate: '', rating: '', cumPnl: '' },
+    getKpiFields: (week, budget) => [
+      { key: 'units',        label: 'Units Sold',         hint: 'Target varies by week',         placeholder: '0' },
+      { key: 'styleQuotient',label: 'Style Quotient',     hint: 'SAFE ≥70',                      placeholder: '0' },
+      { key: 'ctr',          label: 'CTR (%)',            hint: 'SAFE ≥0.8%',                    placeholder: '0.00' },
+      { key: 'cvr',          label: 'CVR (%)',            hint: 'SAFE ≥6%',                      placeholder: '0.00' },
+      { key: 'roas',         label: 'ROAS (×)',           hint: 'SAFE ≥2.5×',                    placeholder: '0.00' },
+      { key: 'adSpend',      label: 'Ad Spend ₹',        hint: `Budget: ₹${week?.budgets?.[budget]?.toLocaleString?.() || '—'}`, placeholder: '0' },
+      { key: 'adRevenue',    label: 'Ad Revenue ₹',      hint: 'From Myntra Ads',               placeholder: '0' },
+      { key: 'returnRate',   label: 'Return Rate (%)',    hint: 'DANGER >35% (fashion avg 25%)', placeholder: '0.00' },
+      { key: 'rating',       label: 'Product Rating',    hint: 'SAFE ≥4.0',                     placeholder: '0.0' },
+      { key: 'cumPnl',       label: 'Cum. Net P&L ₹',   hint: 'Track weekly',                  placeholder: '0' },
+    ],
+    scorecardFields: MYNTRA_SCORECARD,
+    baseTasks: MYNTRA_BASE,
+    mustComplete: MYNTRA_MUST,
+    recurringTasks: MYNTRA_RECURRING,
+    weekData: MYNTRA_WEEK_DATA,
+    triggeredConditions: MYNTRA_TRIGGERED,
+    heroes: null,
+    evalAlerts: (kpi) => {
+      const a = [];
+      const sq = parseFloat(kpi.styleQuotient), ret = parseFloat(kpi.returnRate), rat = parseFloat(kpi.rating);
+      if (!isNaN(sq)  && sq < 60   && kpi.styleQuotient) a.push({ level: 'red',   text: `⛔ STYLE QUOTIENT DANGER ${sq}: Emergency listing upgrade required.` });
+      if (!isNaN(sq)  && sq < 70   && kpi.styleQuotient) a.push({ level: 'amber', text: `⚠️ STYLE QUOTIENT WARNING ${sq}: Below 70 — add model shots and lifestyle images.` });
+      if (!isNaN(ret) && ret > 35  && kpi.returnRate)    a.push({ level: 'red',   text: `⛔ RETURN DANGER ${ret}%: Pause ads on this style, fix size chart immediately.` });
+      if (!isNaN(ret) && ret > 25  && ret <= 35 && kpi.returnRate) a.push({ level: 'amber', text: `⚠️ RETURN WARNING ${ret}%: Review size accuracy and product claims.` });
+      if (!isNaN(rat) && rat < 3.5 && kpi.rating)        a.push({ level: 'amber', text: `⚠️ RATING WARNING ${rat}: Reply to all negative reviews with resolution.` });
+      return a;
+    },
+    evalGood: (kpi) => {
+      const g = [];
+      const sq = parseFloat(kpi.styleQuotient), cvr = parseFloat(kpi.cvr);
+      if (!isNaN(sq)  && sq >= 85)  g.push(`✨ Style Quotient ${sq} — Apply for Myntra editorial feature!`);
+      if (!isNaN(cvr) && cvr >= 12) g.push(`🚀 CVR ${cvr}% — Scale ad budget +25% on this style!`);
+      return g;
+    },
+    inputColor: (key, kpi) => {
+      if (key === 'styleQuotient'&& parseFloat(kpi[key]) < 60 && kpi[key]) return 'border-red-300 bg-red-50';
+      if (key === 'styleQuotient'&& parseFloat(kpi[key]) < 70 && kpi[key]) return 'border-amber-300 bg-amber-50';
+      if (key === 'returnRate'   && parseFloat(kpi[key]) > 35 && kpi[key]) return 'border-red-300 bg-red-50';
+      if (key === 'returnRate'   && parseFloat(kpi[key]) > 25 && kpi[key]) return 'border-amber-300 bg-amber-50';
+      if (key === 'rating'       && parseFloat(kpi[key]) < 3.5 && kpi[key])return 'border-amber-300 bg-amber-50';
+      return 'border-gray-200';
+    },
+  },
+  JioMart: {
+    color: '#0077B6',
+    budgetLabels: ['starter', 'growth', 'scale'],
+    emptyKpi: { orders: '', sla: '', storeRating: '', returnRate: '', revenue: '', cumPnl: '' },
+    getKpiFields: (week, budget) => [
+      { key: 'orders',      label: 'Orders Received',    hint: 'Target varies by week',         placeholder: '0' },
+      { key: 'sla',         label: 'Delivery SLA (%)',   hint: 'SAFE ≥98%',                     placeholder: '0.00' },
+      { key: 'storeRating', label: 'Store Rating',       hint: 'DANGER <3.5',                   placeholder: '0.0' },
+      { key: 'returnRate',  label: 'Return Rate (%)',    hint: 'SAFE <8%',                      placeholder: '0.00' },
+      { key: 'revenue',     label: 'Revenue ₹',         hint: 'Total revenue this week',       placeholder: '0' },
+      { key: 'promoRevenue',label: 'Promo Revenue ₹',   hint: 'Revenue from deals & offers',  placeholder: '0' },
+      { key: 'cumPnl',      label: 'Cum. Net P&L ₹',   hint: 'Track weekly',                  placeholder: '0' },
+    ],
+    scorecardFields: JIOMART_SCORECARD,
+    baseTasks: JIOMART_BASE,
+    mustComplete: JIOMART_MUST,
+    recurringTasks: JIOMART_RECURRING,
+    weekData: JIOMART_WEEK_DATA,
+    triggeredConditions: JIOMART_TRIGGERED,
+    heroes: null,
+    evalAlerts: (kpi) => {
+      const a = [];
+      const sla = parseFloat(kpi.sla), rat = parseFloat(kpi.storeRating), ret = parseFloat(kpi.returnRate);
+      if (!isNaN(sla) && sla < 90  && kpi.sla)         a.push({ level: 'red',   text: `⛔ SLA DANGER ${sla}%: Fix dispatch process immediately — account at risk.` });
+      if (!isNaN(rat) && rat < 3.5 && kpi.storeRating) a.push({ level: 'red',   text: `⛔ STORE RATING DANGER ${rat}: Emergency review — audit delivery and quality.` });
+      if (!isNaN(ret) && ret > 10  && kpi.returnRate)  a.push({ level: 'amber', text: `⚠️ RETURN WARNING ${ret}%: Audit packaging quality and listing accuracy.` });
+      return a;
+    },
+    evalGood: (kpi) => {
+      const g = [];
+      const sla = parseFloat(kpi.sla), rat = parseFloat(kpi.storeRating);
+      if (!isNaN(sla) && sla >= 99) g.push(`🚀 SLA ${sla}% — Eligible for JioMart Priority Seller badge!`);
+      if (!isNaN(rat) && rat >= 4.5)g.push(`⭐ Store Rating ${rat} — Apply for JioMart Featured Slot!`);
+      return g;
+    },
+    inputColor: (key, kpi) => {
+      if (key === 'sla'        && parseFloat(kpi[key]) < 90  && kpi[key]) return 'border-red-300 bg-red-50';
+      if (key === 'sla'        && parseFloat(kpi[key]) < 97  && kpi[key]) return 'border-amber-300 bg-amber-50';
+      if (key === 'storeRating'&& parseFloat(kpi[key]) < 3.5 && kpi[key]) return 'border-red-300 bg-red-50';
+      if (key === 'storeRating'&& parseFloat(kpi[key]) < 4.0 && kpi[key]) return 'border-amber-300 bg-amber-50';
+      if (key === 'returnRate' && parseFloat(kpi[key]) > 10  && kpi[key]) return 'border-red-300 bg-red-50';
+      return 'border-gray-200';
+    },
+  },
+  Snapdeal: {
+    color: '#e40046',
+    budgetLabels: ['starter', 'growth', 'scale'],
+    emptyKpi: { units: '', buyerRating: '', cqi: '', ctr: '', cvr: '', roas: '', adSpend: '', adRevenue: '', returnRate: '', cumPnl: '' },
+    getKpiFields: (week, budget) => [
+      { key: 'units',      label: 'Units Sold',         hint: 'Target varies by week',          placeholder: '0' },
+      { key: 'buyerRating',label: 'Buyer Rating',       hint: 'DANGER <3.0',                    placeholder: '0.0' },
+      { key: 'cqi',        label: 'Catalog QI (%)',     hint: 'SAFE ≥75%',                      placeholder: '0.00' },
+      { key: 'ctr',        label: 'CTR (%)',            hint: 'SAFE ≥0.8%',                     placeholder: '0.00' },
+      { key: 'cvr',        label: 'CVR (%)',            hint: 'SAFE ≥8%',                       placeholder: '0.00' },
+      { key: 'adSpend',    label: 'Ad Spend ₹',        hint: `Budget: ₹${week?.budgets?.[budget]?.toLocaleString?.() || '—'}`, placeholder: '0' },
+      { key: 'adRevenue',  label: 'Ad Revenue ₹',      hint: 'From CPC campaigns',             placeholder: '0' },
+      { key: 'returnRate', label: 'Return Rate (%)',    hint: 'SAFE <10%',                      placeholder: '0.00' },
+      { key: 'cumPnl',     label: 'Cum. Net P&L ₹',   hint: 'Track weekly',                   placeholder: '0' },
+    ],
+    scorecardFields: SNAPDEAL_SCORECARD,
+    baseTasks: SNAPDEAL_BASE,
+    mustComplete: SNAPDEAL_MUST,
+    recurringTasks: SNAPDEAL_RECURRING,
+    weekData: SNAPDEAL_WEEK_DATA,
+    triggeredConditions: SNAPDEAL_TRIGGERED,
+    heroes: null,
+    evalAlerts: (kpi) => {
+      const a = [];
+      const rat = parseFloat(kpi.buyerRating), cqi = parseFloat(kpi.cqi), ret = parseFloat(kpi.returnRate);
+      if (!isNaN(rat) && rat < 3.0  && kpi.buyerRating) a.push({ level: 'red',   text: `⛔ BUYER RATING DANGER ${rat}: Emergency — audit all returns, queries, SLA.` });
+      if (!isNaN(rat) && rat < 4.0  && kpi.buyerRating) a.push({ level: 'amber', text: `⚠️ BUYER RATING WARNING ${rat}: Review top negative feedback and fix causes.` });
+      if (!isNaN(cqi) && cqi < 50   && kpi.cqi)         a.push({ level: 'red',   text: `⛔ CQI DANGER ${cqi}%: Risk of delist — emergency listing quality fix needed.` });
+      if (!isNaN(ret) && ret > 12   && kpi.returnRate)  a.push({ level: 'amber', text: `⚠️ RETURN WARNING ${ret}%: Review listing accuracy: images, description, sizing.` });
+      return a;
+    },
+    evalGood: (kpi) => {
+      const g = [];
+      const roas = parseFloat(kpi.roas), rat = parseFloat(kpi.buyerRating), cqi = parseFloat(kpi.cqi);
+      if (!isNaN(roas) && roas >= 4)  g.push(`🚀 ROAS ${roas}× — Scale CPC budget +25% on winning keywords!`);
+      if (!isNaN(rat)  && rat >= 4.5 && !isNaN(cqi) && cqi >= 85) g.push(`⭐ Rating ${rat} + CQI ${cqi}% — Apply for Snapdeal Premium Seller!`);
+      return g;
+    },
+    inputColor: (key, kpi) => {
+      if (key === 'buyerRating'&& parseFloat(kpi[key]) < 3.0 && kpi[key]) return 'border-red-300 bg-red-50';
+      if (key === 'buyerRating'&& parseFloat(kpi[key]) < 4.0 && kpi[key]) return 'border-amber-300 bg-amber-50';
+      if (key === 'cqi'        && parseFloat(kpi[key]) < 50  && kpi[key]) return 'border-red-300 bg-red-50';
+      if (key === 'cqi'        && parseFloat(kpi[key]) < 75  && kpi[key]) return 'border-amber-300 bg-amber-50';
+      if (key === 'returnRate' && parseFloat(kpi[key]) > 12  && kpi[key]) return 'border-red-300 bg-red-50';
+      return 'border-gray-200';
+    },
+  },
+};
 
 function getWeekDays() {
   const monday = startOfWeek(new Date(), { weekStartsOn: 1 });
@@ -661,160 +1364,183 @@ function OverviewTab({ allTasks, tasksLoading, navigate }) {
 
 // ── 12-Week Plan Tab ──────────────────────────────────────────────────────────
 
-function PlanTab() {
+function PlanTab({ platform = 'Amazon' }) {
+  const cfg = PLATFORM_PLAN_CONFIG[platform] || PLATFORM_PLAN_CONFIG.Amazon;
+  const platColor = cfg.color;
+  const queryClient = useQueryClient();
   const [activeWeek, setActiveWeek] = useState(1);
   const [activeDay,  setActiveDay]  = useState('Mon');
-  const [budget,     setBudget]     = useState('base');
+  const [budget,     setBudget]     = useState(cfg.budgetLabels[1]);
   const [checked,    setChecked]    = useState({});
-  const [kpi,        setKpi]        = useState(EMPTY_KPI);
+  const [kpi,        setKpi]        = useState({ ...cfg.emptyKpi });
   const [notes,      setNotes]      = useState('');
   const [scorecard,  setScorecard]  = useState({});
   const [showTriggers, setShowTriggers] = useState(false);
   const [, forceUpdate] = useState(0);
+  const [importing, setImporting] = useState(false);
+  const fileInputRef = useRef(null);
 
-  const week       = WEEK_DATA[activeWeek - 1];
-  const baseTasks  = BASE_TASKS[activeDay] || [];
-  const wsTasks    = week?.ws[activeDay] || [];
+  // Fetch imported plan from DB (overrides hardcoded data if present)
+  const { data: importedPlan } = useQuery({
+    queryKey: ['mkt-plan', platform],
+    queryFn: () => api.get(`/marketplace/plans/${platform}`).then(r => r.data.plan),
+    staleTime: 60000,
+  });
+
+  // Convert DB plan → same shape as cfg.weekData
+  const weekData = useMemo(() => {
+    if (importedPlan?.weeks?.length > 0) {
+      return importedPlan.weeks.map(w => ({
+        n:       w.week,
+        title:   w.name,
+        desc:    w.focus,
+        nonNeg:  w.mustNonNeg,
+        budgets: cfg.weekData[w.week - 1]?.budgets || {},
+        ws:      w.specific,
+      }));
+    }
+    return cfg.weekData;
+  }, [importedPlan, cfg.weekData]);
+
+  const isImported = importedPlan?.weeks?.length > 0;
+
+  const handleImport = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const fd = new FormData();
+    fd.append('file', file);
+    setImporting(true);
+    try {
+      await api.post(`/marketplace/plans/${platform}/import`, fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+      await queryClient.invalidateQueries(['mkt-plan', platform]);
+      toast.success(`${platform} plan imported!`);
+    } catch (err) {
+      toast.error(err?.response?.data?.message || 'Import failed');
+    } finally {
+      setImporting(false);
+      e.target.value = '';
+    }
+  };
+
+  const downloadTemplate = async () => {
+    try {
+      const res = await api.get(`/marketplace/plans/${platform}/template`, { responseType: 'blob' });
+      const url = URL.createObjectURL(res.data);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${platform.toLowerCase()}-plan-template.xlsx`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      toast.error('Template download failed');
+    }
+  };
+
+  const week        = weekData[activeWeek - 1];
+  const baseTasks   = cfg.baseTasks[activeDay] || [];
+  const wsTasks     = week?.ws[activeDay] || [];
   const allDayTasks = [...baseTasks, ...wsTasks];
-  const mustItems  = MUST_COMPLETE[activeDay] || [];
+  const mustItems   = cfg.mustComplete[activeDay] || [];
+
+  useEffect(() => {
+    setBudget(cfg.budgetLabels[1]);
+    setKpi({ ...cfg.emptyKpi });
+  }, [platform]);
 
   useEffect(() => {
     const newChecked = {};
-    allDayTasks.forEach(t => { newChecked[t.id] = localStorage.getItem(lsKey(activeWeek, activeDay, t.id)) === '1'; });
-    RECURRING_TASKS.forEach(t => { newChecked[t.id] = localStorage.getItem(lsKey(activeWeek, activeDay, t.id)) === '1'; });
+    allDayTasks.forEach(t => { newChecked[t.id] = localStorage.getItem(lsKey(platform, activeWeek, activeDay, t.id)) === '1'; });
+    cfg.recurringTasks.forEach(t => { newChecked[t.id] = localStorage.getItem(lsKey(platform, activeWeek, activeDay, t.id)) === '1'; });
     setChecked(newChecked);
-    const savedKpi = localStorage.getItem(lsKpi(activeWeek, activeDay));
-    setKpi(savedKpi ? JSON.parse(savedKpi) : EMPTY_KPI);
-    setNotes(localStorage.getItem(lsNotes(activeWeek, activeDay)) || '');
-    const savedBudget = localStorage.getItem(lsBudget(activeWeek));
-    if (savedBudget) setBudget(savedBudget);
-    const savedSC = localStorage.getItem(lsScorecard(activeWeek));
+    const savedKpi = localStorage.getItem(lsKpi(platform, activeWeek, activeDay));
+    setKpi(savedKpi ? JSON.parse(savedKpi) : { ...cfg.emptyKpi });
+    setNotes(localStorage.getItem(lsNotes(platform, activeWeek, activeDay)) || '');
+    const savedBudget = localStorage.getItem(lsBudget(platform, activeWeek));
+    if (savedBudget && cfg.budgetLabels.includes(savedBudget)) setBudget(savedBudget);
+    const savedSC = localStorage.getItem(lsScorecard(platform, activeWeek));
     if (savedSC) setScorecard(JSON.parse(savedSC));
-  }, [activeWeek, activeDay]);
+  }, [platform, activeWeek, activeDay]);
 
   const toggleTask = (id) => {
     const newVal = !checked[id];
     setChecked(p => ({ ...p, [id]: newVal }));
-    localStorage.setItem(lsKey(activeWeek, activeDay, id), newVal ? '1' : '0');
+    localStorage.setItem(lsKey(platform, activeWeek, activeDay, id), newVal ? '1' : '0');
   };
-
-  const saveKpi = (newKpi) => {
-    setKpi(newKpi);
-    localStorage.setItem(lsKpi(activeWeek, activeDay), JSON.stringify(newKpi));
-  };
-
-  const saveNotes = (v) => {
-    setNotes(v);
-    localStorage.setItem(lsNotes(activeWeek, activeDay), v);
-  };
-
-  const selectBudget = (type) => {
-    setBudget(type);
-    localStorage.setItem(lsBudget(activeWeek), type);
-  };
-
-  const saveScorecard = (newSC) => {
-    setScorecard(newSC);
-    localStorage.setItem(lsScorecard(activeWeek), JSON.stringify(newSC));
-  };
+  const saveKpi = (newKpi) => { setKpi(newKpi); localStorage.setItem(lsKpi(platform, activeWeek, activeDay), JSON.stringify(newKpi)); };
+  const saveNotes = (v)    => { setNotes(v);    localStorage.setItem(lsNotes(platform, activeWeek, activeDay), v); };
+  const selectBudget = (t) => { setBudget(t);   localStorage.setItem(lsBudget(platform, activeWeek), t); };
+  const saveScorecard = (s)=> { setScorecard(s);localStorage.setItem(lsScorecard(platform, activeWeek), JSON.stringify(s)); };
 
   const resetDay = () => {
-    allDayTasks.forEach(t => localStorage.removeItem(lsKey(activeWeek, activeDay, t.id)));
-    RECURRING_TASKS.forEach(t => localStorage.removeItem(lsKey(activeWeek, activeDay, t.id)));
-    localStorage.removeItem(lsKpi(activeWeek, activeDay));
-    localStorage.removeItem(lsNotes(activeWeek, activeDay));
-    setChecked({}); setKpi(EMPTY_KPI); setNotes('');
+    allDayTasks.forEach(t => localStorage.removeItem(lsKey(platform, activeWeek, activeDay, t.id)));
+    cfg.recurringTasks.forEach(t => localStorage.removeItem(lsKey(platform, activeWeek, activeDay, t.id)));
+    localStorage.removeItem(lsKpi(platform, activeWeek, activeDay));
+    localStorage.removeItem(lsNotes(platform, activeWeek, activeDay));
+    setChecked({}); setKpi({ ...cfg.emptyKpi }); setNotes('');
     forceUpdate(n => n + 1);
   };
 
   const exportDay = () => {
     const lines = [
-      `TREYFA × AMAZON — Week ${activeWeek}: ${week.title} — ${activeDay}`,
-      `NON-NEGOTIABLE: ${week.nonNeg}`,
-      '',
-      '── BASE TASKS ──',
-      ...baseTasks.map(t => `[${checked[t.id] ? '✓' : ' '}] ${t.text}`),
-      '',
-      '── WEEK-SPECIFIC TASKS ──',
-      ...wsTasks.map(t => `[${checked[t.id] ? '✓' : ' '}] ${t.text}`),
-      '',
-      '── DAILY CONSTANTS ──',
-      ...RECURRING_TASKS.map(t => `[${checked[t.id] ? '✓' : ' '}] ${t.text}`),
-      '',
-      '── KPIs ──',
-      `Units: ${kpi.units}   Sessions: ${kpi.sessions}   CTR: ${kpi.ctr}%   CVR: ${kpi.cvr}%`,
-      `ACOS: ${kpi.acos}%   Reviews: ${kpi.reviews}   Ad Spend: ₹${kpi.adSpend}   Ad Revenue: ₹${kpi.adRevenue}`,
-      `FBA Stock: ${kpi.fbaStock} days   Cum P&L: ₹${kpi.cumPnl}`,
-      '',
-      '── NOTES ──',
-      notes || '(none)',
+      `TREYFA × ${platform.toUpperCase()} — Week ${activeWeek}: ${week.title} — ${activeDay}`,
+      `NON-NEGOTIABLE: ${week.nonNeg}`, '',
+      '── BASE TASKS ──', ...baseTasks.map(t => `[${checked[t.id] ? '✓' : ' '}] ${t.text}`), '',
+      '── WEEK-SPECIFIC TASKS ──', ...wsTasks.map(t => `[${checked[t.id] ? '✓' : ' '}] ${t.text}`), '',
+      '── DAILY CONSTANTS ──', ...cfg.recurringTasks.map(t => `[${checked[t.id] ? '✓' : ' '}] ${t.text}`), '',
+      '── NOTES ──', notes || '(none)',
     ];
     const blob = new Blob([lines.join('\n')], { type: 'text/plain' });
     const url  = URL.createObjectURL(blob);
     const a    = document.createElement('a');
-    a.href = url; a.download = `treyfa-amazon-w${activeWeek}-${activeDay.toLowerCase()}.txt`;
+    a.href = url; a.download = `treyfa-${platform.toLowerCase()}-w${activeWeek}-${activeDay.toLowerCase()}.txt`;
     a.click(); URL.revokeObjectURL(url);
   };
 
   const exportScorecard = () => {
-    const lines = [
-      `TREYFA × AMAZON — WEEK ${activeWeek} SCORECARD`,
-      `Week Theme: ${week.title}`,
-      '',
-      ...SCORECARD_FIELDS.map(f => `${f.label}: ${scorecard[f.key] || '—'}`),
-    ];
+    const lines = [`TREYFA × ${platform.toUpperCase()} — WEEK ${activeWeek} SCORECARD`, `Week Theme: ${week.title}`, '', ...cfg.scorecardFields.map(f => `${f.label}: ${scorecard[f.key] || '—'}`)];
     const blob = new Blob([lines.join('\n')], { type: 'text/plain' });
     const url  = URL.createObjectURL(blob);
     const a    = document.createElement('a');
-    a.href = url; a.download = `treyfa-scorecard-w${activeWeek}.txt`;
+    a.href = url; a.download = `treyfa-${platform.toLowerCase()}-scorecard-w${activeWeek}.txt`;
     a.click(); URL.revokeObjectURL(url);
   };
 
-  const allIds    = [...allDayTasks.map(t => t.id), ...RECURRING_TASKS.map(t => t.id)];
-  const doneCount = allIds.filter(id => checked[id]).length;
-  const totalCount= allIds.length;
-  const pctDone   = totalCount > 0 ? Math.round((doneCount / totalCount) * 100) : 0;
-  const stopLoss  = evalStopLoss(kpi);
-  const triggers  = evalTriggers(kpi);
-
-  const KPI_FIELDS = [
-    { key: 'units',    label: 'Units Sold',       hint: 'Target varies by week', placeholder: '0' },
-    { key: 'sessions', label: 'Sessions',          hint: 'Total visits today',    placeholder: '0' },
-    { key: 'ctr',      label: 'CTR Hero #1 (%)',   hint: 'SAFE ≥1.25%',          placeholder: '0.00' },
-    { key: 'cvr',      label: 'CVR Overall (%)',   hint: 'SAFE ≥10%',            placeholder: '0.00' },
-    { key: 'acos',     label: 'ACOS Worst (%)',    hint: 'DANGER >70%',          placeholder: '0.00' },
-    { key: 'adSpend',  label: 'Ad Spend ₹',       hint: `Budget: ₹${week?.budgets[budget]?.toLocaleString()}`, placeholder: '0' },
-    { key: 'adRevenue',label: 'Ad Revenue ₹',     hint: 'From Sponsored Products', placeholder: '0' },
-    { key: 'reviews',  label: 'Reviews Posted',    hint: 'This week total',      placeholder: '0' },
-    { key: 'fbaStock', label: 'FBA Stock Days',    hint: 'DANGER <7 days',       placeholder: '0' },
-    { key: 'cumPnl',   label: 'Cum. Net P&L ₹',  hint: 'DANGER < −₹15,000',    placeholder: '0' },
-  ];
-
-  const inputColor = (key) => {
-    if (key === 'acos'     && parseFloat(kpi[key]) > 70)    return 'border-red-300 bg-red-50';
-    if (key === 'acos'     && parseFloat(kpi[key]) >= 40)   return 'border-amber-300 bg-amber-50';
-    if (key === 'cvr'      && parseFloat(kpi[key]) < 7  && kpi[key]) return 'border-red-300 bg-red-50';
-    if (key === 'cvr'      && parseFloat(kpi[key]) < 10 && kpi[key]) return 'border-amber-300 bg-amber-50';
-    if (key === 'ctr'      && parseFloat(kpi[key]) < 1.0 && kpi[key]) return 'border-red-300 bg-red-50';
-    if (key === 'ctr'      && parseFloat(kpi[key]) < 1.25 && kpi[key]) return 'border-amber-300 bg-amber-50';
-    if (key === 'fbaStock' && parseFloat(kpi[key]) < 7  && kpi[key]) return 'border-red-300 bg-red-50';
-    if (key === 'fbaStock' && parseFloat(kpi[key]) < 14 && kpi[key]) return 'border-amber-300 bg-amber-50';
-    if (key === 'cumPnl'   && parseFloat(kpi[key]) < -15000) return 'border-red-300 bg-red-50';
-    if (key === 'cumPnl'   && parseFloat(kpi[key]) < -5000)  return 'border-amber-300 bg-amber-50';
-    return 'border-gray-200';
-  };
+  const allIds     = [...allDayTasks.map(t => t.id), ...cfg.recurringTasks.map(t => t.id)];
+  const doneCount  = allIds.filter(id => checked[id]).length;
+  const totalCount = allIds.length;
+  const pctDone    = totalCount > 0 ? Math.round((doneCount / totalCount) * 100) : 0;
+  const stopLoss   = cfg.evalAlerts(kpi);
+  const triggers   = cfg.evalGood(kpi);
+  const kpiFields  = cfg.getKpiFields(week, budget);
 
   return (
     <div className="flex gap-4 min-h-screen items-start">
       {/* Week sidebar */}
       <div className="w-44 flex-shrink-0 space-y-1 sticky top-4">
-        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2 px-1">12-Week Plan</p>
-        {WEEK_DATA.map(w => {
+        <div className="flex items-center justify-between mb-2 px-1">
+          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">12-Week Plan</p>
+          {isImported && <span className="text-[9px] font-bold text-green-600 bg-green-50 border border-green-200 px-1.5 py-0.5 rounded-full">Imported</span>}
+        </div>
+        {/* Import controls */}
+        <div className="flex gap-1 mb-2">
+          <button onClick={downloadTemplate} title="Download blank Excel template"
+            className="flex-1 text-[9px] font-bold py-1 px-1.5 rounded-lg border border-gray-200 bg-white text-gray-500 hover:bg-gray-50 truncate">
+            ⬇ Template
+          </button>
+          <button onClick={() => fileInputRef.current?.click()} disabled={importing} title="Upload filled Excel"
+            className="flex-1 text-[9px] font-bold py-1 px-1.5 rounded-lg border text-white truncate"
+            style={{ background: platColor }}>
+            {importing ? '...' : '⬆ Import'}
+          </button>
+          <input ref={fileInputRef} type="file" accept=".xlsx,.xls" className="hidden" onChange={handleImport} />
+        </div>
+        {weekData.map(w => {
           const isActive = w.n === activeWeek;
           return (
             <button key={w.n} onClick={() => { setActiveWeek(w.n); setActiveDay('Mon'); }}
-              className={clsx('w-full text-left px-3 py-2.5 rounded-xl text-xs font-bold transition-all border', isActive ? 'bg-orange-500 text-white border-orange-500 shadow-md' : 'bg-white text-gray-600 border-gray-200 hover:border-orange-300 hover:bg-orange-50')}>
-              <span className={clsx('text-[10px]', isActive ? 'text-orange-200' : 'text-gray-400')}>W{w.n}</span>
+              className={clsx('w-full text-left px-3 py-2.5 rounded-xl text-xs font-bold transition-all border', isActive ? 'text-white border-transparent shadow-md' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50')}
+              style={isActive ? { background: platColor } : {}}>
+              <span className={clsx('text-[10px]', isActive ? 'text-white/60' : 'text-gray-400')}>W{w.n}</span>
               <p className="truncate">{w.title}</p>
             </button>
           );
@@ -845,7 +1571,7 @@ function PlanTab() {
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 mb-1 flex-wrap">
-                <span className="text-xs font-bold text-orange-500 bg-orange-50 border border-orange-200 px-2 py-0.5 rounded-full">Week {week.n}</span>
+                <span className="text-xs font-bold px-2 py-0.5 rounded-full border" style={{ color: platColor, background: platColor + '15', borderColor: platColor + '40' }}>Week {week.n}</span>
                 <h2 className="text-lg font-black text-gray-900">{week.title}</h2>
               </div>
               <p className="text-sm text-gray-500 mb-2">{week.desc}</p>
@@ -857,11 +1583,12 @@ function PlanTab() {
             <div>
               <p className="text-[10px] font-bold text-gray-500 mb-1.5">Ad Budget</p>
               <div className="flex gap-1.5">
-                {['conservative', 'base', 'aggressive'].map(type => (
+                {cfg.budgetLabels.map(type => (
                   <button key={type} onClick={() => selectBudget(type)}
-                    className={clsx('px-2.5 py-1.5 rounded-lg text-[10px] font-bold border transition-all', budget === type ? 'bg-orange-500 text-white border-orange-500' : 'bg-gray-50 text-gray-600 border-gray-200 hover:border-orange-300')}>
-                    <p className="capitalize">{type}</p>
-                    <p className={budget === type ? 'text-orange-100' : 'text-orange-500'}>₹{week.budgets[type].toLocaleString()}</p>
+                    className={clsx('px-2.5 py-1.5 rounded-lg text-[10px] font-bold border transition-all capitalize', budget === type ? 'text-white border-transparent' : 'bg-gray-50 text-gray-600 border-gray-200')}
+                    style={budget === type ? { background: platColor } : {}}>
+                    <p>{type}</p>
+                    <p style={budget !== type ? { color: platColor } : { color: 'rgba(255,255,255,0.7)' }}>₹{week.budgets[type]?.toLocaleString?.()}</p>
                   </button>
                 ))}
               </div>
@@ -872,13 +1599,14 @@ function PlanTab() {
         {/* Day tabs */}
         <div className="flex gap-1.5 bg-gray-100 p-1 rounded-xl w-fit">
           {DAYS.map(d => {
-            const dTasks = [...(BASE_TASKS[d] || []), ...(week.ws[d] || [])];
-            const dIds   = [...dTasks.map(t => t.id), ...RECURRING_TASKS.map(t => t.id)];
-            const dDone  = dIds.filter(id => localStorage.getItem(lsKey(activeWeek, d, id)) === '1').length;
+            const dTasks = [...(cfg.baseTasks[d] || []), ...(week.ws[d] || [])];
+            const dIds   = [...dTasks.map(t => t.id), ...cfg.recurringTasks.map(t => t.id)];
+            const dDone  = dIds.filter(id => localStorage.getItem(lsKey(platform, activeWeek, d, id)) === '1').length;
             const allDone = dIds.length > 0 && dDone === dIds.length;
             return (
               <button key={d} onClick={() => setActiveDay(d)}
-                className={clsx('flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold transition-all', activeDay === d ? 'bg-white text-orange-600 shadow-sm' : 'text-gray-500 hover:text-gray-700')}>
+                className={clsx('flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold transition-all', activeDay === d ? 'bg-white shadow-sm' : 'text-gray-500 hover:text-gray-700')}
+                style={activeDay === d ? { color: platColor } : {}}>
                 {d}{allDone && <span className="w-1.5 h-1.5 rounded-full bg-green-500" />}
               </button>
             );
@@ -897,7 +1625,7 @@ function PlanTab() {
                 <span className={clsx('text-[10px] font-bold px-2 py-0.5 rounded-full', pctDone === 100 ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600')}>{doneCount}/{totalCount}</span>
               </div>
               <div className="w-full bg-gray-100 rounded-full h-2 mb-4 overflow-hidden">
-                <div className="h-full rounded-full transition-all duration-500" style={{ width: `${pctDone}%`, background: pctDone === 100 ? '#22c55e' : '#f97316' }} />
+                <div className="h-full rounded-full transition-all duration-500" style={{ width: `${pctDone}%`, background: pctDone === 100 ? '#22c55e' : platColor }} />
               </div>
 
               {/* Base tasks */}
@@ -948,13 +1676,15 @@ function PlanTab() {
             </div>
 
             {/* Daily constants */}
-            <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4">
-              <p className="text-xs font-bold text-blue-700 mb-3">🔄 Daily Constants (Every Day)</p>
+            <div className="rounded-2xl p-4 border" style={{ background: platColor + '0d', borderColor: platColor + '30' }}>
+              <p className="text-xs font-bold mb-3" style={{ color: platColor }}>🔄 Daily Constants (Every Day)</p>
               <div className="space-y-2">
-                {RECURRING_TASKS.map(t => (
+                {cfg.recurringTasks.map(t => (
                   <div key={t.id} onClick={() => toggleTask(t.id)}
-                    className={clsx('flex items-start gap-3 p-2.5 rounded-xl border cursor-pointer transition-all', checked[t.id] ? 'bg-blue-100 border-blue-200' : 'bg-white border-blue-100 hover:border-blue-300')}>
-                    <div className={clsx('w-4 h-4 rounded-full border-2 flex items-center justify-center flex-shrink-0 mt-0.5', checked[t.id] ? 'bg-blue-500 border-blue-500' : 'border-blue-300')}>
+                    className={clsx('flex items-start gap-3 p-2.5 rounded-xl border cursor-pointer transition-all', checked[t.id] ? 'border-green-200' : 'bg-white border-gray-100 hover:border-gray-300')}
+                    style={checked[t.id] ? { background: platColor + '18' } : {}}>
+                    <div className={clsx('w-4 h-4 rounded-full border-2 flex items-center justify-center flex-shrink-0 mt-0.5', checked[t.id] ? 'bg-green-500 border-green-500' : '')}
+                      style={!checked[t.id] ? { borderColor: platColor + '80' } : {}}>
                       {checked[t.id] && <svg className="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>}
                     </div>
                     <div>
@@ -995,25 +1725,25 @@ function PlanTab() {
               <p className="text-sm font-bold text-gray-900 mb-1">📊 Numbers Entry</p>
               <p className="text-[10px] text-gray-400 mb-4">Enter today's numbers — stop-loss alerts trigger automatically</p>
               <div className="space-y-2.5">
-                {KPI_FIELDS.map(({ key, label, hint, placeholder }) => (
+                {kpiFields.map(({ key, label, hint, placeholder }) => (
                   <div key={key} className="flex items-center gap-3">
                     <div className="w-32 flex-shrink-0">
                       <p className="text-[10px] font-bold text-gray-700">{label}</p>
-                      <p className="text-[9px] text-orange-500 font-semibold">{hint}</p>
+                      <p className="text-[9px] font-semibold" style={{ color: platColor }}>{hint}</p>
                     </div>
-                    <input type="number" step="0.01" placeholder={placeholder} value={kpi[key]}
+                    <input type="number" step="0.01" placeholder={placeholder} value={kpi[key] || ''}
                       onChange={e => saveKpi({ ...kpi, [key]: e.target.value })}
-                      className={clsx('flex-1 text-sm border rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-orange-400', inputColor(key))} />
+                      className={clsx('flex-1 text-sm border rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-orange-300', cfg.inputColor(key, kpi))} />
                   </div>
                 ))}
               </div>
               {kpi.adSpend && kpi.adRevenue && parseFloat(kpi.adSpend) > 0 && (
-                <div className="mt-4 p-3 bg-orange-50 rounded-xl flex gap-4 text-xs">
+                <div className="mt-4 p-3 rounded-xl flex gap-4 text-xs" style={{ background: platColor + '12' }}>
                   <div className="flex-1 text-center">
                     <p className="text-gray-500">ROAS</p>
-                    <p className="text-base font-black text-orange-700">{(parseFloat(kpi.adRevenue) / parseFloat(kpi.adSpend)).toFixed(2)}×</p>
+                    <p className="text-base font-black" style={{ color: platColor }}>{(parseFloat(kpi.adRevenue) / parseFloat(kpi.adSpend)).toFixed(2)}×</p>
                   </div>
-                  <div className="flex-1 text-center border-l border-orange-100">
+                  <div className="flex-1 text-center border-l border-gray-200">
                     <p className="text-gray-500">Net Ad P&L</p>
                     <p className={clsx('text-base font-black', parseFloat(kpi.adRevenue) - parseFloat(kpi.adSpend) >= 0 ? 'text-green-600' : 'text-red-600')}>
                       ₹{Math.abs(parseFloat(kpi.adRevenue) - parseFloat(kpi.adSpend)).toLocaleString()}
@@ -1023,11 +1753,12 @@ function PlanTab() {
               )}
             </div>
 
-            {/* Hero & Watch SKUs */}
+            {/* Hero & Watch SKUs — Amazon only */}
+            {cfg.heroes && (
             <div className="bg-white rounded-2xl border border-gray-200 p-4">
               <p className="text-xs font-bold text-gray-900 mb-3">🎯 Hero & Watch SKUs</p>
               <div className="space-y-2">
-                {HEROES_DATA.map(h => (
+                {cfg.heroes.map(h => (
                   <div key={h.asin} className={clsx('flex items-start gap-2 p-2 rounded-xl border text-xs', h.type === 'hero' ? 'bg-orange-50 border-orange-100' : h.type === 'watch' ? 'bg-blue-50 border-blue-100' : 'bg-purple-50 border-purple-100')}>
                     <span className={clsx('font-black text-[10px] px-1.5 py-0.5 rounded-md flex-shrink-0', h.type === 'hero' ? 'bg-orange-200 text-orange-800' : h.type === 'watch' ? 'bg-blue-200 text-blue-800' : 'bg-purple-200 text-purple-800')}>{h.label}</span>
                     <div className="min-w-0 flex-1">
@@ -1038,16 +1769,17 @@ function PlanTab() {
                 ))}
               </div>
             </div>
+            )}
 
             {/* Triggered conditions */}
             <div className="bg-white rounded-2xl border border-gray-200 p-4">
               <button onClick={() => setShowTriggers(s => !s)} className="w-full flex items-center justify-between text-xs font-bold text-gray-900 mb-0">
-                <span>⚡ Triggered Conditions (15 Rules)</span>
+                <span>⚡ Triggered Conditions ({cfg.triggeredConditions.length} Rules)</span>
                 <span className="text-gray-400">{showTriggers ? '▲' : '▼'}</span>
               </button>
               {showTriggers && (
                 <div className="mt-3 space-y-1.5">
-                  {TRIGGERED_CONDITIONS.map(c => (
+                  {cfg.triggeredConditions.map(c => (
                     <div key={c.id} className={clsx('flex items-start gap-2 p-2 rounded-lg text-[10px] font-medium', c.level === 'red' ? 'bg-red-50 border border-red-100 text-red-700' : c.level === 'amber' ? 'bg-amber-50 border border-amber-100 text-amber-700' : 'bg-green-50 border border-green-100 text-green-700')}>
                       <span className="font-black flex-shrink-0">#{c.id}</span>
                       <span>{c.text}</span>
@@ -1064,7 +1796,8 @@ function PlanTab() {
                 <ArrowPathIcon className="w-3.5 h-3.5" /> Reset Day
               </button>
               <button onClick={exportDay}
-                className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2.5 bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold rounded-xl transition-colors shadow-sm">
+                className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2.5 text-white text-xs font-bold rounded-xl transition-colors shadow-sm"
+                style={{ background: platColor }}>
                 <ArrowDownTrayIcon className="w-3.5 h-3.5" /> Export Report
               </button>
             </div>
@@ -1080,12 +1813,13 @@ function PlanTab() {
                 <p className="text-[10px] text-gray-400 mt-0.5">Pre-fill for Sunday founder review</p>
               </div>
               <button onClick={exportScorecard}
-                className="flex items-center gap-1.5 px-3 py-2 bg-indigo-500 hover:bg-indigo-600 text-white text-xs font-bold rounded-xl transition-colors">
+                className="flex items-center gap-1.5 px-3 py-2 text-white text-xs font-bold rounded-xl transition-colors"
+                style={{ background: platColor }}>
                 <ArrowDownTrayIcon className="w-3.5 h-3.5" /> Generate Scorecard
               </button>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {SCORECARD_FIELDS.map(f => (
+              {cfg.scorecardFields.map(f => (
                 <div key={f.key} className={f.ml ? 'sm:col-span-2' : ''}>
                   <label className="text-[10px] font-bold text-gray-600 block mb-1">{f.label}</label>
                   {f.ml ? (
@@ -1111,10 +1845,19 @@ function PlanTab() {
 // ── Main Export ───────────────────────────────────────────────────────────────
 
 export default function MarketplaceDept() {
-  const [activeTab, setActiveTab] = useState('overview');
+  const [activeTab, setActiveTab]       = useState('overview');
+  const [activePlan, setActivePlan]     = useState('Amazon');
+  const [showPlanDropdown, setShowPlanDropdown] = useState(false);
+  const dropdownRef = useRef(null);
   const navigate     = useNavigate();
   const queryClient  = useQueryClient();
   const { socket }   = useSocketStore();
+
+  useEffect(() => {
+    const handler = (e) => { if (dropdownRef.current && !dropdownRef.current.contains(e.target)) setShowPlanDropdown(false); };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
 
   const refreshTasks = useCallback(() => {
     queryClient.invalidateQueries({ queryKey: ['marketplace', 'tasks'] });
@@ -1146,20 +1889,43 @@ export default function MarketplaceDept() {
             <span className="flex items-center gap-1.5 text-xs text-gray-400 font-medium mr-2">
               <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />{format(new Date(), 'EEE, dd MMM yyyy')}
             </span>
-            <div className="flex bg-gray-100 p-1 rounded-xl gap-1">
-              {[{ id: 'overview', label: '📊 Overview' }, { id: 'plan', label: '🗓️ Amazon Plan' }].map(tab => (
-                <button key={tab.id} onClick={() => setActiveTab(tab.id)}
-                  className={clsx('px-3 py-1.5 rounded-lg text-xs font-bold transition-all', activeTab === tab.id ? 'bg-white shadow-sm text-orange-600' : 'text-gray-500 hover:text-gray-700')}>
-                  {tab.label}
+            <div className="flex items-center gap-2">
+              <div className="flex bg-gray-100 p-1 rounded-xl">
+                <button onClick={() => setActiveTab('overview')}
+                  className={clsx('px-3 py-1.5 rounded-lg text-xs font-bold transition-all', activeTab === 'overview' ? 'bg-white shadow-sm text-orange-600' : 'text-gray-500 hover:text-gray-700')}>
+                  📊 Overview
                 </button>
-              ))}
+              </div>
+              <div className="relative" ref={dropdownRef}>
+                <button onClick={() => setShowPlanDropdown(s => !s)}
+                  className={clsx('flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border transition-all', activeTab === 'plan' ? 'text-white border-transparent' : 'bg-white text-gray-600 border-gray-200 hover:border-gray-400')}
+                  style={activeTab === 'plan' ? { background: PLATFORM_PLAN_CONFIG[activePlan]?.color || '#f97316' } : {}}>
+                  🗓️ {activeTab === 'plan' ? `${activePlan} Plan` : 'Platform Plans'} <span className="text-[10px] opacity-70">▾</span>
+                </button>
+                {showPlanDropdown && (
+                  <div className="absolute right-0 top-full mt-1 bg-white border border-gray-200 rounded-xl shadow-lg z-50 py-1 min-w-[170px]">
+                    {PLATFORMS.map(p => {
+                      const meta = PLATFORM_META[p];
+                      const isActive = activePlan === p && activeTab === 'plan';
+                      return (
+                        <button key={p} onClick={() => { setActivePlan(p); setActiveTab('plan'); setShowPlanDropdown(false); }}
+                          className={clsx('w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold hover:bg-gray-50 transition-colors', isActive ? 'bg-gray-50' : 'text-gray-600')}>
+                          <span className="w-5 h-5 rounded-md flex items-center justify-center text-white text-[9px] font-black flex-shrink-0" style={{ background: meta.color }}>{meta.initial}</span>
+                          <span style={isActive ? { color: meta.color } : {}}>{p} Plan</span>
+                          {isActive && <span className="ml-auto text-green-500 text-[10px] font-bold">✓</span>}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>
       </div>
       {activeTab === 'overview'
         ? <OverviewTab allTasks={allTasks} tasksLoading={tasksLoading} navigate={navigate} />
-        : <PlanTab />
+        : <PlanTab platform={activePlan} />
       }
     </div>
   );
