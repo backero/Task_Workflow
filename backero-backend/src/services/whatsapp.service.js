@@ -14,8 +14,16 @@ const initWhatsApp = async (io) => {
     const makeWASocket = baileys.default ?? baileys.makeWASocket;
     const { useMultiFileAuthState, DisconnectReason, fetchLatestBaileysVersion } = baileys;
 
-    const sessionPath = process.env.WA_SESSION_PATH || './wa_session';
-    const { state, saveCreds } = await useMultiFileAuthState(sessionPath);
+    // Use MongoDB auth in production so session survives Render restarts
+    let state, saveCreds;
+    if (process.env.NODE_ENV === 'production') {
+      const { useMongoAuthState } = require('./whatsappMongoAuth');
+      ({ state, saveCreds } = await useMongoAuthState());
+    } else {
+      const sessionPath = process.env.WA_SESSION_PATH || './wa_session';
+      ({ state, saveCreds } = await useMultiFileAuthState(sessionPath));
+    }
+
     const { version } = await fetchLatestBaileysVersion();
 
     const connect = async () => {
