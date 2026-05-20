@@ -13,7 +13,11 @@ const User = require('../models/User');
 router.get('/qr/image', asyncHandler(async (req, res) => {
   const qrString = getQRCode();
   if (!qrString) {
-    return res.status(404).json({ success: false, message: isConnected() ? 'Already connected' : 'QR not ready yet — refresh in 5s' });
+    const status = getStatus();
+    const msg = isConnected() ? 'Already connected' :
+      status === 'unavailable' ? 'WhatsApp init failed — check server logs' :
+      'QR not ready yet — refresh in 5s';
+    return res.status(404).json({ success: false, message: msg, status });
   }
   const buffer = await QRCode.toBuffer(qrString, { width: 320, margin: 2 });
   res.setHeader('Content-Type', 'image/png');

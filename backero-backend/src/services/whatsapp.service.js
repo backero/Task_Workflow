@@ -24,7 +24,18 @@ const initWhatsApp = async (io) => {
       ({ state, saveCreds } = await useMultiFileAuthState(sessionPath));
     }
 
-    const { version } = await fetchLatestBaileysVersion();
+    // fetchLatestBaileysVersion hits GitHub — use timeout + fallback so Render doesn't hang
+    let version;
+    try {
+      const result = await Promise.race([
+        fetchLatestBaileysVersion(),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 8000)),
+      ]);
+      version = result.version;
+    } catch {
+      version = [2, 3000, 1015901307];
+      logger.info('WhatsApp: using fallback WA version');
+    }
 
     const connect = async () => {
       connectionStatus = 'connecting';
