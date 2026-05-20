@@ -68,6 +68,10 @@ app.use(cors({
     if (process.env.NODE_ENV !== 'production' && /^http:\/\/localhost:\d+$/.test(origin)) {
       return callback(null, true);
     }
+    // Allow Netlify preview deploys for the same site (branch/deploy previews)
+    if (/^https:\/\/[a-z0-9]+-resplendent-shortbread-91ee46\.netlify\.app$/.test(origin)) {
+      return callback(null, true);
+    }
     callback(new Error(`CORS: origin ${origin} not allowed`));
   },
   credentials: true,
@@ -84,7 +88,7 @@ const authLimiter = rateLimit({
   message: { success: false, message: 'Too many authentication attempts. Please try again later.' },
   standardHeaders: true,
   legacyHeaders: false,
-  skip: (req) => !!req.headers.authorization, // skip if already logged in
+  skip: (req) => !!req.headers.authorization || process.env.NODE_ENV !== 'production',
 });
 app.use('/api/auth/', authLimiter);
 

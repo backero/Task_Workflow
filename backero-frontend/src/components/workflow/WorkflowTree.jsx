@@ -17,7 +17,11 @@ import WorkflowToolbar from './WorkflowToolbar';
 import TaskDetailPanel from './TaskDetailPanel';
 import AddSubtaskModal from './AddSubtaskModal';
 import { useWorkflowStore } from '../../store/useWorkflowStore';
+import { useAuthStore } from '../../store/useAuthStore';
+import ConfirmDialog from '../common/ConfirmDialog';
 import toast from 'react-hot-toast';
+
+const MANAGER_ROLES = ['super_admin', 'chairman', 'founder', 'admin', 'manager', 'team_lead'];
 
 const NODE_TYPES = { taskNode: TaskNode };
 const EDGE_TYPES = { dependencyEdge: DependencyEdge };
@@ -42,8 +46,11 @@ function WorkflowCanvas({ rootTaskId }) {
   const {
     graph, fetchWorkflowGraph, isLoading, error,
     selectNode, selectedNode, showDetailPanel,
-    addDependency, updateNodePositions, saveTemplate, applyTemplate,
+    addDependency, updateNodePositions, saveTemplate, applyTemplate, deleteTask,
   } = useWorkflowStore();
+  const { user } = useAuthStore();
+
+  const canDelete = MANAGER_ROLES.includes(user?.role);
 
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
@@ -51,6 +58,7 @@ function WorkflowCanvas({ rootTaskId }) {
   const [addSubtaskState, setAddSubtaskState] = useState(null); // { parentId, parentTitle }
   const [showSaveTemplate, setShowSaveTemplate] = useState(false);
   const [templateName, setTemplateName] = useState('');
+  const [deleteTarget, setDeleteTarget] = useState(null); // { id, title }
   const moveTimer = useRef(null);
 
   // Fetch on mount / rootTaskId change
@@ -58,11 +66,19 @@ function WorkflowCanvas({ rootTaskId }) {
     if (rootTaskId) fetchWorkflowGraph(rootTaskId);
   }, [rootTaskId]);
 
-  // Sync store graph → RF state
+  // Sync store graph → RF state, injecting delete capability into each node
   useEffect(() => {
-    setNodes(graph.nodes || []);
+    const enriched = (graph.nodes || []).map(n => ({
+      ...n,
+      data: {
+        ...n.data,
+        canDelete,
+        onDelete: canDelete ? () => setDeleteTarget({ id: n.id, title: n.data?.title }) : undefined,
+      },
+    }));
+    setNodes(enriched);
     setEdges(graph.edges || []);
-  }, [graph]);
+  }, [graph, canDelete]);
 
   // Node drag stop → persist positions
   const onNodeDragStop = useCallback((_, node) => {
@@ -112,6 +128,18 @@ function WorkflowCanvas({ rootTaskId }) {
       parentDepartment: node?.data?.department || null,
     });
   }, [graph.nodes]);
+
+  const handleDeleteConfirmed = async () => {
+    if (!deleteTarget) return;
+    const { id, title } = deleteTarget;
+    setDeleteTarget(null);
+    try {
+      await deleteTask(id);
+      toast.success(`"${title}" deleted`);
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to delete');
+    }
+  };
 
   const handleSaveTemplate = async () => {
     if (!templateName.trim()) { toast.error('Template name required'); return; }
@@ -238,6 +266,17 @@ function WorkflowCanvas({ rootTaskId }) {
           onClose={() => setAddSubtaskState(null)}
         />
       )}
+
+      {/* Delete confirmation */}
+      <ConfirmDialog
+        open={!!deleteTarget}
+        title="Delete this task?"
+        message={`"${deleteTarget?.title}" and all its subtasks will be permanently deleted. This cannot be undone.`}
+        confirmLabel="Yes, Delete"
+        confirmColor="red"
+        onConfirm={handleDeleteConfirmed}
+        onCancel={() => setDeleteTarget(null)}
+      />
 
       {/* Save template modal */}
       {showSaveTemplate && (

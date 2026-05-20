@@ -32,7 +32,7 @@ router.get('/employee-performance', asyncHandler(async (req, res) => {
       },
     },
     { $lookup: { from: 'users', localField: '_id', foreignField: '_id', as: 'employee' } },
-    { $unwind: { path: '$employee', preserveNullAndEmpty: true } },
+    { $unwind: { path: '$employee', preserveNullAndEmptyArrays: true } },
     { $addFields: { completionRate: { $cond: [{ $gt: ['$totalTasks', 0] }, { $multiply: [{ $divide: ['$completed', '$totalTasks'] }, 100] }, 0] } } },
     { $sort: { completionRate: -1 } },
   ]);
@@ -78,7 +78,7 @@ router.get('/sales-conversion', asyncHandler(async (req, res) => {
       { $match: filter },
       { $group: { _id: '$assignedTo', total: { $sum: 1 }, won: { $sum: { $cond: [{ $eq: ['$status', 'Won'] }, 1, 0] } }, value: { $sum: '$dealValue' } } },
       { $lookup: { from: 'users', localField: '_id', foreignField: '_id', as: 'employee' } },
-      { $unwind: { path: '$employee', preserveNullAndEmpty: true } },
+      { $unwind: { path: '$employee', preserveNullAndEmptyArrays: true } },
     ]),
   ]);
 

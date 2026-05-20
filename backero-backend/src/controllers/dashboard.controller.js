@@ -86,7 +86,7 @@ exports.getFounderDashboard = asyncHandler(async (req, res) => {
       { $sort: { completed: -1 } },
       { $limit: 6 },
       { $lookup: { from: 'users', localField: '_id', foreignField: '_id', as: 'user' } },
-      { $unwind: { path: '$user', preserveNullAndEmpty: true } },
+      { $unwind: { path: '$user', preserveNullAndEmptyArrays: true } },
       { $project: { userId: '$_id', firstName: '$user.firstName', lastName: '$user.lastName', department: '$user.department', role: '$user.role', total: 1, completed: 1, completionRate: { $cond: [{ $eq: ['$total', 0] }, 0, { $multiply: [{ $divide: ['$completed', '$total'] }, 100] }] } } },
     ])),
     safe(Notification.find({ organizationId: orgId, recipient: req.user._id, isRead: false, priority: { $in: ['high', 'critical'] } })
@@ -251,7 +251,7 @@ exports.getManagerDashboard = asyncHandler(async (req, res) => {
       { $addFields: { completionRate: { $cond: [{ $eq: ['$total', 0] }, 0, { $multiply: [{ $divide: ['$completed', '$total'] }, 100] }] } } },
       { $sort: { completed: -1 } },
       { $lookup: { from: 'users', localField: '_id', foreignField: '_id', as: 'user' } },
-      { $unwind: { path: '$user', preserveNullAndEmpty: true } },
+      { $unwind: { path: '$user', preserveNullAndEmptyArrays: true } },
     ])),
     safe(Product.find({ organizationId: orgId, isActive: true, $expr: { $lte: ['$currentStock', '$minStockLevel'] } })
       .select('name sku currentStock minStockLevel unit category')

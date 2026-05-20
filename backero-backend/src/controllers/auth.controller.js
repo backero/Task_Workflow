@@ -23,10 +23,12 @@ const generateTokens = (userId, orgId, role) => {
 };
 
 const setRefreshCookie = (res, token) => {
+  const isProd = process.env.NODE_ENV === 'production';
   res.cookie('refreshToken', token, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'strict',
+    secure: isProd,
+    // 'none' required for cross-site (Netlify → Render); 'lax' safe for same-site dev
+    sameSite: isProd ? 'none' : 'lax',
     maxAge: 7 * 24 * 60 * 60 * 1000,
   });
 };
@@ -160,8 +162,8 @@ exports.sendLoginOTP = asyncHandler(async (req, res) => {
   if (!user) return sendError(res, 'No account found with this mobile number.', 404);
   if (!user.isActive) return sendError(res, 'Your account has been deactivated.', 403);
 
-  // Prevent spam: block if a fresh OTP was issued within last 60s
-  if (user.otpExpiry && user.otpExpiry > new Date(Date.now() + 9 * 60 * 1000)) {
+  // Prevent spam: block if a fresh OTP was issued within last 60s (skip in dev)
+  if (process.env.NODE_ENV === 'production' && user.otpExpiry && user.otpExpiry > new Date(Date.now() + 9 * 60 * 1000)) {
     return sendError(res, 'OTP already sent. Please wait 60 seconds before retrying.', 429);
   }
 
@@ -174,6 +176,14 @@ exports.sendLoginOTP = asyncHandler(async (req, res) => {
   });
 
   logger.info(`[OTP] ${phone} → ${otp}`);
+
+  // Send OTP via WhatsApp to all users
+  try {
+    const { sendMessage } = require('../services/whatsapp.service');
+    await sendMessage(phone, `🔐 *Backero Login OTP*\n\nYour OTP is: *${otp}*\n\nValid for 10 minutes. Do not share this with anyone.`);
+  } catch (e) {
+    logger.error('[OTP] WhatsApp send failed:', e.message);
+  }
 
   // In dev mode return OTP directly so it can be tested without SMS/WhatsApp
   const devPayload = process.env.NODE_ENV !== 'production' ? { _devOtp: otp } : {};

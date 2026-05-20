@@ -77,7 +77,7 @@ const TaskNode = memo(({ data, selected }) => {
   const {
     title, status, priority, progress, assignedTo, dueDate,
     department, completionLocked, isOverdue, depth, childCount,
-    estimatedHours, actualHours,
+    estimatedHours, actualHours, canDelete, onDelete,
   } = data;
 
   const isRoot = depth === 0;
@@ -88,7 +88,7 @@ const TaskNode = memo(({ data, selected }) => {
   return (
     <div
       className={clsx(
-        'bg-white rounded-xl shadow-md border border-gray-200 border-l-4 transition-all duration-150 select-none overflow-hidden',
+        'group bg-white rounded-xl shadow-md border border-gray-200 border-l-4 transition-all duration-150 select-none overflow-hidden',
         'w-[300px] cursor-pointer',
         PRIORITY_BORDER[priority] || 'border-l-slate-300',
         selected ? 'ring-2 ring-offset-1 ring-indigo-500 shadow-xl' : 'hover:shadow-lg',
@@ -105,7 +105,7 @@ const TaskNode = memo(({ data, selected }) => {
 
       {/* Dept color stripe (root nodes get full header, children get thin stripe) */}
       {isRoot ? (
-        <div className={clsx('px-3 pt-2.5 pb-2', deptColor)}>
+        <div className={clsx('px-3 pt-2.5 pb-2 relative', deptColor)}>
           <div className="flex items-center justify-between">
             <span className="text-[10px] font-bold text-white/80 uppercase tracking-wider truncate max-w-[140px]">
               {department}
@@ -121,6 +121,17 @@ const TaskNode = memo(({ data, selected }) => {
               )}>
                 {priority}
               </span>
+              {canDelete && (
+                <button
+                  onClick={e => { e.stopPropagation(); onDelete?.(); }}
+                  title="Delete task"
+                  className="ml-1 w-6 h-6 flex items-center justify-center rounded-md bg-white/30 text-white hover:bg-red-500 transition-colors"
+                >
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                  </svg>
+                </button>
+              )}
             </div>
           </div>
           <h3 className="text-sm font-bold text-white leading-snug line-clamp-2 mt-1">
@@ -144,6 +155,17 @@ const TaskNode = memo(({ data, selected }) => {
                 <span className={clsx('text-[10px] font-semibold capitalize', PRIORITY_COLORS[priority] || 'text-gray-500')}>
                   {priority}
                 </span>
+                {canDelete && (
+                  <button
+                    onClick={e => { e.stopPropagation(); onDelete?.(); }}
+                    title="Delete task"
+                    className="ml-1 w-6 h-6 flex items-center justify-center rounded-md bg-red-50 text-red-400 hover:bg-red-500 hover:text-white transition-colors"
+                  >
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                  </button>
+                )}
               </div>
             </div>
             <h3 className="text-xs font-semibold text-gray-900 leading-snug line-clamp-2">

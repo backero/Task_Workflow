@@ -116,6 +116,11 @@ export const useWorkflowStore = create((set, get) => ({
     return data;
   },
 
+  deleteTask: async (taskId) => {
+    await api.delete(`/tasks/${taskId}`);
+    await get().refreshGraph();
+  },
+
   selectNode: (nodeData) => set({ selectedNode: nodeData, showDetailPanel: !!nodeData }),
   closeDetailPanel: () => set({ selectedNode: null, showDetailPanel: false }),
 

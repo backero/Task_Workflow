@@ -395,7 +395,7 @@ const runDailyReport = async (targetPhones = null) => {
         { $sort: { count: -1 } },
         { $limit: 1 },
         { $lookup: { from: 'users', localField: '_id', foreignField: '_id', as: 'user' } },
-        { $unwind: { path: '$user', preserveNullAndEmpty: true } },
+        { $unwind: { path: '$user', preserveNullAndEmptyArrays: true } },
       ])),
       // Department-wise breakdown: total, by-status counts, subtask count, nearest due date
       safe(Task.aggregate([

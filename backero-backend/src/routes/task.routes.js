@@ -19,6 +19,7 @@ router.get('/:id/tree', ctrl.getTaskTree);
 router.get('/:id', ctrl.getTask);
 router.get('/:id/approvals', ctrl.getTaskApprovals);
 router.put('/:id', ctrl.updateTask);
+router.patch('/:id/archive', ctrl.archiveTask);
 router.delete('/:id', ctrl.deleteTask);
 router.post('/:id/start', ctrl.startTask);
 router.post('/:id/request-completion', ctrl.requestCompletion);

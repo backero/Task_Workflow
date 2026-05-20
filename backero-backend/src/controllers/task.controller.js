@@ -15,6 +15,13 @@ exports.getTasks = asyncHandler(async (req, res) => {
 
   const filter = { organizationId: req.user.organizationId };
 
+  // Exclude archived tasks by default; include only when explicitly requested
+  if (req.query.archived === 'true') {
+    filter.isArchived = true;
+  } else {
+    filter.isArchived = { $ne: true };
+  }
+
   // Role-based task visibility
   const userRole = req.user.role;
   const userLevel = ROLE_HIERARCHY[userRole] || 1;
@@ -669,6 +676,21 @@ exports.getAnalytics = asyncHandler(async (req, res) => {
 });
 
 // DELETE /api/tasks/:id  (recursive — deletes all subtasks too)
+exports.archiveTask = asyncHandler(async (req, res) => {
+  if (ROLE_HIERARCHY[req.user.role] < ROLE_HIERARCHY['manager']) {
+    return sendError(res, 'Only managers and above can archive tasks.', 403);
+  }
+  const task = await Task.findOne({ _id: req.params.id, organizationId: req.user.organizationId });
+  if (!task) return sendError(res, 'Task not found.', 404);
+
+  const unarchive = req.query.undo === 'true';
+  task.isArchived = !unarchive;
+  task.archivedAt = unarchive ? undefined : new Date();
+  await task.save();
+
+  sendSuccess(res, { isArchived: task.isArchived }, unarchive ? 'Task unarchived' : 'Task archived');
+});
+
 exports.deleteTask = asyncHandler(async (req, res) => {
   const task = await Task.findOne({ _id: req.params.id, organizationId: req.user.organizationId });
   if (!task) return sendError(res, 'Task not found.', 404);

@@ -8,6 +8,7 @@ import api from '../../api/axios';
 import { format, isPast } from 'date-fns';
 import clsx from 'clsx';
 import { ChevronDownIcon, ChevronRightIcon, PlusIcon, XMarkIcon, ArrowPathIcon } from '@heroicons/react/24/outline';
+import ConfirmDialog from '../../components/common/ConfirmDialog';
 import { CheckCircleIcon as CheckCircleSolid } from '@heroicons/react/24/solid';
 
 const STATUS_COLORS = {
@@ -239,10 +240,27 @@ function DeptInlineForm({ dept, onSave, onCancel }) {
 }
 
 // ── Task node (recursive, interactive) ───────────────────────────────────────
-function DeptTaskNode({ node, depth = 0, canEdit, onStatusChange, onAddSubtask }) {
-  const [open,       setOpen]       = useState(depth < 1);
-  const [addingHere, setAddingHere] = useState(false);
-  const [statusOpen, setStatusOpen] = useState(false);
+function DeptTaskNode({ node, depth = 0, canEdit, onStatusChange, onAddSubtask, onDelete, onRename }) {
+  const [open,          setOpen]          = useState(depth < 1);
+  const [addingHere,    setAddingHere]    = useState(false);
+  const [statusOpen,    setStatusOpen]    = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [renaming,      setRenaming]      = useState(false);
+  const [renameVal,     setRenameVal]     = useState('');
+  const renameRef = React.useRef(null);
+
+  const startRename = (e) => {
+    e.stopPropagation();
+    setRenameVal(node.title);
+    setRenaming(true);
+    setTimeout(() => renameRef.current?.select(), 30);
+  };
+
+  const commitRename = () => {
+    const val = renameVal.trim();
+    if (val && val !== node.title) onRename?.(node._id, val);
+    setRenaming(false);
+  };
 
   const hasKids   = (node.children || []).length > 0;
   const isDone    = node.status === 'Completed';
@@ -268,9 +286,21 @@ function DeptTaskNode({ node, depth = 0, canEdit, onStatusChange, onAddSubtask }
         <span className={clsx('w-2 h-2 rounded-full flex-shrink-0 mt-1.5', DSTATUS_DOT[statusKey] || 'bg-gray-400')} />
 
         <div className="flex-1 min-w-0">
-          <p className={clsx('text-xs font-medium leading-snug', isDone ? 'line-through text-gray-400' : 'text-gray-800')}>
-            {node.title}
-          </p>
+          {renaming ? (
+            <input
+              ref={renameRef}
+              value={renameVal}
+              onChange={e => setRenameVal(e.target.value)}
+              onBlur={commitRename}
+              onKeyDown={e => { if (e.key === 'Enter') commitRename(); if (e.key === 'Escape') setRenaming(false); }}
+              onClick={e => e.stopPropagation()}
+              className="w-full text-xs font-medium border border-indigo-400 rounded px-1.5 py-0.5 focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-white"
+            />
+          ) : (
+            <p className={clsx('text-xs font-medium leading-snug', isDone ? 'line-through text-gray-400' : 'text-gray-800')}>
+              {node.title}
+            </p>
+          )}
           <div className="flex items-center gap-2 mt-1 flex-wrap">
             {initials && (
               <div className="w-5 h-5 rounded-full bg-brand-100 flex items-center justify-center text-[9px] font-bold text-brand-700 flex-shrink-0"
@@ -324,13 +354,29 @@ function DeptTaskNode({ node, depth = 0, canEdit, onStatusChange, onAddSubtask }
           )}
         </div>
 
-        {/* Add subtask button (hover, only if canEdit) */}
-        {canEdit && (
-          <button onClick={e => { e.stopPropagation(); setAddingHere(p => !p); setOpen(true); }}
-            className="opacity-0 group-hover:opacity-100 p-0.5 rounded hover:bg-brand-100 text-brand-400 flex-shrink-0 transition-opacity"
-            title="Add subtask">
-            <PlusIcon className="w-3.5 h-3.5" />
-          </button>
+        {/* Actions (always visible if canEdit) */}
+        {canEdit && !renaming && (
+          <div className="flex items-center gap-0.5 flex-shrink-0">
+            <button onClick={e => { e.stopPropagation(); setAddingHere(p => !p); setOpen(true); }}
+              className="p-1 rounded-md bg-brand-50 text-brand-400 hover:bg-brand-100 hover:text-brand-600"
+              title="Add subtask">
+              <PlusIcon className="w-3.5 h-3.5" />
+            </button>
+            <button onClick={startRename}
+              className="p-1 rounded-md bg-indigo-50 text-indigo-400 hover:bg-indigo-100 hover:text-indigo-600"
+              title="Rename task">
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+              </svg>
+            </button>
+            <button onClick={e => { e.stopPropagation(); setConfirmDelete(true); }}
+              className="p-1 rounded-md bg-red-50 text-red-400 hover:bg-red-100 hover:text-red-600"
+              title="Delete task">
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+              </svg>
+            </button>
+          </div>
         )}
       </div>
 
@@ -345,12 +391,22 @@ function DeptTaskNode({ node, depth = 0, canEdit, onStatusChange, onAddSubtask }
         </div>
       )}
 
+      <ConfirmDialog
+        open={confirmDelete}
+        title="Delete this task?"
+        message={`"${node.title}" and all its subtasks will be permanently deleted.`}
+        confirmLabel="Yes, Delete"
+        confirmColor="red"
+        onConfirm={() => { setConfirmDelete(false); onDelete?.(node._id); }}
+        onCancel={() => setConfirmDelete(false)}
+      />
+
       {/* Children */}
       {hasKids && open && (
         <div className="px-2 pb-2 space-y-0">
           {node.children.map(child => (
             <DeptTaskNode key={child._id} node={child} depth={depth + 1}
-              canEdit={canEdit} onStatusChange={onStatusChange} onAddSubtask={onAddSubtask} />
+              canEdit={canEdit} onStatusChange={onStatusChange} onAddSubtask={onAddSubtask} onDelete={onDelete} onRename={onRename} />
           ))}
         </div>
       )}
@@ -410,7 +466,7 @@ function DeptHubColumn({ dept, nodes, cfg, canEdit, onAddTask, onStatusChange, o
       <div className="flex-1 p-3 space-y-2 overflow-y-auto max-h-[400px] bg-white">
         {nodes.map(n => (
           <DeptTaskNode key={n._id} node={n} depth={0}
-            canEdit={canEdit} onStatusChange={onStatusChange} onAddSubtask={onAddSubtask} />
+            canEdit={canEdit} onStatusChange={onStatusChange} onAddSubtask={onAddSubtask} onDelete={handleDeleteTask} onRename={handleRenameTask} />
         ))}
         {nodes.length === 0 && <p className="text-xs text-gray-400 italic text-center py-4">No tasks yet</p>}
 
@@ -470,6 +526,22 @@ function DeptHubView() {
       await addSubtask(parentId, { title, dueDate, department: dept, status: 'Pending' });
       showToast('Subtask added');
     } catch { showToast('Failed to add subtask', false); throw new Error('failed'); }
+  };
+
+  const handleDeleteTask = async (taskId) => {
+    try {
+      await api.delete(`/tasks/${taskId}`);
+      await refreshGraph();
+      showToast('Task deleted');
+    } catch { showToast('Failed to delete', false); }
+  };
+
+  const handleRenameTask = async (taskId, newTitle) => {
+    try {
+      await api.put(`/tasks/${taskId}`, { title: newTitle });
+      await refreshGraph();
+      showToast('Renamed');
+    } catch { showToast('Failed to rename', false); }
   };
 
   if (isLoading) return (

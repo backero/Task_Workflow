@@ -18,12 +18,13 @@ export default function Login() {
   const otpRefs = useRef([]);
   const { setAuth } = useAuthStore();
   const navigate = useNavigate();
- 
+
   useEffect(() => {
     if (resendTimer <= 0) return;
     const t = setTimeout(() => setResendTimer((r) => r - 1), 1000);
     return () => clearTimeout(t);
   }, [resendTimer]);
+
 
   const fullPhone = () => `+91${phone}`;
 
@@ -34,18 +35,11 @@ export default function Login() {
     if (phone.length !== 10) return toast.error('Enter a valid 10-digit mobile number');
     setLoading(true);
     try {
-      const res = await api.post('/auth/send-login-otp', { phone: fullPhone() });
-      const devOtp = res.data?._devOtp;
+      await api.post('/auth/send-login-otp', { phone: fullPhone() });
       setStep(2);
       setResendTimer(60);
-      if (devOtp) {
-        const digits = String(devOtp).split('');
-        setOtp(digits);
-        setTimeout(() => submitOTP(String(devOtp)), 300);
-      } else {
-        toast.success('OTP sent to your mobile!');
-        setTimeout(() => otpRefs.current[0]?.focus(), 100);
-      }
+      toast.success('OTP sent to your WhatsApp!');
+      setTimeout(() => otpRefs.current[0]?.focus(), 100);
     } catch (err) {
       if (!err.response) {
         toast.error('Cannot reach server. Make sure the backend is running on port 5000.');

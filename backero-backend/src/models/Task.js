@@ -133,6 +133,10 @@ const taskSchema = new mongoose.Schema({
 
   createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   updatedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+
+  // Archive (completed root tasks are auto-archived)
+  isArchived: { type: Boolean, default: false, index: true },
+  archivedAt: { type: Date },
 }, { timestamps: true });
 
 // Indexes for performance

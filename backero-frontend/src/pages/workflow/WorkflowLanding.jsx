@@ -1,13 +1,14 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { PlusIcon, BoltIcon, MagnifyingGlassIcon, FunnelIcon, ChevronDownIcon, TrashIcon, ExclamationTriangleIcon, SparklesIcon, UserCircleIcon, XMarkIcon, ArrowPathIcon, ArrowDownTrayIcon, CloudArrowUpIcon, DocumentArrowDownIcon, CheckCircleIcon, ClockIcon } from '@heroicons/react/24/outline';
+import { PlusIcon, BoltIcon, MagnifyingGlassIcon, FunnelIcon, ChevronDownIcon, TrashIcon, ExclamationTriangleIcon, SparklesIcon, UserCircleIcon, XMarkIcon, ArrowPathIcon, ArrowDownTrayIcon, CloudArrowUpIcon, DocumentArrowDownIcon, CheckCircleIcon, ClockIcon, ArchiveBoxIcon } from '@heroicons/react/24/outline';
 import api from '../../api/axios';
 import { useAuthStore } from '../../store/useAuthStore';
 import { useSocketStore } from '../../store/useSocketStore';
 import { format, isPast } from 'date-fns';
 import { clsx } from 'clsx';
 import CreateTaskModal from '../../components/workflow/CreateTaskModal';
+import ConfirmDialog from '../../components/common/ConfirmDialog';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -61,9 +62,31 @@ const ALL_DEPTS = ['Marketing','Marketplace','Sales','Production','R&D','Operati
 
 // ── Task Card ─────────────────────────────────────────────────────────────────
 
-function TaskCard({ task, colors }) {
-  const navigate = useNavigate();
-  const [open, setOpen] = useState(false);
+function TaskCard({ task, colors, canDelete, onDelete }) {
+  const navigate  = useNavigate();
+  const qc        = useQueryClient();
+  const [open,          setOpen]          = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [renaming,      setRenaming]      = useState(false);
+  const [renameVal,     setRenameVal]     = useState('');
+  const renameRef = React.useRef(null);
+
+  const startRename = (e) => {
+    e.stopPropagation();
+    setRenameVal(task.title);
+    setRenaming(true);
+    setTimeout(() => renameRef.current?.select(), 30);
+  };
+
+  const commitRename = async () => {
+    const val = renameVal.trim();
+    if (!val || val === task.title) { setRenaming(false); return; }
+    try {
+      await api.put(`/tasks/${task._id}`, { title: val });
+      qc.invalidateQueries({ queryKey: ['tasks', 'workflow-board'] });
+    } catch (e) { console.error(e); }
+    setRenaming(false);
+  };
 
   const due       = task.dueDate ? new Date(task.dueDate) : null;
   const isOverdue = due && isPast(due) && task.status !== 'Completed';
@@ -77,7 +100,8 @@ function TaskCard({ task, colors }) {
     : null;
 
   return (
-    <div className={clsx('bg-white rounded-xl border border-gray-200 border-l-4 shadow-sm transition-shadow hover:shadow-md', PRIORITY_BORDER[task.priority] || 'border-l-slate-300')}>
+    <>
+    <div className={clsx('group bg-white rounded-xl border border-gray-200 border-l-4 shadow-sm transition-shadow hover:shadow-md', PRIORITY_BORDER[task.priority] || 'border-l-slate-300')}>
 
       {/* ── Main task row ── */}
       <div className="flex items-start gap-2 px-3 pt-3 pb-2">
@@ -93,20 +117,53 @@ function TaskCard({ task, colors }) {
 
         {/* Content */}
         <div className="flex-1 min-w-0">
-          {/* Title + status badge */}
+          {/* Title + status badge + actions */}
           <div className="flex items-start justify-between gap-2">
-            <button
-              onClick={() => {
-                const parentId = task.parentTask;
-                // Dept tasks (have a parent) → open root project in Dept Hub view
-                navigate(parentId ? `/workflow/${parentId}?view=dept` : `/workflow/${task._id}`);
-              }}
-              className="text-xs font-semibold text-gray-900 leading-snug flex-1 text-left hover:text-brand-600 transition-colors cursor-pointer">
-              {task.title}
-            </button>
-            <span className={clsx('text-[9px] font-bold px-1.5 py-0.5 rounded-full whitespace-nowrap flex-shrink-0', STATUS_STYLE[task.status] || 'bg-gray-100 text-gray-600')}>
-              {task.status}
-            </span>
+            {renaming ? (
+              <input
+                ref={renameRef}
+                value={renameVal}
+                onChange={e => setRenameVal(e.target.value)}
+                onBlur={commitRename}
+                onKeyDown={e => { if (e.key === 'Enter') commitRename(); if (e.key === 'Escape') setRenaming(false); }}
+                onClick={e => e.stopPropagation()}
+                className="flex-1 text-xs font-semibold text-gray-900 border border-indigo-400 rounded px-1.5 py-0.5 focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-white"
+              />
+            ) : (
+              <button
+                onClick={() => {
+                  const parentId = task.parentTask;
+                  navigate(parentId ? `/workflow/${parentId}?view=dept` : `/workflow/${task._id}`);
+                }}
+                className="text-xs font-semibold text-gray-900 leading-snug flex-1 text-left hover:text-brand-600 transition-colors cursor-pointer">
+                {task.title}
+              </button>
+            )}
+            <div className="flex items-center gap-1 flex-shrink-0">
+              <span className={clsx('text-[9px] font-bold px-1.5 py-0.5 rounded-full whitespace-nowrap', STATUS_STYLE[task.status] || 'bg-gray-100 text-gray-600')}>
+                {task.status}
+              </span>
+              {canDelete && !renaming && (
+                <>
+                  <button
+                    onClick={startRename}
+                    title="Rename task"
+                    className="p-1 rounded-md bg-indigo-50 text-indigo-400 hover:bg-indigo-100 hover:text-indigo-600 transition-colors"
+                  >
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                    </svg>
+                  </button>
+                  <button
+                    onClick={e => { e.stopPropagation(); setConfirmDelete(true); }}
+                    title="Delete task"
+                    className="p-1 rounded-md bg-red-50 text-red-400 hover:bg-red-100 hover:text-red-600 transition-colors"
+                  >
+                    <TrashIcon className="w-3.5 h-3.5" />
+                  </button>
+                </>
+              )}
+            </div>
           </div>
 
           {/* Assignee + due + progress */}
@@ -194,12 +251,23 @@ function TaskCard({ task, colors }) {
         </div>
       )}
     </div>
+
+    <ConfirmDialog
+      open={confirmDelete}
+      title="Delete this task?"
+      message={`"${task.title}" and all its subtasks will be permanently deleted. This cannot be undone.`}
+      confirmLabel="Yes, Delete"
+      confirmColor="red"
+      onConfirm={() => { setConfirmDelete(false); onDelete?.(task._id, task.title); }}
+      onCancel={() => setConfirmDelete(false)}
+    />
+    </>
   );
 }
 
 // ── Department Column ─────────────────────────────────────────────────────────
 
-function DeptColumn({ dept, tasks, colors }) {
+function DeptColumn({ dept, tasks, colors, canDelete, onDelete }) {
   const completed = tasks.filter(t => t.status === 'Completed').length;
   const inProgress = tasks.filter(t => t.status === 'In Progress').length;
   const overdue = tasks.filter(t => t.dueDate && isPast(new Date(t.dueDate)) && t.status !== 'Completed').length;
@@ -231,7 +299,7 @@ function DeptColumn({ dept, tasks, colors }) {
             <p className="text-xs text-gray-400 font-medium">No tasks yet</p>
           </div>
         ) : (
-          tasks.map(task => <TaskCard key={task._id} task={task} colors={colors} />)
+          tasks.map(task => <TaskCard key={task._id} task={task} colors={colors} canDelete={canDelete} onDelete={onDelete} />)
         )}
       </div>
     </div>
@@ -877,6 +945,7 @@ export default function WorkflowLanding() {
   const [search,        setSearch]        = useState('');
   const [confirmDelAll, setConfirmDelAll] = useState(false);
   const [deletingAll,   setDeletingAll]   = useState(false);
+  const [showArchived,  setShowArchived]  = useState(false);
 
   const handleDeleteAll = async () => {
     setDeletingAll(true);
@@ -972,8 +1041,16 @@ export default function WorkflowLanding() {
     finally { setHubBusy(null); }
   };
 
+  const handleDeleteTask = async (taskId, title) => {
+    try {
+      await api.delete(`/tasks/${taskId}`);
+      qc.invalidateQueries({ queryKey: ['tasks', 'workflow-board'] });
+    } catch (e) { console.error('Delete failed', e); }
+  };
+
   const params = { limit: 200 };
   if (statusFilter) params.status = statusFilter;
+  if (showArchived) params.archived = 'true';
 
   const { data, isLoading, refetch } = useQuery({
     queryKey: ['tasks', 'workflow-board', params],
@@ -1020,6 +1097,17 @@ export default function WorkflowLanding() {
   return (
     <div className="space-y-5">
 
+      {/* ── Archived mode banner ── */}
+      {showArchived && (
+        <div className="flex items-center gap-3 px-4 py-3 bg-indigo-50 border border-indigo-200 rounded-2xl">
+          <ArchiveBoxIcon className="w-4 h-4 text-indigo-500 flex-shrink-0" />
+          <p className="text-xs font-semibold text-indigo-700 flex-1">Showing archived (completed) tasks. Active tasks are hidden.</p>
+          <button onClick={() => setShowArchived(false)} className="text-xs text-indigo-500 hover:text-indigo-700 font-semibold">
+            Back to Active
+          </button>
+        </div>
+      )}
+
       {/* ── Page header ── */}
       <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 shadow-sm px-6 py-4">
         <div className="flex items-center justify-between gap-4 flex-wrap">
@@ -1064,6 +1152,22 @@ export default function WorkflowLanding() {
                 ))}
               </select>
             </div>
+
+            {/* Archived toggle — manager/admin only */}
+            {isManagerOrAbove && (
+              <button
+                onClick={() => setShowArchived(p => !p)}
+                className={clsx(
+                  'flex items-center gap-1.5 px-3 py-2 border text-sm font-semibold rounded-xl transition-colors',
+                  showArchived
+                    ? 'bg-indigo-600 border-indigo-600 text-white'
+                    : 'border-gray-200 text-gray-500 hover:bg-gray-50',
+                )}
+              >
+                <ArchiveBoxIcon className="w-4 h-4" />
+                {showArchived ? 'Archived' : 'Archived'}
+              </button>
+            )}
 
             {/* Delete All — admin only */}
             {isAdmin && (
@@ -1314,6 +1418,8 @@ export default function WorkflowLanding() {
                 dept={dept}
                 tasks={tasksByDept[dept] || []}
                 colors={DEPT_COLORS[dept] || DEPT_COLORS.Management}
+                canDelete={isManagerOrAbove}
+                onDelete={handleDeleteTask}
               />
             ))}
           </div>

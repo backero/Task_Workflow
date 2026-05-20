@@ -460,6 +460,11 @@ const completeTask = async (req, res) => {
     task.completionLocked = false;
     task.completionLockReasons = [];
     task.updatedBy = userId;
+    // Auto-archive root tasks (no parent) when completed so the board shows only active work
+    if (!task.parentTask) {
+      task.isArchived = true;
+      task.archivedAt = new Date();
+    }
     await task.save();
 
     if (approvalId) {

@@ -5,6 +5,7 @@ import toast from 'react-hot-toast';
 import { useWorkflowStore } from '../../store/useWorkflowStore';
 import { useAuthStore } from '../../store/useAuthStore';
 import api from '../../api/axios';
+import ConfirmDialog from '../common/ConfirmDialog';
 
 const STATUS_COLORS = {
   'Pending':           'text-slate-700 bg-slate-100 border-slate-300',
@@ -29,7 +30,7 @@ const ROLE_LEVEL    = { super_admin: 7, chairman: 6, founder: 5, admin: 4, manag
 
 export default function TaskDetailPanel({ onAddSubtask }) {
   const { selectedNode, closeDetailPanel, startTask, addUpdate, requestCompletion,
-          completeTask, rejectTask, reopenTask, updateProgress: storeUpdateProgress, checkCompletion } = useWorkflowStore();
+          completeTask, rejectTask, reopenTask, updateProgress: storeUpdateProgress, checkCompletion, deleteTask } = useWorkflowStore();
   const { user } = useAuthStore();
 
   const [activeTab, setActiveTab] = useState('info');
@@ -46,6 +47,10 @@ export default function TaskDetailPanel({ onAddSubtask }) {
   // Actions state
   const [actionNotes, setActionNotes] = useState('');
   const [manualProgress, setManualProgress] = useState(0);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [renamingTitle, setRenamingTitle] = useState(false);
+  const [renameVal, setRenameVal] = useState('');
+  const titleInputRef = useRef(null);
 
   const updatesEndRef = useRef(null);
 
@@ -153,6 +158,32 @@ export default function TaskDetailPanel({ onAddSubtask }) {
     setActionNotes('');
   });
 
+  const handleDelete = async () => {
+    setConfirmDelete(false);
+    await withLoading(async () => {
+      await deleteTask(taskId);
+      closeDetailPanel();
+      toast.success('Task deleted');
+    });
+  };
+
+  const startRenameTitle = () => {
+    setRenameVal(data.title);
+    setRenamingTitle(true);
+    setTimeout(() => titleInputRef.current?.select(), 30);
+  };
+
+  const commitRenameTitle = async () => {
+    const val = renameVal.trim();
+    setRenamingTitle(false);
+    if (!val || val === data.title) return;
+    try {
+      await api.put(`/tasks/${taskId}`, { title: val });
+      await useWorkflowStore.getState().refreshGraph();
+      toast.success('Task renamed');
+    } catch { toast.error('Failed to rename'); }
+  };
+
   // ── Render ───────────────────────────────────────────────────────────────────
 
   return (
@@ -173,7 +204,31 @@ export default function TaskDetailPanel({ onAddSubtask }) {
                 <span className="text-[10px] text-amber-600 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded-full">🔒 Locked</span>
               )}
             </div>
-            <h2 className="text-sm font-bold text-gray-900 leading-snug line-clamp-2">{data.title}</h2>
+            {renamingTitle ? (
+              <input
+                ref={titleInputRef}
+                value={renameVal}
+                onChange={e => setRenameVal(e.target.value)}
+                onBlur={commitRenameTitle}
+                onKeyDown={e => { if (e.key === 'Enter') commitRenameTitle(); if (e.key === 'Escape') setRenamingTitle(false); }}
+                className="w-full text-sm font-bold text-gray-900 border border-indigo-400 rounded-lg px-2 py-1 focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-white"
+              />
+            ) : (
+              <div className="flex items-start gap-1.5">
+                <h2 className="text-sm font-bold text-gray-900 leading-snug line-clamp-2 flex-1">{data.title}</h2>
+                {isManager && (
+                  <button
+                    onClick={startRenameTitle}
+                    title="Rename task"
+                    className="flex-shrink-0 mt-0.5 p-1 rounded-lg bg-indigo-100 text-indigo-500 hover:bg-indigo-200 hover:text-indigo-700 transition-colors"
+                  >
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                    </svg>
+                  </button>
+                )}
+              </div>
+            )}
             <p className="text-[11px] text-indigo-500 font-medium mt-0.5">{data.department}</p>
           </div>
           <button onClick={closeDetailPanel} className="flex-shrink-0 w-7 h-7 flex items-center justify-center rounded-lg hover:bg-gray-100 text-gray-400 transition-colors">
@@ -541,9 +596,34 @@ export default function TaskDetailPanel({ onAddSubtask }) {
                 <p className="text-xs text-gray-400">You are not assigned to this task.</p>
               </div>
             )}
+
+            {/* ── DELETE (manager/admin only) ── */}
+            {isManager && (
+              <div className="pt-2 border-t border-gray-100">
+                <button
+                  onClick={() => setConfirmDelete(true)}
+                  className="w-full py-2 text-xs font-semibold text-red-600 border border-red-200 rounded-xl hover:bg-red-50 transition-colors flex items-center justify-center gap-1.5"
+                >
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                  </svg>
+                  Delete Task
+                </button>
+              </div>
+            )}
           </div>
         )}
       </div>
+
+      <ConfirmDialog
+        open={confirmDelete}
+        title="Delete this task?"
+        message="This will permanently delete the task and all its subtasks. This action cannot be undone."
+        confirmLabel="Yes, Delete"
+        confirmColor="red"
+        onConfirm={handleDelete}
+        onCancel={() => setConfirmDelete(false)}
+      />
     </div>
   );
 }
