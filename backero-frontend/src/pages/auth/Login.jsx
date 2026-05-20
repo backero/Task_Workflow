@@ -42,7 +42,7 @@ export default function Login() {
       setTimeout(() => otpRefs.current[0]?.focus(), 100);
     } catch (err) {
       if (!err.response) {
-        toast.error('Cannot reach server. Make sure the backend is running on port 5000.');
+        toast.error('Cannot reach server. Please check your internet connection and try again.');
       } else {
         toast.error(err.response?.data?.message || 'Failed to send OTP');
       }
@@ -103,7 +103,7 @@ export default function Login() {
       }
     } catch (err) {
       if (!err.response) {
-        toast.error('Cannot reach server. Make sure the backend is running on port 5000.');
+        toast.error('Cannot reach server. Please check your internet connection and try again.');
       } else {
         toast.error(err.response?.data?.message || 'Failed to resend OTP');
       }

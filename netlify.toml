@@ -1,0 +1,12 @@
+[build]
+  base    = "backero-frontend"
+  command = "npm run build"
+  publish = "dist"
+
+[build.environment]
+  VITE_API_URL = "https://backero-backend.onrender.com/api"
+
+[[redirects]]
+  from   = "/*"
+  to     = "/index.html"
+  status = 200
