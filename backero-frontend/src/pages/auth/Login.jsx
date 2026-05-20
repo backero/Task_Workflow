@@ -51,37 +51,16 @@ export default function Login() {
     }
   };
 
-  const handleOtpChange = (index, value) => {
-    const digits = value.replace(/\D/g, '');
-    if (!digits) return;
-    // Handle paste: distribute all digits across boxes from current index
-    if (digits.length > 1) {
-      const next = [...otp];
-      digits.split('').forEach((d, i) => {
-        if (index + i < 6) next[index + i] = d;
-      });
-      setOtp(next);
-      const focusIndex = Math.min(index + digits.length, 5);
-      otpRefs.current[focusIndex]?.focus();
-      if (next.every((d) => d)) submitOTP(next.join(''));
-      return;
-    }
-    const next = [...otp];
-    next[index] = digits;
-    setOtp(next);
-    if (index < 5) otpRefs.current[index + 1]?.focus();
-    if (index === 5 && next.every((d) => d)) submitOTP(next.join(''));
-  };
-
-  const handleOtpKeyDown = (index, e) => {
-    if (e.key === 'Backspace' && !otp[index] && index > 0) {
-      otpRefs.current[index - 1]?.focus();
-    }
+  const handleOtpInput = (value) => {
+    const digits = value.replace(/\D/g, '').slice(0, 6);
+    setOtp(digits.split('').concat(Array(6 - digits.length).fill('')));
+    if (digits.length === 6 && !loading) submitOTP(digits);
   };
 
   const submitOTP = async (code) => {
     const otpCode = code || otp.join('');
     if (otpCode.length !== 6) return toast.error('Enter the complete 6-digit OTP');
+    if (loading) return;
     setLoading(true);
     try {
       const res = await api.post('/auth/verify-login-otp', { phone: fullPhone(), otp: otpCode });
@@ -92,7 +71,7 @@ export default function Login() {
     } catch (err) {
       toast.error(err.response?.data?.message || 'Invalid OTP. Try again.');
       setOtp(['', '', '', '', '', '']);
-      setTimeout(() => otpRefs.current[0]?.focus(), 50);
+      setTimeout(() => otpRefs.current[0]?.focus(), 100);
     } finally {
       setLoading(false);
     }
@@ -296,7 +275,7 @@ export default function Login() {
                 transition={{ duration: 0.2 }}
               >
                 <button
-                  onClick={() => { setStep(1); setOtp(['', '', '', '', '', '']); }}
+                  onClick={() => { setStep(1); setOtp(['', '', '', '', '', '']); setResendTimer(0); }}
                   className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 mb-6 transition-colors"
                 >
                   <ArrowLeftIcon className="w-4 h-4" />
@@ -313,27 +292,24 @@ export default function Login() {
                   </p>
                 </div>
 
-                <div className="flex gap-2 justify-between mb-6">
-                  {otp.map((digit, i) => (
-                    <input
-                      key={i}
-                      ref={(el) => (otpRefs.current[i] = el)}
-                      type="text"
-                      inputMode="numeric"
-                      maxLength={6}
-                      autoComplete={i === 0 ? 'one-time-code' : 'off'}
-                      value={digit}
-                      onChange={(e) => handleOtpChange(i, e.target.value)}
-                      onKeyDown={(e) => handleOtpKeyDown(i, e)}
-                      className="w-11 h-13 text-center text-xl font-bold border-2 border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-200 dark:focus:ring-brand-800 transition-all"
-                      style={{ height: '3.25rem' }}
-                    />
-                  ))}
+                <div className="mb-6">
+                  <input
+                    ref={(el) => (otpRefs.current[0] = el)}
+                    type="text"
+                    inputMode="numeric"
+                    maxLength={6}
+                    autoComplete="one-time-code"
+                    value={otp.join('')}
+                    onChange={(e) => handleOtpInput(e.target.value)}
+                    placeholder="Enter 6-digit OTP"
+                    autoFocus
+                    className="input w-full text-center text-2xl font-bold tracking-[0.5em] py-3"
+                  />
                 </div>
 
                 <button
                   onClick={() => submitOTP(otp.join(''))}
-                  disabled={loading || otp.some((d) => !d)}
+                  disabled={loading || otp.join('').length !== 6}
                   className="btn-primary w-full justify-center py-2.5 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {loading ? (
