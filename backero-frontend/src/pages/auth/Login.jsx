@@ -52,12 +52,25 @@ export default function Login() {
   };
 
   const handleOtpChange = (index, value) => {
-    if (!/^\d*$/.test(value)) return;
+    const digits = value.replace(/\D/g, '');
+    if (!digits) return;
+    // Handle paste: distribute all digits across boxes from current index
+    if (digits.length > 1) {
+      const next = [...otp];
+      digits.split('').forEach((d, i) => {
+        if (index + i < 6) next[index + i] = d;
+      });
+      setOtp(next);
+      const focusIndex = Math.min(index + digits.length, 5);
+      otpRefs.current[focusIndex]?.focus();
+      if (next.every((d) => d)) submitOTP(next.join(''));
+      return;
+    }
     const next = [...otp];
-    next[index] = value.slice(-1);
+    next[index] = digits;
     setOtp(next);
-    if (value && index < 5) otpRefs.current[index + 1]?.focus();
-    if (value && index === 5 && next.every((d) => d)) submitOTP(next.join(''));
+    if (index < 5) otpRefs.current[index + 1]?.focus();
+    if (index === 5 && next.every((d) => d)) submitOTP(next.join(''));
   };
 
   const handleOtpKeyDown = (index, e) => {
@@ -307,7 +320,8 @@ export default function Login() {
                       ref={(el) => (otpRefs.current[i] = el)}
                       type="text"
                       inputMode="numeric"
-                      maxLength={1}
+                      maxLength={6}
+                      autoComplete={i === 0 ? 'one-time-code' : 'off'}
                       value={digit}
                       onChange={(e) => handleOtpChange(i, e.target.value)}
                       onKeyDown={(e) => handleOtpKeyDown(i, e)}
