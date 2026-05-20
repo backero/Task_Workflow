@@ -37,6 +37,12 @@ const workflowRoutes  = require('./src/routes/workflow.routes');
 const app = express();
 const server = http.createServer(app);
 
+// Trust Render's load balancer so req.ip = real client IP, not proxy IP
+// Without this, ALL users share the same rate-limit bucket (Render's proxy IP)
+if (process.env.NODE_ENV === 'production') {
+  app.set('trust proxy', 1);
+}
+
 // Connect to database
 connectDB();
 
@@ -85,7 +91,7 @@ app.use(cors({
 // ensures only valid users reach those endpoints.
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 min
-  max: 30,
+  max: 60,
   message: { success: false, message: 'Too many authentication attempts. Please try again later.' },
   standardHeaders: true,
   legacyHeaders: false,
