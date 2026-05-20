@@ -18,24 +18,13 @@ const initWhatsApp = async (io) => {
     let state, saveCreds;
     if (process.env.NODE_ENV === 'production') {
       const { useMongoAuthState } = require('./whatsappMongoAuth');
-      ({ state, saveCreds } = await useMongoAuthState());
+      ({ state, saveCreds } = await useMongoAuthState(baileys));
     } else {
       const sessionPath = process.env.WA_SESSION_PATH || './wa_session';
       ({ state, saveCreds } = await useMultiFileAuthState(sessionPath));
     }
 
-    // fetchLatestBaileysVersion hits GitHub — use timeout + fallback so Render doesn't hang
-    let version;
-    try {
-      const result = await Promise.race([
-        fetchLatestBaileysVersion(),
-        new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 8000)),
-      ]);
-      version = result.version;
-    } catch {
-      version = [2, 3000, 1015901307];
-      logger.info('WhatsApp: using fallback WA version');
-    }
+    const { version } = await fetchLatestBaileysVersion();
 
     const connect = async () => {
       connectionStatus = 'connecting';

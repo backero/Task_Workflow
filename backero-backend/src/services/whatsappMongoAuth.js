@@ -16,23 +16,28 @@ const waitForMongoose = () => new Promise((resolve, reject) => {
   mongoose.connection.once('error', (err) => { clearTimeout(timeout); reject(err); });
 });
 
-const useMongoAuthState = async () => {
+const useMongoAuthState = async (baileys) => {
   await waitForMongoose();
 
+  const { initAuthCreds, BufferJSON } = baileys;
+
   const writeData = async (key, data) => {
-    await WASession.findByIdAndUpdate(key, { data }, { upsert: true });
+    const serialized = JSON.parse(JSON.stringify(data, BufferJSON.replacer));
+    await WASession.findByIdAndUpdate(key, { data: serialized }, { upsert: true });
   };
 
   const readData = async (key) => {
     const doc = await WASession.findById(key).lean();
-    return doc?.data ?? null;
+    if (!doc?.data) return null;
+    return JSON.parse(JSON.stringify(doc.data), BufferJSON.reviver);
   };
 
   const removeData = async (key) => {
     await WASession.deleteOne({ _id: key });
   };
 
-  const creds = await readData('creds') || {};
+  // Use initAuthCreds() on first run so Baileys has properly initialized noise/curve keys
+  const creds = await readData('creds') || initAuthCreds();
 
   const state = {
     creds,
