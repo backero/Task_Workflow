@@ -8,7 +8,17 @@ const sessionSchema = new mongoose.Schema({
 
 const WASession = mongoose.models.WASession || mongoose.model('WASession', sessionSchema);
 
+// Wait for mongoose to be connected before querying — connectDB() is not awaited in server.js
+const waitForMongoose = () => new Promise((resolve, reject) => {
+  if (mongoose.connection.readyState === 1) return resolve();
+  const timeout = setTimeout(() => reject(new Error('MongoDB connection timeout after 30s')), 30000);
+  mongoose.connection.once('connected', () => { clearTimeout(timeout); resolve(); });
+  mongoose.connection.once('error', (err) => { clearTimeout(timeout); reject(err); });
+});
+
 const useMongoAuthState = async () => {
+  await waitForMongoose();
+
   const writeData = async (key, data) => {
     await WASession.findByIdAndUpdate(key, { data }, { upsert: true });
   };
