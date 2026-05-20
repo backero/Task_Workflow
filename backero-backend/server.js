@@ -120,6 +120,8 @@ app.get('/health', (req, res) => {
     db: dbStatus,
     timestamp: new Date().toISOString(),
     env: process.env.NODE_ENV,
+    jwt_secret: process.env.JWT_SECRET ? 'set' : 'MISSING',
+    jwt_refresh: process.env.JWT_REFRESH_SECRET ? 'set' : 'MISSING',
   });
 });
 
