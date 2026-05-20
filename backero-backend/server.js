@@ -56,6 +56,7 @@ const allowedOrigins = [
   'http://localhost:5175',
   'http://localhost:3000',
   'https://resplendent-shortbread-91ee46.netlify.app',
+  'https://backero-worktaskflow.netlify.app',
   ...(process.env.FRONTEND_URL ? [process.env.FRONTEND_URL] : []),
 ];
 
@@ -69,7 +70,7 @@ app.use(cors({
       return callback(null, true);
     }
     // Allow Netlify preview deploys for the same site (branch/deploy previews)
-    if (/^https:\/\/[a-z0-9]+-resplendent-shortbread-91ee46\.netlify\.app$/.test(origin)) {
+    if (/^https:\/\/[a-z0-9-]+--(resplendent-shortbread-91ee46|backero-worktaskflow)\.netlify\.app$/.test(origin)) {
       return callback(null, true);
     }
     callback(new Error(`CORS: origin ${origin} not allowed`));
