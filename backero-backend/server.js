@@ -33,6 +33,7 @@ const marketingRoutes = require('./src/routes/marketing.routes');
 const marketplaceRoutes = require('./src/routes/marketplace.routes');
 const whatsappRoutes  = require('./src/routes/whatsapp.routes');
 const workflowRoutes  = require('./src/routes/workflow.routes');
+const chatRoutes      = require('./src/routes/chat.routes');
 
 const app = express();
 const server = http.createServer(app);
@@ -154,6 +155,7 @@ app.use('/api/marketing', marketingRoutes);
 app.use('/api/marketplace', marketplaceRoutes);
 app.use('/api/whatsapp',  whatsappRoutes);
 app.use('/api/workflow', workflowRoutes);
+app.use('/api/help',    chatRoutes);
 
 // 404 handler
 app.use('*', (req, res) => {
