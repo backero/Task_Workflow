@@ -263,3 +263,20 @@ exports.getAnalytics = asyncHandler(async (req, res) => {
     },
   });
 });
+
+exports.deleteLead = asyncHandler(async (req, res) => {
+  const lead = await Lead.findOne({ _id: req.params.id, organizationId: req.user.organizationId });
+  if (!lead) return sendError(res, 'Lead not found.', 404);
+
+  await lead.deleteOne();
+
+  await ActivityLog.create({
+    organizationId: req.user.organizationId,
+    performedBy: req.user._id,
+    action: 'lead_deleted',
+    module: 'crm',
+    reference: { model: 'Lead', id: lead._id, title: lead.name },
+  });
+
+  sendSuccess(res, {}, 'Lead deleted');
+});

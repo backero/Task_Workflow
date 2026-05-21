@@ -39,4 +39,14 @@ router.get('/unread-count', asyncHandler(async (req, res) => {
   sendSuccess(res, { count });
 }));
 
+router.delete('/:id', asyncHandler(async (req, res) => {
+  await Notification.findOneAndDelete({ _id: req.params.id, recipient: req.user._id, organizationId: req.user.organizationId });
+  sendSuccess(res, {}, 'Notification deleted');
+}));
+
+router.delete('/', asyncHandler(async (req, res) => {
+  await Notification.deleteMany({ recipient: req.user._id, organizationId: req.user.organizationId });
+  sendSuccess(res, {}, 'All notifications cleared');
+}));
+
 module.exports = router;

@@ -29,6 +29,7 @@ router.get('/products', ctrl.getProducts);
 router.post('/products', ctrl.createProduct);
 router.get('/products/:id', ctrl.getProduct);
 router.put('/products/:id', ctrl.updateProduct);
+router.delete('/products/:id', authorizeAdminOrAbove, ctrl.deleteProduct);
 router.get('/movements', ctrl.getMovements);
 router.get('/alerts', ctrl.getLowStockAlerts);
 router.get('/analytics', ctrl.getAnalytics);

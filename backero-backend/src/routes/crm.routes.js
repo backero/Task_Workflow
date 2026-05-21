@@ -95,5 +95,6 @@ router.put('/leads/:id', ctrl.updateLead);
 router.post('/leads/:id/followup', ctrl.addFollowUp);
 router.post('/leads/:id/assign', ctrl.assignLead);
 router.post('/leads/:id/convert-to-task', ctrl.convertToTask);
+router.delete('/leads/:id', ctrl.deleteLead);
 
 module.exports = router;

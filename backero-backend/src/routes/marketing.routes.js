@@ -53,6 +53,12 @@ router.patch('/campaigns/:id/metrics', asyncHandler(async (req, res) => {
   sendSuccess(res, { campaign }, 'Metrics updated');
 }));
 
+router.delete('/campaigns/:id', asyncHandler(async (req, res) => {
+  const campaign = await Campaign.findOneAndDelete({ _id: req.params.id, organizationId: req.user.organizationId });
+  if (!campaign) return sendError(res, 'Campaign not found.', 404);
+  sendSuccess(res, {}, 'Campaign deleted');
+}));
+
 router.get('/analytics', asyncHandler(async (req, res) => {
   const orgId = req.user.organizationId;
   const [statusStats, platformStats] = await Promise.all([

@@ -231,3 +231,20 @@ exports.getAnalytics = asyncHandler(async (req, res) => {
 
   sendSuccess(res, { analytics: { totalProducts, lowStockCount, categoryBreakdown, totalInventoryValue: stockValue[0]?.totalValue || 0 } });
 });
+
+exports.deleteProduct = asyncHandler(async (req, res) => {
+  const product = await Product.findOne({ _id: req.params.id, organizationId: req.user.organizationId });
+  if (!product) return sendError(res, 'Product not found.', 404);
+
+  await product.deleteOne();
+
+  await ActivityLog.create({
+    organizationId: req.user.organizationId,
+    performedBy: req.user._id,
+    action: 'product_deleted',
+    module: 'inventory',
+    reference: { model: 'Product', id: product._id, title: product.name },
+  });
+
+  sendSuccess(res, {}, 'Product deleted');
+});

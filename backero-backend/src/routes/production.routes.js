@@ -136,6 +136,16 @@ router.post('/:id/quality-check', asyncHandler(async (req, res) => {
   sendSuccess(res, { order }, 'Quality check added');
 }));
 
+// DELETE production order (admin only, only if not completed)
+router.delete('/:id', asyncHandler(async (req, res) => {
+  const order = await ProductionOrder.findOne({ _id: req.params.id, organizationId: req.user.organizationId });
+  if (!order) return sendError(res, 'Production order not found.', 404);
+  if (order.status === 'completed') return sendError(res, 'Cannot delete a completed production order.', 400);
+
+  await order.deleteOne();
+  sendSuccess(res, {}, 'Production order deleted');
+}));
+
 // GET analytics
 router.get('/stats/overview', asyncHandler(async (req, res) => {
   const orgId = req.user.organizationId;

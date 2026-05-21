@@ -27,4 +27,10 @@ router.put('/:id', authorizeAdminOrAbove, asyncHandler(async (req, res) => {
   sendSuccess(res, { department: dept }, 'Department updated');
 }));
 
+router.delete('/:id', authorizeAdminOrAbove, asyncHandler(async (req, res) => {
+  const dept = await Department.findOneAndDelete({ _id: req.params.id, organizationId: req.user.organizationId });
+  if (!dept) return sendError(res, 'Department not found.', 404);
+  sendSuccess(res, {}, 'Department deleted');
+}));
+
 module.exports = router;
