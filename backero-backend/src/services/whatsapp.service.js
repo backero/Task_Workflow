@@ -120,7 +120,10 @@ const fmtDate = (d) => d ? new Date(d).toLocaleDateString('en-IN', { day: '2-dig
 const PRIORITY_EMOJI = { critical: '🔴', urgent: '🟠', high: '🟡', medium: '🔵', low: '⚪' };
 
 // 1. Task Assigned → send to employee
-const sendTaskAssigned = async (phone, { title, assignedByName, priority, department, dueDate, description }) => {
+const APP_URL = process.env.APP_URL || 'https://backero-worktaskflow.netlify.app';
+
+const sendTaskAssigned = async (phone, { title, assignedByName, priority, department, dueDate, description, taskId }) => {
+  const link = taskId ? `${APP_URL}/tasks/${taskId}` : APP_URL;
   const msg =
     `🎯 *New Task Assigned — Backero*\n\n` +
     `📌 *Task:* ${title}\n` +
@@ -129,13 +132,14 @@ const sendTaskAssigned = async (phone, { title, assignedByName, priority, depart
     `🏢 *Department:* ${department || '—'}\n` +
     `📅 *Due Date:* ${fmtDate(dueDate)}\n` +
     (description ? `📝 *Note:* ${description.substring(0, 100)}${description.length > 100 ? '...' : ''}\n` : '') +
-    `\nLogin to Backero to view details and update your progress.\n` +
+    `\n🔗 *View Task:* ${link}\n` +
     `\n_Reply with your update when work starts_`;
   return sendMessage(phone, msg);
 };
 
 // 2. Task Overdue → employee
-const sendTaskOverdueEmployee = async (phone, { title, assignedByName, dueDate, overdueCount }) => {
+const sendTaskOverdueEmployee = async (phone, { title, assignedByName, dueDate, overdueCount, taskId }) => {
+  const link = taskId ? `${APP_URL}/tasks/${taskId}` : APP_URL;
   const msg =
     `⚠️ *TASK OVERDUE — Backero Alert*\n\n` +
     `📌 *Task:* ${title}\n` +
@@ -143,12 +147,14 @@ const sendTaskOverdueEmployee = async (phone, { title, assignedByName, dueDate, 
     `👤 *Assigned by:* ${assignedByName || '—'}\n` +
     (overdueCount > 1 ? `🔁 *Reminder #${overdueCount}*\n` : '') +
     `\n⚡ Your task is overdue! Please update your progress immediately or raise a completion request.\n` +
+    `\n🔗 *Take Action:* ${link}\n` +
     `\n_Login to Backero to take action_`;
   return sendMessage(phone, msg);
 };
 
 // 3. Task Overdue → manager / admin
-const sendTaskOverdueManager = async (phone, { title, employeeName, department, dueDate, priority }) => {
+const sendTaskOverdueManager = async (phone, { title, employeeName, department, dueDate, priority, taskId }) => {
+  const link = taskId ? `${APP_URL}/tasks/${taskId}` : `${APP_URL}/tasks/my`;
   const msg =
     `🚨 *TEAM TASK OVERDUE — Backero*\n\n` +
     `📌 *Task:* ${title}\n` +
@@ -157,6 +163,7 @@ const sendTaskOverdueManager = async (phone, { title, employeeName, department, 
     `${PRIORITY_EMOJI[priority] || '🔵'} *Priority:* ${(priority || 'medium').toUpperCase()}\n` +
     `📅 *Was Due:* ${fmtDate(dueDate)}\n` +
     `\n⚡ Action required: Please follow up with ${employeeName} immediately.\n` +
+    `\n🔗 *Review:* ${link}\n` +
     `\n_Login to Backero → Team Tasks to review_`;
   return sendMessage(phone, msg);
 };

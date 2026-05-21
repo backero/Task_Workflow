@@ -231,6 +231,7 @@ exports.createTask = asyncHandler(async (req, res) => {
           department,
           dueDate,
           description,
+          taskId: task._id,
         }).catch(() => {});
       }
     }
