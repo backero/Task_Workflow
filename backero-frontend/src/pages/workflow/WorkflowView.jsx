@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import WorkflowTree from '../../components/workflow/WorkflowTree';
 import { useWorkflowStore } from '../../store/useWorkflowStore';
@@ -38,8 +38,12 @@ export default function WorkflowView() {
   const { taskId } = useParams();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { rootTask, isLoading, graph } = useWorkflowStore();
+  const { rootTask, isLoading, graph, fetchWorkflowGraph } = useWorkflowStore();
   const [view, setView] = useState(searchParams.get('view') === 'dept' ? 'dept' : 'workflow');
+
+  useEffect(() => {
+    if (taskId) fetchWorkflowGraph(taskId);
+  }, [taskId]);
 
   const totalNodes = graph.nodes?.length || 0;
   const completedNodes = graph.nodes?.filter(n => n.data?.status === 'Completed').length || 0;
@@ -415,7 +419,7 @@ function DeptTaskNode({ node, depth = 0, canEdit, onStatusChange, onAddSubtask, 
 }
 
 // ── Dept column ───────────────────────────────────────────────────────────────
-function DeptHubColumn({ dept, nodes, cfg, canEdit, onAddTask, onStatusChange, onAddSubtask }) {
+function DeptHubColumn({ dept, nodes, cfg, canEdit, onAddTask, onStatusChange, onAddSubtask, onDelete, onRename }) {
   const [addingTask, setAddingTask] = useState(false);
 
   const allProg = nodes.reduce((acc, n) => {
@@ -466,7 +470,7 @@ function DeptHubColumn({ dept, nodes, cfg, canEdit, onAddTask, onStatusChange, o
       <div className="flex-1 p-3 space-y-2 overflow-y-auto max-h-[400px] bg-white">
         {nodes.map(n => (
           <DeptTaskNode key={n._id} node={n} depth={0}
-            canEdit={canEdit} onStatusChange={onStatusChange} onAddSubtask={onAddSubtask} onDelete={handleDeleteTask} onRename={handleRenameTask} />
+            canEdit={canEdit} onStatusChange={onStatusChange} onAddSubtask={onAddSubtask} onDelete={onDelete} onRename={onRename} />
         ))}
         {nodes.length === 0 && <p className="text-xs text-gray-400 italic text-center py-4">No tasks yet</p>}
 
@@ -686,6 +690,8 @@ function DeptHubView() {
                 onAddTask={handleAddTask}
                 onStatusChange={handleStatusChange}
                 onAddSubtask={handleAddSubtask}
+                onDelete={handleDeleteTask}
+                onRename={handleRenameTask}
               />
             );
           })}

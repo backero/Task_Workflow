@@ -239,4 +239,38 @@ router.post('/plans/:platform/import', upload.single('file'), asyncHandler(async
   sendSuccess(res, { message: `${platform} plan imported — ${weeks.length} weeks loaded`, weeks: weeks.length });
 }));
 
+// POST /marketplace/plans/:platform/import-json — accept parsed JSON weeks from HTML template
+router.post('/plans/:platform/import-json', asyncHandler(async (req, res) => {
+  const { weeks } = req.body;
+  if (!weeks || !Array.isArray(weeks) || weeks.length === 0)
+    return res.status(400).json({ success: false, message: 'No weeks data provided' });
+
+  const VALID_DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  const cleaned = weeks.map(w => ({
+    week:      parseInt(w.week) || 0,
+    name:      String(w.name  || '').trim().toUpperCase(),
+    focus:     String(w.focus || '').trim(),
+    mustNonNeg: String(w.mustNonNeg || '').trim(),
+    specific: VALID_DAYS.reduce((acc, d) => {
+      acc[d] = (w.specific?.[d] || []).map((t, i) => ({
+        id:   t.id || `imp_${w.week}_${d}_${i + 1}`,
+        text: String(t.text || '').trim(),
+        note: String(t.note || '').trim(),
+      })).filter(t => t.text);
+      return acc;
+    }, {}),
+  })).filter(w => w.week > 0);
+
+  if (cleaned.length === 0)
+    return res.status(400).json({ success: false, message: 'No valid week data found in submitted plan' });
+
+  await MarketplacePlan.findOneAndUpdate(
+    { organizationId: req.user.organizationId, platform: req.params.platform },
+    { weeks: cleaned, importedBy: req.user._id },
+    { upsert: true, new: true, setDefaultsOnInsert: true }
+  );
+
+  sendSuccess(res, { message: `${req.params.platform} plan imported — ${cleaned.length} weeks loaded`, weeks: cleaned.length });
+}));
+
 module.exports = router;

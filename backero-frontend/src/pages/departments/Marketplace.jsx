@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { format, startOfWeek, addDays } from 'date-fns';
+import { format } from 'date-fns';
 import { clsx } from 'clsx';
 import api from '../../api/axios';
 import toast from 'react-hot-toast';
@@ -1083,14 +1083,6 @@ const PLATFORM_PLAN_CONFIG = {
   },
 };
 
-function getWeekDays() {
-  const monday = startOfWeek(new Date(), { weekStartsOn: 1 });
-  return Array.from({ length: 7 }, (_, i) => {
-    const d = addDays(monday, i);
-    return { label: format(d, 'EEE'), date: format(d, 'yyyy-MM-dd') };
-  });
-}
-
 function groupByPlatform(tasks) {
   const map = {};
   PLATFORMS.forEach(p => { map[p] = []; });
@@ -1211,58 +1203,14 @@ function TaskRow({ task, navigate }) {
   );
 }
 
-function WeekBar({ label, value, maxVal, isToday }) {
-  const pct = maxVal > 0 ? Math.min((value / maxVal) * 100, 100) : 0;
-  return (
-    <div className="flex items-center gap-3">
-      <span className={clsx('text-xs font-semibold w-8 flex-shrink-0', isToday ? 'text-orange-600' : 'text-gray-500')}>{label}</span>
-      <div className="flex-1 bg-gray-100 rounded-full h-4 overflow-hidden relative">
-        <div className="h-full rounded-full transition-all duration-700" style={{ width: `${pct}%`, background: 'linear-gradient(90deg,#f97316,#fb923c)' }} />
-        {value > 0 && <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] font-bold text-gray-700">{value}%</span>}
-      </div>
-      <span className={clsx('text-xs font-bold w-8 text-right', value > 0 ? 'text-orange-600' : 'text-gray-300')}>{value}%</span>
-    </div>
-  );
-}
 
 // ── Overview Tab ──────────────────────────────────────────────────────────────
 
 function OverviewTab({ allTasks, tasksLoading, navigate }) {
   const [activePlatform, setActivePlatform] = useState(null);
-  const [form, setForm]     = useState({ totalSales: '', ctr: '', cvr: '', adSpend: '', adRevenue: '', returns: '', worstSkuCvr: '', notes: '' });
-  const [formSaved, setFormSaved] = useState(false);
-  const queryClient = useQueryClient();
-
-  const { data: todayEntry } = useQuery({ queryKey: ['marketplace', 'daily', 'today'], queryFn: () => api.get('/marketplace/daily/today').then(r => r.data.entry) });
-  const { data: weekData }   = useQuery({ queryKey: ['marketplace', 'daily', 'week'],  queryFn: () => api.get('/marketplace/daily/week').then(r => r.data), refetchInterval: 5 * 60 * 1000 });
-
-  useEffect(() => {
-    if (todayEntry) {
-      setForm({ totalSales: todayEntry.totalSales ?? '', ctr: todayEntry.ctr ?? '', cvr: todayEntry.cvr ?? '', adSpend: todayEntry.adSpend ?? '', adRevenue: todayEntry.adRevenue ?? '', returns: todayEntry.returns ?? '', worstSkuCvr: todayEntry.worstSkuCvr ?? '', notes: todayEntry.notes || '' });
-      setFormSaved(true);
-    }
-  }, [todayEntry]);
-
-  const saveMutation = useMutation({
-    mutationFn: (data) => api.post('/marketplace/daily', data).then(r => r.data),
-    onSuccess: () => {
-      toast.success('Numbers saved!');
-      setFormSaved(true);
-      queryClient.invalidateQueries({ queryKey: ['marketplace', 'daily'] });
-      queryClient.refetchQueries({ queryKey: ['marketplace', 'daily', 'week'] });
-    },
-    onError: () => toast.error('Failed to save'),
-  });
 
   const byPlatform   = useMemo(() => groupByPlatform(allTasks), [allTasks]);
   const displayTasks = activePlatform ? byPlatform[activePlatform] || [] : allTasks;
-  const weekDays     = getWeekDays();
-  const weekEntries  = weekData?.entries || [];
-  const entryByDate  = Object.fromEntries(weekEntries.map(e => [format(new Date(e.date), 'yyyy-MM-dd'), e]));
-  const weekBars     = weekDays.map(d => ({ label: d.label, value: entryByDate[d.date] ? Number(entryByDate[d.date].cvr) : 0, isToday: d.date === format(new Date(), 'yyyy-MM-dd') }));
-  const maxCvr       = Math.max(...weekBars.map(b => b.value), 1);
-  const roas         = form.adSpend > 0 ? (Number(form.adRevenue) / Number(form.adSpend)).toFixed(2) : null;
-  const netRev       = (form.adRevenue && form.adSpend) ? Number(form.adRevenue) - Number(form.adSpend) : null;
 
   return (
     <div className="space-y-5">
@@ -1286,6 +1234,7 @@ function OverviewTab({ allTasks, tasksLoading, navigate }) {
         {PLATFORMS.map(p => <PlatformCard key={p} name={p} tasks={byPlatform[p]} active={activePlatform === p} onSelect={setActivePlatform} />)}
       </div>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+        {/* Task list */}
         <div className="bg-white rounded-2xl border border-gray-200 p-5">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
@@ -1303,58 +1252,59 @@ function OverviewTab({ allTasks, tasksLoading, navigate }) {
             <div className="space-y-1.5 max-h-80 overflow-y-auto">{displayTasks.map(task => <TaskRow key={task._id} task={task} navigate={navigate} />)}</div>
           )}
         </div>
-        <div className="space-y-5">
-          <div className="bg-white rounded-2xl border border-gray-200 p-5">
-            <div className="flex items-center gap-2 mb-4">
-              <span className="text-lg">📊</span>
-              <h3 className="font-bold text-gray-900 text-sm">Today's Numbers</h3>
-              {formSaved && <span className="ml-auto text-xs text-green-600 font-semibold flex items-center gap-1"><CheckCircleIcon className="w-3.5 h-3.5" /> Saved</span>}
+
+        {/* Platform task breakdown */}
+        <div className="bg-white rounded-2xl border border-gray-200 p-5">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <ChartBarIcon className="w-4 h-4 text-orange-500" />
+              <h3 className="font-bold text-gray-900 text-sm">Platform Task Breakdown</h3>
             </div>
-            <form onSubmit={e => { e.preventDefault(); saveMutation.mutate(form); }} className="space-y-3">
-              <div className="grid grid-cols-2 gap-2">
-                {[
-                  { key: 'totalSales', label: 'Sales Today',   placeholder: '5' },
-                  { key: 'ctr',        label: 'CTR %',         placeholder: '1.12' },
-                  { key: 'cvr',        label: 'CVR %',         placeholder: '3.90' },
-                  { key: 'returns',    label: 'Returns',       placeholder: '0' },
-                  { key: 'adSpend',    label: 'Ad Spend ₹',   placeholder: '100' },
-                  { key: 'adRevenue',  label: 'Ad Revenue ₹', placeholder: '350' },
-                ].map(({ key, label, placeholder }) => (
-                  <div key={key}>
-                    <label className="text-[10px] font-semibold text-gray-500 block mb-1">{label}</label>
-                    <input type="number" min="0" step="0.01" placeholder={placeholder} value={form[key]}
-                      onChange={e => { setForm(f => ({ ...f, [key]: e.target.value })); setFormSaved(false); }}
-                      className="w-full text-sm border border-gray-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-orange-400" />
-                  </div>
-                ))}
-              </div>
-              {(roas || netRev !== null) && (
-                <div className="flex gap-3 p-2.5 bg-orange-50 rounded-xl text-xs">
-                  {roas && <div className="flex-1 text-center"><p className="text-gray-500">ROAS</p><p className="font-bold text-orange-700 text-base">{roas}×</p></div>}
-                  {netRev !== null && <div className="flex-1 text-center border-l border-orange-100"><p className="text-gray-500">Net Revenue</p><p className={clsx('font-bold text-base', netRev >= 0 ? 'text-green-600' : 'text-red-600')}>₹{Math.abs(netRev).toLocaleString()}</p></div>}
-                </div>
-              )}
-              <button type="submit" disabled={saveMutation.isPending}
-                className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-bold text-white"
-                style={{ background: saveMutation.isPending ? '#fdba74' : '#f97316' }}>
-                {saveMutation.isPending ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : '💾'}
-                {saveMutation.isPending ? 'Saving…' : 'Save Numbers'}
-              </button>
-            </form>
+            <button
+              onClick={() => navigate('/workflow')}
+              className="flex items-center gap-1.5 text-xs font-semibold text-orange-600 hover:text-orange-700 px-2.5 py-1.5 rounded-lg hover:bg-orange-50 transition-colors border border-orange-200"
+            >
+              <BoltIcon className="w-3.5 h-3.5" />
+              Assign in Workflow Builder
+            </button>
           </div>
-          <div className="bg-white rounded-2xl border border-gray-200 p-5">
-            <div className="flex items-center gap-2 mb-4">
-              <span className="text-lg">📈</span>
-              <h3 className="font-bold text-gray-900 text-sm">This Week's CVR</h3>
-            </div>
-            <div className="space-y-2.5">{weekBars.map(b => <WeekBar key={b.label} label={b.label} value={b.value} maxVal={maxCvr} isToday={b.isToday} />)}</div>
-            {weekEntries.length > 0 && (
-              <div className="mt-4 pt-3 border-t border-gray-100 grid grid-cols-3 gap-2 text-center">
-                <div><p className="text-[10px] text-gray-400">Avg CVR</p><p className="text-sm font-bold text-orange-600">{(weekEntries.reduce((s, e) => s + e.cvr, 0) / weekEntries.length).toFixed(2)}%</p></div>
-                <div><p className="text-[10px] text-gray-400">Total Sales</p><p className="text-sm font-bold text-gray-800">{weekEntries.reduce((s, e) => s + e.totalSales, 0)}</p></div>
-                <div><p className="text-[10px] text-gray-400">Returns</p><p className="text-sm font-bold text-red-600">{weekEntries.reduce((s, e) => s + e.returns, 0)}</p></div>
-              </div>
-            )}
+          <div className="space-y-2.5">
+            {PLATFORMS.map(p => {
+              const tasks    = byPlatform[p] || [];
+              const total    = tasks.length;
+              const done     = tasks.filter(t => t.status === 'Completed').length;
+              const active   = tasks.filter(t => t.status === 'In Progress').length;
+              const overdue  = tasks.filter(t => t.isOverdue && t.status !== 'Completed').length;
+              const pct      = total > 0 ? Math.round((done / total) * 100) : 0;
+              const meta     = PLATFORM_META[p];
+              const selected = activePlatform === p;
+              return (
+                <div key={p}
+                  onClick={() => setActivePlatform(selected ? null : p)}
+                  className={clsx('p-3 rounded-xl border cursor-pointer transition-all hover:shadow-sm', selected ? 'border-2' : 'border-gray-100 hover:border-gray-200 bg-gray-50/60')}
+                  style={selected ? { borderColor: meta.color, background: meta.bg } : {}}
+                >
+                  <div className="flex items-center gap-2 mb-2">
+                    <div className="w-6 h-6 rounded-lg flex items-center justify-center text-white text-[9px] font-black flex-shrink-0" style={{ background: meta.color }}>{meta.initial}</div>
+                    <span className="text-xs font-bold text-gray-800 flex-1">{p}</span>
+                    {overdue > 0
+                      ? <span className="text-[9px] font-bold text-red-600 bg-red-50 border border-red-100 px-1.5 py-0.5 rounded-full">{overdue} overdue</span>
+                      : <span className="text-[9px] text-gray-400 font-medium">{total} task{total !== 1 ? 's' : ''}</span>}
+                  </div>
+                  <div className="flex items-center gap-2 mb-1.5">
+                    <div className="flex-1 bg-gray-200 rounded-full h-2 overflow-hidden">
+                      <div className="h-full rounded-full transition-all duration-500" style={{ width: `${pct}%`, background: pct === 100 ? '#22c55e' : meta.color }} />
+                    </div>
+                    <span className="text-xs font-bold w-8 text-right" style={{ color: pct === 100 ? '#16a34a' : meta.text }}>{pct}%</span>
+                  </div>
+                  <div className="flex gap-3 text-[10px]">
+                    <span className="text-green-600 font-semibold">✓ {done} done</span>
+                    {active > 0 && <span className="text-yellow-600 font-semibold">↻ {active} active</span>}
+                    {total === 0 && <span className="text-gray-400">No tasks assigned yet</span>}
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </div>
       </div>
@@ -1407,33 +1357,125 @@ function PlanTab({ platform = 'Amazon' }) {
   const handleImport = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const fd = new FormData();
-    fd.append('file', file);
+    e.target.value = '';
+    if (!file.name.match(/\.html?$/i)) { toast.error('Please upload the .html template file'); return; }
     setImporting(true);
     try {
-      await api.post(`/marketplace/plans/${platform}/import`, fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+      const text = await file.text();
+      const doc  = new DOMParser().parseFromString(text, 'text/html');
+      const VALID_DAYS = ['Mon','Tue','Wed','Thu','Fri','Sat'];
+      const weeksMap = {};
+      doc.querySelectorAll('tr[data-week][data-day]').forEach(row => {
+        const wn  = parseInt(row.getAttribute('data-week'));
+        const day = row.getAttribute('data-day');
+        if (!VALID_DAYS.includes(day)) return;
+        const taskText = row.querySelector('[data-field="task"]')?.textContent?.trim() || '';
+        const noteText = row.querySelector('[data-field="note"]')?.textContent?.trim() || '';
+        if (!taskText) return;
+        if (!weeksMap[wn]) {
+          weeksMap[wn] = {
+            week: wn,
+            name: (doc.querySelector(`[data-week-name="${wn}"]`)?.textContent?.trim() || '').toUpperCase(),
+            focus: doc.querySelector(`[data-week-focus="${wn}"]`)?.textContent?.trim() || '',
+            mustNonNeg: doc.querySelector(`[data-week-nonneg="${wn}"]`)?.textContent?.trim() || '',
+            specific: { Mon:[], Tue:[], Wed:[], Thu:[], Fri:[], Sat:[] },
+          };
+        }
+        const list = weeksMap[wn].specific[day];
+        list.push({ id: `imp_${wn}_${day}_${list.length + 1}`, text: taskText, note: noteText });
+      });
+      const weeks = Object.values(weeksMap).sort((a, b) => a.week - b.week);
+      if (!weeks.length) { toast.error('No tasks found. Make sure you used the downloaded template.'); return; }
+      await api.post(`/marketplace/plans/${platform}/import-json`, { weeks });
       await queryClient.invalidateQueries(['mkt-plan', platform]);
-      toast.success(`${platform} plan imported!`);
+      toast.success(`${platform} plan imported — ${weeks.length} weeks loaded`);
     } catch (err) {
       toast.error(err?.response?.data?.message || 'Import failed');
     } finally {
       setImporting(false);
-      e.target.value = '';
     }
   };
 
-  const downloadTemplate = async () => {
-    try {
-      const res = await api.get(`/marketplace/plans/${platform}/template`, { responseType: 'blob' });
-      const url = URL.createObjectURL(res.data);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `${platform.toLowerCase()}-plan-template.xlsx`;
-      a.click();
-      URL.revokeObjectURL(url);
-    } catch {
-      toast.error('Template download failed');
-    }
+  const downloadTemplate = () => {
+    const DAYS = ['Mon','Tue','Wed','Thu','Fri','Sat'];
+    const color = platColor;
+    const weeks = weekData;
+    let tableRows = '';
+    weeks.forEach(w => {
+      tableRows += `
+        <tr style="background:${color};color:#fff">
+          <td colspan="3" style="padding:10px 12px;font-size:14px;font-weight:bold">
+            Week ${w.n} — <span contenteditable="true" data-week-name="${w.n}" style="background:rgba(255,255,255,0.15);padding:1px 6px;border-radius:4px">${w.title}</span>
+          </td>
+        </tr>
+        <tr style="background:#fef9c3">
+          <td colspan="3" style="padding:6px 12px;font-size:11px;color:#854d0e">
+            Focus: <span contenteditable="true" data-week-focus="${w.n}" style="background:rgba(0,0,0,0.04);padding:1px 4px;border-radius:3px">${w.desc || ''}</span>
+          </td>
+        </tr>
+        <tr style="background:#fef2f2">
+          <td colspan="3" style="padding:6px 12px;font-size:11px;color:#991b1b">
+            ⚡ Non-Negotiable: <span contenteditable="true" data-week-nonneg="${w.n}" style="background:rgba(0,0,0,0.04);padding:1px 4px;border-radius:3px">${w.nonNeg || ''}</span>
+          </td>
+        </tr>
+        <tr style="background:#f9fafb">
+          <th style="width:52px;padding:6px 10px;border:1px solid #d1d5db;font-size:11px">Day</th>
+          <th style="padding:6px 10px;border:1px solid #d1d5db;font-size:11px;width:60%">Task <span style="font-weight:normal;color:#9ca3af">(click to edit)</span></th>
+          <th style="padding:6px 10px;border:1px solid #d1d5db;font-size:11px">Note</th>
+        </tr>`;
+      DAYS.forEach(day => {
+        const tasks = w.ws?.[day] || [];
+        const rows = [...tasks, { text: '', note: '' }, { text: '', note: '' }];
+        rows.forEach(t => {
+          tableRows += `
+        <tr data-week="${w.n}" data-day="${day}">
+          <td style="padding:6px 10px;border:1px solid #e5e7eb;font-weight:600;font-size:11px;color:#6b7280;background:#fafafa">${day}</td>
+          <td contenteditable="true" data-field="task" data-placeholder="Enter task…" style="padding:6px 10px;border:1px solid #e5e7eb;font-size:12px;min-width:280px;outline:none" onfocus="this.style.background='#eff6ff'" onblur="this.style.background=''">${t.text || ''}</td>
+          <td contenteditable="true" data-field="note" style="padding:6px 10px;border:1px solid #e5e7eb;font-size:11px;color:#6b7280;outline:none" onfocus="this.style.background='#eff6ff'" onblur="this.style.background=''">${t.note || ''}</td>
+        </tr>`;
+        });
+      });
+      tableRows += `<tr><td colspan="3" style="padding:8px"></td></tr>`;
+    });
+
+    const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>${platform} 12-Week Plan Template</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { font-family: Arial, sans-serif; padding: 24px; background: #f8fafc; color: #1e293b; }
+    h1 { margin: 0 0 4px; font-size: 20px; color: ${color}; }
+    .sub { color: #64748b; font-size: 13px; margin-bottom: 16px; }
+    .info { background: #e0f2fe; border: 1px solid #bae6fd; border-radius: 8px; padding: 12px 16px; margin-bottom: 24px; font-size: 12px; line-height: 1.6; color: #0c4a6e; }
+    table { width: 100%; border-collapse: collapse; margin-bottom: 8px; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.08); border-radius: 8px; overflow: hidden; }
+    [contenteditable]:empty:before { content: attr(data-placeholder); color: #cbd5e1; }
+  </style>
+</head>
+<body>
+  <h1>${platform} 12-Week Operations Plan</h1>
+  <p class="sub">Backero Marketplace — Edit &amp; re-upload to update your plan</p>
+  <div class="info">
+    <b>How to use:</b><br>
+    1. Click any editable cell (highlighted in blue when focused) and type your tasks.<br>
+    2. The Day column is fixed — do <b>not</b> edit it.<br>
+    3. Each day has 2 empty rows — add tasks there. Do not delete existing rows.<br>
+    4. When done, save this file (<b>Ctrl+S</b> / <b>Cmd+S</b>) and upload it using <b>Import Plan</b> in the app.
+  </div>
+  <table>
+    <tbody>${tableRows}</tbody>
+  </table>
+</body>
+</html>`;
+
+    const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href = url;
+    a.download = `${platform.toLowerCase()}-plan-template.html`;
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
   const week        = weekData[activeWeek - 1];
@@ -1514,41 +1556,35 @@ function PlanTab({ platform = 'Amazon' }) {
   const kpiFields  = cfg.getKpiFields(week, budget);
 
   return (
-    <div className="flex gap-4 min-h-screen items-start">
-      {/* Week sidebar */}
-      <div className="w-44 flex-shrink-0 space-y-1 sticky top-4">
-        <div className="flex items-center justify-between mb-2 px-1">
-          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">12-Week Plan</p>
-          {isImported && <span className="text-[9px] font-bold text-green-600 bg-green-50 border border-green-200 px-1.5 py-0.5 rounded-full">Imported</span>}
-        </div>
-        {/* Import controls */}
-        <div className="flex gap-1 mb-2">
-          <button onClick={downloadTemplate} title="Download blank Excel template"
-            className="flex-1 text-[9px] font-bold py-1 px-1.5 rounded-lg border border-gray-200 bg-white text-gray-500 hover:bg-gray-50 truncate">
-            ⬇ Template
-          </button>
-          <button onClick={() => fileInputRef.current?.click()} disabled={importing} title="Upload filled Excel"
-            className="flex-1 text-[9px] font-bold py-1 px-1.5 rounded-lg border text-white truncate"
-            style={{ background: platColor }}>
-            {importing ? '...' : '⬆ Import'}
-          </button>
-          <input ref={fileInputRef} type="file" accept=".xlsx,.xls" className="hidden" onChange={handleImport} />
-        </div>
-        {weekData.map(w => {
-          const isActive = w.n === activeWeek;
-          return (
-            <button key={w.n} onClick={() => { setActiveWeek(w.n); setActiveDay('Mon'); }}
-              className={clsx('w-full text-left px-3 py-2.5 rounded-xl text-xs font-bold transition-all border', isActive ? 'text-white border-transparent shadow-md' : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50')}
-              style={isActive ? { background: platColor } : {}}>
-              <span className={clsx('text-[10px]', isActive ? 'text-white/60' : 'text-gray-400')}>W{w.n}</span>
-              <p className="truncate">{w.title}</p>
-            </button>
-          );
-        })}
+    <div className="space-y-4">
+      {/* Week selector + import controls */}
+      <div className="flex items-center gap-2 flex-wrap bg-white rounded-2xl border border-gray-200 px-4 py-3">
+        <select
+          value={activeWeek}
+          onChange={e => { setActiveWeek(Number(e.target.value)); setActiveDay('Mon'); }}
+          className="flex-1 min-w-[180px] text-sm font-bold border border-gray-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-orange-400 bg-white cursor-pointer"
+          style={{ color: platColor }}
+        >
+          {weekData.map(w => (
+            <option key={w.n} value={w.n}>Week {w.n} — {w.title}</option>
+          ))}
+        </select>
+        {isImported && <span className="text-[10px] font-bold text-green-600 bg-green-50 border border-green-200 px-2 py-1 rounded-full whitespace-nowrap">Imported</span>}
+        <button onClick={downloadTemplate}
+          className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold border border-gray-200 bg-white text-gray-600 rounded-xl hover:bg-gray-50 whitespace-nowrap transition-colors">
+          <ArrowDownTrayIcon className="w-3.5 h-3.5" /> HTML Template
+        </button>
+        <button onClick={() => fileInputRef.current?.click()} disabled={importing}
+          className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-white rounded-xl whitespace-nowrap transition-colors disabled:opacity-50"
+          style={{ background: platColor }}>
+          {importing ? <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" /> : <ArrowDownTrayIcon className="w-3.5 h-3.5 rotate-180" />}
+          {importing ? 'Importing…' : 'Import Plan'}
+        </button>
+        <input ref={fileInputRef} type="file" accept=".html,.htm" className="hidden" onChange={handleImport} />
       </div>
 
       {/* Main content */}
-      <div className="flex-1 min-w-0 space-y-4">
+      <div className="space-y-4">
 
         {/* Stop-loss alerts */}
         {(stopLoss.length > 0 || triggers.length > 0) && (
