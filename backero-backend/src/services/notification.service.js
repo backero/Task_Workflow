@@ -40,7 +40,7 @@ const createNotification = async (data, io) => {
       const recipient = await User.findById(data.recipient).select('phone whatsapp');
       const phone = recipient?.whatsapp || recipient?.phone;
       if (phone) {
-        sendWhatsAppNotification(phone, data.title, data.message).catch(logger.error);
+        sendWhatsAppNotification(phone, data.title, data.message, data.actionUrl).catch(logger.error);
       }
     }
 
@@ -51,10 +51,13 @@ const createNotification = async (data, io) => {
   }
 };
 
-const sendWhatsAppNotification = async (phone, title, message) => {
+const APP_URL = process.env.APP_URL || 'https://backero-worktaskflow.netlify.app';
+
+const sendWhatsAppNotification = async (phone, title, message, actionUrl) => {
   try {
     const { sendMessage } = require('./whatsapp.service');
-    const text = `*🔔 Backero Alert*\n\n*${title}*\n\n${message}\n\n_Backero Enterprise Platform_`;
+    const link = actionUrl ? `${APP_URL}${actionUrl}` : APP_URL;
+    const text = `*🔔 Backero Alert*\n\n*${title}*\n\n${message}\n\n🔗 *Open App:* ${link}\n\n_Backero Enterprise Platform_`;
     await sendMessage(phone, text);
   } catch (error) {
     logger.error(`WhatsApp notification failed: ${error.message}`);
