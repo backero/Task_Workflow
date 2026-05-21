@@ -50,6 +50,16 @@ export default function WhatsAppSetup() {
     mutationFn: () => api.post('/whatsapp/test-report'),
   });
 
+  // Force reconnect (clears stale session, generates new QR)
+  const reconnect = useMutation({
+    mutationFn: () => api.post('/whatsapp/reconnect'),
+    onSuccess: () => {
+      setPollActive(true);
+      qc.invalidateQueries(['wa-status']);
+      qc.invalidateQueries(['wa-qr']);
+    },
+  });
+
   const status = statusData?.status || 'disconnected';
   const isConnected = statusData?.connected;
   const qrImage = qrData?.qrImage;
@@ -147,6 +157,17 @@ export default function WhatsAppSetup() {
               <p className="text-lg font-bold text-gray-900 dark:text-white">WhatsApp Connected!</p>
               <p className="text-sm text-gray-500 mt-1">All notifications will be sent via WhatsApp</p>
             </div>
+            <button
+              onClick={() => reconnect.mutate()}
+              disabled={reconnect.isPending}
+              className="flex items-center gap-2 text-sm text-red-600 hover:text-red-700 font-medium border border-red-200 hover:border-red-300 px-4 py-2 rounded-lg transition-colors disabled:opacity-50"
+            >
+              <ArrowPathIcon className={`w-4 h-4 ${reconnect.isPending ? 'animate-spin' : ''}`} />
+              {reconnect.isPending ? 'Reconnecting…' : 'Reconnect WhatsApp'}
+            </button>
+            {reconnect.isSuccess && (
+              <p className="text-xs text-orange-600">Session reset — scan the new QR code below in a few seconds</p>
+            )}
           </div>
         )}
       </motion.div>
