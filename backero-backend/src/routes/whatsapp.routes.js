@@ -3,7 +3,7 @@ const QRCode = require('qrcode');
 const { authenticate } = require('../middleware/auth.middleware');
 const { authorizeAdminOrAbove } = require('../middleware/role.middleware');
 const { asyncHandler, sendSuccess } = require('../utils/helpers');
-const { getStatus, getQRCode, isConnected, sendTaskAssigned } = require('../services/whatsapp.service');
+const { getStatus, getQRCode, isConnected, reinitWhatsApp, sendTaskAssigned } = require('../services/whatsapp.service');
 const { runDailyReport } = require('../services/automation.service');
 const Task = require('../models/Task');
 const User = require('../models/User');
@@ -52,6 +52,12 @@ router.get('/qr', asyncHandler(async (req, res) => {
   // Convert Baileys QR string → base64 PNG
   const qrImage = await QRCode.toDataURL(qrString, { width: 300, margin: 2 });
   sendSuccess(res, { connected: false, qrImage, message: 'Scan with WhatsApp on your phone' });
+}));
+
+// POST /api/whatsapp/reconnect — force disconnect + reinit (generates new QR)
+router.post('/reconnect', asyncHandler(async (req, res) => {
+  reinitWhatsApp().catch(() => {});
+  sendSuccess(res, {}, 'WhatsApp reinitialising — scan new QR at /api/whatsapp/qr/image in 5 seconds');
 }));
 
 // POST /api/whatsapp/test-report — manually trigger daily report

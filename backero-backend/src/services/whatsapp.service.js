@@ -302,8 +302,22 @@ const getStatus = () => connectionStatus;
 const getQRCode = () => qrCode;
 const isConnected = () => connectionStatus === 'connected';
 
+const reinitWhatsApp = async () => {
+  try {
+    if (sock) {
+      sock.ev.removeAllListeners();
+      await sock.logout().catch(() => {});
+      sock = null;
+    }
+  } catch {}
+  qrCode = null;
+  connectionStatus = 'disconnected';
+  await initWhatsApp(io_ref);
+};
+
 module.exports = {
   initWhatsApp,
+  reinitWhatsApp,
   sendMessage,
   sendTaskAssigned,
   sendTaskOverdueEmployee,
