@@ -87,14 +87,14 @@ router.post('/sheets/sync', authorizeAdminOrAbove, asyncHandler(async (req, res)
 // ── Leads ─────────────────────────────────────────────────────────────────────
 
 router.get('/leads', ctrl.getLeads);
-router.post('/leads', ctrl.createLead);
 router.get('/leads/pipeline', ctrl.getPipeline);
 router.get('/leads/analytics', ctrl.getAnalytics);
 router.get('/leads/:id', ctrl.getLead);
-router.put('/leads/:id', ctrl.updateLead);
-router.post('/leads/:id/followup', ctrl.addFollowUp);
-router.post('/leads/:id/assign', ctrl.assignLead);
-router.post('/leads/:id/convert-to-task', ctrl.convertToTask);
-router.delete('/leads/:id', ctrl.deleteLead);
+router.post('/leads', authorizeAdminOrAbove, ctrl.createLead);
+router.put('/leads/:id', authorizeAdminOrAbove, ctrl.updateLead);
+router.post('/leads/:id/followup', authorizeAdminOrAbove, ctrl.addFollowUp);
+router.post('/leads/:id/assign', authorizeAdminOrAbove, ctrl.assignLead);
+router.post('/leads/:id/convert-to-task', authorizeAdminOrAbove, ctrl.convertToTask);
+router.delete('/leads/:id', authorizeAdminOrAbove, ctrl.deleteLead);
 
 module.exports = router;

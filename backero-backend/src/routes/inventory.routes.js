@@ -26,15 +26,15 @@ router.post('/import', authorizeAdminOrAbove, upload.single('file'), asyncHandle
 }));
 
 router.get('/products', ctrl.getProducts);
-router.post('/products', ctrl.createProduct);
 router.get('/products/:id', ctrl.getProduct);
-router.put('/products/:id', ctrl.updateProduct);
-router.delete('/products/:id', authorizeAdminOrAbove, ctrl.deleteProduct);
 router.get('/movements', ctrl.getMovements);
 router.get('/alerts', ctrl.getLowStockAlerts);
 router.get('/analytics', ctrl.getAnalytics);
-router.post('/stock-in', ctrl.stockIn);
-router.post('/stock-out', ctrl.stockOut);
-router.post('/adjustment', ctrl.stockAdjustment);
+router.post('/products', authorizeAdminOrAbove, ctrl.createProduct);
+router.put('/products/:id', authorizeAdminOrAbove, ctrl.updateProduct);
+router.delete('/products/:id', authorizeAdminOrAbove, ctrl.deleteProduct);
+router.post('/stock-in', authorizeAdminOrAbove, ctrl.stockIn);
+router.post('/stock-out', authorizeAdminOrAbove, ctrl.stockOut);
+router.post('/adjustment', authorizeAdminOrAbove, ctrl.stockAdjustment);
 
 module.exports = router;

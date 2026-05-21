@@ -2,6 +2,7 @@ const router = require('express').Router();
 const Campaign = require('../models/Campaign');
 const { authenticate } = require('../middleware/auth.middleware');
 const { orgIsolation } = require('../middleware/orgIsolation.middleware');
+const { authorizeAdminOrAbove } = require('../middleware/role.middleware');
 const { asyncHandler, sendSuccess, sendError, paginate, paginateResponse } = require('../utils/helpers');
 
 router.use(authenticate, orgIsolation);
@@ -21,7 +22,7 @@ router.get('/campaigns', asyncHandler(async (req, res) => {
   sendSuccess(res, paginateResponse(campaigns, total, page, limit));
 }));
 
-router.post('/campaigns', asyncHandler(async (req, res) => {
+router.post('/campaigns', authorizeAdminOrAbove, asyncHandler(async (req, res) => {
   const campaign = await Campaign.create({ ...req.body, organizationId: req.user.organizationId, createdBy: req.user._id });
   sendSuccess(res, { campaign }, 'Campaign created', 201);
 }));
@@ -33,7 +34,7 @@ router.get('/campaigns/:id', asyncHandler(async (req, res) => {
   sendSuccess(res, { campaign });
 }));
 
-router.put('/campaigns/:id', asyncHandler(async (req, res) => {
+router.put('/campaigns/:id', authorizeAdminOrAbove, asyncHandler(async (req, res) => {
   const campaign = await Campaign.findOneAndUpdate(
     { _id: req.params.id, organizationId: req.user.organizationId },
     { ...req.body, updatedBy: req.user._id },
@@ -43,7 +44,7 @@ router.put('/campaigns/:id', asyncHandler(async (req, res) => {
   sendSuccess(res, { campaign }, 'Campaign updated');
 }));
 
-router.patch('/campaigns/:id/metrics', asyncHandler(async (req, res) => {
+router.patch('/campaigns/:id/metrics', authorizeAdminOrAbove, asyncHandler(async (req, res) => {
   const campaign = await Campaign.findOneAndUpdate(
     { _id: req.params.id, organizationId: req.user.organizationId },
     { $set: { metrics: req.body } },
@@ -53,7 +54,7 @@ router.patch('/campaigns/:id/metrics', asyncHandler(async (req, res) => {
   sendSuccess(res, { campaign }, 'Metrics updated');
 }));
 
-router.delete('/campaigns/:id', asyncHandler(async (req, res) => {
+router.delete('/campaigns/:id', authorizeAdminOrAbove, asyncHandler(async (req, res) => {
   const campaign = await Campaign.findOneAndDelete({ _id: req.params.id, organizationId: req.user.organizationId });
   if (!campaign) return sendError(res, 'Campaign not found.', 404);
   sendSuccess(res, {}, 'Campaign deleted');
