@@ -70,6 +70,8 @@ const LEAD_STATUS = {
   PROPOSAL: 'Proposal Sent',
   NEGOTIATION: 'Negotiation',
   QUERY_PENDING: 'Query Pending',
+  IN_PROGRESS: 'In Progress',
+  DISPATCHED: 'Dispatched',
   WON: 'Won',
   LOST: 'Lost',
 };

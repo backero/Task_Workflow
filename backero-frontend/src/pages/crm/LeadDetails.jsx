@@ -13,7 +13,7 @@ import { clsx } from 'clsx';
 import { format } from 'date-fns';
 import toast from 'react-hot-toast';
 
-const PIPELINE_STAGES = ['New Lead', 'Follow-up', 'Won', 'Lost'];
+const PIPELINE_STAGES = ['New Lead', 'Follow-up', 'In Progress', 'Dispatched', 'Won', 'Lost'];
 
 const STAGE_BADGE = {
   'New Lead': 'bg-gray-100 text-gray-700',
@@ -23,6 +23,8 @@ const STAGE_BADGE = {
   'Proposal Sent': 'bg-orange-100 text-orange-700',
   'Negotiation': 'bg-purple-100 text-purple-700',
   'Query Pending': 'bg-amber-100 text-amber-700',
+  'In Progress': 'bg-blue-100 text-blue-700',
+  'Dispatched': 'bg-indigo-100 text-indigo-700',
   'Won': 'bg-green-100 text-green-700',
   'Lost': 'bg-red-100 text-red-700',
 };
