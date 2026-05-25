@@ -16,12 +16,13 @@ import { useForm } from 'react-hook-form';
 import GoogleSheetsPanel from '../../components/crm/GoogleSheetsPanel';
 import ErrorBoundary from '../../components/common/ErrorBoundary';
 
-const PIPELINE_STAGES = ['New Lead', 'Follow-up', 'In Progress', 'Dispatched', 'Won', 'Lost'];
+const PIPELINE_STAGES = ['New Lead', 'Follow-up', 'In Progress', 'Ready to Dispatch', 'Dispatched', 'Won', 'Lost'];
 
 const STAGE_COLORS = {
   'New Lead': 'bg-gray-100 dark:bg-gray-800',
   'Follow-up': 'bg-yellow-50 dark:bg-yellow-900/20',
   'In Progress': 'bg-blue-50 dark:bg-blue-900/20',
+  'Ready to Dispatch': 'bg-violet-50 dark:bg-violet-900/20',
   'Dispatched': 'bg-indigo-50 dark:bg-indigo-900/20',
   'Won': 'bg-green-50 dark:bg-green-900/20',
   'Lost': 'bg-red-50 dark:bg-red-900/20',
@@ -30,6 +31,7 @@ const STAGE_DOTS = {
   'New Lead': 'bg-gray-400',
   'Follow-up': 'bg-yellow-500',
   'In Progress': 'bg-blue-500',
+  'Ready to Dispatch': 'bg-violet-500',
   'Dispatched': 'bg-indigo-500',
   'Won': 'bg-green-500',
   'Lost': 'bg-red-500',
@@ -38,6 +40,7 @@ const STAGE_BADGE = {
   'New Lead': 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300',
   'Follow-up': 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-300',
   'In Progress': 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300',
+  'Ready to Dispatch': 'bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300',
   'Dispatched': 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300',
   'Won': 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300',
   'Lost': 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300',
