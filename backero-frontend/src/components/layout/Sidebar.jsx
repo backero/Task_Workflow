@@ -96,6 +96,7 @@ export default function Sidebar({ collapsed, onToggle }) {
       label: 'CRM & Sales', icon: UsersIcon, children: [
         { label: 'Lead Pipeline', to: '/crm/pipeline' },
         { label: 'Follow-up Calendar', to: '/crm/calendar' },
+        { label: 'Technical Queries', to: '/crm/queries' },
       ],
     });
   }

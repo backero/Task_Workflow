@@ -69,6 +69,7 @@ const LEAD_STATUS = {
   FOLLOWUP: 'Follow-up',
   PROPOSAL: 'Proposal Sent',
   NEGOTIATION: 'Negotiation',
+  QUERY_PENDING: 'Query Pending',
   WON: 'Won',
   LOST: 'Lost',
 };

@@ -6,13 +6,14 @@ import {
   ArrowLeftIcon, PhoneIcon, EnvelopeIcon, BuildingOfficeIcon,
   MapPinIcon, CurrencyRupeeIcon, UserIcon, CalendarDaysIcon,
   ClockIcon, CheckCircleIcon, PencilIcon, XMarkIcon, ChatBubbleLeftIcon,
+  QuestionMarkCircleIcon,
 } from '@heroicons/react/24/outline';
 import api from '../../api/axios';
 import { clsx } from 'clsx';
 import { format } from 'date-fns';
 import toast from 'react-hot-toast';
 
-const PIPELINE_STAGES = ['New Lead', 'Contacted', 'Interested', 'Follow-up', 'Proposal Sent', 'Negotiation', 'Won', 'Lost'];
+const PIPELINE_STAGES = ['New Lead', 'Follow-up', 'Won', 'Lost'];
 
 const STAGE_BADGE = {
   'New Lead': 'bg-gray-100 text-gray-700',
@@ -21,9 +22,12 @@ const STAGE_BADGE = {
   'Follow-up': 'bg-yellow-100 text-yellow-700',
   'Proposal Sent': 'bg-orange-100 text-orange-700',
   'Negotiation': 'bg-purple-100 text-purple-700',
+  'Query Pending': 'bg-amber-100 text-amber-700',
   'Won': 'bg-green-100 text-green-700',
   'Lost': 'bg-red-100 text-red-700',
 };
+
+const URGENCY_OPTIONS = ['low', 'medium', 'high'];
 
 const FOLLOWUP_TYPES = ['call', 'whatsapp', 'meeting', 'email', 'demo', 'other'];
 const FOLLOWUP_ICONS = { call: '📞', whatsapp: '💬', meeting: '🤝', email: '✉️', demo: '🖥️', other: '📝' };
@@ -36,6 +40,8 @@ export default function LeadDetails() {
 
   const { register: regFollowUp, handleSubmit: handleFollowUpSubmit, reset: resetFollowUp, formState: { errors: fuErrors } } = useForm();
   const { register: regEdit, handleSubmit: handleEditSubmit, reset: resetEdit } = useForm();
+  const { register: regQuery, handleSubmit: handleQuerySubmit, reset: resetQuery } = useForm();
+  const [queryMode, setQueryMode] = useState(false);
 
   const { data: lead, isLoading } = useQuery({
     queryKey: ['crm', 'lead', id],
@@ -75,6 +81,25 @@ export default function LeadDetails() {
       setEditMode(false);
     },
     onError: () => toast.error('Failed to update lead'),
+  });
+
+  const { data: leadQueries } = useQuery({
+    queryKey: ['crm', 'lead', id, 'queries'],
+    queryFn: () => api.get(`/crm/leads/${id}/queries`).then(r => r.data.queries),
+    enabled: !!id,
+  });
+
+  const queryMutation = useMutation({
+    mutationFn: (data) => api.post(`/crm/leads/${id}/query`, data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['crm', 'lead', id] });
+      qc.invalidateQueries({ queryKey: ['crm', 'lead', id, 'queries'] });
+      qc.invalidateQueries({ queryKey: ['crm'] });
+      toast.success('Query raised — Production team has been notified');
+      setQueryMode(false);
+      resetQuery();
+    },
+    onError: () => toast.error('Failed to raise query'),
   });
 
   const onSubmitFollowUp = (data) => {
@@ -390,6 +415,99 @@ export default function LeadDetails() {
             )}
           </div>
 
+          {/* Production Queries Thread */}
+          <div className="card p-5">
+            <div className="flex items-center justify-between mb-4">
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                Technical Queries
+                {leadQueries?.length > 0 && <span className="ml-2 text-amber-600">({leadQueries.length})</span>}
+              </p>
+              <button
+                onClick={() => setQueryMode(true)}
+                className="text-xs px-2.5 py-1 rounded-lg bg-amber-50 text-amber-700 hover:bg-amber-100 font-medium flex items-center gap-1 transition-colors"
+              >
+                <QuestionMarkCircleIcon className="w-3.5 h-3.5" />
+                Raise Query
+              </button>
+            </div>
+
+            {!leadQueries?.length ? (
+              <div className="text-center py-6">
+                <QuestionMarkCircleIcon className="w-8 h-8 mx-auto text-gray-300 mb-2" />
+                <p className="text-sm text-gray-400">No queries raised yet</p>
+                <p className="text-xs text-gray-300 mt-1">Use "Raise Query" to ask Production team a technical question</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {leadQueries.map(q => (
+                  <div key={q._id} className="rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+                    {/* Question bubble */}
+                    <div className="bg-gray-50 dark:bg-gray-800 p-3">
+                      <div className="flex items-start gap-2.5">
+                        <div className="w-7 h-7 rounded-full bg-amber-100 dark:bg-amber-900/40 flex items-center justify-center flex-shrink-0 mt-0.5">
+                          <span className="text-amber-700 dark:text-amber-400 text-xs font-bold">
+                            {q.raisedBy?.firstName?.[0]}
+                          </span>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap mb-1">
+                            <span className="text-xs font-semibold text-gray-700 dark:text-gray-300">
+                              {q.raisedBy?.firstName} {q.raisedBy?.lastName}
+                            </span>
+                            <span className="text-xs text-gray-400">{format(new Date(q.createdAt), 'dd MMM, h:mm a')}</span>
+                            <span className={clsx(
+                              'text-xs px-1.5 py-0.5 rounded-full font-medium',
+                              q.urgency === 'high' ? 'bg-red-100 text-red-600' :
+                              q.urgency === 'medium' ? 'bg-amber-100 text-amber-600' : 'bg-gray-100 text-gray-500'
+                            )}>
+                              {q.urgency}
+                            </span>
+                          </div>
+                          <p className="text-sm font-medium text-gray-900 dark:text-white">{q.title}</p>
+                          <p className="text-xs text-gray-600 dark:text-gray-400 mt-0.5">{q.description}</p>
+                          {q.assignedTo && (
+                            <p className="text-xs text-blue-500 mt-1">
+                              Assigned to: <span className="font-medium">{q.assignedTo.firstName} {q.assignedTo.lastName}</span>
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Answer bubble */}
+                    {q.status === 'answered' && q.answer ? (
+                      <div className="bg-green-50 dark:bg-green-900/20 p-3 border-t border-green-100 dark:border-green-800">
+                        <div className="flex items-start gap-2.5">
+                          <div className="w-7 h-7 rounded-full bg-green-100 dark:bg-green-900/40 flex items-center justify-center flex-shrink-0 mt-0.5">
+                            <span className="text-green-700 dark:text-green-400 text-xs font-bold">
+                              {q.answeredBy?.firstName?.[0]}
+                            </span>
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-1">
+                              <span className="text-xs font-semibold text-green-700 dark:text-green-400">
+                                {q.answeredBy?.firstName} {q.answeredBy?.lastName}
+                              </span>
+                              {q.answeredAt && (
+                                <span className="text-xs text-gray-400">{format(new Date(q.answeredAt), 'dd MMM, h:mm a')}</span>
+                              )}
+                            </div>
+                            <p className="text-sm text-green-800 dark:text-green-300 whitespace-pre-wrap">{q.answer}</p>
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="px-3 py-2 border-t border-gray-100 dark:border-gray-700 flex items-center gap-2">
+                        <div className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
+                        <p className="text-xs text-gray-400 italic">Waiting for Production reply…</p>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
           {/* Lead metadata */}
           <div className="card p-4 text-xs text-gray-500 space-y-1">
             <p>Created: {format(new Date(lead.createdAt), 'dd MMM yyyy')}</p>
@@ -399,6 +517,69 @@ export default function LeadDetails() {
           </div>
         </div>
       </div>
+
+      {/* Raise Production Query Modal */}
+      {queryMode && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-gray-900/60 backdrop-blur-sm" onClick={() => setQueryMode(false)} />
+          <div className="relative card w-full max-w-lg shadow-modal">
+            <div className="p-5 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+              <div>
+                <h3 className="font-bold text-gray-900 dark:text-white">Raise Technical Query</h3>
+                <p className="text-sm text-gray-500 mt-0.5">Assign to a Production team member for a technical answer</p>
+              </div>
+              <button onClick={() => setQueryMode(false)} className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800">
+                <XMarkIcon className="w-5 h-5 text-gray-500" />
+              </button>
+            </div>
+            <form onSubmit={handleQuerySubmit(data => queryMutation.mutate(data))} className="p-5 space-y-4">
+              <div>
+                <label className="label">Query Title *</label>
+                <input
+                  {...regQuery('title', { required: true })}
+                  className="input"
+                  placeholder="e.g. Formulation details for Product X"
+                />
+              </div>
+              <div>
+                <label className="label">Detailed Question *</label>
+                <textarea
+                  {...regQuery('description', { required: true })}
+                  rows={4}
+                  className="input resize-none"
+                  placeholder="Describe exactly what the customer asked or what technical information you need..."
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="label">Assign To *</label>
+                  <select {...regQuery('assignedTo', { required: true })} className="input">
+                    <option value="">Select person</option>
+                    {(usersData?.data || []).map(u => (
+                      <option key={u._id} value={u._id}>
+                        {u.firstName} {u.lastName}{u.department ? ` (${u.department})` : ''}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="label">Urgency</label>
+                  <select {...regQuery('urgency')} defaultValue="medium" className="input">
+                    {URGENCY_OPTIONS.map(u => <option key={u} value={u}>{u.charAt(0).toUpperCase() + u.slice(1)}</option>)}
+                  </select>
+                </div>
+              </div>
+              <p className="text-xs text-gray-400">The assigned person will be notified via WhatsApp and in-app.</p>
+              <div className="flex gap-3">
+                <button type="button" onClick={() => setQueryMode(false)} className="btn-secondary flex-1 justify-center">Cancel</button>
+                <button type="submit" disabled={queryMutation.isPending} className="btn-primary flex-1 justify-center disabled:opacity-50">
+                  {queryMutation.isPending ? 'Sending…' : 'Send Query'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* Edit Modal */}
       {editMode && (

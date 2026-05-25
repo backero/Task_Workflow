@@ -97,4 +97,11 @@ router.post('/leads/:id/assign', authorizeAdminOrAbove, ctrl.assignLead);
 router.post('/leads/:id/convert-to-task', authorizeAdminOrAbove, ctrl.convertToTask);
 router.delete('/leads/:id', authorizeAdminOrAbove, ctrl.deleteLead);
 
+// ── Technical Queries ─────────────────────────────────────────────────────────
+
+router.post('/leads/:id/query', ctrl.raiseQuery);
+router.get('/leads/:id/queries', ctrl.getLeadQueries);
+router.get('/queries', ctrl.getQueries);
+router.put('/queries/:queryId/reply', ctrl.answerQuery);
+
 module.exports = router;

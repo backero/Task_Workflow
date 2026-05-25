@@ -231,7 +231,40 @@ exports.getPipeline = asyncHandler(async (req, res) => {
 
   const pipeline = await Lead.aggregate([
     { $match: filter },
-    { $group: { _id: '$status', count: { $sum: 1 }, totalValue: { $sum: '$estimatedValue' }, leads: { $push: { _id: '$_id', name: '$name', phone: '$phone', priority: '$priority', estimatedValue: '$estimatedValue', assignedTo: '$assignedTo' } } } },
+    {
+      $lookup: {
+        from: 'productionqueries',
+        localField: '_id',
+        foreignField: 'leadId',
+        as: 'queries',
+      },
+    },
+    {
+      $addFields: {
+        pendingQueries: {
+          $size: { $filter: { input: '$queries', as: 'q', cond: { $eq: ['$$q.status', 'pending'] } } },
+        },
+        answeredQueries: {
+          $size: { $filter: { input: '$queries', as: 'q', cond: { $eq: ['$$q.status', 'answered'] } } },
+        },
+      },
+    },
+    {
+      $group: {
+        _id: '$status',
+        count: { $sum: 1 },
+        totalValue: { $sum: '$estimatedValue' },
+        leads: {
+          $push: {
+            _id: '$_id', name: '$name', phone: '$phone', priority: '$priority',
+            estimatedValue: '$estimatedValue', assignedTo: '$assignedTo',
+            nextFollowUpAt: '$nextFollowUpAt',
+            pendingQueries: '$pendingQueries',
+            answeredQueries: '$answeredQueries',
+          },
+        },
+      },
+    },
     { $sort: { _id: 1 } },
   ]);
 
@@ -279,4 +312,134 @@ exports.deleteLead = asyncHandler(async (req, res) => {
   });
 
   sendSuccess(res, {}, 'Lead deleted');
+});
+
+// POST /api/crm/leads/:id/query
+exports.raiseQuery = asyncHandler(async (req, res) => {
+  const io = req.app.get('io');
+  const { title, description, urgency, assignedTo } = req.body;
+  if (!title || !description) return sendError(res, 'Title and description are required', 400);
+
+  const lead = await Lead.findOne({ _id: req.params.id, organizationId: req.user.organizationId });
+  if (!lead) return sendError(res, 'Lead not found.', 404);
+
+  const ProductionQuery = require('../models/ProductionQuery');
+  const query = await ProductionQuery.create({
+    organizationId: req.user.organizationId,
+    leadId: lead._id,
+    leadName: lead.name,
+    raisedBy: req.user._id,
+    assignedTo: assignedTo || undefined,
+    title,
+    description,
+    urgency: urgency || 'medium',
+    preQueryStatus: lead.status,
+  });
+
+  lead.status = LEAD_STATUS.QUERY_PENDING;
+  lead.updatedBy = req.user._id;
+  await lead.save();
+
+  // Notify only the assigned person; if none, notify all production members
+  const recipientIds = assignedTo
+    ? [assignedTo]
+    : (await User.find({ organizationId: req.user.organizationId, department: 'Production' }).select('_id')).map(u => u._id);
+
+  for (const recipientId of recipientIds) {
+    await createNotification({
+      organizationId: req.user.organizationId,
+      recipient: recipientId,
+      title: 'Technical Query from Sales',
+      message: `"${title}" — Lead: ${lead.name}. Urgency: ${urgency || 'medium'}`,
+      type: 'crm',
+      priority: urgency === 'high' ? 'high' : 'medium',
+      actionUrl: '/crm/queries',
+      reference: { model: 'ProductionQuery', id: query._id },
+      channels: { inApp: true, whatsapp: true },
+      createdBy: req.user._id,
+    }, io);
+  }
+
+  sendSuccess(res, { query }, 'Query raised', 201);
+});
+
+// GET /api/crm/leads/:id/queries
+exports.getLeadQueries = asyncHandler(async (req, res) => {
+  const lead = await Lead.findOne({ _id: req.params.id, organizationId: req.user.organizationId });
+  if (!lead) return sendError(res, 'Lead not found.', 404);
+
+  const ProductionQuery = require('../models/ProductionQuery');
+  const queries = await ProductionQuery.find({ leadId: req.params.id, organizationId: req.user.organizationId })
+    .populate('raisedBy', 'firstName lastName')
+    .populate('assignedTo', 'firstName lastName department')
+    .populate('answeredBy', 'firstName lastName')
+    .sort({ createdAt: -1 });
+
+  sendSuccess(res, { queries });
+});
+
+// GET /api/crm/queries
+exports.getQueries = asyncHandler(async (req, res) => {
+  const { status } = req.query;
+  const ProductionQuery = require('../models/ProductionQuery');
+
+  const filter = { organizationId: req.user.organizationId };
+  if (status) filter.status = status;
+
+  const level = ROLE_HIERARCHY[req.user.role] || 1;
+  if (level <= 2) {
+    if (req.user.department === 'Production') {
+      filter.$or = [{ assignedTo: req.user._id }, { assignedTo: { $exists: false } }];
+    } else {
+      filter.raisedBy = req.user._id;
+    }
+  }
+
+  const queries = await ProductionQuery.find(filter)
+    .populate('raisedBy', 'firstName lastName department')
+    .populate('assignedTo', 'firstName lastName department')
+    .populate('answeredBy', 'firstName lastName')
+    .populate('leadId', 'name phone company')
+    .sort({ status: 1, createdAt: -1 });
+
+  sendSuccess(res, { queries });
+});
+
+// PUT /api/crm/queries/:queryId/reply
+exports.answerQuery = asyncHandler(async (req, res) => {
+  const io = req.app.get('io');
+  const { answer } = req.body;
+  if (!answer) return sendError(res, 'Answer is required', 400);
+
+  const ProductionQuery = require('../models/ProductionQuery');
+  const query = await ProductionQuery.findOne({ _id: req.params.queryId, organizationId: req.user.organizationId });
+  if (!query) return sendError(res, 'Query not found.', 404);
+
+  query.status = 'answered';
+  query.answer = answer;
+  query.answeredBy = req.user._id;
+  query.answeredAt = new Date();
+  await query.save();
+
+  const lead = await Lead.findById(query.leadId);
+  if (lead && lead.status === LEAD_STATUS.QUERY_PENDING) {
+    lead.status = query.preQueryStatus || LEAD_STATUS.INTERESTED;
+    lead.updatedBy = req.user._id;
+    await lead.save();
+  }
+
+  await createNotification({
+    organizationId: req.user.organizationId,
+    recipient: query.raisedBy,
+    title: 'Production Query Answered',
+    message: `Your query "${query.title}" for lead ${query.leadName} has been answered by the Production team.`,
+    type: 'crm',
+    priority: 'high',
+    actionUrl: `/crm/leads/${query.leadId}`,
+    reference: { model: 'ProductionQuery', id: query._id },
+    channels: { inApp: true, whatsapp: true },
+    createdBy: req.user._id,
+  }, io);
+
+  sendSuccess(res, { query }, 'Query answered');
 });

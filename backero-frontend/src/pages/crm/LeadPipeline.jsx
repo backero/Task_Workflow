@@ -5,6 +5,7 @@ import {
   PlusIcon, PhoneIcon, EnvelopeIcon, XMarkIcon, BuildingOfficeIcon,
   MapPinIcon, CurrencyRupeeIcon, UserIcon, ClockIcon, CheckCircleIcon,
   ArrowRightIcon, TableCellsIcon, CalendarDaysIcon, ChatBubbleLeftIcon,
+  QuestionMarkCircleIcon,
 } from '@heroicons/react/24/outline';
 import api from '../../api/axios';
 import { useAuthStore } from '../../store/useAuthStore';
@@ -15,30 +16,23 @@ import { useForm } from 'react-hook-form';
 import GoogleSheetsPanel from '../../components/crm/GoogleSheetsPanel';
 import ErrorBoundary from '../../components/common/ErrorBoundary';
 
-const PIPELINE_STAGES = ['New Lead', 'Contacted', 'Interested', 'Follow-up', 'Proposal Sent', 'Negotiation', 'Won', 'Lost'];
+const PIPELINE_STAGES = ['New Lead', 'Follow-up', 'Won', 'Lost'];
 
 const STAGE_COLORS = {
   'New Lead': 'bg-gray-100 dark:bg-gray-800',
-  'Contacted': 'bg-blue-50 dark:bg-blue-900/20',
-  'Interested': 'bg-indigo-50 dark:bg-indigo-900/20',
   'Follow-up': 'bg-yellow-50 dark:bg-yellow-900/20',
-  'Proposal Sent': 'bg-orange-50 dark:bg-orange-900/20',
-  'Negotiation': 'bg-purple-50 dark:bg-purple-900/20',
   'Won': 'bg-green-50 dark:bg-green-900/20',
   'Lost': 'bg-red-50 dark:bg-red-900/20',
 };
 const STAGE_DOTS = {
-  'New Lead': 'bg-gray-400', 'Contacted': 'bg-blue-500', 'Interested': 'bg-indigo-500',
-  'Follow-up': 'bg-yellow-500', 'Proposal Sent': 'bg-orange-500', 'Negotiation': 'bg-purple-500',
-  'Won': 'bg-green-500', 'Lost': 'bg-red-500',
+  'New Lead': 'bg-gray-400',
+  'Follow-up': 'bg-yellow-500',
+  'Won': 'bg-green-500',
+  'Lost': 'bg-red-500',
 };
 const STAGE_BADGE = {
   'New Lead': 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300',
-  'Contacted': 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300',
-  'Interested': 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300',
   'Follow-up': 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-300',
-  'Proposal Sent': 'bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300',
-  'Negotiation': 'bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300',
   'Won': 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300',
   'Lost': 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300',
 };
@@ -51,10 +45,18 @@ const PRIORITIES = ['low', 'medium', 'high', 'critical'];
 
 // ── Lead Card ────────────────────────────────────────────────────────────────
 function LeadCard({ lead, onClick }) {
+  const hasPending = lead.pendingQueries > 0;
+  const hasAnswered = lead.answeredQueries > 0;
+
   return (
     <div
       onClick={() => onClick(lead)}
-      className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 p-3 cursor-pointer hover:shadow-md hover:border-brand-300 dark:hover:border-brand-700 transition-all"
+      className={clsx(
+        'bg-white dark:bg-gray-900 rounded-lg border p-3 cursor-pointer hover:shadow-md transition-all',
+        hasPending
+          ? 'border-amber-300 dark:border-amber-700 hover:border-amber-400'
+          : 'border-gray-200 dark:border-gray-700 hover:border-brand-300 dark:hover:border-brand-700'
+      )}
     >
       <div className="flex items-start justify-between mb-1">
         <p className="font-semibold text-sm text-gray-900 dark:text-white truncate">{lead.name}</p>
@@ -89,6 +91,23 @@ function LeadCard({ lead, onClick }) {
           <span className="text-xs text-gray-400">{lead.assignedTo.firstName}</span>
         </div>
       )}
+
+      {/* Query badges */}
+      {(hasPending || hasAnswered) && (
+        <div className="mt-2 pt-2 border-t border-gray-100 dark:border-gray-800 flex items-center gap-1.5 flex-wrap">
+          {hasPending && (
+            <span className="flex items-center gap-1 text-xs bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 px-2 py-0.5 rounded-full font-medium">
+              <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse inline-block" />
+              {lead.pendingQueries} query pending
+            </span>
+          )}
+          {hasAnswered && (
+            <span className="flex items-center gap-1 text-xs bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-400 px-2 py-0.5 rounded-full font-medium">
+              ✓ {lead.answeredQueries} answered
+            </span>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -97,7 +116,9 @@ function LeadCard({ lead, onClick }) {
 function LeadSlideOver({ leadId, onClose, onUpdated }) {
   const qc = useQueryClient();
   const [showFollowUpForm, setShowFollowUpForm] = useState(false);
+  const [showQueryForm, setShowQueryForm] = useState(false);
   const { register, handleSubmit, reset, formState: { errors } } = useForm();
+  const { register: regQ, handleSubmit: handleQSubmit, reset: resetQ } = useForm();
 
   const { data: lead, isLoading } = useQuery({
     queryKey: ['crm', 'lead', leadId],
@@ -115,6 +136,17 @@ function LeadSlideOver({ leadId, onClose, onUpdated }) {
     onError: () => toast.error('Failed to update stage'),
   });
 
+  const { data: usersData } = useQuery({
+    queryKey: ['users'],
+    queryFn: () => api.get('/users?limit=100').then(r => r.data),
+  });
+
+  const { data: leadQueries } = useQuery({
+    queryKey: ['crm', 'lead', leadId, 'queries'],
+    queryFn: () => api.get(`/crm/leads/${leadId}/queries`).then(r => r.data.queries),
+    enabled: !!leadId,
+  });
+
   const followUpMutation = useMutation({
     mutationFn: (data) => api.post(`/crm/leads/${leadId}/followup`, data),
     onSuccess: () => {
@@ -126,6 +158,19 @@ function LeadSlideOver({ leadId, onClose, onUpdated }) {
       setShowFollowUpForm(false);
     },
     onError: () => toast.error('Failed to log follow-up'),
+  });
+
+  const queryMutation = useMutation({
+    mutationFn: (data) => api.post(`/crm/leads/${leadId}/query`, data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['crm', 'lead', leadId, 'queries'] });
+      qc.invalidateQueries({ queryKey: ['crm'] });
+      if (onUpdated) onUpdated();
+      toast.success('Query sent — assignee has been notified');
+      resetQ();
+      setShowQueryForm(false);
+    },
+    onError: () => toast.error('Failed to raise query'),
   });
 
   const onSubmitFollowUp = (data) => {
@@ -406,6 +451,132 @@ function LeadSlideOver({ leadId, onClose, onUpdated }) {
                 <p className="text-xs mt-1">Click "Log Follow-Up" to record your first interaction</p>
               </div>
             )}
+
+            {/* ── Technical Queries ── */}
+            <div className="px-5 py-4 border-t border-gray-100 dark:border-gray-800">
+              <div className="flex items-center justify-between mb-3">
+                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider flex items-center gap-1.5">
+                  <QuestionMarkCircleIcon className="w-3.5 h-3.5" />
+                  Technical Queries
+                  {leadQueries?.length > 0 && (
+                    <span className="ml-1 text-amber-500">({leadQueries.length})</span>
+                  )}
+                </p>
+                <button
+                  onClick={() => { setShowQueryForm(p => !p); setShowFollowUpForm(false); }}
+                  className={clsx(
+                    'text-xs px-2.5 py-1 rounded-lg font-medium transition-colors',
+                    showQueryForm
+                      ? 'bg-amber-500 text-white'
+                      : 'bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-300 hover:bg-amber-100'
+                  )}
+                >
+                  + Raise Query
+                </button>
+              </div>
+
+              {/* Existing queries thread */}
+              {leadQueries?.length > 0 && (
+                <div className="space-y-3 mb-3">
+                  {leadQueries.map(q => (
+                    <div key={q._id} className="rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden text-xs">
+                      {/* Question */}
+                      <div className="bg-gray-50 dark:bg-gray-800 px-3 py-2">
+                        <div className="flex items-center gap-2 mb-0.5">
+                          <span className="font-semibold text-gray-700 dark:text-gray-300">{q.title}</span>
+                          <span className={clsx(
+                            'px-1.5 py-0.5 rounded-full font-medium',
+                            q.status === 'pending' ? 'bg-amber-100 text-amber-600' : 'bg-green-100 text-green-600'
+                          )}>
+                            {q.status}
+                          </span>
+                        </div>
+                        <p className="text-gray-500 line-clamp-2">{q.description}</p>
+                        {q.assignedTo && (
+                          <p className="text-blue-500 mt-0.5">→ {q.assignedTo.firstName} {q.assignedTo.lastName}</p>
+                        )}
+                      </div>
+                      {/* Answer */}
+                      {q.status === 'answered' && q.answer ? (
+                        <div className="bg-green-50 dark:bg-green-900/20 px-3 py-2 border-t border-green-100 dark:border-green-800">
+                          <p className="text-green-700 dark:text-green-400 font-semibold mb-0.5">
+                            {q.answeredBy?.firstName}: <span className="font-normal">{q.answer}</span>
+                          </p>
+                        </div>
+                      ) : (
+                        <div className="px-3 py-1.5 border-t border-gray-100 dark:border-gray-700 flex items-center gap-1.5">
+                          <div className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
+                          <span className="text-gray-400 italic">Waiting for reply…</span>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Raise Query inline form */}
+              <AnimatePresence>
+                {showQueryForm && (
+                  <motion.form
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: 'auto', opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    onSubmit={handleQSubmit(data => queryMutation.mutate(data))}
+                    className="space-y-3 overflow-hidden"
+                  >
+                    <div>
+                      <label className="label">Query Title *</label>
+                      <input
+                        {...regQ('title', { required: true })}
+                        className="input text-sm"
+                        placeholder="e.g. Formulation details for Product X"
+                      />
+                    </div>
+                    <div>
+                      <label className="label">Question *</label>
+                      <textarea
+                        {...regQ('description', { required: true })}
+                        rows={3}
+                        className="input resize-none text-sm"
+                        placeholder="What does the customer want to know from Production?"
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="label">Assign To *</label>
+                        <select {...regQ('assignedTo', { required: true })} className="input text-sm">
+                          <option value="">Select person</option>
+                          {(usersData?.data || []).map(u => (
+                            <option key={u._id} value={u._id}>
+                              {u.firstName} {u.lastName}{u.department ? ` (${u.department})` : ''}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="label">Urgency</label>
+                        <select {...regQ('urgency')} defaultValue="medium" className="input text-sm">
+                          <option value="low">Low</option>
+                          <option value="medium">Medium</option>
+                          <option value="high">High</option>
+                        </select>
+                      </div>
+                    </div>
+                    <button
+                      type="submit"
+                      disabled={queryMutation.isPending}
+                      className="w-full btn-primary justify-center text-sm disabled:opacity-50"
+                    >
+                      {queryMutation.isPending ? 'Sending…' : 'Send to Assignee'}
+                    </button>
+                  </motion.form>
+                )}
+              </AnimatePresence>
+
+              {!leadQueries?.length && !showQueryForm && (
+                <p className="text-xs text-gray-400 text-center py-2">No queries raised for this lead</p>
+              )}
+            </div>
           </div>
         )}
       </motion.div>
