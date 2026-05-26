@@ -6,7 +6,8 @@ import {
   ArrowLeftIcon, PhoneIcon, EnvelopeIcon, BuildingOfficeIcon,
   MapPinIcon, CurrencyRupeeIcon, UserIcon, CalendarDaysIcon,
   ClockIcon, CheckCircleIcon, PencilIcon, XMarkIcon, ChatBubbleLeftIcon,
-  QuestionMarkCircleIcon,
+  QuestionMarkCircleIcon, PaperAirplaneIcon,
+  ClipboardDocumentListIcon, ArrowTopRightOnSquareIcon,
 } from '@heroicons/react/24/outline';
 import api from '../../api/axios';
 import { clsx } from 'clsx';
@@ -32,6 +33,18 @@ const STAGE_BADGE = {
 
 const URGENCY_OPTIONS = ['low', 'medium', 'high'];
 
+const MILESTONE_MESSAGES = [
+  'Raw materials have been purchased ✅',
+  'Production has started ✅',
+  'Your product is being manufactured ✅',
+  'Quality check is in progress ✅',
+  'Quality check passed — product approved ✅',
+  'Packaging is complete ✅',
+  'Your order is ready for dispatch ✅',
+  'Your order has been dispatched 🚚',
+  'Custom message…',
+];
+
 const FOLLOWUP_TYPES = ['call', 'whatsapp', 'meeting', 'email', 'demo', 'other'];
 const FOLLOWUP_ICONS = { call: '📞', whatsapp: '💬', meeting: '🤝', email: '✉️', demo: '🖥️', other: '📝' };
 
@@ -45,6 +58,11 @@ export default function LeadDetails() {
   const { register: regEdit, handleSubmit: handleEditSubmit, reset: resetEdit } = useForm();
   const { register: regQuery, handleSubmit: handleQuerySubmit, reset: resetQuery } = useForm();
   const [queryMode, setQueryMode] = useState(false);
+  const [updateMode, setUpdateMode] = useState(false);
+  const [pendingStage, setPendingStage] = useState(null);
+  const [stageShiftReason, setStageShiftReason] = useState('');
+  const [selectedMilestone, setSelectedMilestone] = useState(MILESTONE_MESSAGES[0]);
+  const [customMessage, setCustomMessage] = useState('');
 
   const { data: lead, isLoading } = useQuery({
     queryKey: ['crm', 'lead', id],
@@ -60,7 +78,7 @@ export default function LeadDetails() {
     mutationFn: (status) => api.put(`/crm/leads/${id}`, { status }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['crm', 'lead', id] });
-      qc.invalidateQueries({ queryKey: ['crm'] });
+      qc.refetchQueries({ queryKey: ['crm', 'pipeline'] });
       toast.success('Stage updated');
     },
   });
@@ -103,6 +121,18 @@ export default function LeadDetails() {
       resetQuery();
     },
     onError: () => toast.error('Failed to raise query'),
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: (message) => api.post(`/crm/leads/${id}/send-update`, { message }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['crm', 'lead', id] });
+      toast.success('Update sent to client via WhatsApp');
+      setUpdateMode(false);
+      setCustomMessage('');
+      setSelectedMilestone(MILESTONE_MESSAGES[0]);
+    },
+    onError: () => toast.error('Failed to send update'),
   });
 
   const onSubmitFollowUp = (data) => {
@@ -174,6 +204,38 @@ export default function LeadDetails() {
             >
               <PencilIcon className="w-4 h-4" /> Edit
             </button>
+            {lead.isConverted ? (
+              <button
+                onClick={() => navigate(`/dept-workflow?project=${lead.convertedToTask?._id || ''}`)}
+                className="btn-secondary gap-1.5 text-sm text-green-700 border-green-300 bg-green-50 hover:bg-green-100"
+              >
+                <ArrowTopRightOnSquareIcon className="w-4 h-4" /> View Project
+              </button>
+            ) : (lead.status === 'Won' || lead.status === 'In Progress') ? (
+              <button
+                onClick={() => navigate('/workflow', {
+                  state: {
+                    fromLead: {
+                      id: lead._id,
+                      name: lead.name,
+                      title: `${lead.name} — Order`,
+                      description: lead.notes ? `Client: ${lead.name}${lead.company ? ` | ${lead.company}` : ''} | Phone: ${lead.phone}\n\nRequirements: ${lead.notes}` : `Client: ${lead.name}${lead.company ? ` | ${lead.company}` : ''} | Phone: ${lead.phone}`,
+                      priority: lead.priority || 'high',
+                      dueDate: '',
+                    },
+                  },
+                })}
+                className="btn-primary gap-1.5 text-sm"
+              >
+                <ClipboardDocumentListIcon className="w-4 h-4" /> Convert to Project
+              </button>
+            ) : null}
+            <button
+              onClick={() => setUpdateMode(true)}
+              className="btn-secondary gap-1.5 text-sm text-green-700 border-green-300 hover:bg-green-50"
+            >
+              <PaperAirplaneIcon className="w-4 h-4" /> Send Update
+            </button>
           </div>
           <p className="text-sm text-gray-500 mt-1">
             Added {format(new Date(lead.createdAt), 'dd MMM yyyy')}
@@ -193,7 +255,14 @@ export default function LeadDetails() {
               {PIPELINE_STAGES.map((stage, idx) => (
                 <button
                   key={stage}
-                  onClick={() => statusMutation.mutate(stage)}
+                  onClick={() => {
+                    if (lead.status === 'New Lead' && stage !== 'New Lead') {
+                      setPendingStage(stage);
+                      setStageShiftReason('');
+                    } else {
+                      statusMutation.mutate(stage);
+                    }
+                  }}
                   disabled={statusMutation.isPending}
                   className={clsx(
                     'text-sm px-3 py-1.5 rounded-full font-medium transition-all border-2 flex items-center gap-1.5',
@@ -580,6 +649,127 @@ export default function LeadDetails() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Send WhatsApp Update Modal */}
+      {updateMode && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-gray-900/60 backdrop-blur-sm" onClick={() => setUpdateMode(false)} />
+          <div className="relative card w-full max-w-md shadow-modal">
+            <div className="p-5 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+              <div>
+                <h3 className="font-bold text-gray-900 dark:text-white">Send WhatsApp Update</h3>
+                <p className="text-sm text-gray-500 mt-0.5">
+                  Sending to: {lead.whatsapp || lead.phone}
+                </p>
+              </div>
+              <button onClick={() => setUpdateMode(false)} className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800">
+                <XMarkIcon className="w-5 h-5 text-gray-500" />
+              </button>
+            </div>
+            <div className="p-5 space-y-4">
+              <div>
+                <label className="label">Select Update</label>
+                <select
+                  value={selectedMilestone}
+                  onChange={(e) => { setSelectedMilestone(e.target.value); setCustomMessage(''); }}
+                  className="input"
+                >
+                  {MILESTONE_MESSAGES.map((m) => (
+                    <option key={m} value={m}>{m}</option>
+                  ))}
+                </select>
+              </div>
+
+              {selectedMilestone === 'Custom message…' && (
+                <div>
+                  <label className="label">Your Message *</label>
+                  <textarea
+                    value={customMessage}
+                    onChange={(e) => setCustomMessage(e.target.value)}
+                    rows={3}
+                    className="input resize-none"
+                    placeholder="Type your custom update here…"
+                  />
+                </div>
+              )}
+
+              {/* Preview */}
+              <div className="rounded-xl bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 p-3">
+                <p className="text-xs font-semibold text-green-700 dark:text-green-400 mb-1">WhatsApp Preview</p>
+                <p className="text-xs text-green-800 dark:text-green-300 whitespace-pre-line">
+                  {`📦 Order Update — Backero\n\n${selectedMilestone === 'Custom message…' ? (customMessage || '…') : selectedMilestone}`}
+                </p>
+              </div>
+
+              <div className="flex gap-3">
+                <button type="button" onClick={() => setUpdateMode(false)} className="btn-secondary flex-1 justify-center">
+                  Cancel
+                </button>
+                <button
+                  onClick={() => {
+                    const msg = selectedMilestone === 'Custom message…' ? customMessage : selectedMilestone;
+                    if (!msg.trim()) return toast.error('Enter a message');
+                    updateMutation.mutate(msg);
+                  }}
+                  disabled={updateMutation.isPending}
+                  className="btn-primary flex-1 justify-center gap-2 disabled:opacity-50"
+                >
+                  <PaperAirplaneIcon className="w-4 h-4" />
+                  {updateMutation.isPending ? 'Sending…' : 'Send via WhatsApp'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Stage Shift Confirmation (New Lead → any other stage) */}
+      {pendingStage && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-gray-900/60 backdrop-blur-sm" onClick={() => setPendingStage(null)} />
+          <div className="relative card w-full max-w-md shadow-modal">
+            <div className="p-5 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+              <div>
+                <h3 className="font-bold text-gray-900 dark:text-white">Move Lead to "{pendingStage}"</h3>
+                <p className="text-sm text-gray-500 mt-0.5">Please tell us why you're shifting this lead</p>
+              </div>
+              <button onClick={() => setPendingStage(null)} className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800">
+                <XMarkIcon className="w-5 h-5 text-gray-500" />
+              </button>
+            </div>
+            <div className="p-5 space-y-4">
+              <div>
+                <label className="label">Reason for shifting *</label>
+                <textarea
+                  value={stageShiftReason}
+                  onChange={(e) => setStageShiftReason(e.target.value)}
+                  rows={3}
+                  className="input resize-none"
+                  placeholder={`e.g. Customer confirmed interest, moving to ${pendingStage}…`}
+                  autoFocus
+                />
+              </div>
+              <div className="flex gap-3">
+                <button type="button" onClick={() => setPendingStage(null)} className="btn-secondary flex-1 justify-center">
+                  Cancel
+                </button>
+                <button
+                  onClick={() => {
+                    if (!stageShiftReason.trim()) { toast.error('Please provide a reason'); return; }
+                    statusMutation.mutate(pendingStage, {
+                      onSuccess: () => setPendingStage(null),
+                    });
+                  }}
+                  disabled={statusMutation.isPending}
+                  className="btn-primary flex-1 justify-center disabled:opacity-50"
+                >
+                  {statusMutation.isPending ? 'Moving…' : `Move to ${pendingStage}`}
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}

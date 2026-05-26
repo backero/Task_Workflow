@@ -62,6 +62,24 @@ exports.approveTask = asyncHandler(async (req, res) => {
   task.updatedBy = req.user._id;
   await task.save();
 
+  // WhatsApp to client if this task is linked to a lead
+  if (task.relatedTo?.model === 'Lead' && task.relatedTo?.id) {
+    const Lead = require('../models/Lead');
+    const { sendMessage } = require('../services/whatsapp.service');
+    Lead.findById(task.relatedTo.id).select('name phone whatsapp').then((lead) => {
+      if (!lead) return;
+      const phone = lead.whatsapp || lead.phone;
+      if (!phone) return;
+      const msg =
+        `*✅ Order Complete — Backero*\n\n` +
+        `Hi ${lead.name},\n\n` +
+        `Great news! Your order *"${task.title}"* has been completed successfully.\n\n` +
+        `Thank you for choosing Backero. Please reach out if you need anything further.\n\n` +
+        `_— Backero Team_`;
+      sendMessage(phone, msg).catch(() => {});
+    }).catch(() => {});
+  }
+
   await createNotification({
     organizationId: req.user.organizationId,
     recipient: approval.requestedBy,

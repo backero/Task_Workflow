@@ -11,6 +11,7 @@ import {
   ExclamationTriangleIcon, CheckCircleIcon, ClockIcon, ArrowTrendingUpIcon,
   ChartBarIcon, BuildingOfficeIcon, ShoppingCartIcon, BeakerIcon,
   ArrowRightIcon, BellAlertIcon, UserGroupIcon, DocumentTextIcon, ViewColumnsIcon,
+  QuestionMarkCircleIcon,
 } from '@heroicons/react/24/outline';
 import api from '../../api/axios';
 import { useAuthStore } from '../../store/useAuthStore';
@@ -115,6 +116,7 @@ export default function FounderDashboard() {
   const approvals  = d.pendingApprovals || [];
   const alerts     = d.recentAlerts || [];
   const recentTasks = d.recentTasks || [];
+  const techQueries = d.technicalQueries || { pendingCount: 0, recent: [] };
 
   // Charts
   const taskPieData = [
@@ -221,6 +223,13 @@ export default function FounderDashboard() {
           label="Active Production" value={d.production?.activeOrders || 0}
           sub="Orders in progress"
           to="/production/orders"
+        />
+        <StatCard
+          icon={QuestionMarkCircleIcon} color="rose"
+          label="Pending Queries" value={techQueries.pendingCount}
+          sub="Technical queries from Sales"
+          badge={techQueries.pendingCount}
+          to="/crm/queries"
         />
       </div>
 
@@ -552,7 +561,50 @@ export default function FounderDashboard() {
         </div>
       </div>
 
-      {/* ── Row 7: Quick Navigation ───────────────────────────────────────────── */}
+      {/* ── Row 7: Technical Queries ─────────────────────────────────────────── */}
+      <div className="card p-5">
+        <SectionHeader
+          title="Technical Queries"
+          sub={`${techQueries.pendingCount} pending queries from Sales team`}
+          to="/crm/queries"
+          toLabel="View All"
+        />
+        {techQueries.recent.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-8 text-gray-400">
+            <QuestionMarkCircleIcon className="w-10 h-10 mb-2 opacity-30" />
+            <p className="text-sm">No pending technical queries</p>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {techQueries.recent.map((q) => (
+              <div key={q._id} className="flex items-start gap-3 p-3 rounded-lg bg-rose-50 dark:bg-rose-900/10 border border-rose-100 dark:border-rose-900/30">
+                <QuestionMarkCircleIcon className="w-4 h-4 text-rose-500 flex-shrink-0 mt-0.5" />
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap mb-0.5">
+                    <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
+                      q.urgency === 'high' ? 'bg-red-100 text-red-700' : q.urgency === 'medium' ? 'bg-yellow-100 text-yellow-700' : 'bg-gray-100 text-gray-600'
+                    }`}>{q.urgency}</span>
+                    {q.leadName && <span className="text-xs text-gray-500">Lead: {q.leadName}</span>}
+                  </div>
+                  <p className="text-sm font-medium text-gray-900 dark:text-white">{q.title}</p>
+                  <div className="flex items-center gap-3 mt-0.5 text-xs text-gray-400 flex-wrap">
+                    <span>By: {q.raisedBy?.firstName} {q.raisedBy?.lastName}</span>
+                    {q.assignedTo ? (
+                      <span>Assigned: {q.assignedTo.firstName} {q.assignedTo.lastName}</span>
+                    ) : (
+                      <span className="text-orange-500">Unassigned</span>
+                    )}
+                    <span>{q.createdAt ? formatDistanceToNow(new Date(q.createdAt), { addSuffix: true }) : ''}</span>
+                  </div>
+                </div>
+                <Link to="/crm/queries" className="btn-primary text-xs px-3 py-1.5 flex-shrink-0">Reply</Link>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* ── Row 8: Quick Navigation ───────────────────────────────────────────── */}
       <div>
         <h3 className="font-bold text-gray-900 dark:text-white mb-4">Quick Navigation</h3>
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">

@@ -74,6 +74,7 @@ const leadSchema = new mongoose.Schema({
   // Conversion
   convertedToTask: { type: mongoose.Schema.Types.ObjectId, ref: 'Task' },
   isConverted: { type: Boolean, default: false },
+  trackingToken: { type: String, unique: true, sparse: true, index: true },
 
   tags: [{ type: String }],
   createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { PlusIcon, BoltIcon, MagnifyingGlassIcon, FunnelIcon, ChevronDownIcon, TrashIcon, ExclamationTriangleIcon, SparklesIcon, UserCircleIcon, XMarkIcon, ArrowPathIcon, ArrowDownTrayIcon, CloudArrowUpIcon, DocumentArrowDownIcon, CheckCircleIcon, ClockIcon, ArchiveBoxIcon } from '@heroicons/react/24/outline';
 import api from '../../api/axios';
@@ -327,13 +327,18 @@ const PRIORITY_OPTS = ['critical','urgent','high','medium','low'];
 const uid = () => Math.random().toString(36).slice(2);
 
 // ── Dept Hub Modal — 2-step wizard ────────────────────────────────────────────
-function DeptHubModal({ onClose, onCreated }) {
+function DeptHubModal({ onClose, onCreated, prefill }) {
   const { user } = useAuthStore();
   const isManagerRole = (ROLE_LEVEL[user?.role] || 1) === 3;
 
   const [step, setStep] = useState(1);
   const [submitted, setSubmitted] = useState(false);
-  const [main, setMain] = useState({ title: '', description: '', dueDate: '', priority: 'high' });
+  const [main, setMain] = useState({
+    title: prefill?.title || '',
+    description: prefill?.description || '',
+    dueDate: prefill?.dueDate || '',
+    priority: prefill?.priority || 'high',
+  });
   const emptyRow = () => ({ id: uid(), dept: '', taskTitle: '', managerId: '', dueDate: '' });
   const [rows, setRows]     = useState([emptyRow()]);
   const [allUsers, setAll]  = useState([]);
@@ -381,6 +386,13 @@ function DeptHubModal({ onClose, onCreated }) {
           priority: main.priority, parentTask: rootId,
           status: row.managerId ? 'Assigned' : 'Pending',
         });
+      }
+      // If opened from a lead, link the lead to this project
+      if (prefill?.leadId) {
+        await api.post(`/crm/leads/${prefill.leadId}/convert-to-task`, {
+          taskId: rootId,
+          dueDate: main.dueDate || undefined,
+        }).catch(() => {});
       }
       if (isManagerRole) {
         setSubmitted(true);
@@ -929,6 +941,7 @@ function ImportModal({ onClose, onImported }) {
 export default function WorkflowLanding() {
   const { user } = useAuthStore();
   const navigate = useNavigate();
+  const location = useLocation();
   const qc = useQueryClient();
   const { socket } = useSocketStore();
 
@@ -936,8 +949,12 @@ export default function WorkflowLanding() {
   const isAdmin = userLevel >= 4;
   const isManagerOrAbove = userLevel >= 3;
 
+  // Pre-fill from lead conversion (navigate from LeadDetails with state.fromLead)
+  const fromLead = location.state?.fromLead || null;
+
   const [showCreate,    setShowCreate]    = useState(false); // legacy, keep for safety
-  const [showDeptHub,   setShowDeptHub]   = useState(false);
+  const [showDeptHub,   setShowDeptHub]   = useState(!!fromLead); // auto-open if from lead
+  const [leadPrefill,   setLeadPrefill]   = useState(fromLead ? { ...fromLead, leadId: fromLead.id } : null);
   const [showIndividual,setShowIndividual]= useState(false);
   const [showImport,    setShowImport]    = useState(false);
   const [newTaskOpen,   setNewTaskOpen]   = useState(false);
@@ -959,6 +976,13 @@ export default function WorkflowLanding() {
       console.error(e);
     } finally { setDeletingAll(false); }
   };
+
+  // Clear router state so refresh doesn't re-open the modal
+  useEffect(() => {
+    if (fromLead) {
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+  }, []);
 
   // Real-time: refresh board when any task changes
   const refreshBoard = useCallback(() => {
@@ -1429,12 +1453,20 @@ export default function WorkflowLanding() {
       {/* ── Dept Hub modal ── */}
       {showDeptHub && (
         <DeptHubModal
-          onClose={() => setShowDeptHub(false)}
+          prefill={leadPrefill}
+          onClose={() => { setShowDeptHub(false); setLeadPrefill(null); }}
           onCreated={(id) => {
             setShowDeptHub(false);
+            setLeadPrefill(null);
             refetch();
             qc.invalidateQueries({ queryKey: ['tasks'] });
-            if (id) navigate(`/workflow/${id}`);
+            qc.invalidateQueries({ queryKey: ['crm'] });
+            // If came from a lead, go to dept-workflow to see the project
+            if (leadPrefill?.leadId) {
+              navigate(`/dept-workflow?project=${id}`);
+            } else if (id) {
+              navigate(`/workflow/${id}`);
+            }
           }}
         />
       )}

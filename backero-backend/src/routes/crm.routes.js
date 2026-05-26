@@ -89,12 +89,14 @@ router.post('/sheets/sync', authorizeAdminOrAbove, asyncHandler(async (req, res)
 router.get('/leads', ctrl.getLeads);
 router.get('/leads/pipeline', ctrl.getPipeline);
 router.get('/leads/analytics', ctrl.getAnalytics);
+router.get('/leads/by-task/:taskId', ctrl.getLeadByTask);
 router.get('/leads/:id', ctrl.getLead);
 router.post('/leads', authorizeAdminOrAbove, ctrl.createLead);
 router.put('/leads/:id', authorizeAdminOrAbove, ctrl.updateLead);
 router.post('/leads/:id/followup', authorizeAdminOrAbove, ctrl.addFollowUp);
 router.post('/leads/:id/assign', authorizeAdminOrAbove, ctrl.assignLead);
 router.post('/leads/:id/convert-to-task', authorizeAdminOrAbove, ctrl.convertToTask);
+router.post('/leads/:id/send-update', authorizeAdminOrAbove, ctrl.sendClientUpdate);
 router.delete('/leads/:id', authorizeAdminOrAbove, ctrl.deleteLead);
 
 // ── Technical Queries ─────────────────────────────────────────────────────────

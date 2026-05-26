@@ -106,6 +106,14 @@ exports.createLead = asyncHandler(async (req, res) => {
   sendSuccess(res, { lead }, 'Lead created', 201);
 });
 
+// GET /api/crm/leads/by-task/:taskId
+exports.getLeadByTask = asyncHandler(async (req, res) => {
+  const lead = await Lead.findOne({ convertedToTask: req.params.taskId, organizationId: req.user.organizationId })
+    .select('_id name phone whatsapp company status isConverted');
+  if (!lead) return sendError(res, 'No linked lead found.', 404);
+  sendSuccess(res, { lead });
+});
+
 // GET /api/crm/leads/:id
 exports.getLead = asyncHandler(async (req, res) => {
   const lead = await Lead.findOne({ _id: req.params.id, organizationId: req.user.organizationId })
@@ -196,30 +204,81 @@ exports.assignLead = asyncHandler(async (req, res) => {
 });
 
 // POST /api/crm/leads/:id/convert-to-task
+// Receives { taskId, dueDate } — links an already-created dept-hub root task to this lead
 exports.convertToTask = asyncHandler(async (req, res) => {
-  const { title, description, department, assignedTo, dueDate, priority } = req.body;
+  const { taskId, dueDate } = req.body;
+
+  const lead = await Lead.findOne({ _id: req.params.id, organizationId: req.user.organizationId });
+  if (!lead) return sendError(res, 'Lead not found.', 404);
+  if (lead.isConverted) return sendError(res, 'Lead is already converted.', 400);
+  if (!taskId) return sendError(res, 'taskId is required.', 400);
+
+  const task = await Task.findOne({ _id: taskId, organizationId: req.user.organizationId });
+  if (!task) return sendError(res, 'Task not found.', 404);
+
+  // Generate tracking token and link lead
+  const { v4: uuidv4 } = require('uuid');
+  const trackingToken = uuidv4();
+  lead.convertedToTask = task._id;
+  lead.isConverted = true;
+  lead.trackingToken = trackingToken;
+  lead.convertedAt = new Date();
+  await lead.save();
+
+  // WhatsApp confirmation to client with tracking link
+  const phone = lead.whatsapp || lead.phone;
+  if (phone) {
+    const { sendMessage } = require('../services/whatsapp.service');
+    const APP_URL = process.env.APP_URL || 'https://backero-worktaskflow.netlify.app';
+    const trackingUrl = `${APP_URL}/track/${trackingToken}`;
+    const deliveryDays = dueDate
+      ? Math.ceil((new Date(dueDate) - new Date()) / (1000 * 60 * 60 * 24))
+      : null;
+    const msg =
+      `*🎉 Order Confirmed — Backero*\n\n` +
+      `Hi ${lead.name},\n\n` +
+      `Thank you! Your order has been confirmed and our team has started working on it.\n\n` +
+      `📦 *Order:* ${task.title}\n` +
+      (deliveryDays && deliveryDays > 0 ? `📅 *Estimated Delivery:* ${deliveryDays} day${deliveryDays !== 1 ? 's' : ''}\n` : '') +
+      `⚡ *Priority:* ${task.priority}\n\n` +
+      `🔗 *Track your order anytime:*\n${trackingUrl}\n\n` +
+      `We'll keep you updated at every stage.\n\n` +
+      `_— Backero Team_`;
+    sendMessage(phone, msg).catch(() => {});
+  }
+
+  sendSuccess(res, { task, lead, trackingToken }, 'Lead converted to project');
+});
+
+// POST /api/crm/leads/:id/send-update
+exports.sendClientUpdate = asyncHandler(async (req, res) => {
+  const { message } = req.body;
+  if (!message?.trim()) return sendError(res, 'Message is required.', 400);
+
   const lead = await Lead.findOne({ _id: req.params.id, organizationId: req.user.organizationId });
   if (!lead) return sendError(res, 'Lead not found.', 404);
 
-  const task = await Task.create({
-    organizationId: req.user.organizationId,
-    title: title || `Follow up with ${lead.name}`,
-    description: description || `Lead: ${lead.name} | Phone: ${lead.phone} | Company: ${lead.company}`,
-    department: department || 'Sales',
-    assignedTo: assignedTo || lead.assignedTo,
-    assignedBy: req.user._id,
-    dueDate,
-    priority: priority || lead.priority,
-    status: 'Assigned',
-    relatedTo: { model: 'Lead', id: lead._id },
-    createdBy: req.user._id,
-  });
+  const phone = lead.whatsapp || lead.phone;
+  if (!phone) return sendError(res, 'No phone number available for this lead.', 400);
 
-  lead.convertedToTask = task._id;
-  lead.isConverted = true;
+  const { sendMessage } = require('../services/whatsapp.service');
+  const text =
+    `*📦 Order Update — Backero*\n\n` +
+    `${message}\n\n` +
+    `_Sent by: ${req.user.firstName} ${req.user.lastName}_`;
+
+  const sent = await sendMessage(phone, text);
+
+  lead.followUps.push({
+    type: 'whatsapp',
+    scheduledAt: new Date(),
+    notes: `Client update sent: "${message}"`,
+    outcome: 'WhatsApp update sent to client',
+    performedBy: req.user._id,
+  });
   await lead.save();
 
-  sendSuccess(res, { task, lead }, 'Lead converted to task');
+  sendSuccess(res, { sent }, 'Update sent to client via WhatsApp');
 });
 
 // GET /api/crm/pipeline

@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
 import {
   PlusIcon, PhoneIcon, EnvelopeIcon, XMarkIcon, BuildingOfficeIcon,
   MapPinIcon, CurrencyRupeeIcon, UserIcon, ClockIcon, CheckCircleIcon,
   ArrowRightIcon, TableCellsIcon, CalendarDaysIcon, ChatBubbleLeftIcon,
-  QuestionMarkCircleIcon,
+  QuestionMarkCircleIcon, ArrowTopRightOnSquareIcon,
 } from '@heroicons/react/24/outline';
 import api from '../../api/axios';
 import { useAuthStore } from '../../store/useAuthStore';
@@ -124,8 +125,11 @@ function LeadCard({ lead, onClick }) {
 // ── Lead Slide-Over Panel ────────────────────────────────────────────────────
 function LeadSlideOver({ leadId, onClose, onUpdated }) {
   const qc = useQueryClient();
+  const navigate = useNavigate();
   const [showFollowUpForm, setShowFollowUpForm] = useState(false);
   const [showQueryForm, setShowQueryForm] = useState(false);
+  const [pendingStage, setPendingStage] = useState(null);
+  const [stageShiftReason, setStageShiftReason] = useState('');
   const { register, handleSubmit, reset, formState: { errors } } = useForm();
   const { register: regQ, handleSubmit: handleQSubmit, reset: resetQ } = useForm();
 
@@ -138,7 +142,8 @@ function LeadSlideOver({ leadId, onClose, onUpdated }) {
   const statusMutation = useMutation({
     mutationFn: (status) => api.put(`/crm/leads/${leadId}`, { status }),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['crm'] });
+      qc.invalidateQueries({ queryKey: ['crm', 'lead', leadId] });
+      qc.refetchQueries({ queryKey: ['crm', 'pipeline'] });
       if (onUpdated) onUpdated();
       toast.success('Stage updated');
     },
@@ -227,9 +232,18 @@ function LeadSlideOver({ leadId, onClose, onUpdated }) {
               {lead?.company && <p className="text-xs text-gray-500 truncate">{lead.company}</p>}
             </div>
           </div>
-          <button onClick={onClose} className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 flex-shrink-0">
-            <XMarkIcon className="w-5 h-5 text-gray-500" />
-          </button>
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <button
+              onClick={() => { onClose(); navigate(`/crm/leads/${leadId}`); }}
+              className="flex items-center gap-1.5 text-xs font-medium text-brand-600 hover:text-brand-700 px-2.5 py-1.5 rounded-lg hover:bg-brand-50 dark:hover:bg-brand-900/20 transition-colors"
+            >
+              <ArrowTopRightOnSquareIcon className="w-4 h-4" />
+              Full Details
+            </button>
+            <button onClick={onClose} className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800">
+              <XMarkIcon className="w-5 h-5 text-gray-500" />
+            </button>
+          </div>
         </div>
 
         {isLoading ? (
@@ -248,7 +262,14 @@ function LeadSlideOver({ leadId, onClose, onUpdated }) {
                 {PIPELINE_STAGES.map((stage) => (
                   <button
                     key={stage}
-                    onClick={() => statusMutation.mutate(stage)}
+                    onClick={() => {
+                      if (lead?.status === 'New Lead' && stage !== 'New Lead') {
+                        setPendingStage(stage);
+                        setStageShiftReason('');
+                      } else {
+                        statusMutation.mutate(stage);
+                      }
+                    }}
                     disabled={statusMutation.isPending}
                     className={clsx(
                       'text-xs px-3 py-1.5 rounded-full font-medium transition-all border-2',
@@ -589,6 +610,54 @@ function LeadSlideOver({ leadId, onClose, onUpdated }) {
           </div>
         )}
       </motion.div>
+
+      {/* Stage Shift Confirmation (New Lead → any other stage) */}
+      {pendingStage && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-gray-900/60 backdrop-blur-sm" onClick={() => setPendingStage(null)} />
+          <div className="relative bg-white dark:bg-gray-900 rounded-2xl shadow-2xl w-full max-w-md border border-gray-200 dark:border-gray-700">
+            <div className="p-5 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+              <div>
+                <h3 className="font-bold text-gray-900 dark:text-white">Move to "{pendingStage}"</h3>
+                <p className="text-sm text-gray-500 mt-0.5">Why are you shifting this lead?</p>
+              </div>
+              <button onClick={() => setPendingStage(null)} className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800">
+                <XMarkIcon className="w-5 h-5 text-gray-500" />
+              </button>
+            </div>
+            <div className="p-5 space-y-4">
+              <div>
+                <label className="label">Reason for shifting *</label>
+                <textarea
+                  value={stageShiftReason}
+                  onChange={(e) => setStageShiftReason(e.target.value)}
+                  rows={3}
+                  className="input resize-none"
+                  placeholder={`e.g. Customer confirmed interest, moving to ${pendingStage}…`}
+                  autoFocus
+                />
+              </div>
+              <div className="flex gap-3">
+                <button type="button" onClick={() => setPendingStage(null)} className="btn-secondary flex-1 justify-center">
+                  Cancel
+                </button>
+                <button
+                  onClick={() => {
+                    if (!stageShiftReason.trim()) { toast.error('Please provide a reason'); return; }
+                    statusMutation.mutate(pendingStage, {
+                      onSuccess: () => { setPendingStage(null); onClose(); },
+                    });
+                  }}
+                  disabled={statusMutation.isPending}
+                  className="btn-primary flex-1 justify-center disabled:opacity-50"
+                >
+                  {statusMutation.isPending ? 'Moving…' : `Move to ${pendingStage}`}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }

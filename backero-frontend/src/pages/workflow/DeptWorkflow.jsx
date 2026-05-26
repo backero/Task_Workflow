@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import toast from 'react-hot-toast';
 import { useSearchParams } from 'react-router-dom';
 import api from '../../api/axios';
 import { usePermissions } from '../../store/usePermissions';
@@ -717,6 +718,84 @@ function AssignMemberModal({ dept, deptTasks, onClose, onCreated }) {
   );
 }
 
+// ─── WhatsApp Client Update Modal ─────────────────────────────────────────────
+const WA_MILESTONES = [
+  'Raw materials have been purchased ✅',
+  'Production has started ✅',
+  'Your product is being manufactured ✅',
+  'Quality check is in progress ✅',
+  'Quality check passed — product approved ✅',
+  'Packaging is complete ✅',
+  'Your order is ready for dispatch ✅',
+  'Your order has been dispatched 🚚',
+  'Custom message…',
+];
+
+function WhatsAppUpdateModal({ lead, onClose }) {
+  const [selected, setSelected] = useState(WA_MILESTONES[0]);
+  const [custom, setCustom] = useState('');
+
+  const mutation = useMutation({
+    mutationFn: (message) => api.post(`/crm/leads/${lead._id}/send-update`, { message }),
+    onSuccess: () => { toast.success('Update sent to client via WhatsApp'); onClose(); },
+    onError: () => toast.error('Failed to send update'),
+  });
+
+  const send = () => {
+    const msg = selected === 'Custom message…' ? custom : selected;
+    if (!msg.trim()) { toast.error('Enter a message'); return; }
+    mutation.mutate(msg);
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+      <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl w-full max-w-md">
+        <div className="p-5 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+          <div>
+            <h2 className="font-bold text-gray-900 dark:text-white flex items-center gap-2">
+              <PaperAirplaneIcon className="w-4 h-4 text-green-600" />
+              Send WhatsApp Update
+            </h2>
+            <p className="text-xs text-gray-500 mt-0.5">
+              To: {lead.name}{lead.phone ? ` · ${lead.phone}` : ''}
+            </p>
+          </div>
+          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-400">
+            <XMarkIcon className="w-5 h-5" />
+          </button>
+        </div>
+        <div className="p-5 space-y-4">
+          <div>
+            <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1.5">Select Update</label>
+            <select value={selected} onChange={e => { setSelected(e.target.value); setCustom(''); }} className="input w-full">
+              {WA_MILESTONES.map(m => <option key={m} value={m}>{m}</option>)}
+            </select>
+          </div>
+          {selected === 'Custom message…' && (
+            <div>
+              <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1.5">Your Message *</label>
+              <textarea value={custom} onChange={e => setCustom(e.target.value)} rows={3} className="input w-full resize-none" placeholder="Type your custom update here…" />
+            </div>
+          )}
+          <div className="rounded-xl bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 p-3">
+            <p className="text-xs font-semibold text-green-700 dark:text-green-400 mb-1">WhatsApp Preview</p>
+            <p className="text-xs text-green-800 dark:text-green-300 whitespace-pre-line">
+              {`📦 Order Update — Backero\n\n${selected === 'Custom message…' ? (custom || '…') : selected}`}
+            </p>
+          </div>
+          <div className="flex gap-3">
+            <button onClick={onClose} className="btn-secondary flex-1 justify-center">Cancel</button>
+            <button onClick={send} disabled={mutation.isPending} className="btn-primary flex-1 justify-center gap-2 disabled:opacity-50">
+              <PaperAirplaneIcon className="w-4 h-4" />
+              {mutation.isPending ? 'Sending…' : 'Send via WhatsApp'}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Update Modal ─────────────────────────────────────────────────────────────
 function UpdateModal({ dept, progress, projectId, onClose }) {
   const [msg, setMsg] = useState(`${dept} update: ${progress}% complete. `);
@@ -773,6 +852,7 @@ export default function DeptWorkflow() {
   const [memberModal,  setMemberModal]  = useState(null);
   const [confirmDel,   setConfirmDel]   = useState(false);
   const [deleting,     setDeleting]     = useState(false);
+  const [waModal,      setWaModal]      = useState(false);
 
   const showToast = (msg, ok = true) => { setToast({ msg, ok }); setTimeout(() => setToast(null), 3000); };
 
@@ -790,6 +870,15 @@ export default function DeptWorkflow() {
     enabled: !!projectId,
   });
   const tree = treeData?.data?.task || treeData?.task || null;
+
+  // Linked CRM lead (if project was converted from a lead)
+  const { data: linkedLeadData } = useQuery({
+    queryKey: ['linked-lead', projectId],
+    queryFn: () => api.get(`/crm/leads/by-task/${projectId}`).then(r => r.data.lead).catch(() => null),
+    enabled: !!projectId,
+    retry: false,
+  });
+  const linkedLead = linkedLeadData || null;
 
   // Build dept map
   const deptMap = {};
@@ -885,6 +974,16 @@ export default function DeptWorkflow() {
               </button>
             ))}
           </div>
+
+          {/* Send WhatsApp update to client */}
+          {linkedLead && (
+            <button
+              onClick={() => setWaModal(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-green-600 hover:bg-green-700 text-white text-xs font-bold transition-all flex-shrink-0"
+            >
+              <PaperAirplaneIcon className="w-3.5 h-3.5" /> Send Client Update
+            </button>
+          )}
 
           {/* New Project */}
           {isAdmin && (
@@ -992,6 +1091,11 @@ export default function DeptWorkflow() {
           </div>
         )}
       </div>
+
+      {/* WhatsApp Client Update Modal */}
+      {waModal && linkedLead && (
+        <WhatsAppUpdateModal lead={linkedLead} onClose={() => setWaModal(false)} />
+      )}
 
       {/* Modals */}
       {showNew && (

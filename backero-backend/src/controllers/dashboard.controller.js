@@ -7,6 +7,7 @@ const Invoice = require('../models/Invoice');
 const User = require('../models/User');
 const TaskApproval = require('../models/TaskApproval');
 const Notification = require('../models/Notification');
+const ProductionQuery = require('../models/ProductionQuery');
 const { asyncHandler, sendSuccess, getDateRange } = require('../utils/helpers');
 const { TASK_STATUS, LEAD_STATUS, ROLES, ROLE_HIERARCHY } = require('../utils/constants');
 
@@ -40,6 +41,8 @@ exports.getFounderDashboard = asyncHandler(async (req, res) => {
     totalEmployees,
     monthlyRevenueTrend,
     recentTasks,
+    recentQueries,
+    pendingQueriesCount,
   ] = await Promise.all([
     safe(Task.aggregate([
       { $match: { organizationId: orgId } },
@@ -103,6 +106,13 @@ exports.getFounderDashboard = asyncHandler(async (req, res) => {
       .sort({ createdAt: -1 })
       .limit(8)
       .select('title status priority department assignedTo dueDate isOverdue createdAt')),
+    safe(ProductionQuery.find({ organizationId: orgId, status: 'pending' })
+      .populate('raisedBy', 'firstName lastName')
+      .populate('assignedTo', 'firstName lastName')
+      .sort({ createdAt: -1 })
+      .limit(6)
+      .select('title leadName urgency status raisedBy assignedTo createdAt')),
+    safe(ProductionQuery.countDocuments({ organizationId: orgId, status: 'pending' })),
   ]);
 
   const statusMap = {};
@@ -168,6 +178,10 @@ exports.getFounderDashboard = asyncHandler(async (req, res) => {
       pendingApprovals: pendingApprovalsList || [],
       recentAlerts: recentAlerts || [],
       recentTasks: recentTasks || [],
+      technicalQueries: {
+        pendingCount: pendingQueriesCount || 0,
+        recent: recentQueries || [],
+      },
     },
   });
 });
@@ -177,7 +191,7 @@ exports.getEmployeeDashboard = asyncHandler(async (req, res) => {
   const orgId = req.user.organizationId;
   const userId = req.user._id;
 
-  const [myTasks, overdueTasks, completedThisMonth, myLeads, unreadNotifications, pendingApprovals] = await Promise.all([
+  const [myTasks, overdueTasks, completedThisMonth, myLeads, unreadNotifications, pendingApprovals, myQueries] = await Promise.all([
     Task.find({ organizationId: orgId, assignedTo: userId, status: { $nin: ['Completed', 'Cancelled'] } })
       .sort({ priority: -1, dueDate: 1 })
       .limit(10)
@@ -194,10 +208,15 @@ exports.getEmployeeDashboard = asyncHandler(async (req, res) => {
       .limit(5),
     Notification.countDocuments({ organizationId: orgId, recipient: userId, isRead: false }),
     TaskApproval.countDocuments({ organizationId: orgId, requestedBy: userId, status: 'pending' }),
+    ProductionQuery.find({ organizationId: orgId, assignedTo: userId, status: 'pending' })
+      .populate('raisedBy', 'firstName lastName')
+      .sort({ createdAt: -1 })
+      .limit(5)
+      .select('title leadName urgency status raisedBy createdAt'),
   ]);
 
   sendSuccess(res, {
-    dashboard: { myTasks, overdueTasks, completedThisMonth, myLeads, unreadNotifications, pendingApprovals },
+    dashboard: { myTasks, overdueTasks, completedThisMonth, myLeads, unreadNotifications, pendingApprovals, myQueries: myQueries || [] },
   });
 });
 
@@ -226,6 +245,8 @@ exports.getManagerDashboard = asyncHandler(async (req, res) => {
     teamPerformance,
     lowStockItems,
     teamSize,
+    recentQueries,
+    pendingQueriesCount,
   ] = await Promise.all([
     safe(Task.aggregate([{ $match: filter }, { $group: { _id: '$status', count: { $sum: 1 } } }])),
     safe(Task.find({ ...filter, status: { $nin: ['Completed', 'Cancelled'] } })
@@ -260,6 +281,13 @@ exports.getManagerDashboard = asyncHandler(async (req, res) => {
     safe(req.user.department
       ? User.countDocuments({ organizationId: orgId, department: req.user.department, isActive: true })
       : User.countDocuments({ organizationId: orgId, isActive: true })),
+    safe(ProductionQuery.find({ organizationId: orgId, status: 'pending' })
+      .populate('raisedBy', 'firstName lastName')
+      .populate('assignedTo', 'firstName lastName')
+      .sort({ createdAt: -1 })
+      .limit(6)
+      .select('title leadName urgency status raisedBy assignedTo createdAt')),
+    safe(ProductionQuery.countDocuments({ organizationId: orgId, status: 'pending' })),
   ]);
 
   const statusMap = {};
@@ -279,6 +307,10 @@ exports.getManagerDashboard = asyncHandler(async (req, res) => {
       teamPerformance: teamPerformance || [],
       lowStockItems: lowStockItems || [],
       teamSize: teamSize || 0,
+      technicalQueries: {
+        pendingCount: pendingQueriesCount || 0,
+        recent: recentQueries || [],
+      },
     },
   });
 });

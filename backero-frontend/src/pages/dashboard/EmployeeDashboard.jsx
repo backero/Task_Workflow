@@ -5,6 +5,7 @@ import { motion } from 'framer-motion';
 import {
   ClipboardDocumentListIcon, ExclamationTriangleIcon, CheckCircleIcon,
   ClockIcon, ArrowRightIcon, ChevronRightIcon, BoltIcon, ViewColumnsIcon,
+  QuestionMarkCircleIcon,
 } from '@heroicons/react/24/outline';
 import api from '../../api/axios';
 import { useAuthStore } from '../../store/useAuthStore';
@@ -65,6 +66,7 @@ export default function EmployeeDashboard() {
   const d        = data || {};
   const myTasks  = d.myTasks || [];
   const myLeads  = d.myLeads || [];
+  const myQueries = d.myQueries || [];
 
   // Separate overdue tasks from active tasks
   const overdueTasks  = myTasks.filter((t) => t.isOverdue);
@@ -123,6 +125,14 @@ export default function EmployeeDashboard() {
           sub="Awaiting manager review"
           to="/tasks/my"
         />
+        {myQueries.length > 0 && (
+          <StatCard
+            icon={QuestionMarkCircleIcon} color="rose"
+            label="My Queries" value={myQueries.length}
+            sub="Awaiting your reply"
+            to="/crm/queries"
+          />
+        )}
       </div>
 
       {/* Overdue Banner */}
@@ -287,6 +297,39 @@ export default function EmployeeDashboard() {
               </div>
             )}
           </div>
+
+          {/* My Technical Queries */}
+          {myQueries.length > 0 && (
+            <div className="card p-5">
+              <div className="flex items-center justify-between mb-3">
+                <div>
+                  <h3 className="font-bold text-gray-900 dark:text-white">My Queries</h3>
+                  <p className="text-xs text-gray-500 mt-0.5">{myQueries.length} pending</p>
+                </div>
+                <Link to="/crm/queries" className="text-xs text-brand-600 hover:text-brand-700 font-medium flex items-center gap-1">
+                  View all <ArrowRightIcon className="w-3 h-3" />
+                </Link>
+              </div>
+              <div className="space-y-2">
+                {myQueries.map((q) => (
+                  <div key={q._id} className="p-3 rounded-lg bg-rose-50 dark:bg-rose-900/10 border border-rose-100 dark:border-rose-900/30">
+                    <div className="flex items-center gap-2 mb-1">
+                      <QuestionMarkCircleIcon className="w-4 h-4 text-rose-500 flex-shrink-0" />
+                      <span className={`text-xs font-semibold px-1.5 py-0.5 rounded-full ${
+                        q.urgency === 'high' ? 'bg-red-100 text-red-700' : q.urgency === 'medium' ? 'bg-yellow-100 text-yellow-700' : 'bg-gray-100 text-gray-600'
+                      }`}>{q.urgency}</span>
+                    </div>
+                    <p className="text-sm font-medium text-gray-900 dark:text-white">{q.title}</p>
+                    {q.leadName && <p className="text-xs text-gray-500 mt-0.5">Lead: {q.leadName}</p>}
+                    <p className="text-xs text-gray-400 mt-0.5">
+                      By: {q.raisedBy?.firstName} {q.raisedBy?.lastName}
+                    </p>
+                    <Link to="/crm/queries" className="mt-2 inline-block btn-primary text-xs px-3 py-1">Reply</Link>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>

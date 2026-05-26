@@ -34,6 +34,7 @@ const marketplaceRoutes = require('./src/routes/marketplace.routes');
 const whatsappRoutes  = require('./src/routes/whatsapp.routes');
 const workflowRoutes  = require('./src/routes/workflow.routes');
 const chatRoutes      = require('./src/routes/chat.routes');
+const publicRoutes    = require('./src/routes/public.routes');
 
 const app = express();
 const server = http.createServer(app);
@@ -136,6 +137,9 @@ app.use('/api/', (req, res, next) => {
   }
   next();
 });
+
+// Public routes (no auth required)
+app.use('/api/public', publicRoutes);
 
 // API Routes
 app.use('/api/auth', authRoutes);
