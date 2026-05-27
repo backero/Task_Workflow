@@ -8,8 +8,10 @@ export default function Layout() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
 
+  const isDark = document.documentElement.classList.contains('dark');
+
   return (
-    <div className="flex h-screen overflow-hidden bg-[#f1f5f9] dark:bg-[#040a14]">
+    <div className="flex h-screen overflow-hidden bg-[#f0f4fa] dark:bg-[#040a14]">
       {/* Desktop Sidebar */}
       <aside className={`hidden lg:flex flex-col transition-all duration-300 ease-in-out flex-shrink-0 ${sidebarOpen ? 'w-64' : 'w-16'}`}>
         <Sidebar collapsed={!sidebarOpen} onToggle={() => setSidebarOpen((p) => !p)} />
@@ -31,7 +33,15 @@ export default function Layout() {
           sidebarOpen={sidebarOpen}
           onMobileMenuToggle={() => setMobileSidebarOpen(true)}
         />
-        <main className="flex-1 overflow-y-auto p-4 lg:p-6">
+        <main
+          className="flex-1 overflow-y-auto p-4 lg:p-6"
+          style={{
+            backgroundImage: isDark
+              ? 'radial-gradient(circle, rgba(255,255,255,0.04) 1px, transparent 1px)'
+              : 'radial-gradient(circle, rgba(0,0,0,0.06) 1px, transparent 1px)',
+            backgroundSize: '22px 22px',
+          }}
+        >
           <div className="max-w-screen-2xl mx-auto animate-page">
             <Outlet />
           </div>

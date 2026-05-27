@@ -11,6 +11,8 @@ import NotificationCenter from '../common/NotificationCenter';
 import { useQuery } from '@tanstack/react-query';
 import api from '../../api/axios';
 
+const HEADER_BG = '#0c1445';
+
 export default function Header({ onMobileMenuToggle }) {
   const { user, logout } = useAuthStore();
   const { isAdmin } = usePermissions();
@@ -76,41 +78,56 @@ export default function Header({ onMobileMenuToggle }) {
   const waConnected = waStatus?.connected;
   const initials = `${user?.firstName?.[0] || ''}${user?.lastName?.[0] || ''}`;
 
+  const iconBtn = 'p-2 rounded-xl transition-colors text-white/50 hover:text-white/90';
+  const iconBtnStyle = { ':hover': {} };
+
   return (
-    <header className="relative z-20 h-14 flex-shrink-0 flex items-center px-4 lg:px-5 gap-3 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border-b border-slate-200/60 dark:border-slate-800/60 shadow-sm">
+    <header
+      className="relative z-20 h-14 flex-shrink-0 flex items-center px-4 lg:px-5 gap-3"
+      style={{ background: HEADER_BG, borderBottom: '1px solid rgba(255,255,255,0.07)' }}
+    >
       {/* Mobile menu toggle */}
       <button
         onClick={onMobileMenuToggle}
-        className="lg:hidden p-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+        className="lg:hidden p-2 rounded-xl text-white/50 hover:text-white/90 transition-colors"
+        style={{ background: 'transparent' }}
+        onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.08)'}
+        onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
       >
-        <Bars3Icon className="w-5 h-5 text-slate-500 dark:text-slate-400" />
+        <Bars3Icon className="w-5 h-5" />
       </button>
 
       {/* Global search */}
       <div className="flex-1 max-w-sm relative" ref={searchRef}>
         <div className="relative">
-          <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+          <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/35 pointer-events-none" />
           <input
             type="text"
             value={searchQuery}
             onChange={(e) => { setSearchQuery(e.target.value); setShowSearch(true); }}
             onFocus={() => setShowSearch(true)}
             placeholder="Search tasks, leads…"
-            className="w-full pl-9 pr-8 py-2 bg-slate-100 dark:bg-slate-800/80 border border-transparent focus:border-blue-400 dark:focus:border-blue-500 rounded-xl text-sm text-slate-900 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:bg-white dark:focus:bg-slate-800 transition-all duration-200"
+            className="w-full pl-9 pr-8 py-2 rounded-xl text-sm text-white/80 placeholder-white/30 focus:outline-none transition-all duration-200"
+            style={{
+              background: 'rgba(255,255,255,0.07)',
+              border: '1px solid rgba(255,255,255,0.1)',
+            }}
+            onFocusCapture={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.12)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.2)'; }}
+            onBlur={e => { if (!showSearch) { e.currentTarget.style.background = 'rgba(255,255,255,0.07)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)'; } }}
           />
           {searchQuery && (
             <button
               onClick={() => { setSearchQuery(''); setDebouncedSearch(''); setShowSearch(false); }}
-              className="absolute right-2.5 top-1/2 -translate-y-1/2 p-0.5 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 p-0.5 rounded-lg text-white/40 hover:text-white/70 transition-colors"
             >
-              <XMarkIcon className="w-3.5 h-3.5 text-slate-400" />
+              <XMarkIcon className="w-3.5 h-3.5" />
             </button>
           )}
         </div>
 
         {/* Search results */}
         {showSearch && debouncedSearch.length >= 2 && (
-          <div className="absolute top-11 left-0 right-0 bg-white dark:bg-slate-800 rounded-2xl border border-slate-100 dark:border-slate-700 shadow-xl z-50 overflow-hidden animate-fade-slide-up">
+          <div className="absolute top-11 left-0 right-0 bg-white dark:bg-slate-800 rounded-2xl border border-slate-100 dark:border-slate-700 shadow-2xl z-50 overflow-hidden animate-slide-down">
             {searching && !searchResults ? (
               <div className="p-4 text-sm text-slate-400 text-center">Searching…</div>
             ) : !searchResults?.data?.length ? (
@@ -143,17 +160,21 @@ export default function Header({ onMobileMenuToggle }) {
         )}
       </div>
 
-      <div className="flex items-center gap-1 ml-auto">
+      <div className="flex items-center gap-0.5 ml-auto">
         {/* WhatsApp status */}
         {isAdmin && waStatus !== undefined && (
           <button
             onClick={() => navigate('/settings/whatsapp')}
             title={waConnected ? 'WhatsApp connected' : 'WhatsApp disconnected'}
-            className="relative p-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+            className="relative p-2 rounded-xl text-white/50 hover:text-white/90 transition-colors"
+            onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.08)'}
+            onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
           >
-            <DevicePhoneMobileIcon className="w-4.5 h-4.5 text-slate-500 dark:text-slate-400" style={{ width: '18px', height: '18px' }} />
-            <span className={`absolute top-1.5 right-1.5 w-2 h-2 rounded-full ring-2 ring-white dark:ring-slate-900 ${
-              waConnected ? 'bg-emerald-500' : 'bg-red-500'
+            <DevicePhoneMobileIcon style={{ width: '18px', height: '18px' }} />
+            <span className={`absolute top-1.5 right-1.5 w-2 h-2 rounded-full ring-2 ${
+              waConnected
+                ? 'bg-emerald-400 ring-emerald-900'
+                : 'bg-red-400 ring-red-900'
             }`} />
           </button>
         )}
@@ -161,12 +182,14 @@ export default function Header({ onMobileMenuToggle }) {
         {/* Dark mode toggle */}
         <button
           onClick={toggleDark}
-          className="p-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
           title={isDark ? 'Light mode' : 'Dark mode'}
+          className="p-2 rounded-xl text-white/50 hover:text-white/90 transition-colors"
+          onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.08)'}
+          onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
         >
           {isDark
-            ? <SunIcon className="w-4.5 h-4.5 text-amber-500" style={{ width: '18px', height: '18px' }} />
-            : <MoonIcon className="w-4.5 h-4.5 text-slate-500" style={{ width: '18px', height: '18px' }} />
+            ? <SunIcon style={{ width: '18px', height: '18px' }} className="text-amber-400" />
+            : <MoonIcon style={{ width: '18px', height: '18px' }} />
           }
         </button>
 
@@ -174,11 +197,13 @@ export default function Header({ onMobileMenuToggle }) {
         <div className="relative" ref={notifRef}>
           <button
             onClick={() => setShowNotifs((p) => !p)}
-            className="relative p-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+            className="relative p-2 rounded-xl text-white/50 hover:text-white/90 transition-colors"
+            onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.08)'}
+            onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
           >
-            <BellIcon className="text-slate-500 dark:text-slate-400" style={{ width: '18px', height: '18px' }} />
+            <BellIcon style={{ width: '18px', height: '18px' }} />
             {unreadCount > 0 && (
-              <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 bg-red-500 text-white text-[10px] rounded-full flex items-center justify-center font-bold leading-none">
+              <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 bg-rose-500 text-white text-[10px] rounded-full flex items-center justify-center font-bold leading-none">
                 {unreadCount > 9 ? '9+' : unreadCount}
               </span>
             )}
@@ -190,37 +215,44 @@ export default function Header({ onMobileMenuToggle }) {
           )}
         </div>
 
+        {/* Divider */}
+        <div className="w-px h-6 mx-1.5" style={{ background: 'rgba(255,255,255,0.1)' }} />
+
         {/* User menu */}
-        <div className="relative ml-1" ref={userMenuRef}>
+        <div className="relative" ref={userMenuRef}>
           <button
             onClick={() => setShowUserMenu((p) => !p)}
-            className="flex items-center gap-2.5 pl-1 pr-2 py-1 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+            className="flex items-center gap-2.5 px-2 py-1.5 rounded-xl transition-colors"
+            onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.08)'}
+            onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
           >
             <div
-              className="w-8 h-8 rounded-xl flex items-center justify-center text-white text-xs font-black shadow-sm flex-shrink-0"
-              style={{ background: 'linear-gradient(135deg,#112270,#1e3a8a)' }}
+              className="w-7 h-7 rounded-lg flex items-center justify-center text-white text-[11px] font-black flex-shrink-0"
+              style={{ background: 'linear-gradient(135deg,#22c55e,#15803d)' }}
             >
               {initials}
             </div>
             <div className="hidden sm:block text-left">
-              <p className="text-sm font-semibold text-slate-800 dark:text-white leading-tight">{user?.firstName}</p>
-              <p className="text-[10px] text-slate-400 capitalize leading-tight">{user?.role?.replace('_', ' ')}</p>
+              <p className="text-[13px] font-semibold text-white/80 leading-tight">{user?.firstName}</p>
+              <p className="text-[10px] text-white/35 capitalize leading-tight">{user?.role?.replace('_', ' ')}</p>
             </div>
           </button>
 
           {showUserMenu && (
-            <div className="absolute right-0 top-12 z-50 w-52 bg-white dark:bg-slate-800 rounded-2xl border border-slate-100 dark:border-slate-700 shadow-xl py-1.5 overflow-hidden animate-slide-down">
-              <div className="px-4 py-2.5 border-b border-slate-100 dark:border-slate-700 mb-1">
-                <p className="text-sm font-semibold text-slate-800 dark:text-white">{user?.firstName} {user?.lastName}</p>
-                <p className="text-xs text-slate-400 capitalize">{user?.role?.replace('_', ' ')}</p>
+            <div className="absolute right-0 top-12 z-50 w-52 bg-white dark:bg-slate-800 rounded-2xl border border-slate-100 dark:border-slate-700 shadow-2xl py-1.5 overflow-hidden animate-slide-down">
+              <div className="px-4 py-3 border-b border-slate-100 dark:border-slate-700">
+                <p className="text-sm font-bold text-slate-800 dark:text-white">{user?.firstName} {user?.lastName}</p>
+                <p className="text-xs text-slate-400 capitalize mt-0.5">{user?.role?.replace('_', ' ')}</p>
               </div>
-              <button
-                onClick={handleLogout}
-                className="flex items-center gap-2.5 w-full px-4 py-2 text-sm font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
-              >
-                <ArrowRightOnRectangleIcon className="w-4 h-4" />
-                Sign Out
-              </button>
+              <div className="p-1">
+                <button
+                  onClick={handleLogout}
+                  className="flex items-center gap-2.5 w-full px-3 py-2 text-sm font-medium text-rose-600 dark:text-rose-400 rounded-xl hover:bg-rose-50 dark:hover:bg-rose-900/20 transition-colors"
+                >
+                  <ArrowRightOnRectangleIcon className="w-4 h-4" />
+                  Sign Out
+                </button>
+              </div>
             </div>
           )}
         </div>
