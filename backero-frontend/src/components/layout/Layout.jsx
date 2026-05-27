@@ -11,7 +11,7 @@ export default function Layout() {
   const isDark = document.documentElement.classList.contains('dark');
 
   return (
-    <div className="flex h-screen overflow-hidden bg-[#f0f4fa] dark:bg-[#040a14]">
+    <div className="flex h-screen overflow-hidden bg-slate-50 dark:bg-[#0d1117]">
       {/* Desktop Sidebar */}
       <aside className={`hidden lg:flex flex-col transition-all duration-300 ease-in-out flex-shrink-0 ${sidebarOpen ? 'w-64' : 'w-16'}`}>
         <Sidebar collapsed={!sidebarOpen} onToggle={() => setSidebarOpen((p) => !p)} />
