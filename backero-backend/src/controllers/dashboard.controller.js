@@ -150,11 +150,11 @@ exports.getFounderDashboard = asyncHandler(async (req, res) => {
       crm: {
         totalLeads,
         newLeads: leadMap['New Lead'] || 0,
-        wonLeads: leadMap['Won'] || 0,
+        wonLeads: leadMap['Payment Pending'] || 0,
         lostLeads: leadMap['Lost'] || 0,
         followUp: leadMap['Follow-up'] || 0,
         interested: leadMap['Interested'] || 0,
-        conversionRate: totalLeads > 0 ? Math.round(((leadMap['Won'] || 0) / totalLeads) * 100) : 0,
+        conversionRate: totalLeads > 0 ? Math.round(((leadMap['Payment Pending'] || 0) / totalLeads) * 100) : 0,
       },
       inventory: {
         totalProducts: totalProducts || 0,
@@ -203,7 +203,7 @@ exports.getEmployeeDashboard = asyncHandler(async (req, res) => {
       status: 'Completed',
       completedAt: { $gte: new Date(new Date().getFullYear(), new Date().getMonth(), 1) },
     }),
-    Lead.find({ organizationId: orgId, assignedTo: userId, status: { $nin: ['Won', 'Lost'] } })
+    Lead.find({ organizationId: orgId, assignedTo: userId, status: { $nin: ['Payment Pending', 'Lost'] } })
       .sort({ nextFollowUpAt: 1 })
       .limit(5),
     Notification.countDocuments({ organizationId: orgId, recipient: userId, isRead: false }),

@@ -138,7 +138,7 @@ export default function FounderDashboard() {
     { name: 'New',        value: crm.newLeads || 0,    fill: '#3b82f6' },
     { name: 'Follow-up',  value: crm.followUp || 0,    fill: '#f97316' },
     { name: 'Interested', value: crm.interested || 0,  fill: '#9333ea' },
-    { name: 'Won',        value: crm.wonLeads || 0,    fill: '#22c55e' },
+    { name: 'Payment Pending', value: crm.wonLeads || 0, fill: '#22c55e' },
     { name: 'Lost',       value: crm.lostLeads || 0,   fill: '#ef4444' },
   ].filter((d) => d.value > 0);
 

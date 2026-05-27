@@ -73,10 +73,10 @@ router.get('/sales-conversion', asyncHandler(async (req, res) => {
 
   const [leadsByStatus, leadsBySource, conversionByEmployee] = await Promise.all([
     Lead.aggregate([{ $match: filter }, { $group: { _id: '$status', count: { $sum: 1 }, value: { $sum: '$estimatedValue' } } }]),
-    Lead.aggregate([{ $match: filter }, { $group: { _id: '$source', count: { $sum: 1 }, converted: { $sum: { $cond: [{ $eq: ['$status', 'Won'] }, 1, 0] } } } }]),
+    Lead.aggregate([{ $match: filter }, { $group: { _id: '$source', count: { $sum: 1 }, converted: { $sum: { $cond: [{ $eq: ['$status', 'Payment Pending'] }, 1, 0] } } } }]),
     Lead.aggregate([
       { $match: filter },
-      { $group: { _id: '$assignedTo', total: { $sum: 1 }, won: { $sum: { $cond: [{ $eq: ['$status', 'Won'] }, 1, 0] } }, value: { $sum: '$dealValue' } } },
+      { $group: { _id: '$assignedTo', total: { $sum: 1 }, won: { $sum: { $cond: [{ $eq: ['$status', 'Payment Pending'] }, 1, 0] } }, value: { $sum: '$dealValue' } } },
       { $lookup: { from: 'users', localField: '_id', foreignField: '_id', as: 'employee' } },
       { $unwind: { path: '$employee', preserveNullAndEmptyArrays: true } },
     ]),

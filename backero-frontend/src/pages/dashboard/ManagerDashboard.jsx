@@ -41,7 +41,7 @@ function KPICard({ icon: Icon, label, value, sub, color = 'blue', to, alert }) {
         {alert > 0 && (
           <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-red-100 text-red-700">{alert}</span>
         )}
-      </div>
+      </div>    ``
       <div>
         <p className="text-2xl font-bold text-gray-900 dark:text-white">{value}</p>
         <p className="text-sm font-medium text-gray-600 dark:text-gray-400 mt-0.5">{label}</p>

@@ -14,7 +14,7 @@ import { clsx } from 'clsx';
 import { format } from 'date-fns';
 import toast from 'react-hot-toast';
 
-const PIPELINE_STAGES = ['New Lead', 'Follow-up', 'In Progress', 'Ready to Dispatch', 'Dispatched', 'Won', 'Lost'];
+const PIPELINE_STAGES = ['New Lead', 'Follow-up', 'In Progress', 'Ready to Dispatch', 'Dispatched', 'Payment Pending', 'Lost'];
 
 const STAGE_BADGE = {
   'New Lead': 'bg-gray-100 text-gray-700',
@@ -27,7 +27,7 @@ const STAGE_BADGE = {
   'In Progress': 'bg-blue-100 text-blue-700',
   'Ready to Dispatch': 'bg-violet-100 text-violet-700',
   'Dispatched': 'bg-indigo-100 text-indigo-700',
-  'Won': 'bg-green-100 text-green-700',
+  'Payment Pending': 'bg-green-100 text-green-700',
   'Lost': 'bg-red-100 text-red-700',
 };
 
@@ -211,7 +211,7 @@ export default function LeadDetails() {
               >
                 <ArrowTopRightOnSquareIcon className="w-4 h-4" /> View Project
               </button>
-            ) : (lead.status === 'Won' || lead.status === 'In Progress') ? (
+            ) : (lead.status === 'Payment Pending' || lead.status === 'In Progress') ? (
               <button
                 onClick={() => navigate('/workflow', {
                   state: {

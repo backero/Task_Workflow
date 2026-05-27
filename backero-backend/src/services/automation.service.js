@@ -228,7 +228,7 @@ const runStaleLedCheck = async () => {
   const twoDaysAgo = new Date(Date.now() - 48 * 60 * 60 * 1000);
 
   const staleLeads = await Lead.find({
-    status: { $nin: ['Won', 'Lost'] },
+    status: { $nin: ['Payment Pending', 'Lost'] },
     assignedTo: { $ne: null },
     $or: [
       { lastContactedAt: { $lt: twoDaysAgo } },
@@ -319,7 +319,7 @@ const runFollowUpReminders = async () => {
   tomorrow.setHours(23, 59, 59, 999);
 
   const dueFollowUps = await Lead.find({
-    status: { $nin: ['Won', 'Lost'] },
+    status: { $nin: ['Payment Pending', 'Lost'] },
     assignedTo: { $ne: null },
     nextFollowUpAt: { $gte: new Date(), $lte: tomorrow },
   }).populate('assignedTo', 'firstName lastName');
@@ -377,8 +377,8 @@ const runDailyReport = async (targetPhones = null) => {
       safe(Task.countDocuments({ organizationId: org._id, status: 'In Progress' })),
       safe(Task.countDocuments({ organizationId: org._id, status: { $nin: ['Completed', 'Cancelled'] } })),
       safe(require('../models/Lead').countDocuments({ organizationId: org._id, createdAt: { $gte: today, $lte: todayEnd } })),
-      safe(require('../models/Lead').countDocuments({ organizationId: org._id, status: 'Won', updatedAt: { $gte: today } })),
-      safe(require('../models/Lead').countDocuments({ organizationId: org._id, status: { $nin: ['Won', 'Lost'] } })),
+      safe(require('../models/Lead').countDocuments({ organizationId: org._id, status: 'Payment Pending', updatedAt: { $gte: today } })),
+      safe(require('../models/Lead').countDocuments({ organizationId: org._id, status: { $nin: ['Payment Pending', 'Lost'] } })),
       safe(Transaction.aggregate([
         { $match: { organizationId: org._id, type: 'income', date: { $gte: today, $lte: todayEnd } } },
         { $group: { _id: null, total: { $sum: '$amount' } } },

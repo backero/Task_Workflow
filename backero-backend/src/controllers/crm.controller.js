@@ -306,6 +306,13 @@ exports.getPipeline = asyncHandler(async (req, res) => {
         answeredQueries: {
           $size: { $filter: { input: '$queries', as: 'q', cond: { $eq: ['$$q.status', 'answered'] } } },
         },
+        answeredQueryList: {
+          $map: {
+            input: { $filter: { input: '$queries', as: 'q', cond: { $eq: ['$$q.status', 'answered'] } } },
+            as: 'q',
+            in: { title: '$$q.title', description: '$$q.description', answer: '$$q.answer' },
+          },
+        },
       },
     },
     {
@@ -320,6 +327,7 @@ exports.getPipeline = asyncHandler(async (req, res) => {
             nextFollowUpAt: '$nextFollowUpAt',
             pendingQueries: '$pendingQueries',
             answeredQueries: '$answeredQueries',
+            answeredQueryList: '$answeredQueryList',
           },
         },
       },
@@ -339,7 +347,7 @@ exports.getAnalytics = asyncHandler(async (req, res) => {
     Lead.countDocuments({ organizationId: orgId, status: LEAD_STATUS.WON }),
     Lead.countDocuments({ organizationId: orgId, status: LEAD_STATUS.LOST }),
     Lead.aggregate([{ $match: { organizationId: orgId } }, { $group: { _id: '$source', count: { $sum: 1 } } }]),
-    Lead.aggregate([{ $match: { organizationId: orgId } }, { $group: { _id: null, total: { $sum: 1 }, won: { $sum: { $cond: [{ $eq: ['$status', 'Won'] }, 1, 0] } } } }]),
+    Lead.aggregate([{ $match: { organizationId: orgId } }, { $group: { _id: null, total: { $sum: 1 }, won: { $sum: { $cond: [{ $eq: ['$status', 'Payment Pending'] }, 1, 0] } } } }]),
     Lead.find({ organizationId: orgId, nextFollowUpAt: { $gte: new Date(), $lte: new Date(Date.now() + 24 * 60 * 60 * 1000) } })
       .populate('assignedTo', 'firstName lastName').limit(10),
   ]);

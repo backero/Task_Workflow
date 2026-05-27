@@ -73,7 +73,7 @@ const LEAD_STATUS = {
   IN_PROGRESS: 'In Progress',
   READY_TO_DISPATCH: 'Ready to Dispatch',
   DISPATCHED: 'Dispatched',
-  WON: 'Won',
+  WON: 'Payment Pending',
   LOST: 'Lost',
 };
 
