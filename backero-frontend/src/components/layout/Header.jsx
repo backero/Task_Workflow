@@ -77,7 +77,7 @@ export default function Header({ onMobileMenuToggle }) {
   const initials = `${user?.firstName?.[0] || ''}${user?.lastName?.[0] || ''}`;
 
   return (
-    <header className="h-14 flex-shrink-0 flex items-center px-4 lg:px-5 gap-3 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border-b border-slate-200/60 dark:border-slate-800/60 shadow-sm">
+    <header className="relative z-20 h-14 flex-shrink-0 flex items-center px-4 lg:px-5 gap-3 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border-b border-slate-200/60 dark:border-slate-800/60 shadow-sm">
       {/* Mobile menu toggle */}
       <button
         onClick={onMobileMenuToggle}

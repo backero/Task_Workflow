@@ -39,10 +39,11 @@
   /* ── Buttons ─────────────────────────────────────────── */
   .btn-primary {
     @apply inline-flex items-center gap-2 px-4 py-2.5 text-white rounded-xl font-semibold text-sm
-           shadow-navy transition-all duration-200 hover:shadow-lg hover:-translate-y-px
+           transition-all duration-200 hover:shadow-lg hover:-translate-y-px
            active:translate-y-0 active:shadow-md disabled:opacity-50 disabled:cursor-not-allowed
-           disabled:hover:translate-y-0 disabled:hover:shadow-navy;
+           disabled:hover:translate-y-0;
     background: linear-gradient(135deg, #112270 0%, #1e3a8a 100%);
+    box-shadow: 0 8px 32px rgba(17, 34, 112, 0.25);
   }
 
   .btn-secondary {
