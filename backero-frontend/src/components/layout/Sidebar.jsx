@@ -12,6 +12,8 @@ import {
 } from '@heroicons/react/24/outline';
 import { clsx } from 'clsx';
 
+const SIDEBAR_BG = 'linear-gradient(180deg, #0c1445 0%, #0f1f5c 60%, #0a1835 100%)';
+
 function NavItem({ item, collapsed }) {
   const [open, setOpen] = useState(false);
   const location = useLocation();
@@ -24,25 +26,27 @@ function NavItem({ item, collapsed }) {
           onClick={() => setOpen((p) => !p)}
           className={clsx('sidebar-link w-full', isActive ? 'sidebar-link-active' : 'sidebar-link-inactive')}
         >
-          <item.icon className={clsx('w-5 h-5 flex-shrink-0', isActive ? 'text-brand-600' : '')} />
+          <item.icon className={clsx('w-4.5 h-4.5 flex-shrink-0', isActive ? 'text-white' : 'text-white/50')} style={{ width: '18px', height: '18px' }} />
           {!collapsed && (
             <>
               <span className="flex-1 text-left">{item.label}</span>
-              {open ? <ChevronDownIcon className="w-4 h-4" /> : <ChevronRightIcon className="w-4 h-4" />}
+              {open
+                ? <ChevronDownIcon className="w-3.5 h-3.5 text-white/40" />
+                : <ChevronRightIcon className="w-3.5 h-3.5 text-white/40" />}
             </>
           )}
         </button>
         {!collapsed && open && (
-          <div className="ml-8 mt-1 space-y-0.5 border-l-2 border-gray-200 dark:border-gray-700 pl-3">
+          <div className="ml-9 mt-0.5 space-y-0.5 border-l border-white/10 pl-3">
             {item.children.map((child) => (
               <NavLink
                 key={child.to}
                 to={child.to}
                 className={({ isActive }) =>
-                  clsx('block py-1.5 px-2 rounded-md text-sm transition-colors',
+                  clsx('block py-1.5 px-2 rounded-lg text-xs font-medium transition-all duration-150',
                     isActive
-                      ? 'text-brand-700 dark:text-brand-400 font-medium'
-                      : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100')
+                      ? 'text-white bg-white/10'
+                      : 'text-white/40 hover:text-white/70 hover:bg-white/5')
                 }
               >
                 {child.label}
@@ -61,7 +65,7 @@ function NavItem({ item, collapsed }) {
       className={({ isActive }) => clsx('sidebar-link', isActive ? 'sidebar-link-active' : 'sidebar-link-inactive')}
       title={collapsed ? item.label : undefined}
     >
-      <item.icon className={clsx('w-5 h-5 flex-shrink-0', item.color || '')} />
+      <item.icon className="flex-shrink-0" style={{ width: '18px', height: '18px' }} />
       {!collapsed && <span className="truncate">{item.label}</span>}
     </NavLink>
   );
@@ -75,18 +79,15 @@ export default function Sidebar({ collapsed, onToggle }) {
     canManagement, canApprovals,
   } = usePermissions();
 
-  // ── Nav groups ──────────────────────────────────────────────────────────────
   const groups = [];
 
-  // Overview — everyone
   groups.push({
     label: 'Overview',
     items: [{ label: 'Dashboard', to: '/', icon: HomeIcon, exact: true }],
   });
 
-  // Work Management — Workflow Builder is primary
   const workItems = [
-    { label: 'Workflow Builder', to: '/workflow', icon: BoltIcon, color: 'text-indigo-600' },
+    { label: 'Workflow Builder', to: '/workflow', icon: BoltIcon },
   ];
   if (canApprovals) {
     workItems.push({ label: 'Approval Queue', to: '/tasks/approvals', icon: ClipboardDocumentListIcon });
@@ -102,7 +103,6 @@ export default function Sidebar({ collapsed, onToggle }) {
   }
   groups.push({ label: 'Work Management', items: workItems });
 
-  // Operations — only if at least one module is accessible
   const opsItems = [];
   if (canInventory) {
     opsItems.push({
@@ -135,19 +135,17 @@ export default function Sidebar({ collapsed, onToggle }) {
     groups.push({ label: 'Operations', items: opsItems });
   }
 
-  // Departments — only show what the user can see
   const deptItems = [];
-  if (can('dept.marketing'))   deptItems.push({ label: 'Marketing',   to: '/departments/marketing',   icon: MegaphoneIcon,           color: 'text-purple-600' });
-  if (can('dept.marketplace')) deptItems.push({ label: 'Marketplace', to: '/departments/marketplace', icon: BuildingStorefrontIcon,   color: 'text-orange-600' });
-  if (can('dept.sales'))       deptItems.push({ label: 'Sales Dept',  to: '/departments/sales',       icon: ShoppingBagIcon,          color: 'text-green-600' });
-  if (can('dept.rnd'))         deptItems.push({ label: 'R&D',         to: '/departments/rnd',         icon: BeakerIcon,               color: 'text-cyan-600' });
-  if (can('dept.operations'))  deptItems.push({ label: 'Operations',  to: '/departments/operations',  icon: WrenchScrewdriverIcon,    color: 'text-indigo-600' });
-  if (can('dept.hr'))          deptItems.push({ label: 'HR',          to: '/departments/hr',          icon: UserGroupIcon,            color: 'text-amber-600' });
+  if (can('dept.marketing'))   deptItems.push({ label: 'Marketing',   to: '/departments/marketing',   icon: MegaphoneIcon });
+  if (can('dept.marketplace')) deptItems.push({ label: 'Marketplace', to: '/departments/marketplace', icon: BuildingStorefrontIcon });
+  if (can('dept.sales'))       deptItems.push({ label: 'Sales Dept',  to: '/departments/sales',       icon: ShoppingBagIcon });
+  if (can('dept.rnd'))         deptItems.push({ label: 'R&D',         to: '/departments/rnd',         icon: BeakerIcon });
+  if (can('dept.operations'))  deptItems.push({ label: 'Operations',  to: '/departments/operations',  icon: WrenchScrewdriverIcon });
+  if (can('dept.hr'))          deptItems.push({ label: 'HR',          to: '/departments/hr',          icon: UserGroupIcon });
   if (deptItems.length > 0) {
     groups.push({ label: 'Departments', items: deptItems });
   }
 
-  // Management — manager and above only
   if (canManagement) {
     groups.push({
       label: 'Management',
@@ -160,35 +158,51 @@ export default function Sidebar({ collapsed, onToggle }) {
   }
 
   return (
-    <div className="flex flex-col h-full bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800">
-      {/* Logo */}
-      <div className="flex items-center gap-3 px-4 py-5 border-b border-gray-200 dark:border-gray-800">
-        <img src={companyLogo} alt="Logo" className="h-10 w-auto max-w-[140px] object-contain flex-shrink-0" />
+    <div className="flex flex-col h-full relative" style={{ background: SIDEBAR_BG }}>
+      {/* Decorative glow top-right */}
+      <div
+        className="absolute top-0 right-0 w-32 h-32 pointer-events-none opacity-20"
+        style={{ background: 'radial-gradient(circle at top right, #3b82f6, transparent 70%)' }}
+      />
+
+      {/* Logo area */}
+      <div className="flex items-center gap-3 px-4 py-5 flex-shrink-0" style={{ borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
+        <div className="flex-shrink-0 w-9 h-9 rounded-xl bg-white/10 flex items-center justify-center overflow-hidden">
+          <img src={companyLogo} alt="Logo" className="h-7 w-auto object-contain" />
+        </div>
         {!collapsed && (
-          <div className="min-w-0">
-            <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{user?.organizationId?.name || 'Enterprise'}</p>
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-bold text-white truncate leading-tight">Backero</p>
+            <p className="text-[10px] text-white/40 truncate">{user?.organizationId?.name || 'Enterprise'}</p>
           </div>
         )}
-        <button onClick={onToggle} className="ml-auto p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-800 hidden lg:block">
-          <Bars3Icon className="w-4 h-4 text-gray-500" />
+        <button
+          onClick={onToggle}
+          className="ml-auto p-1.5 rounded-lg transition-colors hidden lg:flex items-center justify-center"
+          style={{ background: 'rgba(255,255,255,0.06)' }}
+          onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.12)'}
+          onMouseLeave={e => e.currentTarget.style.background = 'rgba(255,255,255,0.06)'}
+        >
+          <Bars3Icon className="w-4 h-4 text-white/50" />
         </button>
       </div>
 
-      {/* Department badge — shown for non-admin members */}
+      {/* Department badge */}
       {!collapsed && !isAdmin && user?.department && (
-        <div className="mx-3 mt-3 px-3 py-1.5 bg-brand-50 dark:bg-brand-900/20 rounded-lg">
-          <p className="text-xs font-medium text-brand-700 dark:text-brand-400 truncate">
-            {user.department} · {user.role?.replace('_', ' ')}
+        <div className="mx-3 mt-3 px-3 py-2 rounded-xl" style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.08)' }}>
+          <p className="text-[11px] font-semibold text-white/60 truncate">
+            <span className="text-emerald-400">{user.department}</span>
+            {' · '}{user.role?.replace('_', ' ')}
           </p>
         </div>
       )}
 
       {/* Navigation */}
-      <nav className="flex-1 overflow-y-auto p-3 space-y-4 mt-1">
+      <nav className="flex-1 overflow-y-auto p-3 space-y-5 mt-2">
         {groups.map((group) => (
           <div key={group.label}>
             {!collapsed && (
-              <p className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider px-3 mb-2">
+              <p className="text-[10px] font-bold text-white/25 uppercase tracking-[0.14em] px-3 mb-1.5">
                 {group.label}
               </p>
             )}
@@ -201,22 +215,28 @@ export default function Sidebar({ collapsed, onToggle }) {
         ))}
       </nav>
 
-      {/* User section */}
-      <div className="p-3 border-t border-gray-200 dark:border-gray-800">
-        <NavLink to="/settings" className={({ isActive }) => clsx('sidebar-link', isActive ? 'sidebar-link-active' : 'sidebar-link-inactive')}>
-          <CogIcon className="w-5 h-5 flex-shrink-0" />
+      {/* User / Settings footer */}
+      <div className="p-3 flex-shrink-0" style={{ borderTop: '1px solid rgba(255,255,255,0.08)' }}>
+        <NavLink
+          to="/settings"
+          className={({ isActive }) => clsx('sidebar-link', isActive ? 'sidebar-link-active' : 'sidebar-link-inactive')}
+        >
+          <CogIcon className="flex-shrink-0" style={{ width: '18px', height: '18px' }} />
           {!collapsed && <span>Settings</span>}
         </NavLink>
         {!collapsed && user && (
-          <div className="mt-3 flex items-center gap-2 px-2">
-            <div className="w-8 h-8 rounded-full bg-brand-100 dark:bg-brand-900/30 flex items-center justify-center flex-shrink-0">
-              <span className="text-brand-700 dark:text-brand-400 font-semibold text-xs">
-                {user.firstName?.[0]}{user.lastName?.[0]}
-              </span>
+          <div className="mt-3 flex items-center gap-2.5 px-2">
+            <div
+              className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 text-white text-xs font-black shadow-md"
+              style={{ background: 'linear-gradient(135deg,#22c55e,#15803d)' }}
+            >
+              {user.firstName?.[0]}{user.lastName?.[0]}
             </div>
             <div className="min-w-0">
-              <p className="text-sm font-medium text-gray-900 dark:text-white truncate">{user.firstName} {user.lastName}</p>
-              <p className="text-xs text-gray-500 capitalize">{user.role?.replace('_', ' ')}</p>
+              <p className="text-sm font-semibold text-white/80 truncate leading-tight">
+                {user.firstName} {user.lastName}
+              </p>
+              <p className="text-[10px] text-white/35 capitalize">{user.role?.replace('_', ' ')}</p>
             </div>
           </div>
         )}

@@ -40,7 +40,6 @@ export default function Header({ onMobileMenuToggle }) {
     return () => document.removeEventListener('mousedown', handleClick);
   }, []);
 
-  // Debounce search input
   useEffect(() => {
     const t = setTimeout(() => setDebouncedSearch(searchQuery), 300);
     return () => clearTimeout(t);
@@ -52,7 +51,6 @@ export default function Header({ onMobileMenuToggle }) {
     setIsDark(nowDark);
   };
 
-  // WhatsApp connection status — admin+ only, poll every 30s
   const { data: waStatus } = useQuery({
     queryKey: ['wa-status-header'],
     queryFn: () => api.get('/whatsapp/status').then((r) => r.data),
@@ -62,7 +60,6 @@ export default function Header({ onMobileMenuToggle }) {
     retry: false,
   });
 
-  // Global task search
   const { data: searchResults, isFetching: searching } = useQuery({
     queryKey: ['global-search', debouncedSearch],
     queryFn: () => api.get('/tasks', { params: { search: debouncedSearch, limit: 6 } }).then((r) => r.data),
@@ -77,63 +74,66 @@ export default function Header({ onMobileMenuToggle }) {
   };
 
   const waConnected = waStatus?.connected;
+  const initials = `${user?.firstName?.[0] || ''}${user?.lastName?.[0] || ''}`;
 
   return (
-    <header className="h-16 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 flex items-center px-4 lg:px-6 gap-4 flex-shrink-0">
+    <header className="h-14 flex-shrink-0 flex items-center px-4 lg:px-5 gap-3 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border-b border-slate-200/60 dark:border-slate-800/60 shadow-sm">
       {/* Mobile menu toggle */}
-      <button onClick={onMobileMenuToggle} className="lg:hidden p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800">
-        <Bars3Icon className="w-5 h-5 text-gray-600 dark:text-gray-400" />
+      <button
+        onClick={onMobileMenuToggle}
+        className="lg:hidden p-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+      >
+        <Bars3Icon className="w-5 h-5 text-slate-500 dark:text-slate-400" />
       </button>
 
       {/* Global search */}
-      <div className="flex-1 max-w-md relative" ref={searchRef}>
+      <div className="flex-1 max-w-sm relative" ref={searchRef}>
         <div className="relative">
-          <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+          <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
           <input
             type="text"
             value={searchQuery}
             onChange={(e) => { setSearchQuery(e.target.value); setShowSearch(true); }}
             onFocus={() => setShowSearch(true)}
-            placeholder="Search tasks, leads, products..."
-            className="w-full pl-9 pr-8 py-2 bg-gray-100 dark:bg-gray-800 rounded-lg text-sm text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:bg-white dark:focus:bg-gray-700 transition-colors"
+            placeholder="Search tasks, leads…"
+            className="w-full pl-9 pr-8 py-2 bg-slate-100 dark:bg-slate-800/80 border border-transparent focus:border-blue-400 dark:focus:border-blue-500 rounded-xl text-sm text-slate-900 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:bg-white dark:focus:bg-slate-800 transition-all duration-200"
           />
           {searchQuery && (
             <button
               onClick={() => { setSearchQuery(''); setDebouncedSearch(''); setShowSearch(false); }}
-              className="absolute right-2.5 top-1/2 -translate-y-1/2 p-0.5 rounded hover:bg-gray-200 dark:hover:bg-gray-600"
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 p-0.5 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
             >
-              <XMarkIcon className="w-3.5 h-3.5 text-gray-400" />
+              <XMarkIcon className="w-3.5 h-3.5 text-slate-400" />
             </button>
           )}
         </div>
 
-        {/* Search dropdown */}
+        {/* Search results */}
         {showSearch && debouncedSearch.length >= 2 && (
-          <div className="absolute top-11 left-0 right-0 bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 shadow-modal z-50 overflow-hidden">
+          <div className="absolute top-11 left-0 right-0 bg-white dark:bg-slate-800 rounded-2xl border border-slate-100 dark:border-slate-700 shadow-xl z-50 overflow-hidden animate-fade-slide-up">
             {searching && !searchResults ? (
-              <div className="p-3 text-sm text-gray-400 text-center">Searching…</div>
+              <div className="p-4 text-sm text-slate-400 text-center">Searching…</div>
             ) : !searchResults?.data?.length ? (
-              <div className="p-3 text-sm text-gray-400 text-center">No results for "{debouncedSearch}"</div>
+              <div className="p-4 text-sm text-slate-400 text-center">No results for "{debouncedSearch}"</div>
             ) : (
               <>
-                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider px-3 pt-2 pb-1">Tasks</p>
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-4 pt-3 pb-1">Tasks</p>
                 {searchResults.data.map((task) => (
                   <button
                     key={task._id}
                     onClick={() => { navigate(`/workflow/${task._id}`); setShowSearch(false); setSearchQuery(''); }}
-                    className="w-full text-left px-3 py-2.5 hover:bg-gray-50 dark:hover:bg-gray-800 border-b border-gray-100 dark:border-gray-800 last:border-0 transition-colors"
+                    className="w-full text-left px-4 py-2.5 hover:bg-slate-50 dark:hover:bg-slate-700/50 border-b border-slate-50 dark:border-slate-700/50 last:border-0 transition-colors"
                   >
                     <div className="flex items-center gap-2">
                       <span className={`w-2 h-2 rounded-full flex-shrink-0 ${
-                        task.status === 'Completed' ? 'bg-green-500' : task.isOverdue ? 'bg-red-500' : 'bg-blue-400'
+                        task.status === 'Completed' ? 'bg-emerald-500' : task.isOverdue ? 'bg-red-500' : 'bg-blue-400'
                       }`} />
-                      <p className="text-sm font-medium text-gray-900 dark:text-white truncate">{task.title}</p>
+                      <p className="text-sm font-semibold text-slate-900 dark:text-white truncate">{task.title}</p>
                     </div>
-                    <div className="flex items-center gap-2 mt-0.5 ml-4 text-xs text-gray-400">
+                    <div className="flex items-center gap-2 mt-0.5 ml-4 text-xs text-slate-400">
                       <span>{task.department}</span>
                       <span>·</span>
                       <span>{task.status}</span>
-                      {task.assignedTo && <span>· {task.assignedTo.firstName} {task.assignedTo.lastName}</span>}
                     </div>
                   </button>
                 ))}
@@ -144,25 +144,29 @@ export default function Header({ onMobileMenuToggle }) {
       </div>
 
       <div className="flex items-center gap-1 ml-auto">
-        {/* WhatsApp status — admin only */}
+        {/* WhatsApp status */}
         {isAdmin && waStatus !== undefined && (
           <button
             onClick={() => navigate('/settings/whatsapp')}
-            title={waConnected ? 'WhatsApp connected' : 'WhatsApp disconnected — click to fix'}
-            className="relative p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+            title={waConnected ? 'WhatsApp connected' : 'WhatsApp disconnected'}
+            className="relative p-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
           >
-            <DevicePhoneMobileIcon className={`w-5 h-5 ${waConnected ? 'text-gray-500 dark:text-gray-400' : 'text-gray-400'}`} />
-            <span className={`absolute top-1.5 right-1.5 w-2 h-2 rounded-full ring-2 ring-white dark:ring-gray-900 ${
-              waConnected ? 'bg-green-500' : 'bg-red-500'
+            <DevicePhoneMobileIcon className="w-4.5 h-4.5 text-slate-500 dark:text-slate-400" style={{ width: '18px', height: '18px' }} />
+            <span className={`absolute top-1.5 right-1.5 w-2 h-2 rounded-full ring-2 ring-white dark:ring-slate-900 ${
+              waConnected ? 'bg-emerald-500' : 'bg-red-500'
             }`} />
           </button>
         )}
 
         {/* Dark mode toggle */}
-        <button onClick={toggleDark} className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
+        <button
+          onClick={toggleDark}
+          className="p-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+          title={isDark ? 'Light mode' : 'Dark mode'}
+        >
           {isDark
-            ? <SunIcon className="w-5 h-5 text-yellow-500" />
-            : <MoonIcon className="w-5 h-5 text-gray-600 dark:text-gray-400" />
+            ? <SunIcon className="w-4.5 h-4.5 text-amber-500" style={{ width: '18px', height: '18px' }} />
+            : <MoonIcon className="w-4.5 h-4.5 text-slate-500" style={{ width: '18px', height: '18px' }} />
           }
         </button>
 
@@ -170,11 +174,11 @@ export default function Header({ onMobileMenuToggle }) {
         <div className="relative" ref={notifRef}>
           <button
             onClick={() => setShowNotifs((p) => !p)}
-            className="relative p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+            className="relative p-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
           >
-            <BellIcon className="w-5 h-5 text-gray-600 dark:text-gray-400" />
+            <BellIcon className="text-slate-500 dark:text-slate-400" style={{ width: '18px', height: '18px' }} />
             {unreadCount > 0 && (
-              <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-red-500 text-white text-xs rounded-full flex items-center justify-center font-medium">
+              <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 bg-red-500 text-white text-[10px] rounded-full flex items-center justify-center font-bold leading-none">
                 {unreadCount > 9 ? '9+' : unreadCount}
               </span>
             )}
@@ -187,27 +191,32 @@ export default function Header({ onMobileMenuToggle }) {
         </div>
 
         {/* User menu */}
-        <div className="relative" ref={userMenuRef}>
+        <div className="relative ml-1" ref={userMenuRef}>
           <button
             onClick={() => setShowUserMenu((p) => !p)}
-            className="flex items-center gap-2 p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+            className="flex items-center gap-2.5 pl-1 pr-2 py-1 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
           >
-            <div className="w-8 h-8 rounded-full bg-brand-100 dark:bg-brand-900/30 flex items-center justify-center">
-              <span className="text-brand-700 dark:text-brand-400 font-semibold text-xs">
-                {user?.firstName?.[0]}{user?.lastName?.[0]}
-              </span>
+            <div
+              className="w-8 h-8 rounded-xl flex items-center justify-center text-white text-xs font-black shadow-sm flex-shrink-0"
+              style={{ background: 'linear-gradient(135deg,#112270,#1e3a8a)' }}
+            >
+              {initials}
             </div>
             <div className="hidden sm:block text-left">
-              <p className="text-sm font-medium text-gray-900 dark:text-white">{user?.firstName}</p>
-              <p className="text-xs text-gray-500 capitalize">{user?.role?.replace('_', ' ')}</p>
+              <p className="text-sm font-semibold text-slate-800 dark:text-white leading-tight">{user?.firstName}</p>
+              <p className="text-[10px] text-slate-400 capitalize leading-tight">{user?.role?.replace('_', ' ')}</p>
             </div>
           </button>
 
           {showUserMenu && (
-            <div className="absolute right-0 top-12 z-50 w-48 card shadow-modal py-1 animate-slide-down">
+            <div className="absolute right-0 top-12 z-50 w-52 bg-white dark:bg-slate-800 rounded-2xl border border-slate-100 dark:border-slate-700 shadow-xl py-1.5 overflow-hidden animate-slide-down">
+              <div className="px-4 py-2.5 border-b border-slate-100 dark:border-slate-700 mb-1">
+                <p className="text-sm font-semibold text-slate-800 dark:text-white">{user?.firstName} {user?.lastName}</p>
+                <p className="text-xs text-slate-400 capitalize">{user?.role?.replace('_', ' ')}</p>
+              </div>
               <button
                 onClick={handleLogout}
-                className="flex items-center gap-2 w-full px-4 py-2 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                className="flex items-center gap-2.5 w-full px-4 py-2 text-sm font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
               >
                 <ArrowRightOnRectangleIcon className="w-4 h-4" />
                 Sign Out

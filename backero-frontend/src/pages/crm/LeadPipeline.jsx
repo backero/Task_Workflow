@@ -21,13 +21,13 @@ import ErrorBoundary from '../../components/common/ErrorBoundary';
 const PIPELINE_STAGES = ['New Lead', 'Follow-up', 'In Progress', 'Ready to Dispatch', 'Dispatched', 'Payment Pending', 'Lost'];
 
 const STAGE_META = {
-  'New Lead':          { colBg: 'bg-slate-50 dark:bg-slate-800/60',          topBar: 'bg-slate-400',   dot: 'bg-slate-400',   cardBorder: 'border-l-slate-400',   badge: 'bg-slate-100 text-slate-600 dark:bg-slate-700/80 dark:text-slate-200',     val: 'text-slate-500 dark:text-slate-400'   },
-  'Follow-up':         { colBg: 'bg-amber-50 dark:bg-amber-900/20',           topBar: 'bg-amber-400',   dot: 'bg-amber-400',   cardBorder: 'border-l-amber-400',   badge: 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300',     val: 'text-amber-600 dark:text-amber-400'   },
-  'In Progress':       { colBg: 'bg-blue-50 dark:bg-blue-900/20',             topBar: 'bg-blue-600',    dot: 'bg-blue-500',    cardBorder: 'border-l-blue-500',    badge: 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300',         val: 'text-blue-600 dark:text-blue-400'     },
-  'Ready to Dispatch': { colBg: 'bg-violet-50 dark:bg-violet-900/20',         topBar: 'bg-violet-600',  dot: 'bg-violet-500',  cardBorder: 'border-l-violet-500',  badge: 'bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300', val: 'text-violet-600 dark:text-violet-400' },
-  'Dispatched':        { colBg: 'bg-teal-50 dark:bg-teal-900/20',             topBar: 'bg-teal-500',    dot: 'bg-teal-500',    cardBorder: 'border-l-teal-500',    badge: 'bg-teal-100 text-teal-700 dark:bg-teal-900/40 dark:text-teal-300',         val: 'text-teal-600 dark:text-teal-400'     },
-  'Payment Pending':   { colBg: 'bg-green-50 dark:bg-green-900/20',           topBar: 'bg-green-500',   dot: 'bg-green-500',   cardBorder: 'border-l-green-500',   badge: 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300',     val: 'text-green-600 dark:text-green-400'   },
-  'Lost':              { colBg: 'bg-rose-50 dark:bg-rose-900/20',             topBar: 'bg-rose-500',    dot: 'bg-rose-500',    cardBorder: 'border-l-rose-500',    badge: 'bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300',         val: 'text-rose-600 dark:text-rose-400'     },
+  'New Lead':          { grad: 'linear-gradient(135deg,#475569 0%,#1e293b 100%)', accent: '#94a3b8', badge: 'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300'       },
+  'Follow-up':         { grad: 'linear-gradient(135deg,#f59e0b 0%,#b45309 100%)', accent: '#f59e0b', badge: 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300'   },
+  'In Progress':       { grad: 'linear-gradient(135deg,#3b82f6 0%,#1d4ed8 100%)', accent: '#60a5fa', badge: 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300'       },
+  'Ready to Dispatch': { grad: 'linear-gradient(135deg,#8b5cf6 0%,#5b21b6 100%)', accent: '#a78bfa', badge: 'bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300' },
+  'Dispatched':        { grad: 'linear-gradient(135deg,#14b8a6 0%,#0f766e 100%)', accent: '#2dd4bf', badge: 'bg-teal-100 text-teal-700 dark:bg-teal-900/40 dark:text-teal-300'       },
+  'Payment Pending':   { grad: 'linear-gradient(135deg,#22c55e 0%,#15803d 100%)', accent: '#4ade80', badge: 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300'   },
+  'Lost':              { grad: 'linear-gradient(135deg,#f43f5e 0%,#9f1239 100%)', accent: '#fb7185', badge: 'bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300'       },
 };
 const STAGE_BADGE = Object.fromEntries(Object.entries(STAGE_META).map(([k, v]) => [k, v.badge]));
 
@@ -50,85 +50,90 @@ function LeadCard({ lead, stage, onClick }) {
   const hasAnswered = lead.answeredQueries > 0;
   const meta = STAGE_META[stage] || STAGE_META['New Lead'];
   const p = PRIORITY_CFG[lead.priority] || PRIORITY_CFG.low;
+  const initials = (lead.name || '?').split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
 
   return (
     <div
       onClick={() => onClick(lead)}
       className={clsx(
-        'bg-white dark:bg-slate-900 rounded-xl border-l-[3px] cursor-pointer select-none',
-        'border border-gray-100 dark:border-slate-700/50',
-        'shadow-sm hover:shadow-md dark:hover:shadow-slate-900/60',
-        'transition-all duration-150 ease-out hover:-translate-y-px active:translate-y-0',
-        meta.cardBorder,
-        hasPending && 'ring-1 ring-amber-300/70 dark:ring-amber-500/40',
+        'bg-white dark:bg-slate-800/90 rounded-2xl cursor-pointer select-none',
+        'border border-gray-100/80 dark:border-slate-700/40',
+        'shadow-sm hover:shadow-xl dark:shadow-slate-900/50 dark:hover:shadow-slate-900/80',
+        'transition-all duration-200 hover:-translate-y-1 active:translate-y-0',
+        hasPending && 'ring-1 ring-amber-400/50 dark:ring-amber-500/40',
       )}
     >
-      <div className="p-3">
-        {/* Name + priority */}
-        <div className="flex items-start justify-between gap-2 mb-1">
-          <p className="font-semibold text-[13px] text-gray-900 dark:text-white leading-snug line-clamp-1 flex-1">{lead.name}</p>
-          <span className={clsx('flex-shrink-0 flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-md font-semibold', p.pill)}>
-            <span className={clsx('w-1.5 h-1.5 rounded-full flex-shrink-0', p.dot)} />
-            {lead.priority}
+      <div className="p-3.5">
+        {/* Avatar + Name */}
+        <div className="flex items-start gap-2.5 mb-2.5">
+          <div
+            className="w-9 h-9 rounded-xl flex-shrink-0 flex items-center justify-center text-white text-[11px] font-black shadow-md"
+            style={{ background: meta.grad }}
+          >
+            {initials}
+          </div>
+          <div className="flex-1 min-w-0 pt-0.5">
+            <p className="font-bold text-[13px] text-gray-900 dark:text-white leading-snug line-clamp-1">{lead.name}</p>
+            <p className="text-[11px] text-gray-400 dark:text-gray-500 truncate mt-0.5">
+              {lead.company || lead.phone}
+            </p>
+          </div>
+          <span className={clsx('flex-shrink-0 text-[10px] px-1.5 py-0.5 rounded-full font-bold flex items-center gap-0.5', p.pill)}>
+            <span className={clsx('w-1.5 h-1.5 rounded-full', p.dot)} />
+            {lead.priority[0].toUpperCase()}
           </span>
         </div>
 
-        {lead.company && <p className="text-[11px] text-gray-400 dark:text-gray-500 truncate mb-2">{lead.company}</p>}
-
-        {/* Phone */}
-        <div className="flex items-center gap-1.5 text-[11px] text-gray-500 dark:text-gray-400">
-          <PhoneIcon className="w-3 h-3 text-gray-300 dark:text-gray-600 flex-shrink-0" />
+        {/* Phone chip */}
+        <div className="flex items-center gap-1.5 bg-gray-50 dark:bg-slate-700/40 rounded-lg px-2 py-1.5 text-[11px] text-gray-500 dark:text-gray-400">
+          <PhoneIcon className="w-3 h-3 flex-shrink-0 text-gray-300 dark:text-slate-500" />
           {lead.phone}
+          {lead.estimatedValue > 0 && (
+            <span className="ml-auto font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-0.5">
+              <CurrencyRupeeIcon className="w-3 h-3" />
+              {lead.estimatedValue.toLocaleString('en-IN')}
+            </span>
+          )}
         </div>
 
-        {/* Value + follow-up */}
-        {(lead.estimatedValue > 0 || (lead.nextFollowUpAt && isValid(new Date(lead.nextFollowUpAt)))) && (
-          <div className="flex items-center justify-between mt-1.5">
-            {lead.estimatedValue > 0 && (
-              <span className="text-[11px] font-bold text-green-600 dark:text-green-400 flex items-center gap-0.5">
-                <CurrencyRupeeIcon className="w-3 h-3" />
-                {lead.estimatedValue.toLocaleString('en-IN')}
-              </span>
+        {/* Follow-up + assignee row */}
+        {(lead.nextFollowUpAt && isValid(new Date(lead.nextFollowUpAt)) || lead.assignedTo) && (
+          <div className="flex items-center justify-between mt-2 pt-2 border-t border-gray-50 dark:border-slate-700/40">
+            {lead.assignedTo && (
+              <div className="flex items-center gap-1.5">
+                <div className="w-4 h-4 rounded-full bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center flex-shrink-0">
+                  <span className="text-white text-[8px] font-black leading-none">{lead.assignedTo.firstName?.[0]?.toUpperCase()}</span>
+                </div>
+                <span className="text-[11px] text-gray-400 dark:text-gray-500">{lead.assignedTo.firstName}</span>
+              </div>
             )}
             {lead.nextFollowUpAt && isValid(new Date(lead.nextFollowUpAt)) && (
-              <span className="text-[11px] text-orange-500 dark:text-orange-400 flex items-center gap-0.5 ml-auto">
-                <ClockIcon className="w-3 h-3" />
+              <span className="ml-auto text-[10px] font-semibold text-orange-600 dark:text-orange-400 bg-orange-50 dark:bg-orange-900/20 px-2 py-0.5 rounded-full flex items-center gap-0.5">
+                <ClockIcon className="w-2.5 h-2.5" />
                 {format(new Date(lead.nextFollowUpAt), 'dd MMM')}
               </span>
             )}
-          </div>
-        )}
-
-        {/* Assigned user */}
-        {lead.assignedTo && (
-          <div className="mt-2 flex items-center gap-1.5">
-            <div className="w-5 h-5 rounded-full bg-gradient-to-br from-blue-600 to-blue-800 flex items-center justify-center flex-shrink-0 shadow-sm">
-              <span className="text-white text-[9px] font-bold leading-none">{lead.assignedTo.firstName?.[0]?.toUpperCase()}</span>
-            </div>
-            <span className="text-[11px] text-gray-400 dark:text-gray-500">{lead.assignedTo.firstName}</span>
           </div>
         )}
       </div>
 
       {/* Query section */}
       {(hasPending || hasAnswered) && (
-        <div className="px-3 pb-3 pt-0 space-y-1.5 border-t border-gray-50 dark:border-slate-800 mt-0">
-          <div className="pt-2 space-y-1.5">
+        <div className="px-3.5 pb-3.5 space-y-1.5 border-t border-gray-50 dark:border-slate-700/40">
+          <div className="pt-2.5 space-y-1.5">
             {hasPending && (
-              <span className="inline-flex items-center gap-1.5 text-[11px] bg-amber-50 dark:bg-amber-900/25 text-amber-700 dark:text-amber-400 px-2 py-1 rounded-lg font-medium border border-amber-100 dark:border-amber-800/50">
+              <span className="inline-flex items-center gap-1.5 text-[11px] bg-amber-50 dark:bg-amber-900/25 text-amber-700 dark:text-amber-400 px-2 py-1 rounded-lg font-semibold border border-amber-100/80 dark:border-amber-800/40">
                 <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse flex-shrink-0" />
                 {lead.pendingQueries} pending quer{lead.pendingQueries > 1 ? 'ies' : 'y'}
               </span>
             )}
             {hasAnswered && lead.answeredQueryList?.map((q, i) => (
-              <div key={i} className="rounded-lg bg-green-50 dark:bg-green-900/15 px-2.5 py-2 text-[11px] border border-green-100 dark:border-green-800/40" onClick={(e) => e.stopPropagation()}>
-                <p className="font-semibold text-gray-700 dark:text-gray-200 line-clamp-1">✓ {q.title}</p>
-                {q.description && <p className="text-gray-400 dark:text-gray-500 mt-0.5 line-clamp-1">{q.description}</p>}
-                {q.answer && (
-                  <p className="mt-1 text-green-700 dark:text-green-400 line-clamp-2">
-                    <span className="font-semibold">Ans: </span>{q.answer}
-                  </p>
-                )}
+              <div key={i} className="rounded-xl bg-emerald-50 dark:bg-emerald-900/15 px-2.5 py-2 text-[11px] border border-emerald-100 dark:border-emerald-800/30" onClick={(e) => e.stopPropagation()}>
+                <p className="font-semibold text-gray-700 dark:text-gray-200 line-clamp-1 flex items-center gap-1">
+                  <CheckCircleIcon className="w-3 h-3 text-emerald-500 flex-shrink-0" />
+                  {q.title}
+                </p>
+                {q.answer && <p className="mt-1 text-emerald-700 dark:text-emerald-400 line-clamp-2 pl-4">{q.answer}</p>}
               </div>
             ))}
           </div>
@@ -241,32 +246,36 @@ function LeadSlideOver({ leadId, onClose, onUpdated }) {
         animate={{ x: 0 }}
         exit={{ x: '100%' }}
         transition={{ type: 'spring', damping: 28, stiffness: 300 }}
-        className="fixed right-0 top-0 h-full w-full max-w-xl bg-white dark:bg-gray-900 shadow-2xl z-50 flex flex-col overflow-hidden"
+        className="fixed right-0 top-0 h-full w-full max-w-xl bg-white dark:bg-slate-900 shadow-2xl z-50 flex flex-col overflow-hidden"
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200 dark:border-gray-700 flex-shrink-0">
-          <div className="flex items-center gap-3 min-w-0">
-            <div className="w-9 h-9 rounded-full bg-brand-100 dark:bg-brand-900/30 flex items-center justify-center flex-shrink-0">
-              <span className="text-brand-700 dark:text-brand-300 font-bold text-sm">
-                {lead?.name?.[0]?.toUpperCase() || '?'}
-              </span>
+        <div className="flex-shrink-0">
+          {/* Gradient accent bar */}
+          <div className="h-1 w-full" style={{ background: 'linear-gradient(90deg,#112270,#3b82f6,#22c55e)' }} />
+          <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 dark:border-slate-800">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 shadow-md" style={{ background: 'linear-gradient(135deg,#112270,#1a3a8a)' }}>
+                <span className="text-white font-black text-sm">
+                  {lead?.name?.[0]?.toUpperCase() || '?'}
+                </span>
+              </div>
+              <div className="min-w-0">
+                <h2 className="font-bold text-gray-900 dark:text-white truncate">{lead?.name || '…'}</h2>
+                {lead?.company && <p className="text-xs text-gray-400 dark:text-gray-500 truncate">{lead.company}</p>}
+              </div>
             </div>
-            <div className="min-w-0">
-              <h2 className="font-bold text-gray-900 dark:text-white truncate">{lead?.name || '…'}</h2>
-              {lead?.company && <p className="text-xs text-gray-500 truncate">{lead.company}</p>}
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <button
+                onClick={() => { onClose(); navigate(`/crm/leads/${leadId}`); }}
+                className="flex items-center gap-1.5 text-xs font-semibold text-blue-600 dark:text-blue-400 px-2.5 py-1.5 rounded-lg bg-blue-50 dark:bg-blue-900/20 hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors"
+              >
+                <ArrowTopRightOnSquareIcon className="w-3.5 h-3.5" />
+                Details
+              </button>
+              <button onClick={onClose} className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors">
+                <XMarkIcon className="w-4 h-4 text-gray-400" />
+              </button>
             </div>
-          </div>
-          <div className="flex items-center gap-2 flex-shrink-0">
-            <button
-              onClick={() => { onClose(); navigate(`/crm/leads/${leadId}`); }}
-              className="flex items-center gap-1.5 text-xs font-medium text-brand-600 hover:text-brand-700 px-2.5 py-1.5 rounded-lg hover:bg-brand-50 dark:hover:bg-brand-900/20 transition-colors"
-            >
-              <ArrowTopRightOnSquareIcon className="w-4 h-4" />
-              Full Details
-            </button>
-            <button onClick={onClose} className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800">
-              <XMarkIcon className="w-5 h-5 text-gray-500" />
-            </button>
           </div>
         </div>
 
@@ -731,9 +740,13 @@ function CreateLeadModal({ onClose, onSuccess }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-gray-900/60 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative card w-full max-w-lg shadow-modal max-h-[90vh] overflow-y-auto">
-        <div className="p-6 border-b border-gray-200 dark:border-gray-700">
+      <div className="absolute inset-0 bg-slate-900/70 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative bg-white dark:bg-slate-900 rounded-2xl w-full max-w-lg shadow-2xl max-h-[90vh] overflow-y-auto border border-gray-100 dark:border-slate-800">
+        <div className="h-1 rounded-t-2xl" style={{ background: 'linear-gradient(90deg,#112270,#3b82f6,#22c55e)' }} />
+        <div className="p-6 border-b border-gray-100 dark:border-slate-800 flex items-center gap-3">
+          <div className="w-9 h-9 rounded-xl flex items-center justify-center shadow-md" style={{ background: 'linear-gradient(135deg,#112270,#1a3a8a)' }}>
+            <PlusIcon className="w-4.5 h-4.5 text-white" />
+          </div>
           <h3 className="text-lg font-bold text-gray-900 dark:text-white">Add New Lead</h3>
         </div>
         <form onSubmit={handleSubmit(onSubmit)} className="p-6 space-y-4">
@@ -832,22 +845,33 @@ export default function LeadPipeline() {
   }, {});
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       {/* ── Page Header ── */}
-      <div className="flex items-center justify-between">
-        <div>
+      <div className="flex items-center justify-between gap-4">
+        <div className="flex items-center gap-3 flex-wrap">
           <h1 className="text-2xl font-black text-gray-900 dark:text-white tracking-tight">CRM Pipeline</h1>
-          <p className="text-sm text-gray-400 dark:text-gray-500 mt-0.5">
-            {analyticsData?.totalLeads || 0} leads &nbsp;·&nbsp; {analyticsData?.conversionRate || 0}% conversion rate
-          </p>
+          <span className="text-[11px] font-bold text-white px-2.5 py-1 rounded-full shadow-sm" style={{ background: 'linear-gradient(135deg,#112270,#1a3a8a)' }}>
+            {analyticsData?.totalLeads || 0} leads
+          </span>
+          <span className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/20 px-2.5 py-1 rounded-full border border-emerald-100 dark:border-emerald-800/40">
+            {analyticsData?.conversionRate || 0}% conversion
+          </span>
         </div>
-        <button
-          onClick={() => setShowForm(true)}
-          className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-white shadow-md hover:shadow-lg transition-all duration-200 active:scale-95"
-          style={{ background: 'linear-gradient(135deg, #112270 0%, #1a3a8a 100%)' }}
-        >
-          <PlusIcon className="w-4 h-4" /> Add Lead
-        </button>
+        <div className="flex items-center gap-2 flex-shrink-0">
+          <button
+            onClick={() => navigate('/crm/leads')}
+            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-sm font-semibold border border-gray-200 dark:border-slate-700 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-800 transition-all"
+          >
+            <TableCellsIcon className="w-4 h-4" /> Table
+          </button>
+          <button
+            onClick={() => setShowForm(true)}
+            className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold text-white shadow-lg hover:shadow-xl transition-all duration-200 active:scale-95"
+            style={{ background: 'linear-gradient(135deg, #112270 0%, #1a3a8a 100%)' }}
+          >
+            <PlusIcon className="w-4 h-4" /> Add Lead
+          </button>
+        </div>
       </div>
 
       {/* Google Sheets Sync Panel */}
@@ -858,19 +882,24 @@ export default function LeadPipeline() {
       {/* ── Stats ── */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {[
-          { label: 'Total Leads',     value: analyticsData?.totalLeads || 0,           icon: ChartBarIcon,        bar: '#112270', val: 'text-gray-800 dark:text-white'          },
-          { label: 'Payment Pending', value: analyticsData?.wonLeads || 0,             icon: SparklesIcon,        bar: '#16a34a', val: 'text-green-700 dark:text-green-400'     },
-          { label: 'Lost',            value: analyticsData?.lostLeads || 0,            icon: XMarkIcon,           bar: '#e11d48', val: 'text-rose-600 dark:text-rose-400'       },
-          { label: 'Conversion',      value: `${analyticsData?.conversionRate || 0}%`, icon: ArrowTrendingUpIcon, bar: '#1a3a8a', val: 'text-blue-700 dark:text-blue-400'       },
+          { label: 'Total Leads',     value: analyticsData?.totalLeads || 0,           icon: ChartBarIcon,        grad: 'linear-gradient(135deg,#112270 0%,#1e40af 100%)' },
+          { label: 'Payment Pending', value: analyticsData?.wonLeads || 0,             icon: SparklesIcon,        grad: 'linear-gradient(135deg,#16a34a 0%,#15803d 100%)' },
+          { label: 'Lost',            value: analyticsData?.lostLeads || 0,            icon: XMarkIcon,           grad: 'linear-gradient(135deg,#e11d48 0%,#9f1239 100%)' },
+          { label: 'Conversion',      value: `${analyticsData?.conversionRate || 0}%`, icon: ArrowTrendingUpIcon, grad: 'linear-gradient(135deg,#7c3aed 0%,#4c1d95 100%)' },
         ].map((s) => (
-          <div key={s.label} className="bg-white dark:bg-slate-800 rounded-2xl p-5 border border-gray-100 dark:border-slate-700/60 shadow-sm overflow-hidden relative">
-            {/* top colour bar */}
-            <div className="absolute inset-x-0 top-0 h-[3px]" style={{ background: s.bar }} />
-            <div className="w-8 h-8 rounded-lg flex items-center justify-center mb-3" style={{ background: s.bar }}>
-              <s.icon className="w-4 h-4 text-white" />
+          <div key={s.label} className="rounded-2xl p-5 shadow-lg overflow-hidden relative" style={{ background: s.grad }}>
+            {/* Decorative circles */}
+            <div className="absolute -right-5 -top-5 w-28 h-28 rounded-full bg-white/10 pointer-events-none" />
+            <div className="absolute right-2 -bottom-6 w-16 h-16 rounded-full bg-white/5 pointer-events-none" />
+            <div className="relative">
+              <div className="flex items-start justify-between mb-3">
+                <div className="w-9 h-9 rounded-xl bg-white/25 flex items-center justify-center shadow-sm">
+                  <s.icon className="w-4.5 h-4.5 text-white" />
+                </div>
+              </div>
+              <p className="text-[34px] font-black text-white tracking-tight tabular-nums leading-none">{s.value}</p>
+              <p className="text-[10px] text-white/55 font-bold uppercase tracking-[0.12em] mt-2">{s.label}</p>
             </div>
-            <p className={clsx('text-[28px] font-black tracking-tight tabular-nums leading-none', s.val)}>{s.value}</p>
-            <p className="text-[11px] text-gray-400 dark:text-gray-500 font-semibold uppercase tracking-widest mt-2">{s.label}</p>
           </div>
         ))}
       </div>
@@ -890,38 +919,24 @@ export default function LeadPipeline() {
 
             return (
               <div key={stage} className="flex-shrink-0 w-[248px]">
-                <div className={clsx(
-                  'rounded-2xl flex flex-col min-h-[500px] overflow-hidden',
-                  'border border-gray-100 dark:border-slate-700/50 shadow-sm dark:shadow-none',
-                  meta.colBg,
-                )}>
-                  {/* Stage colour strip */}
-                  <div className={clsx('h-[3px] w-full flex-shrink-0', meta.topBar)} />
+                <div className="rounded-2xl flex flex-col min-h-[500px] overflow-hidden shadow-lg dark:shadow-slate-900/60 border border-white/10 bg-white dark:bg-slate-800">
 
-                  {/* Column header */}
-                  <div className="px-3 py-2.5">
+                  {/* Full gradient header */}
+                  <div className="flex-shrink-0 px-4 pt-4 pb-3" style={{ background: meta.grad }}>
                     <div className="flex items-center justify-between gap-2">
-                      <div className="flex items-center gap-1.5 min-w-0">
-                        <span className={clsx('w-2 h-2 rounded-full flex-shrink-0', meta.dot)} />
-                        <h3 className="text-xs font-bold text-gray-700 dark:text-gray-100 truncate">{stage}</h3>
-                      </div>
-                      <span className="flex-shrink-0 text-xs font-bold bg-white dark:bg-slate-700 text-gray-500 dark:text-gray-300 rounded-full px-2 py-0.5 border border-gray-100 dark:border-slate-600 shadow-sm">
+                      <h3 className="text-[13px] font-bold text-white tracking-tight truncate flex-1">{stage}</h3>
+                      <span className="text-[11px] font-bold text-white/90 bg-white/20 rounded-full px-2.5 py-0.5 flex-shrink-0">
                         {count}
                       </span>
                     </div>
-                    {value > 0 && (
-                      <p className={clsx('text-[11px] font-bold mt-1.5 flex items-center gap-0.5', meta.val)}>
-                        <CurrencyRupeeIcon className="w-3 h-3" />
-                        {value.toLocaleString('en-IN')}
-                      </p>
-                    )}
+                    <p className="text-[11px] text-white/60 font-medium mt-1 flex items-center gap-0.5">
+                      <CurrencyRupeeIcon className="w-3 h-3" />
+                      {value > 0 ? value.toLocaleString('en-IN') : '—'}
+                    </p>
                   </div>
 
-                  {/* Separator */}
-                  <div className="mx-3 h-px bg-black/5 dark:bg-white/5" />
-
-                  {/* Cards */}
-                  <div className="flex-1 p-2 space-y-1.5">
+                  {/* Cards area */}
+                  <div className="flex-1 p-2 space-y-1.5 bg-gray-50/70 dark:bg-slate-800/80">
                     {(grouped[stage] || []).slice(0, 8).map((lead) => (
                       <LeadCard
                         key={lead._id}
@@ -933,14 +948,14 @@ export default function LeadPipeline() {
                     {count > 8 && (
                       <button
                         onClick={() => navigate(`/crm/leads?status=${encodeURIComponent(stage)}`)}
-                        className="w-full text-[11px] font-semibold text-gray-500 dark:text-gray-400 text-center py-2 rounded-xl bg-white/50 dark:bg-white/5 hover:bg-white dark:hover:bg-white/10 border border-dashed border-gray-200 dark:border-slate-600 transition-all"
+                        className="w-full text-[11px] font-semibold text-gray-400 dark:text-gray-500 text-center py-2 rounded-xl border border-dashed border-gray-200 dark:border-slate-600 hover:border-gray-300 dark:hover:border-slate-500 hover:text-gray-600 dark:hover:text-gray-300 transition-all"
                       >
                         +{count - 8} more
                       </button>
                     )}
                     {count === 0 && (
-                      <div className="flex flex-col items-center justify-center py-12 opacity-40 select-none">
-                        <div className={clsx('w-6 h-6 rounded-full mb-2', meta.topBar, 'opacity-40')} />
+                      <div className="flex flex-col items-center justify-center py-14 opacity-35 select-none">
+                        <div className="w-8 h-8 rounded-full mb-2" style={{ background: meta.grad }} />
                         <p className="text-xs text-gray-400 dark:text-gray-500">No leads</p>
                       </div>
                     )}
