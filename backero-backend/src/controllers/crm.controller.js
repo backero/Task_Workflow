@@ -28,11 +28,12 @@ exports.getLeads = asyncHandler(async (req, res) => {
     if (dateTo) filter.createdAt.$lte = new Date(dateTo);
   }
   if (search) {
+    const esc = search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     filter.$or = [
-      { name: { $regex: search, $options: 'i' } },
-      { phone: { $regex: search, $options: 'i' } },
-      { email: { $regex: search, $options: 'i' } },
-      { company: { $regex: search, $options: 'i' } },
+      { name: { $regex: esc, $options: 'i' } },
+      { phone: { $regex: esc, $options: 'i' } },
+      { email: { $regex: esc, $options: 'i' } },
+      { company: { $regex: esc, $options: 'i' } },
     ];
   }
 

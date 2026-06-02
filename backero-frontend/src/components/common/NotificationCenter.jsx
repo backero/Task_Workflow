@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+﻿import React, { useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { BellIcon, CheckIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import { useNotificationStore } from '../../store/useNotificationStore';
@@ -53,7 +53,7 @@ export default function NotificationCenter({ onClose }) {
 
   return (
     <div className="card shadow-modal max-h-[480px] flex flex-col">
-      <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 dark:border-gray-700">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 dark:border-[#1b2e4a]">
         <div className="flex items-center gap-2">
           <BellIcon className="w-5 h-5 text-gray-600 dark:text-gray-400" />
           <h3 className="font-semibold text-gray-900 dark:text-white">Notifications</h3>
@@ -65,7 +65,7 @@ export default function NotificationCenter({ onClose }) {
           >
             Mark all read
           </button>
-          <button onClick={onClose} className="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-800">
+          <button onClick={onClose} className="p-1 rounded hover:bg-gray-100 dark:hover:bg-[#17263d]">
             <XMarkIcon className="w-4 h-4 text-gray-500" />
           </button>
         </div>
@@ -82,12 +82,12 @@ export default function NotificationCenter({ onClose }) {
             <p className="text-sm">No notifications</p>
           </div>
         ) : (
-          <div className="divide-y divide-gray-100 dark:divide-gray-800">
+          <div className="divide-y divide-gray-100 dark:divide-[#1b2e4a]">
             {notifications.map((notif) => (
               <div
                 key={notif._id}
                 className={clsx(
-                  'px-4 py-3 border-l-4 transition-colors cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/50',
+                  'px-4 py-3 border-l-4 transition-colors cursor-pointer hover:bg-gray-50 dark:hover:bg-[#17263d]/50',
                   notif.isRead ? 'border-l-transparent' : PRIORITY_STYLES[notif.priority] || PRIORITY_STYLES.medium
                 )}
                 onClick={() => {

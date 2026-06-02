@@ -4,14 +4,14 @@ const HIERARCHY = { super_admin: 7, chairman: 6, founder: 5, admin: 4, manager: 
 
 // Which modules each department can access
 const DEPT_MODULES = {
-  'Marketing':          ['tasks', 'crm', 'dept.marketing'],
+  'Marketing':          ['tasks', 'crm', 'inventory', 'dept.marketing'],
   'Marketplace':        ['tasks', 'inventory', 'dept.marketplace'],
-  'Sales':              ['tasks', 'crm', 'dept.sales'],
+  'Sales':              ['tasks', 'crm', 'inventory', 'dept.sales'],
   'Production':         ['tasks', 'production', 'inventory'],
-  'R&D':                ['tasks', 'production', 'dept.rnd'],
+  'R&D':                ['tasks', 'production', 'inventory', 'dept.rnd'],
   'Operations':         ['tasks', 'inventory', 'production', 'dept.operations'],
-  'HR':                 ['tasks', 'management', 'dept.hr'],
-  'Accounts & Finance': ['tasks', 'finance'],
+  'HR':                 ['tasks', 'management', 'inventory', 'dept.hr'],
+  'Accounts & Finance': ['tasks', 'finance', 'inventory'],
 };
 
 // Modules a manager can access (dept modules + management)

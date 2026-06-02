@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+﻿import React, { useCallback, useEffect, useRef, useState } from 'react';
 import ReactFlow, {
   Background,
   Controls,
@@ -221,7 +221,7 @@ function WorkflowCanvas({ rootTaskId }) {
           pannable
           zoomable
           className="shadow-xl rounded-xl overflow-hidden border border-gray-200"
-          style={{ background: '#f1f5f9' }}
+          style={{ background: 'var(--s-hover)' }}
         />
 
         {/* Custom toolbar */}

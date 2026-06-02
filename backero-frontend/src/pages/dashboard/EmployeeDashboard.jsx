@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
@@ -187,7 +187,7 @@ export default function EmployeeDashboard() {
                     key={task._id}
                     className={clsx(
                       'flex items-start gap-3 p-3 rounded-lg transition-colors',
-                      due?.bg || 'hover:bg-gray-50 dark:hover:bg-gray-800/50'
+                      due?.bg || 'hover:bg-gray-50 dark:hover:bg-[#17263d]/50'
                     )}
                   >
                     <div className="flex-1 min-w-0">
@@ -212,7 +212,7 @@ export default function EmployeeDashboard() {
                       </div>
                       {task.progress > 0 && (
                         <div className="mt-2 flex items-center gap-2">
-                          <div className="flex-1 h-1.5 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
+                          <div className="flex-1 h-1.5 bg-gray-100 dark:bg-[#132035] rounded-full overflow-hidden">
                             <div className="h-full bg-brand-500 rounded-full" style={{ width: `${task.progress}%` }} />
                           </div>
                           <span className="text-xs text-gray-400">{task.progress}%</span>
@@ -253,7 +253,7 @@ export default function EmployeeDashboard() {
                 <Link
                   key={item.to}
                   to={item.to}
-                  className="flex items-center gap-3 p-2.5 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors group"
+                  className="flex items-center gap-3 p-2.5 rounded-lg hover:bg-gray-50 dark:hover:bg-[#17263d]/50 transition-colors group"
                 >
                   <div className={`w-8 h-8 rounded-lg bg-${item.color}-100 dark:bg-${item.color}-900/30 flex items-center justify-center flex-shrink-0`}>
                     <div className={`w-2 h-2 rounded-full bg-${item.color}-500`} />
@@ -281,7 +281,7 @@ export default function EmployeeDashboard() {
             ) : (
               <div className="space-y-2">
                 {myLeads.map((lead) => (
-                  <Link key={lead._id} to={`/crm/leads/${lead._id}`} className="block p-3 rounded-lg bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+                  <Link key={lead._id} to={`/crm/leads/${lead._id}`} className="block p-3 rounded-lg bg-gray-50 dark:bg-[#0f1a2e] hover:bg-gray-100 dark:hover:bg-[#132035] transition-colors">
                     <p className="font-medium text-sm text-gray-900 dark:text-white">{lead.name}</p>
                     <p className="text-xs text-gray-500">{lead.phone}</p>
                     <div className="flex items-center gap-2 mt-1">

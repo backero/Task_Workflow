@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { PlusIcon, MagnifyingGlassIcon, PencilIcon, XCircleIcon, CheckCircleIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import { useForm } from 'react-hook-form';
@@ -65,12 +65,12 @@ function UserModal({ open, onClose, editUser }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-modal w-full max-w-md">
-        <div className="flex items-center justify-between p-6 border-b border-gray-100 dark:border-gray-800">
+      <div className="bg-white dark:bg-[#070c17] rounded-2xl shadow-modal w-full max-w-md">
+        <div className="flex items-center justify-between p-6 border-b border-gray-100 dark:border-[#1b2e4a]">
           <h3 className="text-lg font-bold text-gray-900 dark:text-white">
             {isEdit ? 'Edit Member' : 'Add New Member'}
           </h3>
-          <button onClick={onClose} className="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-800">
+          <button onClick={onClose} className="p-1 rounded hover:bg-gray-100 dark:hover:bg-[#17263d]">
             <XMarkIcon className="w-5 h-5 text-gray-500" />
           </button>
         </div>
@@ -92,7 +92,7 @@ function UserModal({ open, onClose, editUser }) {
           <div>
             <label className="label">Mobile Number *</label>
             <div className="flex gap-2">
-              <span className="flex items-center px-3 bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg text-sm font-semibold text-gray-500 shrink-0">
+              <span className="flex items-center px-3 bg-gray-100 dark:bg-[#0f1a2e] border border-gray-300 dark:border-[#1b2e4a] rounded-lg text-sm font-semibold text-gray-500 shrink-0">
                 +91
               </span>
               <input
@@ -263,7 +263,7 @@ export default function TeamManagement() {
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
-              <thead className="bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
+              <thead className="bg-gray-50 dark:bg-[#0f1a2e] border-b border-gray-200 dark:border-[#1b2e4a]">
                 <tr>
                   <th className="text-left py-3 px-4 text-gray-500 font-medium">Member</th>
                   <th className="text-left py-3 px-4 text-gray-500 font-medium">Phone</th>
@@ -273,9 +273,9 @@ export default function TeamManagement() {
                   <th className="text-right py-3 px-4 text-gray-500 font-medium">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
+              <tbody className="divide-y divide-gray-100 dark:divide-[#1b2e4a]">
                 {filtered.map((u) => (
-                  <tr key={u._id} className="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
+                  <tr key={u._id} className="hover:bg-gray-50 dark:hover:bg-[#17263d]/50 transition-colors">
                     <td className="py-3 px-4">
                       <div className="flex items-center gap-3">
                         <Avatar user={u} size="sm" />
@@ -305,7 +305,7 @@ export default function TeamManagement() {
                       <div className="flex items-center justify-end gap-2">
                         <button
                           onClick={() => openEdit(u)}
-                          className="p-1.5 rounded hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 hover:text-brand-600 transition-colors"
+                          className="p-1.5 rounded hover:bg-gray-100 dark:hover:bg-[#17263d] text-gray-500 hover:text-brand-600 transition-colors"
                           title="Edit"
                         >
                           <PencilIcon className="w-4 h-4" />

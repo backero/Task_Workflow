@@ -32,7 +32,10 @@ router.get('/', asyncHandler(async (req, res) => {
   if (department) filter.department = department;
   if (role) filter.role = role;
   if (isActive !== undefined) filter.isActive = isActive === 'true';
-  if (search) filter.$or = [{ firstName: { $regex: search, $options: 'i' } }, { lastName: { $regex: search, $options: 'i' } }, { email: { $regex: search, $options: 'i' } }];
+  if (search) {
+    const esc = search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    filter.$or = [{ firstName: { $regex: esc, $options: 'i' } }, { lastName: { $regex: esc, $options: 'i' } }, { email: { $regex: esc, $options: 'i' } }];
+  }
 
   const [users, total] = await Promise.all([
     User.find(filter).select('-password -refreshToken').sort({ firstName: 1 }).skip(skip).limit(parseInt(limit)),

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -14,7 +14,7 @@ import toast from 'react-hot-toast';
 import TaskForm from './TaskForm';
 
 const COLUMNS = [
-  { key: 'Pending',          label: 'Pending',          color: 'bg-gray-100 dark:bg-gray-800',         dot: 'bg-gray-400'   },
+  { key: 'Pending',          label: 'Pending',          color: 'bg-gray-100 dark:bg-[#0f1a2e]',         dot: 'bg-gray-400'   },
   { key: 'Assigned',         label: 'Assigned',          color: 'bg-blue-50 dark:bg-blue-900/20',       dot: 'bg-blue-500'   },
   { key: 'In Progress',      label: 'In Progress',       color: 'bg-yellow-50 dark:bg-yellow-900/20',   dot: 'bg-yellow-500' },
   { key: 'Approval Pending', label: 'Under Review',      color: 'bg-orange-50 dark:bg-orange-900/20',   dot: 'bg-orange-500' },
@@ -137,10 +137,10 @@ function TaskDetailModal({ taskId, onClose }) {
       <div className="relative card w-full max-w-2xl shadow-modal max-h-[92vh] flex flex-col">
 
         {/* ── Header ── */}
-        <div className="flex items-start justify-between gap-3 p-5 border-b border-gray-200 dark:border-gray-700">
+        <div className="flex items-start justify-between gap-3 p-5 border-b border-gray-200 dark:border-[#1b2e4a]">
           <div className="flex-1 min-w-0">
             {isLoading ? (
-              <div className="h-5 w-48 bg-gray-200 dark:bg-gray-700 rounded animate-pulse" />
+              <div className="h-5 w-48 bg-gray-200 dark:bg-[#132035] rounded animate-pulse" />
             ) : (
               <>
                 <div className="flex items-center gap-2 flex-wrap mb-1">
@@ -167,7 +167,7 @@ function TaskDetailModal({ taskId, onClose }) {
               </>
             )}
           </div>
-          <button onClick={onClose} className="p-1.5 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 dark:hover:bg-gray-800 flex-shrink-0">
+          <button onClick={onClose} className="p-1.5 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 dark:hover:bg-[#17263d] flex-shrink-0">
             <XMarkIcon className="w-5 h-5" />
           </button>
         </div>
@@ -180,7 +180,7 @@ function TaskDetailModal({ taskId, onClose }) {
           <div className="flex-1 overflow-y-auto">
 
             {/* ── Meta row ── */}
-            <div className="px-5 py-4 grid grid-cols-2 gap-3 text-sm border-b border-gray-100 dark:border-gray-800">
+            <div className="px-5 py-4 grid grid-cols-2 gap-3 text-sm border-b border-gray-100 dark:border-[#1b2e4a]">
               <div className="flex items-center gap-2 text-gray-600 dark:text-gray-400">
                 <UserIcon className="w-4 h-4 flex-shrink-0" />
                 <span className="text-gray-500">Assigned to:</span>
@@ -212,18 +212,18 @@ function TaskDetailModal({ taskId, onClose }) {
 
             {/* ── Description ── */}
             {task.description && (
-              <div className="px-5 py-3 border-b border-gray-100 dark:border-gray-800">
+              <div className="px-5 py-3 border-b border-gray-100 dark:border-[#1b2e4a]">
                 <p className="text-sm text-gray-600 dark:text-gray-400 whitespace-pre-wrap">{task.description}</p>
               </div>
             )}
 
             {/* ── Progress bar ── */}
-            <div className="px-5 py-3 border-b border-gray-100 dark:border-gray-800">
+            <div className="px-5 py-3 border-b border-gray-100 dark:border-[#1b2e4a]">
               <div className="flex items-center justify-between mb-1.5">
                 <span className="text-xs font-medium text-gray-500">Progress</span>
                 <span className="text-xs font-bold text-gray-900 dark:text-white">{task.progress || 0}%</span>
               </div>
-              <div className="h-2 bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden">
+              <div className="h-2 bg-gray-100 dark:bg-[#0f1a2e] rounded-full overflow-hidden">
                 <div
                   className="h-full bg-brand-500 rounded-full transition-all duration-500"
                   style={{ width: `${task.progress || 0}%` }}
@@ -232,7 +232,7 @@ function TaskDetailModal({ taskId, onClose }) {
             </div>
 
             {/* ── Status-specific action panel ── */}
-            <div className="px-5 py-4 border-b border-gray-100 dark:border-gray-800">
+            <div className="px-5 py-4 border-b border-gray-100 dark:border-[#1b2e4a]">
 
               {/* ASSIGNED → employee can start working */}
               {task.status === 'Assigned' && isAssignee && (
@@ -365,7 +365,7 @@ function TaskDetailModal({ taskId, onClose }) {
 
             {/* ── Tabs: Updates / Activity ── */}
             <div className="px-5 pt-4">
-              <div className="flex gap-4 border-b border-gray-200 dark:border-gray-700 mb-4">
+              <div className="flex gap-4 border-b border-gray-200 dark:border-[#1b2e4a] mb-4">
                 {[['updates', 'Updates'], ['activity', 'Activity Log']].map(([key, label]) => (
                   <button
                     key={key}
@@ -387,7 +387,7 @@ function TaskDetailModal({ taskId, onClose }) {
                     <p className="text-sm text-gray-400 text-center py-6">No updates posted yet</p>
                   ) : (
                     [...dailyUpdates].reverse().map((upd, i) => (
-                      <div key={upd._id || i} className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-3">
+                      <div key={upd._id || i} className="bg-gray-50 dark:bg-[#0f1a2e]/50 rounded-lg p-3">
                         <div className="flex items-center justify-between mb-1.5">
                           <span className="text-xs font-semibold text-gray-800 dark:text-gray-200">
                             {upd.author?.firstName} {upd.author?.lastName}
@@ -461,7 +461,7 @@ function TaskCard({ task, onClick }) {
     <div
       onClick={onClick}
       className={clsx(
-        'bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 p-3 border-l-4',
+        'bg-white dark:bg-[#070c17] rounded-lg border border-gray-200 dark:border-[#1b2e4a] p-3 border-l-4',
         'shadow-sm hover:shadow-md transition-all cursor-pointer hover:-translate-y-0.5 active:translate-y-0',
         PRIORITY_BORDER[task.priority] || 'border-l-gray-300'
       )}
@@ -480,7 +480,7 @@ function TaskCard({ task, onClick }) {
           <div className="flex justify-between text-xs text-gray-400 mb-1">
             <span>Progress</span><span>{task.progress}%</span>
           </div>
-          <div className="h-1.5 bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden">
+          <div className="h-1.5 bg-gray-100 dark:bg-[#0f1a2e] rounded-full overflow-hidden">
             <div className="h-full bg-brand-500 rounded-full transition-all" style={{ width: `${task.progress}%` }} />
           </div>
         </div>
@@ -569,7 +569,7 @@ export default function KanbanView() {
                 <div className="flex items-center gap-2 mb-3">
                   <div className={clsx('w-2 h-2 rounded-full flex-shrink-0', col.dot)} />
                   <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">{col.label}</h3>
-                  <span className="ml-auto text-xs font-medium text-gray-500 bg-white dark:bg-gray-800 rounded-full px-2 py-0.5">
+                  <span className="ml-auto text-xs font-medium text-gray-500 bg-white dark:bg-[#0f1a2e] rounded-full px-2 py-0.5">
                     {grouped[col.key]?.length || 0}
                   </span>
                 </div>

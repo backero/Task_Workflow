@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+﻿import React, { useEffect, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import { useSearchParams } from 'react-router-dom';
@@ -117,7 +117,7 @@ function StatusPill({ task, editable, onChange }) {
         {key}{editable && ' ▾'}
       </button>
       {open && (
-        <div className="absolute left-0 top-full mt-1 z-50 bg-white dark:bg-gray-800 rounded-xl border border-gray-100 shadow-xl py-1 min-w-[148px]">
+        <div className="absolute left-0 top-full mt-1 z-50 bg-white dark:bg-[#0f1a2e] rounded-xl border border-gray-100 shadow-xl py-1 min-w-[148px]">
           {STATUSES.map(s => (
             <button key={s} onMouseDown={e => { e.preventDefault(); onChange(task._id, s); setOpen(false); }}
               className="w-full text-left px-3 py-1.5 text-xs hover:bg-gray-50 flex items-center gap-2">
@@ -232,7 +232,7 @@ function MemberCard({ task, dept, editable, onStatus, onAddSub, onDelete }) {
   const progress = pct(prog);
 
   return (
-    <div className={clsx('rounded-xl border overflow-hidden', done ? 'border-green-100 bg-green-50/20' : 'border-gray-200 bg-white dark:bg-gray-900 dark:border-gray-700')}>
+    <div className={clsx('rounded-xl border overflow-hidden', done ? 'border-green-100 bg-green-50/20' : 'border-gray-200 bg-white dark:bg-[#070c17] dark:border-[#1b2e4a]')}>
       <div className="flex items-start gap-2 px-3 py-2.5 group cursor-pointer" onClick={() => kids.length && setOpen(p => !p)}>
         <span className={clsx('w-2.5 h-2.5 rounded-full flex-shrink-0 mt-1', STATUS_DOT[task.isOverdue ? 'Overdue' : task.status] || 'bg-gray-300')} />
         <div className="flex-1 min-w-0">
@@ -262,7 +262,7 @@ function MemberCard({ task, dept, editable, onStatus, onAddSub, onDelete }) {
         </div>
       </div>
       {kids.length > 0 && open && (
-        <div className="px-3 pb-2.5 pt-2 border-t border-gray-100 dark:border-gray-800 bg-gray-50/50 space-y-1.5">
+        <div className="px-3 pb-2.5 pt-2 border-t border-gray-100 dark:border-[#1b2e4a] bg-gray-50/50 space-y-1.5">
           {kids.map(c => <SubRow key={c._id} task={c} depth={2} dept={dept} editable={editable} onStatus={onStatus} onAddSub={onAddSub} onDelete={onDelete} />)}
         </div>
       )}
@@ -329,7 +329,7 @@ function ManagerCard({ task, dept, cfg, editable, onStatus, onAddSub, onDelete }
 
       {/* member subtasks */}
       {kids.length > 0 && open && (
-        <div className="px-3 py-3 space-y-2 bg-white dark:bg-gray-900">
+        <div className="px-3 py-3 space-y-2 bg-white dark:bg-[#070c17]">
           {kids.map(c => (
             <MemberCard key={c._id} task={c} dept={dept} editable={editable} onStatus={onStatus} onAddSub={onAddSub} onDelete={onDelete} />
           ))}
@@ -337,7 +337,7 @@ function ManagerCard({ task, dept, cfg, editable, onStatus, onAddSub, onDelete }
       )}
 
       {add && (
-        <div className="px-3 pb-3 bg-white dark:bg-gray-900">
+        <div className="px-3 pb-3 bg-white dark:bg-[#070c17]">
           <QuickAdd placeholder="Assign subtask to member…"
             onSave={async (t, d) => { await onAddSub(task._id, { title: t, dueDate: d, department: dept }); setAdd(false); }}
             onCancel={() => setAdd(false)} />
@@ -375,7 +375,7 @@ function DeptColumn({ dept, tasks, editable, filter, rootId, onStatus, onAddTask
   const allDone = progress === 100;
 
   return (
-    <div className="flex-shrink-0 w-80 flex flex-col rounded-2xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/30 overflow-hidden shadow-sm">
+    <div className="flex-shrink-0 w-80 flex flex-col rounded-2xl border border-gray-200 dark:border-[#1b2e4a] bg-gray-50 dark:bg-[#0f1a2e]/30 overflow-hidden shadow-sm">
       {/* dept header */}
       <div className={clsx('px-4 py-3', cfg.light)}>
         <div className="flex items-center gap-2.5">
@@ -487,9 +487,9 @@ function NewProjectModal({ onClose, onCreated }) {
 
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-      <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl w-full max-w-xl flex flex-col" style={{ maxHeight: '92vh' }}>
+      <div className="bg-white dark:bg-[#070c17] rounded-2xl shadow-2xl w-full max-w-xl flex flex-col" style={{ maxHeight: '92vh' }}>
         {/* modal header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-[#1b2e4a]">
           <div>
             <div className="flex items-center gap-2">
               <h2 className="font-bold text-gray-900 dark:text-white">{step === 1 ? 'New Project' : 'Assign Departments'}</h2>
@@ -533,7 +533,7 @@ function NewProjectModal({ onClose, onCreated }) {
                 </div>
               </div>
             </div>
-            <div className="flex gap-3 px-6 py-4 border-t border-gray-200 dark:border-gray-700">
+            <div className="flex gap-3 px-6 py-4 border-t border-gray-200 dark:border-[#1b2e4a]">
               <button onClick={onClose} className="btn-secondary">Cancel</button>
               <button onClick={goNext} disabled={!main.title.trim()} className="btn-primary flex-1 flex items-center justify-center gap-2">
                 Next: Dept Assignments <ChevronRightIcon className="w-4 h-4" />
@@ -590,7 +590,7 @@ function NewProjectModal({ onClose, onCreated }) {
                 <PlusIcon className="w-4 h-4" /> Add Another Department
               </button>
             </div>
-            <div className="flex gap-3 px-6 py-4 border-t border-gray-200 dark:border-gray-700">
+            <div className="flex gap-3 px-6 py-4 border-t border-gray-200 dark:border-[#1b2e4a]">
               <button onClick={() => { setStep(1); setErr(''); }} className="btn-secondary flex items-center gap-1">
                 <ChevronRightIcon className="w-4 h-4 rotate-180" /> Back
               </button>
@@ -644,8 +644,8 @@ function AssignMemberModal({ dept, deptTasks, onClose, onCreated }) {
 
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-      <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl w-full max-w-md flex flex-col" style={{ maxHeight: '90vh' }}>
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+      <div className="bg-white dark:bg-[#070c17] rounded-2xl shadow-2xl w-full max-w-md flex flex-col" style={{ maxHeight: '90vh' }}>
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-[#1b2e4a]">
           <div className="flex items-center gap-3">
             <div className={clsx('w-8 h-8 rounded-xl flex items-center justify-center', cfg.color)}><cfg.icon className="w-4 h-4 text-white" /></div>
             <div>
@@ -706,7 +706,7 @@ function AssignMemberModal({ dept, deptTasks, onClose, onCreated }) {
             {!members.length && <p className="text-[10px] text-amber-600 mt-1">No members found in {dept}. Task will be unassigned.</p>}
           </div>
         </div>
-        <div className="flex gap-3 px-6 py-4 border-t border-gray-200 dark:border-gray-700">
+        <div className="flex gap-3 px-6 py-4 border-t border-gray-200 dark:border-[#1b2e4a]">
           <button onClick={onClose} className="btn-secondary flex-1">Cancel</button>
           <button onClick={submit} disabled={busy || !form.title.trim() || !form.parentTaskId}
             className="btn-primary flex-1 flex items-center justify-center gap-2">
@@ -749,8 +749,8 @@ function WhatsAppUpdateModal({ lead, onClose }) {
 
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-      <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl w-full max-w-md">
-        <div className="p-5 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+      <div className="bg-white dark:bg-[#070c17] rounded-2xl shadow-2xl w-full max-w-md">
+        <div className="p-5 border-b border-gray-200 dark:border-[#1b2e4a] flex items-center justify-between">
           <div>
             <h2 className="font-bold text-gray-900 dark:text-white flex items-center gap-2">
               <PaperAirplaneIcon className="w-4 h-4 text-green-600" />
@@ -760,7 +760,7 @@ function WhatsAppUpdateModal({ lead, onClose }) {
               To: {lead.name}{lead.phone ? ` · ${lead.phone}` : ''}
             </p>
           </div>
-          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-400">
+          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-[#17263d] text-gray-400">
             <XMarkIcon className="w-5 h-5" />
           </button>
         </div>
@@ -808,7 +808,7 @@ function UpdateModal({ dept, progress, projectId, onClose }) {
   };
   return (
     <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
-      <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl w-full max-w-md">
+      <div className="bg-white dark:bg-[#070c17] rounded-2xl shadow-2xl w-full max-w-md">
         <div className="p-5 border-b border-gray-200 flex items-center justify-between">
           <div>
             <h2 className="font-bold text-gray-900">Send Update</h2>
@@ -928,7 +928,7 @@ export default function DeptWorkflow() {
   };
 
   return (
-    <div className="flex flex-col h-full overflow-hidden bg-gray-50 dark:bg-gray-900">
+    <div className="flex flex-col h-full overflow-hidden bg-gray-50 dark:bg-[#070c17]">
 
       {/* Toast */}
       {toast && (
@@ -938,7 +938,7 @@ export default function DeptWorkflow() {
       )}
 
       {/* ── Slim project header ── */}
-      <div className="flex-shrink-0 px-5 py-3 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700">
+      <div className="flex-shrink-0 px-5 py-3 bg-white dark:bg-[#070c17] border-b border-gray-200 dark:border-[#1b2e4a]">
         <div className="flex items-center gap-3 flex-wrap">
           {/* Project selector */}
           <select value={projectId || ''} onChange={e => { setProjectId(e.target.value || null); setConfirmDel(false); }}
@@ -948,17 +948,17 @@ export default function DeptWorkflow() {
           </select>
 
           {projectId && (
-            <button onClick={() => refetch()} className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 flex-shrink-0">
+            <button onClick={() => refetch()} className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-[#17263d] flex-shrink-0">
               <ArrowPathIcon className={clsx('w-4 h-4 text-gray-400', treeLoading && 'animate-spin')} />
             </button>
           )}
 
           {/* Tab toggle */}
-          <div className="flex items-center gap-1 bg-gray-100 dark:bg-gray-800 rounded-xl p-0.5">
+          <div className="flex items-center gap-1 bg-gray-100 dark:bg-[#0f1a2e] rounded-xl p-0.5">
             {[{ key: 'all', label: 'All Depts' }, { key: 'mine', label: 'My Dept' }].map(t => (
               <button key={t.key} onClick={() => setActiveTab(t.key)}
                 className={clsx('text-xs px-3 py-1.5 rounded-lg font-semibold transition-all',
-                  activeTab === t.key ? 'bg-white dark:bg-gray-700 text-brand-600 shadow-sm' : 'text-gray-500 hover:text-gray-700')}>
+                  activeTab === t.key ? 'bg-white dark:bg-[#132035] text-brand-600 shadow-sm' : 'text-gray-500 hover:text-gray-700')}>
                 {t.label}
               </button>
             ))}

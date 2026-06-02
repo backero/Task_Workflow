@@ -17,7 +17,10 @@ router.get('/', asyncHandler(async (req, res) => {
   const { skip } = paginate(page, limit);
   const filter = { organizationId: req.user.organizationId };
   if (status) filter.status = status;
-  if (search) filter.$or = [{ orderNumber: { $regex: search, $options: 'i' } }, { batch: { $regex: search, $options: 'i' } }];
+  if (search) {
+    const esc = search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    filter.$or = [{ orderNumber: { $regex: esc, $options: 'i' } }, { batch: { $regex: esc, $options: 'i' } }];
+  }
 
   const [orders, total] = await Promise.all([
     ProductionOrder.find(filter)

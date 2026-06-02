@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import api from '../../api/axios';
 import { format } from 'date-fns';
@@ -16,7 +16,7 @@ export default function BatchHistory() {
       <div className="page-header"><h1 className="page-title">Batch History</h1></div>
       <div className="card overflow-hidden">
         <table className="w-full text-sm">
-          <thead className="bg-gray-50 dark:bg-gray-800">
+          <thead className="bg-gray-50 dark:bg-[#0f1a2e]">
             <tr>
               <th className="text-left py-3 px-4 text-gray-500 font-medium">Order #</th>
               <th className="text-left py-3 px-4 text-gray-500 font-medium">Product</th>
@@ -26,9 +26,9 @@ export default function BatchHistory() {
               <th className="text-right py-3 px-4 text-gray-500 font-medium">Completed</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
+          <tbody className="divide-y divide-gray-100 dark:divide-[#1b2e4a]">
             {orders.map((order) => (
-              <tr key={order._id} className="hover:bg-gray-50 dark:hover:bg-gray-800/50">
+              <tr key={order._id} className="hover:bg-gray-50 dark:hover:bg-[#17263d]/50">
                 <td className="py-3 px-4 font-mono text-xs text-gray-500">{order.orderNumber}</td>
                 <td className="py-3 px-4 font-medium text-gray-900 dark:text-white">{order.finishedProduct?.name}</td>
                 <td className="py-3 px-4 text-gray-500 text-xs">{order.batch}</td>

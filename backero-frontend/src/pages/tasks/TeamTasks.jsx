@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { PlusIcon, BoltIcon } from '@heroicons/react/24/outline';
 import { useNavigate } from 'react-router-dom';
@@ -56,7 +56,7 @@ export default function TeamTasks() {
       ) : (
         <div className="card overflow-hidden">
           <table className="w-full text-sm">
-            <thead className="bg-gray-50 dark:bg-gray-800">
+            <thead className="bg-gray-50 dark:bg-[#0f1a2e]">
               <tr>
                 <th className="text-left py-3 px-4 text-gray-500 font-medium">Task</th>
                 <th className="text-left py-3 px-4 text-gray-500 font-medium">Assigned To</th>
@@ -67,12 +67,12 @@ export default function TeamTasks() {
                 <th className="py-3 px-4"></th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
+            <tbody className="divide-y divide-gray-100 dark:divide-[#1b2e4a]">
               {tasks.map((task) => {
                 const due = task.dueDate ? new Date(task.dueDate) : null;
                 const isOverdue = due && isPast(due) && task.status !== 'Completed';
                 return (
-                  <tr key={task._id} className="hover:bg-gray-50 dark:hover:bg-gray-800/50">
+                  <tr key={task._id} className="hover:bg-gray-50 dark:hover:bg-[#17263d]/50">
                     <td className="py-3 px-4">
                       <p className="font-medium text-gray-900 dark:text-white">{task.title}</p>
                       <p className="text-xs text-gray-400">{task.department} {task.platform ? `• ${task.platform}` : ''}</p>
@@ -91,7 +91,7 @@ export default function TeamTasks() {
                     <td className={`py-3 px-4 text-center font-medium text-xs ${PRIORITY_COLORS[task.priority]}`}>{task.priority?.toUpperCase()}</td>
                     <td className="py-3 px-4 text-center">
                       <div className="flex items-center gap-1 justify-center">
-                        <div className="w-16 h-1.5 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
+                        <div className="w-16 h-1.5 bg-gray-100 dark:bg-[#132035] rounded-full overflow-hidden">
                           <div className="h-full bg-brand-500 rounded-full" style={{ width: `${task.progress || 0}%` }} />
                         </div>
                         <span className="text-xs text-gray-400">{task.progress || 0}%</span>

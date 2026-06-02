@@ -56,11 +56,28 @@ exports.getTasks = asyncHandler(async (req, res) => {
     if (dateFrom) filter.dueDate.$gte = new Date(dateFrom);
     if (dateTo) filter.dueDate.$lte = new Date(dateTo);
   }
-  if (search) filter.$or = [{ title: { $regex: search, $options: 'i' } }, { description: { $regex: search, $options: 'i' } }];
+  if (search) {
+    const esc = search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const searchConds = [{ title: { $regex: esc, $options: 'i' } }, { description: { $regex: esc, $options: 'i' } }];
+    if (filter.$or) {
+      filter.$and = [{ $or: filter.$or }, { $or: searchConds }];
+      delete filter.$or;
+    } else {
+      filter.$or = searchConds;
+    }
+  }
 
   // Root-only filter (board view — exclude subtasks)
   if (req.query.rootOnly === 'true') {
-    filter.$or = [{ parentTask: null }, { parentTask: { $exists: false } }];
+    const rootConds = [{ parentTask: null }, { parentTask: { $exists: false } }];
+    if (filter.$or) {
+      filter.$and = [...(filter.$and || []), { $or: filter.$or }, { $or: rootConds }];
+      delete filter.$or;
+    } else if (filter.$and) {
+      filter.$and.push({ $or: rootConds });
+    } else {
+      filter.$or = rootConds;
+    }
   }
 
   const [tasks, total] = await Promise.all([
@@ -102,7 +119,8 @@ exports.createTask = asyncHandler(async (req, res) => {
   }
 
   if (parentTask) {
-    const parentTask_ = await Task.findById(parentTask).select('pendingHubApproval hubApproval');
+    const parentTask_ = await Task.findOne({ _id: parentTask, organizationId: req.user.organizationId }).select('pendingHubApproval hubApproval');
+    if (!parentTask_) return sendError(res, 'Parent task not found.', 404);
     if (parentTask_?.pendingHubApproval) {
       pendingHubApproval = true;
       isHubSubtask = true;
@@ -119,8 +137,7 @@ exports.createTask = asyncHandler(async (req, res) => {
 
     const isManagerAssigningToManager =
       userLevel === ROLE_HIERARCHY['manager'] &&
-      ROLE_HIERARCHY[assignee.role] >= ROLE_HIERARCHY['manager'] &&
-      assignee.department !== req.user.department;
+      ROLE_HIERARCHY[assignee.role] >= ROLE_HIERARCHY['manager'];
 
     if (isManagerAssigningToManager) {
       // Route through admin approval — store pending assignee, leave assignedTo empty
@@ -608,7 +625,7 @@ exports.startTask = asyncHandler(async (req, res) => {
   }
 
   task.status = TASK_STATUS.IN_PROGRESS;
-  task.startedAt = new Date();
+  task.startDate = new Date();
   task.activity.push({ action: 'Task started', performedBy: req.user._id, details: {} });
   task.updatedBy = req.user._id;
   await task.save();

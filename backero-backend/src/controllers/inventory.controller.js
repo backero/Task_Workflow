@@ -13,11 +13,14 @@ exports.getProducts = asyncHandler(async (req, res) => {
   if (category) filter.category = category;
   if (isRawMaterial !== undefined) filter.isRawMaterial = isRawMaterial === 'true';
   if (isLowStock === 'true') filter.$expr = { $lte: ['$currentStock', '$minStockLevel'] };
-  if (search) filter.$or = [
-    { name: { $regex: search, $options: 'i' } },
-    { sku: { $regex: search, $options: 'i' } },
-    { category: { $regex: search, $options: 'i' } },
-  ];
+  if (search) {
+    const esc = search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    filter.$or = [
+      { name: { $regex: esc, $options: 'i' } },
+      { sku: { $regex: esc, $options: 'i' } },
+      { category: { $regex: esc, $options: 'i' } },
+    ];
+  }
 
   const [products, total] = await Promise.all([
     Product.find(filter).sort({ name: 1 }).skip(skip).limit(parseInt(limit)).lean(),

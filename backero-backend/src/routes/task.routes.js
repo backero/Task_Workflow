@@ -4,7 +4,7 @@ const importCtrl = require('../controllers/taskImport.controller');
 const upload     = require('../middleware/upload.middleware');
 const { authenticate } = require('../middleware/auth.middleware');
 const { orgIsolation } = require('../middleware/orgIsolation.middleware');
-const { authorizeAdminOrAbove } = require('../middleware/role.middleware');
+const { authorizeAdminOrAbove, authorizeManagerOrAbove } = require('../middleware/role.middleware');
 
 router.use(authenticate, orgIsolation);
 
@@ -19,9 +19,9 @@ router.get('/:id/tree', ctrl.getTaskTree);
 router.get('/:id', ctrl.getTask);
 router.get('/:id/approvals', ctrl.getTaskApprovals);
 
-// Admin+ only — create, edit, delete, archive
-router.post('/', authorizeAdminOrAbove, ctrl.createTask);
-router.put('/:id', authorizeAdminOrAbove, ctrl.updateTask);
+// Manager+ can create and edit tasks
+router.post('/', authorizeManagerOrAbove, ctrl.createTask);
+router.put('/:id', authorizeManagerOrAbove, ctrl.updateTask);
 router.patch('/:id/archive', authorizeAdminOrAbove, ctrl.archiveTask);
 router.delete('/:id', authorizeAdminOrAbove, ctrl.deleteTask);
 
@@ -33,7 +33,7 @@ router.post('/:id/comment', ctrl.addComment);
 router.post('/:id/extension-request', ctrl.requestExtension);
 
 // Admin+ only — review/approval actions
-router.patch('/:id/extension-request/:reqId', authorizeAdminOrAbove, ctrl.reviewExtensionRequest);
+router.patch('/:id/extension-request/:reqId', authorizeManagerOrAbove, ctrl.reviewExtensionRequest);
 router.post('/:id/hub-approve', authorizeAdminOrAbove, ctrl.approveDeptHub);
 router.post('/:id/hub-reject', authorizeAdminOrAbove, ctrl.rejectDeptHub);
 router.post('/:id/manager-assign-approve', authorizeAdminOrAbove, ctrl.approveManagerAssignment);

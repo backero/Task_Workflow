@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import { useReactFlow } from 'reactflow';
 import clsx from 'clsx';
 import { useAuthStore } from '../../store/useAuthStore';
@@ -20,7 +20,7 @@ export default function WorkflowToolbar({ rootTaskId, onAddSubtask, onSaveTempla
   };
 
   return (
-    <div className="absolute top-4 left-1/2 -translate-x-1/2 z-10 flex items-center gap-2 bg-white border border-gray-200 rounded-xl shadow-lg px-3 py-2">
+    <div className="absolute top-4 left-1/2 -translate-x-1/2 z-10 flex items-center gap-2 bg-white dark:bg-[#0f1a2e] border border-gray-200 dark:border-[#1b2e4a] rounded-xl shadow-lg px-3 py-2">
       {/* Zoom controls */}
       <div className="flex items-center gap-1 border-r border-gray-200 pr-3">
         <button
@@ -90,7 +90,7 @@ export default function WorkflowToolbar({ rootTaskId, onAddSubtask, onSaveTempla
             </button>
 
             {showTemplateMenu && (
-              <div className="absolute top-full mt-2 right-0 w-64 bg-white border border-gray-200 rounded-xl shadow-xl z-50">
+              <div className="absolute top-full mt-2 right-0 w-64 bg-white dark:bg-[#17263d] border border-gray-200 dark:border-[#1b2e4a] rounded-xl shadow-xl z-50">
                 <div className="p-2 border-b border-gray-100">
                   <p className="text-xs font-semibold text-gray-700 px-2 py-1">Workflow Templates</p>
                 </div>

@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+﻿import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Bars3Icon, BellIcon, MagnifyingGlassIcon, SunIcon, MoonIcon,
@@ -77,7 +77,7 @@ export default function Header({ onMobileMenuToggle }) {
   const initials = `${user?.firstName?.[0] || ''}${user?.lastName?.[0] || ''}`;
 
   return (
-    <header className="relative z-20 h-14 flex-shrink-0 flex items-center px-4 lg:px-5 gap-3 bg-white dark:bg-[#111827] border-b border-slate-200 dark:border-white/[0.06]">
+    <header className="relative z-20 h-14 flex-shrink-0 flex items-center px-4 lg:px-5 gap-3 header-surface">
 
       {/* Mobile menu toggle */}
       <button
@@ -110,7 +110,7 @@ export default function Header({ onMobileMenuToggle }) {
         </div>
 
         {showSearch && debouncedSearch.length >= 2 && (
-          <div className="absolute top-10 left-0 right-0 bg-white dark:bg-[#1e2433] rounded-xl border border-slate-200 dark:border-white/8 shadow-xl z-50 overflow-hidden animate-slide-down">
+          <div className="absolute top-10 left-0 right-0 rounded-xl z-50 overflow-hidden animate-slide-down dropdown-panel">
             {searching && !searchResults ? (
               <div className="p-4 text-sm text-slate-400 text-center">Searching…</div>
             ) : !searchResults?.data?.length ? (
@@ -122,7 +122,10 @@ export default function Header({ onMobileMenuToggle }) {
                   <button
                     key={task._id}
                     onClick={() => { navigate(`/workflow/${task._id}`); setShowSearch(false); setSearchQuery(''); }}
-                    className="w-full text-left px-3 py-2.5 hover:bg-slate-50 dark:hover:bg-white/5 border-b border-slate-100 dark:border-white/5 last:border-0 transition-colors"
+                    className="w-full text-left px-3 py-2.5 transition-colors"
+                    style={{ borderBottom: '1px solid var(--b-default)' }}
+                    onMouseEnter={e => e.currentTarget.style.background = 'var(--s-hover)'}
+                    onMouseLeave={e => e.currentTarget.style.background = ''}
                   >
                     <div className="flex items-center gap-2">
                       <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${
@@ -212,8 +215,8 @@ export default function Header({ onMobileMenuToggle }) {
           </button>
 
           {showUserMenu && (
-            <div className="absolute right-0 top-11 z-50 w-52 bg-white dark:bg-[#1e2433] rounded-xl border border-slate-200 dark:border-white/8 shadow-xl overflow-hidden animate-slide-down">
-              <div className="px-4 py-3 border-b border-slate-100 dark:border-white/6">
+            <div className="absolute right-0 top-11 z-50 w-52 rounded-xl overflow-hidden animate-slide-down dropdown-panel">
+              <div className="px-4 py-3 border-b border-slate-100 dark:border-[#1b2e4a]">
                 <p className="text-sm font-semibold text-slate-800 dark:text-white">{user?.firstName} {user?.lastName}</p>
                 <p className="text-xs text-slate-400 capitalize mt-0.5">{user?.role?.replace('_', ' ')}</p>
               </div>

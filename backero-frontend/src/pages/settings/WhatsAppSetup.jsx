@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
 import {
@@ -214,7 +214,7 @@ export default function WhatsAppSetup() {
               always: false,
             },
           ].map((item) => (
-            <div key={item.title} className="flex items-start gap-3 p-3 rounded-lg bg-gray-50 dark:bg-gray-800/50">
+            <div key={item.title} className="flex items-start gap-3 p-3 rounded-lg bg-gray-50 dark:bg-[#0f1a2e]/50">
               <span className="text-xl flex-shrink-0">{item.icon}</span>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-gray-900 dark:text-white">{item.title}</p>
@@ -263,7 +263,7 @@ export default function WhatsAppSetup() {
             { time: 'Every 6 hours', event: 'Low stock inventory check' },
           ].map((row) => (
             <div key={row.time} className="flex items-center gap-3">
-              <span className="text-xs font-mono bg-gray-100 dark:bg-gray-800 px-2 py-0.5 rounded text-gray-600 dark:text-gray-400 w-28 text-center flex-shrink-0">
+              <span className="text-xs font-mono bg-gray-100 dark:bg-[#0f1a2e] px-2 py-0.5 rounded text-gray-600 dark:text-gray-400 w-28 text-center flex-shrink-0">
                 {row.time}
               </span>
               <span className="text-gray-600 dark:text-gray-400">{row.event}</span>

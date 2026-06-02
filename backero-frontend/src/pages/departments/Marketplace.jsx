@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+﻿import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
 import { clsx } from 'clsx';
@@ -1312,7 +1312,48 @@ function OverviewTab({ allTasks, tasksLoading, navigate }) {
   );
 }
 
-// ── 12-Week Plan Tab ──────────────────────────────────────────────────────────
+// ── Calendar helpers ──────────────────────────────────────────────────────────
+
+// Returns ISO YYYY-MM-DD of Monday of the week containing `date`
+function getMondayOf(date) {
+  const d = new Date(date);
+  const day = d.getDay(); // 0=Sun
+  d.setDate(d.getDate() - (day === 0 ? 6 : day - 1));
+  d.setHours(0, 0, 0, 0);
+  return d.toISOString().split('T')[0];
+}
+
+// ISO week number of the year (1-53)
+function getISOWeekNum(date) {
+  const d = new Date(date);
+  d.setHours(0, 0, 0, 0);
+  d.setDate(d.getDate() + 3 - ((d.getDay() + 6) % 7));
+  const week1 = new Date(d.getFullYear(), 0, 4);
+  return 1 + Math.round(((d - week1) / 86400000 - 3 + ((week1.getDay() + 6) % 7)) / 7);
+}
+
+function getWeekDateRange(planStartDate, weekNum) {
+  const start = new Date(planStartDate);
+  start.setDate(start.getDate() + (weekNum - 1) * 7);
+  const end = new Date(start);
+  end.setDate(end.getDate() + 6);
+  return { start, end };
+}
+
+function fmtShort(date) {
+  return date.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
+}
+
+function getCurrentPlanWeek(planStartDate, totalWeeks) {
+  const today    = new Date();
+  const start    = new Date(planStartDate);
+  const diffDays = Math.floor((today - start) / 86400000);
+  const week     = Math.floor(diffDays / 7) + 1;
+  if (week < 1 || week > totalWeeks) return null;
+  return week;
+}
+
+// ── Plan Tab ──────────────────────────────────────────────────────────────────
 
 function PlanTab({ platform = 'Amazon' }) {
   const cfg = PLATFORM_PLAN_CONFIG[platform] || PLATFORM_PLAN_CONFIG.Amazon;
@@ -1320,15 +1361,23 @@ function PlanTab({ platform = 'Amazon' }) {
   const queryClient = useQueryClient();
   const [activeWeek, setActiveWeek] = useState(1);
   const [activeDay,  setActiveDay]  = useState('Mon');
-  const [budget,     setBudget]     = useState(cfg.budgetLabels[1]);
-  const [checked,    setChecked]    = useState({});
-  const [kpi,        setKpi]        = useState({ ...cfg.emptyKpi });
-  const [notes,      setNotes]      = useState('');
-  const [scorecard,  setScorecard]  = useState({});
   const [showTriggers, setShowTriggers] = useState(false);
-  const [, forceUpdate] = useState(0);
   const [importing, setImporting] = useState(false);
   const fileInputRef = useRef(null);
+  const saveTimer = useRef(null);
+
+  // Plan start date — auto-set to Monday of current week on first use, then remembered
+  const [planStartDate] = useState(() => {
+    const key    = `mkt_start_${platform}`;
+    const saved  = localStorage.getItem(key);
+    if (saved) return saved;
+    const monday = getMondayOf(new Date());
+    localStorage.setItem(key, monday);
+    return monday;
+  });
+
+  // All progress from the backend — keyed by week number
+  const [allProgress, setAllProgress] = useState({});
 
   // Fetch imported plan from DB (overrides hardcoded data if present)
   const { data: importedPlan } = useQuery({
@@ -1336,6 +1385,46 @@ function PlanTab({ platform = 'Amazon' }) {
     queryFn: () => api.get(`/marketplace/plans/${platform}`).then(r => r.data.plan),
     staleTime: 60000,
   });
+
+  // Fetch all saved progress from DB
+  const { data: progressData } = useQuery({
+    queryKey: ['mkt-progress', platform],
+    queryFn: () => api.get(`/marketplace/progress/${platform}`).then(r => r.data.progress),
+    staleTime: 30000,
+  });
+
+  // Hydrate allProgress when API data arrives
+  useEffect(() => {
+    if (!progressData) return;
+    const map = {};
+    progressData.forEach(doc => { map[doc.week] = doc; });
+    setAllProgress(map);
+  }, [progressData]);
+
+  // Save mutation (debounced via saveTimer)
+  const saveMutation = useMutation({
+    mutationFn: ({ week, data }) => api.put(`/marketplace/progress/${platform}/${week}`, data),
+  });
+
+  const scheduleSync = useCallback((week, data) => {
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(() => {
+      saveMutation.mutate({ week, data });
+    }, 1200);
+  }, [saveMutation]);
+
+  // Helpers to read current day/week data from allProgress
+  const weekDoc    = allProgress[activeWeek] || {};
+  const dayDoc     = weekDoc.days?.[activeDay] || {};
+  const checked    = useMemo(() => {
+    const s = {};
+    (dayDoc.checked || []).forEach(id => { s[id] = true; });
+    return s;
+  }, [dayDoc.checked]);
+  const kpi        = dayDoc.kpi   || { ...cfg.emptyKpi };
+  const notes      = dayDoc.notes || '';
+  const budget     = weekDoc.budget || cfg.budgetLabels[1];
+  const scorecard  = weekDoc.scorecard || {};
 
   // Convert DB plan → same shape as cfg.weekData
   const weekData = useMemo(() => {
@@ -1484,42 +1573,44 @@ function PlanTab({ platform = 'Amazon' }) {
   const allDayTasks = [...baseTasks, ...wsTasks];
   const mustItems   = cfg.mustComplete[activeDay] || [];
 
-  useEffect(() => {
-    setBudget(cfg.budgetLabels[1]);
-    setKpi({ ...cfg.emptyKpi });
-  }, [platform]);
+  // Helper: update allProgress and schedule sync to backend
+  const updateDay = useCallback((updater) => {
+    setAllProgress(prev => {
+      const prevWeek  = prev[activeWeek] || {};
+      const prevDays  = prevWeek.days || {};
+      const prevDay   = prevDays[activeDay] || { checked: [], kpi: {}, notes: '' };
+      const newDay    = typeof updater === 'function' ? updater(prevDay) : { ...prevDay, ...updater };
+      const newWeek   = { ...prevWeek, days: { ...prevDays, [activeDay]: newDay } };
+      const next      = { ...prev, [activeWeek]: newWeek };
+      scheduleSync(activeWeek, { budget: newWeek.budget || cfg.budgetLabels[1], scorecard: newWeek.scorecard || {}, days: newWeek.days });
+      return next;
+    });
+  }, [activeWeek, activeDay, cfg.budgetLabels, scheduleSync]);
 
-  useEffect(() => {
-    const newChecked = {};
-    allDayTasks.forEach(t => { newChecked[t.id] = localStorage.getItem(lsKey(platform, activeWeek, activeDay, t.id)) === '1'; });
-    cfg.recurringTasks.forEach(t => { newChecked[t.id] = localStorage.getItem(lsKey(platform, activeWeek, activeDay, t.id)) === '1'; });
-    setChecked(newChecked);
-    const savedKpi = localStorage.getItem(lsKpi(platform, activeWeek, activeDay));
-    setKpi(savedKpi ? JSON.parse(savedKpi) : { ...cfg.emptyKpi });
-    setNotes(localStorage.getItem(lsNotes(platform, activeWeek, activeDay)) || '');
-    const savedBudget = localStorage.getItem(lsBudget(platform, activeWeek));
-    if (savedBudget && cfg.budgetLabels.includes(savedBudget)) setBudget(savedBudget);
-    const savedSC = localStorage.getItem(lsScorecard(platform, activeWeek));
-    if (savedSC) setScorecard(JSON.parse(savedSC));
-  }, [platform, activeWeek, activeDay]);
+  const updateWeek = useCallback((updater) => {
+    setAllProgress(prev => {
+      const prevWeek = prev[activeWeek] || {};
+      const newWeek  = typeof updater === 'function' ? updater(prevWeek) : { ...prevWeek, ...updater };
+      const next     = { ...prev, [activeWeek]: newWeek };
+      scheduleSync(activeWeek, { budget: newWeek.budget || cfg.budgetLabels[1], scorecard: newWeek.scorecard || {}, days: newWeek.days || {} });
+      return next;
+    });
+  }, [activeWeek, cfg.budgetLabels, scheduleSync]);
 
   const toggleTask = (id) => {
-    const newVal = !checked[id];
-    setChecked(p => ({ ...p, [id]: newVal }));
-    localStorage.setItem(lsKey(platform, activeWeek, activeDay, id), newVal ? '1' : '0');
+    updateDay(prev => {
+      const arr     = prev.checked || [];
+      const newArr  = arr.includes(id) ? arr.filter(x => x !== id) : [...arr, id];
+      return { ...prev, checked: newArr };
+    });
   };
-  const saveKpi = (newKpi) => { setKpi(newKpi); localStorage.setItem(lsKpi(platform, activeWeek, activeDay), JSON.stringify(newKpi)); };
-  const saveNotes = (v)    => { setNotes(v);    localStorage.setItem(lsNotes(platform, activeWeek, activeDay), v); };
-  const selectBudget = (t) => { setBudget(t);   localStorage.setItem(lsBudget(platform, activeWeek), t); };
-  const saveScorecard = (s)=> { setScorecard(s);localStorage.setItem(lsScorecard(platform, activeWeek), JSON.stringify(s)); };
+  const saveKpi       = (newKpi) => updateDay(prev => ({ ...prev, kpi: newKpi }));
+  const saveNotes     = (v)      => updateDay(prev => ({ ...prev, notes: v }));
+  const selectBudget  = (t)      => updateWeek(prev => ({ ...prev, budget: t }));
+  const saveScorecard = (s)      => updateWeek(prev => ({ ...prev, scorecard: s }));
 
   const resetDay = () => {
-    allDayTasks.forEach(t => localStorage.removeItem(lsKey(platform, activeWeek, activeDay, t.id)));
-    cfg.recurringTasks.forEach(t => localStorage.removeItem(lsKey(platform, activeWeek, activeDay, t.id)));
-    localStorage.removeItem(lsKpi(platform, activeWeek, activeDay));
-    localStorage.removeItem(lsNotes(platform, activeWeek, activeDay));
-    setChecked({}); setKpi({ ...cfg.emptyKpi }); setNotes('');
-    forceUpdate(n => n + 1);
+    updateDay(() => ({ checked: [], kpi: { ...cfg.emptyKpi }, notes: '' }));
   };
 
   const exportDay = () => {
@@ -1555,21 +1646,34 @@ function PlanTab({ platform = 'Amazon' }) {
   const triggers   = cfg.evalGood(kpi);
   const kpiFields  = cfg.getKpiFields(week, budget);
 
+  const currentPlanWeek = useMemo(
+    () => getCurrentPlanWeek(planStartDate, weekData.length),
+    [planStartDate, weekData.length]
+  );
+
   return (
     <div className="space-y-4">
+
       {/* Week selector + import controls */}
       <div className="flex items-center gap-2 flex-wrap bg-white rounded-2xl border border-gray-200 px-4 py-3">
         <select
           value={activeWeek}
           onChange={e => { setActiveWeek(Number(e.target.value)); setActiveDay('Mon'); }}
-          className="flex-1 min-w-[180px] text-sm font-bold border border-gray-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-orange-400 bg-white cursor-pointer"
+          className="flex-1 min-w-[200px] text-sm font-bold border border-gray-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-orange-400 bg-white cursor-pointer"
           style={{ color: platColor }}
         >
-          {weekData.map(w => (
-            <option key={w.n} value={w.n}>Week {w.n} — {w.title}</option>
-          ))}
+          {weekData.map(w => {
+            const range = getWeekDateRange(planStartDate, w.n);
+            const dateLabel = `${fmtShort(range.start)} – ${fmtShort(range.end)}`;
+            const isoWk = getISOWeekNum(range.start);
+            return (
+              <option key={w.n} value={w.n}>Week {w.n} · {dateLabel} (Yr Wk {isoWk}) · {w.title}</option>
+            );
+          })}
         </select>
         {isImported && <span className="text-[10px] font-bold text-green-600 bg-green-50 border border-green-200 px-2 py-1 rounded-full whitespace-nowrap">Imported</span>}
+        {saveMutation.isPending && <span className="text-[10px] text-gray-400 whitespace-nowrap">Saving…</span>}
+        {saveMutation.isSuccess && <span className="text-[10px] text-green-600 whitespace-nowrap">✓ Saved</span>}
         <button onClick={downloadTemplate}
           className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold border border-gray-200 bg-white text-gray-600 rounded-xl hover:bg-gray-50 whitespace-nowrap transition-colors">
           <ArrowDownTrayIcon className="w-3.5 h-3.5" /> HTML Template
@@ -1635,10 +1739,12 @@ function PlanTab({ platform = 'Amazon' }) {
         {/* Day tabs */}
         <div className="flex gap-1.5 bg-gray-100 p-1 rounded-xl w-fit">
           {DAYS.map(d => {
-            const dTasks = [...(cfg.baseTasks[d] || []), ...(week.ws[d] || [])];
-            const dIds   = [...dTasks.map(t => t.id), ...cfg.recurringTasks.map(t => t.id)];
-            const dDone  = dIds.filter(id => localStorage.getItem(lsKey(platform, activeWeek, d, id)) === '1').length;
-            const allDone = dIds.length > 0 && dDone === dIds.length;
+            const dTasks   = [...(cfg.baseTasks[d] || []), ...(week.ws[d] || [])];
+            const dIds     = [...dTasks.map(t => t.id), ...cfg.recurringTasks.map(t => t.id)];
+            const savedDay = allProgress[activeWeek]?.days?.[d] || {};
+            const dChecked = new Set(savedDay.checked || []);
+            const dDone    = dIds.filter(id => dChecked.has(id)).length;
+            const allDone  = dIds.length > 0 && dDone === dIds.length;
             return (
               <button key={d} onClick={() => setActiveDay(d)}
                 className={clsx('flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold transition-all', activeDay === d ? 'bg-white shadow-sm' : 'text-gray-500 hover:text-gray-700')}
@@ -1915,7 +2021,7 @@ export default function MarketplaceDept() {
 
   return (
     <div className="space-y-5">
-      <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 shadow-sm px-6 py-4">
+      <div className="bg-white dark:bg-[#070c17] rounded-2xl border border-gray-200 shadow-sm px-6 py-4">
         <div className="flex items-center justify-between gap-4 flex-wrap">
           <div>
             <h1 className="text-lg font-bold" style={{ color: '#f97316' }}>Marketplace Operations</h1>

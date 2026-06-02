@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../store/useAuthStore';
@@ -68,7 +68,7 @@ export default function TechnicalQueries() {
       </div>
 
       {/* Status filter tabs */}
-      <div className="flex gap-1 bg-gray-100 dark:bg-gray-800 rounded-lg p-1 w-fit">
+      <div className="flex gap-1 bg-gray-100 dark:bg-[#0f1a2e] rounded-lg p-1 w-fit">
         {['all', 'pending', 'answered'].map(s => (
           <button
             key={s}
@@ -76,7 +76,7 @@ export default function TechnicalQueries() {
             className={clsx(
               'px-4 py-1.5 rounded-md text-sm font-medium transition-colors capitalize',
               statusFilter === s
-                ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm'
+                ? 'bg-white dark:bg-[#132035] text-gray-900 dark:text-white shadow-sm'
                 : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
             )}
           >
@@ -180,19 +180,19 @@ export default function TechnicalQueries() {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-gray-900/60 backdrop-blur-sm" onClick={() => setReplyQuery(null)} />
           <div className="relative card w-full max-w-lg shadow-modal">
-            <div className="p-5 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+            <div className="p-5 border-b border-gray-200 dark:border-[#1b2e4a] flex items-center justify-between">
               <div>
                 <h3 className="font-bold text-gray-900 dark:text-white">Reply to Query</h3>
                 <p className="text-sm text-gray-500 mt-0.5">{replyQuery.title}</p>
               </div>
-              <button onClick={() => setReplyQuery(null)} className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800">
+              <button onClick={() => setReplyQuery(null)} className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-[#17263d]">
                 <XMarkIcon className="w-5 h-5 text-gray-500" />
               </button>
             </div>
 
             <div className="p-5 space-y-4">
               {/* Query context */}
-              <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+              <div className="p-3 bg-gray-50 dark:bg-[#0f1a2e] rounded-lg">
                 <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1">Question</p>
                 <p className="text-sm text-gray-700 dark:text-gray-300">{replyQuery.description}</p>
                 <p className="text-xs text-gray-400 mt-2">Lead: <span className="font-medium">{replyQuery.leadName}</span></p>

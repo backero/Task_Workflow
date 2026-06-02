@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+﻿import React, { useRef, useState } from 'react';
 import { ArrowDownTrayIcon, ArrowUpTrayIcon, XMarkIcon, CheckCircleIcon, ExclamationCircleIcon } from '@heroicons/react/24/outline';
 import api from '../../api/axios';
 import toast from 'react-hot-toast';
@@ -8,10 +8,10 @@ function ResultsModal({ results, onClose }) {
   const hasErrors = results.errors?.length > 0;
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-modal w-full max-w-lg max-h-[80vh] flex flex-col">
-        <div className="flex items-center justify-between p-5 border-b border-gray-100 dark:border-gray-800">
+      <div className="bg-white dark:bg-[#070c17] rounded-2xl shadow-modal w-full max-w-lg max-h-[80vh] flex flex-col">
+        <div className="flex items-center justify-between p-5 border-b border-gray-100 dark:border-[#1b2e4a]">
           <h3 className="font-bold text-gray-900 dark:text-white text-lg">Import Results</h3>
-          <button onClick={onClose} className="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-800">
+          <button onClick={onClose} className="p-1 rounded hover:bg-gray-100 dark:hover:bg-[#17263d]">
             <XMarkIcon className="w-5 h-5 text-gray-500" />
           </button>
         </div>
@@ -27,7 +27,7 @@ function ResultsModal({ results, onClose }) {
               <p className="text-2xl font-bold text-orange-600">{results.skipped}</p>
               <p className="text-xs text-orange-700 dark:text-orange-400 mt-0.5">Skipped</p>
             </div>
-            <div className="text-center p-3 bg-gray-50 dark:bg-gray-800 rounded-xl">
+            <div className="text-center p-3 bg-gray-50 dark:bg-[#0f1a2e] rounded-xl">
               <p className="text-2xl font-bold text-gray-700 dark:text-gray-300">{results.imported + results.skipped}</p>
               <p className="text-xs text-gray-500 mt-0.5">Total Rows</p>
             </div>
@@ -64,7 +64,7 @@ function ResultsModal({ results, onClose }) {
           )}
         </div>
 
-        <div className="p-5 border-t border-gray-100 dark:border-gray-800">
+        <div className="p-5 border-t border-gray-100 dark:border-[#1b2e4a]">
           <button onClick={onClose} className="btn-primary w-full justify-center py-2.5">Done</button>
         </div>
       </div>

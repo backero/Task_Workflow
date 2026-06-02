@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
@@ -21,7 +21,7 @@ import ErrorBoundary from '../../components/common/ErrorBoundary';
 const PIPELINE_STAGES = ['New Lead', 'Follow-up', 'In Progress', 'Ready to Dispatch', 'Dispatched', 'Payment Pending', 'Lost'];
 
 const STAGE_META = {
-  'New Lead':          { grad: 'linear-gradient(135deg,#475569 0%,#1e293b 100%)', accent: '#94a3b8', badge: 'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300'       },
+  'New Lead':          { grad: 'linear-gradient(135deg,#475569 0%,#1e293b 100%)', accent: '#94a3b8', badge: 'bg-slate-100 text-slate-600 dark:bg-[#132035] dark:text-slate-300'       },
   'Follow-up':         { grad: 'linear-gradient(135deg,#f59e0b 0%,#b45309 100%)', accent: '#f59e0b', badge: 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300'   },
   'In Progress':       { grad: 'linear-gradient(135deg,#3b82f6 0%,#1d4ed8 100%)', accent: '#60a5fa', badge: 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300'       },
   'Ready to Dispatch': { grad: 'linear-gradient(135deg,#8b5cf6 0%,#5b21b6 100%)', accent: '#a78bfa', badge: 'bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300' },
@@ -42,7 +42,7 @@ const PRIORITY_CFG = {
   critical: { dot: 'bg-red-500',    pill: 'bg-red-50 text-red-600 dark:bg-red-900/40 dark:text-red-400' },
   high:     { dot: 'bg-orange-500', pill: 'bg-orange-50 text-orange-600 dark:bg-orange-900/40 dark:text-orange-400' },
   medium:   { dot: 'bg-yellow-400', pill: 'bg-yellow-50 text-yellow-600 dark:bg-yellow-900/40 dark:text-yellow-400' },
-  low:      { dot: 'bg-gray-300',   pill: 'bg-gray-50 text-gray-500 dark:bg-gray-700/50 dark:text-gray-400' },
+  low:      { dot: 'bg-gray-300',   pill: 'bg-gray-50 text-gray-500 dark:bg-[#132035]/50 dark:text-gray-400' },
 };
 
 function LeadCard({ lead, stage, onClick }) {
@@ -56,8 +56,8 @@ function LeadCard({ lead, stage, onClick }) {
     <div
       onClick={() => onClick(lead)}
       className={clsx(
-        'bg-white dark:bg-slate-800/90 rounded-2xl cursor-pointer select-none',
-        'border border-gray-100/80 dark:border-slate-700/40',
+        'bg-white dark:bg-[#0f1a2e] rounded-2xl cursor-pointer select-none',
+        'border border-gray-100/80 dark:border-[#1b2e4a]',
         'shadow-sm hover:shadow-xl dark:shadow-slate-900/50 dark:hover:shadow-slate-900/80',
         'transition-all duration-200 hover:-translate-y-1 active:translate-y-0',
         hasPending && 'ring-1 ring-amber-400/50 dark:ring-amber-500/40',
@@ -85,7 +85,7 @@ function LeadCard({ lead, stage, onClick }) {
         </div>
 
         {/* Phone chip */}
-        <div className="flex items-center gap-1.5 bg-gray-50 dark:bg-slate-700/40 rounded-lg px-2 py-1.5 text-[11px] text-gray-500 dark:text-gray-400">
+        <div className="flex items-center gap-1.5 bg-gray-50 dark:bg-[#132035]/60 rounded-lg px-2 py-1.5 text-[11px] text-gray-500 dark:text-gray-400">
           <PhoneIcon className="w-3 h-3 flex-shrink-0 text-gray-300 dark:text-slate-500" />
           {lead.phone}
           {lead.estimatedValue > 0 && (
@@ -98,7 +98,7 @@ function LeadCard({ lead, stage, onClick }) {
 
         {/* Follow-up + assignee row */}
         {(lead.nextFollowUpAt && isValid(new Date(lead.nextFollowUpAt)) || lead.assignedTo) && (
-          <div className="flex items-center justify-between mt-2 pt-2 border-t border-gray-50 dark:border-slate-700/40">
+          <div className="flex items-center justify-between mt-2 pt-2 border-t border-gray-50 dark:border-[#1b2e4a]">
             {lead.assignedTo && (
               <div className="flex items-center gap-1.5">
                 <div className="w-4 h-4 rounded-full bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center flex-shrink-0">
@@ -119,7 +119,7 @@ function LeadCard({ lead, stage, onClick }) {
 
       {/* Query section */}
       {(hasPending || hasAnswered) && (
-        <div className="px-3.5 pb-3.5 space-y-1.5 border-t border-gray-50 dark:border-slate-700/40">
+        <div className="px-3.5 pb-3.5 space-y-1.5 border-t border-gray-50 dark:border-[#1b2e4a]">
           <div className="pt-2.5 space-y-1.5">
             {hasPending && (
               <span className="inline-flex items-center gap-1.5 text-[11px] bg-amber-50 dark:bg-amber-900/25 text-amber-700 dark:text-amber-400 px-2 py-1 rounded-lg font-semibold border border-amber-100/80 dark:border-amber-800/40">
@@ -246,13 +246,13 @@ function LeadSlideOver({ leadId, onClose, onUpdated }) {
         animate={{ x: 0 }}
         exit={{ x: '100%' }}
         transition={{ type: 'spring', damping: 28, stiffness: 300 }}
-        className="fixed right-0 top-0 h-full w-full max-w-xl bg-white dark:bg-slate-900 shadow-2xl z-50 flex flex-col overflow-hidden"
+        className="fixed right-0 top-0 h-full w-full max-w-xl bg-white dark:bg-[#070c17] shadow-2xl z-50 flex flex-col overflow-hidden"
       >
         {/* Header */}
         <div className="flex-shrink-0">
           {/* Gradient accent bar */}
           <div className="h-1 w-full" style={{ background: 'linear-gradient(90deg,#112270,#3b82f6,#22c55e)' }} />
-          <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 dark:border-slate-800">
+          <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 dark:border-[#1b2e4a]">
             <div className="flex items-center gap-3 min-w-0">
               <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 shadow-md" style={{ background: 'linear-gradient(135deg,#112270,#1a3a8a)' }}>
                 <span className="text-white font-black text-sm">
@@ -272,7 +272,7 @@ function LeadSlideOver({ leadId, onClose, onUpdated }) {
                 <ArrowTopRightOnSquareIcon className="w-3.5 h-3.5" />
                 Details
               </button>
-              <button onClick={onClose} className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors">
+              <button onClick={onClose} className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-[#17263d] transition-colors">
                 <XMarkIcon className="w-4 h-4 text-gray-400" />
               </button>
             </div>
@@ -289,7 +289,7 @@ function LeadSlideOver({ leadId, onClose, onUpdated }) {
           <div className="flex-1 overflow-y-auto">
 
             {/* Pipeline Stage Selector */}
-            <div className="px-5 py-4 border-b border-gray-100 dark:border-gray-800">
+            <div className="px-5 py-4 border-b border-gray-100 dark:border-[#1b2e4a]">
               <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Move to stage</p>
               <div className="flex flex-wrap gap-2">
                 {PIPELINE_STAGES.map((stage) => (
@@ -319,7 +319,7 @@ function LeadSlideOver({ leadId, onClose, onUpdated }) {
             </div>
 
             {/* Contact Info */}
-            <div className="px-5 py-4 border-b border-gray-100 dark:border-gray-800 space-y-3">
+            <div className="px-5 py-4 border-b border-gray-100 dark:border-[#1b2e4a] space-y-3">
               <div className="grid grid-cols-2 gap-3">
                 <a
                   href={`tel:${lead.phone}`}
@@ -394,7 +394,7 @@ function LeadSlideOver({ leadId, onClose, onUpdated }) {
               </div>
 
               {lead.notes && (
-                <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-3">
+                <div className="bg-gray-50 dark:bg-[#0f1a2e] rounded-lg p-3">
                   <p className="text-xs font-semibold text-gray-500 mb-1">Notes</p>
                   <p className="text-sm text-gray-700 dark:text-gray-300">{lead.notes}</p>
                 </div>
@@ -402,7 +402,7 @@ function LeadSlideOver({ leadId, onClose, onUpdated }) {
             </div>
 
             {/* Log Follow-Up */}
-            <div className="px-5 py-4 border-b border-gray-100 dark:border-gray-800">
+            <div className="px-5 py-4 border-b border-gray-100 dark:border-[#1b2e4a]">
               <button
                 onClick={() => setShowFollowUpForm(p => !p)}
                 className={clsx(
@@ -486,7 +486,7 @@ function LeadSlideOver({ leadId, onClose, onUpdated }) {
                 <div className="space-y-3">
                   {[...lead.followUps].reverse().map((fu) => (
                     <div key={fu._id || fu.createdAt} className="flex gap-3">
-                      <div className="flex-shrink-0 w-7 h-7 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center text-sm">
+                      <div className="flex-shrink-0 w-7 h-7 rounded-full bg-gray-100 dark:bg-[#0f1a2e] flex items-center justify-center text-sm">
                         {FOLLOWUP_ICONS[fu.type] || '📝'}
                       </div>
                       <div className="flex-1 min-w-0">
@@ -516,7 +516,7 @@ function LeadSlideOver({ leadId, onClose, onUpdated }) {
             )}
 
             {/* ── Technical Queries ── */}
-            <div className="px-5 py-4 border-t border-gray-100 dark:border-gray-800">
+            <div className="px-5 py-4 border-t border-gray-100 dark:border-[#1b2e4a]">
               <div className="flex items-center justify-between mb-3">
                 <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider flex items-center gap-1.5">
                   <QuestionMarkCircleIcon className="w-3.5 h-3.5" />
@@ -547,9 +547,9 @@ function LeadSlideOver({ leadId, onClose, onUpdated }) {
               {leadQueries?.length > 0 && (
                 <div className="space-y-3 mb-3">
                   {leadQueries.map(q => (
-                    <div key={q._id} className="rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden text-xs">
+                    <div key={q._id} className="rounded-lg border border-gray-200 dark:border-[#1b2e4a] overflow-hidden text-xs">
                       {/* Question */}
-                      <div className="bg-gray-50 dark:bg-gray-800 px-3 py-2">
+                      <div className="bg-gray-50 dark:bg-[#0f1a2e] px-3 py-2">
                         <div className="flex items-center gap-2 mb-0.5">
                           <span className="font-semibold text-gray-700 dark:text-gray-300">{q.title}</span>
                           <span className={clsx(
@@ -574,7 +574,7 @@ function LeadSlideOver({ leadId, onClose, onUpdated }) {
                           </p>
                         </div>
                       ) : (
-                        <div className="px-3 py-1.5 border-t border-gray-100 dark:border-gray-700 flex items-center gap-1.5">
+                        <div className="px-3 py-1.5 border-t border-gray-100 dark:border-[#1b2e4a] flex items-center gap-1.5">
                           <div className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
                           <span className="text-gray-400 italic">Waiting for reply…</span>
                         </div>
@@ -668,13 +668,13 @@ function LeadSlideOver({ leadId, onClose, onUpdated }) {
       {pendingStage && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-gray-900/60 backdrop-blur-sm" onClick={() => setPendingStage(null)} />
-          <div className="relative bg-white dark:bg-gray-900 rounded-2xl shadow-2xl w-full max-w-md border border-gray-200 dark:border-gray-700">
-            <div className="p-5 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+          <div className="relative bg-white dark:bg-[#070c17] rounded-2xl shadow-2xl w-full max-w-md border border-gray-200 dark:border-[#1b2e4a]">
+            <div className="p-5 border-b border-gray-200 dark:border-[#1b2e4a] flex items-center justify-between">
               <div>
                 <h3 className="font-bold text-gray-900 dark:text-white">Move to "{pendingStage}"</h3>
                 <p className="text-sm text-gray-500 mt-0.5">Why are you shifting this lead?</p>
               </div>
-              <button onClick={() => setPendingStage(null)} className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800">
+              <button onClick={() => setPendingStage(null)} className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-[#17263d]">
                 <XMarkIcon className="w-5 h-5 text-gray-500" />
               </button>
             </div>
@@ -741,9 +741,9 @@ function CreateLeadModal({ onClose, onSuccess }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-slate-900/70 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative bg-white dark:bg-slate-900 rounded-2xl w-full max-w-lg shadow-2xl max-h-[90vh] overflow-y-auto border border-gray-100 dark:border-slate-800">
+      <div className="relative bg-white dark:bg-[#070c17] rounded-2xl w-full max-w-lg shadow-2xl max-h-[90vh] overflow-y-auto border border-gray-100 dark:border-[#1b2e4a]">
         <div className="h-1 rounded-t-2xl" style={{ background: 'linear-gradient(90deg,#112270,#3b82f6,#22c55e)' }} />
-        <div className="p-6 border-b border-gray-100 dark:border-slate-800 flex items-center gap-3">
+        <div className="p-6 border-b border-gray-100 dark:border-[#1b2e4a] flex items-center gap-3">
           <div className="w-9 h-9 rounded-xl flex items-center justify-center shadow-md" style={{ background: 'linear-gradient(135deg,#112270,#1a3a8a)' }}>
             <PlusIcon className="w-4.5 h-4.5 text-white" />
           </div>
@@ -860,7 +860,7 @@ export default function LeadPipeline() {
         <div className="flex items-center gap-2 flex-shrink-0">
           <button
             onClick={() => navigate('/crm/leads')}
-            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-sm font-semibold border border-gray-200 dark:border-slate-700 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-slate-800 transition-all"
+            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-sm font-semibold border border-gray-200 dark:border-[#1b2e4a] text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-[#17263d] transition-all"
           >
             <TableCellsIcon className="w-4 h-4" /> Table
           </button>
@@ -919,7 +919,7 @@ export default function LeadPipeline() {
 
             return (
               <div key={stage} className="flex-shrink-0 w-[248px]">
-                <div className="rounded-2xl flex flex-col min-h-[500px] overflow-hidden shadow-lg dark:shadow-slate-900/60 border border-white/10 bg-white dark:bg-slate-800">
+                <div className="rounded-2xl flex flex-col min-h-[500px] overflow-hidden shadow-lg dark:shadow-slate-900/60 border border-white/10 bg-white dark:bg-[#0f1a2e]">
 
                   {/* Full gradient header */}
                   <div className="flex-shrink-0 px-4 pt-4 pb-3" style={{ background: meta.grad }}>
@@ -936,7 +936,7 @@ export default function LeadPipeline() {
                   </div>
 
                   {/* Cards area */}
-                  <div className="flex-1 p-2 space-y-1.5 bg-gray-50/70 dark:bg-slate-800/80">
+                  <div className="flex-1 p-2 space-y-1.5 bg-gray-50/70 dark:bg-[#0f1a2e]">
                     {(grouped[stage] || []).slice(0, 8).map((lead) => (
                       <LeadCard
                         key={lead._id}
@@ -948,7 +948,7 @@ export default function LeadPipeline() {
                     {count > 8 && (
                       <button
                         onClick={() => navigate(`/crm/leads?status=${encodeURIComponent(stage)}`)}
-                        className="w-full text-[11px] font-semibold text-gray-400 dark:text-gray-500 text-center py-2 rounded-xl border border-dashed border-gray-200 dark:border-slate-600 hover:border-gray-300 dark:hover:border-slate-500 hover:text-gray-600 dark:hover:text-gray-300 transition-all"
+                        className="w-full text-[11px] font-semibold text-gray-400 dark:text-gray-500 text-center py-2 rounded-xl border border-dashed border-gray-200 dark:border-[#1b2e4a] hover:border-gray-300 dark:hover:border-slate-500 hover:text-gray-600 dark:hover:text-gray-300 transition-all"
                       >
                         +{count - 8} more
                       </button>

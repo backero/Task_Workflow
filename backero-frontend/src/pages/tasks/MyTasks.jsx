@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+﻿import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -22,6 +22,52 @@ const STATUS_COLORS = {
 const PRIORITY_BORDER = { critical: 'border-l-red-500', high: 'border-l-orange-400', medium: 'border-l-yellow-400', low: 'border-l-gray-300', urgent: 'border-l-red-400' };
 const PRIORITY_TEXT   = { critical: 'text-red-600', high: 'text-orange-500', medium: 'text-yellow-600', low: 'text-gray-400', urgent: 'text-red-500' };
 
+function formatDuration(ms, mode = 'compact') {
+  if (!ms || ms < 0) return null;
+  const totalSec = Math.floor(ms / 1000);
+  const h = Math.floor(totalSec / 3600);
+  const m = Math.floor((totalSec % 3600) / 60);
+  const s = totalSec % 60;
+  if (mode === 'clock') {
+    return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+  }
+  if (h > 0) return `${h}h ${m}m`;
+  if (m > 0) return `${m}m`;
+  return `${s}s`;
+}
+
+function useElapsedMs(startDate, status, completedAt) {
+  const [ms, setMs] = useState(() => {
+    if (!startDate) return 0;
+    if (status === 'In Progress') return Date.now() - new Date(startDate).getTime();
+    if (completedAt) return new Date(completedAt).getTime() - new Date(startDate).getTime();
+    return 0;
+  });
+  useEffect(() => {
+    if (!startDate || status !== 'In Progress') return;
+    const start = new Date(startDate).getTime();
+    const id = setInterval(() => setMs(Date.now() - start), 1000);
+    return () => clearInterval(id);
+  }, [startDate, status]);
+  return ms;
+}
+
+function TaskTimerBadge({ startDate, status, completedAt }) {
+  const ms = useElapsedMs(startDate, status, completedAt);
+  if (!ms || ms <= 0) return null;
+  return (
+    <span className={clsx(
+      'text-xs font-mono font-semibold flex items-center gap-0.5 px-1.5 py-0.5 rounded-md',
+      status === 'In Progress'
+        ? 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400'
+        : 'bg-green-100 dark:bg-green-900/20 text-green-700 dark:text-green-400'
+    )}>
+      <ClockIcon className="w-3 h-3" />
+      {formatDuration(ms, 'compact')}
+    </span>
+  );
+}
+
 // ── Task Detail Drawer ────────────────────────────────────────────────────────
 
 function TaskDrawer({ task: initialTask, onClose, onUpdated }) {
@@ -30,6 +76,7 @@ function TaskDrawer({ task: initialTask, onClose, onUpdated }) {
   const navigate = useNavigate();
   const updatesEndRef = useRef();
   const commentsEndRef = useRef();
+  const elapsedMs = useElapsedMs(initialTask.startDate, initialTask.status, initialTask.completedAt);
 
   const [tab, setTab] = useState('updates');
   const [updateText, setUpdateText] = useState('');
@@ -151,10 +198,10 @@ function TaskDrawer({ task: initialTask, onClose, onUpdated }) {
       <motion.div
         initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }}
         transition={{ type: 'spring', damping: 30, stiffness: 300 }}
-        className="relative w-full max-w-lg bg-white dark:bg-gray-900 flex flex-col h-full shadow-2xl"
+        className="relative w-full max-w-lg bg-white dark:bg-[#070c17] flex flex-col h-full shadow-2xl"
       >
         {/* Header */}
-        <div className="flex items-start justify-between p-5 border-b border-gray-100 dark:border-gray-800">
+        <div className="flex items-start justify-between p-5 border-b border-gray-100 dark:border-[#1b2e4a]">
           <div className="flex-1 min-w-0 pr-3">
             <div className="flex items-center gap-2 flex-wrap mb-1">
               <span className={`badge ${STATUS_COLORS[task.status] || 'badge-gray'}`}>{task.status}</span>
@@ -180,28 +227,45 @@ function TaskDrawer({ task: initialTask, onClose, onUpdated }) {
               <BoltIcon className="w-4 h-4" />
               Workflow
             </button>
-            <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800">
+            <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-[#17263d]">
               <XMarkIcon className="w-5 h-5 text-gray-500" />
             </button>
           </div>
         </div>
 
         {/* Progress bar */}
-        <div className="px-5 py-3 border-b border-gray-100 dark:border-gray-800 flex items-center gap-3">
-          <div className="flex-1 h-2.5 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
-            <div className="h-full bg-brand-500 rounded-full transition-all duration-500" style={{ width: `${task.progress || 0}%` }} />
+        <div className="px-5 py-3 border-b border-gray-100 dark:border-[#1b2e4a] space-y-2">
+          <div className="flex items-center gap-3">
+            <div className="flex-1 h-2.5 bg-gray-100 dark:bg-[#132035] rounded-full overflow-hidden">
+              <div className="h-full bg-brand-500 rounded-full transition-all duration-500" style={{ width: `${task.progress || 0}%` }} />
+            </div>
+            <span className="text-sm font-semibold text-gray-700 dark:text-gray-300 w-10 text-right">{task.progress || 0}%</span>
+            {task.actualHours > 0 && (
+              <span className="text-xs text-gray-400 flex items-center gap-1">
+                <ClockIcon className="w-3.5 h-3.5" />{task.actualHours}h
+              </span>
+            )}
           </div>
-          <span className="text-sm font-semibold text-gray-700 dark:text-gray-300 w-10 text-right">{task.progress || 0}%</span>
-          {task.actualHours > 0 && (
-            <span className="text-xs text-gray-400 flex items-center gap-1">
-              <ClockIcon className="w-3.5 h-3.5" />{task.actualHours}h
-            </span>
+          {(task.status === 'In Progress' || (task.status === 'Completed' && task.startDate)) && elapsedMs > 0 && (
+            <div className={clsx(
+              'flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-mono font-semibold w-fit',
+              task.status === 'In Progress'
+                ? 'bg-yellow-50 dark:bg-yellow-900/20 text-yellow-700 dark:text-yellow-400'
+                : 'bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400'
+            )}>
+              <ClockIcon className="w-4 h-4 flex-shrink-0" />
+              {task.status === 'In Progress' ? (
+                <span>{formatDuration(elapsedMs, 'clock')} elapsed</span>
+              ) : (
+                <span>Completed in {formatDuration(elapsedMs, 'compact')}</span>
+              )}
+            </div>
           )}
         </div>
 
         {/* Description */}
         {task.description && (
-          <div className="px-5 py-3 border-b border-gray-100 dark:border-gray-800">
+          <div className="px-5 py-3 border-b border-gray-100 dark:border-[#1b2e4a]">
             <p className="text-sm text-gray-600 dark:text-gray-400">{task.description}</p>
           </div>
         )}
@@ -223,7 +287,7 @@ function TaskDrawer({ task: initialTask, onClose, onUpdated }) {
         )}
 
         {/* Tabs */}
-        <div className="flex border-b border-gray-100 dark:border-gray-800 mt-1">
+        <div className="flex border-b border-gray-100 dark:border-[#1b2e4a] mt-1">
           {tabs.map(({ key, label, count, warn }) => (
             <button
               key={key}
@@ -241,7 +305,7 @@ function TaskDrawer({ task: initialTask, onClose, onUpdated }) {
                   'text-xs px-1.5 py-0.5 rounded-full',
                   warn ? 'bg-orange-100 text-orange-600 dark:bg-orange-900/30 dark:text-orange-400' :
                   tab === key ? 'bg-brand-100 text-brand-700 dark:bg-brand-900/30 dark:text-brand-400' :
-                  'bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400'
+                  'bg-gray-100 text-gray-500 dark:bg-[#0f1a2e] dark:text-gray-400'
                 )}>
                   {count}
                 </span>
@@ -267,7 +331,7 @@ function TaskDrawer({ task: initialTask, onClose, onUpdated }) {
                     {upd.author?.firstName?.[0]}{upd.author?.lastName?.[0]}
                   </span>
                 </div>
-                <div className="flex-1 bg-gray-50 dark:bg-gray-800 rounded-xl p-3">
+                <div className="flex-1 bg-gray-50 dark:bg-[#0f1a2e] rounded-xl p-3">
                   <div className="flex items-center justify-between mb-1">
                     <span className="text-xs font-semibold text-gray-700 dark:text-gray-300">
                       {upd.author?.firstName} {upd.author?.lastName}
@@ -299,7 +363,7 @@ function TaskDrawer({ task: initialTask, onClose, onUpdated }) {
                     {c.author?.firstName?.[0]}{c.author?.lastName?.[0]}
                   </span>
                 </div>
-                <div className="flex-1 bg-gray-50 dark:bg-gray-800 rounded-xl p-3">
+                <div className="flex-1 bg-gray-50 dark:bg-[#0f1a2e] rounded-xl p-3">
                   <div className="flex items-center justify-between mb-1">
                     <span className="text-xs font-semibold text-gray-700 dark:text-gray-300">
                       {c.author?.firstName} {c.author?.lastName}
@@ -409,23 +473,23 @@ function TaskDrawer({ task: initialTask, onClose, onUpdated }) {
         {/* Action bar — Updates tab */}
         {tab === 'updates' && (
           task.status === 'Completed' ? (
-            <div className="p-5 border-t border-gray-100 dark:border-gray-800">
+            <div className="p-5 border-t border-gray-100 dark:border-[#1b2e4a]">
               <div className="flex items-center gap-2 justify-center text-green-600">
                 <CheckCircleIcon className="w-5 h-5" />
                 <span className="font-semibold">Task Completed</span>
               </div>
             </div>
           ) : task.status === 'Approval Pending' ? (
-            <div className="p-5 border-t border-gray-100 dark:border-gray-800">
+            <div className="p-5 border-t border-gray-100 dark:border-[#1b2e4a]">
               <div className="flex items-center gap-2 justify-center text-purple-600">
                 <ArrowPathIcon className="w-4 h-4 animate-spin" />
                 <span className="text-sm font-medium">Waiting for manager approval…</span>
               </div>
             </div>
           ) : canAct ? (
-            <div className="border-t border-gray-100 dark:border-gray-800">
+            <div className="border-t border-gray-100 dark:border-[#1b2e4a]">
               {task.status === 'Assigned' && (
-                <div className="p-4 border-b border-gray-100 dark:border-gray-800 bg-blue-50 dark:bg-blue-900/20">
+                <div className="p-4 border-b border-gray-100 dark:border-[#1b2e4a] bg-blue-50 dark:bg-blue-900/20">
                   <p className="text-sm font-medium text-blue-900 dark:text-blue-300 mb-3">Ready to start? Click below to begin working.</p>
                   <button
                     onClick={() => startMutation.mutate()}
@@ -502,7 +566,7 @@ function TaskDrawer({ task: initialTask, onClose, onUpdated }) {
 
         {/* Action bar — Comments tab */}
         {tab === 'comments' && (
-          <div className="border-t border-gray-100 dark:border-gray-800 p-4">
+          <div className="border-t border-gray-100 dark:border-[#1b2e4a] p-4">
             <div className="flex gap-2 items-end">
               <textarea
                 value={commentText}
@@ -535,14 +599,14 @@ function TaskDrawer({ task: initialTask, onClose, onUpdated }) {
               initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
               className="absolute inset-0 z-10 flex items-center justify-center p-4"
             >
-              <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-modal w-full max-w-sm p-6 space-y-4 relative z-20">
+              <div className="bg-white dark:bg-[#070c17] rounded-2xl shadow-modal w-full max-w-sm p-6 space-y-4 relative z-20">
                 <h3 className="font-bold text-gray-900 dark:text-white">
                   Request Task Completion
                   {task.rejectionCount > 0 && (
                     <span className="ml-2 text-sm font-normal text-orange-600">(Resubmission #{task.rejectionCount + 1})</span>
                   )}
                 </h3>
-                <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                <div className="p-3 bg-gray-50 dark:bg-[#0f1a2e] rounded-lg">
                   <p className="text-sm font-medium text-gray-700 dark:text-gray-300">{task.title}</p>
                 </div>
                 {task.status === 'Changes Requested' && lastRejection?.reviewNotes && (
@@ -647,7 +711,7 @@ export default function MyTasks() {
             className={clsx('px-4 py-2 rounded-lg text-sm font-medium transition-colors',
               filter === f.key
                 ? 'bg-brand-600 text-white'
-                : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-400 border border-gray-200 dark:border-gray-700 hover:bg-gray-50'
+                : 'bg-white dark:bg-[#0f1a2e] text-gray-600 dark:text-gray-400 border border-gray-200 dark:border-[#1b2e4a] hover:bg-gray-50'
             )}
           >
             {f.label}
@@ -699,12 +763,15 @@ export default function MyTasks() {
                       <p className="text-xs text-orange-500 mt-1">No updates posted yet</p>
                     )}
 
-                    <div className="flex items-center gap-4 mt-2">
+                    <div className="flex items-center gap-3 mt-2 flex-wrap">
                       {dueDate && (
                         <span className={clsx('text-xs font-medium', isOverdue ? 'text-red-600' : isDueToday ? 'text-orange-500' : 'text-gray-400')}>
                           {isOverdue && <ExclamationTriangleIcon className="w-3 h-3 inline mr-0.5" />}
                           {isOverdue ? 'Overdue · ' : isDueToday ? 'Due Today · ' : 'Due '}{format(dueDate, 'dd MMM')}
                         </span>
+                      )}
+                      {(task.status === 'In Progress' || (task.status === 'Completed' && task.startDate)) && (
+                        <TaskTimerBadge startDate={task.startDate} status={task.status} completedAt={task.completedAt} />
                       )}
                       {task.actualHours > 0 && (
                         <span className="text-xs text-gray-400 flex items-center gap-0.5">

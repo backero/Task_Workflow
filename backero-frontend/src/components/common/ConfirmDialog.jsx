@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 import { ExclamationTriangleIcon } from '@heroicons/react/24/outline';
 
 export default function ConfirmDialog({ open, title, message, confirmLabel = 'Yes, Delete', confirmColor = 'red', onConfirm, onCancel }) {
@@ -12,7 +12,7 @@ export default function ConfirmDialog({ open, title, message, confirmLabel = 'Ye
 
   return (
     <div className="fixed inset-0 z-[80] flex items-center justify-center p-4 bg-black/50">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 flex flex-col gap-4">
+      <div className="bg-white dark:bg-[#17263d] rounded-2xl shadow-2xl w-full max-w-sm p-6 flex flex-col gap-4">
         <div className="flex items-start gap-3">
           <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0">
             <ExclamationTriangleIcon className="w-5 h-5 text-red-600" />

@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import api from '../../api/axios';
 import { formatDistanceToNow } from 'date-fns';
@@ -19,7 +19,7 @@ export default function EmployeeMonitoring() {
       </div>
       <div className="card overflow-hidden">
         <table className="w-full text-sm">
-          <thead className="bg-gray-50 dark:bg-gray-800">
+          <thead className="bg-gray-50 dark:bg-[#0f1a2e]">
             <tr>
               <th className="text-left py-3 px-4 text-gray-500 font-medium">Employee</th>
               <th className="text-left py-3 px-4 text-gray-500 font-medium">Department</th>
@@ -28,9 +28,9 @@ export default function EmployeeMonitoring() {
               <th className="text-right py-3 px-4 text-gray-500 font-medium">Last Active</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
+          <tbody className="divide-y divide-gray-100 dark:divide-[#1b2e4a]">
             {users.map((user) => (
-              <tr key={user._id} className="hover:bg-gray-50 dark:hover:bg-gray-800/50">
+              <tr key={user._id} className="hover:bg-gray-50 dark:hover:bg-[#17263d]/50">
                 <td className="py-3 px-4">
                   <div className="flex items-center gap-2">
                     <div className="w-8 h-8 rounded-full bg-brand-100 dark:bg-brand-900/30 flex items-center justify-center">

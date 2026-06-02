@@ -1,10 +1,10 @@
-import React, { memo } from 'react';
+﻿import React, { memo } from 'react';
 import { Handle, Position } from 'reactflow';
 import { format } from 'date-fns';
 import clsx from 'clsx';
 
 const STATUS_STYLES = {
-  'Pending':          'bg-slate-100 text-slate-700 border-slate-300',
+  'Pending':          'bg-slate-100 dark:bg-[#1b2e4a] text-slate-700 dark:text-slate-300 border-slate-300 dark:border-[#1b2e4a]',
   'Assigned':         'bg-blue-100 text-blue-700 border-blue-300',
   'In Progress':      'bg-yellow-100 text-yellow-800 border-yellow-400',
   'Under Review':     'bg-purple-100 text-purple-700 border-purple-300',
@@ -12,7 +12,7 @@ const STATUS_STYLES = {
   'Approval Pending': 'bg-indigo-100 text-indigo-700 border-indigo-300',
   'Completed':        'bg-green-100 text-green-700 border-green-300',
   'Reopened':         'bg-red-100 text-red-700 border-red-300',
-  'Cancelled':        'bg-gray-100 text-gray-500 border-gray-300',
+  'Cancelled':        'bg-gray-100 dark:bg-[#1b2e4a] text-gray-500 dark:text-[#6a89b5] border-gray-300 dark:border-[#1b2e4a]',
 };
 
 const STATUS_DOT = {
@@ -88,7 +88,7 @@ const TaskNode = memo(({ data, selected }) => {
   return (
     <div
       className={clsx(
-        'group bg-white rounded-xl shadow-md border border-gray-200 border-l-4 transition-all duration-150 select-none overflow-hidden',
+        'group bg-white dark:bg-[#0f1a2e] rounded-xl shadow-md border border-gray-200 dark:border-[#1b2e4a] border-l-4 transition-all duration-150 select-none overflow-hidden',
         'w-[300px] cursor-pointer',
         PRIORITY_BORDER[priority] || 'border-l-slate-300',
         selected ? 'ring-2 ring-offset-1 ring-indigo-500 shadow-xl' : 'hover:shadow-lg',
@@ -203,7 +203,7 @@ const TaskNode = memo(({ data, selected }) => {
               {progress}%
             </span>
           </div>
-          <div className="w-full bg-gray-100 rounded-full h-1.5 overflow-hidden">
+          <div className="w-full bg-gray-100 dark:bg-[#1b2e4a] rounded-full h-1.5 overflow-hidden">
             <div
               className={clsx('h-full rounded-full transition-all duration-500', getProgressColor(status))}
               style={{ width: `${progress}%` }}
@@ -231,7 +231,7 @@ const TaskNode = memo(({ data, selected }) => {
               'text-[10px] font-semibold px-2 py-0.5 rounded-full',
               isOverdue && !isCompleted
                 ? 'text-red-700 bg-red-50'
-                : 'text-gray-500 bg-gray-50',
+                : 'text-gray-500 dark:text-[#6a89b5] bg-gray-50 dark:bg-[#132035]',
             )}>
               {isOverdue && !isCompleted ? '⚠ ' : ''}{format(new Date(dueDate), 'dd MMM')}
             </span>

@@ -1,10 +1,11 @@
-import React, { useState, useMemo } from 'react';
+﻿import React, { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useFieldArray, useForm, useWatch } from 'react-hook-form';
 import {
   PlusIcon, XMarkIcon, PrinterIcon, PencilIcon,
   TrashIcon, EyeIcon, CheckCircleIcon, DocumentTextIcon,
   BanknotesIcon, ArrowDownTrayIcon, CubeIcon, MagnifyingGlassIcon,
+  ArrowLeftIcon,
 } from '@heroicons/react/24/outline';
 import api from '../../api/axios';
 import { clsx } from 'clsx';
@@ -15,12 +16,12 @@ import toast from 'react-hot-toast';
 const GST_RATES = [0, 5, 12, 18, 28];
 const UNITS = ['pcs', 'kg', 'ltr', 'mt', 'box', 'set', 'hr', 'day', 'month'];
 const STATUS_STYLES = {
-  draft: 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300',
+  draft: 'bg-gray-100 text-gray-600 dark:bg-[#132035] dark:text-gray-300',
   sent: 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300',
   paid: 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300',
   partially_paid: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-300',
   overdue: 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300',
-  cancelled: 'bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400',
+  cancelled: 'bg-gray-100 text-gray-500 dark:bg-[#132035] dark:text-gray-400',
 };
 
 const INR = (n) => `₹${Number(n || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -254,14 +255,14 @@ function InvoiceForm({ existingInv, orgData, onClose, onSaved }) {
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto py-6 px-4">
       <div className="absolute inset-0 bg-gray-900/70 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative bg-white dark:bg-gray-900 w-full max-w-4xl rounded-2xl shadow-2xl">
+      <div className="relative bg-white dark:bg-[#070c17] w-full max-w-4xl rounded-2xl shadow-2xl">
 
         {/* Modal Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-[#1b2e4a]">
           <h2 className="text-lg font-bold text-gray-900 dark:text-white">
             {existingInv ? `Edit ${existingInv.invoiceNumber}` : 'New Invoice'}
           </h2>
-          <button onClick={onClose} className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800">
+          <button onClick={onClose} className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-[#17263d]">
             <XMarkIcon className="w-5 h-5 text-gray-500" />
           </button>
         </div>
@@ -352,7 +353,7 @@ function InvoiceForm({ existingInv, orgData, onClose, onSaved }) {
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="bg-gray-50 dark:bg-gray-800 text-xs text-gray-500 uppercase">
+                  <tr className="bg-gray-50 dark:bg-[#0f1a2e] text-xs text-gray-500 uppercase">
                     <th className="text-left p-2 rounded-l-lg">Description *</th>
                     <th className="text-left p-2 w-24">HSN/SAC</th>
                     <th className="text-center p-2 w-16">Qty</th>
@@ -364,7 +365,7 @@ function InvoiceForm({ existingInv, orgData, onClose, onSaved }) {
                     <th className="p-2 w-8 rounded-r-lg"></th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
+                <tbody className="divide-y divide-gray-100 dark:divide-[#1b2e4a]">
                   {fields.map((field, idx) => (
                     <LineItemRow
                       key={field.id}
@@ -383,14 +384,14 @@ function InvoiceForm({ existingInv, orgData, onClose, onSaved }) {
             <button
               type="button"
               onClick={() => append(defaultLineItem)}
-              className="mt-3 flex items-center gap-1.5 text-sm text-brand-600 hover:text-brand-700 font-medium"
+              className="mt-3 flex items-center gap-1.5 text-sm text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 font-medium transition-colors"
             >
               <PlusIcon className="w-4 h-4" /> Add Item
             </button>
 
             {/* Totals */}
             <div className="mt-4 flex justify-end">
-              <div className="w-64 bg-gray-50 dark:bg-gray-800 rounded-xl p-4 space-y-2 text-sm">
+              <div className="w-64 bg-gray-50 dark:bg-[#0f1a2e] rounded-xl p-4 space-y-2 text-sm">
                 <div className="flex justify-between text-gray-600 dark:text-gray-400">
                   <span>Subtotal</span><span className="font-medium">{INR(totals.subtotal)}</span>
                 </div>
@@ -402,7 +403,7 @@ function InvoiceForm({ existingInv, orgData, onClose, onSaved }) {
                 <div className="flex justify-between text-gray-600 dark:text-gray-400">
                   <span>GST</span><span className="font-medium">{INR(totals.totalGst)}</span>
                 </div>
-                <div className="flex justify-between font-bold text-base text-gray-900 dark:text-white border-t border-gray-200 dark:border-gray-700 pt-2 mt-1">
+                <div className="flex justify-between font-bold text-base text-gray-900 dark:text-white border-t border-gray-200 dark:border-[#1b2e4a] pt-2 mt-1">
                   <span>Total</span><span>{INR(totals.total)}</span>
                 </div>
               </div>
@@ -422,7 +423,7 @@ function InvoiceForm({ existingInv, orgData, onClose, onSaved }) {
           </div>
 
           {/* Actions */}
-          <div className="flex gap-3 justify-end pt-2 border-t border-gray-100 dark:border-gray-800">
+          <div className="flex gap-3 justify-end pt-2 border-t border-gray-100 dark:border-[#1b2e4a]">
             <button type="button" onClick={onClose} className="btn-secondary">Cancel</button>
             <button type="submit" disabled={saveMutation.isPending} className="btn-primary disabled:opacity-50">
               {saveMutation.isPending ? 'Saving…' : existingInv ? 'Update Invoice' : 'Create Invoice'}
@@ -478,16 +479,16 @@ function LineItemRow({ idx, control, register, remove, canRemove, setValue }) {
             className={clsx(
               'p-1.5 rounded-lg border transition-colors flex-shrink-0',
               pickerOpen
-                ? 'bg-brand-50 border-brand-300 text-brand-600 dark:bg-brand-900/30 dark:border-brand-700 dark:text-brand-400'
-                : 'border-gray-200 dark:border-gray-700 text-gray-400 hover:text-brand-600 hover:border-brand-300 dark:hover:border-brand-700'
+                ? 'bg-blue-50 border-blue-300 text-blue-600 dark:bg-blue-900/30 dark:border-blue-700 dark:text-blue-400'
+                : 'border-slate-200 dark:border-[#1b2e4a] text-slate-400 hover:text-blue-600 hover:border-blue-300 dark:hover:border-blue-700'
             )}
           >
             <CubeIcon className="w-4 h-4" />
           </button>
 
           {pickerOpen && (
-            <div className="absolute top-full left-0 z-50 w-80 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-2xl mt-1 overflow-hidden">
-              <div className="p-2 border-b border-gray-100 dark:border-gray-700">
+            <div className="absolute top-full left-0 z-50 w-80 bg-white dark:bg-[#0f1a2e] border border-gray-200 dark:border-[#1b2e4a] rounded-xl shadow-2xl mt-1 overflow-hidden">
+              <div className="p-2 border-b border-gray-100 dark:border-[#1b2e4a]">
                 <div className="relative">
                   <MagnifyingGlassIcon className="w-4 h-4 absolute left-2.5 top-2 text-gray-400" />
                   <input
@@ -504,7 +505,7 @@ function LineItemRow({ idx, control, register, remove, canRemove, setValue }) {
               <div className="max-h-52 overflow-y-auto">
                 {productsLoading && (
                   <div className="flex justify-center py-4">
-                    <div className="w-5 h-5 border-2 border-brand-500 border-t-transparent rounded-full animate-spin" />
+                    <div className="w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
                   </div>
                 )}
                 {!productsLoading && products.length === 0 && (
@@ -515,11 +516,11 @@ function LineItemRow({ idx, control, register, remove, canRemove, setValue }) {
                     key={p._id}
                     type="button"
                     onClick={() => fillProduct(p)}
-                    className="w-full text-left px-3 py-2.5 hover:bg-brand-50 dark:hover:bg-brand-900/20 border-b border-gray-50 dark:border-gray-700/50 last:border-0 transition-colors"
+                    className="w-full text-left px-3 py-2.5 hover:bg-blue-50 dark:hover:bg-blue-900/20 border-b border-slate-50 dark:border-[#1b2e4a]/50 last:border-0 transition-colors"
                   >
                     <div className="flex items-center justify-between">
-                      <span className="font-medium text-sm text-gray-900 dark:text-white">{p.name}</span>
-                      <span className="text-sm font-semibold text-brand-600 dark:text-brand-400">{INR(p.sellingPrice)}</span>
+                      <span className="font-medium text-sm text-slate-900 dark:text-white">{p.name}</span>
+                      <span className="text-sm font-semibold text-blue-600 dark:text-blue-400">{INR(p.sellingPrice)}</span>
                     </div>
                     <div className="flex items-center gap-3 mt-0.5">
                       <span className="text-xs text-gray-400 font-mono">{p.sku}</span>
@@ -531,7 +532,7 @@ function LineItemRow({ idx, control, register, remove, canRemove, setValue }) {
                   </button>
                 ))}
               </div>
-              <div className="px-3 py-1.5 bg-gray-50 dark:bg-gray-700/50 border-t border-gray-100 dark:border-gray-700">
+              <div className="px-3 py-1.5 bg-gray-50 dark:bg-[#132035]/50 border-t border-gray-100 dark:border-[#1b2e4a]">
                 <button type="button" onClick={() => setPickerOpen(false)} className="text-xs text-gray-400 hover:text-gray-600">Close</button>
               </div>
             </div>
@@ -584,15 +585,22 @@ function InvoicePreview({ inv, orgData, onEdit, onClose }) {
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto py-6 px-4">
       <div className="absolute inset-0 bg-gray-900/80 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative bg-white dark:bg-gray-900 w-full max-w-3xl rounded-2xl shadow-2xl overflow-hidden">
+      <div className="relative bg-white dark:bg-[#070c17] w-full max-w-4xl rounded-2xl shadow-2xl">
 
         {/* Toolbar */}
-        <div className="flex items-center justify-between px-6 py-3 bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 print:hidden">
-          <div className="flex items-center gap-2">
+        <div className="flex items-center justify-between px-6 py-3 bg-slate-50 dark:bg-[#0f1a2e] border-b border-slate-200 dark:border-[#1b2e4a] print:hidden rounded-t-2xl">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={onClose}
+              className="flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 font-medium transition-colors"
+            >
+              <ArrowLeftIcon className="w-4 h-4" /> Back
+            </button>
+            <div className="w-px h-4 bg-slate-200 dark:bg-[#132035]" />
             <span className={clsx('text-xs px-2 py-1 rounded-full font-semibold uppercase', STATUS_STYLES[inv.status])}>
               {inv.status?.replace('_', ' ')}
             </span>
-            <span className="text-sm font-mono text-gray-600 dark:text-gray-400">{inv.invoiceNumber}</span>
+            <span className="text-sm font-mono text-slate-500 dark:text-slate-400">{inv.invoiceNumber}</span>
           </div>
           <div className="flex items-center gap-2">
             <button
@@ -606,14 +614,14 @@ function InvoicePreview({ inv, orgData, onEdit, onClose }) {
                 <PencilIcon className="w-4 h-4" /> Edit
               </button>
             )}
-            <button onClick={onClose} className="p-2 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700">
-              <XMarkIcon className="w-5 h-5 text-gray-500" />
+            <button onClick={onClose} className="p-2 rounded-lg hover:bg-slate-200 dark:hover:bg-[#132035] transition-colors">
+              <XMarkIcon className="w-5 h-5 text-slate-500" />
             </button>
           </div>
         </div>
 
         {/* Invoice Preview Body */}
-        <div className="p-8 bg-white text-gray-900">
+        <div className="p-8 bg-white text-gray-900 overflow-x-auto">
 
           {/* Header */}
           <div className="flex items-start justify-between pb-5 border-b-2 border-gray-800 mb-6">
@@ -854,7 +862,7 @@ export default function Invoices() {
       </div>
 
       {/* Filter tabs */}
-      <div className="flex gap-1 border-b border-gray-200 dark:border-gray-700">
+      <div className="flex gap-1 border-b border-slate-200 dark:border-[#1b2e4a]">
         {FILTER_TABS.map(tab => (
           <button
             key={tab.key}
@@ -862,8 +870,8 @@ export default function Invoices() {
             className={clsx(
               'px-4 py-2 text-sm font-medium border-b-2 transition-colors -mb-px',
               statusFilter === tab.key
-                ? 'border-brand-600 text-brand-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
+                ? 'border-blue-600 text-blue-600 dark:text-blue-400 dark:border-blue-400'
+                : 'border-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
             )}
           >
             {tab.label}
@@ -873,7 +881,7 @@ export default function Invoices() {
 
       {/* Invoice List */}
       {isLoading ? (
-        <div className="flex justify-center py-12"><div className="w-8 h-8 border-2 border-brand-500 border-t-transparent rounded-full animate-spin" /></div>
+        <div className="flex justify-center py-12"><div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" /></div>
       ) : invoices.length === 0 ? (
         <div className="card p-16 text-center">
           <DocumentTextIcon className="w-12 h-12 mx-auto text-gray-300 dark:text-gray-600 mb-4" />
@@ -883,22 +891,22 @@ export default function Invoices() {
       ) : (
         <div className="card overflow-hidden">
           <table className="w-full text-sm">
-            <thead className="bg-gray-50 dark:bg-gray-800">
+            <thead className="bg-slate-50 dark:bg-[#0f1a2e]">
               <tr>
-                <th className="text-left py-3 px-4 text-gray-500 font-medium">Invoice #</th>
-                <th className="text-left py-3 px-4 text-gray-500 font-medium">Client</th>
-                <th className="text-center py-3 px-4 text-gray-500 font-medium">Status</th>
-                <th className="text-right py-3 px-4 text-gray-500 font-medium">Amount</th>
-                <th className="text-right py-3 px-4 text-gray-500 font-medium">Balance</th>
-                <th className="text-right py-3 px-4 text-gray-500 font-medium">Due Date</th>
+                <th className="text-left py-3 px-4 text-slate-500 font-medium">Invoice #</th>
+                <th className="text-left py-3 px-4 text-slate-500 font-medium">Client</th>
+                <th className="text-center py-3 px-4 text-slate-500 font-medium">Status</th>
+                <th className="text-right py-3 px-4 text-slate-500 font-medium">Amount</th>
+                <th className="text-right py-3 px-4 text-slate-500 font-medium">Balance</th>
+                <th className="text-right py-3 px-4 text-slate-500 font-medium">Due Date</th>
                 <th className="py-3 px-4"></th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
+            <tbody className="divide-y divide-slate-100 dark:divide-[#1b2e4a]">
               {invoices.map((inv) => (
                 <tr
                   key={inv._id}
-                  className="hover:bg-gray-50 dark:hover:bg-gray-800/50 cursor-pointer"
+                  className="hover:bg-slate-50 dark:hover:bg-[#17263d]/50 cursor-pointer transition-colors"
                   onClick={() => { setSelectedInv(inv); setView('preview'); }}
                 >
                   <td className="py-3 px-4 font-mono text-xs text-gray-600 dark:text-gray-400">{inv.invoiceNumber}</td>
@@ -925,7 +933,7 @@ export default function Invoices() {
                       <button
                         title="View"
                         onClick={() => { setSelectedInv(inv); setView('preview'); }}
-                        className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-400 hover:text-gray-700"
+                        className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-[#132035] text-gray-400 hover:text-gray-700"
                       >
                         <EyeIcon className="w-4 h-4" />
                       </button>
@@ -933,7 +941,7 @@ export default function Invoices() {
                         <button
                           title="Edit"
                           onClick={() => { setSelectedInv(inv); setView('form'); }}
-                          className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-400 hover:text-blue-600"
+                          className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-[#132035] text-gray-400 hover:text-blue-600"
                         >
                           <PencilIcon className="w-4 h-4" />
                         </button>
@@ -942,7 +950,7 @@ export default function Invoices() {
                         <button
                           title="Record Payment"
                           onClick={() => setShowPayment(inv)}
-                          className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-400 hover:text-green-600"
+                          className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-[#132035] text-gray-400 hover:text-green-600"
                         >
                           <BanknotesIcon className="w-4 h-4" />
                         </button>
@@ -950,7 +958,7 @@ export default function Invoices() {
                       <button
                         title="Download PDF"
                         onClick={() => printInvoice(inv, orgData?.organization)}
-                        className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-400 hover:text-gray-700"
+                        className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-[#132035] text-gray-400 hover:text-gray-700"
                       >
                         <ArrowDownTrayIcon className="w-4 h-4" />
                       </button>
@@ -958,7 +966,7 @@ export default function Invoices() {
                         <button
                           title="Delete"
                           onClick={() => setDeletingId(inv._id)}
-                          className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-400 hover:text-red-600"
+                          className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-[#132035] text-gray-400 hover:text-red-600"
                         >
                           <TrashIcon className="w-4 h-4" />
                         </button>

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { PlusIcon } from '@heroicons/react/24/outline';
 import api from '../../api/axios';
@@ -135,8 +135,8 @@ export default function ProductionOrders() {
                     <div className="flex items-center gap-1 mt-3">
                       {STATUS_FLOW.map((step, i) => (
                         <React.Fragment key={step}>
-                          <div className={clsx('w-2 h-2 rounded-full', i <= currentStep ? 'bg-brand-500' : 'bg-gray-200 dark:bg-gray-700')} />
-                          {i < STATUS_FLOW.length - 1 && <div className={clsx('flex-1 h-0.5 max-w-8', i < currentStep ? 'bg-brand-500' : 'bg-gray-200 dark:bg-gray-700')} />}
+                          <div className={clsx('w-2 h-2 rounded-full', i <= currentStep ? 'bg-brand-500' : 'bg-gray-200 dark:bg-[#132035]')} />
+                          {i < STATUS_FLOW.length - 1 && <div className={clsx('flex-1 h-0.5 max-w-8', i < currentStep ? 'bg-brand-500' : 'bg-gray-200 dark:bg-[#132035]')} />}
                         </React.Fragment>
                       ))}
                     </div>

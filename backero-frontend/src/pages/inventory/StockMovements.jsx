@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import api from '../../api/axios';
 import { format } from 'date-fns';
@@ -32,7 +32,7 @@ export default function StockMovements() {
       ) : (
         <div className="card overflow-hidden">
           <table className="w-full text-sm">
-            <thead className="bg-gray-50 dark:bg-gray-800">
+            <thead className="bg-gray-50 dark:bg-[#0f1a2e]">
               <tr>
                 <th className="text-left py-3 px-4 text-gray-500 font-medium">Product</th>
                 <th className="text-center py-3 px-4 text-gray-500 font-medium">Type</th>
@@ -42,9 +42,9 @@ export default function StockMovements() {
                 <th className="text-right py-3 px-4 text-gray-500 font-medium">Date</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
+            <tbody className="divide-y divide-gray-100 dark:divide-[#1b2e4a]">
               {movements.map((m) => (
-                <tr key={m._id} className="hover:bg-gray-50 dark:hover:bg-gray-800/50">
+                <tr key={m._id} className="hover:bg-gray-50 dark:hover:bg-[#17263d]/50">
                   <td className="py-3 px-4">
                     <p className="font-medium text-gray-900 dark:text-white">{m.product?.name}</p>
                     <p className="text-xs text-gray-400">{m.product?.sku}</p>

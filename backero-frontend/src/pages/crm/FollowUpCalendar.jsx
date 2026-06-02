@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   CalendarDaysIcon, PhoneIcon, CheckCircleIcon, ClockIcon,
@@ -77,8 +77,8 @@ const GROUP_CONFIG = {
     label: 'Later',
     icon: <CalendarDaysIcon className="w-4 h-4" />,
     color: 'text-gray-600 dark:text-gray-400',
-    bg: 'bg-gray-50 dark:bg-gray-800/50 border-gray-200 dark:border-gray-700',
-    badge: 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300',
+    bg: 'bg-gray-50 dark:bg-[#0f1a2e]/50 border-gray-200 dark:border-[#1b2e4a]',
+    badge: 'bg-gray-100 text-gray-700 dark:bg-[#0f1a2e] dark:text-gray-300',
     dot: 'bg-gray-400',
   },
 };
@@ -98,7 +98,7 @@ function FollowUpCard({ lead, onDone, onLog }) {
   };
 
   return (
-    <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-4 shadow-sm hover:shadow-md transition-shadow">
+    <div className="bg-white dark:bg-[#070c17] rounded-xl border border-gray-200 dark:border-[#1b2e4a] p-4 shadow-sm hover:shadow-md transition-shadow">
       <div className="flex items-start justify-between gap-3">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-0.5">
@@ -154,7 +154,7 @@ function FollowUpCard({ lead, onDone, onLog }) {
       </div>
 
       {/* Quick action buttons */}
-      <div className="flex items-center gap-2 mt-3 pt-3 border-t border-gray-100 dark:border-gray-800">
+      <div className="flex items-center gap-2 mt-3 pt-3 border-t border-gray-100 dark:border-[#1b2e4a]">
         <button
           onClick={() => setShowQuickLog(p => !p)}
           className={clsx(

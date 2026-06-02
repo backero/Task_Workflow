@@ -145,13 +145,13 @@ export default function Sidebar({ collapsed, onToggle }) {
 
   return (
     <div
-      className="flex flex-col h-full"
-      style={{ background: '#111827', borderRight: '1px solid rgba(255,255,255,0.06)' }}
+      className="flex flex-col h-full chrome-bg"
+      style={{ borderRight: '1px solid var(--b-chrome)' }}
     >
       {/* Logo */}
       <div
         className="flex items-center gap-3 px-4 h-14 flex-shrink-0"
-        style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}
+        style={{ borderBottom: '1px solid var(--b-chrome)' }}
       >
         <div className="w-7 h-7 rounded-lg overflow-hidden flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(255,255,255,0.08)' }}>
           <img src={companyLogo} alt="Logo" className="h-5 w-auto object-contain" />
@@ -205,7 +205,7 @@ export default function Sidebar({ collapsed, onToggle }) {
       </nav>
 
       {/* Footer */}
-      <div className="px-2 pb-3 flex-shrink-0" style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+      <div className="px-2 pb-3 flex-shrink-0" style={{ borderTop: '1px solid var(--b-chrome)' }}>
         <div className="pt-3">
           <NavLink
             to="/settings"

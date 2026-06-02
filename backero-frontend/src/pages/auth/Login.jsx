@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+﻿import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { DevicePhoneMobileIcon, ArrowLeftIcon, EnvelopeIcon, LockClosedIcon } from '@heroicons/react/24/outline';
@@ -140,19 +140,19 @@ export default function Login() {
           <p className="text-gray-400 mt-1">Enterprise Operations Platform</p>
         </div>
 
-        <div className="bg-white dark:bg-gray-900 rounded-2xl p-8 shadow-modal overflow-hidden">
+        <div className="bg-white dark:bg-[#070c17] rounded-2xl p-8 shadow-modal overflow-hidden">
           {/* Mode toggle */}
-          <div className="flex gap-1 p-1 bg-gray-100 dark:bg-gray-800 rounded-xl mb-6">
+          <div className="flex gap-1 p-1 bg-gray-100 dark:bg-[#0f1a2e] rounded-xl mb-6">
             <button
               onClick={() => { setMode('otp'); setStep(1); }}
-              className={`flex-1 py-2 text-sm font-medium rounded-lg transition-all ${mode === 'otp' ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'}`}
+              className={`flex-1 py-2 text-sm font-medium rounded-lg transition-all ${mode === 'otp' ? 'bg-white dark:bg-[#132035] text-gray-900 dark:text-white shadow-sm' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'}`}
             >
               <DevicePhoneMobileIcon className="w-4 h-4 inline mr-1.5" />
               OTP Login
             </button>
             <button
               onClick={() => setMode('password')}
-              className={`flex-1 py-2 text-sm font-medium rounded-lg transition-all ${mode === 'password' ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'}`}
+              className={`flex-1 py-2 text-sm font-medium rounded-lg transition-all ${mode === 'password' ? 'bg-white dark:bg-[#132035] text-gray-900 dark:text-white shadow-sm' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'}`}
             >
               <LockClosedIcon className="w-4 h-4 inline mr-1.5" />
               Password Login
@@ -236,7 +236,7 @@ export default function Login() {
                   <div>
                     <label className="label">Mobile Number</label>
                     <div className="flex gap-2">
-                      <span className="flex items-center px-3 bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg text-sm font-semibold text-gray-600 dark:text-gray-400 shrink-0 select-none">
+                      <span className="flex items-center px-3 bg-gray-100 dark:bg-[#0f1a2e] border border-gray-300 dark:border-[#1b2e4a] rounded-lg text-sm font-semibold text-gray-600 dark:text-gray-400 shrink-0 select-none">
                         +91
                       </span>
                       <input

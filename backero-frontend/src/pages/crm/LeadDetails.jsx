@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
@@ -188,7 +188,7 @@ export default function LeadDetails() {
       <div className="flex items-start gap-4">
         <button
           onClick={() => navigate('/crm/pipeline')}
-          className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 flex-shrink-0 mt-1"
+          className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-[#17263d] flex-shrink-0 mt-1"
         >
           <ArrowLeftIcon className="w-5 h-5 text-gray-500" />
         </button>
@@ -379,7 +379,7 @@ export default function LeadDetails() {
             </div>
 
             {lead.notes && (
-              <div className="mt-4 pt-4 border-t border-gray-100 dark:border-gray-800">
+              <div className="mt-4 pt-4 border-t border-gray-100 dark:border-[#1b2e4a]">
                 <p className="text-xs text-gray-400 mb-1">Notes</p>
                 <p className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap">{lead.notes}</p>
               </div>
@@ -458,11 +458,11 @@ export default function LeadDetails() {
                 {[...lead.followUps].reverse().map((fu, idx) => (
                   <div key={idx} className="flex gap-3">
                     <div className="flex-shrink-0">
-                      <div className="w-8 h-8 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center text-base">
+                      <div className="w-8 h-8 rounded-full bg-gray-100 dark:bg-[#0f1a2e] flex items-center justify-center text-base">
                         {FOLLOWUP_ICONS[fu.type] || '📝'}
                       </div>
                       {idx < lead.followUps.length - 1 && (
-                        <div className="w-0.5 h-4 bg-gray-200 dark:bg-gray-700 mx-auto mt-1" />
+                        <div className="w-0.5 h-4 bg-gray-200 dark:bg-[#132035] mx-auto mt-1" />
                       )}
                     </div>
                     <div className="flex-1 min-w-0 pb-2">
@@ -512,9 +512,9 @@ export default function LeadDetails() {
             ) : (
               <div className="space-y-4">
                 {leadQueries.map(q => (
-                  <div key={q._id} className="rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+                  <div key={q._id} className="rounded-xl border border-gray-200 dark:border-[#1b2e4a] overflow-hidden">
                     {/* Question bubble */}
-                    <div className="bg-gray-50 dark:bg-gray-800 p-3">
+                    <div className="bg-gray-50 dark:bg-[#0f1a2e] p-3">
                       <div className="flex items-start gap-2.5">
                         <div className="w-7 h-7 rounded-full bg-amber-100 dark:bg-amber-900/40 flex items-center justify-center flex-shrink-0 mt-0.5">
                           <span className="text-amber-700 dark:text-amber-400 text-xs font-bold">
@@ -569,7 +569,7 @@ export default function LeadDetails() {
                         </div>
                       </div>
                     ) : (
-                      <div className="px-3 py-2 border-t border-gray-100 dark:border-gray-700 flex items-center gap-2">
+                      <div className="px-3 py-2 border-t border-gray-100 dark:border-[#1b2e4a] flex items-center gap-2">
                         <div className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
                         <p className="text-xs text-gray-400 italic">Waiting for Production reply…</p>
                       </div>
@@ -595,12 +595,12 @@ export default function LeadDetails() {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-gray-900/60 backdrop-blur-sm" onClick={() => setQueryMode(false)} />
           <div className="relative card w-full max-w-lg shadow-modal">
-            <div className="p-5 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+            <div className="p-5 border-b border-gray-200 dark:border-[#1b2e4a] flex items-center justify-between">
               <div>
                 <h3 className="font-bold text-gray-900 dark:text-white">Raise Technical Query</h3>
                 <p className="text-sm text-gray-500 mt-0.5">Assign to a Production team member for a technical answer</p>
               </div>
-              <button onClick={() => setQueryMode(false)} className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800">
+              <button onClick={() => setQueryMode(false)} className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-[#17263d]">
                 <XMarkIcon className="w-5 h-5 text-gray-500" />
               </button>
             </div>
@@ -658,14 +658,14 @@ export default function LeadDetails() {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-gray-900/60 backdrop-blur-sm" onClick={() => setUpdateMode(false)} />
           <div className="relative card w-full max-w-md shadow-modal">
-            <div className="p-5 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+            <div className="p-5 border-b border-gray-200 dark:border-[#1b2e4a] flex items-center justify-between">
               <div>
                 <h3 className="font-bold text-gray-900 dark:text-white">Send WhatsApp Update</h3>
                 <p className="text-sm text-gray-500 mt-0.5">
                   Sending to: {lead.whatsapp || lead.phone}
                 </p>
               </div>
-              <button onClick={() => setUpdateMode(false)} className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800">
+              <button onClick={() => setUpdateMode(false)} className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-[#17263d]">
                 <XMarkIcon className="w-5 h-5 text-gray-500" />
               </button>
             </div>
@@ -731,12 +731,12 @@ export default function LeadDetails() {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-gray-900/60 backdrop-blur-sm" onClick={() => setPendingStage(null)} />
           <div className="relative card w-full max-w-md shadow-modal">
-            <div className="p-5 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+            <div className="p-5 border-b border-gray-200 dark:border-[#1b2e4a] flex items-center justify-between">
               <div>
                 <h3 className="font-bold text-gray-900 dark:text-white">Move Lead to "{pendingStage}"</h3>
                 <p className="text-sm text-gray-500 mt-0.5">Please tell us why you're shifting this lead</p>
               </div>
-              <button onClick={() => setPendingStage(null)} className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800">
+              <button onClick={() => setPendingStage(null)} className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-[#17263d]">
                 <XMarkIcon className="w-5 h-5 text-gray-500" />
               </button>
             </div>
@@ -779,9 +779,9 @@ export default function LeadDetails() {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-gray-900/60 backdrop-blur-sm" onClick={() => setEditMode(false)} />
           <div className="relative card w-full max-w-lg shadow-modal max-h-[90vh] overflow-y-auto">
-            <div className="p-5 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+            <div className="p-5 border-b border-gray-200 dark:border-[#1b2e4a] flex items-center justify-between">
               <h3 className="font-bold text-gray-900 dark:text-white">Edit Lead</h3>
-              <button onClick={() => setEditMode(false)} className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800">
+              <button onClick={() => setEditMode(false)} className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-[#17263d]">
                 <XMarkIcon className="w-5 h-5 text-gray-500" />
               </button>
             </div>

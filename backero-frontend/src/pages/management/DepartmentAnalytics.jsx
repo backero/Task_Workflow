@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import api from '../../api/axios';
@@ -46,7 +46,7 @@ export default function DepartmentAnalytics() {
               <div className="flex justify-between"><span className="text-gray-500">Overdue</span><span className="font-medium text-red-600">{dept.overdue}</span></div>
               <div className="flex justify-between"><span className="text-gray-500">Rate</span><span className="font-bold text-brand-600">{Math.round(dept.completionRate || 0)}%</span></div>
             </div>
-            <div className="mt-3 h-2 bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden">
+            <div className="mt-3 h-2 bg-gray-100 dark:bg-[#0f1a2e] rounded-full overflow-hidden">
               <div className="h-full bg-brand-500 rounded-full" style={{ width: `${dept.completionRate || 0}%` }} />
             </div>
           </div>

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   TableCellsIcon, ArrowPathIcon, CheckCircleIcon,
@@ -115,12 +115,12 @@ export default function GoogleSheetsPanel({ onSynced }) {
       {/* Collapsed header */}
       <button
         onClick={() => setOpen((p) => !p)}
-        className="w-full flex items-center justify-between p-4 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors text-left"
+        className="w-full flex items-center justify-between p-4 hover:bg-gray-50 dark:hover:bg-[#17263d]/50 transition-colors text-left"
       >
         <div className="flex items-center gap-3">
           <div className={clsx(
             'w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0',
-            isConnected ? 'bg-green-100 dark:bg-green-900/30' : 'bg-gray-100 dark:bg-gray-800'
+            isConnected ? 'bg-green-100 dark:bg-green-900/30' : 'bg-gray-100 dark:bg-[#0f1a2e]'
           )}>
             <TableCellsIcon className={clsx('w-4 h-4', isConnected ? 'text-green-600' : 'text-gray-500')} />
           </div>
@@ -155,7 +155,7 @@ export default function GoogleSheetsPanel({ onSynced }) {
 
       {/* Expanded panel */}
       {open && (
-        <div className="border-t border-gray-100 dark:border-gray-800 p-5 space-y-5">
+        <div className="border-t border-gray-100 dark:border-[#1b2e4a] p-5 space-y-5">
 
           {/* Step 1: Make sheet public */}
           <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl p-4">
@@ -206,9 +206,9 @@ export default function GoogleSheetsPanel({ onSynced }) {
               <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
                 Preview — {preview.totalRows} rows detected
               </p>
-              <div className="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-700">
+              <div className="overflow-x-auto rounded-lg border border-gray-200 dark:border-[#1b2e4a]">
                 <table className="w-full text-xs">
-                  <thead className="bg-gray-50 dark:bg-gray-800">
+                  <thead className="bg-gray-50 dark:bg-[#0f1a2e]">
                     <tr>
                       {preview.headers.map((h, i) => (
                         <th key={i} className="px-3 py-2 text-left text-gray-600 dark:text-gray-400 whitespace-nowrap">
@@ -225,7 +225,7 @@ export default function GoogleSheetsPanel({ onSynced }) {
                   </thead>
                   <tbody>
                     {preview.preview.map((row, ri) => (
-                      <tr key={ri} className="border-t border-gray-100 dark:border-gray-800">
+                      <tr key={ri} className="border-t border-gray-100 dark:border-[#1b2e4a]">
                         {preview.headers.map((h, ci) => (
                           <td key={ci} className="px-3 py-1.5 text-gray-700 dark:text-gray-300 max-w-[140px] truncate">
                             {row[h.raw] || <span className="text-gray-300">—</span>}
@@ -265,7 +265,7 @@ export default function GoogleSheetsPanel({ onSynced }) {
             >
               <div className={clsx(
                 'relative w-10 h-5 rounded-full transition-colors',
-                syncEnabled ? 'bg-brand-600' : 'bg-gray-300 dark:bg-gray-600'
+                syncEnabled ? 'bg-brand-600' : 'bg-slate-200 dark:bg-[#1b2e4a]'
               )}>
                 <span className={clsx(
                   'absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform',
@@ -304,7 +304,7 @@ export default function GoogleSheetsPanel({ onSynced }) {
                 >
                   <div className={clsx(
                     'relative w-10 h-5 rounded-full transition-colors',
-                    writeBackEnabled ? 'bg-green-600' : 'bg-gray-300 dark:bg-gray-600'
+                    writeBackEnabled ? 'bg-green-600' : 'bg-slate-200 dark:bg-[#1b2e4a]'
                   )}>
                     <span className={clsx(
                       'absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform',
@@ -375,7 +375,7 @@ export default function GoogleSheetsPanel({ onSynced }) {
           )}
 
           {/* Required columns hint */}
-          <div className="text-xs text-gray-400 bg-gray-50 dark:bg-gray-800/50 rounded-lg p-3">
+          <div className="text-xs text-gray-400 bg-gray-50 dark:bg-[#0f1a2e]/50 rounded-lg p-3">
             <p className="font-medium text-gray-500 mb-1">Required columns in your sheet:</p>
             <p><strong className="text-gray-600 dark:text-gray-300">name</strong> (or "Full Name", "Customer Name") and <strong className="text-gray-600 dark:text-gray-300">phone</strong> (or "Mobile", "Contact") are mandatory.</p>
             <p className="mt-1">Optional: email, company, city, state, product, notes, priority, value</p>

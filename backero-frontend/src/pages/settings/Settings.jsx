@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuthStore } from '../../store/useAuthStore';
@@ -93,7 +93,7 @@ export default function Settings() {
         <h1 className="page-title">Settings</h1>
       </div>
 
-      <div className="flex gap-1 border-b border-gray-200 dark:border-gray-700">
+      <div className="flex gap-1 border-b border-gray-200 dark:border-[#1b2e4a]">
         {TABS.map((tab) => (
           <button
             key={tab.key}
@@ -158,7 +158,7 @@ export default function Settings() {
               { key: 'whatsapp', label: 'WhatsApp Notifications', desc: 'Receive alerts on WhatsApp' },
               { key: 'email', label: 'Email Notifications', desc: 'Receive email updates (coming soon)' },
             ].map((pref) => (
-              <div key={pref.key} className="flex items-center justify-between py-3 border-b border-gray-100 dark:border-gray-800">
+              <div key={pref.key} className="flex items-center justify-between py-3 border-b border-gray-100 dark:border-[#1b2e4a]">
                 <div>
                   <p className="font-medium text-gray-900 dark:text-white">{pref.label}</p>
                   <p className="text-sm text-gray-500">{pref.desc}</p>
@@ -185,7 +185,7 @@ export default function Settings() {
               <p className="text-xs text-gray-400 mt-1">This logo appears on all invoices and PDFs.</p>
               {logoPreview && (
                 <div className="mt-3 flex items-center gap-4">
-                  <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-3 bg-white inline-block">
+                  <div className="border border-gray-200 dark:border-[#1b2e4a] rounded-lg p-3 bg-white inline-block">
                     <img
                       src={logoPreview}
                       alt="Logo preview"
@@ -236,7 +236,7 @@ export default function Settings() {
             {sigPreview && (
               <div className="mt-3">
                 <p className="text-xs text-gray-400 mb-2">Preview:</p>
-                <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-4 inline-block bg-white">
+                <div className="border border-gray-200 dark:border-[#1b2e4a] rounded-lg p-4 inline-block bg-white">
                   <img
                     src={sigPreview}
                     alt="Signature preview"

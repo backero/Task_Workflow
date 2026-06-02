@@ -2,6 +2,7 @@ const router = require('express').Router();
 const Task = require('../models/Task');
 const MarketplaceDaily = require('../models/MarketplaceDaily');
 const MarketplacePlan = require('../models/MarketplacePlan');
+const MarketplacePlanProgress = require('../models/MarketplacePlanProgress');
 const { authenticate } = require('../middleware/auth.middleware');
 const { orgIsolation } = require('../middleware/orgIsolation.middleware');
 const { asyncHandler, sendSuccess, paginate, paginateResponse } = require('../utils/helpers');
@@ -271,6 +272,31 @@ router.post('/plans/:platform/import-json', asyncHandler(async (req, res) => {
   );
 
   sendSuccess(res, { message: `${req.params.platform} plan imported — ${cleaned.length} weeks loaded`, weeks: cleaned.length });
+}));
+
+// ── Plan Progress (task checks, KPI numbers, notes, scorecard) ────────────────
+
+// GET /marketplace/progress/:platform — load all saved weeks for a platform
+router.get('/progress/:platform', asyncHandler(async (req, res) => {
+  const docs = await MarketplacePlanProgress.find({
+    organizationId: req.user.organizationId,
+    platform: req.params.platform,
+  }).lean();
+  sendSuccess(res, { progress: docs });
+}));
+
+// PUT /marketplace/progress/:platform/:week — upsert an entire week's progress
+router.put('/progress/:platform/:week', asyncHandler(async (req, res) => {
+  const week = parseInt(req.params.week);
+  if (!week || week < 1) return res.status(400).json({ success: false, message: 'Invalid week' });
+
+  const { budget, scorecard, days } = req.body;
+  const doc = await MarketplacePlanProgress.findOneAndUpdate(
+    { organizationId: req.user.organizationId, platform: req.params.platform, week },
+    { $set: { budget: budget || '', scorecard: scorecard || {}, days: days || {}, updatedBy: req.user._id } },
+    { new: true, upsert: true, setDefaultsOnInsert: true }
+  );
+  sendSuccess(res, { progress: doc });
 }));
 
 module.exports = router;

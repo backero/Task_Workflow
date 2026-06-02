@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { PlusIcon, ArrowUpIcon, ArrowDownIcon } from '@heroicons/react/24/outline';
 import api from '../../api/axios';
@@ -122,7 +122,7 @@ export default function Ledger() {
 
       <div className="flex gap-3">
         {['', 'income', 'expense'].map((t) => (
-          <button key={t} onClick={() => setType(t)} className={clsx('px-4 py-2 rounded-lg text-sm font-medium transition-colors', type === t ? 'bg-brand-600 text-white' : 'bg-white dark:bg-gray-800 text-gray-600 border border-gray-200 dark:border-gray-700')}>
+          <button key={t} onClick={() => setType(t)} className={clsx('px-4 py-2 rounded-lg text-sm font-medium transition-colors', type === t ? 'bg-brand-600 text-white' : 'bg-white dark:bg-[#0f1a2e] text-gray-600 border border-gray-200 dark:border-[#1b2e4a]')}>
             {t === '' ? 'All' : t.charAt(0).toUpperCase() + t.slice(1)}
           </button>
         ))}
@@ -133,7 +133,7 @@ export default function Ledger() {
       ) : (
         <div className="card overflow-hidden">
           <table className="w-full text-sm">
-            <thead className="bg-gray-50 dark:bg-gray-800">
+            <thead className="bg-gray-50 dark:bg-[#0f1a2e]">
               <tr>
                 <th className="text-left py-3 px-4 text-gray-500 font-medium">Date</th>
                 <th className="text-left py-3 px-4 text-gray-500 font-medium">Description</th>
@@ -142,9 +142,9 @@ export default function Ledger() {
                 <th className="text-right py-3 px-4 text-gray-500 font-medium">Amount</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
+            <tbody className="divide-y divide-gray-100 dark:divide-[#1b2e4a]">
               {transactions.map((tx) => (
-                <tr key={tx._id} className="hover:bg-gray-50 dark:hover:bg-gray-800/50">
+                <tr key={tx._id} className="hover:bg-gray-50 dark:hover:bg-[#17263d]/50">
                   <td className="py-3 px-4 text-gray-500">{format(new Date(tx.date), 'dd MMM yy')}</td>
                   <td className="py-3 px-4">
                     <p className="font-medium text-gray-900 dark:text-white">{tx.description}</p>

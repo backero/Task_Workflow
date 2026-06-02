@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+﻿import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { PlusIcon, BoltIcon, MagnifyingGlassIcon, FunnelIcon, ChevronDownIcon, TrashIcon, ExclamationTriangleIcon, SparklesIcon, UserCircleIcon, XMarkIcon, ArrowPathIcon, ArrowDownTrayIcon, CloudArrowUpIcon, DocumentArrowDownIcon, CheckCircleIcon, ClockIcon, ArchiveBoxIcon } from '@heroicons/react/24/outline';
@@ -409,7 +409,7 @@ function DeptHubModal({ onClose, onCreated, prefill }) {
   if (submitted) {
     return (
       <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-        <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl w-full max-w-sm p-8 flex flex-col items-center text-center gap-4">
+        <div className="bg-white dark:bg-[#070c17] rounded-2xl shadow-2xl w-full max-w-sm p-8 flex flex-col items-center text-center gap-4">
           <div className="w-16 h-16 rounded-full bg-amber-100 flex items-center justify-center">
             <SparklesIcon className="w-8 h-8 text-amber-500" />
           </div>
@@ -428,9 +428,9 @@ function DeptHubModal({ onClose, onCreated, prefill }) {
 
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-      <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl w-full max-w-xl flex flex-col" style={{ maxHeight: '92vh' }}>
+      <div className="bg-white dark:bg-[#070c17] rounded-2xl shadow-2xl w-full max-w-xl flex flex-col" style={{ maxHeight: '92vh' }}>
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex-shrink-0">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-[#1b2e4a] flex-shrink-0">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-brand-500 to-purple-600 flex items-center justify-center shadow">
               <SparklesIcon className="w-5 h-5 text-white" />
@@ -491,7 +491,7 @@ function DeptHubModal({ onClose, onCreated, prefill }) {
                 </div>
               </div>
             </div>
-            <div className="flex gap-3 px-6 py-4 border-t border-gray-200 dark:border-gray-700 flex-shrink-0">
+            <div className="flex gap-3 px-6 py-4 border-t border-gray-200 dark:border-[#1b2e4a] flex-shrink-0">
               <button onClick={onClose} className="btn-secondary">Cancel</button>
               <button onClick={goNext} disabled={!main.title.trim()} className="btn-primary flex-1 flex items-center justify-center gap-2">
                 Next: Assign Departments <ChevronDownIcon className="w-4 h-4 -rotate-90" />
@@ -549,7 +549,7 @@ function DeptHubModal({ onClose, onCreated, prefill }) {
                 <PlusIcon className="w-4 h-4" /> Add Another Department
               </button>
             </div>
-            <div className="flex gap-3 px-6 py-4 border-t border-gray-200 dark:border-gray-700 flex-shrink-0">
+            <div className="flex gap-3 px-6 py-4 border-t border-gray-200 dark:border-[#1b2e4a] flex-shrink-0">
               <button onClick={() => { setStep(1); setErr(''); }} className="btn-secondary flex items-center gap-1">
                 <ChevronDownIcon className="w-4 h-4 rotate-90" /> Back
               </button>
@@ -617,7 +617,7 @@ function IndividualModal({ onClose, onCreated }) {
   if (pendingApproval) {
     return (
       <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-        <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl w-full max-w-sm p-8 flex flex-col items-center text-center gap-4">
+        <div className="bg-white dark:bg-[#070c17] rounded-2xl shadow-2xl w-full max-w-sm p-8 flex flex-col items-center text-center gap-4">
           <div className="w-16 h-16 rounded-full bg-blue-100 flex items-center justify-center">
             <UserCircleIcon className="w-8 h-8 text-blue-500" />
           </div>
@@ -637,8 +637,8 @@ function IndividualModal({ onClose, onCreated }) {
 
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-      <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl w-full max-w-md">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+      <div className="bg-white dark:bg-[#070c17] rounded-2xl shadow-2xl w-full max-w-md">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-[#1b2e4a]">
           <div className="flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-xl bg-green-500 flex items-center justify-center">
               <UserCircleIcon className="w-4 h-4 text-white" />
@@ -769,10 +769,10 @@ function ImportModal({ onClose, onImported }) {
 
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-      <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl w-full max-w-lg flex flex-col" style={{ maxHeight: '90vh' }}>
+      <div className="bg-white dark:bg-[#070c17] rounded-2xl shadow-2xl w-full max-w-lg flex flex-col" style={{ maxHeight: '90vh' }}>
 
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex-shrink-0">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-[#1b2e4a] flex-shrink-0">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-xl bg-indigo-600 flex items-center justify-center shadow">
               <CloudArrowUpIcon className="w-5 h-5 text-white" />
@@ -914,7 +914,7 @@ function ImportModal({ onClose, onImported }) {
         </div>
 
         {/* Footer */}
-        <div className="flex gap-3 px-6 py-4 border-t border-gray-200 dark:border-gray-700 flex-shrink-0">
+        <div className="flex gap-3 px-6 py-4 border-t border-gray-200 dark:border-[#1b2e4a] flex-shrink-0">
           {result ? (
             <button onClick={onClose} className="btn-primary flex-1">Done</button>
           ) : (
@@ -1133,7 +1133,7 @@ export default function WorkflowLanding() {
       )}
 
       {/* ── Page header ── */}
-      <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 shadow-sm px-6 py-4">
+      <div className="bg-white dark:bg-[#070c17] rounded-2xl border border-gray-200 shadow-sm px-6 py-4">
         <div className="flex items-center justify-between gap-4 flex-wrap">
 
           {/* Title */}
@@ -1158,7 +1158,7 @@ export default function WorkflowLanding() {
                 value={search}
                 onChange={e => setSearch(e.target.value)}
                 placeholder="Search tasks…"
-                className="pl-8 pr-3 py-2 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500 w-40 bg-gray-50 dark:bg-gray-800 dark:border-gray-700"
+                className="pl-8 pr-3 py-2 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500 w-40 bg-gray-50 dark:bg-[#0f1a2e] dark:border-[#1b2e4a]"
               />
             </div>
 
@@ -1168,7 +1168,7 @@ export default function WorkflowLanding() {
               <select
                 value={statusFilter}
                 onChange={e => setStatusFilter(e.target.value)}
-                className="pl-8 pr-8 py-2 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500 bg-gray-50 dark:bg-gray-800 dark:border-gray-700 text-gray-700 dark:text-gray-300"
+                className="pl-8 pr-8 py-2 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500 bg-gray-50 dark:bg-[#0f1a2e] dark:border-[#1b2e4a] text-gray-700 dark:text-gray-300"
               >
                 <option value="">All Status</option>
                 {['Pending','Assigned','In Progress','Approval Pending','Changes Requested','Completed','Reopened'].map(s => (
@@ -1225,9 +1225,9 @@ export default function WorkflowLanding() {
                   <PlusIcon className="w-4 h-4" /> New Task <ChevronDownIcon className={clsx('w-3.5 h-3.5 transition-transform', newTaskOpen && 'rotate-180')} />
                 </button>
                 {newTaskOpen && (
-                  <div className="absolute right-0 top-full mt-2 z-50 bg-white dark:bg-gray-800 rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-700 overflow-hidden w-56">
+                  <div className="absolute right-0 top-full mt-2 z-50 bg-white dark:bg-[#0f1a2e] rounded-2xl shadow-2xl border border-gray-200 dark:border-[#1b2e4a] overflow-hidden w-56">
                     <button onMouseDown={() => { setShowDeptHub(true); setNewTaskOpen(false); }}
-                      className="w-full flex items-start gap-3 px-4 py-3.5 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors border-b border-gray-100 dark:border-gray-700">
+                      className="w-full flex items-start gap-3 px-4 py-3.5 hover:bg-gray-50 dark:hover:bg-[#132035] transition-colors border-b border-gray-100 dark:border-[#1b2e4a]">
                       <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-brand-500 to-purple-600 flex items-center justify-center flex-shrink-0 mt-0.5">
                         <SparklesIcon className="w-4 h-4 text-white" />
                       </div>
@@ -1237,7 +1237,7 @@ export default function WorkflowLanding() {
                       </div>
                     </button>
                     <button onMouseDown={() => { setShowIndividual(true); setNewTaskOpen(false); }}
-                      className="w-full flex items-start gap-3 px-4 py-3.5 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors border-b border-gray-100 dark:border-gray-700">
+                      className="w-full flex items-start gap-3 px-4 py-3.5 hover:bg-gray-50 dark:hover:bg-[#132035] transition-colors border-b border-gray-100 dark:border-[#1b2e4a]">
                       <div className="w-8 h-8 rounded-xl bg-green-500 flex items-center justify-center flex-shrink-0 mt-0.5">
                         <UserCircleIcon className="w-4 h-4 text-white" />
                       </div>
@@ -1247,7 +1247,7 @@ export default function WorkflowLanding() {
                       </div>
                     </button>
                     <button onMouseDown={() => { setShowImport(true); setNewTaskOpen(false); }}
-                      className="w-full flex items-start gap-3 px-4 py-3.5 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                      className="w-full flex items-start gap-3 px-4 py-3.5 hover:bg-gray-50 dark:hover:bg-[#132035] transition-colors">
                       <div className="w-8 h-8 rounded-xl bg-indigo-500 flex items-center justify-center flex-shrink-0 mt-0.5">
                         <CloudArrowUpIcon className="w-4 h-4 text-white" />
                       </div>
@@ -1370,7 +1370,7 @@ export default function WorkflowLanding() {
       {/* ── Reject assignment modal ── */}
       {assignRejectModal && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl w-full max-w-sm p-6 space-y-4">
+          <div className="bg-white dark:bg-[#070c17] rounded-2xl shadow-2xl w-full max-w-sm p-6 space-y-4">
             <h3 className="font-bold text-gray-900 dark:text-white text-sm">Reject Assignment</h3>
             <p className="text-xs text-gray-500">Rejecting assignment for <span className="font-semibold text-gray-700">"{assignRejectModal.title}"</span>. The requesting manager will be notified.</p>
             <div>
@@ -1399,7 +1399,7 @@ export default function WorkflowLanding() {
       {/* ── Reject hub modal ── */}
       {rejectModal && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl w-full max-w-sm p-6 space-y-4">
+          <div className="bg-white dark:bg-[#070c17] rounded-2xl shadow-2xl w-full max-w-sm p-6 space-y-4">
             <h3 className="font-bold text-gray-900 dark:text-white text-sm">Reject Dept Hub</h3>
             <p className="text-xs text-gray-500">Rejecting <span className="font-semibold text-gray-700">"{rejectModal.title}"</span>. The manager will be notified.</p>
             <div>

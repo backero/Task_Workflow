@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { PlusIcon, ExclamationTriangleIcon, MagnifyingGlassIcon } from '@heroicons/react/24/outline';
 import ImportButton from '../../components/common/ImportButton';
@@ -215,7 +215,7 @@ export default function Products() {
       ) : (
         <div className="card overflow-hidden">
           <table className="w-full text-sm">
-            <thead className="bg-gray-50 dark:bg-gray-800">
+            <thead className="bg-gray-50 dark:bg-[#0f1a2e]">
               <tr>
                 <th className="text-left py-3 px-4 text-gray-500 font-medium">Product</th>
                 <th className="text-left py-3 px-4 text-gray-500 font-medium">SKU</th>
@@ -223,15 +223,15 @@ export default function Products() {
                 <th className="text-center py-3 px-4 text-gray-500 font-medium">Min Level</th>
                 <th className="text-right py-3 px-4 text-gray-500 font-medium">Price</th>
                 <th className="text-center py-3 px-4 text-gray-500 font-medium">Status</th>
-                <th className="text-right py-3 px-4 text-gray-500 font-medium">Actions</th>
+                {isManagerOrAbove() && <th className="text-right py-3 px-4 text-gray-500 font-medium">Actions</th>}
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
+            <tbody className="divide-y divide-gray-100 dark:divide-[#1b2e4a]">
               {products.map((product) => {
                 const isLow = product.currentStock <= product.minStockLevel;
                 const isOut = product.currentStock === 0;
                 return (
-                  <tr key={product._id} className="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
+                  <tr key={product._id} className="hover:bg-gray-50 dark:hover:bg-[#17263d]/50 transition-colors">
                     <td className="py-3 px-4">
                       <p className="font-medium text-gray-900 dark:text-white">{product.name}</p>
                       <p className="text-xs text-gray-400">{product.category}</p>
@@ -252,14 +252,15 @@ export default function Products() {
                         : isLow ? <span className="badge badge-orange">Low Stock</span>
                         : <span className="badge badge-green">In Stock</span>}
                     </td>
-                    <td className="py-3 px-4 text-right">
-                      <div className="flex gap-1 justify-end">
-                        <button onClick={() => setStockProduct(product)} className="btn-secondary text-xs px-2 py-1">Stock</button>
-                        {isManagerOrAbove() && (
+                    {isManagerOrAbove() && (
+                      <td className="py-3 px-4 text-right">
+                        <div className="flex gap-1 justify-end">
+                          <button onClick={() => setStockProduct(product)} className="btn-secondary text-xs px-2 py-1">Stock</button>
                           <button onClick={() => setEditProduct(product)} className="btn-ghost text-xs px-2 py-1">Edit</button>
-                        )}
-                      </div>
-                    </td>
+                        </div>
+                      </td>
+                    )}
+                    {!isManagerOrAbove() && <td />}
                   </tr>
                 );
               })}

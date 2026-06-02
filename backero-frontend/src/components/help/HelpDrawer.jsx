@@ -322,7 +322,7 @@ export default function HelpDrawer() {
                   placeholder="Ask a question..."
                   rows={1}
                   disabled={streaming}
-                  className="flex-1 resize-none rounded-xl border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent disabled:opacity-50 max-h-28 overflow-y-auto"
+                  className="flex-1 resize-none rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent disabled:opacity-50 max-h-28 overflow-y-auto"
                   style={{ lineHeight: '1.4' }}
                 />
                 <button

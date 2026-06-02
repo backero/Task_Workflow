@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
@@ -74,7 +74,7 @@ function SectionHeader({ title, sub, to, toLabel }) {
 const ChartTooltip = ({ active, payload, label }) => {
   if (!active || !payload?.length) return null;
   return (
-    <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 shadow text-xs">
+    <div className="bg-white dark:bg-[#0f1a2e] border border-gray-200 dark:border-[#1b2e4a] rounded-lg px-3 py-2 shadow text-xs">
       <p className="font-semibold text-gray-700 dark:text-gray-300 mb-1">{label}</p>
       {payload.map((p) => (
         <p key={p.name} style={{ color: p.color }}>{p.name}: <strong>₹{fmt(p.value)}</strong></p>
@@ -241,25 +241,25 @@ export default function FounderDashboard() {
           <SectionHeader title="Finance Overview" sub="Income vs Expense" to="/finance/ledger" toLabel="Ledger" />
 
           <div className="space-y-2">
-            <div className="flex justify-between items-center py-2 border-b border-gray-100 dark:border-gray-800">
+            <div className="flex justify-between items-center py-2 border-b border-gray-100 dark:border-[#1b2e4a]">
               <span className="text-sm text-gray-500">Today's Income</span>
               <span className="font-semibold text-green-600">₹{fmt(finance.todayIncome)}</span>
             </div>
-            <div className="flex justify-between items-center py-2 border-b border-gray-100 dark:border-gray-800">
+            <div className="flex justify-between items-center py-2 border-b border-gray-100 dark:border-[#1b2e4a]">
               <span className="text-sm text-gray-500">Today's Expense</span>
               <span className="font-semibold text-red-600">₹{fmt(finance.todayExpense)}</span>
             </div>
-            <div className="flex justify-between items-center py-2 border-b border-gray-100 dark:border-gray-800">
+            <div className="flex justify-between items-center py-2 border-b border-gray-100 dark:border-[#1b2e4a]">
               <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Today Net</span>
               <span className={`font-bold ${(finance.todayNet || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                 ₹{fmt(finance.todayNet)}
               </span>
             </div>
-            <div className="flex justify-between items-center py-2 border-b border-gray-100 dark:border-gray-800">
+            <div className="flex justify-between items-center py-2 border-b border-gray-100 dark:border-[#1b2e4a]">
               <span className="text-sm text-gray-500">This Month Income</span>
               <span className="font-semibold text-green-600">₹{fmt(finance.monthIncome)}</span>
             </div>
-            <div className="flex justify-between items-center py-2 border-b border-gray-100 dark:border-gray-800">
+            <div className="flex justify-between items-center py-2 border-b border-gray-100 dark:border-[#1b2e4a]">
               <span className="text-sm text-gray-500">This Month Expense</span>
               <span className="font-semibold text-red-600">₹{fmt(finance.monthExpense)}</span>
             </div>
@@ -270,7 +270,7 @@ export default function FounderDashboard() {
           </div>
 
           {(d.inventory?.totalStockValue > 0) && (
-            <div className="flex justify-between items-center py-2 border-b border-gray-100 dark:border-gray-800">
+            <div className="flex justify-between items-center py-2 border-b border-gray-100 dark:border-[#1b2e4a]">
               <span className="text-sm text-gray-500">Inventory Value</span>
               <span className="font-semibold text-indigo-600">₹{fmt(d.inventory?.totalStockValue)}</span>
             </div>
@@ -334,7 +334,7 @@ export default function FounderDashboard() {
                     <span className="text-gray-600 dark:text-gray-400">{item.name}</span>
                     <span className="font-semibold text-gray-800 dark:text-gray-200">{item.value}</span>
                   </div>
-                  <div className="h-2 bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden">
+                  <div className="h-2 bg-gray-100 dark:bg-[#0f1a2e] rounded-full overflow-hidden">
                     <div
                       className="h-full rounded-full transition-all duration-500"
                       style={{ width: `${crm.totalLeads > 0 ? (item.value / crm.totalLeads) * 100 : 0}%`, backgroundColor: item.fill }}
@@ -372,7 +372,7 @@ export default function FounderDashboard() {
           {/* Department health mini cards */}
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-3 mt-5">
             {depts.map((dept, i) => (
-              <div key={dept._id || i} className="rounded-xl border border-gray-100 dark:border-gray-800 p-3 text-center">
+              <div key={dept._id || i} className="rounded-xl border border-gray-100 dark:border-[#1b2e4a] p-3 text-center">
                 <div
                   className="w-8 h-8 rounded-full mx-auto mb-2 flex items-center justify-center text-white text-xs font-bold"
                   style={{ backgroundColor: DEPT_COLORS[i % DEPT_COLORS.length] }}
@@ -382,7 +382,7 @@ export default function FounderDashboard() {
                 <p className="text-xs font-medium text-gray-700 dark:text-gray-300 line-clamp-1">{dept._id || 'Unknown'}</p>
                 <p className="text-lg font-bold text-gray-900 dark:text-white mt-1">{pct(dept.completionRate)}</p>
                 <p className="text-xs text-gray-400">{dept.total} tasks</p>
-                <div className="mt-2 h-1.5 bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden">
+                <div className="mt-2 h-1.5 bg-gray-100 dark:bg-[#0f1a2e] rounded-full overflow-hidden">
                   <div
                     className="h-full rounded-full"
                     style={{
@@ -416,7 +416,7 @@ export default function FounderDashboard() {
           ) : (
             <div className="space-y-2">
               {approvals.map((ap) => (
-                <div key={ap._id} className="flex items-center gap-3 p-3 rounded-lg bg-gray-50 dark:bg-gray-800/50 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
+                <div key={ap._id} className="flex items-center gap-3 p-3 rounded-lg bg-gray-50 dark:bg-[#0f1a2e]/50 hover:bg-gray-100 dark:hover:bg-[#17263d] transition-colors">
                   <div className="flex-1 min-w-0">
                     <button
                       onClick={() => ap.taskId && toWorkflow(ap.taskId)}
@@ -470,7 +470,7 @@ export default function FounderDashboard() {
                       <span className="text-sm font-medium text-gray-900 dark:text-white truncate">{emp.firstName} {emp.lastName}</span>
                       <span className="text-xs text-gray-500 flex-shrink-0 ml-2">{emp.completed}/{emp.total}</span>
                     </div>
-                    <div className="h-1.5 bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden">
+                    <div className="h-1.5 bg-gray-100 dark:bg-[#0f1a2e] rounded-full overflow-hidden">
                       <div
                         className="h-full rounded-full transition-all duration-500"
                         style={{ width: `${emp.completionRate || 0}%`, backgroundColor: DEPT_COLORS[i % DEPT_COLORS.length] }}
@@ -501,7 +501,7 @@ export default function FounderDashboard() {
           ) : (
             <div className="space-y-2">
               {recentTasks.map((task) => (
-                <div key={task._id} className="flex items-start gap-3 p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
+                <div key={task._id} className="flex items-start gap-3 p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-[#17263d]/50 transition-colors">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap mb-0.5">
                       <span className={`badge ${STATUS_COLORS[task.status] || 'badge-gray'}`}>{task.status}</span>

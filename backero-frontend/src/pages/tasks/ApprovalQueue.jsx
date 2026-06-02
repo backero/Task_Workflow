@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
 import { CheckIcon, XMarkIcon, ArrowPathIcon, ClockIcon, ChatBubbleLeftIcon, CalendarDaysIcon } from '@heroicons/react/24/outline';
@@ -34,7 +34,7 @@ function ApprovalModal({ approval, onApprove, onReject, onClose }) {
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-gray-900/60 backdrop-blur-sm" onClick={onClose} />
       <div className="relative card w-full max-w-xl shadow-modal max-h-[90vh] flex flex-col">
-        <div className="p-6 border-b border-gray-200 dark:border-gray-700">
+        <div className="p-6 border-b border-gray-200 dark:border-[#1b2e4a]">
           <h3 className="text-lg font-bold text-gray-900 dark:text-white">Review Task Completion</h3>
         </div>
 
@@ -83,7 +83,7 @@ function ApprovalModal({ approval, onApprove, onReject, onClose }) {
               </p>
               <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
                 {dailyUpdates.map((upd, i) => (
-                  <div key={upd._id || i} className="p-2.5 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                  <div key={upd._id || i} className="p-2.5 bg-gray-50 dark:bg-[#0f1a2e] rounded-lg">
                     <div className="flex items-center justify-between mb-1">
                       <span className="text-xs font-medium text-gray-700 dark:text-gray-300">
                         {upd.author?.firstName} {upd.author?.lastName}
@@ -252,7 +252,7 @@ export default function ApprovalQueue() {
       )}
 
       {/* Tab bar */}
-      <div className="flex gap-1 border-b border-gray-200 dark:border-gray-700">
+      <div className="flex gap-1 border-b border-gray-200 dark:border-[#1b2e4a]">
         {[
           { key: 'completions', label: 'Completion Requests', count: approvals.length },
           { key: 'extensions',  label: 'Extension Requests',  count: totalExtensions },

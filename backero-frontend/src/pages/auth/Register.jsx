@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { motion } from 'framer-motion';
@@ -41,7 +41,7 @@ export default function Register() {
           <p className="text-gray-400 mt-1">Start your enterprise journey</p>
         </div>
 
-        <div className="bg-white dark:bg-gray-900 rounded-2xl p-8 shadow-modal">
+        <div className="bg-white dark:bg-[#070c17] rounded-2xl p-8 shadow-modal">
           <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-6">Create your organization</h2>
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             <div>
