@@ -2201,6 +2201,7 @@ export default function MarketplaceDept() {
   const [showPlanDropdown, setShowPlanDropdown] = useState(false);
   const [dashboardFiles, setDashboardFiles] = useState({});
   const dropdownRef = useRef(null);
+  const iframeRef   = useRef(null);
 
   useEffect(() => {
     fetch('/dashboards/manifest.json')
@@ -2208,6 +2209,28 @@ export default function MarketplaceDept() {
       .then(setDashboardFiles)
       .catch(() => {});
   }, []);
+
+  // postMessage bridge — save/load dashboard localStorage data via backend
+  useEffect(() => {
+    const handler = async (e) => {
+      if (!e.data?.type) return;
+      if (e.data.type === 'DASH_SAVE' && e.data.platform && e.data.data) {
+        api.put(`/marketplace/dashboard/${e.data.platform}`, { data: e.data.data }).catch(() => {});
+      }
+      if (e.data.type === 'DASH_LOAD' && e.data.platform) {
+        try {
+          const res = await api.get(`/marketplace/dashboard/${e.data.platform}`);
+          const data = res.data?.data || {};
+          iframeRef.current?.contentWindow?.postMessage(
+            { type: 'DASH_DATA', platform: e.data.platform, data }, '*'
+          );
+        } catch { /* silent */ }
+      }
+    };
+    window.addEventListener('message', handler);
+    return () => window.removeEventListener('message', handler);
+  }, []);
+
   const navigate     = useNavigate();
   const queryClient  = useQueryClient();
   const { socket }   = useSocketStore();
@@ -2287,6 +2310,7 @@ export default function MarketplaceDept() {
         : dashboardFiles[activePlan]
             ? <iframe
                 key={activePlan}
+                ref={iframeRef}
                 src={dashboardFiles[activePlan]}
                 className="w-full rounded-2xl border border-gray-200"
                 style={{ height: 'calc(100vh - 160px)', display: 'block' }}

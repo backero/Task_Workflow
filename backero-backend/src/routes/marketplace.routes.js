@@ -3,6 +3,7 @@ const Task = require('../models/Task');
 const MarketplaceDaily = require('../models/MarketplaceDaily');
 const MarketplacePlan = require('../models/MarketplacePlan');
 const MarketplacePlanProgress = require('../models/MarketplacePlanProgress');
+const DashboardProgress = require('../models/DashboardProgress');
 const { authenticate } = require('../middleware/auth.middleware');
 const { orgIsolation } = require('../middleware/orgIsolation.middleware');
 const { asyncHandler, sendSuccess, paginate, paginateResponse } = require('../utils/helpers');
@@ -297,6 +298,30 @@ router.put('/progress/:platform/:week', asyncHandler(async (req, res) => {
     { new: true, upsert: true, setDefaultsOnInsert: true }
   );
   sendSuccess(res, { progress: doc });
+}));
+
+// ── HTML Dashboard Progress (localStorage sync to DB) ─────────────────────────
+
+// GET /marketplace/dashboard/:platform — load saved data blob
+router.get('/dashboard/:platform', asyncHandler(async (req, res) => {
+  const doc = await DashboardProgress.findOne({
+    organizationId: req.user.organizationId,
+    platform: req.params.platform,
+  });
+  const data = doc?.data ? Object.fromEntries(doc.data) : {};
+  sendSuccess(res, { data });
+}));
+
+// PUT /marketplace/dashboard/:platform — save data blob
+router.put('/dashboard/:platform', asyncHandler(async (req, res) => {
+  const { data } = req.body;
+  if (!data || typeof data !== 'object') return res.status(400).json({ success: false, message: 'Invalid data' });
+  await DashboardProgress.findOneAndUpdate(
+    { organizationId: req.user.organizationId, platform: req.params.platform },
+    { $set: { data, updatedAt: new Date() } },
+    { upsert: true, new: true }
+  );
+  sendSuccess(res, { ok: true });
 }));
 
 module.exports = router;
