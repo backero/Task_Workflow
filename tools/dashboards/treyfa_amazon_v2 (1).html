@@ -1,0 +1,1098 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Treyfa × Amazon — Daily Work Dashboard</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Segoe UI',Arial,sans-serif;background:#f0f4f8;color:#1a202c;font-size:14px;}
+/* HEADER */
+.hdr{background:#1a365d;color:#fff;padding:14px 24px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;}
+.hdr-logo{font-size:20px;font-weight:800;letter-spacing:1px;}
+.hdr-logo span{color:#f6ad55;}
+.hdr-right{font-size:12px;opacity:.75;text-align:right;line-height:1.6;}
+/* CONTROLS */
+.ctrl{background:#fff;border-bottom:2px solid #e2e8f0;padding:12px 24px;display:flex;gap:12px;align-items:center;flex-wrap:wrap;}
+.ctrl select{padding:8px 12px;border:2px solid #3182ce;border-radius:8px;font-size:13px;font-weight:700;color:#1a365d;background:#ebf8ff;cursor:pointer;}
+.ctrl label{font-size:10px;font-weight:700;color:#718096;display:block;margin-bottom:3px;}
+.week-theme-box{background:#ebf8ff;border-left:4px solid #3182ce;padding:8px 14px;border-radius:0 8px 8px 0;flex:1;min-width:200px;}
+.wt-label{font-size:10px;font-weight:700;color:#3182ce;text-transform:uppercase;letter-spacing:.5px;}
+.wt-desc{font-size:12px;color:#2d3748;margin-top:2px;}
+.adpath-wrap{display:flex;gap:6px;align-items:center;}
+.ap-btn{padding:6px 12px;border-radius:6px;border:2px solid #e2e8f0;background:#fff;font-size:11px;font-weight:700;cursor:pointer;transition:all .15s;color:#4a5568;}
+.ap-btn:hover{border-color:#3182ce;}
+.ap-btn.ap-c.active{border-color:#38a169;background:#f0fff4;color:#276749;}
+.ap-btn.ap-b.active{border-color:#3182ce;background:#ebf8ff;color:#1a365d;}
+.ap-btn.ap-a.active{border-color:#e53e3e;background:#fff5f5;color:#c53030;}
+/* DAY TABS */
+.day-tabs{display:flex;background:#fff;border-bottom:2px solid #e2e8f0;padding:0 24px;overflow-x:auto;}
+.day-tab{padding:12px 20px;cursor:pointer;font-weight:700;font-size:13px;color:#718096;border-bottom:3px solid transparent;white-space:nowrap;transition:all .15s;display:flex;align-items:center;gap:6px;}
+.day-tab:hover{color:#2d3748;background:#f7fafc;}
+.day-tab.active{color:#2b6cb0;border-bottom-color:#3182ce;}
+.done-dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:#38a169;flex-shrink:0;}
+/* ALERT BAR */
+.sl-alert{background:#fff5f5;border-left:5px solid #e53e3e;padding:10px 24px;margin:12px 24px 0;border-radius:0 8px 8px 0;display:none;align-items:center;gap:10px;}
+.sl-alert.show{display:flex;}
+.sl-alert .sl-icon{font-size:20px;}
+.sl-alert .sl-msg{font-size:13px;color:#c53030;font-weight:600;}
+/* MAIN LAYOUT */
+.main{display:flex;gap:18px;padding:18px 24px;max-width:1400px;margin:0 auto;}
+.left{flex:1.7;display:flex;flex-direction:column;gap:14px;}
+.right{flex:1;display:flex;flex-direction:column;gap:14px;}
+/* CARD */
+.card{background:#fff;border-radius:12px;padding:18px;box-shadow:0 1px 4px rgba(0,0,0,.09);}
+.card-title{font-size:14px;font-weight:800;color:#2d3748;margin-bottom:14px;display:flex;align-items:center;gap:8px;}
+.card-title .ic{font-size:17px;}
+.card-title .sub{font-size:11px;font-weight:400;color:#718096;margin-left:auto;}
+/* DAY HEADER CARD */
+.day-hdr-card{background:linear-gradient(135deg,#2b6cb0,#4299e1);color:#fff;border-radius:12px;padding:16px 20px;}
+.day-hdr-card h1{font-size:17px;font-weight:800;}
+.day-hdr-card p{font-size:12px;opacity:.88;margin-top:4px;line-height:1.5;}
+.day-hdr-card .hero-badge{display:inline-block;background:rgba(255,255,255,.2);padding:4px 10px;border-radius:6px;font-size:11px;margin-top:8px;font-weight:600;}
+.day-hdr-card .week-special{background:rgba(246,173,85,.25);border:1px solid rgba(246,173,85,.5);padding:6px 12px;border-radius:6px;font-size:11px;margin-top:8px;font-weight:700;color:#fef3c7;display:block;}
+/* TASK ITEMS */
+.task-item{display:flex;align-items:flex-start;gap:11px;padding:10px 12px;border-radius:8px;border:1.5px solid #e2e8f0;margin-bottom:7px;cursor:pointer;transition:all .15s;user-select:none;}
+.task-item:hover{border-color:#90cdf4;background:#ebf8ff;}
+.task-item.done{background:#f0fff4;border-color:#68d391;}
+.task-item.done .t-text{color:#718096;text-decoration:line-through;}
+.task-item input[type=checkbox]{width:17px;height:17px;margin-top:2px;flex-shrink:0;cursor:pointer;accent-color:#38a169;}
+.t-text{font-size:13px;line-height:1.55;}
+.t-note{font-size:11px;color:#718096;margin-top:3px;font-style:italic;}
+/* MUST-ACHIEVE */
+.must-section{border-top:2px dashed #e2e8f0;padding-top:14px;margin-top:10px;}
+.must-section h3{font-size:12px;font-weight:800;color:#c53030;margin-bottom:10px;text-transform:uppercase;letter-spacing:.4px;}
+.ach-item{display:flex;align-items:flex-start;gap:10px;padding:9px 11px;border-radius:8px;border:1.5px solid #fed7d7;margin-bottom:6px;cursor:pointer;transition:all .15s;user-select:none;}
+.ach-item:hover{background:#fff5f5;}
+.ach-item.done{background:#f0fff4;border-color:#68d391;}
+.ach-item.done .t-text{color:#718096;text-decoration:line-through;}
+.ach-item input[type=checkbox]{width:17px;height:17px;margin-top:2px;flex-shrink:0;cursor:pointer;accent-color:#e53e3e;}
+/* NUMBERS FORM */
+.numbers-grid{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-bottom:8px;}
+.nm-field{display:flex;flex-direction:column;gap:3px;}
+.nm-field label{font-size:10px;font-weight:700;color:#718096;text-transform:uppercase;letter-spacing:.4px;}
+.nm-field .target-hint{font-size:9px;color:#3182ce;font-style:italic;}
+.nm-field input{padding:7px 9px;border:1.5px solid #e2e8f0;border-radius:6px;font-size:13px;width:100%;transition:border-color .15s;}
+.nm-field input:focus{outline:none;border-color:#3182ce;box-shadow:0 0 0 2px rgba(49,130,206,.18);}
+.nm-field input.warn-field{border-color:#e53e3e;background:#fff5f5;}
+.nm-full{grid-column:1/-1;}
+.save-btn{background:#3182ce;color:#fff;border:none;padding:9px;border-radius:8px;font-weight:700;cursor:pointer;width:100%;font-size:13px;margin-top:4px;}
+.save-btn:hover{background:#2b6cb0;}
+.saved-msg{font-size:11px;color:#38a169;text-align:center;margin-top:4px;font-weight:600;display:none;}
+/* STOP-LOSS PANEL */
+.sl-item{padding:11px 12px;border-radius:8px;margin-bottom:8px;border:1.5px solid #e2e8f0;}
+.sl-item h4{font-size:12px;font-weight:800;margin-bottom:3px;display:flex;align-items:center;gap:6px;}
+.sl-item p{font-size:11px;color:#4a5568;line-height:1.5;}
+.sl-item .sl-action{font-size:11px;font-weight:700;margin-top:5px;padding:4px 8px;border-radius:4px;display:inline-block;}
+.sl-safe{background:#f0fff4;border-color:#68d391;}
+.sl-danger{background:#fff5f5;border-color:#fc8181;}
+.sl-warn{background:#fffbeb;border-color:#fbd38d;}
+.sl-safe h4{color:#276749;}
+.sl-danger h4{color:#c53030;}
+.sl-warn h4{color:#92400e;}
+.sl-action.safe-act{background:#c6f6d5;color:#276749;}
+.sl-action.danger-act{background:#fed7d7;color:#c53030;}
+.sl-action.warn-act{background:#fef3c7;color:#92400e;}
+/* PROGRESS BARS */
+.day-prog-item{display:flex;align-items:center;gap:9px;padding:5px 0;}
+.dp-label{font-size:11px;font-weight:700;width:36px;color:#4a5568;}
+.dp-bar{flex:1;height:7px;background:#e2e8f0;border-radius:4px;overflow:hidden;}
+.dp-fill{height:100%;background:#38a169;border-radius:4px;transition:width .3s;}
+.dp-pct{font-size:10px;color:#718096;width:30px;text-align:right;}
+/* HERO REFERENCE */
+.hero-row{display:flex;justify-content:space-between;align-items:flex-start;padding:7px 0;border-bottom:1px solid #f7fafc;gap:8px;}
+.hero-row:last-child{border-bottom:none;}
+.hero-badge-tag{font-size:9px;padding:2px 6px;border-radius:4px;font-weight:700;flex-shrink:0;}
+.tag-hero{background:#ebf8ff;color:#2b6cb0;}
+.tag-watch{background:#faf5ff;color:#6b46c1;}
+.tag-bundle{background:#fef3c7;color:#92400e;}
+.hero-name{font-size:11px;color:#2d3748;flex:1;}
+.hero-note{font-size:10px;color:#718096;font-style:italic;}
+/* NOTES */
+.notes-area{width:100%;border:1.5px solid #e2e8f0;border-radius:8px;padding:8px 10px;font-size:12px;font-family:inherit;resize:vertical;min-height:64px;color:#2d3748;margin-top:8px;}
+.notes-area:focus{outline:none;border-color:#3182ce;}
+/* SCOREBOARD */
+.scoreboard-section{background:#fff;border-radius:12px;padding:22px;margin:0 24px 24px;box-shadow:0 1px 4px rgba(0,0,0,.09);display:none;}
+.scoreboard-section.show{display:block;}
+.scoreboard-section h2{font-size:16px;font-weight:800;color:#2d3748;margin-bottom:4px;}
+.scoreboard-section .sb-sub{font-size:12px;color:#718096;margin-bottom:16px;}
+.sb-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;margin-bottom:16px;}
+.sb-field{display:flex;flex-direction:column;gap:4px;}
+.sb-field label{font-size:10px;font-weight:700;color:#718096;text-transform:uppercase;letter-spacing:.4px;}
+.sb-field input,.sb-field textarea,.sb-field select{padding:8px;border:1.5px solid #e2e8f0;border-radius:6px;font-size:12px;width:100%;}
+.sb-field textarea{min-height:60px;resize:vertical;}
+.sb-full{grid-column:1/-1;}
+.gen-btn{background:#2f855a;color:#fff;border:none;padding:11px 24px;border-radius:8px;font-weight:700;cursor:pointer;font-size:14px;margin-right:8px;}
+.gen-btn:hover{background:#276749;}
+.print-btn{background:#2b6cb0;color:#fff;border:none;padding:11px 20px;border-radius:8px;font-weight:700;cursor:pointer;font-size:14px;}
+.sb-output{background:#f7fafc;border:1.5px solid #e2e8f0;border-radius:8px;padding:16px;margin-top:14px;white-space:pre-wrap;font-size:12px;line-height:1.7;display:none;font-family:'Courier New',monospace;}
+.copy-btn{background:#718096;color:#fff;border:none;padding:7px 14px;border-radius:6px;cursor:pointer;margin-top:8px;font-size:12px;margin-right:6px;}
+.copy-btn:hover{background:#4a5568;}
+/* TRIGGERED TASKS PANEL */
+.trig-item{padding:9px 11px;border-radius:7px;border:1.5px solid #e2e8f0;margin-bottom:7px;font-size:12px;}
+.trig-trigger{font-weight:700;color:#744210;font-size:11px;}
+.trig-action{color:#2d3748;margin-top:3px;line-height:1.5;}
+/* BOTTOM BAR */
+.bottom-bar{background:#1a365d;color:#fff;padding:10px 24px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-top:8px;}
+.bottom-bar .bb-txt{font-size:12px;opacity:.8;}
+.bb-btn{padding:7px 16px;border-radius:6px;border:none;cursor:pointer;font-size:12px;font-weight:700;}
+.bb-reset{background:rgba(255,255,255,.15);color:#fff;}
+.bb-reset:hover{background:rgba(255,255,255,.25);}
+.bb-export{background:#f6ad55;color:#1a365d;}
+.bb-export:hover{background:#ed8936;}
+/* RESPONSIVE */
+@media(max-width:880px){.main{flex-direction:column;}.numbers-grid{grid-template-columns:1fr 1fr;}.sb-grid{grid-template-columns:1fr 1fr;}}
+@media print{.ctrl,.day-tabs,.sl-alert,.bottom-bar{display:none!important;}.main{display:block;}.right{margin-top:16px;}}
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="hdr">
+  <div class="hdr-logo">TREYFA <span>×</span> AMAZON &nbsp;|&nbsp; Daily Work Dashboard</div>
+  <div class="hdr-right" id="dateDisplay"></div>
+</div>
+
+<!-- CONTROLS -->
+<div class="ctrl">
+  <div>
+    <label>CURRENT WEEK</label>
+    <select id="weekSelect" onchange="onWeekChange()">
+      <option value="1">Week 1</option><option value="2">Week 2</option>
+      <option value="3">Week 3</option><option value="4">Week 4</option>
+      <option value="5">Week 5</option><option value="6">Week 6</option>
+      <option value="7">Week 7</option><option value="8">Week 8</option>
+      <option value="9">Week 9</option><option value="10">Week 10</option>
+      <option value="11">Week 11</option><option value="12">Week 12</option>
+    </select>
+  </div>
+  <div class="week-theme-box">
+    <div class="wt-label">This Week's Focus</div>
+    <div class="wt-desc" id="weekThemeDesc"></div>
+  </div>
+  <div>
+    <label>AD PATH THIS WEEK</label>
+    <div class="adpath-wrap">
+      <button class="ap-btn ap-c" onclick="setAdPath('c')" id="ap-c">🟢 Conservative</button>
+      <button class="ap-btn ap-b" onclick="setAdPath('b')" id="ap-b">🔵 Base</button>
+      <button class="ap-btn ap-a" onclick="setAdPath('a')" id="ap-a">🔴 Aggressive</button>
+    </div>
+    <div id="ap-budget" style="font-size:10px;color:#718096;margin-top:4px;"></div>
+  </div>
+</div>
+
+<!-- DAY TABS -->
+<div class="day-tabs" id="dayTabs">
+  <div class="day-tab" data-day="MON" onclick="onDayChange('MON')">Monday</div>
+  <div class="day-tab" data-day="TUE" onclick="onDayChange('TUE')">Tuesday</div>
+  <div class="day-tab" data-day="WED" onclick="onDayChange('WED')">Wednesday</div>
+  <div class="day-tab" data-day="THU" onclick="onDayChange('THU')">Thursday</div>
+  <div class="day-tab" data-day="FRI" onclick="onDayChange('FRI')">Friday</div>
+  <div class="day-tab" data-day="SAT" onclick="onDayChange('SAT')">Saturday</div>
+</div>
+
+<!-- STOP-LOSS ALERT BAR -->
+<div class="sl-alert" id="slAlertBar">
+  <div class="sl-icon">🚨</div>
+  <div class="sl-msg" id="slAlertMsg">Stop-loss rule triggered — check the Stop-Loss panel on the right immediately.</div>
+</div>
+
+<!-- MAIN -->
+<div class="main">
+  <div class="left">
+    <div class="day-hdr-card" id="dayHdrCard"></div>
+    <div class="card">
+      <div class="card-title"><span class="ic">🔁</span> Daily Constants — Do These First, Every Single Day</div>
+      <div id="constantsList"></div>
+    </div>
+    <div class="card">
+      <div class="card-title"><span class="ic">📋</span> Today's Tasks <span class="sub" id="taskProgress"></span></div>
+      <div id="taskList"></div>
+      <div class="must-section">
+        <h3>✅ Must Complete Before End of Day</h3>
+        <div id="mustList"></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title"><span class="ic">📝</span> Notes &amp; Decisions Made Today</div>
+      <textarea class="notes-area" id="notesArea" placeholder="Write what you did, what decisions you made, what you noticed today. E.g. Paused Campaign X — ACOS was 82% for 3 weeks."></textarea>
+    </div>
+  </div>
+
+  <div class="right">
+    <div class="card">
+      <div class="card-title"><span class="ic">📊</span> Enter Today's Numbers</div>
+      <div class="numbers-grid">
+        <div class="nm-field">
+          <label>Units Sold Today</label>
+          <input type="number" id="n_units" placeholder="e.g. 4">
+        </div>
+        <div class="nm-field">
+          <label>Sessions (Visitors)</label>
+          <input type="number" id="n_sessions" placeholder="e.g. 120">
+        </div>
+        <div class="nm-field">
+          <label>CTR — Hero #1 (%)<span class="target-hint">Target ≥1.25%</span></label>
+          <input type="number" step="0.01" id="n_ctr" placeholder="e.g. 1.30">
+        </div>
+        <div class="nm-field">
+          <label>CVR — Overall (%)<span class="target-hint">Target ≥10%</span></label>
+          <input type="number" step="0.01" id="n_cvr" placeholder="e.g. 10.5">
+        </div>
+        <div class="nm-field">
+          <label>ACOS — Worst Campaign (%)<span class="target-hint">Danger if &gt;70%</span></label>
+          <input type="number" step="0.01" id="n_acos" placeholder="e.g. 38">
+        </div>
+        <div class="nm-field">
+          <label>Ad Spend Today (₹)</label>
+          <input type="number" id="n_adspend" placeholder="e.g. 285">
+        </div>
+        <div class="nm-field">
+          <label>Ad Revenue Today (₹)</label>
+          <input type="number" id="n_adrev" placeholder="e.g. 800">
+        </div>
+        <div class="nm-field">
+          <label>Reviews Posted This Week</label>
+          <input type="number" id="n_reviews" placeholder="e.g. 8">
+        </div>
+        <div class="nm-field nm-full">
+          <label>FBA Stock — Days Remaining (lowest hero)<span class="target-hint">Danger if &lt;7 days</span></label>
+          <input type="number" id="n_fbadays" placeholder="e.g. 18">
+        </div>
+        <div class="nm-field nm-full">
+          <label>Cumulative Net P&amp;L (₹) — Running Total<span class="target-hint">STOP if below −₹15,000</span></label>
+          <input type="number" id="n_netpl" placeholder="e.g. -2400">
+        </div>
+        <div class="nm-field nm-full">
+          <label>Notes / Anomalies Spotted</label>
+          <input type="text" id="n_anomaly" placeholder="e.g. Hero #2 CTR dropped — check image">
+        </div>
+      </div>
+      <button class="save-btn" onclick="saveNumbers()">💾 Save Today's Numbers</button>
+      <div class="saved-msg" id="savedMsg">✓ Numbers saved! Stop-loss panel updated.</div>
+    </div>
+
+    <div class="card">
+      <div class="card-title"><span class="ic">🛑</span> Stop-Loss Watch — Auto-Updates When You Save Numbers</div>
+      <div id="stopLossList"></div>
+      <div style="font-size:10px;color:#718096;margin-top:6px;">Updates automatically when you click "Save Today's Numbers" above.</div>
+    </div>
+
+    <div class="card">
+      <div class="card-title"><span class="ic">📈</span> This Week's Progress</div>
+      <div id="weekProgress"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title"><span class="ic">🏆</span> Heroes &amp; Watch SKUs — Quick Reference</div>
+      <div id="heroReference"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title"><span class="ic">⚡</span> Triggered Conditions — Act Same Day If Fired</div>
+      <div id="triggeredList"></div>
+    </div>
+  </div>
+</div>
+
+<!-- SATURDAY SCORECARD -->
+<div class="scoreboard-section" id="scoreboardSection">
+  <h2>📨 Saturday Scorecard — Pre-fill Today, Review with Founder on Sunday Evening</h2>
+  <div class="sb-sub">Fill in each box. Click "Generate Scorecard" to get a ready-to-send summary for the founder.</div>
+  <div class="sb-grid">
+    <div class="sb-field"><label>Week Number</label><input id="sb_week" placeholder="e.g. Week 3"></div>
+    <div class="sb-field"><label>Units Sold This Week</label><input id="sb_units" placeholder="e.g. 18 units"></div>
+    <div class="sb-field"><label>This Week's Target (Units)</label><input id="sb_target" placeholder="e.g. 14–18 units"></div>
+    <div class="sb-field"><label>Best Performing Hero</label><input id="sb_best" placeholder="e.g. Hero #1 — Neem Shampoo"></div>
+    <div class="sb-field"><label>Weakest Hero This Week</label><input id="sb_worst" placeholder="e.g. Hero #3 — CVR low"></div>
+    <div class="sb-field"><label>Total Ad Spend This Week (₹)</label><input id="sb_adspend" placeholder="e.g. 2000"></div>
+    <div class="sb-field"><label>Total Ad Revenue This Week (₹)</label><input id="sb_adrev" placeholder="e.g. 5200"></div>
+    <div class="sb-field"><label>Overall ACOS This Week (%)</label><input id="sb_acos" placeholder="e.g. 38%"></div>
+    <div class="sb-field"><label>Agency Reviews Published</label><input id="sb_agency" placeholder="e.g. 12 out of 12"></div>
+    <div class="sb-field"><label>Cumulative Net P&amp;L (₹)</label><input id="sb_netpl" placeholder="e.g. +₹1,200"></div>
+    <div class="sb-field"><label>FBA Stock Status</label><input id="sb_stock" placeholder="e.g. All heroes above 14 days"></div>
+    <div class="sb-field"><label>Ad Path for Next Week</label>
+      <select id="sb_adpath"><option>🔵 Base (default)</option><option>🟢 Conservative</option><option>🔴 Aggressive</option></select>
+    </div>
+    <div class="sb-field"><label>Hero #1 CTR This Week (%)</label><input id="sb_ctr1" placeholder="e.g. 1.28%"></div>
+    <div class="sb-field"><label>Hero #2 CTR This Week (%)</label><input id="sb_ctr2" placeholder="e.g. 1.10%"></div>
+    <div class="sb-field"><label>Keyword Rank — Hero #1</label><input id="sb_rank1" placeholder="e.g. Page 2, pos 8"></div>
+    <div class="sb-field"><label>Keyword Rank — Hero #2</label><input id="sb_rank2" placeholder="e.g. Page 1, pos 4"></div>
+    <div class="sb-field sb-full"><label>Top 3 Wins This Week</label><textarea id="sb_wins" placeholder="1. Hero #1 CTR improved from 0.95% to 1.28%&#10;2. FBA shipment dispatched on time&#10;3. Coupon approved and live on both heroes"></textarea></div>
+    <div class="sb-field sb-full"><label>Top 3 Misses This Week</label><textarea id="sb_misses" placeholder="1. Brand Store still not approved&#10;2. Q&A seeding round 2 not done&#10;3. Vine enrollment delayed to next week"></textarea></div>
+    <div class="sb-field sb-full"><label>One Decision Needed From Founder</label><textarea id="sb_decision" placeholder="e.g. Should we move to Aggressive ad path next week? P&L is +₹1,200 and FBA badge is live."></textarea></div>
+    <div class="sb-field sb-full"><label>Any Stop-Loss Rule Triggered This Week?</label><textarea id="sb_stoploss" placeholder="e.g. No stop-loss rules triggered. OR: Campaign X paused — ACOS was 78% for 2 weeks."></textarea></div>
+  </div>
+  <button class="gen-btn" onclick="generateScorecard()">📄 Generate Scorecard</button>
+  <button class="print-btn" onclick="window.print()">🖨️ Print This Page</button>
+  <div class="sb-output" id="sbOutput"></div>
+  <button class="copy-btn" id="copyBtn" onclick="copyScorecard()" style="display:none;">📋 Copy to Clipboard</button>
+</div>
+
+<!-- BOTTOM BAR -->
+<div class="bottom-bar">
+  <div class="bb-txt" id="bb-progress">Loading…</div>
+  <div style="display:flex;gap:8px;">
+    <button class="bb-btn bb-reset" onclick="resetDay()">↺ Reset Today's Tasks</button>
+    <button class="bb-btn bb-export" onclick="exportDayReport()">⬇ Export Day Report</button>
+  </div>
+</div>
+
+<script>
+// ─────────────────────────────────────────────
+// PLAN START DATE — Monday 18 May 2026
+// ─────────────────────────────────────────────
+const PLAN_START = new Date('2026-05-18T00:00:00');
+
+// ─────────────────────────────────────────────
+// WEEK DATA
+// ─────────────────────────────────────────────
+const AD_BUDGETS = {
+  1:{c:1400,b:2000,a:2500},2:{c:1400,b:2000,a:2800},3:{c:1800,b:2500,a:3500},
+  4:{c:1800,b:2500,a:3800},5:{c:2200,b:3000,a:4500},6:{c:2200,b:3000,a:4800},
+  7:{c:2500,b:3500,a:5500},8:{c:2500,b:3500,a:5800},9:{c:2800,b:4000,a:6200},
+  10:{c:2800,b:4000,a:6500},11:{c:3000,b:4500,a:6500},12:{c:3000,b:4500,a:6500}
+};
+
+const WEEK_THEMES = {
+  1:{name:"Foundation",desc:"Clean up the catalog. Declare the 3 heroes. Launch first ads. No spending before the listing is clean.",special:"WEEK 1 NON-NEGOTIABLE: 6 combo ASINs CLOSED in Seller Central by end of Tuesday."},
+  2:{name:"FBA Prep + Virtual Bundle + Expand Ads",desc:"Ship 85 units to Amazon warehouse. Create the bundle. Launch Hero #2 Manual EXACT ads.",special:"WEEK 2 NON-NEGOTIABLE: FBA shipment dispatched to Amazon warehouse by Thursday."},
+  3:{name:"Coupon #1 + Turmeric Rescue + FBA In Transit",desc:"Launch first coupon (10%). Enroll Hero #1 in Vine. Begin Turmeric rating rescue.",special:"WEEK 3 NON-NEGOTIABLE: Coupon live on Hero #1 and #2. Vine enrollment submitted."},
+  4:{name:"FBA Goes Live — Prime Badge + CTR Lift",desc:"Confirm Prime badge on all 3 heroes. Raise bids +20% immediately. Launch Sponsored Display.",special:"WEEK 4 NON-NEGOTIABLE: Prime badge confirmed + Manual EXACT bids raised +20% same day."},
+  5:{name:"CVR Ceiling Push + Coupon #2 + Watch SKUs",desc:"A/B image test on Hero #1. Coupon #2 (8%). FBA Phase 2 for Watch SKUs. Start FBT engineering.",special:"WEEK 5 NON-NEGOTIABLE: A/B image test LIVE on Hero #1 in Manage Your Experiments."},
+  6:{name:"Full ACOS Audit + Turmeric Verdict + Hero #2 Lock",desc:"Full 6-week ACOS audit. Turmeric relaunch or extend rescue. Mid-plan reflection.",special:"WEEK 6 NON-NEGOTIABLE: Every campaign categorised — Scale / Hold / Pause. No exceptions."},
+  7:{name:"Sponsored Brands Launch + Bundle Scaling + Wave 1",desc:"Launch Sponsored Brands campaign. Scale the bundle. First WhatsApp repeat-purchase broadcast.",special:"WEEK 7 NON-NEGOTIABLE: Sponsored Brands campaign LIVE by Wednesday."},
+  8:{name:"SB Video Launch + Hero #2 Aggressive Rank Push",desc:"Film and launch 15-second SB Video. Push Hero #2 to page 1 dominance.",special:"WEEK 8 NON-NEGOTIABLE: SB Video uploaded and LIVE by Wednesday."},
+  9:{name:"Page-1 Consolidation + Wave 2 + Portfolio Review",desc:"3 heroes on page 1. Cut losing campaigns. WhatsApp Wave 2. Watch #2 launch.",special:"WEEK 9 NON-NEGOTIABLE: All campaigns with 12-week ACOS >70% paused today."},
+  10:{name:"Category Dominance + Coupon #3 + Hero #3 Page-1",desc:"Coupon #3 (7%). Hero #3 aggressive page-1 push. FBA Phase 3 decision.",special:"WEEK 10 NON-NEGOTIABLE: Hero #3 aggressive bid push launched. Phase 3 FBA decision made."},
+  11:{name:"Organic Ratio Check + Wave 3 + Listing Refresh",desc:"Refresh all hero listings. Wave 3 broadcast (12% off). Pre-harvest audit.",special:"WEEK 11 NON-NEGOTIABLE: WhatsApp Wave 3 broadcast sent (12% off) on Thursday."},
+  12:{name:"Harvest + 12-Week Audit + Maintenance Protocol",desc:"Hold ad spend flat. Full financial audit. Write maintenance protocol and next launch brief.",special:"WEEK 12 NON-NEGOTIABLE: 12-week financial audit complete by Friday. Maintenance protocol written by Saturday."}
+};
+
+const CONSTANTS = [
+  {id:"c1",title:"Morning Health Check (10 mins — do this at 10:00 AM sharp)",text:"Open Seller Central. Check: (1) Any account-health warnings? If YES — stop everything else and deal with it first. (2) Buy Box showing 100% on all 3 heroes? If NO — investigate immediately. (3) Ad spend pace for today — on track with daily budget?",note:"Missing an account-health warning can lead to suspension in 48 hours."},
+  {id:"c2",title:"Q&A and Review Replies (15 mins)",text:"Check all hero product pages for new buyer questions. Answer every new Q&A within 24 hours. Check for new 1-star, 2-star, 3-star reviews — reply publicly to every one of them same day.",note:"Amazon tracks your response speed. Slow replies hurt your ranking."},
+  {id:"c3",title:"Stop-Loss Glance (5 mins — done silently)",text:"Look at the 5 stop-loss cards on the right panel. No meeting needed — just look. If anything is RED, act on it immediately. Do not wait for tomorrow.",note:"Missing a stop-loss trigger for even one day costs more than any task done wrong."}
+];
+
+const MUST = {
+  MON:[
+    {id:"mm1",text:"Agency review brief sent — correct product allocation per this week's plan written above."},
+    {id:"mm2",text:"Ad path decided (Conservative / Base / Aggressive) and set in the selector above."},
+    {id:"mm3",text:"All 3 hero ASINs confirmed: live, in stock, Buy Box 100%. Fixed if not."},
+    {id:"mm4",text:"This week's single most important task has been STARTED — not just planned."}
+  ],
+  TUE:[
+    {id:"tm1",text:"All catalog changes from today's plan are LIVE in Seller Central — not sitting in draft."},
+    {id:"tm2",text:"Backend keywords updated on today's hero listing (all 250 characters filled)."},
+    {id:"tm3",text:"FBA inventory checked — if any hero is below 14 days of stock, replenishment triggered."}
+  ],
+  WED:[
+    {id:"wm1",text:"Negative keyword cleanup done — terms with 15+ impressions and 0 clicks added as negatives."},
+    {id:"wm2",text:"Search-term harvest done — any converting term added to Manual EXACT campaign."},
+    {id:"wm3",text:"All ad changes (bids, budgets, new campaigns) are LIVE in Ad Console — not just planned."}
+  ],
+  THU:[
+    {id:"thm1",text:"Zero unanswered Q&A on all 3 hero product pages right now."},
+    {id:"thm2",text:"Every new 1-star, 2-star, or 3-star review posted this week has a public reply from the brand."},
+    {id:"thm3",text:"Vine product ship-outs done if any Vine reviewer requested product this week."}
+  ],
+  FRI:[
+    {id:"fm1",text:"Competitor tracking sheet updated — 5 competitors: price, reviews, images, badges, BSR."},
+    {id:"fm2",text:"Keyword rank logged for all 6 priority keywords in incognito browser."},
+    {id:"fm3",text:"Weekly KPI snapshot pulled — Units, Sessions, CVR, Ad Spend, ACOS, Reviews — ready for Sunday scorecard."}
+  ],
+  SAT:[
+    {id:"sm1",text:"Sunday scorecard data pre-filled in the Scorecard section below — units, spend, wins, misses."},
+    {id:"sm2",text:"Zero tasks carrying over to next week — everything is closed or properly documented."},
+    {id:"sm3",text:"Monday prep note written — what must be ready before Monday's work begins?"}
+  ]
+};
+
+const TASKS = {
+  MON:{
+    title:"Monday — Week-Opener",tagline:"Plan the week. Send the agency brief. Set the ad path. Confirm heroes are healthy.",
+    tasks:[
+      {id:"m1",text:"Read the full strategy document one more time so everything is clear in your head.",note:"Do this before touching any Amazon dashboard today. Context prevents mistakes."},
+      {id:"m2",text:"Send the agency their weekly review brief: correct product allocation per the week's plan. Written brief — not just a verbal call.",note:"See review allocation in the week header above."},
+      {id:"m3",text:"Set this week's ad path using the selector above (Conservative / Base / Aggressive). Rule: if last week's Net P&L was below −₹500 → Conservative. Between −₹500 and +₹2,000 → Base. Above +₹2,000 → Aggressive.",note:"Week 1 starts on Base (₹2,000) — no prior data exists."},
+      {id:"m4",text:"Open Seller Central. Confirm all 3 hero ASINs are: live, in stock, Buy Box 100%. Fix any that aren't.",note:"Heroes must be perfect before you spend even one rupee on ads."},
+      {id:"m5",text:"Pull last week's data (or yesterday's if Week 1): Sessions, Unit Session %, ACOS per campaign. Write the numbers down.",note:"Numbers you don't write down don't improve."},
+      {id:"m6",text:"Week 1 only: List all 6 combo ASINs and 7 Tier-2 kill ASINs on one sheet. Mark each one: Close / Pause / Keep. This sets up Tuesday's catalog cleanup.",note:"Do this today so Tuesday has a clear execution list.",wOnly:1},
+      {id:"m7",text:"Week 2 only: Write the FBA shipment plan — Hero #1 × 30 + Hero #2 × 25 + Hero #3 × 30 = 85 units. Have it ready for Tuesday.",note:"",wOnly:2},
+      {id:"m8",text:"Week 4 only: Confirm Prime badge is live on all 3 heroes (open each in incognito browser and look for the Prime badge). If live — immediately raise Manual EXACT bids +20% in Ad Console.",note:"Do this bid raise TODAY. The Prime badge lifts CTR within hours. Every hour you delay is wasted momentum.",wOnly:4},
+      {id:"m9",text:"Week 5 only: Watch #1 promotion decision — did Choco Coffee Face Wash CVR cross 12%+ in the last 2 weeks? If YES, promote to Hero #4. If NO, extend Watch status 2 more weeks.",note:"",wOnly:5},
+      {id:"m10",text:"Week 6 only: Mid-plan reflection — open the 6-week scorecard data. Are heroes performing? Look at trends, not just last week. What needs to change in Weeks 7–12?",note:"Half the plan is done. Honest assessment now prevents failure later.",wOnly:6},
+      {id:"m11",text:"Week 7 only: Confirm Brand Store is live and content is polished. Pull past buyer list for WhatsApp Wave 1 broadcast (Thursday).",note:"",wOnly:7},
+      {id:"m12",text:"Week 10 only: Identify FBA Phase 3 candidates — any non-hero SKU averaging 2+ units/week for 3 consecutive weeks is eligible.",note:"",wOnly:10},
+      {id:"m13",text:"Week 11 only: Check organic-vs-paid ratio — of last 4 weeks' units sold, what % came from organic (no ad click)? Target: organic > 50%.",note:"If organic is below 30% you are over-dependent on ads.",wOnly:11},
+      {id:"m14",text:"Week 12 only: Plan the Week 12 audit structure — what data will you pull on Friday? P&L, FBA performance, ad ROI, keyword rank final, review count. Schedule Friday morning for the audit.",note:"",wOnly:12}
+    ]
+  },
+  TUE:{
+    title:"Tuesday — Listings & Catalog",tagline:"Everything that touches the product listing. Fix, optimize, launch — all changes must be LIVE today.",
+    tasks:[
+      {id:"t1",text:"Listing quality scan on all hero ASINs: check title, main image, bullet points, backend keywords, A+ content. Anything weak — fix it today.",note:"Week 1: this is especially critical. Heroes must be perfect before ads run."},
+      {id:"t2",text:"Week 1 only: CLOSE the 6 combo ASINs (B0FR5B2W1C, B0FR5DF4QZ, B0FR99VWLK, B0FR9SLHJZ, B0FRNCN6TN, B0FRSMH5TH). Seller Central → Manage Inventory → Close listing. Do NOT delete.",note:"Closing hides the listing but keeps ASIN history and reviews safe.",wOnly:1},
+      {id:"t3",text:"Week 1 only: Close Tier-2 ASINs (B0F5QLFC18, B0F66DJHZG, B0F5BTTL34, B0F6D5PT1W). Pause-only (keep ASIN) for B0F5W5FXRM and B0F6D77CQ7.",note:"",wOnly:1},
+      {id:"t4",text:"Week 1 only: Backend keyword optimization on all 3 heroes — fill all 250 characters with misspellings, Hindi/Tamil words, long-tail phrases.",note:"Backend keywords are invisible to buyers but help Amazon show your product in searches.",wOnly:1},
+      {id:"t5",text:"Week 2 only: Create FBA shipment in Seller Central → Inventory → Send to Amazon (85 units, 3 heroes). Print FNSKU labels.",note:"Apply one FNSKU label per unit. Or pay Amazon ₹5/unit to label for you.",wOnly:2},
+      {id:"t6",text:"Week 2 only: Create Virtual Product Bundle — Hero #1 + Hero #2 priced at ₹340 (saves ₹30 vs buying separately). Submit for Amazon review (24–48 hr).",note:"Bundle replaces the closed combo ASINs — same concept, done properly this time.",wOnly:2},
+      {id:"t7",text:"Week 3 only: Refresh A+ content on Hero #1 — pull 3 best phrases from real reviews and add to A+ image text. Refresh Hero #2 — emphasize the Ayurvedic / curry leaves angle.",note:"",wOnly:3},
+      {id:"t8",text:"Week 3 only: Configure coupon: Seller Central → Advertising → Coupons. 10% on Hero #1 + Hero #2. Budget: ₹2,000 cap. Duration: 7 days. Submit (24 hr approval).",note:"The orange coupon badge on search results significantly improves CTR.",wOnly:3},
+      {id:"t9",text:"Week 3 only: Start including the packaging insert in every outgoing FBM order today.",note:"Every package from now on is a free review request machine.",wOnly:3},
+      {id:"t10",text:"Week 4 only: Verify FBA received count matches dispatched count. File reimbursement claim if received < dispatched.",note:"Seller Central → Help → Inventory adjustments. Amazon reimburses for lost units.",wOnly:4},
+      {id:"t11",text:"Week 5 only: Dispatch FBA Phase 2 shipment (Watch #1 + Watch #2 × 20 units each) if Phase 2 was GO from Week 4 Friday gate.",note:"",wOnly:5},
+      {id:"t12",text:"Week 5 only: Launch A/B image test on Hero #1 — Seller Central → Brands → Manage Your Experiments. Test current main image vs new version. Run 30 days.",note:"Image A/B is the single biggest CVR lever after getting more reviews.",wOnly:5},
+      {id:"t13",text:"Week 6 only: Turmeric Face Wash relaunch IF rating ≥4.0 stars — new main image, rewritten bullets, restart small ad budget (₹200/week).",note:"Only relaunch if rating is above 4.0 stars.",wOnly:6},
+      {id:"t14",text:"Week 7 only: Refresh virtual bundle A+ content — emphasize 'complete hair care routine'. Deploy A/B image test winner if Week 5 Experiments showed a winner.",note:"",wOnly:7},
+      {id:"t15",text:"Week 8 only: Film the 15-second SB Video today (phone camera + natural light is fine). Edit: 2s logo intro + 10s product story + 3s end card.",note:"Video must be ready for Wednesday upload.",wOnly:8},
+      {id:"t16",text:"Week 9 only: Full listing refresh on Watch #2 if promoted to Hero #4 — rewrite using 8 weeks of accumulated review language.",note:"",wOnly:9},
+      {id:"t17",text:"Week 10 only: Refresh Hero #3 listing — pull top review phrases from 10 weeks and integrate into bullets.",note:"",wOnly:10},
+      {id:"t18",text:"Week 11 only: Bullet refresh on ALL 3 heroes — pull top 5 review phrases per hero from past 10 weeks. Rewrite all bullet points.",note:"",wOnly:11},
+      {id:"t19",text:"Week 12 only: FBA inventory final-week check. Heroes must NOT go out of stock this week under any circumstance.",note:"Stock-out in Week 12 = losing all rank gained over 11 weeks.",wOnly:12}
+    ]
+  },
+  WED:{
+    title:"Wednesday — Advertising",tagline:"Campaign-only day. Bids, budgets, keywords, new campaigns — all ad work happens today.",
+    tasks:[
+      {id:"w1",text:"Weekly search-term harvest from Auto campaigns: any term with 1+ conversion → add to Manual EXACT immediately.",note:"This is done every Wednesday, every week. It is the core of how the ad strategy improves."},
+      {id:"w2",text:"Negative keyword cleanup from Auto campaign report: any term with 15+ impressions and 0 clicks → add as negative keyword.",note:"Eliminating waste is as important as finding winners."},
+      {id:"w3",text:"Bid adjustments: any Manual EXACT keyword with CVR ≥15% → raise bid +10–15%. Any keyword with ACOS >70% for 3+ weeks → pause it.",note:""},
+      {id:"w4",text:"Week 1 only: Submit Brand Store for Amazon approval (3–5 business days). Launch Tier 1 (Sponsored Brands on 'treyfa' keywords, ₹500/wk). Launch Tier 2 (SP Manual EXACT Hero #1, ₹600/wk). Launch Tier 3 (SP Auto on all 3 heroes, ₹900/wk).",note:"Divide weekly budget ÷ 7 = daily cap. Set this in Ad Console.",wOnly:1},
+      {id:"w5",text:"Week 2 only: Launch Tier 2 Manual EXACT for Hero #2 — 'curry leaves hair oil', 'coconut hair oil'. Budget: ₹600/week added to existing.",note:"",wOnly:2},
+      {id:"w6",text:"Week 3 only: Pause any keyword with ACOS >70% and 2+ full weeks of data. If FBA badge went live early — raise that hero's Manual EXACT bids +20% immediately.",note:"",wOnly:3},
+      {id:"w7",text:"Week 4 only: Launch WhatsApp Wave 1 broadcast — 'New from Treyfa: Same-day delivery now available. ₹20 off this weekend.' Include Amazon link. Launch Sponsored Display retargeting on Hero #1 (₹400/wk, 30-day lookback audience).",note:"",wOnly:4},
+      {id:"w8",text:"Week 5 only: Launch Coupon #2 (8% on Hero #1 + Hero #2). Begin Hero #2 page-1 bid push: raise 'curry leaves hair oil' EXACT bids +20%.",note:"",wOnly:5},
+      {id:"w9",text:"Week 6 only: FULL ACOS AUDIT — go through every campaign and every keyword. ACOS <40% → Scale budget +25%. ACOS 40–70% → Hold. ACOS >70% → Pause. Document every decision.",note:"6 weeks of data is statistically confident. Act on it.",wOnly:6},
+      {id:"w10",text:"Week 7 only: Launch Sponsored Brands campaign — 3 heroes + Brand Store link. Budget ₹800/week total. Launch bundle dedicated ad (SP Auto + EXACT, ₹400/week).",note:"",wOnly:7},
+      {id:"w11",text:"Week 8 only: Upload SB Video to Ad Console. Launch SB Video campaign. Budget ₹400/week. Hero #2 aggressive push: top 3 keywords +30% bid.",note:"",wOnly:8},
+      {id:"w12",text:"Week 9 only: Pause all campaigns with 12-week cumulative ACOS >70%. Reallocate paused budget to top 3 performers.",note:"",wOnly:9},
+      {id:"w13",text:"Week 10 only: Launch Coupon #3 (7% on Hero #3 + bundle). Hero #3 aggressive bid push: top keywords +30%.",note:"",wOnly:10},
+      {id:"w14",text:"Week 11 only: Final ad portfolio clean-up — pause all keywords averaging ACOS >50% over last 4 weeks. No exceptions at this stage.",note:"",wOnly:11},
+      {id:"w15",text:"Week 12 only: Ad portfolio HOLD — no major changes. Minor bid increase only on confirmed best performers (CVR ≥25% over 8+ weeks).",note:"",wOnly:12}
+    ]
+  },
+  THU:{
+    title:"Thursday — Trust & Community",tagline:"Everything that builds buyer confidence. Q&A, reviews, Vine, WhatsApp, customer service.",
+    tasks:[
+      {id:"th1",text:"Q&A inbox — answer every new buyer question across all hero product pages. Target: reply within 24 hours.",note:"Amazon tracks response time. Fast replies improve ranking."},
+      {id:"th2",text:"1-star, 2-star, 3-star review monitor — reply publicly to every new negative review today. Offer resolution via 'email us' path in the reply.",note:"Public replies show future buyers that you care. This is free trust-building."},
+      {id:"th3",text:"Customer message audit — any escalations or repeated complaints this week? If the same complaint appears 2+ times, the listing needs fixing.",note:"Repeated questions = listing gap. Fix it or add it to Q&A."},
+      {id:"th4",text:"Week 1 only: Q&A seeding round 1 — post 5 questions per hero from friends/family accounts. Answer all within 4 hours from the brand account. Setup WhatsApp Business Catalog with all hero + watch SKUs.",note:"Empty Q&A looks unprofessional to buyers.",wOnly:1},
+      {id:"th5",text:"Week 2 only: Dispatch the FBA shipment to Amazon warehouse today (Easy Ship or own carrier). Check Vine eligibility for Hero #1 — needs Brand Registry + fewer than 30 reviews.",note:"",wOnly:2},
+      {id:"th6",text:"Week 3 only: Enroll Hero #1 in Amazon Vine (Seller Central → Brands → Vine). Cost: ₹2,000–3,000. Returns 20–30 reviews over 30–60 days. Confirm Turmeric agency reviews are posting.",note:"",wOnly:3},
+      {id:"th7",text:"Week 4 only: Vine review check — first Vine reviewers may have requested products. Ship immediately if any request received. Turmeric rescue check: is the star rating moving up?",note:"",wOnly:4},
+      {id:"th8",text:"Week 5 only: Turmeric CRITICAL CHECK — has it crossed 4.0 stars? If YES: relaunch Tuesday Week 6 with new image. If NO: extend rescue 2 more weeks.",note:"",wOnly:5},
+      {id:"th9",text:"Week 7 only: Send WhatsApp Wave 1 broadcast — 10% off repeat purchase coupon to all past hero buyers. Submit Hero #2 for Vine enrollment.",note:"",wOnly:7},
+      {id:"th10",text:"Week 9 only: Send WhatsApp Wave 2 broadcast — 10% off, target Wave 1 non-responders + new customers. Different message: lead with results, not just discount.",note:"",wOnly:9},
+      {id:"th11",text:"Week 10 only: Draft Wave 3 broadcast for Week 11 (12% off — biggest pull of the plan). Have it ready.",note:"",wOnly:10},
+      {id:"th12",text:"Week 11 only: Send WhatsApp Wave 3 broadcast — 12% off, target everyone: Wave 1+2 responders + non-responders + new customers.",note:"Biggest discount in the plan. Maximum reach.",wOnly:11},
+      {id:"th13",text:"Week 12 only: Send WhatsApp Wave 4 broadcast — 15% Founding Customer discount. Exclusivity language: 'First 100 customers only'. Send to your best buyers.",note:"",wOnly:12}
+    ]
+  },
+  FRI:{
+    title:"Friday — Intelligence",tagline:"Look outward at competitors. Look inward at data. Prepare Sunday's scorecard data.",
+    tasks:[
+      {id:"f1",text:"Competitor tracking sheet update — 5 tracked competitor ASINs. For each: price change?, review count change?, image change?, new badge (Prime / Amazon's Choice / BSR)? Note any moves.",note:"Friday is the only day you look outside Treyfa. Keep the scan to 30 minutes — don't get distracted."},
+      {id:"f2",text:"Keyword rank check — search each of the 6 priority keywords in incognito browser. Write down your position for each hero. Compare to last Friday.",note:"Up = ads working. Flat = acceptable early on. Down = investigate immediately."},
+      {id:"f3",text:"Pull weekly KPI snapshot: Sessions per hero, Unit Session % (CVR), ACOS per campaign, Ad Spend, Revenue. Enter into today's Numbers panel on the right.",note:""},
+      {id:"f4",text:"Week 1 only: Build the competitor tracking sheet from scratch — columns: ASIN, Price, Reviews, Star Rating, Image Style, Prime badge, BSR, Notes. Fill for 5 competitors.",note:"",wOnly:1},
+      {id:"f5",text:"Week 4 only: FBA DECISION GATE — compare CTR and CVR on FBA heroes vs Week 3 FBM baseline. If CTR improved 5%+ → FBA Phase 2 (Watch SKUs) is GO for Week 5.",note:"Data-driven GO/NO-GO. Don't expand FBA unless the numbers prove it.",wOnly:4},
+      {id:"f6",text:"Week 5 only: ACOS audit prep — list every campaign with its 4-week average ACOS. Save for Wednesday Week 6 full audit.",note:"",wOnly:5},
+      {id:"f7",text:"Week 6 only: Hero #2 rank — confirm page 1 position on 'curry leaves hair oil'. Pull 6-week cumulative trend for Sunday scorecard.",note:"6-week trend is the first statistically meaningful view of how the plan is going.",wOnly:6},
+      {id:"f8",text:"Week 8 only: Watch #2 promotion verdict — review past 4 weeks of CVR and sessions. Should it be promoted to Hero #4? Document decision.",note:"",wOnly:8},
+      {id:"f9",text:"Week 9 only: Full portfolio CVR review — which SKUs improved over 9 weeks? Which regressed? Document strengths and weaknesses.",note:"",wOnly:9},
+      {id:"f10",text:"Week 10 only: Identify any 'sleeper' SKU showing surprise traction in Weeks 8–10. Document for post-plan strategy.",note:"",wOnly:10},
+      {id:"f11",text:"Week 11 only: Pre-mortem exercise — what could go wrong in Week 12? Write 3 risks and what you will do if each one happens.",note:"Pre-mortems prevent panicking when problems occur.",wOnly:11},
+      {id:"f12",text:"Week 12 only: 12-WEEK AUDIT — total units, revenue, ad spend, gross margin, Net P&L. FBA vs FBM comparison per SKU. Strategy item review — what executed, what slipped. Final keyword rank vs Week 1 baseline.",note:"This is the proof of whether the plan worked.",wOnly:12}
+    ]
+  },
+  SAT:{
+    title:"Saturday — Experiments, Buffer & Scorecard",tagline:"Close everything that slipped this week. Test new ideas. Fill the scorecard for the founder.",
+    tasks:[
+      {id:"s1",text:"Spillover buffer — finish any task from Monday–Friday that was not completed. NOTHING carries over to next week.",note:"Saturday is the safety net. Use it."},
+      {id:"s2",text:"Pre-fill the weekly scorecard in the section below. Pull: units sold, ad spend, revenue, P&L, review count, keyword rank, wins, misses.",note:"Doing this Saturday means Sunday is only a 10-minute review, not a 1-hour scramble."},
+      {id:"s3",text:"Monday prep note — write what must be ready before Monday's work begins next week.",note:"This one note saves 30 minutes of confusion on Monday morning."},
+      {id:"s4",text:"Week 1 only: Design packaging insert — small card with QR code: 'Scan to claim ₹50 voucher for next purchase' + polite review request. Have it ready to print.",note:"",wOnly:1},
+      {id:"s5",text:"Week 2 only: Confirm packaging inserts are printed and ready for orders from Week 3. Set up Vine enrollment readiness for Hero #1.",note:"",wOnly:2},
+      {id:"s6",text:"Week 3 only: Q&A seeding round 2 on heroes — post 3 more questions per hero. More advanced concerns: delivery time, return policy, daily use advice.",note:"",wOnly:3},
+      {id:"s7",text:"Week 4 only: If FBA Phase 2 is GO — generate shipment for Watch #1 (20 units) + Watch #2 (20 units). Print FNSKU labels. Ready for Tuesday Week 5 dispatch.",note:"",wOnly:4},
+      {id:"s8",text:"Week 5 only: FBT engineering — coordinate 2–3 more paired orders (Hero #1 + Hero #3). Need 10–12 total this week.",note:"FBT algorithm activates after 15–20 paired orders. This takes 4–5 weeks to build.",wOnly:5},
+      {id:"s9",text:"Week 6 only: FBT final engineering round — 2–3 more paired orders. Total should now be 15–18. Mid-plan course correction — document what changes in Weeks 7–12.",note:"",wOnly:6},
+      {id:"s10",text:"Week 7 only: FBT carousel check — does Hero #1 product page now show your engineered pairings in 'Frequently Bought Together'? If yes: screenshot and monitor. If no: 1–2 more orders.",note:"",wOnly:7},
+      {id:"s11",text:"Week 8 only: If Watch #2 is being promoted — prep listing rewrite + dedicated campaign for Monday Week 9 launch.",note:"",wOnly:8},
+      {id:"s12",text:"Week 10 only: Dispatch FBA Phase 3 shipment if any Phase 3 SKUs qualified.",note:"Phase 3 in transit by Saturday = Prime badge live by Week 12 harvest.",wOnly:10},
+      {id:"s13",text:"Week 12 only: Write the Maintenance Protocol — what does steady-state operation look like after this plan? Daily / weekly tasks, who does what.",note:"Without a maintenance protocol, everything built decays in 4 weeks.",wOnly:12},
+      {id:"s14",text:"Week 12 only: Write the Next Launch Brief — which Watch SKU or new product should be the next hero? What did this 12-week plan teach you?",note:"",wOnly:12}
+    ]
+  }
+};
+
+const HEROES = [
+  {code:"B0F2JD3RC1",name:"Hero #1 — Neem Anti-Dandruff Shampoo 100ml",note:"Primary hero. Target CTR ≥1.25%. Manual EXACT since Week 1.",type:"hero"},
+  {code:"B0F66J4RPQ",name:"Hero #2 — Coconut Curry Leaves Hair Oil 200ml",note:"Blue ocean angle. Page-1 push from Week 5.",type:"hero"},
+  {code:"(Hero #3)",name:"Hero #3 — Coconut Curry Leaves Hair Oil 100ml",note:"Auto SP from Week 1. Dedicated campaign from Week 9.",type:"hero"},
+  {code:"B0F4XXC6ZG",name:"Watch #1 — Choco Coffee Face Wash 100ml",note:"1.52% CTR — best in catalog. Promote to Hero #4 if CVR ≥12% by Week 5.",type:"watch"},
+  {code:"(Watch #2)",name:"Watch #2 — Hibiscus Chamomile Shampoo 100ml",note:"Strong CVR on small sample. Gets 1 review/week from Week 5.",type:"watch"},
+  {code:"B0F5BVYW3X",name:"Watch #3 — Neem Vitamin C Face Wash 150ml",note:"33% CVR — sleeper. Auto SP at low bid. Decision by Week 11.",type:"watch"},
+  {code:"(Bundle)",name:"Virtual Bundle — Hero #1 + Hero #2",note:"₹340 (saves ₹30 vs separate). Created Week 2. Gets 1 review/week from Week 7.",type:"bundle"}
+];
+
+const TRIGGERED = [
+  {trigger:"FBA stock < 7 days remaining",action:"Create FBA replenishment shipment TODAY. Quantity = last 30-day velocity × 21 days. Stock-out = loss of Prime badge + rank."},
+  {trigger:"FBA stock < 14 days remaining",action:"Schedule replenishment shipment for next Tuesday. Quantity = 30 days of sales. Do not delay."},
+  {trigger:"Any campaign ACOS >70% for 3+ weeks",action:"PAUSE the campaign immediately (do not delete). Reallocate its budget to the next best campaign."},
+  {trigger:"Competitor drops price >10% on a hero category",action:"Within 48 hours: decide to match, undercut by ₹5–10, or hold and emphasise quality difference. Document the decision."},
+  {trigger:"Account-health warning of any kind",action:"STOP all other work. Read the warning fully. Respond or appeal within 24 hours. Do not ignore it."},
+  {trigger:"A hero listing gets suppressed",action:"Same day: find the reason in Seller Central → Manage Inventory → suppression flag. Fix and resubmit."},
+  {trigger:"Negative review posted within 24 hours on a hero",action:"Reply publicly within 24 hours. Offer replacement or refund via 'email us' path."},
+  {trigger:"Cumulative Net P&L crosses −₹15,000",action:"FORCED CONSERVATIVE ad path for next 2 weeks regardless of weekly P&L. Re-evaluate after 2 weeks."},
+  {trigger:"Cumulative Net P&L crosses +₹5,000 by Week 6",action:"Eligible for AGGRESSIVE path acceleration. Bring forward Phase 2 FBA decisions."},
+  {trigger:"Any hero crosses 30 reviews",action:"Apply for Sponsored Brands eligibility if not done. Raise Manual EXACT bids +15%."},
+  {trigger:"Any hero crosses 50 reviews",action:"Check Amazon's Choice badge eligibility. Raise Manual EXACT bids another +10%."},
+  {trigger:"Vine reviews start posting on a hero",action:"Within 48 hours: pull Vine review language and integrate into A+ content and bullet points."},
+  {trigger:"Bundle attach rate below 10% for 2 weeks",action:"Refresh bundle listing — new image, A+ update, reconsider bundle price composition."},
+  {trigger:"Brand Store not approved after 7 business days",action:"Open Seller Support case. Use SP product-targeting as fallback until approval."},
+  {trigger:"FBA receiving discrepancy (received < shipped)",action:"File reimbursement claim within 60 days via Seller Central → Help → Inventory adjustments."}
+];
+
+// ─────────────────────────────────────────────
+// STATE
+// ─────────────────────────────────────────────
+let currentWeek = 1;
+let currentDay = 'MON';
+const DAYS = ['MON','TUE','WED','THU','FRI','SAT'];
+const DAY_LABELS = {MON:'Monday',TUE:'Tuesday',WED:'Wednesday',THU:'Thursday',FRI:'Friday',SAT:'Saturday'};
+let adPaths = {};
+
+function sk(id){ return `ta_w${currentWeek}_${currentDay}_${id}`; }
+function nk(){ return `ta_w${currentWeek}_${currentDay}_numbers`; }
+function noteKey(){ return `ta_w${currentWeek}_${currentDay}_notes`; }
+function getChk(id){ return localStorage.getItem(sk(id)) === '1'; }
+function setChk(id,v){ localStorage.setItem(sk(id), v?'1':'0'); }
+function getDayChk(w,d,id){ return localStorage.getItem(`ta_w${w}_${d}_${id}`) === '1'; }
+function getAdPath(w){ return localStorage.getItem(`ta_adpath_w${w}`) || 'b'; }
+function setAdPathSaved(w,p){ localStorage.setItem(`ta_adpath_w${w}`,p); }
+
+// ─────────────────────────────────────────────
+// AUTO-DETECT WEEK & DAY
+// ─────────────────────────────────────────────
+function autoDetect(){
+  const today = new Date(); today.setHours(0,0,0,0);
+  const start = new Date(PLAN_START); start.setHours(0,0,0,0);
+  if(today < start){ return {week:1,day:'MON'}; }
+  const dayDiff = Math.floor((today-start)/(1000*60*60*24));
+  const weekNum = Math.min(Math.floor(dayDiff/7)+1, 12);
+  const dow = today.getDay(); // 0=Sun
+  const dayMap = {0:'SAT',1:'MON',2:'TUE',3:'WED',4:'THU',5:'FRI',6:'SAT'};
+  return {week: weekNum, day: dayMap[dow]||'MON'};
+}
+
+// ─────────────────────────────────────────────
+// INIT
+// ─────────────────────────────────────────────
+function init(){
+  const d = new Date();
+  document.getElementById('dateDisplay').innerHTML =
+    d.toLocaleDateString('en-IN',{weekday:'long',day:'numeric',month:'long',year:'numeric'}) +
+    '<br>Plan started: 18 May 2026';
+  const auto = autoDetect();
+  currentWeek = auto.week;
+  currentDay = auto.day;
+  document.getElementById('weekSelect').value = currentWeek;
+  render();
+}
+
+// ─────────────────────────────────────────────
+// RENDER
+// ─────────────────────────────────────────────
+function render(){
+  renderWeekTheme();
+  renderAdPath();
+  renderDayTabs();
+  renderDayHeader();
+  renderConstants();
+  renderTasks();
+  renderStopLoss();
+  renderWeekProgress();
+  renderHeroes();
+  renderTriggered();
+  renderScoreboard();
+  loadNumbers();
+  loadNotes();
+}
+
+function renderWeekTheme(){
+  const t = WEEK_THEMES[currentWeek];
+  document.getElementById('weekThemeDesc').innerHTML =
+    `<strong>Week ${currentWeek}: ${t.name}</strong> — ${t.desc}`;
+}
+
+function renderAdPath(){
+  const p = getAdPath(currentWeek);
+  ['c','b','a'].forEach(x=>{
+    document.getElementById('ap-'+x).className = `ap-btn ap-${x}${p===x?' active':''}`;
+  });
+  const b = AD_BUDGETS[currentWeek];
+  const labels = {c:'Conservative',b:'Base',a:'Aggressive'};
+  document.getElementById('ap-budget').textContent =
+    `Budget this week → C: ₹${b.c.toLocaleString()} | B: ₹${b.b.toLocaleString()} | A: ₹${b.a.toLocaleString()}`;
+}
+
+function setAdPath(p){
+  setAdPathSaved(currentWeek, p);
+  renderAdPath();
+}
+
+function renderDayTabs(){
+  const labels = {MON:'Monday',TUE:'Tuesday',WED:'Wednesday',THU:'Thursday',FRI:'Friday',SAT:'Saturday'};
+  DAYS.forEach(d=>{
+    const el = document.querySelector(`.day-tab[data-day="${d}"]`);
+    el.className = 'day-tab'+(d===currentDay?' active':'');
+    const tasks = getVisibleTasks(d);
+    const must = MUST[d]||[];
+    const allItems = [...tasks.map(t=>t.id), ...CONSTANTS.map(c=>c.id), ...must.map(m=>m.id)];
+    const anyDone = allItems.some(id=>getDayChk(currentWeek,d,id));
+    const allDone = allItems.length>0 && allItems.every(id=>getDayChk(currentWeek,d,id));
+    el.innerHTML = labels[d] + (allDone?' <span class="done-dot"></span>': anyDone?' <span class="done-dot" style="background:#f6ad55;"></span>':'');
+  });
+}
+
+function getVisibleTasks(day){
+  return (TASKS[day]?.tasks||[]).filter(t=>{
+    if(t.wOnly && t.wOnly !== currentWeek) return false;
+    return true;
+  });
+}
+
+function renderDayHeader(){
+  const d = TASKS[currentDay];
+  const t = WEEK_THEMES[currentWeek];
+  let html = `<h1>${d.title}</h1><p>${d.tagline}</p>`;
+  html += `<div class="hero-badge">📅 Week ${currentWeek} of 12 &nbsp;|&nbsp; ${t.name}</div>`;
+  html += `<div class="week-special">⭐ ${t.special}</div>`;
+  document.getElementById('dayHdrCard').innerHTML = html;
+}
+
+function renderConstants(){
+  let html='';
+  CONSTANTS.forEach(c=>{
+    const chk = getChk(c.id);
+    html += `<div class="task-item ${chk?'done':''}" onclick="toggle('${c.id}',this)">
+      <input type="checkbox" ${chk?'checked':''} onclick="event.stopPropagation();toggle('${c.id}',this.closest('.task-item'))">
+      <div>
+        <div class="t-text"><strong>${c.title}</strong> — ${c.text}</div>
+        ${c.note?`<div class="t-note">💡 ${c.note}</div>`:''}
+      </div></div>`;
+  });
+  document.getElementById('constantsList').innerHTML = html;
+}
+
+function renderTasks(){
+  const dayData = TASKS[currentDay];
+  const visible = getVisibleTasks(currentDay);
+  const total = visible.length;
+  const done = visible.filter(t=>getChk(t.id)).length;
+  document.getElementById('taskProgress').textContent = `(${done}/${total} done)`;
+
+  let html='';
+  visible.forEach(t=>{
+    const chk = getChk(t.id);
+    html += `<div class="task-item ${chk?'done':''}" onclick="toggle('${t.id}',this)">
+      <input type="checkbox" ${chk?'checked':''} onclick="event.stopPropagation();toggle('${t.id}',this.closest('.task-item'))">
+      <div>
+        <div class="t-text">${t.text}</div>
+        ${t.note?`<div class="t-note">💡 ${t.note}</div>`:''}
+      </div></div>`;
+  });
+  document.getElementById('taskList').innerHTML = html || '<div style="color:#718096;font-size:12px;padding:8px;">No extra tasks for this day in Week '+currentWeek+'. Focus on Daily Constants above.</div>';
+
+  const mustItems = MUST[currentDay]||[];
+  let mhtml='';
+  mustItems.forEach(m=>{
+    const chk = getChk(m.id);
+    mhtml += `<div class="ach-item ${chk?'done':''}" onclick="toggle('${m.id}',this)">
+      <input type="checkbox" ${chk?'checked':''} onclick="event.stopPropagation();toggle('${m.id}',this.closest('.ach-item'))">
+      <div class="t-text">${m.text}</div>
+    </div>`;
+  });
+  document.getElementById('mustList').innerHTML = mhtml;
+}
+
+function renderStopLoss(){
+  const nums = getSavedNumbers();
+  const acos = parseFloat(nums.acos)||0;
+  const netpl = nums.netpl!==''?parseFloat(nums.netpl):null;
+  const fbadays = parseFloat(nums.fbadays)||0;
+  const ctr = parseFloat(nums.ctr)||0;
+  const cvr = parseFloat(nums.cvr)||0;
+
+  const rules = [
+    {
+      label:'ACOS Watch',
+      value: acos>0?`${acos}%`:'Not entered yet',
+      safe: acos>0 && acos<=40,
+      warn: acos>40 && acos<=70,
+      danger: acos>70,
+      safeMsg:'ACOS is healthy. Keep monitoring.',
+      warnMsg:'ACOS is high. Watch closely — if it stays above 40% for 3 weeks, pause that campaign.',
+      dangerMsg:'ACOS DANGER! Go to Ad Console RIGHT NOW and pause the campaign above 70%.',
+      safeAct:'✓ No action needed',warnAct:'⚠ Watch closely',dangerAct:'⛔ Pause campaign NOW'
+    },
+    {
+      label:'Net P&L Watch',
+      value: netpl!==null?`₹${netpl.toLocaleString()}`:'Not entered yet',
+      safe: netpl!==null && netpl>=0,
+      warn: netpl!==null && netpl>=-15000 && netpl<0,
+      danger: netpl!==null && netpl<-15000,
+      safeMsg:'P&L is positive. Current ad path is working.',
+      warnMsg:'P&L is negative but within safe zone. Stay on Base or switch to Conservative.',
+      dangerMsg:'EMERGENCY: Total loss crossed ₹15,000. Switch to CONSERVATIVE ad path for 2 weeks immediately.',
+      safeAct:'✓ In profit',warnAct:'⚠ Review spending',dangerAct:'⛔ Force Conservative NOW'
+    },
+    {
+      label:'FBA Stock Watch',
+      value: fbadays>0?`${fbadays} days left`:'Not entered yet',
+      safe: fbadays>=14,
+      warn: fbadays>=7 && fbadays<14,
+      danger: fbadays>0 && fbadays<7,
+      safeMsg:'Stock is healthy. No action needed.',
+      warnMsg:'Stock running low. Schedule replenishment shipment for next Tuesday.',
+      dangerMsg:'STOCK EMERGENCY! Less than 7 days left. Create FBA shipment TODAY — do not wait.',
+      safeAct:'✓ Stock healthy',warnAct:'⚠ Schedule replenishment',dangerAct:'⛔ Ship TODAY'
+    },
+    {
+      label:'CTR Watch — Hero #1',
+      value: ctr>0?`${ctr}%`:'Not entered yet',
+      safe: ctr>=1.25,
+      warn: ctr>=0.5 && ctr<1.25,
+      danger: ctr>0 && ctr<0.5,
+      safeMsg:'CTR is at or above target (1.25%). Ads are attracting clicks.',
+      warnMsg:'CTR is below target. Check main image and title — these are the biggest CTR levers.',
+      dangerMsg:'CTR is critically low. Fix listing immediately: new main image, rewrite title.',
+      safeAct:'✓ CTR on target',warnAct:'⚠ Review listing',dangerAct:'⛔ Fix listing NOW'
+    },
+    {
+      label:'CVR Watch — Overall',
+      value: cvr>0?`${cvr}%`:'Not entered yet',
+      safe: cvr>=10,
+      warn: cvr>=5 && cvr<10,
+      danger: cvr>0 && cvr<5,
+      safeMsg:'CVR is healthy (≥10%). Buyers are converting when they land on the listing.',
+      warnMsg:'CVR is below target. Review A+ content, pricing, and review count.',
+      dangerMsg:'CVR is critically low. Something in the listing is turning buyers away — investigate today.',
+      safeAct:'✓ CVR healthy',warnAct:'⚠ Review listing',dangerAct:'⛔ Investigate NOW'
+    }
+  ];
+
+  let anyDanger=false;
+  let html='';
+  rules.forEach(r=>{
+    const cls = r.danger?'sl-danger':r.warn?'sl-warn':'sl-safe';
+    const actCls = r.danger?'danger-act':r.warn?'warn-act':'safe-act';
+    const icon = r.danger?'🔴':r.warn?'🟡':'🟢';
+    const msg = r.danger?r.dangerMsg:r.warn?r.warnMsg:r.safeMsg;
+    const act = r.danger?r.dangerAct:r.warn?r.warnAct:r.safeAct;
+    if(r.danger) anyDanger=true;
+    html += `<div class="sl-item ${cls}">
+      <h4>${icon} ${r.label} &nbsp;<span style="font-weight:400;font-size:11px;">${r.value}</span></h4>
+      <p>${msg}</p>
+      <span class="sl-action ${actCls}">${act}</span>
+    </div>`;
+  });
+  document.getElementById('stopLossList').innerHTML = html;
+
+  const bar = document.getElementById('slAlertBar');
+  if(anyDanger){
+    bar.className='sl-alert show';
+    document.getElementById('slAlertMsg').textContent =
+      'Stop-loss rule triggered! Check the red card in the Stop-Loss Watch panel on the right and act immediately.';
+  } else {
+    bar.className='sl-alert';
+  }
+}
+
+function renderWeekProgress(){
+  let html='';
+  DAYS.forEach(d=>{
+    const tasks = getVisibleTasks(d);
+    const must = MUST[d]||[];
+    const consts = CONSTANTS;
+    const allItems = [...tasks.map(t=>t.id),...must.map(m=>m.id),...consts.map(c=>c.id)];
+    const total = allItems.length;
+    const done = allItems.filter(id=>getDayChk(currentWeek,d,id)).length;
+    const pct = total===0?0:Math.round(done/total*100);
+    html += `<div class="day-prog-item">
+      <div class="dp-label">${d.charAt(0)+d.slice(1).toLowerCase()}</div>
+      <div class="dp-bar"><div class="dp-fill" style="width:${pct}%"></div></div>
+      <div class="dp-pct">${pct}%</div>
+    </div>`;
+  });
+  document.getElementById('weekProgress').innerHTML = html;
+}
+
+function renderHeroes(){
+  let html='';
+  HEROES.forEach(h=>{
+    const tagCls = h.type==='hero'?'tag-hero':h.type==='watch'?'tag-watch':'tag-bundle';
+    const tagLabel = h.type==='hero'?'HERO':h.type==='watch'?'WATCH':'BUNDLE';
+    html += `<div class="hero-row">
+      <span class="hero-badge-tag ${tagCls}">${tagLabel}</span>
+      <div style="flex:1;padding:0 8px;">
+        <div class="hero-name"><strong>${h.name}</strong></div>
+        <div style="font-size:10px;font-family:monospace;color:#718096;">${h.code}</div>
+        <div class="hero-note">${h.note}</div>
+      </div>
+    </div>`;
+  });
+  document.getElementById('heroReference').innerHTML = html;
+}
+
+function renderTriggered(){
+  let html='';
+  TRIGGERED.forEach(t=>{
+    html += `<div class="trig-item">
+      <div class="trig-trigger">⚡ WHEN: ${t.trigger}</div>
+      <div class="trig-action">→ ${t.action}</div>
+    </div>`;
+  });
+  document.getElementById('triggeredList').innerHTML = html;
+}
+
+function renderScoreboard(){
+  const sec = document.getElementById('scoreboardSection');
+  sec.className = 'scoreboard-section'+(currentDay==='SAT'?' show':'');
+  document.getElementById('sb_week').value = `Week ${currentWeek}`;
+}
+
+// ─────────────────────────────────────────────
+// NUMBERS
+// ─────────────────────────────────────────────
+function saveNumbers(){
+  const fields=['units','sessions','ctr','cvr','acos','adspend','adrev','reviews','fbadays','netpl','anomaly'];
+  const data={};
+  fields.forEach(f=>{ data[f]=document.getElementById('n_'+f)?.value||''; });
+  localStorage.setItem(nk(), JSON.stringify(data));
+  const msg=document.getElementById('savedMsg');
+  msg.style.display='block';
+  setTimeout(()=>{msg.style.display='none';},2500);
+  renderStopLoss();
+  // highlight dangerous input fields
+  highlightFields(data);
+}
+
+function highlightFields(data){
+  const acos=parseFloat(data.acos)||0;
+  const fba=parseFloat(data.fbadays)||0;
+  const pl=data.netpl!==''?parseFloat(data.netpl):null;
+  document.getElementById('n_acos').className = acos>70?'warn-field':'';
+  document.getElementById('n_fbadays').className = fba>0&&fba<7?'warn-field':'';
+  document.getElementById('n_netpl').className = pl!==null&&pl<-15000?'warn-field':'';
+}
+
+function loadNumbers(){
+  const raw=localStorage.getItem(nk());
+  if(!raw) return;
+  try{
+    const data=JSON.parse(raw);
+    const fields=['units','sessions','ctr','cvr','acos','adspend','adrev','reviews','fbadays','netpl','anomaly'];
+    fields.forEach(f=>{ const el=document.getElementById('n_'+f); if(el&&data[f]!==undefined) el.value=data[f]; });
+    highlightFields(data);
+  }catch(e){}
+}
+
+function getSavedNumbers(){
+  const raw=localStorage.getItem(nk());
+  if(!raw) return {acos:'',netpl:'',fbadays:'',ctr:'',cvr:''};
+  try{ return JSON.parse(raw); }catch(e){ return {}; }
+}
+
+// ─────────────────────────────────────────────
+// NOTES
+// ─────────────────────────────────────────────
+function loadNotes(){
+  const el=document.getElementById('notesArea');
+  el.value = localStorage.getItem(noteKey())||'';
+}
+document.addEventListener('DOMContentLoaded',()=>{
+  document.getElementById('notesArea').addEventListener('input',function(){
+    localStorage.setItem(noteKey(), this.value);
+  });
+});
+
+// ─────────────────────────────────────────────
+// TOGGLE
+// ─────────────────────────────────────────────
+function toggle(id, el){
+  const chk = !getChk(id);
+  setChk(id, chk);
+  el.className = el.className.replace(' done','');
+  if(chk) el.className += ' done';
+  const input = el.querySelector('input[type=checkbox]');
+  if(input) input.checked = chk;
+  renderDayTabs();
+  renderWeekProgress();
+  updateBottomBar();
+}
+
+// ─────────────────────────────────────────────
+// BOTTOM BAR PROGRESS
+// ─────────────────────────────────────────────
+function updateBottomBar(){
+  let total=0,done=0;
+  DAYS.forEach(d=>{
+    const tasks=getVisibleTasks(d);
+    const must=MUST[d]||[];
+    [...tasks,...CONSTANTS,...must].forEach(t=>{ total++; if(getDayChk(currentWeek,d,t.id)) done++; });
+  });
+  const pct=total===0?0:Math.round(done/total*100);
+  document.getElementById('bb-progress').textContent =
+    `Week ${currentWeek} overall: ${done}/${total} tasks done (${pct}%)`;
+}
+
+// ─────────────────────────────────────────────
+// SCORECARD GENERATOR
+// ─────────────────────────────────────────────
+function generateScorecard(){
+  const g=id=>document.getElementById(id)?.value||'—';
+  const text =
+`━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+TREYFA AMAZON — WEEKLY SCORECARD
+${g('sb_week')} | Generated: ${new Date().toLocaleDateString('en-IN')}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+📦 SALES PERFORMANCE
+Units sold this week : ${g('sb_units')}
+This week's target   : ${g('sb_target')}
+Best hero            : ${g('sb_best')}
+Weakest hero         : ${g('sb_worst')}
+
+💸 AD PERFORMANCE
+Total ad spend (₹)   : ${g('sb_adspend')}
+Total ad revenue (₹) : ${g('sb_adrev')}
+Overall ACOS         : ${g('sb_acos')}
+Ad path next week    : ${g('sb_adpath')}
+
+📊 KEY METRICS
+Cumulative Net P&L   : ${g('sb_netpl')}
+Hero #1 CTR          : ${g('sb_ctr1')}
+Hero #2 CTR          : ${g('sb_ctr2')}
+Hero #1 keyword rank : ${g('sb_rank1')}
+Hero #2 keyword rank : ${g('sb_rank2')}
+Agency reviews       : ${g('sb_agency')}
+FBA stock status     : ${g('sb_stock')}
+
+🏆 TOP 3 WINS THIS WEEK
+${g('sb_wins')}
+
+❌ TOP 3 MISSES THIS WEEK
+${g('sb_misses')}
+
+🛑 STOP-LOSS STATUS
+${g('sb_stoploss')}
+
+🙋 ONE DECISION NEEDED FROM FOUNDER
+${g('sb_decision')}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`;
+
+  const out=document.getElementById('sbOutput');
+  out.textContent=text;
+  out.style.display='block';
+  document.getElementById('copyBtn').style.display='inline-block';
+}
+
+function copyScorecard(){
+  const text=document.getElementById('sbOutput').textContent;
+  navigator.clipboard.writeText(text).then(()=>{
+    document.getElementById('copyBtn').textContent='✓ Copied!';
+    setTimeout(()=>{document.getElementById('copyBtn').textContent='📋 Copy to Clipboard';},2000);
+  });
+}
+
+// ─────────────────────────────────────────────
+// EXPORT DAY REPORT
+// ─────────────────────────────────────────────
+function exportDayReport(){
+  const d=TASKS[currentDay];
+  const visible=getVisibleTasks(currentDay);
+  const must=MUST[currentDay]||[];
+  const nums=getSavedNumbers();
+  const ap={c:'Conservative',b:'Base',a:'Aggressive'}[getAdPath(currentWeek)]||'Base';
+  const bud=AD_BUDGETS[currentWeek];
+
+  let txt=`TREYFA AMAZON — DAILY EXECUTION REPORT\n${'='.repeat(46)}\n`;
+  txt+=`Date: ${new Date().toLocaleDateString('en-IN',{weekday:'long',day:'numeric',month:'long',year:'numeric'})}\n`;
+  txt+=`Week ${currentWeek} of 12 — ${WEEK_THEMES[currentWeek].name}\n`;
+  txt+=`Day: ${DAY_LABELS[currentDay]}\n`;
+  txt+=`Ad Path: ${ap} (₹${bud[getAdPath(currentWeek)].toLocaleString()}/week)\n\n`;
+
+  txt+=`DAILY CONSTANTS:\n`;
+  CONSTANTS.forEach(c=>{ txt+=`  [${getChk(c.id)?'✓':'○'}] ${c.title}\n`; });
+
+  txt+=`\nTODAY'S TASKS:\n`;
+  visible.forEach(t=>{ txt+=`  [${getChk(t.id)?'✓':'○'}] ${t.text}\n`; });
+
+  txt+=`\nMUST COMPLETE BEFORE END OF DAY:\n`;
+  must.forEach(m=>{ txt+=`  [${getChk(m.id)?'✓':'○'}] ${m.text}\n`; });
+
+  txt+=`\nNUMBERS RECORDED:\n`;
+  txt+=`  Units Sold     : ${nums.units||'—'}\n`;
+  txt+=`  Sessions       : ${nums.sessions||'—'}\n`;
+  txt+=`  CTR Hero #1    : ${nums.ctr||'—'}%\n`;
+  txt+=`  CVR Overall    : ${nums.cvr||'—'}%\n`;
+  txt+=`  ACOS (worst)   : ${nums.acos||'—'}%\n`;
+  txt+=`  Ad Spend       : ₹${nums.adspend||'—'}\n`;
+  txt+=`  Ad Revenue     : ₹${nums.adrev||'—'}\n`;
+  txt+=`  Reviews Posted : ${nums.reviews||'—'}\n`;
+  txt+=`  FBA Days Left  : ${nums.fbadays||'—'}\n`;
+  txt+=`  Net P&L Cumul. : ₹${nums.netpl||'—'}\n`;
+  if(nums.anomaly) txt+=`  Anomalies      : ${nums.anomaly}\n`;
+
+  const notes=localStorage.getItem(noteKey());
+  if(notes) txt+=`\nNOTES & DECISIONS:\n${notes}\n`;
+
+  txt+=`\n${'='.repeat(46)}\nGenerated by Treyfa Amazon Dashboard\n`;
+
+  const blob=new Blob([txt],{type:'text/plain'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url; a.download=`Treyfa_W${currentWeek}_${currentDay}_Report.txt`; a.click();
+  URL.revokeObjectURL(url);
+}
+
+// ─────────────────────────────────────────────
+// RESET
+// ─────────────────────────────────────────────
+function resetDay(){
+  if(!confirm(`Reset ALL tasks for ${DAY_LABELS[currentDay]}, Week ${currentWeek}? This cannot be undone.`)) return;
+  const visible=getVisibleTasks(currentDay);
+  const must=MUST[currentDay]||[];
+  [...visible,...CONSTANTS,...must].forEach(t=>{ localStorage.removeItem(sk(t.id)); });
+  render();
+}
+
+// ─────────────────────────────────────────────
+// NAVIGATION
+// ─────────────────────────────────────────────
+function onWeekChange(){
+  currentWeek = parseInt(document.getElementById('weekSelect').value);
+  currentDay = 'MON';
+  render();
+  updateBottomBar();
+}
+function onDayChange(d){
+  currentDay = d;
+  render();
+  updateBottomBar();
+}
+
+// ─────────────────────────────────────────────
+// BOOT
+// ─────────────────────────────────────────────
+init();
+updateBottomBar();
+</script>
+</body>
+</html>

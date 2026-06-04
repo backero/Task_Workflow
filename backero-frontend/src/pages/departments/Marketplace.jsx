@@ -1416,6 +1416,8 @@ function PlanTab({ platform = 'Amazon' }) {
   const [activeDay,  setActiveDay]  = useState('Mon');
   const [showTriggers, setShowTriggers] = useState(false);
   const [importing, setImporting] = useState(false);
+  const [showPasteModal, setShowPasteModal] = useState(false);
+  const [pasteHtml, setPasteHtml] = useState('');
   const fileInputRef = useRef(null);
   const saveTimer = useRef(null);
 
@@ -1538,6 +1540,115 @@ function PlanTab({ platform = 'Amazon' }) {
     }
   };
 
+  const handlePasteImport = async () => {
+    const text = pasteHtml.trim();
+    if (!text) { toast.error('Paste your HTML content first'); return; }
+    setImporting(true);
+    try {
+      let weeks;
+      const VALID_DAYS = ['Mon','Tue','Wed','Thu','Fri','Sat'];
+
+      // ── Format 1: Standalone Amazon-style dashboard (has WEEK_THEMES + TASKS JS objects) ──
+      const isAmzDashboard = text.includes('const WEEK_THEMES') && text.includes('const TASKS =');
+      if (isAmzDashboard) {
+        // Safely extract a JS object literal string by bracket-matching (handles strings correctly)
+        const extractObjStr = (src, varName) => {
+          const re = new RegExp(`(?:const|let|var)\\s+${varName}\\s*=\\s*\\{`);
+          const from = src.search(re);
+          if (from === -1) return null;
+          const startBrace = src.indexOf('{', from);
+          let depth = 0, inStr = false, strCh = '', esc = false;
+          for (let i = startBrace; i < src.length; i++) {
+            const c = src[i];
+            if (esc)              { esc = false; continue; }
+            if (c === '\\' && inStr) { esc = true;  continue; }
+            if (inStr)            { if (c === strCh) inStr = false; continue; }
+            if (c === '"' || c === "'" || c === '`') { inStr = true; strCh = c; continue; }
+            if (c === '{') depth++;
+            else if (c === '}') { depth--; if (depth === 0) return src.slice(startBrace, i + 1); }
+          }
+          return null;
+        };
+
+        const wtStr = extractObjStr(text, 'WEEK_THEMES');
+        const tStr  = extractObjStr(text, 'TASKS');
+        if (!wtStr || !tStr) throw new Error('Could not find WEEK_THEMES or TASKS in pasted HTML');
+
+        // eslint-disable-next-line no-new-func
+        const WEEK_THEMES = (new Function(`return ${wtStr}`))();
+        // eslint-disable-next-line no-new-func
+        const TASKS       = (new Function(`return ${tStr}`))();
+
+        const DAY_MAP = { MON:'Mon', TUE:'Tue', WED:'Wed', THU:'Thu', FRI:'Fri', SAT:'Sat' };
+
+        weeks = [];
+        for (let w = 1; w <= 12; w++) {
+          const theme    = WEEK_THEMES[w] || {};
+          const specific = {};
+          VALID_DAYS.forEach(d => { specific[d] = []; });
+
+          Object.entries(TASKS).forEach(([dk, dv]) => {
+            const day = DAY_MAP[dk];
+            if (!day) return;
+            (dv.tasks || [])
+              .filter(t => !t.wOnly || t.wOnly === w)   // base tasks + this week's specific tasks
+              .forEach((t, i) => {
+                specific[day].push({
+                  id:   `amz_w${w}_${day}_${t.id || i}`,
+                  text: t.text  || '',
+                  note: t.note  || '',
+                });
+              });
+          });
+
+          weeks.push({
+            week:      w,
+            name:      (theme.name || `Week ${w}`).toUpperCase(),
+            focus:     theme.desc    || '',
+            mustNonNeg: theme.special || '',
+            specific,
+          });
+        }
+
+      // ── Format 2: Backero HTML template (has tr[data-week][data-day] rows) ──
+      } else {
+        const doc = new DOMParser().parseFromString(text, 'text/html');
+        const weeksMap = {};
+        doc.querySelectorAll('tr[data-week][data-day]').forEach(row => {
+          const wn  = parseInt(row.getAttribute('data-week'));
+          const day = row.getAttribute('data-day');
+          if (!VALID_DAYS.includes(day)) return;
+          const taskText = row.querySelector('[data-field="task"]')?.textContent?.trim() || '';
+          const noteText = row.querySelector('[data-field="note"]')?.textContent?.trim() || '';
+          if (!taskText) return;
+          if (!weeksMap[wn]) {
+            weeksMap[wn] = {
+              week: wn,
+              name: (doc.querySelector(`[data-week-name="${wn}"]`)?.textContent?.trim() || '').toUpperCase(),
+              focus: doc.querySelector(`[data-week-focus="${wn}"]`)?.textContent?.trim() || '',
+              mustNonNeg: doc.querySelector(`[data-week-nonneg="${wn}"]`)?.textContent?.trim() || '',
+              specific: { Mon:[], Tue:[], Wed:[], Thu:[], Fri:[], Sat:[] },
+            };
+          }
+          const list = weeksMap[wn].specific[day];
+          list.push({ id: `imp_${wn}_${day}_${list.length + 1}`, text: taskText, note: noteText });
+        });
+        weeks = Object.values(weeksMap).sort((a, b) => a.week - b.week);
+        if (!weeks.length) { toast.error('No tasks found. Try pasting the Backero HTML template, or the standalone dashboard HTML.'); return; }
+      }
+
+      await api.post(`/marketplace/plans/${platform}/import-json`, { weeks });
+      await queryClient.invalidateQueries(['mkt-plan', platform]);
+      toast.success(`${platform} plan imported — ${weeks.length} weeks loaded`);
+      setShowPasteModal(false);
+      setPasteHtml('');
+    } catch (err) {
+      toast.error(err?.response?.data?.message || err?.message || 'Import failed');
+    } finally {
+      setImporting(false);
+    }
+  };
+
   const downloadTemplate = () => {
     const DAYS = ['Mon','Tue','Wed','Thu','Fri','Sat'];
     const color = platColor;
@@ -1622,7 +1733,7 @@ function PlanTab({ platform = 'Amazon' }) {
 
   const week        = weekData[activeWeek - 1];
   const baseTasks   = cfg.baseTasks[activeDay] || [];
-  const wsTasks     = week?.ws[activeDay] || [];
+  const wsTasks     = week?.ws?.[activeDay] || [];
   const allDayTasks = [...baseTasks, ...wsTasks];
   const mustItems   = cfg.mustComplete[activeDay] || [];
 
@@ -1735,10 +1846,55 @@ function PlanTab({ platform = 'Amazon' }) {
           className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-white rounded-xl whitespace-nowrap transition-colors disabled:opacity-50"
           style={{ background: platColor }}>
           {importing ? <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" /> : <ArrowDownTrayIcon className="w-3.5 h-3.5 rotate-180" />}
-          {importing ? 'Importing…' : 'Import Plan'}
+          {importing ? 'Importing…' : 'Import File'}
+        </button>
+        <button onClick={() => setShowPasteModal(true)} disabled={importing}
+          className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold border-2 rounded-xl whitespace-nowrap transition-colors disabled:opacity-50"
+          style={{ borderColor: platColor, color: platColor }}>
+          📋 Paste HTML
         </button>
         <input ref={fileInputRef} type="file" accept=".html,.htm" className="hidden" onChange={handleImport} />
       </div>
+
+      {/* Paste HTML Modal */}
+      {showPasteModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl flex flex-col" style={{ maxHeight: '80vh' }}>
+            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+              <div>
+                <p className="text-sm font-bold text-gray-900">📋 Paste HTML Plan</p>
+                <p className="text-[10px] text-gray-400 mt-0.5">Open your downloaded HTML template, select all (Ctrl+A), copy (Ctrl+C), then paste below</p>
+              </div>
+              <button onClick={() => { setShowPasteModal(false); setPasteHtml(''); }}
+                className="text-gray-400 hover:text-gray-600 text-lg font-bold leading-none">✕</button>
+            </div>
+            <div className="flex-1 overflow-hidden p-4">
+              <textarea
+                value={pasteHtml}
+                onChange={e => setPasteHtml(e.target.value)}
+                placeholder="Paste the full HTML content of your plan template here…"
+                className="w-full h-64 text-xs border border-gray-200 rounded-xl px-3 py-2.5 resize-none focus:outline-none focus:ring-2 font-mono"
+                style={{ focusRingColor: platColor }}
+                autoFocus
+              />
+              {pasteHtml && (
+                <p className="text-[10px] text-gray-400 mt-1">{pasteHtml.length.toLocaleString()} characters pasted</p>
+              )}
+            </div>
+            <div className="flex gap-2 px-5 py-4 border-t border-gray-100">
+              <button onClick={() => { setShowPasteModal(false); setPasteHtml(''); }}
+                className="flex-1 px-4 py-2.5 border border-gray-200 text-gray-600 text-xs font-bold rounded-xl hover:bg-gray-50 transition-colors">
+                Cancel
+              </button>
+              <button onClick={handlePasteImport} disabled={importing || !pasteHtml.trim()}
+                className="flex-1 px-4 py-2.5 text-white text-xs font-bold rounded-xl transition-colors disabled:opacity-50"
+                style={{ background: platColor }}>
+                {importing ? <span className="flex items-center justify-center gap-1.5"><ArrowPathIcon className="w-3.5 h-3.5 animate-spin" /> Importing…</span> : 'Import from Paste'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Main content */}
       <div className="space-y-4">
@@ -1792,7 +1948,7 @@ function PlanTab({ platform = 'Amazon' }) {
         {/* Day tabs */}
         <div className="flex gap-1.5 bg-gray-100 p-1 rounded-xl w-fit">
           {DAYS.map(d => {
-            const dTasks   = [...(cfg.baseTasks[d] || []), ...(week.ws[d] || [])];
+            const dTasks   = [...(cfg.baseTasks[d] || []), ...(week?.ws?.[d] || [])];
             const dIds     = [...dTasks.map(t => t.id), ...cfg.recurringTasks.map(t => t.id)];
             const savedDay = allProgress[activeWeek]?.days?.[d] || {};
             const dChecked = new Set(savedDay.checked || []);
@@ -2043,7 +2199,15 @@ export default function MarketplaceDept() {
   const [activeTab, setActiveTab]       = useState('overview');
   const [activePlan, setActivePlan]     = useState('Amazon');
   const [showPlanDropdown, setShowPlanDropdown] = useState(false);
+  const [dashboardFiles, setDashboardFiles] = useState({});
   const dropdownRef = useRef(null);
+
+  useEffect(() => {
+    fetch('/dashboards/manifest.json')
+      .then(r => r.ok ? r.json() : {})
+      .then(setDashboardFiles)
+      .catch(() => {});
+  }, []);
   const navigate     = useNavigate();
   const queryClient  = useQueryClient();
   const { socket }   = useSocketStore();
@@ -2120,7 +2284,15 @@ export default function MarketplaceDept() {
       </div>
       {activeTab === 'overview'
         ? <OverviewTab allTasks={allTasks} tasksLoading={tasksLoading} navigate={navigate} />
-        : <PlanTab platform={activePlan} />
+        : dashboardFiles[activePlan]
+            ? <iframe
+                key={activePlan}
+                src={dashboardFiles[activePlan]}
+                className="w-full rounded-2xl border border-gray-200"
+                style={{ height: 'calc(100vh - 160px)', display: 'block' }}
+                title={`${activePlan} Dashboard`}
+              />
+            : <PlanTab key={activePlan} platform={activePlan} />
       }
     </div>
   );

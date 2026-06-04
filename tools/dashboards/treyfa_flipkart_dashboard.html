@@ -1,0 +1,856 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Treyfa × Flipkart — Daily Work Dashboard</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Segoe UI',Arial,sans-serif;background:#f0f4f8;color:#1a202c;font-size:14px;}
+/* HEADER */
+.hdr{background:#1a365d;color:#fff;padding:14px 24px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;}
+.hdr-logo{font-size:20px;font-weight:800;letter-spacing:1px;}
+.hdr-logo span{color:#f6ad55;}
+.hdr-right{font-size:12px;opacity:0.7;}
+/* CONTROLS */
+.ctrl{background:#fff;border-bottom:2px solid #e2e8f0;padding:12px 24px;display:flex;gap:12px;align-items:center;flex-wrap:wrap;}
+.ctrl select{padding:8px 12px;border:2px solid #3182ce;border-radius:8px;font-size:13px;font-weight:700;color:#1a365d;background:#ebf8ff;cursor:pointer;}
+.week-theme-box{background:#ebf8ff;border-left:4px solid #3182ce;padding:8px 14px;border-radius:0 8px 8px 0;flex:1;min-width:200px;}
+.week-theme-box .wt-label{font-size:10px;font-weight:700;color:#3182ce;text-transform:uppercase;letter-spacing:.5px;}
+.week-theme-box .wt-desc{font-size:12px;color:#2d3748;margin-top:2px;}
+/* DAY TABS */
+.day-tabs{display:flex;background:#fff;border-bottom:2px solid #e2e8f0;padding:0 24px;overflow-x:auto;}
+.day-tab{padding:12px 18px;cursor:pointer;font-weight:700;font-size:13px;color:#718096;border-bottom:3px solid transparent;white-space:nowrap;transition:all .15s;}
+.day-tab:hover{color:#2d3748;background:#f7fafc;}
+.day-tab.active{color:#2b6cb0;border-bottom-color:#3182ce;}
+.day-tab .done-dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:#38a169;margin-left:5px;vertical-align:middle;}
+/* STOP-LOSS ALERT BAR */
+.sl-alert{background:#fff5f5;border-left:5px solid #e53e3e;padding:10px 24px;margin:14px 24px 0;border-radius:0 8px 8px 0;display:none;}
+.sl-alert.show{display:flex;align-items:center;gap:10px;}
+.sl-alert .sl-icon{font-size:20px;}
+.sl-alert .sl-msg{font-size:13px;color:#c53030;font-weight:600;}
+/* MAIN LAYOUT */
+.main{display:flex;gap:18px;padding:18px 24px;max-width:1400px;margin:0 auto;}
+.left{flex:1.7;display:flex;flex-direction:column;gap:14px;}
+.right{flex:1;display:flex;flex-direction:column;gap:14px;}
+/* CARD */
+.card{background:#fff;border-radius:12px;padding:18px;box-shadow:0 1px 4px rgba(0,0,0,.09);}
+.card-title{font-size:14px;font-weight:800;color:#2d3748;margin-bottom:14px;display:flex;align-items:center;gap:8px;}
+.card-title .ic{font-size:17px;}
+/* DAY HEADER CARD */
+.day-hdr-card{background:linear-gradient(135deg,#2b6cb0,#4299e1);color:#fff;border-radius:12px;padding:16px 20px;}
+.day-hdr-card h1{font-size:17px;font-weight:800;}
+.day-hdr-card p{font-size:12px;opacity:.88;margin-top:4px;line-height:1.5;}
+.day-hdr-card .hero-badge{display:inline-block;background:rgba(255,255,255,.18);padding:4px 10px;border-radius:6px;font-size:11px;margin-top:8px;font-weight:600;}
+/* TASK ITEMS */
+.task-item{display:flex;align-items:flex-start;gap:11px;padding:11px 12px;border-radius:8px;border:1.5px solid #e2e8f0;margin-bottom:7px;cursor:pointer;transition:all .15s;user-select:none;}
+.task-item:hover{border-color:#90cdf4;background:#ebf8ff;}
+.task-item.done{background:#f0fff4;border-color:#68d391;}
+.task-item.done .t-text{color:#718096;text-decoration:line-through;}
+.task-item input[type=checkbox]{width:17px;height:17px;margin-top:2px;flex-shrink:0;cursor:pointer;accent-color:#38a169;}
+.t-text{font-size:13px;line-height:1.55;}
+.t-note{font-size:11px;color:#718096;margin-top:3px;font-style:italic;}
+.wk-badge{font-size:9px;background:#fef3c7;color:#92400e;border-radius:4px;padding:2px 5px;margin-left:5px;font-weight:700;vertical-align:middle;}
+/* MUST-ACHIEVE */
+.must-section{border-top:2px dashed #e2e8f0;padding-top:14px;margin-top:6px;}
+.must-section h3{font-size:12px;font-weight:800;color:#c53030;margin-bottom:10px;text-transform:uppercase;letter-spacing:.4px;}
+.ach-item{display:flex;align-items:flex-start;gap:10px;padding:9px 11px;border-radius:8px;border:1.5px solid #fed7d7;margin-bottom:6px;cursor:pointer;transition:all .15s;user-select:none;}
+.ach-item:hover{background:#fff5f5;}
+.ach-item.done{background:#f0fff4;border-color:#68d391;}
+.ach-item.done .t-text{color:#718096;text-decoration:line-through;}
+.ach-item input[type=checkbox]{width:17px;height:17px;margin-top:2px;flex-shrink:0;cursor:pointer;accent-color:#e53e3e;}
+/* NUMBERS FORM */
+.numbers-grid{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-bottom:8px;}
+.nm-field{display:flex;flex-direction:column;gap:3px;}
+.nm-field label{font-size:10px;font-weight:700;color:#718096;text-transform:uppercase;letter-spacing:.4px;}
+.nm-field input{padding:7px 9px;border:1.5px solid #e2e8f0;border-radius:6px;font-size:13px;width:100%;}
+.nm-field input:focus{outline:none;border-color:#3182ce;box-shadow:0 0 0 2px rgba(49,130,206,.18);}
+.nm-full{grid-column:1/-1;}
+.save-btn{background:#3182ce;color:#fff;border:none;padding:9px;border-radius:8px;font-weight:700;cursor:pointer;width:100%;font-size:13px;margin-top:4px;}
+.save-btn:hover{background:#2b6cb0;}
+.saved-msg{font-size:11px;color:#38a169;text-align:center;margin-top:4px;font-weight:600;display:none;}
+/* STOP-LOSS PANEL */
+.sl-item{padding:11px 12px;border-radius:8px;margin-bottom:8px;border:1.5px solid #e2e8f0;}
+.sl-item h4{font-size:12px;font-weight:800;margin-bottom:3px;display:flex;align-items:center;gap:6px;}
+.sl-item p{font-size:11px;color:#4a5568;line-height:1.5;}
+.sl-item .sl-action{font-size:11px;font-weight:700;margin-top:5px;padding:4px 8px;border-radius:4px;display:inline-block;}
+.sl-safe{background:#f0fff4;border-color:#68d391;}
+.sl-danger{background:#fff5f5;border-color:#fc8181;}
+.sl-warn{background:#fffbeb;border-color:#fbd38d;}
+.sl-safe h4{color:#276749;}
+.sl-danger h4{color:#c53030;}
+.sl-warn h4{color:#92400e;}
+.sl-action.safe-act{background:#c6f6d5;color:#276749;}
+.sl-action.danger-act{background:#fed7d7;color:#c53030;}
+.sl-action.warn-act{background:#fef3c7;color:#92400e;}
+/* PROGRESS */
+.day-prog-item{display:flex;align-items:center;gap:9px;padding:5px 0;}
+.dp-label{font-size:11px;font-weight:700;width:32px;color:#4a5568;}
+.dp-bar{flex:1;height:7px;background:#e2e8f0;border-radius:4px;overflow:hidden;}
+.dp-fill{height:100%;background:#38a169;border-radius:4px;transition:width .3s;}
+.dp-pct{font-size:10px;color:#718096;width:28px;text-align:right;}
+/* SKU REFERENCE */
+.sku-row{display:flex;justify-content:space-between;align-items:flex-start;padding:6px 0;border-bottom:1px solid #f7fafc;gap:8px;}
+.sku-row:last-child{border-bottom:none;}
+.sku-code{font-size:10px;font-weight:700;font-family:monospace;color:#4a5568;}
+.sku-name{font-size:11px;color:#2d3748;flex:1;}
+.sku-note{font-size:10px;color:#718096;font-style:italic;}
+.badge{font-size:9px;padding:2px 6px;border-radius:4px;font-weight:700;flex-shrink:0;}
+.badge.hero{background:#ebf8ff;color:#2b6cb0;}
+.badge.gem{background:#faf5ff;color:#6b46c1;}
+/* SCOREBOARD (Saturday) */
+.scoreboard-section{background:#fff;border-radius:12px;padding:20px;margin:0 24px 20px;box-shadow:0 1px 4px rgba(0,0,0,.09);display:none;}
+.scoreboard-section.show{display:block;}
+.scoreboard-section h2{font-size:16px;font-weight:800;color:#2d3748;margin-bottom:4px;}
+.scoreboard-section .sb-sub{font-size:12px;color:#718096;margin-bottom:16px;}
+.sb-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;margin-bottom:16px;}
+.sb-field{display:flex;flex-direction:column;gap:4px;}
+.sb-field label{font-size:10px;font-weight:700;color:#718096;text-transform:uppercase;letter-spacing:.4px;}
+.sb-field input,.sb-field textarea{padding:8px;border:1.5px solid #e2e8f0;border-radius:6px;font-size:12px;width:100%;}
+.sb-field textarea{min-height:56px;resize:vertical;}
+.sb-full{grid-column:1/-1;}
+.gen-btn{background:#2f855a;color:#fff;border:none;padding:11px 24px;border-radius:8px;font-weight:700;cursor:pointer;font-size:14px;}
+.gen-btn:hover{background:#276749;}
+.sb-output{background:#f7fafc;border:1.5px solid #e2e8f0;border-radius:8px;padding:16px;margin-top:14px;white-space:pre-wrap;font-size:12px;line-height:1.7;display:none;font-family:'Courier New',monospace;}
+.copy-btn{background:#718096;color:#fff;border:none;padding:7px 14px;border-radius:6px;cursor:pointer;margin-top:8px;font-size:12px;}
+.copy-btn:hover{background:#4a5568;}
+/* RESPONSIVE */
+@media(max-width:880px){.main{flex-direction:column;}.numbers-grid{grid-template-columns:1fr 1fr;}.sb-grid{grid-template-columns:1fr 1fr;}}
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="hdr">
+  <div class="hdr-logo">TREYFA <span>×</span> FLIPKART &nbsp;|&nbsp; Daily Work Dashboard</div>
+  <div class="hdr-right" id="dateDisplay"></div>
+</div>
+
+<!-- CONTROLS -->
+<div class="ctrl">
+  <div>
+    <label style="font-size:10px;font-weight:700;color:#718096;display:block;margin-bottom:3px;">CURRENT WEEK</label>
+    <select id="weekSelect" onchange="onWeekChange()">
+      <option value="1">Week 1</option><option value="2">Week 2</option><option value="3">Week 3</option>
+      <option value="4">Week 4</option><option value="5">Week 5</option><option value="6">Week 6</option>
+      <option value="7">Week 7</option><option value="8">Week 8</option><option value="9">Week 9</option>
+      <option value="10">Week 10</option><option value="11">Week 11</option><option value="12">Week 12</option>
+    </select>
+  </div>
+  <div class="week-theme-box">
+    <div class="wt-label">This Week's Focus</div>
+    <div class="wt-desc" id="weekThemeDesc"></div>
+  </div>
+</div>
+
+<!-- DAY TABS -->
+<div class="day-tabs" id="dayTabs">
+  <div class="day-tab" data-day="MON" onclick="onDayChange('MON')">Monday</div>
+  <div class="day-tab" data-day="TUE" onclick="onDayChange('TUE')">Tuesday</div>
+  <div class="day-tab" data-day="WED" onclick="onDayChange('WED')">Wednesday</div>
+  <div class="day-tab" data-day="THU" onclick="onDayChange('THU')">Thursday</div>
+  <div class="day-tab" data-day="FRI" onclick="onDayChange('FRI')">Friday</div>
+  <div class="day-tab" data-day="SAT" onclick="onDayChange('SAT')">Saturday</div>
+</div>
+
+<!-- STOP-LOSS ALERT BAR -->
+<div class="sl-alert" id="slAlertBar">
+  <div class="sl-icon">🚨</div>
+  <div class="sl-msg" id="slAlertMsg">Stop-loss rule triggered! Read the Stop-Loss panel on the right.</div>
+</div>
+
+<!-- MAIN -->
+<div class="main">
+  <!-- LEFT PANEL -->
+  <div class="left">
+    <!-- Day Header -->
+    <div class="day-hdr-card" id="dayHdrCard"></div>
+
+    <!-- Constants -->
+    <div class="card">
+      <div class="card-title"><span class="ic">🔁</span> Daily Constants — Do These Every Single Day (~90 min total)</div>
+      <div id="constantsList"></div>
+    </div>
+
+    <!-- Day Tasks -->
+    <div class="card">
+      <div class="card-title"><span class="ic">📋</span> Today's Tasks <span style="font-size:11px;font-weight:400;color:#718096;" id="taskProgress"></span></div>
+      <div id="taskList"></div>
+      <div class="must-section">
+        <h3>✅ Must Achieve by 7:00 PM</h3>
+        <div id="mustList"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- RIGHT PANEL -->
+  <div class="right">
+    <!-- Numbers Entry -->
+    <div class="card">
+      <div class="card-title"><span class="ic">📊</span> Enter Today's Numbers</div>
+      <div class="numbers-grid">
+        <div class="nm-field">
+          <label>Total Sales Today</label>
+          <input type="number" id="n_sales" placeholder="e.g. 5">
+        </div>
+        <div class="nm-field">
+          <label>Overall CTR (%)</label>
+          <input type="number" step="0.01" id="n_ctr" placeholder="e.g. 1.12">
+        </div>
+        <div class="nm-field">
+          <label>Overall CVR (%)</label>
+          <input type="number" step="0.01" id="n_cvr" placeholder="e.g. 3.90">
+        </div>
+        <div class="nm-field">
+          <label>Ad Spend (₹)</label>
+          <input type="number" id="n_adspend" placeholder="e.g. 100">
+        </div>
+        <div class="nm-field">
+          <label>Ad Revenue (₹)</label>
+          <input type="number" id="n_adrev" placeholder="e.g. 350">
+        </div>
+        <div class="nm-field">
+          <label>Returns Count</label>
+          <input type="number" id="n_returns" placeholder="e.g. 0">
+        </div>
+        <div class="nm-field nm-full">
+          <label>Worst-Performing SKU CVR Today (%)</label>
+          <input type="number" step="0.01" id="n_mincvr" placeholder="e.g. 1.5 — enter 0 if no ads running">
+        </div>
+        <div class="nm-field nm-full">
+          <label>Notes / Anomalies Spotted</label>
+          <input type="text" id="n_notes" placeholder="e.g. TRCCFW150 CTR dropped — check listing">
+        </div>
+      </div>
+      <button class="save-btn" onclick="saveNumbers()">💾 Save Today's Numbers</button>
+      <div class="saved-msg" id="savedMsg">✓ Numbers saved!</div>
+    </div>
+
+    <!-- Stop-Loss Watch -->
+    <div class="card">
+      <div class="card-title"><span class="ic">🛑</span> Stop-Loss Watch — Check These Every Day</div>
+      <div id="stopLossList"></div>
+      <div style="font-size:10px;color:#718096;margin-top:6px;">Numbers update automatically when you save today's numbers above.</div>
+    </div>
+
+    <!-- Week Progress -->
+    <div class="card">
+      <div class="card-title"><span class="ic">📈</span> This Week's Progress</div>
+      <div id="weekProgress"></div>
+    </div>
+
+    <!-- SKU Reference -->
+    <div class="card">
+      <div class="card-title"><span class="ic">🏆</span> Active SKUs Quick Reference</div>
+      <div id="skuReference"></div>
+    </div>
+  </div>
+</div>
+
+<!-- SATURDAY SCOREBOARD -->
+<div class="scoreboard-section" id="scoreboardSection">
+  <h2>📨 Saturday Scoreboard — Send to Founder Before 6 PM</h2>
+  <div class="sb-sub">Fill in the boxes below. Click "Generate Scoreboard" to get the ready-to-send message.</div>
+  <div class="sb-grid">
+    <div class="sb-field"><label>Weekly Sales Target</label><input id="sb_target" placeholder="e.g. 40 units"></div>
+    <div class="sb-field"><label>Actual Sales This Week</label><input id="sb_actual" placeholder="e.g. 28 units"></div>
+    <div class="sb-field"><label>Best Performing SKU</label><input id="sb_best" placeholder="e.g. TRHC100 — 10 sales"></div>
+    <div class="sb-field"><label>Worst Performing SKU</label><input id="sb_worst" placeholder="e.g. TRCCFW150 — 2 sales"></div>
+    <div class="sb-field"><label>Total Ad Spend This Week (₹)</label><input id="sb_adspend" placeholder="e.g. 500"></div>
+    <div class="sb-field"><label>Total Ad Revenue This Week (₹)</label><input id="sb_adrev" placeholder="e.g. 1200"></div>
+    <div class="sb-field"><label>Agency Reviews Published</label><input id="sb_agency" placeholder="e.g. 8 out of 8"></div>
+    <div class="sb-field"><label>Friends/Family Reviews Published</label><input id="sb_ff" placeholder="e.g. 3 out of 4"></div>
+    <div class="sb-field"><label>Total Returns This Week</label><input id="sb_returns" placeholder="e.g. 2"></div>
+    <div class="sb-field"><label>Stock Cover Status</label><input id="sb_stock" placeholder="e.g. All Heroes above 21 days"></div>
+    <div class="sb-field sb-full"><label>Top 3 Wins This Week</label><textarea id="sb_wins" placeholder="1. TRHC100 CTR improved to 6%&#10;2. All 29 Shopsy duplicates delisted&#10;3. F&F reviews went live on time"></textarea></div>
+    <div class="sb-field sb-full"><label>Top 3 Misses This Week</label><textarea id="sb_misses" placeholder="1. TRCCFW150 CVR still at 1.5%&#10;2. Agency missed 2 reviews&#10;3. Stock for TRHHO100 low"></textarea></div>
+    <div class="sb-field sb-full"><label>One Decision Needed From Founder</label><textarea id="sb_decision" placeholder="e.g. Should we increase ad budget on TRHC100 to ₹200/day from next week?"></textarea></div>
+  </div>
+  <button class="gen-btn" onclick="generateScoreboard()">📄 Generate Scoreboard</button>
+  <div class="sb-output" id="sbOutput"></div>
+  <button class="copy-btn" id="copyBtn" onclick="copyScoreboard()" style="display:none;">📋 Copy to Clipboard</button>
+</div>
+
+<script>
+// ===================== DATA =====================
+
+const WEEK_THEMES = {
+  1: {name:"Catalog Consolidation",desc:"Delist 15 dead Shopsy listings. Fix Hero-1/2/3 titles. NO ads running yet."},
+  2: {name:"FFA Wave 1 + First Reviews",desc:"Ship Hero-4 to FFA. Start 12 reviews per week. Still no ads."},
+  3: {name:"Phase 2 Ads Launch",desc:"Ads go live on Hero-1 at ₹100/day. Hero-4 title rewrite this week."},
+  4: {name:"Bundle B1 + FFA Wave 2",desc:"Launch first cross-category bundle. Gems-4 go to FFA. ₹100/day ads."},
+  5: {name:"Phase 3 Ads — Multi-Hero + PSA",desc:"Ads on all Heroes at ₹300/day. Gems start getting paid traffic."},
+  6: {name:"Bundle B2 + FFA Wave 3",desc:"Launch 2nd bundle if B1 has 5+ sales. Continue ₹300/day ads."},
+  7: {name:"Review Depth + Decision Points",desc:"Each Hero should reach 15+ reviews. Decide which Watch-6 SKUs graduate."},
+  8: {name:"Mid-Quarter Review",desc:"Focus on best Hero. Re-examine weakest Hero. ₹300/day continues."},
+  9: {name:"Phase 4 Smart ROI Scaling",desc:"Hero-1 gets daily ROAS attention. Budget increases to ₹500/day Smart ROI."},
+  10:{name:"Velocity Lock-In",desc:"All Heroes get daily ad attention. Cut 2 Watch-6 SKUs if no momentum."},
+  11:{name:"Bundle & AOV Push",desc:"Launch Bundle B3 if ready. Cross-link audit deepens. ₹500/day ads."},
+  12:{name:"Lock the Floor",desc:"Q2 baseline planning on Monday. Scoreboard becomes the full playbook."}
+};
+
+const CONSTANTS = [
+  {id:"c1", title:"Morning Pull (first 30 minutes)", text:"Open Flipkart Seller Hub. Write down yesterday's numbers for all 14 active SKUs — sales, CTR, CVR, ad spend, ROAS. If anything looks unusual (CVR dropped sharply, ROAS collapsed, returns spiked), mark it in red in your log.", note:"These numbers decide everything else you do today."},
+  {id:"c2", title:"Q&A and Review Reply (45-60 minutes)", text:"Reply to every buyer question on Hero-4 and Gems-4 SKUs within 24 hours. Acknowledge every new review — good or bad. For reviews with 3 stars or below, try to resolve privately before posting a public reply.", note:"Flipkart's system tracks how fast you reply. Slow replies hurt your ranking."},
+  {id:"c3", title:"Stop-Loss Watch (5 minutes, done silently)", text:"Look at the 3 stop-loss rules shown on the right panel. No meeting needed — just check. If any rule is triggered, act immediately. Do not wait for the next day.", note:"Missing a stop-loss trigger costs more than any single task done wrong."}
+];
+
+const TASKS = {
+  MON: {
+    title: "Monday — Plan Lock + Hero-1 + Choco Coffee Fix",
+    tagline: "Read the weekend data first. Then lock this week's plan. Then make one real change on Hero-1.",
+    hero: "Today's Hero Focus → Hero-1: TRHC100 (Hibiscus Shampoo 100ml)",
+    tasks: [
+      {id:"m1",text:"Pull Saturday + Sunday sales, CTR, CVR, ad spend, ROAS and return count for all 14 active SKUs. Write all numbers in the daily log.",note:"Weekend = 60% of weekly orders. These numbers tell you what last week actually achieved."},
+      {id:"m2",text:"15-minute call with the founder. Lock this week's 5 priorities — write them down on paper or in the log. Do NOT just agree verbally.",note:"Do this before 11:30 AM so the rest of the day has a clear direction."},
+      {id:"m3",text:"Deep work on Hero-1 (Hibiscus Shampoo 100ml — TRHC100). Ship one concrete change LIVE today. This could be: title rewrite, image update, or ad keyword fix. Must be live before 7 PM.",note:"Hero-1 has both 5% CTR and 5% CVR. Improving it gives the best chance of compounding results."},
+      {id:"m4",text:"Advance the Choco Coffee Face Wash 150ml (TRCCFW150) surgery. This week's step could be: search-term audit, price check, title rewrite, or image rewrite. Document the step completed in the log.",note:"This one SKU gets 63% of all Treyfa's views on Flipkart. Every week you delay fixing it loses potential sales."},
+      {id:"m5",text:"Clear all unanswered buyer Q&A and new reviews from Saturday and Sunday. Focus on Hero-4 and bundle SKUs."},
+      {id:"m6",text:"Check ads: pause any keyword that spent ₹50 or more over the weekend with zero sales. No rationalising — just pause.",note:"Only do this from Week 3 when ads are running.",wMin:3},
+      {id:"m7",text:"QC check: physically look at 1 out of every 20 packages that were dispatched on Saturday. Check seal, label, and product condition. Write 1-line report.",note:"Once FFA migration is done for that SKU, this becomes occasional."}
+    ],
+    must: [
+      {id:"mm1",text:"Written priorities document for the week exists (shared with founder)."},
+      {id:"mm2",text:"One concrete change is LIVE on Hero-1 (TRHC100) — not in draft."},
+      {id:"mm3",text:"Choco Coffee (TRCCFW150) surgery step documented in log (audit done, OR rewrite shipped, OR test launched)."},
+      {id:"mm4",text:"Zero unanswered buyer questions on Hero-4 and bundles."},
+      {id:"mm5",text:"Underperforming ad keywords paused and logged.",wMin:3},
+      {id:"mm6",text:"QC sample report written (or FFA dispatch check noted)."}
+    ]
+  },
+  TUE: {
+    title: "Tuesday — Hero-2 + Catalog Cleanup / Watch-6 Fix",
+    tagline: "Make one live change on Hero-2. Delist dead SKUs (Weeks 1-2) OR fix one Watch-6 SKU (Week 3+).",
+    hero: "Today's Hero Focus → Hero-2: TRHHO100 (Henna Black Coconut Hair Oil 100ml)",
+    tasks: [
+      {id:"t1",text:"Morning pull + Q&A pass (the daily constants — done first)."},
+      {id:"t2",text:"Deep work on Hero-2 (Henna Black Coconut Hair Oil 100ml — TRHHO100). Ship this week's planned change LIVE today.",note:"Hero-2 has a 9% CVR — exceptional. It just needs more impressions."},
+      {id:"t3_w1",text:"WEEK 1 TASK: Delist 15 of the 29 Shopsy/S_ duplicate listings. Write each delisted SKU in the log.",note:"These duplicate listings split your search ranking and confuse buyers. Removing them makes the main listing stronger.",wMin:1,wMax:1},
+      {id:"t3_w2",text:"WEEK 2 TASK: Delist the remaining 14 Shopsy duplicates PLUS all 9 same-product 2-pack bundles. Log each one.",note:"After this, catalog drops from 71 to around 14 active SKUs. Cleaner catalog = stronger ranking.",wMin:2,wMax:2},
+      {id:"t3_w3",text:"WEEK 3+ TASK: Pick ONE Watch-6 SKU. Fix its title (use Section E title pattern), rewrite its 5 bullets, upgrade at least one image. Touch only this one SKU — leave the other 5 alone.",note:"One SKU fixed well beats six SKUs fixed poorly.",wMin:3},
+      {id:"t4",text:"Launch this week's A/B test: one image variant OR one bullet variant on a single Hero SKU. Write the hypothesis in the log — what do you think will improve, and why?"},
+      {id:"t5",text:"Ads: add negative keywords from last week's search-term report. Adjust bids on Hero-2 PCA campaign.",note:"Only from Week 3 when ads are live.",wMin:3},
+      {id:"t6",text:"Cross-SKU linking audit on Hero-2: confirm 'Frequently Bought Together' links are correct and bundle prices match.",wMin:4}
+    ],
+    must: [
+      {id:"tm1",text:"Hero-2 (TRHHO100) has one new live change — not in draft."},
+      {id:"tm2_w1",text:"Week 1: 15 Shopsy duplicate listings delisted and logged.",wMin:1,wMax:1},
+      {id:"tm2_w2",text:"Week 2: Remaining 14 duplicates + 9 same-product bundles delisted and logged.",wMin:2,wMax:2},
+      {id:"tm2_w3",text:"Week 3+: Exactly ONE Watch-6 SKU fixed (title + bullets + image).",wMin:3},
+      {id:"tm3",text:"A/B test running with a written hypothesis in the log."},
+      {id:"tm4",text:"Negative keywords added; bid adjustments logged.",wMin:3}
+    ]
+  },
+  WED: {
+    title: "Wednesday — Hero-3 + Brief Both Review Channels",
+    tagline: "Make one live change on Hero-3. Brief the review agency AND your friends/family for this week's reviews.",
+    hero: "Today's Hero Focus → Hero-3: TRCLHO100 (Curry Leaves Coconut Hair Oil 100ml)",
+    tasks: [
+      {id:"w1",text:"Morning pull + Q&A pass (the daily constants — done first)."},
+      {id:"w2",text:"Deep work on Hero-3 (Curry Leaves Coconut Hair Oil 100ml — TRCLHO100). Ship this week's planned change LIVE today."},
+      {id:"w3",text:"30-45 minute briefing call with the review agency. Send them a WRITTEN brief: which SKUs, how many reviews each, 3 specific writing angles, which cities and states to use. Confirm the rule: max 1 review per SKU per day.",note:"Briefing on Wednesday means reviews land Thursday-Friday — exactly when weekend buyers are deciding."},
+      {id:"w4",text:"Brief your friends/family pool individually via WhatsApp or call. Give each person: which SKU to review, which city to say they are from, which angle to write. Assign cities different from the agency reviewers.",note:"Geographic spread rule: Tamil Nadu max 30%. Minimum 4 cities. Minimum 3 states across any rolling 7-review window."},
+      {id:"w5",text:"Cross-SKU linking deep pass: every Hero SKU page must have at least one bundle link in 'Frequently Bought Together'. Add or fix any missing links.",wMin:4},
+      {id:"w6",text:"Ads: check SmartROI / PCA performance from Monday and Tuesday. If ROAS is below 2.0×, flag it. If ROAS is above 3.0×, consider a small budget increase.",wMin:3},
+      {id:"w7",text:"Backend keyword refresh on today's Hero SKU: add 25-30 search tags from the search-term report plus competitor keyword research."},
+      {id:"w8",text:"FFA inventory check: is stock cover 21 days or more on all Hero-4 and Gems-4 SKUs? If any SKU is running low, raise a replenishment ticket TODAY — not next Monday.",note:"Raise it today. Wednesday gives Thursday-Friday window to act before the weekend rush.",wMin:2}
+    ],
+    must: [
+      {id:"wm1",text:"Hero-3 (TRCLHO100) has one new live change — not in draft."},
+      {id:"wm2",text:"Review agency has received a WRITTEN brief: which SKUs, quantities, 3 angles, target cities."},
+      {id:"wm3",text:"Friends/family pool briefed individually via WhatsApp or call with specific SKU + city + angle for each person."},
+      {id:"wm4",text:"Cross-SKU links verified across all Hero-4 and bundle pages.",wMin:4},
+      {id:"wm5",text:"25-30 backend search tags refreshed on today's Hero SKU."},
+      {id:"wm6",text:"FFA stock cover check done. Replenishment ticket raised if any SKU is below 21 days.",wMin:2}
+    ]
+  },
+  THU: {
+    title: "Thursday — Mid-Week Pulse + Gems Watch + Ads Tune",
+    tagline: "Read 4 days of data. Adjust bids before the weekend. Watch if the Gems are holding up.",
+    tasks: [
+      {id:"th1",text:"Morning pull + Q&A pass (the daily constants — done first)."},
+      {id:"th2",text:"Mid-week ROAS deep dive: open every active ad campaign and every keyword for every Hero and Gem. List the top 3 converting placements and the bottom 3.",wMin:3},
+      {id:"th3",text:"Bid adjustments: push more budget to the top 3 performing placements. Throttle or pause the bottom 3.",wMin:3,note:"4 weekdays of data is the minimum for Flipkart's algorithm to settle. Acting earlier means acting on noise."},
+      {id:"th4",text:"Bundle tune-up: re-check every bundle SKU's price. The saving vs. buying single must be at least 12-15% and clearly visible to the buyer. Confirm the main image shows a 'SAVE ₹X' badge.",wMin:4},
+      {id:"th5",text:"Gems performance review: check CTR and CVR trend for each of the 4 Gems over the past 4 days. If any Gem's CVR is falling as paid traffic comes in, document it — it may need to be retired to Watch-6.",note:"Gems' high CVR (18-25%) was earned with organic traffic. Paid traffic can lower it. Watch carefully.",wMin:5},
+      {id:"th6",text:"Watch-6 second pass: for the SKU that was fixed on Tuesday, check its 4-day data. If CTR is up, consider promoting it next week. If no change, put it back to Cold Rest."},
+      {id:"th7",text:"Returns audit: read every return reason from the past 7 days. If a pattern is forming (e.g. 3 people returned saying 'wrong smell'), route it to Friday's image-fix queue."},
+      {id:"th8",text:"Q&A second sweep — Thursdays often have more pre-weekend buyer questions than other weekdays."}
+    ],
+    must: [
+      {id:"thm1",text:"ROAS deep dive done. Top 3 and bottom 3 ad placements identified and documented.",wMin:3},
+      {id:"thm2",text:"Bids adjusted. Weekend runs on freshly tuned bids.",wMin:3},
+      {id:"thm3",text:"Bundle prices and 'SAVE ₹X' badges verified on all bundle SKUs.",wMin:4},
+      {id:"thm4",text:"Each Gem's CVR trajectory documented — keep, watch, or retire decision written in log.",wMin:5},
+      {id:"thm5",text:"Watch-6 SKU 4-day data documented. Keep or retire decision made."},
+      {id:"thm6",text:"Return-reason patterns surfaced and routed to Friday's fix queue."}
+    ]
+  },
+  FRI: {
+    title: "Friday — Competitor Scan + Lock Down for Weekend",
+    tagline: "Look at what competitors are doing. Lock everything in place before the weekend sales rush starts.",
+    tasks: [
+      {id:"f1",text:"Morning pull + Q&A pass (the daily constants — done first)."},
+      {id:"f2",text:"Competitor scan (45 minutes, formal): check top 5 competitors for face wash — Mamaearth, WOW, Plum, Lakmé, and one rotating new challenger. Note for each: current price, main image style, badge placement, review count change vs last Friday, any new bundle or coupon. Write a 1-page competitor log with today's date.",note:"Friday is the only day you look outside Treyfa. Flipkart is a relative battle."},
+      {id:"f3",text:"Special competitor scan for TRCCFW150 (Choco Coffee Face Wash 150ml): capture the top 10 competitors on the exact same search query that brings TRCCFW150 its 119k monthly views. Feed this data into the surgery sequence notes.",note:"This is the single most important SKU to watch competitors on."},
+      {id:"f4",text:"Stock check — BOTH types of inventory: Self-fulfilled SKUs (in Seller Hub) AND FFA SKUs (in the FFA dashboard). Confirm 14-day cover minimum on all Hero-4 and Gems-4 SKUs. If any SKU is below 14 days, alert the founder TODAY.",note:"Stock-out on a Sunday triggers Flipkart's 45-60 day ranking penalty. Friday check is the firewall."},
+      {id:"f5",text:"Deploy all image and listing changes prepared this week that are not yet live. NOTHING stays in draft status after 7 PM tonight. Changes must be live before the weekend traffic starts."},
+      {id:"f6",text:"Reviews check with both channels: confirm this week's 12 reviews are actually published — 8 from agency + 4 from friends/family. If 2 or more are missing from either channel, send a follow-up message today.",wMin:2},
+      {id:"f7",text:"Final weekend ad bid tune-up: Heroes with high CVR get a bid boost for Saturday. Risky or underperforming SKUs get a spend cap.",wMin:3},
+      {id:"f8",text:"Check brand storefront and banner: does everything look correct on both mobile AND desktop? Is any Limited Time Offer badge showing correctly?"}
+    ],
+    must: [
+      {id:"fm1",text:"1-page competitor log written with today's date."},
+      {id:"fm2",text:"TRCCFW150-specific competitor scan done. Data written into surgery sequence notes."},
+      {id:"fm3",text:"Stock cover confirmed on every Hero + Gem — BOTH self-fulfilled AND FFA dashboard. Founder alerted if any SKU is under 14 days."},
+      {id:"fm4",text:"ALL week's planned listing and image changes are LIVE. Nothing in draft status."},
+      {id:"fm5",text:"All 12 reviews confirmed as published OR follow-up sent to the channel that is late.",wMin:2},
+      {id:"fm6",text:"Weekend ad bids tuned and locked.",wMin:3},
+      {id:"fm7",text:"Brand storefront verified on mobile view."}
+    ]
+  },
+  SAT: {
+    title: "Saturday — Operations + Weekly Scoreboard",
+    tagline: "Check all dispatch and stock. Send the founder the weekly scoreboard by 6 PM sharp.",
+    tasks: [
+      {id:"s1",text:"Morning pull + Q&A pass — Saturday usually has the most overnight buyer questions from Friday-night browsing. Check all Hero-4 and Gems-4 Q&A."},
+      {id:"s2",text:"Operations check: for any self-fulfilled SKU (Watch-6), do a 1-in-10 physical QC sample. For FFA SKUs, open the FFA dashboard and confirm all orders were dispatched on time by Flipkart.",note:"Post-FFA migration, your role is verification, not packing."},
+      {id:"s3",text:"Inventory verification: for self-fulfilled SKUs, physically count stock and match to system count. For FFA SKUs, check the FFA dashboard stock numbers and compare to last week."},
+      {id:"s4",text:"Bundle cross-link weekly audit: check every Hero SKU's 'Frequently Bought Together' section and every bundle SKU's product description. Fix any links that are broken or pointing to wrong SKUs.",wMin:4},
+      {id:"s5",text:"Light touch-up only — minor catalogue corrections, typo fixes, small image swap if urgent. Saturday is NOT a deep-work day. Deep work goes Monday to Friday."},
+      {id:"s6",text:"Write the end-of-week scoreboard and send to the founder BEFORE 6 PM. See the scoreboard section below. Include: weekly sales vs target, CTR/CVR per Hero/Gem, ROAS by SKU, reviews published (agency vs F&F), returns count, top 3 wins, top 3 misses, and one decision needed from founder.",note:"The scoreboard is not a reporting ritual — it gives the founder a chance to re-plan before next week starts."},
+      {id:"s7",text:"Archive this week's daily log. Write one Monday prep note: what must be ready before Monday's work begins?"},
+      {id:"s8",text:"F&F pool maintenance (every other Saturday): update the spreadsheet with last-review-date for each contact. Anyone who reviewed any brand in the last 7 days — mark them as 'parked, do not use this week'."}
+    ],
+    must: [
+      {id:"sm1",text:"QC / FFA dispatch verification report written. Any defects or delays flagged to founder."},
+      {id:"sm2",text:"Stock cover physically confirmed on Hero + Gems — both self-fulfilled count AND FFA dashboard numbers checked."},
+      {id:"sm3",text:"Bundle cross-link audit complete. All broken links fixed.",wMin:4},
+      {id:"sm4",text:"Scoreboard email sent to founder BEFORE 6 PM."},
+      {id:"sm5",text:"Daily log archived. Monday prep note captured in log."},
+      {id:"sm6",text:"F&F pool spreadsheet updated (every other Saturday)."}
+    ]
+  }
+};
+
+const SKUS = [
+  {code:"TRHC100",name:"Hibiscus Shampoo 100ml",note:"5% CTR + 5% CVR — cleanest performer",type:"hero",id:"H1"},
+  {code:"TRHHO100",name:"Henna Black Coconut Hair Oil 100ml",note:"9% CVR — exceptional",type:"hero",id:"H2"},
+  {code:"TRCLHO100",name:"Curry Leaves Coconut Hair Oil 100ml",note:"Decent CTR + CVR",type:"hero",id:"H3"},
+  {code:"TRCCFW150",name:"Choco Coffee FW 150ml",note:"63% of ALL brand views — fix CVR urgently",type:"hero",id:"H4"},
+  {code:"TRCHCI200",name:"Hibiscus Chamomile Hair Oil 200ml",note:"25% CVR — needs impressions",type:"gem",id:"G1"},
+  {code:"TRCHHO100",name:"Hibiscus Chamomile Hair Oil 100ml",note:"20% CVR — thin sample",type:"gem",id:"G2"},
+  {code:"TRTSC100",name:"Turmeric Shampoo 100ml",note:"20% CVR — unproven at scale",type:"gem",id:"G3"},
+  {code:"TRCO200",name:"Virgin Coconut Oil 200ml",note:"18% CVR — needs CTR fix",type:"gem",id:"G4"}
+];
+
+// ===================== STATE =====================
+let currentWeek = 1;
+let currentDay = 'MON';
+const DAYS = ['MON','TUE','WED','THU','FRI','SAT'];
+
+function storageKey(type) {
+  return `treyfa_w${currentWeek}_${currentDay}_${type}`;
+}
+function numbersKey() {
+  return `treyfa_w${currentWeek}_${currentDay}_numbers`;
+}
+function getChecked(id) {
+  return localStorage.getItem(`treyfa_w${currentWeek}_${currentDay}_${id}`) === '1';
+}
+function setChecked(id, val) {
+  localStorage.setItem(`treyfa_w${currentWeek}_${currentDay}_${id}`, val ? '1' : '0');
+}
+function getDayChecked(week, day, id) {
+  return localStorage.getItem(`treyfa_w${week}_${day}_${id}`) === '1';
+}
+
+// ===================== RENDER =====================
+function render() {
+  renderWeekTheme();
+  renderDayTabs();
+  renderDayHeader();
+  renderConstants();
+  renderTasks();
+  renderStopLoss();
+  renderWeekProgress();
+  renderSkuReference();
+  renderScoreboard();
+  loadNumbers();
+}
+
+function renderWeekTheme() {
+  const t = WEEK_THEMES[currentWeek];
+  document.getElementById('weekThemeDesc').innerHTML = `<strong>Week ${currentWeek}: ${t.name}</strong> — ${t.desc}`;
+}
+
+function renderDayTabs() {
+  DAYS.forEach(d => {
+    const el = document.querySelector(`.day-tab[data-day="${d}"]`);
+    el.className = 'day-tab' + (d === currentDay ? ' active' : '');
+    // check if any task done that day
+    const tasks = TASKS[d].tasks;
+    const done = tasks.some(t => getDayChecked(currentWeek, d, t.id));
+    const all = getVisibleTasks(d).every(t => getDayChecked(currentWeek, d, t.id));
+    if (done) {
+      el.innerHTML = d.charAt(0)+d.slice(1).toLowerCase() + (all ? ' <span class="done-dot"></span>' : '');
+    } else {
+      el.textContent = d.charAt(0)+d.slice(1).toLowerCase();
+    }
+  });
+  // Fix capitalization
+  const labels = {MON:'Monday',TUE:'Tuesday',WED:'Wednesday',THU:'Thursday',FRI:'Friday',SAT:'Saturday'};
+  DAYS.forEach(d => {
+    const el = document.querySelector(`.day-tab[data-day="${d}"]`);
+    const hasDot = el.querySelector('.done-dot');
+    el.className = 'day-tab' + (d === currentDay ? ' active' : '');
+    if (hasDot) {
+      el.innerHTML = labels[d] + ' <span class="done-dot"></span>';
+    } else {
+      el.textContent = labels[d];
+    }
+  });
+}
+
+function getVisibleTasks(day) {
+  return TASKS[day].tasks.filter(t => {
+    if (t.wMin && currentWeek < t.wMin) return false;
+    if (t.wMax && currentWeek > t.wMax) return false;
+    return true;
+  });
+}
+function getVisibleMust(day) {
+  return TASKS[day].must.filter(t => {
+    if (t.wMin && currentWeek < t.wMin) return false;
+    if (t.wMax && currentWeek > t.wMax) return false;
+    return true;
+  });
+}
+
+function renderDayHeader() {
+  const d = TASKS[currentDay];
+  let html = `<h1>${d.title}</h1><p>${d.tagline}</p>`;
+  if (d.hero) html += `<div class="hero-badge">🎯 ${d.hero}</div>`;
+  document.getElementById('dayHdrCard').innerHTML = html;
+}
+
+function renderConstants() {
+  let html = '';
+  CONSTANTS.forEach(c => {
+    const checked = getChecked(c.id);
+    html += `<div class="task-item ${checked?'done':''}" onclick="toggle('${c.id}',this)">
+      <input type="checkbox" ${checked?'checked':''} onclick="event.stopPropagation();toggle('${c.id}',this.closest('.task-item'))">
+      <div>
+        <div class="t-text"><strong>${c.title}</strong> — ${c.text}</div>
+        ${c.note?`<div class="t-note">💡 ${c.note}</div>`:''}
+      </div>
+    </div>`;
+  });
+  document.getElementById('constantsList').innerHTML = html;
+}
+
+function renderTasks() {
+  const dayData = TASKS[currentDay];
+  const visible = getVisibleTasks(currentDay);
+  const mustVisible = getVisibleMust(currentDay);
+  const total = visible.length;
+  const done = visible.filter(t => getChecked(t.id)).length;
+  document.getElementById('taskProgress').textContent = `(${done}/${total} done)`;
+
+  let html = '';
+  dayData.tasks.forEach(t => {
+    const show = !((t.wMin && currentWeek < t.wMin) || (t.wMax && currentWeek > t.wMax));
+    if (!show) return;
+    const checked = getChecked(t.id);
+    let weekNote = '';
+    if (t.wMin && t.wMin > 1) weekNote = `<span class="wk-badge">From Week ${t.wMin}</span>`;
+    if (t.wMax) weekNote = `<span class="wk-badge">Week ${t.wMin||1}-${t.wMax} only</span>`;
+    html += `<div class="task-item ${checked?'done':''}" onclick="toggle('${t.id}',this)">
+      <input type="checkbox" ${checked?'checked':''} onclick="event.stopPropagation();toggle('${t.id}',this.closest('.task-item'))">
+      <div>
+        <div class="t-text">${t.text}${weekNote}</div>
+        ${t.note?`<div class="t-note">💡 ${t.note}</div>`:''}
+      </div>
+    </div>`;
+  });
+  document.getElementById('taskList').innerHTML = html;
+
+  let mhtml = '';
+  mustVisible.forEach(t => {
+    const checked = getChecked(t.id);
+    let weekNote = '';
+    if (t.wMin && t.wMin > 1) weekNote = `<span class="wk-badge">From Week ${t.wMin}</span>`;
+    mhtml += `<div class="ach-item ${checked?'done':''}" onclick="toggle('${t.id}',this)">
+      <input type="checkbox" ${checked?'checked':''} onclick="event.stopPropagation();toggle('${t.id}',this.closest('.ach-item'))">
+      <div class="t-text">${t.text}${weekNote}</div>
+    </div>`;
+  });
+  document.getElementById('mustList').innerHTML = mhtml;
+}
+
+function renderStopLoss() {
+  const nums = getSavedNumbers();
+  const cvr = parseFloat(nums.cvr) || 0;
+  const adspend = parseFloat(nums.adspend) || 0;
+  const adrev = parseFloat(nums.adrev) || 0;
+  const roas = adspend > 0 ? (adrev / adspend) : 999;
+  const mincvr = parseFloat(nums.mincvr) || 0;
+
+  // Rule 1: CVR below 4%
+  const rule1triggered = currentWeek >= 3 && mincvr > 0 && mincvr < 4;
+  // Rule 2: ROAS below 1.5x
+  const rule2triggered = currentWeek >= 3 && adspend > 0 && roas < 1.5;
+  // Rule 3: Stock (manual check — shown as reminder)
+  const anyAlert = rule1triggered || rule2triggered;
+
+  const slBar = document.getElementById('slAlertBar');
+  if (anyAlert) {
+    slBar.className = 'sl-alert show';
+    let msgs = [];
+    if (rule1triggered) msgs.push('CVR below 4% — stop ad/image work and fix the listing first');
+    if (rule2triggered) msgs.push(`ROAS is ${roas.toFixed(2)}× — pause that ad immediately`);
+    document.getElementById('slAlertMsg').textContent = '🚨 STOP-LOSS TRIGGERED: ' + msgs.join(' | ');
+  } else {
+    slBar.className = 'sl-alert';
+  }
+
+  let html = '';
+  // Rule 1
+  html += `<div class="sl-item ${rule1triggered?'sl-danger':'sl-safe'}">
+    <h4>Rule 1 — CVR Drop ${rule1triggered?'🔴 TRIGGERED':'🟢 OK'}</h4>
+    <p>Has any Hero or Gem SKU's CVR dropped below 4% for two days in a row?</p>
+    <div class="sl-action ${rule1triggered?'danger-act':'safe-act'}">${rule1triggered?'→ STOP all image and ad work. Fix the listing first.':'→ CVR is holding. Continue as planned.'}</div>
+  </div>`;
+
+  // Rule 2
+  const roasDisplay = adspend > 0 ? `Current ROAS: ${roas.toFixed(2)}×` : 'No ad spend entered yet';
+  html += `<div class="sl-item ${rule2triggered?'sl-danger':'sl-safe'}">
+    <h4>Rule 2 — Ad ROAS Below 1.5× ${rule2triggered?'🔴 TRIGGERED':'🟢 OK'}</h4>
+    <p>Has any SKU's ad ROAS been below 1.5× for five days in a row? ${roasDisplay}</p>
+    <div class="sl-action ${rule2triggered?'danger-act':'safe-act'}">${rule2triggered?'→ PAUSE that ad immediately. No rationalising.':'→ ROAS is acceptable. Monitor daily.'}</div>
+  </div>`;
+
+  // Rule 3
+  html += `<div class="sl-item sl-warn">
+    <h4>Rule 3 — Stock Cover ⚠️ CHECK MANUALLY</h4>
+    <p>Has any Hero or FFA-stocked SKU gone below 14 days of stock cover? Check Seller Hub + FFA dashboard.</p>
+    <div class="sl-action warn-act">→ If YES: Alert the founder TODAY. Do not wait.</div>
+  </div>`;
+
+  document.getElementById('stopLossList').innerHTML = html;
+}
+
+function renderWeekProgress() {
+  let html = '';
+  DAYS.forEach(d => {
+    const visible = getVisibleTasks(d);
+    const total = visible.length + CONSTANTS.length + getVisibleMust(d).length;
+    const done = visible.filter(t => getDayChecked(currentWeek, d, t.id)).length
+      + CONSTANTS.filter(c => getDayChecked(currentWeek, d, c.id)).length
+      + getVisibleMust(d).filter(t => getDayChecked(currentWeek, d, t.id)).length;
+    const pct = total > 0 ? Math.round((done/total)*100) : 0;
+    const labels = {MON:'Mon',TUE:'Tue',WED:'Wed',THU:'Thu',FRI:'Fri',SAT:'Sat'};
+    const color = pct===100?'#38a169':pct>50?'#3182ce':'#a0aec0';
+    html += `<div class="day-prog-item">
+      <div class="dp-label">${labels[d]}</div>
+      <div class="dp-bar"><div class="dp-fill" style="width:${pct}%;background:${color};"></div></div>
+      <div class="dp-pct">${pct}%</div>
+    </div>`;
+  });
+  document.getElementById('weekProgress').innerHTML = html;
+}
+
+function renderSkuReference() {
+  let html = '<div class="sku-ref">';
+  SKUS.forEach(s => {
+    html += `<div class="sku-row">
+      <span class="badge ${s.type}">${s.id}</span>
+      <div style="flex:1;padding:0 8px;">
+        <div class="sku-code">${s.code}</div>
+        <div class="sku-name">${s.name}</div>
+        <div class="sku-note">${s.note}</div>
+      </div>
+    </div>`;
+  });
+  html += '</div>';
+  document.getElementById('skuReference').innerHTML = html;
+}
+
+function renderScoreboard() {
+  const sb = document.getElementById('scoreboardSection');
+  sb.className = currentDay === 'SAT' ? 'scoreboard-section show' : 'scoreboard-section';
+}
+
+// ===================== INTERACTIONS =====================
+function toggle(id, el) {
+  const cb = el.querySelector('input[type=checkbox]');
+  const isChecked = !getChecked(id);
+  setChecked(id, isChecked);
+  if (cb) cb.checked = isChecked;
+  el.className = el.className.replace(' done','').replace('done','').trim() + (isChecked ? ' done' : '');
+  const textEl = el.querySelector('.t-text');
+  if (textEl) {
+    if (isChecked) textEl.style.textDecoration = 'line-through';
+    else textEl.style.textDecoration = '';
+  }
+  renderWeekProgress();
+  renderDayTabs();
+  updateTaskProgress();
+}
+
+function updateTaskProgress() {
+  const visible = getVisibleTasks(currentDay);
+  const total = visible.length;
+  const done = visible.filter(t => getChecked(t.id)).length;
+  document.getElementById('taskProgress').textContent = `(${done}/${total} done)`;
+}
+
+function onWeekChange() {
+  currentWeek = parseInt(document.getElementById('weekSelect').value);
+  render();
+}
+
+function onDayChange(day) {
+  currentDay = day;
+  saveNumbersToStorage(); // save before switching
+  render();
+}
+
+// ===================== NUMBERS =====================
+function saveNumbers() {
+  saveNumbersToStorage();
+  document.getElementById('savedMsg').style.display = 'block';
+  setTimeout(() => document.getElementById('savedMsg').style.display = 'none', 2000);
+  renderStopLoss();
+}
+
+function saveNumbersToStorage() {
+  const nums = {
+    sales: document.getElementById('n_sales').value,
+    ctr: document.getElementById('n_ctr').value,
+    cvr: document.getElementById('n_cvr').value,
+    adspend: document.getElementById('n_adspend').value,
+    adrev: document.getElementById('n_adrev').value,
+    returns: document.getElementById('n_returns').value,
+    mincvr: document.getElementById('n_mincvr').value,
+    notes: document.getElementById('n_notes').value,
+  };
+  localStorage.setItem(numbersKey(), JSON.stringify(nums));
+}
+
+function getSavedNumbers() {
+  const raw = localStorage.getItem(numbersKey());
+  return raw ? JSON.parse(raw) : {};
+}
+
+function loadNumbers() {
+  const nums = getSavedNumbers();
+  document.getElementById('n_sales').value = nums.sales || '';
+  document.getElementById('n_ctr').value = nums.ctr || '';
+  document.getElementById('n_cvr').value = nums.cvr || '';
+  document.getElementById('n_adspend').value = nums.adspend || '';
+  document.getElementById('n_adrev').value = nums.adrev || '';
+  document.getElementById('n_returns').value = nums.returns || '';
+  document.getElementById('n_mincvr').value = nums.mincvr || '';
+  document.getElementById('n_notes').value = nums.notes || '';
+}
+
+// ===================== SCOREBOARD =====================
+function generateScoreboard() {
+  const target = document.getElementById('sb_target').value || '—';
+  const actual = document.getElementById('sb_actual').value || '—';
+  const best = document.getElementById('sb_best').value || '—';
+  const worst = document.getElementById('sb_worst').value || '—';
+  const adspend = document.getElementById('sb_adspend').value || '0';
+  const adrev = document.getElementById('sb_adrev').value || '0';
+  const roas = parseFloat(adspend) > 0 ? (parseFloat(adrev)/parseFloat(adspend)).toFixed(2) : 'N/A';
+  const agency = document.getElementById('sb_agency').value || '—';
+  const ff = document.getElementById('sb_ff').value || '—';
+  const returns = document.getElementById('sb_returns').value || '—';
+  const stock = document.getElementById('sb_stock').value || '—';
+  const wins = document.getElementById('sb_wins').value || '—';
+  const misses = document.getElementById('sb_misses').value || '—';
+  const decision = document.getElementById('sb_decision').value || '—';
+  const today = new Date().toLocaleDateString('en-IN',{day:'numeric',month:'long',year:'numeric'});
+
+  const text = `TREYFA × FLIPKART — WEEK ${currentWeek} SCOREBOARD
+Date: ${today} | Week Theme: ${WEEK_THEMES[currentWeek].name}
+════════════════════════════════════════════
+
+📦 SALES
+  Target: ${target}
+  Actual: ${actual}
+  Best SKU: ${best}
+  Worst SKU: ${worst}
+
+💰 ADS PERFORMANCE
+  Total Ad Spend: ₹${adspend}
+  Total Ad Revenue: ₹${adrev}
+  Overall ROAS: ${roas}× ${parseFloat(roas) < 1.5 ? '⚠️ BELOW STOP-LOSS THRESHOLD' : parseFloat(roas) >= 3 ? '✅ EXCELLENT' : ''}
+
+⭐ REVIEWS
+  Agency Reviews Published: ${agency}
+  Friends/Family Reviews Published: ${ff}
+
+📦 RETURNS
+  Total Returns This Week: ${returns}
+
+🏪 INVENTORY
+  Stock Cover Status: ${stock}
+
+✅ TOP 3 WINS THIS WEEK
+${wins}
+
+❌ TOP 3 MISSES THIS WEEK
+${misses}
+
+❓ ONE DECISION NEEDED FROM FOUNDER
+${decision}
+
+────────────────────────────────────────
+Sent by: Manager | Next review: Next Saturday 6 PM`;
+
+  const out = document.getElementById('sbOutput');
+  out.textContent = text;
+  out.style.display = 'block';
+  document.getElementById('copyBtn').style.display = 'inline-block';
+}
+
+function copyScoreboard() {
+  const text = document.getElementById('sbOutput').textContent;
+  navigator.clipboard.writeText(text).then(() => {
+    document.getElementById('copyBtn').textContent = '✓ Copied!';
+    setTimeout(() => document.getElementById('copyBtn').textContent = '📋 Copy to Clipboard', 2000);
+  });
+}
+
+// ===================== INIT =====================
+function init() {
+  // Date display
+  const now = new Date();
+  document.getElementById('dateDisplay').textContent = now.toLocaleDateString('en-IN',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+
+  // Load saved week
+  const savedWeek = localStorage.getItem('treyfa_current_week');
+  if (savedWeek) {
+    currentWeek = parseInt(savedWeek);
+    document.getElementById('weekSelect').value = currentWeek;
+  }
+
+  // Auto-detect current day
+  const dayIndex = now.getDay(); // 0=Sun,1=Mon,...,6=Sat
+  const dayMap = {1:'MON',2:'TUE',3:'WED',4:'THU',5:'FRI',6:'SAT'};
+  currentDay = dayMap[dayIndex] || 'MON';
+
+  render();
+}
+
+// Save week preference when changed
+document.getElementById('weekSelect').addEventListener('change', function() {
+  localStorage.setItem('treyfa_current_week', this.value);
+});
+
+init();
+</script>
+</body>
+</html>

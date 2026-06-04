@@ -1,0 +1,1303 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Treyfa × Myntra — Daily Work Dashboard</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Segoe UI',Arial,sans-serif;background:#fdf2f8;color:#1a202c;font-size:14px;}
+/* HEADER */
+.hdr{background:#880e4f;color:#fff;padding:14px 24px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;}
+.hdr-logo{font-size:20px;font-weight:800;letter-spacing:1px;}
+.hdr-logo span{color:#f9a8d4;}
+.hdr-right{font-size:12px;opacity:.8;text-align:right;line-height:1.6;}
+/* CONTROLS */
+.ctrl{background:#fff;border-bottom:2px solid #fce7f3;padding:12px 24px;display:flex;gap:12px;align-items:center;flex-wrap:wrap;}
+.ctrl select{padding:8px 12px;border:2px solid #e91e63;border-radius:8px;font-size:13px;font-weight:700;color:#880e4f;background:#fce7f3;cursor:pointer;}
+.ctrl label{font-size:10px;font-weight:700;color:#718096;display:block;margin-bottom:3px;}
+.week-theme-box{background:#fce7f3;border-left:4px solid #e91e63;padding:8px 14px;border-radius:0 8px 8px 0;flex:1;min-width:200px;}
+.wt-label{font-size:10px;font-weight:700;color:#e91e63;text-transform:uppercase;letter-spacing:.5px;}
+.wt-desc{font-size:12px;color:#2d3748;margin-top:2px;}
+.adpath-wrap{display:flex;gap:6px;align-items:center;}
+.ap-btn{padding:6px 12px;border-radius:6px;border:2px solid #e2e8f0;background:#fff;font-size:11px;font-weight:700;cursor:pointer;transition:all .15s;color:#4a5568;}
+.ap-btn:hover{border-color:#e91e63;}
+.ap-btn.ap-c.active{border-color:#38a169;background:#f0fff4;color:#276749;}
+.ap-btn.ap-b.active{border-color:#e91e63;background:#fce7f3;color:#880e4f;}
+.ap-btn.ap-a.active{border-color:#e53e3e;background:#fff5f5;color:#c53030;}
+/* DAY TABS */
+.day-tabs{display:flex;background:#fff;border-bottom:2px solid #fce7f3;padding:0 24px;overflow-x:auto;}
+.day-tab{padding:12px 20px;cursor:pointer;font-weight:700;font-size:13px;color:#718096;border-bottom:3px solid transparent;white-space:nowrap;transition:all .15s;display:flex;align-items:center;gap:6px;}
+.day-tab:hover{color:#2d3748;background:#fdf2f8;}
+.day-tab.active{color:#ad1457;border-bottom-color:#e91e63;}
+.done-dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:#38a169;flex-shrink:0;}
+/* ALERT BAR */
+.sl-alert{background:#fff5f5;border-left:5px solid #e53e3e;padding:10px 24px;margin:12px 24px 0;border-radius:0 8px 8px 0;display:none;align-items:center;gap:10px;}
+.sl-alert.show{display:flex;}
+.sl-alert .sl-icon{font-size:20px;}
+.sl-alert .sl-msg{font-size:13px;color:#c53030;font-weight:600;}
+/* WORKING HOURS BANNER */
+.hours-banner{background:#f3e8ff;border-left:4px solid #9333ea;padding:8px 24px;font-size:12px;color:#6b21a8;font-weight:600;display:flex;align-items:center;gap:8px;}
+/* MAIN LAYOUT */
+.main{display:flex;gap:18px;padding:18px 24px;max-width:1400px;margin:0 auto;}
+.left{flex:1.7;display:flex;flex-direction:column;gap:14px;}
+.right{flex:1;display:flex;flex-direction:column;gap:14px;}
+/* CARD */
+.card{background:#fff;border-radius:12px;padding:18px;box-shadow:0 1px 4px rgba(0,0,0,.09);}
+.card-title{font-size:14px;font-weight:800;color:#2d3748;margin-bottom:14px;display:flex;align-items:center;gap:8px;}
+.card-title .ic{font-size:17px;}
+.card-title .sub{font-size:11px;font-weight:400;color:#718096;margin-left:auto;}
+/* DAY HEADER CARD */
+.day-hdr-card{background:linear-gradient(135deg,#880e4f,#e91e63);color:#fff;border-radius:12px;padding:16px 20px;}
+.day-hdr-card h1{font-size:17px;font-weight:800;}
+.day-hdr-card p{font-size:12px;opacity:.88;margin-top:4px;line-height:1.5;}
+.day-hdr-card .hero-badge{display:inline-block;background:rgba(255,255,255,.2);padding:4px 10px;border-radius:6px;font-size:11px;margin-top:8px;font-weight:600;}
+.day-hdr-card .week-special{background:rgba(249,168,212,.25);border:1px solid rgba(249,168,212,.5);padding:6px 12px;border-radius:6px;font-size:11px;margin-top:8px;font-weight:700;color:#fce7f3;display:block;}
+/* TASK ITEMS */
+.task-item{display:flex;align-items:flex-start;gap:11px;padding:10px 12px;border-radius:8px;border:1.5px solid #e2e8f0;margin-bottom:7px;cursor:pointer;transition:all .15s;user-select:none;}
+.task-item:hover{border-color:#f9a8d4;background:#fdf2f8;}
+.task-item.done{background:#f0fff4;border-color:#68d391;}
+.task-item.done .t-text{color:#718096;text-decoration:line-through;}
+.task-item input[type=checkbox]{width:17px;height:17px;margin-top:2px;flex-shrink:0;cursor:pointer;accent-color:#e91e63;}
+.t-text{font-size:13px;line-height:1.55;}
+.t-note{font-size:11px;color:#718096;margin-top:3px;font-style:italic;}
+/* MUST-ACHIEVE */
+.must-section{border-top:2px dashed #fce7f3;padding-top:14px;margin-top:10px;}
+.must-section h3{font-size:12px;font-weight:800;color:#c53030;margin-bottom:10px;text-transform:uppercase;letter-spacing:.4px;}
+.ach-item{display:flex;align-items:flex-start;gap:10px;padding:9px 11px;border-radius:8px;border:1.5px solid #fed7d7;margin-bottom:6px;cursor:pointer;transition:all .15s;user-select:none;}
+.ach-item:hover{background:#fff5f5;}
+.ach-item.done{background:#f0fff4;border-color:#68d391;}
+.ach-item.done .t-text{color:#718096;text-decoration:line-through;}
+.ach-item input[type=checkbox]{width:17px;height:17px;margin-top:2px;flex-shrink:0;cursor:pointer;accent-color:#e53e3e;}
+/* NUMBERS FORM */
+.numbers-grid{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-bottom:8px;}
+.nm-field{display:flex;flex-direction:column;gap:3px;}
+.nm-field label{font-size:10px;font-weight:700;color:#718096;text-transform:uppercase;letter-spacing:.4px;}
+.nm-field .target-hint{font-size:9px;color:#e91e63;font-style:italic;}
+.nm-field input,.nm-field select{padding:7px 9px;border:1.5px solid #e2e8f0;border-radius:6px;font-size:13px;width:100%;transition:border-color .15s;}
+.nm-field input:focus,.nm-field select:focus{outline:none;border-color:#e91e63;box-shadow:0 0 0 2px rgba(233,30,99,.15);}
+.nm-field input.warn-field{border-color:#e53e3e;background:#fff5f5;}
+.nm-full{grid-column:1/-1;}
+.save-btn{background:#e91e63;color:#fff;border:none;padding:9px;border-radius:8px;font-weight:700;cursor:pointer;width:100%;font-size:13px;margin-top:4px;}
+.save-btn:hover{background:#ad1457;}
+.saved-msg{font-size:11px;color:#38a169;text-align:center;margin-top:4px;font-weight:600;display:none;}
+/* STOP-LOSS PANEL */
+.sl-item{padding:11px 12px;border-radius:8px;margin-bottom:8px;border:1.5px solid #e2e8f0;}
+.sl-item h4{font-size:12px;font-weight:800;margin-bottom:3px;display:flex;align-items:center;gap:6px;}
+.sl-item p{font-size:11px;color:#4a5568;line-height:1.5;}
+.sl-item .sl-action{font-size:11px;font-weight:700;margin-top:5px;padding:4px 8px;border-radius:4px;display:inline-block;}
+.sl-safe{background:#f0fff4;border-color:#68d391;}
+.sl-danger{background:#fff5f5;border-color:#fc8181;}
+.sl-warn{background:#fffbeb;border-color:#fbd38d;}
+.sl-safe h4{color:#276749;}
+.sl-danger h4{color:#c53030;}
+.sl-warn h4{color:#92400e;}
+.sl-action.safe-act{background:#c6f6d5;color:#276749;}
+.sl-action.danger-act{background:#fed7d7;color:#c53030;}
+.sl-action.warn-act{background:#fef3c7;color:#92400e;}
+/* PROGRESS BARS */
+.day-prog-item{display:flex;align-items:center;gap:9px;padding:5px 0;}
+.dp-label{font-size:11px;font-weight:700;width:36px;color:#4a5568;}
+.dp-bar{flex:1;height:7px;background:#e2e8f0;border-radius:4px;overflow:hidden;}
+.dp-fill{height:100%;background:#e91e63;border-radius:4px;transition:width .3s;}
+.dp-pct{font-size:10px;color:#718096;width:30px;text-align:right;}
+/* HERO REFERENCE */
+.hero-row{display:flex;justify-content:space-between;align-items:flex-start;padding:7px 0;border-bottom:1px solid #fdf2f8;gap:8px;}
+.hero-row:last-child{border-bottom:none;}
+.hero-badge-tag{font-size:9px;padding:2px 6px;border-radius:4px;font-weight:700;flex-shrink:0;}
+.tag-hero{background:#fce7f3;color:#ad1457;}
+.tag-dead{background:#f7fafc;color:#718096;}
+.tag-bundle{background:#fef3c7;color:#92400e;}
+.hero-name{font-size:11px;color:#2d3748;flex:1;}
+.hero-note{font-size:10px;color:#718096;font-style:italic;}
+/* NOTES */
+.notes-area{width:100%;border:1.5px solid #e2e8f0;border-radius:8px;padding:8px 10px;font-size:12px;font-family:inherit;resize:vertical;min-height:64px;color:#2d3748;margin-top:8px;}
+.notes-area:focus{outline:none;border-color:#e91e63;}
+/* WEEKLY TARGETS CARD */
+.targets-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;}
+.tgt-box{background:#fdf2f8;border:1.5px solid #fce7f3;border-radius:8px;padding:8px 10px;text-align:center;}
+.tgt-label{font-size:9px;font-weight:700;color:#718096;text-transform:uppercase;letter-spacing:.4px;}
+.tgt-value{font-size:15px;font-weight:800;color:#ad1457;margin-top:2px;}
+.tgt-sub{font-size:9px;color:#a0aec0;margin-top:1px;}
+/* REVIEW SCHEDULE CARD */
+.rev-day-row{display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid #fdf2f8;}
+.rev-day-row:last-child{border-bottom:none;}
+.rev-day-lbl{font-size:11px;font-weight:700;width:36px;color:#4a5568;}
+.rev-sku-tag{font-size:10px;padding:2px 7px;border-radius:4px;background:#fce7f3;color:#ad1457;font-weight:700;margin-right:4px;}
+.rev-today{background:#fdf2f8;border-radius:8px;padding:8px 10px;margin-bottom:10px;border:2px solid #e91e63;}
+.rev-today .rt-title{font-size:11px;font-weight:800;color:#ad1457;margin-bottom:4px;}
+.rev-today .rt-body{font-size:12px;color:#2d3748;line-height:1.5;}
+/* SCOREBOARD */
+.scoreboard-section{background:#fff;border-radius:12px;padding:22px;margin:0 24px 24px;box-shadow:0 1px 4px rgba(0,0,0,.09);display:none;}
+.scoreboard-section.show{display:block;}
+.scoreboard-section h2{font-size:16px;font-weight:800;color:#2d3748;margin-bottom:4px;}
+.scoreboard-section .sb-sub{font-size:12px;color:#718096;margin-bottom:16px;}
+.sb-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;margin-bottom:16px;}
+.sb-field{display:flex;flex-direction:column;gap:4px;}
+.sb-field label{font-size:10px;font-weight:700;color:#718096;text-transform:uppercase;letter-spacing:.4px;}
+.sb-field input,.sb-field textarea,.sb-field select{padding:8px;border:1.5px solid #e2e8f0;border-radius:6px;font-size:12px;width:100%;}
+.sb-field textarea{min-height:60px;resize:vertical;}
+.sb-full{grid-column:1/-1;}
+.gen-btn{background:#880e4f;color:#fff;border:none;padding:11px 24px;border-radius:8px;font-weight:700;cursor:pointer;font-size:14px;margin-right:8px;}
+.gen-btn:hover{background:#ad1457;}
+.print-btn{background:#6b21a8;color:#fff;border:none;padding:11px 20px;border-radius:8px;font-weight:700;cursor:pointer;font-size:14px;}
+.sb-output{background:#f7fafc;border:1.5px solid #e2e8f0;border-radius:8px;padding:16px;margin-top:14px;white-space:pre-wrap;font-size:12px;line-height:1.7;display:none;font-family:'Courier New',monospace;}
+.copy-btn{background:#718096;color:#fff;border:none;padding:7px 14px;border-radius:6px;cursor:pointer;margin-top:8px;font-size:12px;margin-right:6px;}
+.copy-btn:hover{background:#4a5568;}
+/* TRIGGERED TASKS PANEL */
+.trig-item{padding:9px 11px;border-radius:7px;border:1.5px solid #e2e8f0;margin-bottom:7px;font-size:12px;}
+.trig-trigger{font-weight:700;color:#744210;font-size:11px;}
+.trig-action{color:#2d3748;margin-top:3px;line-height:1.5;}
+/* ROAS DECISION MATRIX */
+.roas-row{display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid #fdf2f8;font-size:11px;}
+.roas-row:last-child{border-bottom:none;}
+.roas-badge{font-size:10px;padding:2px 7px;border-radius:4px;font-weight:700;min-width:80px;text-align:center;flex-shrink:0;}
+.roas-safe{background:#c6f6d5;color:#276749;}
+.roas-warn{background:#fef3c7;color:#92400e;}
+.roas-danger{background:#fed7d7;color:#c53030;}
+.roas-stop{background:#1a202c;color:#fff;}
+.roas-action{color:#4a5568;flex:1;}
+/* BOTTOM BAR */
+.bottom-bar{background:#880e4f;color:#fff;padding:10px 24px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-top:8px;}
+.bottom-bar .bb-txt{font-size:12px;opacity:.8;}
+.bb-btn{padding:7px 16px;border-radius:6px;border:none;cursor:pointer;font-size:12px;font-weight:700;}
+.bb-reset{background:rgba(255,255,255,.15);color:#fff;}
+.bb-reset:hover{background:rgba(255,255,255,.25);}
+.bb-export{background:#f9a8d4;color:#880e4f;}
+.bb-export:hover{background:#f472b6;}
+/* RESPONSIVE */
+@media(max-width:880px){.main{flex-direction:column;}.numbers-grid{grid-template-columns:1fr 1fr;}.sb-grid{grid-template-columns:1fr 1fr;}.targets-grid{grid-template-columns:1fr 1fr;}}
+@media print{.ctrl,.day-tabs,.sl-alert,.bottom-bar,.hours-banner{display:none!important;}.main{display:block;}.right{margin-top:16px;}}
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="hdr">
+  <div class="hdr-logo">TREYFA <span>×</span> MYNTRA &nbsp;|&nbsp; Daily Work Dashboard</div>
+  <div class="hdr-right" id="dateDisplay"></div>
+</div>
+
+<!-- WORKING HOURS BANNER -->
+<div class="hours-banner">
+  ⏰ Working Window: <strong>4:00 PM – 8:00 PM, Monday to Saturday</strong> &nbsp;|&nbsp; Sunday = REST. No Myntra work.
+</div>
+
+<!-- CONTROLS -->
+<div class="ctrl">
+  <div>
+    <label>CURRENT WEEK</label>
+    <select id="weekSelect" onchange="onWeekChange()">
+      <option value="1">Week 1</option><option value="2">Week 2</option>
+      <option value="3">Week 3</option><option value="4">Week 4</option>
+      <option value="5">Week 5</option><option value="6">Week 6</option>
+      <option value="7">Week 7</option><option value="8">Week 8</option>
+      <option value="9">Week 9</option><option value="10">Week 10</option>
+      <option value="11">Week 11</option><option value="12">Week 12</option>
+    </select>
+  </div>
+  <div class="week-theme-box">
+    <div class="wt-label">This Week's Focus</div>
+    <div class="wt-desc" id="weekThemeDesc"></div>
+  </div>
+  <div>
+    <label>AD SPEND MODE</label>
+    <div class="adpath-wrap">
+      <button class="ap-btn ap-c" onclick="setAdPath('c')" id="ap-c">🟢 Conservative</button>
+      <button class="ap-btn ap-b" onclick="setAdPath('b')" id="ap-b">🩷 Base Plan</button>
+      <button class="ap-btn ap-a" onclick="setAdPath('a')" id="ap-a">🔴 Scale Up</button>
+    </div>
+    <div id="ap-budget" style="font-size:10px;color:#718096;margin-top:4px;"></div>
+  </div>
+</div>
+
+<!-- DAY TABS -->
+<div class="day-tabs" id="dayTabs">
+  <div class="day-tab" data-day="MON" onclick="onDayChange('MON')">Monday</div>
+  <div class="day-tab" data-day="TUE" onclick="onDayChange('TUE')">Tuesday</div>
+  <div class="day-tab" data-day="WED" onclick="onDayChange('WED')">Wednesday</div>
+  <div class="day-tab" data-day="THU" onclick="onDayChange('THU')">Thursday ⭐</div>
+  <div class="day-tab" data-day="FRI" onclick="onDayChange('FRI')">Friday</div>
+  <div class="day-tab" data-day="SAT" onclick="onDayChange('SAT')">Saturday</div>
+</div>
+
+<!-- STOP-LOSS ALERT BAR -->
+<div class="sl-alert" id="slAlertBar">
+  <div class="sl-icon">🚨</div>
+  <div class="sl-msg" id="slAlertMsg">Stop-loss rule triggered — check the Stop-Loss panel on the right immediately.</div>
+</div>
+
+<!-- MAIN -->
+<div class="main">
+  <div class="left">
+    <div class="day-hdr-card" id="dayHdrCard"></div>
+    <div class="card">
+      <div class="card-title"><span class="ic">🔁</span> Daily Constants — Start Here at 4PM, Every Single Day</div>
+      <div id="constantsList"></div>
+    </div>
+    <div class="card">
+      <div class="card-title"><span class="ic">📋</span> Today's Tasks <span class="sub" id="taskProgress"></span></div>
+      <div id="taskList"></div>
+      <div class="must-section">
+        <h3>✅ Must Complete Before 8PM</h3>
+        <div id="mustList"></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title"><span class="ic">📝</span> Notes &amp; Decisions Made Today</div>
+      <textarea class="notes-area" id="notesArea" placeholder="Write what you did, what decisions you made, what you noticed today. E.g. Hero #1 CTR improved — new title is working. ROAS hit 2.1x today."></textarea>
+    </div>
+  </div>
+
+  <div class="right">
+    <!-- WEEKLY TARGETS -->
+    <div class="card">
+      <div class="card-title"><span class="ic">🎯</span> This Week's Targets</div>
+      <div class="targets-grid" id="weekTargets"></div>
+    </div>
+
+    <!-- NUMBERS ENTRY -->
+    <div class="card">
+      <div class="card-title"><span class="ic">📊</span> Enter Today's Numbers</div>
+      <div class="numbers-grid">
+        <div class="nm-field">
+          <label>Orders Today</label>
+          <input type="number" id="n_orders" placeholder="e.g. 3">
+        </div>
+        <div class="nm-field">
+          <label>Clicks Today</label>
+          <input type="number" id="n_clicks" placeholder="e.g. 45">
+        </div>
+        <div class="nm-field">
+          <label>CTR This Week (%)<span class="target-hint" id="ctr_hint">Target this week</span></label>
+          <input type="number" step="0.01" id="n_ctr" placeholder="e.g. 0.22">
+        </div>
+        <div class="nm-field">
+          <label>CVR This Week (%)<span class="target-hint" id="cvr_hint">Target this week</span></label>
+          <input type="number" step="0.01" id="n_cvr" placeholder="e.g. 5.20">
+        </div>
+        <div class="nm-field">
+          <label>ROAS This Week<span class="target-hint" id="roas_hint">Target this week</span></label>
+          <input type="number" step="0.01" id="n_roas" placeholder="e.g. 1.8">
+        </div>
+        <div class="nm-field">
+          <label>Ad Spend Today (₹)<span class="target-hint" id="spend_hint">Target/day</span></label>
+          <input type="number" id="n_adspend" placeholder="e.g. 300">
+        </div>
+        <div class="nm-field">
+          <label>Ad Revenue Today (₹)</label>
+          <input type="number" id="n_adrev" placeholder="e.g. 600">
+        </div>
+        <div class="nm-field">
+          <label>Reviews Posted This Week</label>
+          <input type="number" id="n_reviews" placeholder="e.g. 5">
+        </div>
+        <div class="nm-field">
+          <label>Hero Stock Status</label>
+          <select id="n_stock">
+            <option value="">-- Select --</option>
+            <option value="ok">✅ All Heroes In Stock</option>
+            <option value="low">⚠️ At Least One Hero Low</option>
+            <option value="out">🚨 At Least One Hero OUT</option>
+          </select>
+        </div>
+        <div class="nm-field">
+          <label>Cumulative Net P&amp;L (₹)<span class="target-hint">STOP if below −₹15,000</span></label>
+          <input type="number" id="n_netpl" placeholder="e.g. -1500">
+        </div>
+        <div class="nm-field nm-full">
+          <label>Anomalies / Notes Spotted</label>
+          <input type="text" id="n_anomaly" placeholder="e.g. Hero #3 CTR dropped suddenly — check if delisted">
+        </div>
+      </div>
+      <button class="save-btn" onclick="saveNumbers()">💾 Save Today's Numbers</button>
+      <div class="saved-msg" id="savedMsg">✓ Numbers saved! Stop-loss panel updated.</div>
+    </div>
+
+    <!-- STOP LOSS -->
+    <div class="card">
+      <div class="card-title"><span class="ic">🛑</span> Stop-Loss Watch — Auto-Updates on Save</div>
+      <div id="stopLossList"></div>
+      <div style="font-size:10px;color:#718096;margin-top:6px;">Updates automatically when you click "Save Today's Numbers" above.</div>
+    </div>
+
+    <!-- WEEK PROGRESS -->
+    <div class="card">
+      <div class="card-title"><span class="ic">📈</span> This Week's Progress</div>
+      <div id="weekProgress"></div>
+    </div>
+
+    <!-- REVIEW SCHEDULE -->
+    <div class="card">
+      <div class="card-title"><span class="ic">⭐</span> Review Schedule — 12/Week, Channelized</div>
+      <div id="reviewSchedule"></div>
+    </div>
+
+    <!-- HEROES -->
+    <div class="card">
+      <div class="card-title"><span class="ic">🏆</span> Hero SKUs — Quick Reference</div>
+      <div id="heroReference"></div>
+    </div>
+
+    <!-- ROAS DECISION MATRIX -->
+    <div class="card">
+      <div class="card-title"><span class="ic">📐</span> ROAS Decision Matrix — Thursday Budget Call</div>
+      <div id="roasMatrix"></div>
+    </div>
+
+    <!-- TRIGGERED CONDITIONS -->
+    <div class="card">
+      <div class="card-title"><span class="ic">⚡</span> Triggered Conditions — Act Same Day If Fired</div>
+      <div id="triggeredList"></div>
+    </div>
+  </div>
+</div>
+
+<!-- SATURDAY SCORECARD -->
+<div class="scoreboard-section" id="scoreboardSection">
+  <h2>📨 Saturday Scorecard — Pre-fill Today, Review Numbers Before Next Week</h2>
+  <div class="sb-sub">Fill every box carefully. Click "Generate Scorecard" for a ready-to-share weekly summary.</div>
+  <div class="sb-grid">
+    <div class="sb-field"><label>Week Number</label><input id="sb_week" placeholder="e.g. Week 3"></div>
+    <div class="sb-field"><label>Orders This Week</label><input id="sb_orders" placeholder="e.g. 13 orders"></div>
+    <div class="sb-field"><label>This Week's Target (Orders)</label><input id="sb_target" placeholder="e.g. 13 orders (plan)"></div>
+    <div class="sb-field"><label>Best Performing Hero</label><input id="sb_best" placeholder="e.g. Hero #1 — Anti-Dandruff, ROAS 2.4x"></div>
+    <div class="sb-field"><label>Weakest Hero This Week</label><input id="sb_worst" placeholder="e.g. Hero #3 — Hibiscus, CTR low"></div>
+    <div class="sb-field"><label>Total Ad Spend This Week (₹)</label><input id="sb_adspend" placeholder="e.g. 2450"></div>
+    <div class="sb-field"><label>Total Ad Revenue This Week (₹)</label><input id="sb_adrev" placeholder="e.g. 3920"></div>
+    <div class="sb-field"><label>ROAS This Week</label><input id="sb_roas" placeholder="e.g. 1.6x"></div>
+    <div class="sb-field"><label>CTR This Week (%)</label><input id="sb_ctr" placeholder="e.g. 0.22%"></div>
+    <div class="sb-field"><label>CVR This Week (%)</label><input id="sb_cvr" placeholder="e.g. 5.20%"></div>
+    <div class="sb-field"><label>Reviews Posted This Week</label><input id="sb_reviews" placeholder="e.g. 8 out of 12 planned"></div>
+    <div class="sb-field"><label>Hero #1 Rank on Myntra Search</label><input id="sb_rank1" placeholder="e.g. Page 2, pos 5"></div>
+    <div class="sb-field"><label>Stock Status All Heroes</label><input id="sb_stock" placeholder="e.g. All in stock"></div>
+    <div class="sb-field"><label>Cumulative Net P&amp;L (₹)</label><input id="sb_netpl" placeholder="e.g. −₹3,200"></div>
+    <div class="sb-field"><label>Ad Spend Mode for Next Week</label>
+      <select id="sb_adpath"><option>🩷 Base Plan</option><option>🟢 Conservative</option><option>🔴 Scale Up</option></select>
+    </div>
+    <div class="sb-field"><label>Combo Bundle — Selling?</label><input id="sb_bundle" placeholder="e.g. 2 orders, Hair Care Ritual"></div>
+    <div class="sb-field sb-full"><label>Top 3 Wins This Week</label><textarea id="sb_wins" placeholder="1. Hero #1 CTR improved from 0.18% to 0.22%&#10;2. ROAS crossed 1.5x for the first time&#10;3. A/B test winner identified — new image performing better"></textarea></div>
+    <div class="sb-field sb-full"><label>Top 3 Misses This Week</label><textarea id="sb_misses" placeholder="1. Hero #3 Hibiscus still below 0.15% CTR&#10;2. Review schedule slipped — only 6 out of 8 posted&#10;3. Combo bundle created but no sales yet"></textarea></div>
+    <div class="sb-field sb-full"><label>Budget Decision for Next Week (with ROAS justification)</label><textarea id="sb_decision" placeholder="e.g. ROAS was 1.6x this week (above 1.5x threshold). Increasing to ₹400/day next week per the plan."></textarea></div>
+    <div class="sb-field sb-full"><label>Any Stop-Loss Rule Triggered This Week?</label><textarea id="sb_stoploss" placeholder="e.g. No stop-loss triggered. OR: ROAS dropped to 0.9x Thursday — cut spend to ₹200/day Friday."></textarea></div>
+  </div>
+  <button class="gen-btn" onclick="generateScorecard()">📄 Generate Scorecard</button>
+  <button class="print-btn" onclick="window.print()">🖨️ Print This Page</button>
+  <div class="sb-output" id="sbOutput"></div>
+  <button class="copy-btn" id="copyBtn" onclick="copyScorecard()" style="display:none;">📋 Copy to Clipboard</button>
+</div>
+
+<!-- BOTTOM BAR -->
+<div class="bottom-bar">
+  <div class="bb-txt" id="bb-progress">Loading…</div>
+  <div style="display:flex;gap:8px;">
+    <button class="bb-btn bb-reset" onclick="resetDay()">↺ Reset Today's Tasks</button>
+    <button class="bb-btn bb-export" onclick="exportDayReport()">⬇ Export Day Report</button>
+  </div>
+</div>
+
+<script>
+// ─────────────────────────────────────────────
+// PLAN START DATE — Monday 18 May 2026
+// ─────────────────────────────────────────────
+const PLAN_START = new Date('2026-05-18T00:00:00');
+
+// ─────────────────────────────────────────────
+// DAILY AD SPEND TARGETS (₹/day)
+// Conservative = ₹200/day (cash protection mode)
+// Base = per-week plan target
+// Scale = Base + 20% (when ROAS > 2.5x for 7 days)
+// ─────────────────────────────────────────────
+const AD_BUDGETS = {
+  1:{c:200,b:300,a:360},
+  2:{c:200,b:300,a:360},
+  3:{c:200,b:350,a:420},
+  4:{c:200,b:400,a:480},
+  5:{c:200,b:450,a:540},
+  6:{c:200,b:500,a:600},
+  7:{c:200,b:500,a:600},
+  8:{c:200,b:550,a:660},
+  9:{c:200,b:600,a:720},
+  10:{c:200,b:600,a:720},
+  11:{c:200,b:650,a:780},
+  12:{c:200,b:650,a:780}
+};
+
+// ─────────────────────────────────────────────
+// WEEKLY TARGETS (from strategy progression table)
+// ─────────────────────────────────────────────
+const WEEK_TARGETS = {
+  1: {ctr:0.18,cvr:5.80,roas:1.1,orders:8,revenue:2344},
+  2: {ctr:0.20,cvr:5.50,roas:1.4,orders:10,revenue:2930},
+  3: {ctr:0.22,cvr:5.20,roas:1.6,orders:13,revenue:3809},
+  4: {ctr:0.25,cvr:4.80,roas:1.8,orders:17,revenue:4981},
+  5: {ctr:0.28,cvr:4.50,roas:2.0,orders:21,revenue:6153},
+  6: {ctr:0.30,cvr:4.30,roas:2.1,orders:25,revenue:7325},
+  7: {ctr:0.33,cvr:4.00,roas:2.4,orders:28,revenue:8204},
+  8: {ctr:0.35,cvr:3.80,roas:2.5,orders:32,revenue:9376},
+  9: {ctr:0.38,cvr:3.60,roas:2.5,orders:36,revenue:10548},
+  10:{ctr:0.40,cvr:3.50,roas:2.7,orders:39,revenue:11427},
+  11:{ctr:0.42,cvr:3.40,roas:2.7,orders:42,revenue:12306},
+  12:{ctr:0.45,cvr:3.30,roas:3.0,orders:46,revenue:13478}
+};
+
+// ─────────────────────────────────────────────
+// WEEK THEMES
+// ─────────────────────────────────────────────
+const WEEK_THEMES = {
+  1:{name:"Emergency Surgery",desc:"Delist 16 dead SKUs. Optimize 4 hero listings. Verify stock. No ads yet — fix the shop window first.",special:"WEEK 1 NON-NEGOTIABLE: All 16 dead SKUs delisted by end of Tuesday. All 4 heroes verified in stock."},
+  2:{name:"Start the Ad Engine",desc:"Launch Myntra Native Ads at ₹300/day. Post 5 more reviews. Run A/B image test on Hero #1.",special:"WEEK 2 NON-NEGOTIABLE: Native Ads LIVE by Monday. A/B image test RUNNING on Hero #1 by Wednesday."},
+  3:{name:"Double Down on What Works",desc:"Apply winning A/B image to all heroes. Create Hair Care Ritual combo. Scale ads if ROAS > 1.0x.",special:"WEEK 3 NON-NEGOTIABLE: A/B test winner image applied to all 4 heroes. Combo bundle CREATED."},
+  4:{name:"Stabilize — Month 1 Complete",desc:"Month 1 audit. Increase ad spend to ₹400/day if ROAS > 1.5x. Phase 1 stop-loss gates reviewed.",special:"WEEK 4 NON-NEGOTIABLE: Full Month 1 analytics reviewed. Phase 1 gate decision documented (GO/NO-GO for Phase 2)."},
+  5:{name:"Build the Machine — Phase 2 Begins",desc:"Focus narrows to top 2 heroes. Ad spend at ₹450/day if justified. Combo promotion starts.",special:"WEEK 5 NON-NEGOTIABLE: Phase 2 budget (₹450/day) ONLY if Month 1 ROAS > 2.0x. Otherwise hold at ₹400/day."},
+  6:{name:"Sharpen the Funnel",desc:"Full ROAS audit across all ad sets. Pause any ad with ROAS < 1.0x. Refresh creatives if needed.",special:"WEEK 6 NON-NEGOTIABLE: Every ad campaign categorised — Scale / Hold / Pause. Document every decision."},
+  7:{name:"Scale the Winners",desc:"Scale top 2 hero ads. Refresh creatives (ad fatigue check at Week 5–6). Bundle focus increases.",special:"WEEK 7 NON-NEGOTIABLE: Ad creatives refreshed on any campaign running > 5 weeks. Budget at ₹500/day if ROAS > 2.0x."},
+  8:{name:"Phase 2 Completion",desc:"Hero #2 aggressive push. Review 8-week CVR trends. Prepare Phase 3 ad plan.",special:"WEEK 8 NON-NEGOTIABLE: Hero #2 top 2 keyword bids raised +20%. 8-week cumulative ROAS review done."},
+  9:{name:"Sustain and Optimize — Phase 3",desc:"Pause all ad sets with 8-week ROAS < 1.0x. Reallocate to winners. Phase 3 budget if Month 2 was profitable.",special:"WEEK 9 NON-NEGOTIABLE: All ad sets with 8-week cumulative ROAS < 1.0x paused today. No exceptions."},
+  10:{name:"Profitability Focus",desc:"Price optimization tests. Review true profit margin after COGS + Myntra commission + ad spend.",special:"WEEK 10 NON-NEGOTIABLE: True profit margin calculated per hero (Revenue − COGS − Commission − Ad Spend). Numbers documented."},
+  11:{name:"Refresh and Consolidate",desc:"Bullet refresh on all heroes using 10 weeks of review language. Wave review push. Pre-harvest audit.",special:"WEEK 11 NON-NEGOTIABLE: All 4 hero listings refreshed with real customer review language from past 10 weeks."},
+  12:{name:"Harvest + 12-Week Audit",desc:"Hold ad spend flat. Full financial audit. Write maintenance protocol. Plan Month 4–6 expansion.",special:"WEEK 12 NON-NEGOTIABLE: 12-week financial audit complete by Friday. Maintenance protocol written by Saturday."}
+};
+
+// ─────────────────────────────────────────────
+// DAILY CONSTANTS
+// ─────────────────────────────────────────────
+const CONSTANTS = [
+  {id:"c1",title:"4PM Evening Health Check (10 mins — start here)",text:"Open Myntra Seller Panel. Check: (1) Any seller violations or policy notices? If YES — stop all other work and respond within 24 hours. (2) All 4 hero SKUs visible and IN STOCK on Myntra? If any out of stock — trigger emergency restock. (3) Any unanswered customer Q&A or messages? If YES — answer before anything else.",note:"A stock-out = algorithm demotion. A seller violation left unread = account risk. Both kill your momentum."},
+  {id:"c2",title:"ROAS & Budget Monitor (10 mins — non-negotiable)",text:"Check today's ad spend vs. your daily budget target (shown in Controls above). Calculate running 7-day ROAS: (7-day revenue ÷ 7-day ad spend). If running ROAS is below 1.0x — reduce tomorrow's budget by 25% immediately. Do not wait for Thursday.",note:"ROAS below 1.0x means you are paying more for ads than you earn back. Every hour you delay costs money."},
+  {id:"c3",title:"Stop-Loss Glance (5 mins — silent check)",text:"Look at the 5 stop-loss cards on the right panel. No analysis needed — just look. If anything is RED: act on it before you end today's session. Do not carry it to tomorrow.",note:"Missing a stop-loss trigger for even one day costs more than any single optimization task."}
+];
+
+// ─────────────────────────────────────────────
+// MUST-COMPLETE ITEMS PER DAY
+// ─────────────────────────────────────────────
+const MUST = {
+  MON:[
+    {id:"mm1",text:"Ad spend mode for this week decided (Conservative / Base / Scale) and set in the selector above."},
+    {id:"mm2",text:"All 4 hero SKUs confirmed: visible on Myntra, in stock, no suppression flag."},
+    {id:"mm3",text:"ROAS check done — running weekly ROAS calculated and noted. Stop-loss panel updated."},
+    {id:"mm4",text:"This week's single most important task has been STARTED — not just planned."}
+  ],
+  TUE:[
+    {id:"tm1",text:"At least one listing change is LIVE on Myntra — not saved as draft."},
+    {id:"tm2",text:"Today's review(s) posted following the rules: 3–5 sentences, minor negative included, spaced 8+ hours apart."},
+    {id:"tm3",text:"Search term analysis done — any new keyword worth targeting noted for ad optimization."}
+  ],
+  WED:[
+    {id:"wm1",text:"Today's reviews posted with correct spacing (not all within 1 hour — detection risk)."},
+    {id:"wm2",text:"Ad spend for the week so far is on-pace with daily target. If over-pacing — pause for the day."},
+    {id:"wm3",text:"At least one competitor checked — their price, image style, and review count noted."}
+  ],
+  THU:[
+    {id:"thm1",text:"STOP-LOSS RULES evaluated and budget decision documented (Scale / Hold / Cut)."},
+    {id:"thm2",text:"Week-over-week trend captured: CTR vs last week, CVR vs last week, ROAS vs last week."},
+    {id:"thm3",text:"Combo bundle status checked: is it selling? If not — is the price or listing the problem?"}
+  ],
+  FRI:[
+    {id:"fm1",text:"Full weekly analytics snapshot complete and entered in the numbers panel on the right."},
+    {id:"fm2",text:"Next week's daily ad budget decided based on this week's ROAS (use ROAS Decision Matrix card)."},
+    {id:"fm3",text:"Next week's review distribution planned — which hero gets how many reviews next week."}
+  ],
+  SAT:[
+    {id:"sm1",text:"Saturday Scorecard section (below) pre-filled — orders, spend, ROAS, wins, misses."},
+    {id:"sm2",text:"Zero tasks carrying over to next week — everything is closed or properly documented."},
+    {id:"sm3",text:"Monday priorities written — what must be done first at 4PM on Monday?"}
+  ]
+};
+
+// ─────────────────────────────────────────────
+// TASKS PER DAY
+// ─────────────────────────────────────────────
+const TASKS = {
+  MON:{
+    title:"Monday — Money Check Day",
+    tagline:"Pull the weekend numbers. Check ROAS. Confirm heroes are healthy. Set the week's direction.",
+    tasks:[
+      // BASE TASKS — shown every week
+      {id:"m_base1",text:"Pull weekend sales metrics from Myntra Analytics — orders, clicks, total impressions, CTR, CVR. Enter in the numbers panel on the right.",note:"You cannot manage what you do not measure. Do this before touching any other setting."},
+      {id:"m_base2",text:"Calculate running ROAS for the past 7 days (Revenue ÷ Ad Spend). Apply this week's stop-loss rules using the ROAS Decision Matrix on the right.",note:"Thursday is the formal budget decision day, but Monday sets the weekly tone."},
+      {id:"m_base3",text:"Check hero SKU rankings on Myntra search — search each hero's main keyword in incognito. Note your page and position for each hero.",note:"Ranking up = strategy working. Ranking down = investigate before spending more on ads."},
+      {id:"m_base4",text:"Respond to all unanswered customer Q&A and messages in Myntra Seller Panel. Target: zero unanswered after today.",note:"Myntra tracks seller response rate. Slow replies hurt your visibility score."},
+      {id:"m_base5",text:"Competitor price check — search top 3–5 competing hair oil products on Myntra. Note any price changes since last Monday.",note:"Price changes in this category happen fast. Stay within ₹10–20 of competitors."},
+      {id:"m_base6",text:"Verify all 4 hero SKUs are currently in stock on Myntra. If any shows low stock — trigger restock TODAY, not tomorrow.",note:"Out-of-stock = immediate algorithm demotion. Heroes must never run dry."},
+      {id:"m_base7",text:"Post 1 review on Hero #1 (Anti-Dandruff). 3–5 sentences. Include specific result. Include 1 minor negative. Do NOT post same day as Tuesday's Hero #1 review.",note:"Hero #1 gets the most reviews because it has the highest CVR (30%). Maximum firepower on the top performer."},
+      {id:"m_base8",text:"Document Monday learnings and write Tuesday priorities. What did the numbers tell you today?",note:"This one note saves 30 minutes of confusion on Tuesday morning."},
+      // WEEK-SPECIFIC
+      {id:"m_w1a",text:"WEEK 1 — Delist all 16 dead SKUs in Myntra Seller Panel → My Products → Archive/Remove Listing. Full delist list: Virgin Coconut Oil 200ml, Body Massage Oil 200ml, Coconut Hair Oil 200ml (×2), Coconut Basil Hair Oil 200ml, Vetiver Hair Oil 100ml, Chamomile Hair Oil 200ml, Basil Heaven Heal Oil 100ml, Virgin Coconut Hair Oil 100ml, Hibiscus Shampoo 200ml, Neem Shampoo 100ml, Choco Coffee Shampoo 200ml, Turmeric Shampoo 100ml, Neem Shampoo 200ml, Turmeric Shampoo 200ml. Do NOT delete — archive only.",note:"Delisting dead SKUs removes algorithm poison. 16 zero-order products are dragging your entire catalog down.",wOnly:1},
+      {id:"m_w1b",text:"WEEK 1 — Also PAUSE (do not delist) these 3 face wash SKUs for future work: Coffee Face Wash 150ml, Choco Coffee Face Wash 100ml, Turmeric Face Wash 100ml.",note:"These had views but no orders — listing problem, not product problem. Fix later when heroes are stable.",wOnly:1},
+      {id:"m_w2a",text:"WEEK 2 — Set up Myntra Native Ads at ₹300/day. Campaign type: Search Ads targeting 'Hair Oil' category + 'Anti-Dandruff Hair Oil'. Run on Hero #1 and Hero #2 first.",note:"Start ads only AFTER Week 1 listing optimization. Spending on a bad listing is burning money.",wOnly:2},
+      {id:"m_w3a",text:"WEEK 3 — Check A/B test result from Week 2. Which cover image on Hero #1 has higher CTR? Apply the winning image to Hero #1 and replicate the style to Heroes #2, #3, #4 today.",note:"A winning image style on one product usually wins on similar products too.",wOnly:3},
+      {id:"m_w4a",text:"WEEK 4 — Budget decision: If last week's ROAS > 1.5x → increase to ₹400/day today. If ROAS is 1.0–1.5x → hold at ₹350/day. If ROAS < 1.0x → drop to ₹200/day (Conservative mode).",note:"Data drives the decision — not optimism. Your 3-month cash depends on disciplined gates.",wOnly:4},
+      {id:"m_w58",text:"WEEKS 5–8 — Budget review: Phase 2 daily target is ₹450–₹550/day (see Controls above). Adjust based on last week's ROAS using the ROAS Decision Matrix card.",note:"Phase 2 is only for heroes — not all 4 SKUs. Focus spend on the top 2 performers.",wRange:[5,8]},
+      {id:"m_w912",text:"WEEKS 9–12 — Phase 3 budget ₹600–₹650/day ONLY if Month 2 was profitable (ROAS > 2.0x sustained). If Month 2 profitability is unclear, hold at Phase 2 level.",note:"Phase 3 is the harvest phase. Do not increase risk when the plan is already working.",wRange:[9,12]}
+    ]
+  },
+  TUE:{
+    title:"Tuesday — Optimization Day",
+    tagline:"Everything that touches the product listing. One change, one A/B test, one improvement — make it live today.",
+    tasks:[
+      {id:"t_base1",text:"Pick ONE element to optimize on Hero #1 listing — title, cover image, or one bullet point. Change it, document what you changed and why, then track CTR for the next 7 days.",note:"Only change one element at a time. If you change 3 things and CTR improves, you won't know which one worked."},
+      {id:"t_base2",text:"Same for Hero #2 — pick ONE optimization, execute, document. Test the element most different from your last Hero #2 change.",note:"Hero #2 has the most orders (4/month). It deserves equal optimization attention as Hero #1."},
+      {id:"t_base3",text:"Analyze search terms bringing traffic to your listings from Myntra Analytics. Are there keywords you're ranking for that you're NOT targeting in ads? Add them.",note:"Your organic search terms are free intelligence about what buyers are searching."},
+      {id:"t_base4",text:"Check which specific ad (keyword, placement, or ad set) is generating the most revenue today. Note it — this data feeds Thursday's budget decision.",note:"Not all ads perform equally. Identify the 20% that drive 80% of revenue."},
+      {id:"t_base5",text:"Post 1 review on Hero #2 (Curry Leaves). 3–5 sentences. Mention specific result from using the oil. Mix 4-star and 5-star across the week.",note:"Hero #2 gets 3 reviews/week (25% of total) because it has the most orders. Second priority after Hero #1."},
+      {id:"t_base6",text:"Document which listing changes performed best this week so far. Note what the next change on each hero will be. Plan Wednesday tasks.",note:"Compounding listing improvements are the free growth engine. Track what works."},
+      // WEEK-SPECIFIC
+      {id:"t_w1",text:"WEEK 1 — Rewrite titles for all 4 hero SKUs today. RULE: Benefit first, brand last. Example: 'Anti-Dandruff Hair Oil — Neem & Coconut, Controls Dandruff | Treyfa' NOT 'Treyfa Neem Coconut Hair Oil'. Benefit must appear in first 40 characters.",note:"CTR is almost entirely driven by title and cover image. The title rewrite today is the most impactful free action in this plan.",wOnly:1},
+      {id:"t_w2",text:"WEEK 2 — Post additional reviews today: Hero #2 gets 2 reviews (instead of base 1), Hero #3 gets 1 extra review. All must be spaced 8+ hours apart. Different writers for each.",note:"Week 2 is the social-proof building sprint. Heroes #2 and #3 need the credibility boost to support the new ads.",wOnly:2},
+      {id:"t_w3",text:"WEEK 3 — Post extra reviews: Hero #4 (Henna) gets 1 review, Hero #1 gets 1 additional review. Hero #4's first real push — small sample but 50% CVR needs validation.",note:"Hero #4 has a 50%* CVR on a tiny sample. Reviews will validate if this is real or statistical noise.",wOnly:3},
+      {id:"t_w4",text:"WEEK 4 — Post extra reviews: Hero #3 (Hibiscus) gets 1 review, Hero #1 gets 1 additional. Hero #3 has the most views (7,162) but only 9.5% CVR — it needs more social proof to convert.",note:"Hero #3's problem is not reach — it's conversion. Reviews help, but the listing also needs scrutiny.",wOnly:4},
+      {id:"t_w58",text:"WEEKS 5–8 — Concentrate 2 reviews on the best-performing hero SKU this week (highest ROAS). Put maximum social proof firepower on the proven winner.",note:"Phase 2 narrows focus. Reviews follow ad spend — both go to the strongest performer.",wRange:[5,8]},
+      {id:"t_w912",text:"WEEKS 9–12 — Post 2 reviews on Hero #1 ONLY (Anti-Dandruff). Phase 3 concentrates all firepower on the single best performer. 4 weeks of concentrated reviews = significant trust signal.",note:"By Phase 3, the data is clear. No more even distribution — go all in on the proven champion.",wRange:[9,12]}
+    ]
+  },
+  WED:{
+    title:"Wednesday — Content + Review Day",
+    tagline:"Deepen the listing quality. Post reviews with correct spacing. Research the competition.",
+    tasks:[
+      {id:"w_base1",text:"Post 1 review on Hero #3 (Hibiscus Hair Oil). This is your morning review for today — post at exactly 4PM.",note:"Hero #3 gets 3 reviews/week (25%). It has 7,162 views but only 9.5% CVR. More reviews = more trust = higher conversion."},
+      {id:"w_base2",text:"Post 1 review on Hero #1 (Anti-Dandruff). Space this at least 2 hours after Hero #3's review. Do NOT post both at the same time.",note:"Same-time reviews on different SKUs look like coordinated activity — detection risk. Space them."},
+      {id:"w_base3",text:"Update product description on 1 hero today — add ingredient benefits with specific claims: 'Neem extract known to reduce scalp fungal growth', 'Curry leaves rich in beta-carotene for hair strength'.",note:"Ingredient-focused content scores better with Myntra's algorithm AND converts better with informed buyers."},
+      {id:"w_base4",text:"Check weekly ad spend vs. budget — are you on pace with your daily target? If over-pacing → pause ads until tomorrow. If under-pacing → that's fine, do not force spend.",note:"Spend discipline in the first 4 weeks is what keeps this plan alive in months 2 and 3."},
+      {id:"w_base5",text:"Respond to any new customer reviews — especially 1-star, 2-star, 3-star reviews. Reply publicly, professionally, offer resolution via message.",note:"Public replies to bad reviews convert skeptical buyers. They show future customers that you stand behind your products."},
+      {id:"w_base6",text:"Research 2–3 top hair oil competitors on Myntra. What do their cover images look like? What's their price point? How many reviews? What pain points do their titles focus on?",note:"30 minutes of competitive intelligence per week is all you need. Don't over-index on this — look, learn, go."},
+      {id:"w_base7",text:"Document competitive insights + plan Thursday tasks. Thursday is the most important day — prepare for it.",note:"Thursday decisions determine next week's budget. Come in prepared."},
+      // WEEK-SPECIFIC
+      {id:"w_w1",text:"WEEK 1 — Rewrite all 4 hero bullet points today. Template for each bullet: [Ingredient] + [Specific Benefit] + [Target Problem]. Example: 'Neem Extract — clinically known to fight dandruff-causing fungus. Reduces white flakes from first wash.' 5 bullets per product. No fluff, no unproven claims.",note:"Bullet points are what converts a click into a purchase. Ingredient-focused beats benefit-fluff every time.",wOnly:1},
+      {id:"w_w2",text:"WEEK 2 — Launch A/B image test on Hero #1 cover: new image should have clean white background, product upright and centered, NO text overlay, top-down natural light. Track for 7 days and compare CTR.",note:"The cover image drives 60–70% of CTR. A good image change can 2x your clicks without changing anything else.",wOnly:2},
+      {id:"w_w3",text:"WEEK 3 — Ad spend scale decision: If running ROAS > 1.0x → increase to ₹350/day today. If ROAS 0.5–1.0x → hold at ₹300/day. If ROAS < 0.5x → drop to ₹200/day immediately.",note:"Do not wait for Thursday to act if ROAS is below 0.5x. That is the immediate danger threshold.",wOnly:3},
+      {id:"w_w4",text:"WEEK 4 — Ad targeting optimization: review your Myntra Ads dashboard. Identify any keyword or placement with 15+ clicks and 0 orders. Pause it. Reallocate that budget to the keyword driving most orders.",note:"Eliminating waste is as important as finding winners. Pausing a dead keyword is free money.",wOnly:4},
+      {id:"w_w912",text:"WEEKS 9–12 — Price test on Hero #1: increase price by 5% (e.g., ₹299 → ₹314). Track CVR change over next 7 days. If CVR stays above 25%, keep the higher price. If CVR drops below 20%, revert.",note:"By Phase 3, you have enough data and reviews to command a small price premium. Test it.",wRange:[9,12]}
+    ]
+  },
+  THU:{
+    title:"Thursday — Scale or Cut Day ⭐",
+    tagline:"The most important day of the week. Review the numbers. Apply stop-loss rules. Make the budget call.",
+    tasks:[
+      {id:"th_base1",text:"Post 1 review on Hero #1 (Anti-Dandruff). Thursday morning review — Hero #1 gets the most reviews per week.",note:"Hero #1 is your highest-CVR product at 30%. Most reviews go here to protect and grow this position."},
+      {id:"th_base2",text:"Post 1 review on Hero #4 (Henna Coconut). Space from Hero #1 review — different time slot.",note:"Hero #4 gets 2 reviews/week (17%). Small sample CVR of 50%* needs more data points to validate."},
+      {id:"th_base3",text:"Deep analytics — compare THIS week vs LAST week. For each hero: CTR (up/down?), CVR (up/down?), ROAS (up/down?). What is the trend for each metric?",note:"Trend matters more than absolute numbers. A 1.4x ROAS that is trending up is better than a 2.0x ROAS that is trending down."},
+      {id:"th_base4",text:"APPLY STOP-LOSS RULES — use the ROAS Decision Matrix card on the right. Make the budget decision for the rest of this week. Document your decision and reasoning in the Notes section.",note:"This is not optional. Thursday is when decisions get made — not deferred. If you cannot make the call, default to Conservative (₹200/day) until data is clearer."},
+      {id:"th_base5",text:"Check the combo bundle — 'Hair Care Ritual' (Hero #1 + Hero #2). Is it getting orders? Wishlist adds? If 0 orders for 2+ weeks → check price and listing presentation.",note:"The bundle is your AOV lever. It should not be ignored once created."},
+      {id:"th_base6",text:"Flash sale opportunity check — if orders are slow this week, consider a 24-hour flash sale on Hero #3 or Hero #4 to generate velocity signal.",note:"Short velocity spikes help Myntra's algorithm notice you. Use tactically — not every week."},
+      {id:"th_base7",text:"Document the Thursday decision clearly — what you decided and why. This becomes the reference for Friday's analytics.",note:"Decisions without documentation get reversed or forgotten. Write it down."},
+      // WEEK-SPECIFIC
+      {id:"th_w1",text:"WEEK 1 — Take new cover photos for all 4 heroes. Requirements: window-light (natural), clean white or light wooden surface, product upright and centered, no text overlay, no cluttered background. Take 20+ shots per hero and pick the sharpest.",note:"Professional lighting = phone + window. Spend the time here. The cover image drives 60-70% of CTR.",wOnly:1},
+      {id:"th_w2",text:"WEEK 2 — Add ingredient credentials to bullet points where TRUE: 'SLS-Free', 'Paraben-Free', 'Sulfate-Free', '100% Natural Ingredients'. Only add if you can verify. False claims = Myntra policy violation.",note:"Ingredient credentials are high-CTR and high-CVR signals for the informed Myntra beauty buyer.",wOnly:2},
+      {id:"th_w3",text:"WEEK 3 — Create 'Hair Care Ritual' combo bundle in Myntra Seller Panel: Hero #1 (Anti-Dandruff) + Hero #2 (Curry Leaves). Price: combined listing price minus ₹20 (saves buyer ₹20 vs buying separately).",note:"The bundle increases AOV without requiring any new product. It is your highest-margin lever.",wOnly:3},
+      {id:"th_w4",text:"WEEK 4 — Check combo performance from Week 3: is it generating orders? Wishlist adds? If yes — promote it more. If no orders after 7 days → check if the bundle price is compelling vs individual prices.",note:"A bundle that nobody buys needs either a bigger discount or better presentation — not abandonment.",wOnly:4}
+    ]
+  },
+  FRI:{
+    title:"Friday — Strategy Review Day",
+    tagline:"Look at the full week. Set next week's budget. Do not skip this day — it prevents expensive mistakes.",
+    tasks:[
+      {id:"f_base1",text:"FULL WEEKLY ANALYTICS REVIEW — open Myntra Seller Panel Analytics. Pull: total orders this week, total revenue, total clicks, total impressions, CTR, CVR, ROAS. Enter all in the numbers panel.",note:"This is the one time all week you see the full picture. Spend the full 45 minutes here."},
+      {id:"f_base2",text:"Week-over-week comparison — What improved vs last week? What declined? For anything that declined, identify ONE hypothesis for why and ONE action to test next week.",note:"Trends over time beat snapshot analysis. What is the 4-week direction of each metric?"},
+      {id:"f_base3",text:"Set next week's daily ad budget. Use the ROAS Decision Matrix card on the right. Write the budget in your notes.",note:"Budget decisions made on data, not gut. Set it now so Monday starts clean."},
+      {id:"f_base4",text:"Plan next week's review distribution. Based on this week's data: which hero needs more reviews? Allocate 12 reviews per week using the review split from the Review Schedule card.",note:"Reviews follow sales performance — put more reviews on what is converting."},
+      {id:"f_base5",text:"Pricing decision for next week — should any hero change price? Test: ±5–10%. Rationale: if CTR is good but CVR is low → price too high. If CVR is strong but CTR is low → image/title problem, not price.",note:"Pricing and listing quality have a compounding relationship. Fix the right lever."},
+      {id:"f_base6",text:"Inventory restock check — do any heroes need restocking before next week's orders? Myntra restocking typically takes 3–5 business days. Do not leave this to the weekend.",note:"Stockout is the single fastest way to lose all ranking momentum you built."},
+      {id:"f_base7",text:"Check for any Myntra seller portal notifications, policy updates, or algorithm change announcements. Stay compliant.",note:"Myntra's policies change. Sellers who miss updates get penalized. 15 minutes of scanning prevents serious problems."},
+      {id:"f_base8",text:"Document full week learnings. Write the Saturday plan. Set 3 priorities for next week.",note:""},
+      // WEEK-SPECIFIC
+      {id:"f_w1",text:"WEEK 1 — Post 3 reviews today: Hero #1 gets 2 reviews, Hero #2 gets 1 review. Space them: first at 4:30 PM, second at 6:00 PM, third at 8:00 PM. Different accounts for each.",note:"Week 1 ends with 3 reviews posted (Friday is the first review day of the plan). These are your opening social proof.",wOnly:1},
+      {id:"f_w2",text:"WEEK 2 — Post 2 reviews: Hero #1 gets 1, Hero #3 (Hibiscus) gets 1. Check first ROAS data from the ads that launched Monday — is ROAS above 0.5x? If below 0.5x → trigger immediate ad cut to ₹200/day.",note:"First ROAS data after 5 days of ads. Even if it's early, a 0.5x ROAS after 5 days signals a fundamental listing problem.",wOnly:2},
+      {id:"f_w3",text:"WEEK 3 — Post 2 reviews: Hero #2 gets 1, Hero #4 gets 1. Calculate ROAS for Weeks 2–3 combined. Is it trending up week-over-week? That is the correct signal.",note:"A rising ROAS trend (even if below 2.0x) is more valuable than a flat 2.0x ROAS.",wOnly:3},
+      {id:"f_w4",text:"WEEK 4 — PHASE 1 GATE: Total orders in 4 weeks — LESS than 40 → cut ad spend to ₹200/day, drop hero prices 10–15%, re-evaluate Week 6. 40–60 orders → maintain plan, proceed to Phase 2. MORE than 60 orders → PHASE 2 GREEN LIGHT, increase to ₹500/day. Post 2 reviews (any heroes that need them).",note:"This gate is the most important decision point in the entire 12-week plan. Be honest with the data.",wOnly:4},
+      {id:"f_w8",text:"WEEK 8 — 8-week cumulative ROAS review: Calculate total revenue (8 weeks) ÷ total ad spend (8 weeks). Is the overall strategy working? Document this number as your Phase 2 final grade.",note:"8 weeks of data is statistically meaningful. This number tells you whether Phase 3 should be aggressive or conservative.",wOnly:8},
+      {id:"f_w12",text:"WEEK 12 — 12-WEEK AUDIT: Total orders, total revenue, total ad spend, true margin (after COGS + Myntra commission + ads). Hero #1 vs Hero #2 vs Hero #3 vs Hero #4 performance comparison. Keyword rank vs Week 1 baseline. Document everything.",note:"This is the proof of whether the plan worked. Be rigorous.",wOnly:12}
+    ]
+  },
+  SAT:{
+    title:"Saturday — Execution, Learning & Scorecard",
+    tagline:"Close everything that slipped. Implement approved changes. Pre-fill the scorecard. Prepare for Monday.",
+    tasks:[
+      {id:"s_base1",text:"Post 2 reviews today — Hero #2 (Curry Leaves) gets 1 at 4PM, Hero #3 (Hibiscus) gets 1 at 6PM. Do NOT post both at the same time.",note:"Saturday reviews close out the week's review schedule. Hero #2 (most orders) and Hero #3 (most views, needs conversion boost) are the Saturday pair."},
+      {id:"s_base2",text:"Implement any listing changes approved in Friday's review. Changes that are NOT live by Saturday night will NOT affect next week's metrics.",note:"Optimization decisions not executed are wasted. Execute what you approved on Friday."},
+      {id:"s_base3",text:"Draft next week's review texts for each hero (3–5 sentences each, different styles, one minor negative per review). Have them ready so Monday–Saturday review posting takes less than 5 minutes per review.",note:"Prepared review texts = less hesitation = consistent posting. Do this prep work now."},
+      {id:"s_base4",text:"Check Saturday sales so far — is the weekend performing? Weekend orders are often 20–30% higher than weekday orders on Myntra. If not — check if any hero went out of stock.",note:"Weekend is Myntra's highest-traffic period. Low weekend sales is an early warning signal."},
+      {id:"s_base5",text:"Combo bundle review — is the 'Hair Care Ritual' bundle getting weekend traction? Consider a weekend flash discount on the bundle (₹10–15 off) to test if price sensitivity is blocking purchases.",note:"Bundles often perform better on weekends when buyers are browsing vs. searching for a specific product."},
+      {id:"s_base6",text:"Check for Myntra platform announcements — any algorithm updates, category sales events, or seller challenges that could affect next week?",note:""},
+      {id:"s_base7",text:"Week-end reflection. Pre-fill the Saturday Scorecard section below. Write Monday's top 3 priorities. If anything is unfinished this week — decide: carry it to Monday (with a plan) or close it.",note:"Nothing carries over undocumented. Either it's on Monday's list with a clear action, or it's closed."},
+      // WEEK-SPECIFIC
+      {id:"s_w1",text:"WEEK 1 — Document baseline metrics before any changes take effect: current CTR (0.16%), CVR (6.22%), monthly impressions (155,319), monthly clicks (241), monthly orders (15). This is your Week 0 baseline for all future comparisons.",note:"Every improvement in the next 12 weeks is measured against this baseline. Write it down permanently.",wOnly:1},
+      {id:"s_w2",text:"WEEK 2 — Full Week 2 review: did ROAS cross 0.5x? Is the A/B image test showing a CTR difference? Are reviews posting without any Myntra flags? If ROAS < 0.5x → EMERGENCY: cut ads to ₹200/day Monday.",note:"Week 2 is your first real data week. Treat every signal as important, even if the sample is small.",wOnly:2},
+      {id:"s_w3",text:"WEEK 3 — Analytics deep dive: rank all 4 heroes by ROAS. Which 2 are strongest? From Week 5 onwards, Phase 2 focuses ONLY on the top 2. Make the list today.",note:"Phase 2 focus decision is made with 3 weeks of data. That is enough to see early patterns.",wOnly:3},
+      {id:"s_w4",text:"WEEK 4 — Plan Month 2 (Weeks 5–8): set targets based on Month 1 actuals, not the plan projections. If Month 1 was ahead of plan → keep targets. If behind → scale targets down 20–30% and be realistic.",note:"Month 2 targets must be grounded in real data, not spreadsheet projections. Honest planning beats optimistic fantasy.",wOnly:4},
+      {id:"s_w6",text:"WEEK 6 — Mid-plan course correction: with 6 weeks of data, what do you know that you did not know in Week 1? What should change in Weeks 7–12? Write your course correction document today.",note:"6 weeks = statistically meaningful data. This reflection is the difference between a smart plan and a rigid one.",wOnly:6},
+      {id:"s_w12",text:"WEEK 12 — Write the Maintenance Protocol: what does steady-state Myntra operation look like after this 12-week plan? Daily tasks, weekly tasks, monthly review cadence. Without this document, everything you built decays in 4 weeks.",note:"The maintenance protocol is as important as the 12-week plan itself. Do not skip this.",wOnly:12}
+    ]
+  }
+};
+
+// ─────────────────────────────────────────────
+// HEROES & DEAD SKUs
+// ─────────────────────────────────────────────
+const HEROES = [
+  {name:"Hero #1 — Coconut Neem Anti-Dandruff Hair Oil 100ml",note:"CVR 30% — highest converter. 3 orders/month. Anti-dandruff is a PAIN POINT search. Gets 4 reviews/week (33%).",type:"hero"},
+  {name:"Hero #2 — Coconut Curry Leaves Hair Oil 100ml",note:"CVR 26.7% — most orders (4/month). Strongest sales performance. Gets 3 reviews/week (25%).",type:"hero"},
+  {name:"Hero #3 — Hibiscus Hair Oil 100ml",note:"CVR 9.5% but highest views (7,162). Needs conversion improvement. Gets 3 reviews/week (25%).",type:"hero"},
+  {name:"Hero #4 — Henna Coconut Hair Oil 100ml",note:"CVR 50%* (small sample: 2 clicks, 1 order). Needs validation. Gets 2 reviews/week (17%).",type:"hero"},
+  {name:"Combo — 'Hair Care Ritual': Hero #1 + Hero #2",note:"Created in Week 3. Priced at combined price minus ₹20. AOV booster. Monitor weekly.",type:"bundle"}
+];
+
+// ─────────────────────────────────────────────
+// REVIEW SCHEDULE
+// ─────────────────────────────────────────────
+const REVIEW_SCHEDULE = [
+  {day:"MON",reviews:[{sku:"Hero #1",time:"7–7:30 PM"}]},
+  {day:"TUE",reviews:[{sku:"Hero #2",time:"6:30–7 PM"}]},
+  {day:"WED",reviews:[{sku:"Hero #3",time:"4–4:30 PM"},{sku:"Hero #1",time:"4:30–5 PM"}]},
+  {day:"THU",reviews:[{sku:"Hero #1",time:"4–4:30 PM"},{sku:"Hero #4",time:"4:30–5 PM"}]},
+  {day:"FRI",reviews:[{sku:"Hero #1",time:"(week-specific)"},{sku:"Hero #2",time:"(week-specific)"}]},
+  {day:"SAT",reviews:[{sku:"Hero #2",time:"4 PM"},{sku:"Hero #3",time:"6 PM"}]}
+];
+
+// ─────────────────────────────────────────────
+// ROAS DECISION MATRIX
+// ─────────────────────────────────────────────
+const ROAS_MATRIX = [
+  {range:"ROAS > 3.0x",action:"Increase ad budget +15%. This is a genuine winner — pour fuel carefully.",cls:"roas-safe"},
+  {range:"ROAS 2.0–3.0x",action:"Maintain budget. Profitable — optimize don't scale.",cls:"roas-safe"},
+  {range:"ROAS 1.5–2.0x",action:"Hold — optimize listing before spending more. Borderline.",cls:"roas-warn"},
+  {range:"ROAS 1.0–1.5x",action:"Cut budget by 25%. Losing money marginally — emergency listing audit.",cls:"roas-warn"},
+  {range:"ROAS < 1.0x",action:"STOP ALL ADS. Fix fundamentals first. Resume only when ROAS > 1.0x.",cls:"roas-stop"},
+  {range:"CTR < 0.3% (after Wk4)",action:"STOP. Fix images and titles. Ads won't help a bad listing.",cls:"roas-danger"},
+  {range:"CVR < 2.0% (after Wk4)",action:"Check price + reviews. Product page is turning buyers away.",cls:"roas-danger"},
+  {range:"0 orders for 3 days",action:"Check stock status + listing visibility. Technical problem first.",cls:"roas-danger"}
+];
+
+// ─────────────────────────────────────────────
+// TRIGGERED CONDITIONS
+// ─────────────────────────────────────────────
+const TRIGGERED = [
+  {trigger:"ROAS < 1.0x for 2+ consecutive days",action:"Cut ad spend by 25% immediately. Audit: is it the ad, the listing, or the product? Fix before re-increasing spend."},
+  {trigger:"ROAS > 3.0x for 7+ consecutive days",action:"Increase daily ad spend by 15%. This is a real winner — scale carefully and monitor daily."},
+  {trigger:"CTR below 0.16% (baseline) after Week 2",action:"STOP ADS. Return to listing optimization. New cover image is the most likely fix. Resume ads only when CTR > 0.20%."},
+  {trigger:"CVR drops below 2.0% after Week 4",action:"Check price (test 10–15% drop) + check review count (are negative reviews accumulating?). Fix the product page."},
+  {trigger:"0 orders for 3 consecutive days",action:"Step 1: check if all heroes are in stock and visible. Step 2: check for Myntra listing suppression. Step 3: check if competitors dropped price significantly."},
+  {trigger:"Orders drop week-over-week for 2 consecutive weeks",action:"EMERGENCY AUDIT. Identify cause: price change? competitor move? review drop? stock issue? Fix root cause before adjusting ad spend."},
+  {trigger:"Any hero goes OUT OF STOCK",action:"EMERGENCY RESTOCK. Out-of-stock = immediate algorithm demotion. Takes 5–7 days to recover ranking after restock. Never let heroes run dry."},
+  {trigger:"Competitor drops price >10% in hero category",action:"Within 48 hours: decide to match, undercut ₹5–10, or hold and emphasize ingredient quality. Document your decision."},
+  {trigger:"New negative review (3 stars or below) on any hero",action:"Reply publicly within 24 hours. Professional tone. Offer resolution via message. Public replies convert skeptical buyers."},
+  {trigger:"After Week 4, total 4-week orders < 40",action:"Phase 1 GATE FAIL: Cut to ₹200/day. Drop hero prices 10–15%. Re-evaluate Week 6. Product-market fit weaker than expected."},
+  {trigger:"After Week 4, total 4-week orders > 60",action:"Phase 2 GREEN LIGHT: Increase to ₹500/day for Month 2. Strong product-market fit — scale carefully."},
+  {trigger:"Cumulative Net P&L crosses −₹15,000",action:"FORCED CONSERVATIVE for 2 weeks. Cut to ₹200/day. Focus only on free listing optimization. Reassess after 2 weeks."},
+  {trigger:"ROAS stays above 2.5x for 7+ consecutive days",action:"Scale winner: increase budget by 20%. Rare signal — trust the data when it gives you this."},
+  {trigger:"Any Myntra seller violation or policy notice received",action:"STOP all other work. Read notice fully. Respond or appeal within 24 hours. Non-compliance = account suspension risk."}
+];
+
+// ─────────────────────────────────────────────
+// STATE
+// ─────────────────────────────────────────────
+let currentWeek = 1;
+let currentDay = 'MON';
+const DAYS = ['MON','TUE','WED','THU','FRI','SAT'];
+const DAY_LABELS = {MON:'Monday',TUE:'Tuesday',WED:'Wednesday',THU:'Thursday',FRI:'Friday',SAT:'Saturday'};
+
+function sk(id){ return `tm_w${currentWeek}_${currentDay}_${id}`; }
+function nk(){ return `tm_w${currentWeek}_${currentDay}_numbers`; }
+function noteKey(){ return `tm_w${currentWeek}_${currentDay}_notes`; }
+function getChk(id){ return localStorage.getItem(sk(id)) === '1'; }
+function setChk(id,v){ localStorage.setItem(sk(id), v?'1':'0'); }
+function getDayChk(w,d,id){ return localStorage.getItem(`tm_w${w}_${d}_${id}`) === '1'; }
+function getAdPath(w){ return localStorage.getItem(`tm_adpath_w${w}`) || 'b'; }
+function setAdPathSaved(w,p){ localStorage.setItem(`tm_adpath_w${w}`,p); }
+
+// ─────────────────────────────────────────────
+// AUTO-DETECT WEEK & DAY
+// ─────────────────────────────────────────────
+function autoDetect(){
+  const today = new Date(); today.setHours(0,0,0,0);
+  const start = new Date(PLAN_START); start.setHours(0,0,0,0);
+  if(today < start){ return {week:1,day:'MON'}; }
+  const dayDiff = Math.floor((today-start)/(1000*60*60*24));
+  const weekNum = Math.min(Math.floor(dayDiff/7)+1, 12);
+  const dow = today.getDay();
+  const dayMap = {0:'SAT',1:'MON',2:'TUE',3:'WED',4:'THU',5:'FRI',6:'SAT'};
+  return {week:weekNum, day:dayMap[dow]||'MON'};
+}
+
+// ─────────────────────────────────────────────
+// INIT
+// ─────────────────────────────────────────────
+function init(){
+  const d = new Date();
+  document.getElementById('dateDisplay').innerHTML =
+    d.toLocaleDateString('en-IN',{weekday:'long',day:'numeric',month:'long',year:'numeric'}) +
+    '<br>Plan started: 18 May 2026 &nbsp;|&nbsp; Working: 4PM–8PM Mon–Sat';
+  const auto = autoDetect();
+  currentWeek = auto.week;
+  currentDay = auto.day;
+  document.getElementById('weekSelect').value = currentWeek;
+  render();
+}
+
+// ─────────────────────────────────────────────
+// RENDER
+// ─────────────────────────────────────────────
+function render(){
+  renderWeekTheme();
+  renderAdPath();
+  renderDayTabs();
+  renderDayHeader();
+  renderConstants();
+  renderTasks();
+  renderWeekTargets();
+  renderStopLoss();
+  renderWeekProgress();
+  renderReviewSchedule();
+  renderHeroes();
+  renderRoasMatrix();
+  renderTriggered();
+  renderScoreboard();
+  loadNumbers();
+  loadNotes();
+}
+
+function renderWeekTheme(){
+  const t = WEEK_THEMES[currentWeek];
+  document.getElementById('weekThemeDesc').innerHTML =
+    `<strong>Week ${currentWeek}: ${t.name}</strong> — ${t.desc}`;
+}
+
+function renderAdPath(){
+  const p = getAdPath(currentWeek);
+  ['c','b','a'].forEach(x=>{
+    document.getElementById('ap-'+x).className = `ap-btn ap-${x}${p===x?' active':''}`;
+  });
+  const b = AD_BUDGETS[currentWeek];
+  document.getElementById('ap-budget').textContent =
+    `Daily ad spend → Conservative: ₹${b.c}/day | Base Plan: ₹${b.b}/day | Scale Up: ₹${b.a}/day`;
+  // Update hints
+  const wt = WEEK_TARGETS[currentWeek];
+  const el = document.getElementById('spend_hint');
+  if(el) el.textContent = `₹${b[p]}/day this week`;
+}
+
+function setAdPath(p){
+  setAdPathSaved(currentWeek, p);
+  renderAdPath();
+}
+
+function renderDayTabs(){
+  const labels = {MON:'Monday',TUE:'Tuesday',WED:'Wednesday',THU:'Thursday ⭐',FRI:'Friday',SAT:'Saturday'};
+  DAYS.forEach(d=>{
+    const el = document.querySelector(`.day-tab[data-day="${d}"]`);
+    if(!el) return;
+    el.className = 'day-tab'+(d===currentDay?' active':'');
+    const tasks = getVisibleTasks(d);
+    const must = MUST[d]||[];
+    const allItems = [...tasks.map(t=>t.id), ...CONSTANTS.map(c=>c.id), ...must.map(m=>m.id)];
+    const anyDone = allItems.some(id=>getDayChk(currentWeek,d,id));
+    const allDone = allItems.length>0 && allItems.every(id=>getDayChk(currentWeek,d,id));
+    el.innerHTML = labels[d] + (allDone?' <span class="done-dot"></span>':anyDone?' <span class="done-dot" style="background:#f6ad55;"></span>':'');
+  });
+}
+
+function getVisibleTasks(day){
+  return (TASKS[day]?.tasks||[]).filter(t=>{
+    if(t.wOnly && t.wOnly !== currentWeek) return false;
+    if(t.wRange && (currentWeek < t.wRange[0] || currentWeek > t.wRange[1])) return false;
+    return true;
+  });
+}
+
+function renderDayHeader(){
+  const d = TASKS[currentDay];
+  const t = WEEK_THEMES[currentWeek];
+  let html = `<h1>${d.title}</h1><p>${d.tagline}</p>`;
+  html += `<div class="hero-badge">📅 Week ${currentWeek} of 12 &nbsp;|&nbsp; ${t.name}</div>`;
+  html += `<div class="week-special">⭐ ${t.special}</div>`;
+  document.getElementById('dayHdrCard').innerHTML = html;
+}
+
+function renderConstants(){
+  let html='';
+  CONSTANTS.forEach(c=>{
+    const chk = getChk(c.id);
+    html += `<div class="task-item ${chk?'done':''}" onclick="toggle('${c.id}',this)">
+      <input type="checkbox" ${chk?'checked':''} onclick="event.stopPropagation();toggle('${c.id}',this.closest('.task-item'))">
+      <div>
+        <div class="t-text"><strong>${c.title}</strong> — ${c.text}</div>
+        ${c.note?`<div class="t-note">💡 ${c.note}</div>`:''}
+      </div></div>`;
+  });
+  document.getElementById('constantsList').innerHTML = html;
+}
+
+function renderTasks(){
+  const visible = getVisibleTasks(currentDay);
+  const total = visible.length;
+  const done = visible.filter(t=>getChk(t.id)).length;
+  document.getElementById('taskProgress').textContent = `(${done}/${total} done)`;
+  let html='';
+  visible.forEach(t=>{
+    const chk = getChk(t.id);
+    html += `<div class="task-item ${chk?'done':''}" onclick="toggle('${t.id}',this)">
+      <input type="checkbox" ${chk?'checked':''} onclick="event.stopPropagation();toggle('${t.id}',this.closest('.task-item'))">
+      <div style="flex:1;">
+        <div class="t-text">${t.text}</div>
+        ${t.note?`<div class="t-note">💡 ${t.note}</div>`:''}
+      </div></div>`;
+  });
+  document.getElementById('taskList').innerHTML = html || `<div style="color:#718096;font-size:12px;padding:8px;">No extra tasks for ${DAY_LABELS[currentDay]} in Week ${currentWeek}. Focus on Daily Constants above.</div>`;
+
+  const mustItems = MUST[currentDay]||[];
+  let mhtml='';
+  mustItems.forEach(m=>{
+    const chk = getChk(m.id);
+    mhtml += `<div class="ach-item ${chk?'done':''}" onclick="toggle('${m.id}',this)">
+      <input type="checkbox" ${chk?'checked':''} onclick="event.stopPropagation();toggle('${m.id}',this.closest('.ach-item'))">
+      <div class="t-text">${m.text}</div>
+    </div>`;
+  });
+  document.getElementById('mustList').innerHTML = mhtml;
+}
+
+function renderWeekTargets(){
+  const wt = WEEK_TARGETS[currentWeek];
+  const html = `
+    <div class="tgt-box"><div class="tgt-label">CTR Target</div><div class="tgt-value">${wt.ctr}%</div><div class="tgt-sub">Week ${currentWeek} goal</div></div>
+    <div class="tgt-box"><div class="tgt-label">CVR Target</div><div class="tgt-value">${wt.cvr}%</div><div class="tgt-sub">Week ${currentWeek} goal</div></div>
+    <div class="tgt-box"><div class="tgt-label">ROAS Target</div><div class="tgt-value">${wt.roas}x</div><div class="tgt-sub">Week ${currentWeek} goal</div></div>
+    <div class="tgt-box"><div class="tgt-label">Orders Target</div><div class="tgt-value">${wt.orders}</div><div class="tgt-sub">this week</div></div>
+    <div class="tgt-box"><div class="tgt-label">Revenue Target</div><div class="tgt-value">₹${wt.revenue.toLocaleString()}</div><div class="tgt-sub">this week</div></div>
+    <div class="tgt-box"><div class="tgt-label">Ad Spend/Day</div><div class="tgt-value">₹${AD_BUDGETS[currentWeek][getAdPath(currentWeek)]}</div><div class="tgt-sub">base plan rate</div></div>`;
+  document.getElementById('weekTargets').innerHTML = html;
+  // Update hints in numbers panel
+  const ctrHint = document.getElementById('ctr_hint');
+  const cvrHint = document.getElementById('cvr_hint');
+  const roasHint = document.getElementById('roas_hint');
+  if(ctrHint) ctrHint.textContent = `Target ≥${wt.ctr}%`;
+  if(cvrHint) cvrHint.textContent = `Target ≥${wt.cvr}%`;
+  if(roasHint) roasHint.textContent = `Target ≥${wt.roas}x`;
+}
+
+function renderStopLoss(){
+  const nums = getSavedNumbers();
+  const roas = parseFloat(nums.roas)||0;
+  const netpl = nums.netpl!==''?parseFloat(nums.netpl):null;
+  const ctr = parseFloat(nums.ctr)||0;
+  const cvr = parseFloat(nums.cvr)||0;
+  const stock = nums.stock||'';
+
+  const rules = [
+    {
+      label:'ROAS Watch',
+      value: roas>0?`${roas}x`:'Not entered yet',
+      safe: roas>=1.5,
+      warn: roas>=1.0 && roas<1.5,
+      danger: roas>0 && roas<1.0,
+      safeMsg:'ROAS is healthy. Current ad spend is justified.',
+      warnMsg:'ROAS is marginal (1.0–1.5x). Hold budget — optimize listing before increasing spend.',
+      dangerMsg:'ROAS DANGER! Below 1.0x — you are losing money on ads. Cut budget by 25% immediately.',
+      safeAct:'✓ ROAS healthy',warnAct:'⚠ Hold & optimize',dangerAct:'⛔ Cut budget NOW'
+    },
+    {
+      label:'Net P&L Watch',
+      value: netpl!==null?`₹${netpl.toLocaleString()}`:'Not entered yet',
+      safe: netpl!==null && netpl>=0,
+      warn: netpl!==null && netpl>=-15000 && netpl<0,
+      danger: netpl!==null && netpl<-15000,
+      safeMsg:'P&L is positive. Strategy is working at the macro level.',
+      warnMsg:'P&L is negative but within safe zone. Stay on Base or switch to Conservative spend.',
+      dangerMsg:'EMERGENCY: Cumulative loss crossed ₹15,000. Force Conservative (₹200/day) for 2 weeks immediately.',
+      safeAct:'✓ In profit',warnAct:'⚠ Review spending',dangerAct:'⛔ Force Conservative NOW'
+    },
+    {
+      label:'CTR Watch',
+      value: ctr>0?`${ctr}%`:'Not entered yet',
+      safe: ctr>=0.25,
+      warn: ctr>=0.16 && ctr<0.25,
+      danger: ctr>0 && ctr<0.16,
+      safeMsg:'CTR is improving. Listing is attracting clicks.',
+      warnMsg:'CTR is at or near baseline. Cover image and title need work. This is the #1 priority.',
+      dangerMsg:'CTR is at or below Week 0 baseline. Listing is NOT improving. New cover image urgently needed.',
+      safeAct:'✓ CTR improving',warnAct:'⚠ Fix image/title',dangerAct:'⛔ New image TODAY'
+    },
+    {
+      label:'CVR Watch',
+      value: cvr>0?`${cvr}%`:'Not entered yet',
+      safe: cvr>=3.5,
+      warn: cvr>=2.0 && cvr<3.5,
+      danger: cvr>0 && cvr<2.0,
+      safeMsg:'CVR is at or above plan target. Product page is converting.',
+      warnMsg:'CVR is low. Check pricing, review count, and bullet point quality.',
+      dangerMsg:'CVR critically low. Something on the product page is repelling buyers — investigate today.',
+      safeAct:'✓ CVR on target',warnAct:'⚠ Review listing',dangerAct:'⛔ Emergency audit'
+    },
+    {
+      label:'Stock Watch',
+      value: stock==='ok'?'All In Stock':stock==='low'?'Low Stock':stock==='out'?'OUT OF STOCK':'Not entered yet',
+      safe: stock==='ok',
+      warn: stock==='low',
+      danger: stock==='out',
+      safeMsg:'All 4 hero SKUs are in stock. Good.',
+      warnMsg:'At least one hero is running low. Trigger restock order TODAY — Myntra restocking takes 3–5 days.',
+      dangerMsg:'EMERGENCY: A hero is OUT OF STOCK. Algorithm demotion is happening right now. Restock immediately.',
+      safeAct:'✓ Stock healthy',warnAct:'⚠ Trigger restock',dangerAct:'⛔ RESTOCK NOW'
+    }
+  ];
+
+  let anyDanger=false;
+  let html='';
+  rules.forEach(r=>{
+    const cls = r.danger?'sl-danger':r.warn?'sl-warn':'sl-safe';
+    const actCls = r.danger?'danger-act':r.warn?'warn-act':'safe-act';
+    const icon = r.danger?'🔴':r.warn?'🟡':'🟢';
+    const msg = r.danger?r.dangerMsg:r.warn?r.warnMsg:r.safeMsg;
+    const act = r.danger?r.dangerAct:r.warn?r.warnAct:r.safeAct;
+    if(r.danger) anyDanger=true;
+    html += `<div class="sl-item ${cls}">
+      <h4>${icon} ${r.label} &nbsp;<span style="font-weight:400;font-size:11px;">${r.value}</span></h4>
+      <p>${msg}</p>
+      <span class="sl-action ${actCls}">${act}</span>
+    </div>`;
+  });
+  document.getElementById('stopLossList').innerHTML = html;
+
+  const bar = document.getElementById('slAlertBar');
+  if(anyDanger){
+    bar.className='sl-alert show';
+    document.getElementById('slAlertMsg').textContent =
+      'Stop-loss rule triggered! Check the red card in the Stop-Loss Watch panel and act before ending today\'s session.';
+  } else {
+    bar.className='sl-alert';
+  }
+}
+
+function renderWeekProgress(){
+  let html='';
+  DAYS.forEach(d=>{
+    const tasks = getVisibleTasks(d);
+    const must = MUST[d]||[];
+    const consts = CONSTANTS;
+    const allItems = [...tasks.map(t=>t.id),...must.map(m=>m.id),...consts.map(c=>c.id)];
+    const total = allItems.length;
+    const done = allItems.filter(id=>getDayChk(currentWeek,d,id)).length;
+    const pct = total===0?0:Math.round(done/total*100);
+    html += `<div class="day-prog-item">
+      <div class="dp-label">${d.charAt(0)+d.slice(1).toLowerCase()}</div>
+      <div class="dp-bar"><div class="dp-fill" style="width:${pct}%"></div></div>
+      <div class="dp-pct">${pct}%</div>
+    </div>`;
+  });
+  document.getElementById('weekProgress').innerHTML = html;
+}
+
+function renderReviewSchedule(){
+  const dayMap = {MON:0,TUE:1,WED:2,THU:3,FRI:4,SAT:5};
+  const todayEntry = REVIEW_SCHEDULE.find(r=>r.day===currentDay);
+
+  let html='';
+  if(todayEntry && todayEntry.reviews.length>0){
+    html += `<div class="rev-today"><div class="rt-title">📅 Today's Review Target</div><div class="rt-body">`;
+    todayEntry.reviews.forEach(r=>{
+      html += `<strong>${r.sku}</strong> at ${r.time}<br>`;
+    });
+    html += `</div></div>`;
+  }
+
+  html += '<div style="font-size:11px;font-weight:700;color:#718096;margin-bottom:6px;text-transform:uppercase;letter-spacing:.4px;">Weekly Schedule (8 active / 4 buffer)</div>';
+  REVIEW_SCHEDULE.forEach(r=>{
+    const isToday = r.day === currentDay;
+    html += `<div class="rev-day-row" style="${isToday?'background:#fdf2f8;border-radius:6px;padding:6px 8px;':''}" >
+      <div class="rev-day-lbl" style="${isToday?'color:#ad1457;':''}">${r.day}</div>
+      <div>${r.reviews.map(rv=>`<span class="rev-sku-tag">${rv.sku}</span><span style="font-size:10px;color:#718096;">${rv.time}</span>`).join(' &nbsp; ')}</div>
+    </div>`;
+  });
+
+  html += `<div style="font-size:10px;color:#718096;margin-top:8px;line-height:1.6;border-top:1px dashed #fce7f3;padding-top:8px;">
+    <strong>Review Rules:</strong> 3–5 sentences. Mention specific result. Include 1 minor negative.
+    Space reviews 8+ hours apart. Mix 70% five-star, 30% four-star. Never post same text twice.
+  </div>`;
+  document.getElementById('reviewSchedule').innerHTML = html;
+}
+
+function renderHeroes(){
+  let html='';
+  HEROES.forEach(h=>{
+    const tagCls = h.type==='hero'?'tag-hero':'tag-bundle';
+    const tagLabel = h.type==='hero'?'HERO':'BUNDLE';
+    html += `<div class="hero-row">
+      <span class="hero-badge-tag ${tagCls}">${tagLabel}</span>
+      <div style="flex:1;padding:0 8px;">
+        <div class="hero-name"><strong>${h.name}</strong></div>
+        <div class="hero-note">${h.note}</div>
+      </div>
+    </div>`;
+  });
+  document.getElementById('heroReference').innerHTML = html;
+}
+
+function renderRoasMatrix(){
+  let html='';
+  ROAS_MATRIX.forEach(r=>{
+    html += `<div class="roas-row">
+      <span class="roas-badge ${r.cls}">${r.range}</span>
+      <span class="roas-action">${r.action}</span>
+    </div>`;
+  });
+  document.getElementById('roasMatrix').innerHTML = html;
+}
+
+function renderTriggered(){
+  let html='';
+  TRIGGERED.forEach(t=>{
+    html += `<div class="trig-item">
+      <div class="trig-trigger">⚡ WHEN: ${t.trigger}</div>
+      <div class="trig-action">→ ${t.action}</div>
+    </div>`;
+  });
+  document.getElementById('triggeredList').innerHTML = html;
+}
+
+function renderScoreboard(){
+  const sec = document.getElementById('scoreboardSection');
+  sec.className = 'scoreboard-section'+(currentDay==='SAT'?' show':'');
+  document.getElementById('sb_week').value = `Week ${currentWeek}`;
+}
+
+// ─────────────────────────────────────────────
+// NUMBERS
+// ─────────────────────────────────────────────
+function saveNumbers(){
+  const fields=['orders','clicks','ctr','cvr','roas','adspend','adrev','reviews','stock','netpl','anomaly'];
+  const data={};
+  fields.forEach(f=>{
+    const el = document.getElementById('n_'+f);
+    data[f] = el ? el.value : '';
+  });
+  localStorage.setItem(nk(), JSON.stringify(data));
+  const msg=document.getElementById('savedMsg');
+  msg.style.display='block';
+  setTimeout(()=>{msg.style.display='none';},2500);
+  renderStopLoss();
+  highlightFields(data);
+}
+
+function highlightFields(data){
+  const roas = parseFloat(data.roas)||0;
+  const pl = data.netpl!==''?parseFloat(data.netpl):null;
+  const el_roas = document.getElementById('n_roas');
+  const el_pl = document.getElementById('n_netpl');
+  if(el_roas) el_roas.className = roas>0&&roas<1.0?'warn-field':'';
+  if(el_pl) el_pl.className = pl!==null&&pl<-15000?'warn-field':'';
+}
+
+function loadNumbers(){
+  const raw=localStorage.getItem(nk());
+  if(!raw) return;
+  try{
+    const data=JSON.parse(raw);
+    const fields=['orders','clicks','ctr','cvr','roas','adspend','adrev','reviews','stock','netpl','anomaly'];
+    fields.forEach(f=>{
+      const el=document.getElementById('n_'+f);
+      if(el&&data[f]!==undefined) el.value=data[f];
+    });
+    highlightFields(data);
+  }catch(e){}
+}
+
+function getSavedNumbers(){
+  const raw=localStorage.getItem(nk());
+  if(!raw) return {roas:'',netpl:'',ctr:'',cvr:'',stock:''};
+  try{ return JSON.parse(raw); }catch(e){ return {}; }
+}
+
+// ─────────────────────────────────────────────
+// NOTES
+// ─────────────────────────────────────────────
+function loadNotes(){
+  const el=document.getElementById('notesArea');
+  el.value = localStorage.getItem(noteKey())||'';
+}
+document.addEventListener('DOMContentLoaded',()=>{
+  document.getElementById('notesArea').addEventListener('input',function(){
+    localStorage.setItem(noteKey(), this.value);
+  });
+});
+
+// ─────────────────────────────────────────────
+// TOGGLE
+// ─────────────────────────────────────────────
+function toggle(id, el){
+  const chk = !getChk(id);
+  setChk(id, chk);
+  el.className = el.className.replace(' done','');
+  if(chk) el.className += ' done';
+  const input = el.querySelector('input[type=checkbox]');
+  if(input) input.checked = chk;
+  renderDayTabs();
+  renderWeekProgress();
+  updateBottomBar();
+}
+
+// ─────────────────────────────────────────────
+// BOTTOM BAR PROGRESS
+// ─────────────────────────────────────────────
+function updateBottomBar(){
+  let total=0,done=0;
+  DAYS.forEach(d=>{
+    const tasks=getVisibleTasks(d);
+    const must=MUST[d]||[];
+    [...tasks,...CONSTANTS,...must].forEach(t=>{ total++; if(getDayChk(currentWeek,d,t.id)) done++; });
+  });
+  const pct=total===0?0:Math.round(done/total*100);
+  document.getElementById('bb-progress').textContent =
+    `Week ${currentWeek} overall: ${done}/${total} tasks done (${pct}%) &nbsp;|&nbsp; 4PM–8PM window`;
+}
+
+// ─────────────────────────────────────────────
+// SCORECARD GENERATOR
+// ─────────────────────────────────────────────
+function generateScorecard(){
+  const g=id=>document.getElementById(id)?.value||'—';
+  const text =
+`━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+TREYFA MYNTRA — WEEKLY SCORECARD
+${g('sb_week')} | Generated: ${new Date().toLocaleDateString('en-IN')}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+📦 SALES PERFORMANCE
+Orders this week     : ${g('sb_orders')}
+This week's target   : ${g('sb_target')}
+Best hero            : ${g('sb_best')}
+Weakest hero         : ${g('sb_worst')}
+
+💸 AD PERFORMANCE
+Total ad spend (₹)   : ${g('sb_adspend')}
+Total ad revenue (₹) : ${g('sb_adrev')}
+ROAS this week       : ${g('sb_roas')}
+Ad mode next week    : ${g('sb_adpath')}
+
+📊 KEY METRICS
+CTR this week        : ${g('sb_ctr')}
+CVR this week        : ${g('sb_cvr')}
+Reviews posted       : ${g('sb_reviews')}
+Hero #1 rank         : ${g('sb_rank1')}
+Stock status         : ${g('sb_stock')}
+Cumulative P&L       : ${g('sb_netpl')}
+Combo bundle         : ${g('sb_bundle')}
+
+🏆 TOP 3 WINS THIS WEEK
+${g('sb_wins')}
+
+❌ TOP 3 MISSES THIS WEEK
+${g('sb_misses')}
+
+💰 BUDGET DECISION FOR NEXT WEEK
+${g('sb_decision')}
+
+🛑 STOP-LOSS STATUS
+${g('sb_stoploss')}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Generated by Treyfa Myntra Dashboard
+Conservative target: ₹58,000/month by Week 12`;
+
+  const out=document.getElementById('sbOutput');
+  out.textContent=text;
+  out.style.display='block';
+  document.getElementById('copyBtn').style.display='inline-block';
+}
+
+function copyScorecard(){
+  const text=document.getElementById('sbOutput').textContent;
+  navigator.clipboard.writeText(text).then(()=>{
+    document.getElementById('copyBtn').textContent='✓ Copied!';
+    setTimeout(()=>{document.getElementById('copyBtn').textContent='📋 Copy to Clipboard';},2000);
+  });
+}
+
+// ─────────────────────────────────────────────
+// EXPORT DAY REPORT
+// ─────────────────────────────────────────────
+function exportDayReport(){
+  const visible=getVisibleTasks(currentDay);
+  const must=MUST[currentDay]||[];
+  const nums=getSavedNumbers();
+  const ap={c:'Conservative',b:'Base Plan',a:'Scale Up'}[getAdPath(currentWeek)]||'Base Plan';
+  const bud=AD_BUDGETS[currentWeek];
+  const wt=WEEK_TARGETS[currentWeek];
+
+  let txt=`TREYFA MYNTRA — DAILY EXECUTION REPORT\n${'='.repeat(46)}\n`;
+  txt+=`Date: ${new Date().toLocaleDateString('en-IN',{weekday:'long',day:'numeric',month:'long',year:'numeric'})}\n`;
+  txt+=`Week ${currentWeek} of 12 — ${WEEK_THEMES[currentWeek].name}\n`;
+  txt+=`Day: ${DAY_LABELS[currentDay]}\n`;
+  txt+=`Working Window: 4PM–8PM\n`;
+  txt+=`Ad Spend Mode: ${ap} (₹${bud[getAdPath(currentWeek)]}/day)\n\n`;
+
+  txt+=`THIS WEEK'S TARGETS:\n`;
+  txt+=`  CTR: ≥${wt.ctr}%  |  CVR: ≥${wt.cvr}%  |  ROAS: ≥${wt.roas}x  |  Orders: ${wt.orders}  |  Revenue: ₹${wt.revenue.toLocaleString()}\n\n`;
+
+  txt+=`DAILY CONSTANTS:\n`;
+  CONSTANTS.forEach(c=>{ txt+=`  [${getChk(c.id)?'✓':'○'}] ${c.title}\n`; });
+
+  txt+=`\nTODAY'S TASKS:\n`;
+  visible.forEach(t=>{ txt+=`  [${getChk(t.id)?'✓':'○'}] ${t.text.replace(/<[^>]+>/g,'')}\n`; });
+
+  txt+=`\nMUST COMPLETE BEFORE 8PM:\n`;
+  must.forEach(m=>{ txt+=`  [${getChk(m.id)?'✓':'○'}] ${m.text}\n`; });
+
+  txt+=`\nNUMBERS RECORDED:\n`;
+  txt+=`  Orders Today   : ${nums.orders||'—'}\n`;
+  txt+=`  Clicks Today   : ${nums.clicks||'—'}\n`;
+  txt+=`  CTR This Week  : ${nums.ctr||'—'}%\n`;
+  txt+=`  CVR This Week  : ${nums.cvr||'—'}%\n`;
+  txt+=`  ROAS This Week : ${nums.roas||'—'}x\n`;
+  txt+=`  Ad Spend Today : ₹${nums.adspend||'—'}\n`;
+  txt+=`  Ad Revenue     : ₹${nums.adrev||'—'}\n`;
+  txt+=`  Reviews (wk)   : ${nums.reviews||'—'}\n`;
+  txt+=`  Stock Status   : ${nums.stock==='ok'?'All In Stock':nums.stock==='low'?'Low Stock':nums.stock==='out'?'OUT OF STOCK':'—'}\n`;
+  txt+=`  Net P&L Cumul. : ₹${nums.netpl||'—'}\n`;
+  if(nums.anomaly) txt+=`  Anomalies      : ${nums.anomaly}\n`;
+
+  const notes=localStorage.getItem(noteKey());
+  if(notes) txt+=`\nNOTES & DECISIONS:\n${notes}\n`;
+
+  txt+=`\n${'='.repeat(46)}\nGenerated by Treyfa Myntra Dashboard\n`;
+
+  const blob=new Blob([txt],{type:'text/plain'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url; a.download=`Treyfa_Myntra_W${currentWeek}_${currentDay}_Report.txt`; a.click();
+  URL.revokeObjectURL(url);
+}
+
+// ─────────────────────────────────────────────
+// RESET
+// ─────────────────────────────────────────────
+function resetDay(){
+  if(!confirm(`Reset ALL tasks for ${DAY_LABELS[currentDay]}, Week ${currentWeek}? This cannot be undone.`)) return;
+  const visible=getVisibleTasks(currentDay);
+  const must=MUST[currentDay]||[];
+  [...visible,...CONSTANTS,...must].forEach(t=>{ localStorage.removeItem(sk(t.id)); });
+  render();
+}
+
+// ─────────────────────────────────────────────
+// NAVIGATION
+// ─────────────────────────────────────────────
+function onWeekChange(){
+  currentWeek = parseInt(document.getElementById('weekSelect').value);
+  currentDay = 'MON';
+  render();
+  updateBottomBar();
+}
+function onDayChange(d){
+  currentDay = d;
+  render();
+  updateBottomBar();
+}
+
+// ─────────────────────────────────────────────
+// BOOT
+// ─────────────────────────────────────────────
+init();
+updateBottomBar();
+</script>
+</body>
+</html>

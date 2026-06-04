@@ -1,0 +1,1854 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Treyfa x Snapdeal — Complete Strategy Dashboard</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',Arial,sans-serif;background:#f8f9fa;color:#1a1a2e;font-size:14px;line-height:1.5}
+
+/* ===== SNAPDEAL RED THEME ===== */
+:root{
+  --sd-red:#E4002B;
+  --sd-dark:#B30022;
+  --sd-light:#FFF0F2;
+  --sd-orange:#FF6B35;
+  --sd-orange-light:#FFF5F0;
+  --sd-blue:#0066CC;
+  --sd-blue-light:#E6F2FF;
+  --sd-green:#28A745;
+  --sd-green-light:#E8F5E9;
+  --sd-yellow:#FFC107;
+  --sd-yellow-light:#FFF8E1;
+}
+
+/* ===== HEADER ===== */
+.hdr{background:linear-gradient(135deg,#E4002B,#B30022);color:#fff;padding:14px 24px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px}
+.hdr-logo{font-size:20px;font-weight:800;letter-spacing:1px}
+.hdr-logo span{color:#FFD700}
+.hdr-right{font-size:12px;opacity:.85}
+
+/* ===== CONTROLS ===== */
+.ctrl{background:#fff;border-bottom:2px solid #e2e8f0;padding:12px 24px;display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+.ctrl select{padding:8px 12px;border:2px solid #E4002B;border-radius:8px;font-size:13px;font-weight:700;color:#B30022;background:var(--sd-light);cursor:pointer}
+.week-theme-box{background:var(--sd-light);border-left:4px solid #E4002B;padding:8px 14px;border-radius:0 8px 8px 0;flex:1;min-width:200px}
+.week-theme-box .wt-label{font-size:10px;font-weight:700;color:#E4002B;text-transform:uppercase;letter-spacing:.5px}
+.week-theme-box .wt-desc{font-size:12px;color:#2d3748;margin-top:2px}
+
+/* ===== PHASE BADGES ===== */
+.phase-badge{font-size:10px;font-weight:800;padding:3px 10px;border-radius:6px;margin-left:8px}
+.phase-foundation{background:#FFF8E1;color:#856404}
+.phase-ignition{background:#E6F2FF;color:#004085}
+.phase-scale{background:#E8F5E9;color:#155724}
+
+/* ===== DAY TABS ===== */
+.day-tabs{display:flex;background:#fff;border-bottom:2px solid #e2e8f0;padding:0 24px;overflow-x:auto}
+.day-tab{padding:12px 18px;cursor:pointer;font-weight:700;font-size:13px;color:#718096;border-bottom:3px solid transparent;white-space:nowrap;transition:all .15s}
+.day-tab:hover{color:#2d3748;background:#f7fafc}
+.day-tab.active{color:#E4002B;border-bottom-color:#E4002B}
+.day-tab .done-dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:#28A745;margin-left:5px;vertical-align:middle}
+.day-tab .warn-dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:#FFC107;margin-left:5px;vertical-align:middle}
+.day-tab .off-tab{color:#a0aec0;font-style:italic}
+
+/* ===== ALERT BARS ===== */
+.sl-alert{background:#fff5f5;border-left:5px solid #E4002B;padding:12px 24px;margin:14px 24px 0;border-radius:0 8px 8px 0;display:none;align-items:center;gap:10px}
+.sl-alert.show{display:flex}
+.sl-alert .sl-icon{font-size:22px}
+.sl-alert .sl-msg{font-size:13px;color:#B30022;font-weight:600;flex:1}
+.sl-alert .sl-close{background:#E4002B;color:#fff;border:none;padding:4px 10px;border-radius:4px;font-size:11px;cursor:pointer}
+
+.warn-alert{background:#FFF8E1;border-left:5px solid #FF6B35;padding:12px 24px;margin:8px 24px 0;border-radius:0 8px 8px 0;display:none;align-items:center;gap:10px}
+.warn-alert.show{display:flex}
+.warn-alert .wa-icon{font-size:22px}
+.warn-alert .wa-msg{font-size:13px;color:#856404;font-weight:600;flex:1}
+
+.info-alert{background:#E6F2FF;border-left:5px solid #0066CC;padding:12px 24px;margin:8px 24px 0;border-radius:0 8px 8px 0;display:none;align-items:center;gap:10px}
+.info-alert.show{display:flex}
+.info-alert .ia-icon{font-size:22px}
+.info-alert .ia-msg{font-size:13px;color:#004085;font-weight:600;flex:1}
+
+/* ===== POPUP MODAL ===== */
+.modal-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.6);z-index:1000;display:none;align-items:center;justify-content:center;padding:20px}
+.modal-overlay.show{display:flex}
+.modal-box{background:#fff;border-radius:16px;max-width:700px;width:100%;max-height:85vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.3);animation:modalIn .3s ease}
+@keyframes modalIn{from{opacity:0;transform:scale(.9)}to{opacity:1;transform:scale(1)}}
+.modal-head{background:#E4002B;color:#fff;padding:16px 20px;display:flex;align-items:center;justify-content:space-between}
+.modal-head.warn-head{background:#FF6B35}
+.modal-head.info-head{background:#0066CC}
+.modal-head h3{font-size:16px}
+.modal-head .modal-close{background:rgba(255,255,255,.2);border:none;color:#fff;width:28px;height:28px;border-radius:50%;cursor:pointer;font-size:16px}
+.modal-body{padding:20px;font-size:13px;line-height:1.7}
+.modal-body h4{color:#E4002B;margin:12px 0 6px;font-size:13px}
+.modal-body h4:first-child{margin-top:0}
+.modal-body .action-box{background:var(--sd-light);border:2px solid #E4002B;border-radius:8px;padding:12px;margin-top:10px;font-weight:700;color:#B30022}
+.modal-body .warn-box{background:var(--sd-yellow-light);border:2px solid #FFC107;border-radius:8px;padding:12px;margin-top:10px;font-weight:700;color:#856404}
+.modal-body .ok-box{background:var(--sd-green-light);border:2px solid #28A745;border-radius:8px;padding:12px;margin-top:10px;font-weight:700;color:#155724}
+.modal-body .tip-box{background:var(--sd-blue-light);border:2px solid #0066CC;border-radius:8px;padding:12px;margin-top:10px;font-weight:700;color:#004085}
+
+/* ===== MAIN LAYOUT ===== */
+.main{display:flex;gap:18px;padding:18px 24px;max-width:1500px;margin:0 auto}
+.left{flex:1.7;display:flex;flex-direction:column;gap:14px}
+.right{flex:1;display:flex;flex-direction:column;gap:14px}
+
+/* ===== CARDS ===== */
+.card{background:#fff;border-radius:12px;padding:18px;box-shadow:0 1px 4px rgba(0,0,0,.09)}
+.card-title{font-size:14px;font-weight:800;color:#2d3748;margin-bottom:14px;display:flex;align-items:center;gap:8px}
+.card-title .ic{font-size:17px}
+.card-subtitle{font-size:11px;color:#718096;margin-bottom:12px;line-height:1.5}
+
+/* ===== DAY HEADER CARD ===== */
+.day-hdr-card{background:linear-gradient(135deg,#E4002B,#FF6B35);color:#fff;border-radius:12px;padding:16px 20px}
+.day-hdr-card h1{font-size:17px;font-weight:800}
+.day-hdr-card p{font-size:12px;opacity:.9;margin-top:4px;line-height:1.5}
+.day-hdr-card .hero-badge{display:inline-block;background:rgba(255,255,255,.2);padding:4px 10px;border-radius:6px;font-size:11px;margin-top:8px;font-weight:600;margin-right:6px}
+
+/* ===== TASK ITEMS ===== */
+.task-item{display:flex;align-items:flex-start;gap:11px;padding:11px 12px;border-radius:8px;border:1.5px solid #e2e8f0;margin-bottom:7px;cursor:pointer;transition:all .15s;user-select:none}
+.task-item:hover{border-color:#fc8181;background:var(--sd-light)}
+.task-item.done{background:var(--sd-green-light);border-color:#28A745}
+.task-item.done .t-text{color:#718096;text-decoration:line-through}
+.task-item input[type=checkbox]{width:17px;height:17px;margin-top:2px;flex-shrink:0;cursor:pointer;accent-color:#E4002B}
+.t-text{font-size:13px;line-height:1.55}
+.t-note{font-size:11px;color:#718096;margin-top:3px;font-style:italic}
+.wk-badge{font-size:9px;background:#FFF8E1;color:#856404;border-radius:4px;padding:2px 5px;margin-left:5px;font-weight:700;vertical-align:middle}
+.tag-rule{font-size:9px;background:var(--sd-blue-light);color:#004085;border-radius:4px;padding:2px 5px;margin-left:5px;font-weight:700;vertical-align:middle}
+.tag-danger{font-size:9px;background:#fed7d7;color:#c53030;border-radius:4px;padding:2px 5px;margin-left:5px;font-weight:700;vertical-align:middle}
+.tag-must{font-size:9px;background:#fed7d7;color:#c53030;border-radius:4px;padding:2px 5px;margin-left:5px;font-weight:700;vertical-align:middle}
+.tag-rec{font-size:9px;background:var(--sd-green-light);color:#155724;border-radius:4px;padding:2px 5px;margin-left:5px;font-weight:700;vertical-align:middle}
+.tag-stop{font-size:9px;background:#E4002B;color:#fff;border-radius:4px;padding:2px 5px;margin-left:5px;font-weight:700;vertical-align:middle}
+
+/* ===== MUST-ACHIEVE ===== */
+.must-section{border-top:2px dashed #e2e8f0;padding-top:14px;margin-top:6px}
+.must-section h3{font-size:12px;font-weight:800;color:#E4002B;margin-bottom:10px;text-transform:uppercase;letter-spacing:.4px}
+.ach-item{display:flex;align-items:flex-start;gap:10px;padding:9px 11px;border-radius:8px;border:1.5px solid #fed7d7;margin-bottom:6px;cursor:pointer;transition:all .15s;user-select:none}
+.ach-item:hover{background:#fff5f5}
+.ach-item.done{background:var(--sd-green-light);border-color:#28A745}
+.ach-item.done .t-text{color:#718096;text-decoration:line-through}
+.ach-item input[type=checkbox]{width:17px;height:17px;margin-top:2px;flex-shrink:0;cursor:pointer;accent-color:#E4002B}
+
+/* ===== TIME BLOCKS ===== */
+.time-block{display:flex;gap:10px;padding:10px 12px;border-radius:8px;border:1.5px solid #e2e8f0;margin-bottom:6px;background:#fafafa}
+.time-block .tb-time{font-size:10px;font-weight:800;color:#4a5568;background:#e2e8f0;padding:3px 8px;border-radius:4px;white-space:nowrap;height:fit-content}
+.time-block .tb-content{flex:1}
+.time-block .tb-title{font-size:12px;font-weight:700;color:#2d3748}
+.time-block .tb-desc{font-size:11px;color:#4a5568;margin-top:2px;line-height:1.5}
+.time-block .tb-kpi{font-size:10px;color:#718096;margin-top:3px;font-style:italic}
+
+/* ===== NUMBERS FORM ===== */
+.numbers-grid{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-bottom:8px}
+.nm-field{display:flex;flex-direction:column;gap:3px}
+.nm-field label{font-size:10px;font-weight:700;color:#718096;text-transform:uppercase;letter-spacing:.4px}
+.nm-field input{padding:7px 9px;border:1.5px solid #e2e8f0;border-radius:6px;font-size:13px;width:100%}
+.nm-field input:focus{outline:none;border-color:#E4002B;box-shadow:0 0 0 2px rgba(228,0,43,.18)}
+.nm-full{grid-column:1/-1}
+.save-btn{background:#E4002B;color:#fff;border:none;padding:9px;border-radius:8px;font-weight:700;cursor:pointer;width:100%;font-size:13px;margin-top:4px}
+.save-btn:hover{background:#B30022}
+.saved-msg{font-size:11px;color:#28A745;text-align:center;margin-top:4px;font-weight:600;display:none}
+
+/* ===== STOP-LOSS PANEL ===== */
+.sl-item{padding:11px 12px;border-radius:8px;margin-bottom:8px;border:1.5px solid #e2e8f0;cursor:pointer;transition:all .15s}
+.sl-item:hover{border-color:#fc8181}
+.sl-item h4{font-size:12px;font-weight:800;margin-bottom:3px;display:flex;align-items:center;gap:6px}
+.sl-item p{font-size:11px;color:#4a5568;line-height:1.5}
+.sl-item .sl-action{font-size:11px;font-weight:700;margin-top:5px;padding:4px 8px;border-radius:4px;display:inline-block}
+.sl-safe{background:var(--sd-green-light);border-color:#28A745}
+.sl-danger{background:#fff5f5;border-color:#fc8181}
+.sl-warn{background:#FFF8E1;border-color:#fbd38d}
+.sl-safe h4{color:#155724}
+.sl-danger h4{color:#E4002B}
+.sl-warn h4{color:#856404}
+.sl-action.safe-act{background:#c6f6d5;color:#155724}
+.sl-action.danger-act{background:#fed7d7;color:#E4002B}
+.sl-action.warn-act{background:#fef3c7;color:#856404}
+
+/* ===== PROGRESS ===== */
+.day-prog-item{display:flex;align-items:center;gap:9px;padding:5px 0}
+.dp-label{font-size:11px;font-weight:700;width:32px;color:#4a5568}
+.dp-bar{flex:1;height:7px;background:#e2e8f0;border-radius:4px;overflow:hidden}
+.dp-fill{height:100%;background:#E4002B;border-radius:4px;transition:width .3s}
+.dp-pct{font-size:10px;color:#718096;width:28px;text-align:right}
+
+/* ===== SKU REFERENCE ===== */
+.sku-row{display:flex;justify-content:space-between;align-items:flex-start;padding:6px 0;border-bottom:1px solid #f7fafc;gap:8px}
+.sku-row:last-child{border-bottom:none}
+.sku-code{font-size:10px;font-weight:700;font-family:monospace;color:#4a5568}
+.sku-name{font-size:11px;color:#2d3748;flex:1}
+.sku-note{font-size:10px;color:#718096;font-style:italic}
+.badge{font-size:9px;padding:2px 6px;border-radius:4px;font-weight:700;flex-shrink:0}
+.badge.hero{background:var(--sd-light);color:#E4002B}
+.badge.support{background:#FFF8E1;color:#856404}
+.badge.zero{background:#e2e8f0;color:#718096}
+.badge.bundle{background:var(--sd-blue-light);color:#004085}
+
+/* ===== WEEK SUMMARY GRID ===== */
+.sum-grid-header{display:flex;background:#f7fafc;border-bottom:2px solid #e2e8f0;padding:6px 0;font-size:10px;font-weight:700;color:#4a5568}
+.sum-grid-header .sum-task{flex:1;padding:0 8px;min-width:260px}
+.sum-grid-header .sum-day{width:32px;text-align:center}
+.sum-row{display:flex;border-bottom:1px solid #edf2f7;padding:6px 0;align-items:center;min-height:32px}
+.sum-row .sum-task{flex:1;padding:0 8px;font-size:10px;word-break:break-word;color:#2d3748;line-height:1.5;min-width:260px}
+.sum-row .sum-day{width:32px;text-align:center;font-size:14px;color:#a0aec0}
+.sum-row .sum-day.done{color:#28A745}
+
+/* ===== TABLES ===== */
+.catalog-table,.tgt-table,.zone-table,.esc-table,.trans-table,.bundle-table,.tag-table,.decision-table,.profit-table,.rank-table{width:100%;border-collapse:collapse;font-size:11px;margin-top:8px}
+.catalog-table th,.tgt-table th,.zone-table th,.esc-table th,.trans-table th,.bundle-table th,.tag-table th,.decision-table th,.profit-table th,.rank-table th{background:#f7fafc;padding:6px 8px;text-align:left;font-size:9px;text-transform:uppercase;color:#718096;border-bottom:2px solid #e2e8f0;position:sticky;top:0}
+.catalog-table td,.tgt-table td,.zone-table td,.esc-table td,.trans-table td,.bundle-table td,.tag-table td,.decision-table td,.profit-table td,.rank-table td{padding:6px 8px;border-bottom:1px solid #f7fafc}
+.catalog-table tr:hover,.tgt-table tr:hover,.zone-table tr:hover,.esc-table tr:hover,.trans-table tr:hover,.bundle-table tr:hover,.tag-table tr:hover,.decision-table tr:hover,.profit-table tr:hover,.rank-table tr:hover{background:#f7fafc}
+.catalog-table .hero-row,.bundle-table .hero-row{background:var(--sd-light)}
+.catalog-table .support-row{background:#FFF8E1}
+.catalog-table .zero-row{background:#f7fafc}
+.tgt-table .current-week{background:var(--sd-light);font-weight:700}
+.zone-green{background:var(--sd-green-light);color:#155724;font-weight:700}
+.zone-yellow{background:#FFF8E1;color:#856404;font-weight:700}
+.zone-red{background:#fff5f5;color:#E4002B;font-weight:700}
+
+/* ===== HEALTH INDICATOR ===== */
+.health-box{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap}
+.health-pill{font-size:10px;padding:4px 10px;border-radius:6px;font-weight:700}
+.hp-green{background:var(--sd-green-light);color:#155724}
+.hp-yellow{background:#FFF8E1;color:#856404}
+.hp-red{background:#fff5f5;color:#E4002B}
+.hp-gray{background:#e2e8f0;color:#718096}
+
+/* ===== SCOREBOARD ===== */
+.scoreboard-section{background:#fff;border-radius:12px;padding:20px;margin:0 24px 20px;box-shadow:0 1px 4px rgba(0,0,0,.09);display:none}
+.scoreboard-section.show{display:block}
+.scoreboard-section h2{font-size:16px;font-weight:800;color:#2d3748;margin-bottom:4px}
+.scoreboard-section .sb-sub{font-size:12px;color:#718096;margin-bottom:16px}
+.sb-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;margin-bottom:16px}
+.sb-field{display:flex;flex-direction:column;gap:4px}
+.sb-field label{font-size:10px;font-weight:700;color:#718096;text-transform:uppercase;letter-spacing:.4px}
+.sb-field input,.sb-field textarea{padding:8px;border:1.5px solid #e2e8f0;border-radius:6px;font-size:12px;width:100%}
+.sb-field textarea{min-height:56px;resize:vertical}
+.sb-full{grid-column:1/-1}
+.gen-btn{background:#E4002B;color:#fff;border:none;padding:11px 24px;border-radius:8px;font-weight:700;cursor:pointer;font-size:14px}
+.gen-btn:hover{background:#B30022}
+.sb-output{background:#f7fafc;border:1.5px solid #e2e8f0;border-radius:8px;padding:16px;margin-top:14px;white-space:pre-wrap;font-size:12px;line-height:1.7;display:none;font-family:'Courier New',monospace}
+.copy-btn{background:#718096;color:#fff;border:none;padding:7px 14px;border-radius:6px;cursor:pointer;margin-top:8px;font-size:12px}
+.copy-btn:hover{background:#4a5568}
+
+/* ===== WEEK SUMMARY ===== */
+.wk-summary{background:#fff;border-radius:12px;padding:20px;margin:0 24px 20px;box-shadow:0 1px 4px rgba(0,0,0,.09);display:none}
+.wk-summary.show{display:block}
+
+/* ===== COLLAPSIBLE SECTIONS ===== */
+.collapsible-section{background:#fff;border-radius:12px;padding:20px;margin:0 24px 20px;box-shadow:0 1px 4px rgba(0,0,0,.09)}
+.collapsible-section h2{font-size:16px;font-weight:800;color:#2d3748;margin-bottom:4px;cursor:pointer;display:flex;align-items:center;gap:8px}
+.collapsible-section h2 .toggle-icon{font-size:12px;color:#718096}
+.collapsible-section .coll-content{display:none;margin-top:12px}
+.collapsible-section .coll-content.show{display:block}
+
+/* ===== AD GUIDANCE ===== */
+.ad-guidance-box{background:var(--sd-light);border:2px solid #E4002B;border-radius:8px;padding:12px;margin-top:8px;font-size:12px;line-height:1.7}
+.ad-guidance-box strong{color:#B30022}
+
+/* ===== INFO BOXES ===== */
+.info-box{background:var(--sd-blue-light);border-radius:8px;padding:12px;margin-top:8px;font-size:12px;line-height:1.7;color:#004085}
+.truth-box{background:#fff5f5;border:2px solid #E4002B;border-radius:8px;padding:12px;margin-top:8px;font-size:12px;line-height:1.7;color:#B30022;font-weight:600}
+.stop-box{background:var(--sd-light);border:2px solid #E4002B;border-radius:8px;padding:12px;margin-top:8px;font-size:12px;line-height:1.7;color:#B30022;font-weight:700}
+
+/* ===== TAG LIST ===== */
+.tag-bucket{margin-bottom:10px;padding:10px;background:#f7fafc;border-radius:8px}
+.tag-bucket-name{font-size:10px;font-weight:700;color:#E4002B;text-transform:uppercase;margin-bottom:4px}
+.tag-list{display:flex;flex-wrap:wrap;gap:4px}
+.tag-pill{font-size:10px;background:#e2e8f0;color:#4a5568;padding:3px 8px;border-radius:4px}
+
+/* ===== RESPONSIVE ===== */
+@media(max-width:880px){
+  .main{flex-direction:column}
+  .numbers-grid{grid-template-columns:1fr 1fr}
+  .sb-grid{grid-template-columns:1fr 1fr}
+  .hdr{flex-direction:column;align-items:flex-start}
+  .ctrl{flex-direction:column;align-items:stretch}
+  .day-tabs{padding:0 10px}
+  .sl-alert,.warn-alert,.info-alert{margin:10px 10px 0}
+  .main{padding:10px}
+  .scoreboard-section,.wk-summary,.collapsible-section{margin:0 10px 10px}
+  .modal-box{max-height:90vh}
+}
+@media(max-width:480px){
+  .numbers-grid{grid-template-columns:1fr}
+  .sb-grid{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+
+<!-- ===== HEADER ===== -->
+<div class="hdr">
+  <div class="hdr-logo">TREYFA <span>x</span> SNAPDEAL &nbsp;|&nbsp; Complete Strategy Dashboard</div>
+  <div class="hdr-right" id="dateDisplay"></div>
+</div>
+
+<!-- ===== CONTROLS ===== -->
+<div class="ctrl">
+  <div>
+    <label style="font-size:10px;font-weight:700;color:#718096;display:block;margin-bottom:3px">SELECT WEEK</label>
+    <select id="weekSelect" onchange="onWeekChange()">
+      <option value="1">Week 1 — Foundation</option>
+      <option value="2">Week 2 — CTR Boost</option>
+      <option value="3">Week 3 — SEO Push</option>
+      <option value="4">Week 4 — Trust Signals</option>
+      <option value="5">Week 5 — First Ad Optimize</option>
+      <option value="6">Week 6 — Combo Dominance</option>
+      <option value="7">Week 7 — Category Rank Push</option>
+      <option value="8">Week 8 — Rank Stabilize</option>
+      <option value="9">Week 9 — Consolidation</option>
+      <option value="10">Week 10 — Price Leadership</option>
+      <option value="11">Week 11 — Category Domination</option>
+      <option value="12">Week 12 — Lock + Plan Q2</option>
+    </select>
+  </div>
+  <div class="week-theme-box">
+    <div class="wt-label">This Week's Focus</div>
+    <div class="wt-desc" id="weekThemeDesc">Lock Hero SKU + Foundation. No ads. Fix the engine.</div>
+  </div>
+  <div style="margin-left:auto;display:flex;gap:8px;align-items:center" id="weekTargetBox">
+    <span style="font-size:10px;color:#718096">SALES TARGET:</span>
+    <span style="font-size:14px;font-weight:800;color:#E4002B" id="weekTargetDisplay">8–12 orders</span>
+    <span style="font-size:10px;color:#718096">| AD BUDGET:</span>
+    <span style="font-size:14px;font-weight:800;color:#E4002B" id="weekAdBudget">Rs 0</span>
+  </div>
+</div>
+
+<!-- ===== DAY TABS ===== -->
+<div class="day-tabs" id="dayTabs">
+  <div class="day-tab active" data-day="MON" onclick="onDayChange('MON')">Monday</div>
+  <div class="day-tab" data-day="TUE" onclick="onDayChange('TUE')">Tuesday</div>
+  <div class="day-tab" data-day="WED" onclick="onDayChange('WED')">Wednesday</div>
+  <div class="day-tab" data-day="THU" onclick="onDayChange('THU')">Thursday</div>
+  <div class="day-tab" data-day="FRI" onclick="onDayChange('FRI')">Friday</div>
+  <div class="day-tab" data-day="SAT" onclick="onDayChange('SAT')">Saturday</div>
+  <div class="day-tab off-tab" data-day="SUN" style="color:#a0aec0;font-style:italic;cursor:default">Sunday = OFF</div>
+</div>
+
+<!-- ===== ALERT BARS ===== -->
+<div class="sl-alert" id="slAlertBar">
+  <div class="sl-icon">&#x1F6A8;</div>
+  <div class="sl-msg" id="slAlertMsg">Stop-loss rule triggered! Check the Stop-Loss panel.</div>
+  <button class="sl-close" onclick="dismissAlert('slAlertBar')">Dismiss</button>
+</div>
+<div class="warn-alert" id="warnAlertBar">
+  <div class="wa-icon">&#x26A0;&#xFE0F;</div>
+  <div class="wa-msg" id="warnAlertMsg">Warning condition active. Review the warning panel.</div>
+  <button class="sl-close" style="background:#FF6B35" onclick="dismissAlert('warnAlertBar')">Dismiss</button>
+</div>
+<div class="info-alert" id="infoAlertBar">
+  <div class="ia-icon">&#x2139;&#xFE0F;</div>
+  <div class="ia-msg" id="infoAlertMsg">New information available.</div>
+  <button class="sl-close" style="background:#0066CC" onclick="dismissAlert('infoAlertBar')">Dismiss</button>
+</div>
+
+<!-- ===== POPUP MODAL ===== -->
+<div class="modal-overlay" id="modalOverlay" onclick="if(event.target===this)closeModal()">
+  <div class="modal-box" id="modalBox">
+    <div class="modal-head" id="modalHead">
+      <h3 id="modalTitle">Alert</h3>
+      <button class="modal-close" onclick="closeModal()">&times;</button>
+    </div>
+    <div class="modal-body" id="modalBody"></div>
+  </div>
+</div>
+
+<!-- ===== MAIN ===== -->
+<div class="main">
+  <!-- LEFT PANEL -->
+  <div class="left">
+    <!-- Day Header -->
+    <div class="day-hdr-card" id="dayHdrCard"></div>
+
+    <!-- Daily Non-Negotiables -->
+    <div class="card" id="nonNegCard">
+      <div class="card-title"><span class="ic">&#x1F501;</span> Daily Jobs — Do These Every Day First (~35 min)</div>
+      <div class="card-subtitle">These 4 jobs happen every day Monday-Saturday BEFORE the themed work. Never skip.</div>
+      <div id="nonNegList"></div>
+    </div>
+
+    <!-- Day Tasks -->
+    <div class="card" id="tasksCard">
+      <div class="card-title"><span class="ic">&#x1F4CB;</span> Today's Themed Work <span style="font-size:11px;font-weight:400;color:#718096" id="taskProgress"></span></div>
+      <div class="card-subtitle" id="dayTaskSubtitle"></div>
+      <div id="taskList"></div>
+      <div class="must-section">
+        <h3>&#x2705; Must Finish Before Day Ends</h3>
+        <div id="mustList"></div>
+      </div>
+    </div>
+
+    <!-- Time Block Schedule -->
+    <div class="card" id="timeBlockCard" style="display:none">
+      <div class="card-title"><span class="ic">&#x23F0;</span> Today's Full Time Schedule (4:00 PM – 8:00 PM)</div>
+      <div class="card-subtitle">Every minute has a job. Work window: Monday-Saturday, 4 PM to 8 PM.</div>
+      <div id="timeBlockList"></div>
+    </div>
+
+    <!-- Week Summary -->
+    <div class="card" id="wkSummaryCard">
+      <div class="card-title"><span class="ic">&#x1F4CB;</span> Week <span id="wkSumNum">1</span> Summary — All Days at a Glance</div>
+      <div class="card-subtitle" style="font-size:11px;color:#718096;margin-bottom:12px">Green circle = done. Gray circle = not done. Click any circle to mark done.</div>
+      <div id="wkSummaryGrid"></div>
+    </div>
+  </div>
+
+  <!-- RIGHT PANEL -->
+  <div class="right">
+    <!-- Numbers Entry -->
+    <div class="card" id="numbersCard">
+      <div class="card-title"><span class="ic">&#x1F4CA;</span> Enter Today's Numbers</div>
+      <div class="card-subtitle">Enter data every day. Stop-loss rules trigger automatically.</div>
+      <div class="numbers-grid">
+        <div class="nm-field">
+          <label>Total Orders Today</label>
+          <input type="number" id="n_orders" placeholder="e.g. 2" onchange="checkStopLossOnInput()">
+        </div>
+        <div class="nm-field">
+          <label>Overall CTR (%)</label>
+          <input type="number" step="0.01" id="n_ctr" placeholder="e.g. 0.35" onchange="checkStopLossOnInput()">
+        </div>
+        <div class="nm-field">
+          <label>Overall CVR (%)</label>
+          <input type="number" step="0.01" id="n_cvr" placeholder="e.g. 4.5" onchange="checkStopLossOnInput()">
+        </div>
+        <div class="nm-field">
+          <label>Ad Spend Today (Rs)</label>
+          <input type="number" id="n_adspend" placeholder="e.g. 0" onchange="checkStopLossOnInput()">
+        </div>
+        <div class="nm-field">
+          <label>Ad Revenue Today (Rs)</label>
+          <input type="number" id="n_adrev" placeholder="e.g. 0" onchange="checkStopLossOnInput()">
+        </div>
+        <div class="nm-field">
+          <label>Returns Count Today</label>
+          <input type="number" id="n_returns" placeholder="e.g. 0" onchange="checkStopLossOnInput()">
+        </div>
+        <div class="nm-field">
+          <label>Total Orders This Week So Far</label>
+          <input type="number" id="n_weekorders" placeholder="e.g. 8" onchange="checkStopLossOnInput()">
+        </div>
+        <div class="nm-field">
+          <label>Return Rate (%)</label>
+          <input type="number" step="0.1" id="n_returnrate" placeholder="e.g. 8.5" onchange="checkStopLossOnInput()">
+        </div>
+        <div class="nm-field">
+          <label>ROAS (times)</label>
+          <input type="number" step="0.01" id="n_roas" placeholder="Auto: Ad Rev / Ad Spend" onchange="checkStopLossOnInput()">
+        </div>
+        <div class="nm-field">
+          <label>AOV — Avg Order Value (Rs)</label>
+          <input type="number" id="n_aov" placeholder="e.g. 175" onchange="checkStopLossOnInput()">
+        </div>
+        <div class="nm-field">
+          <label>Impressions Today</label>
+          <input type="number" id="n_impressions" placeholder="e.g. 3500" onchange="checkStopLossOnInput()">
+        </div>
+        <div class="nm-field">
+          <label>Clicks Today</label>
+          <input type="number" id="n_clicks" placeholder="e.g. 12" onchange="checkStopLossOnInput()">
+        </div>
+        <div class="nm-field nm-full">
+          <label>Notes / Problems Seen Today</label>
+          <input type="text" id="n_notes" placeholder="e.g. CTR dropped — check main image">
+        </div>
+      </div>
+      <button class="save-btn" onclick="saveNumbers()">&#x1F4BE; Save Today's Numbers</button>
+      <div class="saved-msg" id="savedMsg">&#x2713; Numbers saved!</div>
+    </div>
+
+    <!-- Stop-Loss Watch -->
+    <div class="card" id="stoplossCard">
+      <div class="card-title"><span class="ic">&#x1F6D1;</span> Stop-Loss Watch — Auto Check</div>
+      <div class="card-subtitle">Three hard rules from Chapter 2.5.3. Red = danger. Yellow = warning. Green = safe.</div>
+      <div id="stopLossList"></div>
+      <div style="font-size:10px;color:#718096;margin-top:6px">&#9889; Rules turn RED automatically when numbers hit danger zone.</div>
+    </div>
+
+    <!-- Store Health Check -->
+    <div class="card" id="healthCard">
+      <div class="card-title"><span class="ic">&#x1FA7A;</span> Store Health Check</div>
+      <div class="card-subtitle">Green = winning. Yellow = caution. Red = problem.</div>
+      <div class="health-box" id="healthBox"></div>
+      <div style="font-size:10px;color:#718096;margin-top:8px" id="healthHint">Enter today's numbers above to see health status.</div>
+    </div>
+
+    <!-- Week Progress -->
+    <div class="card" id="progressCard">
+      <div class="card-title"><span class="ic">&#x1F4C8;</span> This Week's Work Progress</div>
+      <div id="weekProgress"></div>
+    </div>
+
+    <!-- Ad Budget Guidance -->
+    <div class="card" id="adguidanceCard">
+      <div class="card-title"><span class="ic">&#x1F4B0;</span> Ad Budget Guidance This Week</div>
+      <div id="adGuidanceText"></div>
+    </div>
+
+    <!-- SKU Quick Reference -->
+    <div class="card" id="skuCard">
+      <div class="card-title"><span class="ic">&#x1F3F7;</span> Your Products — Hero / Support / Bundles</div>
+      <div style="font-size:10px;color:#718096;margin-bottom:8px">Focus 80% time on Hero SKU. 15% on Support. Rest on bundles.</div>
+      <div id="skuReference"></div>
+    </div>
+
+    <!-- Review Quick Ref -->
+    <div class="card" id="reviewQuickCard">
+      <div class="card-title"><span class="ic">&#x2B50;</span> Review Plan (12 Reviews Per Week)</div>
+      <div id="reviewQuickText"></div>
+    </div>
+
+    <!-- Weekly Scoreboard -->
+    <div class="card" id="scoreboardCard">
+      <div class="card-title"><span class="ic">&#x1F3C6;</span> Weekly Scoreboard — Track Your Results</div>
+      <div class="card-subtitle">Fill at end of each week. Compare to targets.</div>
+      <div class="numbers-grid">
+        <div class="nm-field"><label>Week Sales (Actual)</label><input type="number" id="sb_sales" placeholder="e.g. 10"></div>
+        <div class="nm-field"><label>GMV (Rs)</label><input type="number" id="sb_gmv" placeholder="e.g. 1750"></div>
+        <div class="nm-field"><label>Ad Spend (Rs)</label><input type="number" id="sb_adspend" placeholder="e.g. 0"></div>
+        <div class="nm-field"><label>Net Profit (Rs)</label><input type="number" id="sb_profit" placeholder="e.g. 915"></div>
+        <div class="nm-field"><label>CTR (%)</label><input type="number" step="0.01" id="sb_ctr" placeholder="e.g. 0.45"></div>
+        <div class="nm-field"><label>AOV (Rs)</label><input type="number" id="sb_aov" placeholder="e.g. 175"></div>
+        <div class="nm-field"><label>Reviews Added</label><input type="number" id="sb_reviews" placeholder="e.g. 3"></div>
+        <div class="nm-field"><label>Freshness Edits Done</label><input type="number" id="sb_edits" placeholder="e.g. 18"></div>
+      </div>
+      <button class="save-btn" onclick="saveScoreboard()">Save Week Score</button>
+      <div class="saved-msg" id="sbSavedMsg">Scoreboard saved!</div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== APRIL REPORT CARD SECTION ===== -->
+<div class="collapsible-section" id="reportCardSection">
+  <h2 onclick="toggleCollapsible('reportCardContent')">&#x1F4C9; April 2026 Report Card — Your Starting Point <span class="toggle-icon">&#x25BC;</span></h2>
+  <div class="coll-content" id="reportCardContent">
+    <div class="truth-box">You worked 104 hours in April and LOST Rs.650. That's negative Rs.6.25 per hour. This dashboard is built to fix that.</div>
+    <table class="catalog-table">
+      <tr><th>Metric</th><th>Your Number</th><th>Grade</th><th>What It Means</th></tr>
+      <tr><td style="font-weight:700">CTR (Click-Through Rate)</td><td>0.17%</td><td class="zone-red">F</td><td>99.83% of people scroll past you</td></tr>
+      <tr><td style="font-weight:700">Impressions</td><td>1,17,240</td><td class="zone-yellow">C-</td><td>Good volume but 62% came in just 2 days</td></tr>
+      <tr><td style="font-weight:700">Clicks</td><td>196</td><td class="zone-red">F</td><td>Barely 6.5 clicks/day. A closed shop.</td></tr>
+      <tr><td style="font-weight:700">Conversions</td><td>18 (some fake)</td><td class="zone-yellow">D</td><td>Less than 1 real sale per 2 days</td></tr>
+      <tr><td style="font-weight:700">AOV (Avg Order Value)</td><td>Rs. 175</td><td class="zone-yellow">D-</td><td>Selling single cheap items. No bundles.</td></tr>
+      <tr><td style="font-weight:700">GMV (Total Revenue)</td><td>Rs. 3,158</td><td class="zone-red">F</td><td>Rs.105/day. A chai stall makes more.</td></tr>
+      <tr><td style="font-weight:700">Ad Spend</td><td>Rs. 1,842</td><td class="zone-green">B</td><td>At least you didn't blow the budget.</td></tr>
+      <tr><td style="font-weight:700">ROAS</td><td>1.71x</td><td class="zone-yellow">D+</td><td>Break-even is 2.5x. You're losing.</td></tr>
+      <tr><td style="font-weight:700">Cost Per Click</td><td>Rs. 9.40</td><td class="zone-yellow">C+</td><td>Not terrible, but nobody converts.</td></tr>
+      <tr><td style="font-weight:700">Activity Consistency</td><td>17 / 30 days</td><td class="zone-red">F</td><td>13 days with ZERO impressions</td></tr>
+      <tr style="background:#fff5f5;font-weight:700"><td>OVERALL</td><td>—</td><td class="zone-red">F+</td><td>Barely passing. One step from failure.</td></tr>
+    </table>
+    <div class="stop-box" style="margin-top:10px">&#x1F6A8; ZERO ACTIVITY DAYS: 13 out of 30 days had ZERO impressions. 43% of the month you didn't exist on Snapdeal. Consistency is everything.</div>
+  </div>
+</div>
+
+<!-- ===== PROFIT TRAJECTORY SECTION ===== -->
+<div class="collapsible-section" id="profitSection">
+  <h2 onclick="toggleCollapsible('profitContent')">&#x1F4C8; Profit Trajectory — Month by Month <span class="toggle-icon">&#x25BC;</span></h2>
+  <div class="coll-content" id="profitContent">
+    <div class="info-box">With 30% product cost factored in. Month 1 = stop the bleeding. Month 2 = growth. Month 3 = real profit.</div>
+    <table class="profit-table">
+      <tr><th>Period</th><th>GMV</th><th>Product Cost (30%)</th><th>Commission (18%)</th><th>Shipping</th><th>Ad Spend</th><th style="color:#E4002B">NET PROFIT</th></tr>
+      <tr style="background:#fff5f5"><td style="font-weight:700">April (Actual)</td><td>Rs. 3,158</td><td>-Rs. 947</td><td>-Rs. 568</td><td>-Rs. 450</td><td>-Rs. 1,842</td><td class="zone-red" style="font-size:14px">Rs. -650</td></tr>
+      <tr style="background:var(--sd-green-light)"><td style="font-weight:700">Month 1 (W1-4)</td><td>Rs. 7,000</td><td>-Rs. 2,100</td><td>-Rs. 1,260</td><td>-Rs. 875</td><td>-Rs. 1,500</td><td class="zone-green" style="font-size:14px">Rs. +1,265</td></tr>
+      <tr style="background:var(--sd-green-light)"><td style="font-weight:700">Month 2 (W5-8)</td><td>Rs. 15,000</td><td>-Rs. 4,500</td><td>-Rs. 2,700</td><td>-Rs. 1,875</td><td>-Rs. 3,000</td><td class="zone-green" style="font-size:14px">Rs. +2,925</td></tr>
+      <tr style="background:var(--sd-green-light)"><td style="font-weight:700">Month 3 (W9-12)</td><td>Rs. 25,000</td><td>-Rs. 7,500</td><td>-Rs. 4,500</td><td>-Rs. 3,125</td><td>-Rs. 4,800</td><td class="zone-green" style="font-size:14px">Rs. +5,075</td></tr>
+    </table>
+  </div>
+</div>
+
+<!-- ===== FULL 12-WEEK TARGET TABLE ===== -->
+<div class="collapsible-section" id="targetSection">
+  <h2 onclick="toggleCollapsible('targetContent')">&#x1F3AF; Full 12-Week Target Table <span class="toggle-icon">&#x25BC;</span></h2>
+  <div class="coll-content" id="targetContent">
+    <table class="tgt-table" id="tgtTable">
+      <tr><th>Week</th><th>Sales</th><th>GMV</th><th>Ad Spend</th><th>Net Profit</th><th>Cum. Profit</th></tr>
+      <tr data-wk="1"><td style="font-weight:700">W1</td><td>8-12</td><td>Rs. 1,400-2,100</td><td>Rs. 0</td><td class="zone-green">Rs. 732-1,092</td><td>Rs. 732-1,092</td></tr>
+      <tr data-wk="2"><td style="font-weight:700">W2</td><td>10-15</td><td>Rs. 1,750-2,625</td><td>Rs. 0</td><td class="zone-green">Rs. 915-1,372</td><td>Rs. 1,647-2,464</td></tr>
+      <tr data-wk="3"><td style="font-weight:700">W3</td><td>12-18</td><td>Rs. 2,100-3,150</td><td>Rs. 469</td><td class="zone-green">Rs. 599-1,266</td><td>Rs. 2,246-3,730</td></tr>
+      <tr data-wk="4"><td style="font-weight:700">W4</td><td>15-22</td><td>Rs. 2,625-3,850</td><td>Rs. 469</td><td class="zone-green">Rs. 789-1,716</td><td>Rs. 3,035-5,446</td></tr>
+      <tr data-wk="5"><td style="font-weight:700">W5</td><td>18-25</td><td>Rs. 3,150-4,375</td><td>Rs. 469</td><td class="zone-green">Rs. 1,038-2,093</td><td>Rs. 4,073-7,539</td></tr>
+      <tr data-wk="6"><td style="font-weight:700">W6</td><td>22-30</td><td>Rs. 3,850-5,250</td><td>Rs. 938</td><td class="zone-green">Rs. 898-1,839</td><td>Rs. 4,971-9,378</td></tr>
+      <tr data-wk="7"><td style="font-weight:700">W7</td><td>25-35</td><td>Rs. 4,375-6,125</td><td>Rs. 938</td><td class="zone-green">Rs. 1,026-2,099</td><td>Rs. 5,997-11,477</td></tr>
+      <tr data-wk="8"><td style="font-weight:700">W8</td><td>30-40</td><td>Rs. 5,250-7,000</td><td>Rs. 938</td><td class="zone-green">Rs. 1,339-2,262</td><td>Rs. 7,336-13,739</td></tr>
+      <tr data-wk="9"><td style="font-weight:700">W9</td><td>35-45</td><td>Rs. 6,125-7,875</td><td>Rs. 700</td><td class="zone-green">Rs. 1,899-3,174</td><td>Rs. 9,235-16,913</td></tr>
+      <tr data-wk="10"><td style="font-weight:700">W10</td><td>40-55</td><td>Rs. 7,000-9,625</td><td>Rs. 700</td><td class="zone-green">Rs. 2,304-3,849</td><td>Rs. 11,539-20,762</td></tr>
+      <tr data-wk="11"><td style="font-weight:700">W11</td><td>45-60</td><td>Rs. 7,875-10,500</td><td>Rs. 700</td><td class="zone-green">Rs. 2,752-4,250</td><td>Rs. 14,291-25,012</td></tr>
+      <tr data-wk="12"><td style="font-weight:700">W12</td><td>50-65</td><td>Rs. 8,750-11,375</td><td>Rs. 700</td><td class="zone-green">Rs. 3,255-5,062</td><td class="zone-green" style="font-weight:700">Rs. 17,546-30,074</td></tr>
+    </table>
+    <div class="truth-box" style="margin-top:10px">&#x1F3C6; By Week 12, cumulative profit should be Rs.17,500-30,000. From a business that was LOSING Rs.650/month. The plan works if the work happens.</div>
+  </div>
+</div>
+
+<!-- ===== BUNDLE LINEUP SECTION ===== -->
+<div class="collapsible-section" id="bundleSection">
+  <h2 onclick="toggleCollapsible('bundleContent')">&#x1F4E6; Bundle Strategy — Combos That Print Money <span class="toggle-icon">&#x25BC;</span></h2>
+  <div class="coll-content" id="bundleContent">
+    <div class="info-box">Shipping cost is the same whether you ship 1 bottle or 3. That is where bundle profit comes from. Math wins.</div>
+    <h4 style="margin:12px 0 8px;color:#2d3748;font-size:13px">Profit Per Order Comparison</h4>
+    <table class="bundle-table">
+      <tr><th>Pack Type</th><th>Price</th><th>Cost (30%)</th><th>Commission (18%)</th><th>Shipping</th><th>Profit/Order</th><th>vs Single</th></tr>
+      <tr><td>Single Face Wash</td><td>Rs. 175</td><td>-Rs. 52</td><td>-Rs. 32</td><td>-Rs. 25</td><td>Rs. 66</td><td>Baseline</td></tr>
+      <tr style="background:var(--sd-green-light)"><td style="font-weight:700">2-Pack Bundle</td><td>Rs. 299</td><td>-Rs. 90</td><td>-Rs. 54</td><td>-Rs. 25</td><td class="zone-green" style="font-weight:700">Rs. 130</td><td class="zone-green">+98%</td></tr>
+      <tr style="background:var(--sd-green-light)"><td style="font-weight:700">3-Pack Bundle</td><td>Rs. 399</td><td>-Rs. 120</td><td>-Rs. 72</td><td>-Rs. 25</td><td class="zone-green" style="font-weight:700">Rs. 182</td><td class="zone-green">+176%</td></tr>
+    </table>
+    <h4 style="margin:12px 0 8px;color:#2d3748;font-size:13px">Your Exact Bundle Lineup</h4>
+    <table class="bundle-table">
+      <tr><th>Bundle Name</th><th>Products</th><th>Price</th><th>Profit/Order</th><th>When to Launch</th></tr>
+      <tr class="hero-row"><td style="font-weight:700">Variety Power Pack</td><td>1x Choco Coffee + 1x Neem</td><td>Rs. 299</td><td>Rs. 130</td><td style="color:#E4002B;font-weight:700">Week 1 — START HERE</td></tr>
+      <tr><td>Choco Coffee Duo</td><td>2x Choco Coffee</td><td>Rs. 299</td><td>Rs. 130</td><td>Week 3+ if Variety sells</td></tr>
+      <tr><td>Neem Fresh Duo</td><td>2x Neem Face Wash</td><td>Rs. 299</td><td>Rs. 130</td><td>Week 5+ if demand shows</td></tr>
+      <tr><td>Family Saver Pack</td><td>2x Choco Coffee + 1x Neem</td><td>Rs. 399</td><td>Rs. 182</td><td>Week 3 (highest profit)</td></tr>
+    </table>
+    <div class="stop-box" style="margin-top:10px">&#x26A0; Never be the cheapest. Sweet spot is 3rd to 5th cheapest. Rs.299 feels "under Rs.300" (cheap). Rs.349 feels "almost Rs.400" (expensive). Price at Rs.299, not Rs.349.</div>
+  </div>
+</div>
+
+<!-- ===== IMAGE SPECS SECTION ===== -->
+<div class="collapsible-section" id="imageSection">
+  <h2 onclick="toggleCollapsible('imageContent')">&#x1F5BC; Image Strategy — 65% of Your Ranking Power <span class="toggle-icon">&#x25BC;</span></h2>
+  <div class="coll-content" id="imageContent">
+    <div class="info-box">Price + Image + Discount + Delivery = 85% of your ranking. Image alone is 25%. Spend 80% of your image time on Image #1 (Product Shot).</div>
+    <h4 style="margin:12px 0 8px;color:#2d3748;font-size:13px">The 4 Image Types You Need (Per Product)</h4>
+    <table class="bundle-table">
+      <tr><th>#</th><th>Type</th><th>What It Shows</th><th>Purpose</th></tr>
+      <tr class="hero-row"><td style="font-weight:700">1</td><td style="font-weight:700">Product Shot</td><td>Bottle on gradient background with text overlay</td><td style="color:#E4002B;font-weight:700">Main listing — gets the CLICK</td></tr>
+      <tr><td>2</td><td>Ingredient Shot</td><td>Coffee beans + chocolate + neem leaves around bottle</td><td>Builds trust — 'it's actually herbal'</td></tr>
+      <tr><td>3</td><td>Lifestyle Shot</td><td>Hand holding bottle near sink with water splash</td><td>Helps buyer imagine using it</td></tr>
+      <tr><td>4</td><td>Value Shot</td><td>'1 Bottle = Rs.175 | 2 Bottles = Rs.299' comparison</td><td>Drives bundle conversions</td></tr>
+    </table>
+    <h4 style="margin:12px 0 8px;color:#2d3748;font-size:13px">Image Don'ts — The Money Killers</h4>
+    <table class="bundle-table">
+      <tr><th style="color:#E4002B">DON'T DO THIS</th><th style="color:#28A745">DO THIS INSTEAD</th><th>Why</th></tr>
+      <tr><td>Dark / black background</td><td>Cream-to-pink gradient</td><td>Dark images look like broken listings</td></tr>
+      <tr><td>No text on image</td><td>2-4 word overlay, bold font</td><td>Wastes free ad space</td></tr>
+      <tr><td>Blurry / low-res</td><td>1000x1000+ pixel sharp image</td><td>Algorithm suppresses low-res</td></tr>
+      <tr><td>Stock photos from Google</td><td>Your actual product photo</td><td>Algorithm flags duplicates</td></tr>
+      <tr><td>Watermarked images</td><td>Clean, no watermarks</td><td>Watermarks scream 'I stole this'</td></tr>
+      <tr><td>10+ elements crammed in</td><td>Product + 1-2 text + 1 badge</td><td>Cluttered = unreadable at thumbnail</td></tr>
+    </table>
+  </div>
+</div>
+
+<!-- ===== TAG LISTS SECTION ===== -->
+<div class="collapsible-section" id="tagsSection">
+  <h2 onclick="toggleCollapsible('tagsContent')">&#x1F3F7; Tag & SEO Strategy — 15-20 Tags Per Product <span class="toggle-icon">&#x25BC;</span></h2>
+  <div class="coll-content" id="tagsContent">
+    <div class="info-box">Snapdeal gives 15-20 tag slots per product. Most sellers use 4-5. Fill every slot. 15 minimum, 20 maximum. Costs nothing. Takes 10 minutes. Biggest free lever you have.</div>
+    <h4 style="margin:12px 0 8px;color:#E4002B;font-size:13px">Choco Coffee Face Wash — Tag List</h4>
+    <div class="tag-bucket"><div class="tag-bucket-name">Product Type</div><div class="tag-list"><span class="tag-pill">face wash</span><span class="tag-pill">facewash</span><span class="tag-pill">face cleanser</span><span class="tag-pill">face cleaning gel</span></div></div>
+    <div class="tag-bucket"><div class="tag-bucket-name">Key Ingredient</div><div class="tag-list"><span class="tag-pill">choco face wash</span><span class="tag-pill">coffee face wash</span><span class="tag-pill">chocolate coffee</span><span class="tag-pill">cocoa cleanser</span></div></div>
+    <div class="tag-bucket"><div class="tag-bucket-name">Skin Benefit</div><div class="tag-list"><span class="tag-pill">glow face wash</span><span class="tag-pill">skin brightening</span><span class="tag-pill">tan removal</span><span class="tag-pill">dull skin solution</span></div></div>
+    <div class="tag-bucket"><div class="tag-bucket-name">Skin Type</div><div class="tag-list"><span class="tag-pill">face wash for all skin types</span><span class="tag-pill">daily face wash</span><span class="tag-pill">men women face wash</span></div></div>
+    <div class="tag-bucket"><div class="tag-bucket-name">Usage / Search</div><div class="tag-list"><span class="tag-pill">herbal face wash</span><span class="tag-pill">natural facewash</span><span class="tag-pill">SLS free face wash</span><span class="tag-pill">paraben free</span></div></div>
+    <h4 style="margin:16px 0 8px;color:#E4002B;font-size:13px">Neem Face Wash — Tag List</h4>
+    <div class="tag-bucket"><div class="tag-bucket-name">Product Type</div><div class="tag-list"><span class="tag-pill">face wash</span><span class="tag-pill">neem facewash</span><span class="tag-pill">acne face wash</span><span class="tag-pill">pimple face wash</span></div></div>
+    <div class="tag-bucket"><div class="tag-bucket-name">Key Ingredient</div><div class="tag-list"><span class="tag-pill">neem cleanser</span><span class="tag-pill">neem tulsi face wash</span><span class="tag-pill">pure neem</span></div></div>
+    <div class="tag-bucket"><div class="tag-bucket-name">Skin Benefit</div><div class="tag-list"><span class="tag-pill">acne removal</span><span class="tag-pill">pimple solution</span><span class="tag-pill">clear skin</span><span class="tag-pill">oil control</span></div></div>
+    <div class="tag-bucket"><div class="tag-bucket-name">Skin Type</div><div class="tag-list"><span class="tag-pill">oily skin face wash</span><span class="tag-pill">acne prone skin</span><span class="tag-pill">teenage face wash</span></div></div>
+    <div class="tag-bucket"><div class="tag-bucket-name">Usage / Search</div><div class="tag-list"><span class="tag-pill">herbal neem face wash</span><span class="tag-pill">ayurvedic face wash</span><span class="tag-pill">natural acne treatment</span></div></div>
+    <div class="stop-box" style="margin-top:12px">&#x1F6A8; Wrong category = total invisibility. Face Wash MUST be in: Beauty > Skin Care > Face Wash</div>
+  </div>
+</div>
+
+<!-- ===== RANKING ALGORITHM SECTION ===== -->
+<div class="collapsible-section" id="rankingSection">
+  <h2 onclick="toggleCollapsible('rankingContent')">&#x1F3C6; Snapdeal Ranking Algorithm — What Determines Your Position <span class="toggle-icon">&#x25BC;</span></h2>
+  <div class="coll-content" id="rankingContent">
+    <div class="info-box">Price + Image + Discount + Delivery = 85% of your ranking. Reviews are only 5%. This is GREAT news. The things that matter most are the things you control most.</div>
+    <table class="rank-table">
+      <tr><th>Ranking Factor</th><th>Weight</th><th>What This Means for Treyfa</th></tr>
+      <tr class="hero-row"><td style="font-weight:700">Price Competitiveness</td><td class="zone-red" style="font-size:14px">40%</td><td>If priced higher than 5 similar products, you're buried</td></tr>
+      <tr class="hero-row"><td style="font-weight:700">Main Image Quality</td><td class="zone-yellow" style="font-size:14px">25%</td><td>Clear, bright, product fills 80% of frame</td></tr>
+      <tr><td style="font-weight:700">Discount Display</td><td style="font-size:14px">10%</td><td>'20% off' badge matters. Even if you raise MRP first</td></tr>
+      <tr><td style="font-weight:700">Delivery Speed</td><td style="font-size:14px">10%</td><td>Faster shipping promise = higher rank</td></tr>
+      <tr><td style="font-weight:700">Title Keyword Match</td><td style="font-size:14px">8%</td><td>Exact word match beats fancy descriptions</td></tr>
+      <tr><td style="font-weight:700">Reviews / Stars</td><td style="font-size:14px;color:#E4002B">5%</td><td>Nice to have, not critical. Amazon weight is 25%+</td></tr>
+      <tr><td style="font-weight:700">Seller Rating</td><td style="font-size:14px;color:#E4002B">2%</td><td>Barely moves the needle at your scale</td></tr>
+    </table>
+    <h4 style="margin:12px 0 8px;color:#2d3748;font-size:13px">What Snapdeal Does NOT Care About</h4>
+    <div class="health-box">
+      <span class="health-pill hp-red">A+ Content — doesn't exist on Snapdeal</span>
+      <span class="health-pill hp-red">Brand Story — buyers rarely read</span>
+      <span class="health-pill hp-red">Video Content — app doesn't prioritize</span>
+      <span class="health-pill hp-red">Long paragraphs — bullets win</span>
+      <span class="health-pill hp-red">External traffic — algorithm ignores it</span>
+    </div>
+  </div>
+</div>
+
+<!-- ===== IF THIS THEN THAT DECISION MATRIX ===== -->
+<div class="collapsible-section" id="decisionSection">
+  <h2 onclick="toggleCollapsible('decisionContent')">&#x1F504; "If This, Then That" Cheat Sheet — Auto Actions <span class="toggle-icon">&#x25BC;</span></h2>
+  <div class="coll-content" id="decisionContent">
+    <div class="truth-box">Most small sellers fail because they freeze when problems show up. This removes the freeze. The decision is already made. You just follow it.</div>
+    <table class="decision-table">
+      <tr><th>Trigger</th><th>Exact Condition</th><th>Action</th><th>Check On</th><th>Severity</th></tr>
+      <tr style="background:#fff5f5"><td style="font-weight:700">CTR too low</td><td>Below 0.4% for 3+ days</td><td style="font-weight:700;color:#E4002B">Reduce bid 20% + change main image</td><td>Wednesday</td><td class="zone-red">CRITICAL</td></tr>
+      <tr style="background:#fff5f5"><td style="font-weight:700">Ad burning cash</td><td>Rs.200 spent, 0 sales</td><td style="font-weight:700;color:#E4002B">Pause NOW. Check listing before restart</td><td>Wednesday</td><td class="zone-red">CRITICAL</td></tr>
+      <tr style="background:#fff5f5"><td style="font-weight:700">ROAS dying</td><td>Below 1.5x for 5+ days</td><td style="font-weight:700;color:#E4002B">Pause ad. Fix conversion first</td><td>Wednesday</td><td class="zone-red">CRITICAL</td></tr>
+      <tr style="background:var(--sd-green-light)"><td style="font-weight:700">CTR crushing it</td><td>Above 1.0% for 3+ days</td><td style="font-weight:700;color:#155724">Increase budget 25%</td><td>Wednesday</td><td class="zone-green">SCALE UP</td></tr>
+      <tr style="background:#fff5f5"><td style="font-weight:700">Sales flatline</td><td>0 sales for 3+ days</td><td style="font-weight:700;color:#E4002B">Check price vs competitors + category</td><td>Monday</td><td class="zone-red">CRITICAL</td></tr>
+      <tr style="background:#FFF8E1"><td style="font-weight:700">Sales cliff</td><td>50% drop vs last week</td><td style="font-weight:700;color:#856404">Freshness edits 5/day for 3 days</td><td>Tuesday</td><td class="zone-yellow">WARNING</td></tr>
+      <tr style="background:#FFF8E1"><td style="font-weight:700">Returns hurting</td><td>Return rate > 12%</td><td style="font-weight:700;color:#856404">Add clearer descriptions + disclaimers</td><td>Thursday</td><td class="zone-yellow">WARNING</td></tr>
+      <tr style="background:#FFF8E1"><td style="font-weight:700">Combos ignored</td><td>Combo sales < 20% of total</td><td style="font-weight:700;color:#856404">Make bundles visible in main images</td><td>Tuesday</td><td class="zone-yellow">WARNING</td></tr>
+      <tr style="background:#FFF8E1"><td style="font-weight:700">Impressions falling</td><td>Down 30%+ vs last week</td><td style="font-weight:700;color:#856404">Add trending tags + category check</td><td>Friday</td><td class="zone-yellow">WARNING</td></tr>
+      <tr style="background:#fff5f5"><td style="font-weight:700">Rank terrible</td><td>Category rank > 100</td><td style="font-weight:700;color:#E4002B">Hero SKU ads ONLY. Cut all others.</td><td>Saturday</td><td class="zone-red">CRITICAL</td></tr>
+      <tr style="background:var(--sd-green-light)"><td style="font-weight:700">Rank great</td><td>Top 20 in category</td><td style="font-weight:700;color:#155724">Do NOT touch anything. Hold.</td><td>Saturday</td><td class="zone-green">SCALE UP</td></tr>
+    </table>
+  </div>
+</div>
+
+<!-- ===== KILL LIST SECTION ===== -->
+<div class="collapsible-section" id="killListSection">
+  <h2 onclick="toggleCollapsible('killListContent')">&#x2620; Kill List — Drop or Double Down <span class="toggle-icon">&#x25BC;</span></h2>
+  <div class="coll-content" id="killListContent">
+    <div class="truth-box">Don't get attached. 'But I worked hard on that product!' So what? If it doesn't sell, it's dead weight. The algorithm looks at account-level quality.</div>
+    <h4 style="margin:12px 0 8px;color:#2d3748;font-size:13px">Scoring System</h4>
+    <table class="bundle-table">
+      <tr><th>Criterion</th><th>Points</th></tr>
+      <tr><td>Sold 3+ units in the last 6 weeks</td><td style="font-weight:700;color:#28A745">+3</td></tr>
+      <tr><td>CTR above 0.5%</td><td style="font-weight:700;color:#28A745">+2</td></tr>
+      <tr><td>Margin above 30%</td><td style="font-weight:700;color:#28A745">+2</td></tr>
+      <tr><td>5+ genuine reviews</td><td style="font-weight:700;color:#28A745">+1</td></tr>
+      <tr><td>Rank improving</td><td style="font-weight:700;color:#28A745">+1</td></tr>
+      <tr><td>Less than 30 min/week maintenance</td><td style="font-weight:700;color:#28A745">+1</td></tr>
+    </table>
+    <h4 style="margin:12px 0 8px;color:#2d3748;font-size:13px">Action by Score</h4>
+    <table class="bundle-table">
+      <tr><th>Score</th><th>Action</th></tr>
+      <tr style="background:var(--sd-green-light)"><td style="font-weight:700">8-10</td><td style="font-weight:700;color:#155724">DOUBLE DOWN — give more attention, more ad budget</td></tr>
+      <tr style="background:#FFF8E1"><td style="font-weight:700">5-7</td><td style="font-weight:700;color:#856404">KEEP — maintain current effort</td></tr>
+      <tr style="background:#fff5f5"><td style="font-weight:700">3-4</td><td style="font-weight:700;color:#E4002B">LAST CHANCE — 2 weeks to improve or kill</td></tr>
+      <tr style="background:#fff5f5"><td style="font-weight:700">0-2</td><td style="font-weight:700;color:#E4002B">KILL — flash sale, zero inventory, or delist</td></tr>
+    </table>
+  </div>
+</div>
+
+<!-- ===== FRESHNESS EDIT SCHEDULE ===== -->
+<div class="collapsible-section" id="freshnessSection">
+  <h2 onclick="toggleCollapsible('freshnessContent')">&#x1F504; Freshness Edit Schedule — Daily Small Edits <span class="toggle-icon">&#x25BC;</span></h2>
+  <div class="coll-content" id="freshnessContent">
+    <div class="info-box">One small edit per active listing every day Monday-Saturday. Tells the algorithm: 'this seller is active. Show their stuff.' That signal compounds over weeks.</div>
+    <table class="bundle-table">
+      <tr><th>Day</th><th>Edit Type</th></tr>
+      <tr><td style="font-weight:700">Monday</td><td>Change 1 word in the product title</td></tr>
+      <tr><td style="font-weight:700">Tuesday</td><td>Swap order of 2 tags</td></tr>
+      <tr><td style="font-weight:700">Wednesday</td><td>Add or remove one word from description</td></tr>
+      <tr><td style="font-weight:700">Thursday</td><td>Change price by Rs.1 (change back next day)</td></tr>
+      <tr><td style="font-weight:700">Friday</td><td>Update stock quantity by 1 unit</td></tr>
+      <tr><td style="font-weight:700">Saturday</td><td>Change bullet point order</td></tr>
+    </table>
+    <div class="stop-box" style="margin-top:10px">&#x1F6A8; Do NOT make multiple edits to the same listing in one day. That signals 'something is wrong' and can trigger manual review. One small edit per listing per day. No more.</div>
+  </div>
+</div>
+
+<!-- ===== EMERGENCY PROTOCOL ===== -->
+<div class="collapsible-section" id="emergencySection">
+  <h2 onclick="toggleCollapsible('emergencyContent')">&#x1F6A8; Emergency Protocol — When Something Breaks <span class="toggle-icon">&#x25BC;</span></h2>
+  <div class="coll-content" id="emergencyContent">
+    <table class="bundle-table">
+      <tr><th>Emergency</th><th>How to Spot It</th><th style="color:#E4002B">Immediate Action</th></tr>
+      <tr style="background:#fff5f5"><td style="font-weight:700">Ad Overspend</td><td>Daily spend 3x budget or ROAS crashed</td><td style="font-weight:700;color:#E4002B">PAUSE ALL ads. Fix cause. Restart tomorrow.</td></tr>
+      <tr style="background:#fff5f5"><td style="font-weight:700">Stockout</td><td>Inventory hits zero mid-week</td><td style="font-weight:700;color:#E4002B">Mark 'Out of Stock' immediately. Order restock same day.</td></tr>
+      <tr style="background:#fff5f5"><td style="font-weight:700">Bad Review (1-2 star)</td><td>Snapdeal notification</td><td style="font-weight:700;color:#E4002B">Respond professionally within 24 hrs. Don't flood with positives.</td></tr>
+      <tr style="background:#fff5f5"><td style="font-weight:700">Account Warning</td><td>Email from Snapdeal</td><td style="font-weight:700;color:#E4002B">Stop flagged activity. Contact seller support. Document everything.</td></tr>
+      <tr style="background:#fff5f5"><td style="font-weight:700">0 Sales for 3 Days</td><td>Tracker shows 0 for 72 hrs</td><td style="font-weight:700;color:#E4002B">Check price competitiveness + listing active status + ads running.</td></tr>
+      <tr style="background:#fff5f5"><td style="font-weight:700">Return Rate > 15%</td><td>Returns exceed 15%</td><td style="font-weight:700;color:#E4002B">Check reasons. Fix images / packaging / description.</td></tr>
+    </table>
+  </div>
+</div>
+
+<!-- ===== SUNDAY HEALTH SCAN ===== -->
+<div class="collapsible-section" id="sundayScanSection">
+  <h2 onclick="toggleCollapsible('sundayScanContent')">&#x1F50E; Sunday 15-Minute Health Scan <span class="toggle-icon">&#x25BC;</span></h2>
+  <div class="coll-content" id="sundayScanContent">
+    <div class="info-box">15 minutes Sunday evening — just scanning, not working. Like checking your weight once a week. Catches drift while it's small.</div>
+    <table class="bundle-table">
+      <tr><th>Check</th><th>What to Look For</th><th>If Bad, Do Monday</th></tr>
+      <tr><td>Ad dashboard</td><td>Any ad hitting stop-loss?</td><td>Pause and fix before restart</td></tr>
+      <tr><td>Sales vs target</td><td>On track for the week?</td><td>30%+ behind = extra freshness edits</td></tr>
+      <tr><td>Review count</td><td>12 reviews added this week?</td><td>Follow up with review agency</td></tr>
+      <tr><td>Competitor prices</td><td>Major drops by top 3?</td><td>Review Hero SKU pricing</td></tr>
+      <tr><td>Return rate</td><td>Above 8% this week?</td><td>Update descriptions with disclaimers</td></tr>
+      <tr><td>Snapdeal wallet</td><td>Enough for next week's ads?</td><td>Plan top-up</td></tr>
+    </table>
+    <div class="truth-box" style="margin-top:10px">Sunday is OFF. Not 'sort of off.' Not 'I'll just check quickly.' OFF. If you MUST check: ONE 5-minute check for urgent buyer messages only. Do NOT process orders, check ads, or update listings.</div>
+  </div>
+</div>
+
+<!-- ===== ROAS TABLE ===== -->
+<div class="collapsible-section" id="roasSection">
+  <h2 onclick="toggleCollapsible('roasContent')">&#x1F4B0; ROAS Guide — What the Numbers Mean <span class="toggle-icon">&#x25BC;</span></h2>
+  <div class="coll-content" id="roasContent">
+    <table class="bundle-table">
+      <tr><th>ROAS</th><th>What It Means</th><th>Action</th></tr>
+      <tr style="background:#fff5f5"><td style="font-weight:700">1.0x</td><td>Break-even on ad spend only; losing on product + fees</td><td class="zone-red" style="font-weight:700">Pause immediately</td></tr>
+      <tr style="background:#FFF8E1"><td style="font-weight:700">1.5x</td><td>Break-even after all costs; zero profit, zero loss</td><td class="zone-yellow" style="font-weight:700">Minimum acceptable by Week 8</td></tr>
+      <tr style="background:var(--sd-green-light)"><td style="font-weight:700">2.0x</td><td>Small profit</td><td class="zone-green" style="font-weight:700">Target by Week 8</td></tr>
+      <tr style="background:var(--sd-green-light)"><td style="font-weight:700">3.0x</td><td>Strong profit</td><td class="zone-green" style="font-weight:700">Scale this ad immediately</td></tr>
+    </table>
+  </div>
+</div>
+
+<!-- ===== PRICE POSITIONING RULES ===== -->
+<div class="collapsible-section" id="priceRulesSection">
+  <h2 onclick="toggleCollapsible('priceRulesContent')">&#x1F4B5; Price Positioning — The Goldilocks Zone <span class="toggle-icon">&#x25BC;</span></h2>
+  <div class="coll-content" id="priceRulesContent">
+    <div class="stop-box">Every Monday at 4:30 PM, check your price rank for: 'herbal face wash', 'neem face wash', 'coffee face wash', 'natural face wash'. Target: position 3 to 5.</div>
+    <table class="bundle-table">
+      <tr><th>If Your Price Rank Is...</th><th>Then...</th></tr>
+      <tr style="background:#fff5f5"><td>Top 3 cheapest</td><td style="font-weight:700;color:#E4002B">Raise price by Rs.10-15</td></tr>
+      <tr style="background:var(--sd-green-light)"><td>Position 3 to 5</td><td style="font-weight:700;color:#155724">Perfect. Hold.</td></tr>
+      <tr style="background:#fff5f5"><td>Outside top 10</td><td style="font-weight:700;color:#E4002B">Lower price by Rs.15-20</td></tr>
+    </table>
+    <div class="truth-box" style="margin-top:10px">Never be the cheapest. The cheapest seller wins the race to bankruptcy. Prices too low signal 'this product is fake' to Snapdeal buyers.</div>
+  </div>
+</div>
+
+<!-- ===== REVIEW STRATEGY ===== -->
+<div class="collapsible-section" id="reviewSection">
+  <h2 onclick="toggleCollapsible('reviewContent')">&#x2B50; Review Strategy — 12 Reviews Per Week <span class="toggle-icon">&#x25BC;</span></h2>
+  <div class="coll-content" id="reviewContent">
+    <div class="stop-box">Never buy your own products for reviews. Snapdeal tracks IP addresses, device IDs, payment methods, shipping addresses, and purchase patterns. Keep doing it and your account gets suspended.</div>
+    <table class="bundle-table">
+      <tr><th>Source</th><th>Per Week</th><th>Type</th></tr>
+      <tr><td>Agency reviews</td><td style="font-weight:700">8</td><td>Verified accounts, small fee</td></tr>
+      <tr><td>Friends & family</td><td style="font-weight:700">4</td><td>Genuine purchases to real addresses</td></tr>
+      <tr style="background:var(--sd-light)"><td style="font-weight:700">TOTAL</td><td style="font-weight:700;color:#E4002B">12</td><td style="font-weight:700;color:#E4002B">Never more. Triggers fraud detection.</td></tr>
+    </table>
+    <h4 style="margin:12px 0 8px;color:#2d3748;font-size:13px">Review Priority (ONLY for products with genuine organic sale in past 7 days)</h4>
+    <table class="bundle-table">
+      <tr><th>Priority</th><th>Product</th><th>Reviews/Week</th></tr>
+      <tr class="hero-row"><td style="font-weight:700">1</td><td>Choco Coffee Face Wash</td><td>4</td></tr>
+      <tr><td style="font-weight:700">2</td><td>Neem Face Wash</td><td>3</td></tr>
+      <tr><td style="font-weight:700">3</td><td>Variety Bundle</td><td>2</td></tr>
+      <tr><td style="font-weight:700">4</td><td>Rotating (other SKUs)</td><td>3</td></tr>
+    </table>
+  </div>
+</div>
+
+<!-- ===== DO RIGHT NOW SECTION ===== -->
+<div class="collapsible-section" id="doNowSection">
+  <h2 onclick="toggleCollapsible('doNowContent')">&#x26A1; Do RIGHT NOW — 6 Steps (90 Minutes Total) <span class="toggle-icon">&#x25BC;</span></h2>
+  <div class="coll-content" id="doNowContent">
+    <div class="truth-box">Forget everything else for the next 90 minutes. Do these exact steps in this exact order. By tomorrow, the foundation is laid.</div>
+    <table class="bundle-table">
+      <tr><th>#</th><th>Action</th><th>Time</th></tr>
+      <tr class="hero-row"><td style="font-weight:700;color:#E4002B">1</td><td style="font-weight:700">Pick Choco Coffee Face Wash as your Hero SKU. Decision made.</td><td>5 min</td></tr>
+      <tr class="hero-row"><td style="font-weight:700;color:#E4002B">2</td><td style="font-weight:700">Create the Variety Power Pack listing: Choco Coffee + Neem at Rs.299.</td><td>30 min</td></tr>
+      <tr class="hero-row"><td style="font-weight:700;color:#E4002B">3</td><td style="font-weight:700">Update Choco Coffee main image with cream-to-pink gradient + 'CHOCO COFFEE GLOW' overlay + 'Rs.175 ONLY' price.</td><td>20 min</td></tr>
+      <tr class="hero-row"><td style="font-weight:700;color:#E4002B">4</td><td style="font-weight:700">Fill all 20 tag slots on Choco Coffee using the tag table.</td><td>15 min</td></tr>
+      <tr><td style="font-weight:700;color:#E4002B">5</td><td style="font-weight:700">Move Neem to 'Support SKU' — focus shifts only AFTER Choco Coffee is optimized.</td><td>5 min</td></tr>
+      <tr><td style="font-weight:700;color:#E4002B">6</td><td style="font-weight:700">Set Monday 3:55 PM phone alarm. Write it: 'TREYFA — Price Check'.</td><td>1 min</td></tr>
+    </table>
+    <div class="stop-box" style="margin-top:10px">Do not work on any other product until Choco Coffee Face Wash is fully optimized: Image, tags, price, bundle — ALL done. One perfect product beats ten average products on Snapdeal.</div>
+  </div>
+</div>
+
+<script>
+// ===== DATE DISPLAY =====
+document.getElementById('dateDisplay').textContent = new Date().toLocaleDateString('en-IN',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
+
+// ===== STATE =====
+let currentWeek = 1;
+let currentDay = 'MON';
+const LS = window.localStorage;
+
+// ===== WEEK DATA (Complete 12-Week Strategy) =====
+const WEEK_DATA = {
+  1: {
+    theme: "Foundation — Lock Hero SKU. No ads. Fix the engine.",
+    phase: "foundation",
+    phaseName: "PHASE 1: FOUNDATION",
+    salesTarget: "8–12",
+    dailyTarget: "~1.5–2/day",
+    adSpend: "Rs. 0",
+    adBudget: 0,
+    reviewBudget: 3,
+    freshnessEdits: "3 SKUs/day x 6 days = 18",
+    ctrTarget: "0.30%",
+    cvrTarget: "4–6%",
+    aovTarget: "Rs. 175",
+    actions: [
+      "Lock Choco Coffee Face Wash as Hero SKU. No 'let me think about it.' Done.",
+      "Create the Variety Power Pack bundle (Choco Coffee + Neem at Rs.299).",
+      "Update Choco Coffee main image with the gradient + overlay formula.",
+      "Fill all 20 tag slots on Choco Coffee using the exact tag list.",
+      "Verify category mapping: Beauty > Skin Care > Face Wash.",
+      "Daily freshness: 3 SKUs/day, 4:30 PM alarm."
+    ],
+    missRecovery: {
+      "<20%": "Add 2 freshness edits/day. Recheck Hero SKU pricing.",
+      "20-40%": "Recheck category mapping. Verify images uploaded.",
+      ">40%": "Full reset. Check Seller Panel search terms. Re-verify Hero SKU."
+    }
+  },
+  2: {
+    theme: "CTR Boost + Bundle Launch — Test what works.",
+    phase: "foundation",
+    phaseName: "PHASE 1: FOUNDATION",
+    salesTarget: "10–15",
+    dailyTarget: "~1.5–2.5/day",
+    adSpend: "Rs. 0",
+    adBudget: 0,
+    reviewBudget: 3,
+    freshnessEdits: "3 SKUs/day x 6 days = 18",
+    ctrTarget: "0.45%",
+    cvrTarget: "4–6%",
+    aovTarget: "Rs. 175",
+    actions: [
+      "Launch the Variety Bundle live with the bundle image overlay.",
+      "A/B test Hero SKU main image: version A (ingredient focus) vs B (results focus). Run 2–3 days each.",
+      "Optimize titles using formula: [Brand] + [Benefit] + [Product] + [Ingredient] + [Size].",
+      "15 min/day competitor price check on 'face wash'."
+    ],
+    missRecovery: {
+      "<20%": "Refresh main images. Check bundle visibility.",
+      "20-40%": "Re-verify tags are filled. Check category mapping again.",
+      ">40%": "Full audit. Hero SKU may be wrong. Check data again."
+    }
+  },
+  3: {
+    theme: "SEO Push + First Ads — Freshness locked in.",
+    phase: "foundation",
+    phaseName: "PHASE 1: FOUNDATION",
+    salesTarget: "12–18",
+    dailyTarget: "~2–3/day",
+    adSpend: "Rs. 469 (Rs. 67/day x 7)",
+    adBudget: 67,
+    reviewBudget: 3,
+    freshnessEdits: "3 SKUs/day x 6 days = 18",
+    ctrTarget: "0.55%",
+    cvrTarget: "5–7%",
+    aovTarget: "Rs. 175–200",
+    actions: [
+      "Launch first ad: Sponsored Product for Hero SKU only at Rs.67/day.",
+      "Write SEO descriptions: bullet points, benefit-led, keywords 2–3 times naturally.",
+      "Launch the 3-Pack 'Family Saver' at Rs.399.",
+      "Daily 15-min ad check at 4:15 PM. Rs.200 spent with 0 sales = PAUSE."
+    ],
+    missRecovery: {
+      "<20%": "Check ad creative. Freshness edit 4 SKUs/day.",
+      "20-40%": "Pause ad. Fix listing images first. Restart in 3 days.",
+      ">40%": "Full reset. Verify Hero SKU choice. Check competitor landscape."
+    }
+  },
+  4: {
+    theme: "Trust Signals + Bundle Power — End the bleeding.",
+    phase: "foundation",
+    phaseName: "PHASE 1: FOUNDATION",
+    salesTarget: "15–22",
+    dailyTarget: "~2.5–3.5/day",
+    adSpend: "Rs. 469",
+    adBudget: 67,
+    reviewBudget: 3,
+    freshnessEdits: "3 SKUs/day x 6 days = 18",
+    ctrTarget: "0.65%",
+    cvrTarget: "5–8%",
+    aovTarget: "Rs. 200–250",
+    actions: [
+      "Add trust-badge images: ingredient source, before/after illustrations, usage infographic.",
+      "Push all 3 review slots on best-sellers. Target: 8–10 Hero SKU reviews.",
+      "Optimize bundle image: show all products, add 'Buy separately: Rs.350 | Bundle: Rs.299 | Save: Rs.51'.",
+      "Phase 1 audit on Day 6: 3 things working, 3 to fix."
+    ],
+    missRecovery: {
+      "<20%": "Push reviews harder. Add trust badges to more SKUs.",
+      "20-40%": "Audit bundle visibility. Check if combo images are clear.",
+      ">40%": "Emergency: Check if ads are running. Verify listing active status."
+    }
+  },
+  5: {
+    theme: "First Real Ad Optimization + Price Testing",
+    phase: "ignition",
+    phaseName: "PHASE 2: IGNITION",
+    salesTarget: "18–25",
+    dailyTarget: "~3–4/day",
+    adSpend: "Rs. 469",
+    adBudget: 67,
+    reviewBudget: 3,
+    freshnessEdits: "3 SKUs/day x 6 days = 18",
+    ctrTarget: "0.70%",
+    cvrTarget: "6–8%",
+    aovTarget: "Rs. 225–275",
+    actions: [
+      "Use the best image from Week 2's A/B test as the ad creative.",
+      "Price test: Days 3–4 at current price. Days 5–6 at +Rs.10. Track conversion.",
+      "Daily 15-min ad check. Rs.200 spent + 0 sales = pause immediately."
+    ],
+    missRecovery: {
+      "<20%": "Check which price won the test. Optimize bundle ads.",
+      "20-40%": "Refresh ad creative. Try bundle-first ad.",
+      ">40%": "Pause ads for 2 days. Do full listing audit."
+    }
+  },
+  6: {
+    theme: "Combo Dominance + Ad Scale — Light the fire carefully.",
+    phase: "ignition",
+    phaseName: "PHASE 2: IGNITION",
+    salesTarget: "22–30",
+    dailyTarget: "~3.5–5/day",
+    adSpend: "Rs. 938 (Rs. 134/day)",
+    adBudget: 134,
+    reviewBudget: 3,
+    freshnessEdits: "3 SKUs/day x 6 days = 18",
+    ctrTarget: "0.75%",
+    cvrTarget: "6–8%",
+    aovTarget: "Rs. 250–300",
+    actions: [
+      "Add the Variety Bundle to the ad campaign — bundles have higher AOV and often better ROAS.",
+      "Build negative keyword list — block search terms that got clicks but no sales.",
+      "Refresh main image for any SKU with 500+ impressions and 0 clicks."
+    ],
+    missRecovery: {
+      "<20%": "Scale bundle ad if ROAS > 2x. Cut underperforming keywords.",
+      "20-40%": "Audit negative keywords. Check bundle image clarity.",
+      ">40%": "Reduce ad spend to Hero SKU only. Fix conversion issues first."
+    }
+  },
+  7: {
+    theme: "Category Rank Push — Move up the pages.",
+    phase: "ignition",
+    phaseName: "PHASE 2: IGNITION",
+    salesTarget: "25–35",
+    dailyTarget: "~4–6/day",
+    adSpend: "Rs. 938",
+    adBudget: 134,
+    reviewBudget: 3,
+    freshnessEdits: "4 SKUs/day x 6 days = 24",
+    ctrTarget: "0.80%",
+    cvrTarget: "7–9%",
+    aovTarget: "Rs. 275–325",
+    actions: [
+      "Scale ad budget ONLY if Week 6 ROAS > 2.0x. Otherwise stay flat.",
+      "Track category rank every 2 days. Goal: move to page 3.",
+      "Increase freshness edits to 4 SKUs/day.",
+      "If any SKU sold 3+ in 7 days, add social proof to the title."
+    ],
+    missRecovery: {
+      "<20%": "Increase freshness to 5/day. Add more bundle focus.",
+      "20-40%": "Audit category rank tracking. Verify tag relevance.",
+      ">40%": "Hold ad spend. Focus 100% on organic: images + tags + freshness."
+    }
+  },
+  8: {
+    theme: "Rank Stabilization + Phase 2 Audit — Ready for Phase 3?",
+    phase: "ignition",
+    phaseName: "PHASE 2: IGNITION",
+    salesTarget: "30–40",
+    dailyTarget: "~5–6.5/day",
+    adSpend: "Rs. 938",
+    adBudget: 134,
+    reviewBudget: 3,
+    freshnessEdits: "4 SKUs/day x 6 days = 24",
+    ctrTarget: "0.85%",
+    cvrTarget: "7–10%",
+    aovTarget: "Rs. 275–350",
+    actions: [
+      "Ad creative refresh — new image/headline. Fresh creative = +20–30% CTR.",
+      "Keyword harvesting from ad reports — push winning keywords into organic titles and tags.",
+      "Lock the winning price from W5 test.",
+      "Phase 2 audit: blended ROAS > 2.5x? Move to Phase 3. Below 2.0x? Repeat Week 8."
+    ],
+    missRecovery: {
+      "<20%": "Harvest keywords. Apply to organic listings.",
+      "20-40%": "Repeat Week 8 tasks. Don't advance to Phase 3 yet.",
+      ">40%": "Emergency audit: check all stop-loss rules. Reduce to Hero SKU only."
+    }
+  },
+  9: {
+    theme: "Consolidation + Ad Scale — Grow what works.",
+    phase: "scale",
+    phaseName: "PHASE 3: SCALE",
+    salesTarget: "35–45",
+    dailyTarget: "~6–7.5/day",
+    adSpend: "Rs. 700 (Rs. 100/day)",
+    adBudget: 100,
+    reviewBudget: 3,
+    freshnessEdits: "4 SKUs/day x 6 days = 24",
+    ctrTarget: "0.90%",
+    cvrTarget: "8–10%",
+    aovTarget: "Rs. 300–350",
+    actions: [
+      "Cross-sell bundle: if face wash + hair oil sell together, create a 'Skin + Hair Care Starter'.",
+      "Push Hero SKU to 15+ reviews if not already there.",
+      "Draft the kill list: any SKU with 0 sales in 4 weeks + < 200 impressions = watch list."
+    ],
+    missRecovery: {
+      "<20%": "Scale winning ads 20%. Cut losers.",
+      "20-40%": "Audit kill list. Remove dead weight.",
+      ">40%": "Hold everything. Back to Week 8 tasks."
+    }
+  },
+  10: {
+    theme: "Price Leadership + Bundle Focus — Dominate with data.",
+    phase: "scale",
+    phaseName: "PHASE 3: SCALE",
+    salesTarget: "40–55",
+    dailyTarget: "~7–9/day",
+    adSpend: "Rs. 700",
+    adBudget: 100,
+    reviewBudget: 3,
+    freshnessEdits: "4 SKUs/day x 6 days = 24",
+    ctrTarget: "0.95%",
+    cvrTarget: "8–11%",
+    aovTarget: "Rs. 300–375",
+    actions: [
+      "Bundle-first ads: promote 2-pack or 3-pack in main ad creative.",
+      "Price leadership test: drop Hero SKU Rs.5–10 for 72 hours as 'Limited Offer'. If sales double, price sensitivity is high.",
+      "5-image upgrade for top 5–6 money-makers."
+    ],
+    missRecovery: {
+      "<20%": "Lock winning bundle. Scale aggressively.",
+      "20-40%": "Check bundle visibility in main images.",
+      ">40%": "Audit pricing. Check competitor movements."
+    }
+  },
+  11: {
+    theme: "Category Domination Push — Get to Page 1.",
+    phase: "scale",
+    phaseName: "PHASE 3: SCALE",
+    salesTarget: "45–60",
+    dailyTarget: "~7.5–10/day",
+    adSpend: "Rs. 700",
+    adBudget: 100,
+    reviewBudget: 3,
+    freshnessEdits: "4 SKUs/day x 6 days = 24",
+    ctrTarget: "1.0%",
+    cvrTarget: "9–12%",
+    aovTarget: "Rs. 325–400",
+    actions: [
+      "Rank Blitz: pick 1 keyword, push flash pricing + extra freshness + review push to get page 1.",
+      "Launch a 'Premium' Choco Coffee variant at +25% price — anchors the regular as a deal.",
+      "Message past buyers with the 3-pack offer. Repeat buyers = zero ad cost."
+    ],
+    missRecovery: {
+      "<20%": "Double down on rank blitz keyword.",
+      "20-40%": "Check if premium variant is cannibalizing regular sales.",
+      ">40%": "Hold. Review all fundamentals before pushing harder."
+    }
+  },
+  12: {
+    theme: "Lock Position + Plan Q2 — Cement your gains.",
+    phase: "scale",
+    phaseName: "PHASE 3: SCALE",
+    salesTarget: "50–65",
+    dailyTarget: "~8–11/day",
+    adSpend: "Rs. 700",
+    adBudget: 100,
+    reviewBudget: 3,
+    freshnessEdits: "4 SKUs/day x 6 days = 24",
+    ctrTarget: "1.0%+",
+    cvrTarget: "10–12%",
+    aovTarget: "Rs. 350–425",
+    actions: [
+      "Lock prices: cement winning prices from W5 and W10 tests for all of Q2.",
+      "Finalize kill list: anything with 0 sales in 6+ weeks — zero inventory or flash sale and delist.",
+      "Write Q2 plan: what to double down, what bundles to add, what prices to test.",
+      "Account audit: listing quality, account health, return rate. Fix anything yellow/red."
+    ],
+    missRecovery: {
+      "<20%": "Document everything. Write Q2 plan based on winners.",
+      "20-40%": "Extended audit. Identify what's not working.",
+      ">40%": "Deep analysis needed. Consider getting external help."
+    }
+  }
+};
+
+// ===== DAILY NON-NEGOTIABLES (Every Day, 35 min) =====
+const NON_NEGOTIABLES = [
+  { id: "nn1", text: "Order Processing — Check new orders. Print labels. Confirm dispatch.", note: "10 min @ 4:00 PM. Slow response hurts ranking.", time: "4:00 PM" },
+  { id: "nn2", text: "Freshness Edit — ONE small edit on 3 active listings.", note: "15 min @ 4:10 PM. Tells algorithm 'I'm active.'", time: "4:10 PM" },
+  { id: "nn3", text: "Buyer Message Check — Answer any buyer questions.", note: "5 min @ 4:25 PM. Unanswered Q&A kills conversion.", time: "4:25 PM" },
+  { id: "nn4", text: "Numbers Glance — Yesterday's sales, CTR, impressions.", note: "5 min @ 4:30 PM. Just a glance to spot emergencies.", time: "4:30 PM" }
+];
+
+// ===== DAY DATA (Monday-Saturday) =====
+const DAY_DATA = {
+  MON: {
+    label: "Monday",
+    theme: "Price Check + Image Refresh",
+    colorDesc: "Price 40% + Image 25% = 65% of ranking. Monday sets the tone.",
+    tasks: [
+      { id: "m1", text: "Pull Saturday + Sunday numbers: orders, CTR, returns, ad spend vs sales.", tags: ["must"] },
+      { id: "m2", text: "Competitor price scan on 'face wash' keywords + adjust Hero SKU price.", note: "If top 3 cheapest: raise Rs.10-15. If outside top 10: lower Rs.15-20. Target: position 3-5.", tags: ["must", "stop"] },
+      { id: "m3", text: "Refresh main image on 3 SKUs (Hero + 2 others) with gradient + overlay.", note: "Check: shrink image to 120x120 pixels. Can you still read the text?", tags: ["must"] },
+      { id: "m4", text: "Audit + update tags on the same 3 SKUs (all 15-20 slots filled).", note: "Most sellers use 4-5 tags. You use 20. Math wins.", tags: ["must"] },
+      { id: "m5", text: "Update Hero SKU vs Support SKU vs Zero SKU list.", note: "Use the 6 Hero rules and 3+ Zero failure rules from Kill List.", tags: ["rule"] },
+      { id: "m6", text: "Write this week's price and image plan: which SKUs get tweaks.", tags: ["rec"] }
+    ],
+    mustDo: [
+      "Price check COMPLETE — Hero SKU positioned 3rd to 5th cheapest",
+      "3 SKU images refreshed with proper gradient + text overlay",
+      "All 3 SKUs have 15-20 tags filled"
+    ],
+    timeBlocks: [
+      { time: "4:00-4:35", title: "Daily Non-Negotiables (35 min)", desc: "Order processing, freshness edit, buyer messages, numbers glance", kpi: "" },
+      { time: "4:35-4:55", title: "Competitor Price Scan (20 min)", desc: "Search 'face wash' on Snapdeal. Record top 8 competitor prices. Adjust.", kpi: "Target: position 3-5" },
+      { time: "4:55-6:25", title: "Refresh Main Images on 3 SKUs (90 min)", desc: "Apply gradient background + text overlay + badge. Save as 1000x1000 PNG.", kpi: "Check at 120x120 thumbnail size" },
+      { time: "6:25-7:15", title: "Audit + Update Tags (50 min)", desc: "Fill all 15-20 tag slots. Use exact tag list from Tag section.", kpi: "20 tags minimum on Hero SKU" },
+      { time: "7:15-7:55", title: "Weekend Data Review + Planning (40 min)", desc: "Log Sat-Sun numbers. Update SKU classification. Plan week ahead.", kpi: "" }
+    ]
+  },
+  TUE: {
+    label: "Tuesday",
+    theme: "Combo Focus + Listing Freshness",
+    colorDesc: "Mid-week bundle push captures weekend planners.",
+    tasks: [
+      { id: "t1", text: "Refresh Variety Bundle + other combo images. Add value overlays.", note: "'Buy separately: Rs.350 | Bundle: Rs.299 | Save: Rs.51'", tags: ["must"] },
+      { id: "t2", text: "Edit 3 more listings (different SKUs from Monday).", note: "Follow freshness schedule: Tuesday = swap order of 2 tags.", tags: ["must"] },
+      { id: "t3", text: "Inventory check + restock planning.", note: "Confirm 14-day minimum stock cover on ALL Hero SKUs and bundles.", tags: ["must"] },
+      { id: "t4", text: "Order pipeline review + return reasons audit.", note: "Categorize return reasons. Identify patterns.", tags: ["rec"] },
+      { id: "t5", text: "If combo sales < 20% of total: make bundles visible in main images.", note: "Add 'Save Rs.X' badge. Mention combo in first bullet.", tags: ["warn", "rule"] }
+    ],
+    mustDo: [
+      "Bundle images refreshed with value overlay",
+      "3 SKUs freshness edited (tag swap)",
+      "Inventory confirmed: 14+ days stock cover on Hero + bundles"
+    ],
+    timeBlocks: [
+      { time: "4:00-4:35", title: "Daily Non-Negotiables (35 min)", desc: "Order processing, freshness edit, buyer messages, numbers glance", kpi: "" },
+      { time: "4:35-5:50", title: "Bundle Image Refresh (75 min)", desc: "Variety Bundle + combos. Value overlays showing savings.", kpi: "Bundle sales should be 20%+ of total" },
+      { time: "5:50-6:40", title: "Edit 3 More Listings (50 min)", desc: "Different SKUs from Monday. Swap 2 tags on each.", kpi: "" },
+      { time: "6:40-7:20", title: "Inventory Check + Restock Plan (40 min)", desc: "Count actual stock. Confirm 14-day cover. Order if low.", kpi: "Min 14 days on Hero + bundles" },
+      { time: "7:20-7:55", title: "Pipeline Review + Returns Audit (35 min)", desc: "Check return reasons. Spot patterns. Fix root cause.", kpi: "Return rate < 12%" }
+    ]
+  },
+  WED: {
+    label: "Wednesday",
+    theme: "Ad Management + Stop-Loss Check",
+    colorDesc: "Wednesday catches ad problems before they burn weekend budget.",
+    tasks: [
+      { id: "w1", text: "Apply ALL 3 stop-loss rules to every active campaign.", note: "Rule 1: Rs.200 spent + 0 sales = PAUSE. Rule 2: ROAS < 1.5x for 5 days = PAUSE. Rule 3: CTR < 0.4% for 3 days = reduce bid 20%.", tags: ["must", "stop", "danger"] },
+      { id: "w2", text: "Adjust bids: scale ROAS > 3x, hold 2-3x, reduce 1.5-2x, pause < 1.5x.", note: "Data decides. Emotions checked at the door.", tags: ["must"] },
+      { id: "w3", text: "Export 7-day ad data. CTR analysis — winners vs losers.", note: "Identify which keywords get clicks but no sales. Add to negative list.", tags: ["must"] },
+      { id: "w4", text: "Check text overlay readability: shrink image to 120x120. Can you still read it?", tags: ["rec"] },
+      { id: "w5", text: "Document learnings in strategy log.", note: "What worked? What didn't? What to try next week?", tags: ["rec"] }
+    ],
+    mustDo: [
+      "All 3 stop-loss rules checked and applied",
+      "Bids adjusted based on ROAS performance",
+      "7-day ad data exported and analyzed"
+    ],
+    timeBlocks: [
+      { time: "4:00-4:35", title: "Daily Non-Negotiables (35 min)", desc: "Order processing, freshness edit, buyer messages, numbers glance", kpi: "" },
+      { time: "4:35-5:20", title: "Apply All 3 Stop-Loss Rules (45 min)", desc: "Check every active campaign against stop-loss criteria. Pause if triggered.", kpi: "CRITICAL — non-negotiable" },
+      { time: "5:20-6:10", title: "Bid Adjustment (50 min)", desc: "Scale winners. Cut losers. Hold the middle.", kpi: "ROAS > 3x = scale | 2-3x = hold | < 1.5x = pause" },
+      { time: "6:10-7:00", title: "7-Day Ad Data Export + CTR Analysis (50 min)", desc: "Export data. Identify winning keywords. Add losers to negative list.", kpi: "" },
+      { time: "7:00-7:55", title: "Document Learnings (55 min)", desc: "Write what worked and what didn't. Plan next week's ad strategy.", kpi: "" }
+    ]
+  },
+  THU: {
+    label: "Thursday",
+    theme: "Reviews + Trust Building",
+    colorDesc: "Reviews only to products with real sales. Trust signals lift conversion.",
+    tasks: [
+      { id: "th1", text: "Identify products with genuine organic sales in past 7 days.", note: "Reviews on dead products are fertilizer on concrete. Only review what sold.", tags: ["must", "rule"] },
+      { id: "th2", text: "Allocate this week's 12 reviews using the priority table.", note: "Choco Coffee: 4 | Neem: 3 | Variety Bundle: 2 | Rotating: 3. NEVER more than 12/week.", tags: ["must", "stop"] },
+      { id: "th3", text: "Process review orders: send written brief to agency + brief friends/family pool.", note: "Give each person: which SKU, which city, which angle.", tags: ["must"] },
+      { id: "th4", text: "Trust badges, description polish, answer all pending Q&A.", note: "Add clearer descriptions + disclaimers if return rate > 12%.", tags: ["rec"] },
+      { id: "th5", text: "Plan weekend bundle promotions.", note: "Friday freshness peaks Saturday-Sunday when traffic is highest.", tags: ["rec"] }
+    ],
+    mustDo: [
+      "Organic-sale products identified for review allocation",
+      "All 12 reviews allocated and briefs sent",
+      "No review goes to a product with zero genuine sales"
+    ],
+    timeBlocks: [
+      { time: "4:00-4:35", title: "Daily Non-Negotiables (35 min)", desc: "Order processing, freshness edit, buyer messages, numbers glance", kpi: "" },
+      { time: "4:35-5:20", title: "Identify Organic Sale Products (45 min)", desc: "Check which products got real sales in past 7 days. Only these get reviews.", kpi: "Reviews ONLY on organic-sale SKUs" },
+      { time: "5:20-6:00", title: "Allocate 12 Weekly Reviews (40 min)", desc: "Choco Coffee: 4, Neem: 3, Variety Bundle: 2, Rotating: 3", kpi: "EXACTLY 12 — no more" },
+      { time: "6:00-6:50", title: "Trust Badges + Q&A Polish (50 min)", desc: "Add trust signals. Answer pending buyer questions. Fix descriptions.", kpi: "" },
+      { time: "6:50-7:55", title: "Weekend Bundle Promo Planning (65 min)", desc: "Plan bundle promotions for high-traffic Sat-Sun.", kpi: "" }
+    ]
+  },
+  FRI: {
+    label: "Friday",
+    theme: "Aggressive Freshness + SEO Push",
+    colorDesc: "Friday freshness peaks Saturday-Sunday when traffic is highest.",
+    tasks: [
+      { id: "f1", text: "Mass refresh 5+ SKUs (titles, descriptions, tags).", note: "Follow freshness schedule: Friday = update stock quantity by 1 unit.", tags: ["must"] },
+      { id: "f2", text: "Trending / seasonal tags + category mapping verify.", note: "Wrong category = total invisibility. Face Wash MUST be in Beauty > Skin Care > Face Wash.", tags: ["must", "stop"] },
+      { id: "f3", text: "Set weekend ad budgets (Sat-Sun coverage).", note: "Confirm Snapdeal wallet has enough balance.", tags: ["must"] },
+      { id: "f4", text: "Inventory surge check — confirm Hero + bundle stock for weekend.", note: "Weekend traffic peaks. Don't stock out.", tags: ["must"] },
+      { id: "f5", text: "Don't get ambitious and edit 10+ listings.", note: "Five quality edits beat ten sloppy ones.", tags: ["warn"] }
+    ],
+    mustDo: [
+      "5+ SKUs mass refreshed with proper edits",
+      "Category mapping verified — all in correct category",
+      "Weekend ad budgets set and wallet topped up",
+      "Hero + bundle stock confirmed for weekend surge"
+    ],
+    timeBlocks: [
+      { time: "4:00-4:35", title: "Daily Non-Negotiables (35 min)", desc: "Order processing, freshness edit, buyer messages, numbers glance", kpi: "" },
+      { time: "4:35-6:05", title: "Mass Refresh 5+ SKUs (90 min)", desc: "Titles, descriptions, tags, stock quantity. Quality over quantity.", kpi: "5 SKUs minimum" },
+      { time: "6:05-6:45", title: "Trending Tags + Category Verify (40 min)", desc: "Add seasonal tags. Confirm ALL SKUs in Beauty > Skin Care > Face Wash.", kpi: "" },
+      { time: "6:45-7:15", title: "Weekend Ad Budgets (30 min)", desc: "Set Sat-Sun budgets. Confirm wallet balance.", kpi: "" },
+      { time: "7:15-7:55", title: "Inventory Surge Check (40 min)", desc: "Confirm Hero + bundle stock covers weekend demand.", kpi: "No stockout risk until Monday" }
+    ]
+  },
+  SAT: {
+    label: "Saturday",
+    theme: "Data Deep Dive + Week Wrap-Up",
+    colorDesc: "Saturday is your war room. Data → priorities → Monday's plan.",
+    tasks: [
+      { id: "s1", text: "Full week performance vs targets (CTR, AOV, ROAS, sales).", note: "Compare to Week " + currentWeek + " targets. Where are you ahead? Behind?", tags: ["must"] },
+      { id: "s2", text: "Update 12-week tracker. Identify next week's top 3 priorities.", note: "Written down, not mental notes. 20 minutes of writing saves 3 hours of confusion.", tags: ["must"] },
+      { id: "s3", text: "Plan next week's creatives and combos.", note: "What images to refresh? What bundles to push? What prices to test?", tags: ["must"] },
+      { id: "s4", text: "Review 'If This Then That' decision matrix — any triggers fired?", note: "Check all 11 conditions. Take action on any that fired.", tags: ["must", "rule"] },
+      { id: "s5", text: "Apply kill list scoring to all SKUs.", note: "Score 0-2 = kill. Score 3-4 = last chance. Score 8-10 = double down.", tags: ["rule"] },
+      { id: "s6", text: "Archive this week's daily log. Write one Monday prep note.", tags: ["rec"] }
+    ],
+    mustDo: [
+      "Full week analysis written down with actual vs target numbers",
+      "Top 3 priorities for next week identified and written",
+      "All 11 'If This Then That' conditions checked",
+      "Kill list scores updated for all SKUs"
+    ],
+    timeBlocks: [
+      { time: "4:00-4:35", title: "Daily Non-Negotiables (35 min)", desc: "Order processing, freshness edit, buyer messages, numbers glance", kpi: "" },
+      { time: "4:35-5:45", title: "Full Week Performance vs Targets (70 min)", desc: "CTR, AOV, ROAS, sales, impressions. Compare to week targets.", kpi: "Write actual numbers vs targets" },
+      { time: "5:45-6:45", title: "12-Week Tracker + Next Week Priorities (60 min)", desc: "Update tracker. Write top 3 priorities for Monday.", kpi: "" },
+      { time: "6:45-7:35", title: "Plan Next Week Creatives (50 min)", desc: "Which images to refresh? Which bundles to push? What prices to test?", kpi: "" },
+      { time: "7:35-7:55", title: "'If This Then That' Review (20 min)", desc: "Check all 11 decision triggers. Take action on any fired.", kpi: "" }
+    ]
+  }
+};
+
+// ===== STOP LOSS RULES =====
+const STOP_LOSS_RULES = [
+  { id: "sl1", name: "Rs.200 Spent, 0 Sales", condition: "Rs.200 spent with ZERO conversions", action: "PAUSE immediately. Listing is broken.", severity: "danger", check: (d) => d.adSpend >= 200 && d.orders === 0 },
+  { id: "sl2", name: "ROAS Below 1.5x for 5 Days", condition: "ROAS below 1.5x for 5 consecutive days", action: "PAUSE & fix conversion. You're losing money.", severity: "danger", check: (d) => d.roas > 0 && d.roas < 1.5 },
+  { id: "sl3", name: "CTR Below 0.4% for 3 Days", condition: "CTR below 0.4% for 3 consecutive days", action: "REDUCE bid by 20%. Change main image.", severity: "warn", check: (d) => d.ctr > 0 && d.ctr < 0.4 },
+  { id: "sl4", name: "0 Sales for 3 Days", condition: "Zero sales for 3+ consecutive days", action: "Check price + category + listing status.", severity: "danger", check: (d) => d.weekOrders === 0 && d.orders === 0 },
+  { id: "sl5", name: "Return Rate > 15%", condition: "Return rate exceeds 15%", action: "Check reasons. Fix images / packaging / description.", severity: "warn", check: (d) => d.returnRate > 15 },
+  { id: "sl6", name: "Ad Spend > 3x Budget", condition: "Daily ad spend 3x planned budget", action: "PAUSE ALL ads. Fix cause. Restart tomorrow.", severity: "danger", check: (d) => {
+    const budget = WEEK_DATA[currentWeek]?.adBudget || 0;
+    return budget > 0 && d.adSpend >= budget * 3;
+  }}
+];
+
+// ===== HEALTH ZONES =====
+function getHealthStatus(d) {
+  const zones = [];
+  if (d.ctr >= 0.8) zones.push({ label: "CTR", cls: "hp-green" });
+  else if (d.ctr >= 0.4) zones.push({ label: "CTR", cls: "hp-yellow" });
+  else if (d.ctr > 0) zones.push({ label: "CTR", cls: "hp-red" });
+  else zones.push({ label: "CTR", cls: "hp-gray" });
+
+  if (d.roas >= 2.5) zones.push({ label: "ROAS", cls: "hp-green" });
+  else if (d.roas >= 1.5) zones.push({ label: "ROAS", cls: "hp-yellow" });
+  else if (d.roas > 0) zones.push({ label: "ROAS", cls: "hp-red" });
+  else zones.push({ label: "ROAS", cls: "hp-gray" });
+
+  if (d.returnRate <= 12) zones.push({ label: "Returns", cls: "hp-green" });
+  else if (d.returnRate <= 15) zones.push({ label: "Returns", cls: "hp-yellow" });
+  else if (d.returnRate > 0) zones.push({ label: "Returns", cls: "hp-red" });
+  else zones.push({ label: "Returns", cls: "hp-gray" });
+
+  if (d.aov >= 250) zones.push({ label: "AOV", cls: "hp-green" });
+  else if (d.aov >= 175) zones.push({ label: "AOV", cls: "hp-yellow" });
+  else if (d.aov > 0) zones.push({ label: "AOV", cls: "hp-red" });
+  else zones.push({ label: "AOV", cls: "hp-gray" });
+
+  return zones;
+}
+
+// ===== INIT =====
+function init() {
+  const savedWeek = LS.getItem('snapdeal_currentWeek');
+  const savedDay = LS.getItem('snapdeal_currentDay');
+  if (savedWeek) currentWeek = parseInt(savedWeek);
+  if (savedDay) currentDay = savedDay;
+  document.getElementById('weekSelect').value = currentWeek;
+  renderAll();
+}
+
+// ===== RENDER ALL =====
+function renderAll() {
+  renderWeekInfo();
+  renderDayHeader();
+  renderNonNegotiables();
+  renderDayTasks();
+  renderMustDo();
+  renderTimeBlocks();
+  renderStopLoss();
+  renderHealthCheck();
+  renderWeekProgress();
+  renderAdGuidance();
+  renderSKUReference();
+  renderReviewQuickRef();
+  renderWeekSummaryGrid();
+  highlightCurrentWeekInTables();
+}
+
+// ===== WEEK INFO =====
+function renderWeekInfo() {
+  const w = WEEK_DATA[currentWeek];
+  if (!w) return;
+  document.getElementById('weekThemeDesc').textContent = w.theme;
+  document.getElementById('weekTargetDisplay').textContent = w.salesTarget + " orders";
+  document.getElementById('weekAdBudget').textContent = w.adSpend;
+  document.getElementById('wkSumNum').textContent = currentWeek;
+}
+
+// ===== DAY HEADER =====
+function renderDayHeader() {
+  const d = DAY_DATA[currentDay];
+  const w = WEEK_DATA[currentWeek];
+  if (!d || !w) return;
+  const weekPhaseClass = w.phase === 'foundation' ? 'phase-foundation' : w.phase === 'ignition' ? 'phase-ignition' : 'phase-scale';
+  document.getElementById('dayHdrCard').innerHTML = `
+    <h1>${d.label} — ${d.theme} <span class="phase-badge ${weekPhaseClass}">${w.phaseName}</span></h1>
+    <p>${d.colorDesc}</p>
+    <span class="hero-badge">Week ${currentWeek} | Sales Target: ${w.salesTarget}</span>
+    <span class="hero-badge">CTR Target: ${w.ctrTarget}</span>
+    <span class="hero-badge">Ad: ${w.adSpend}</span>
+  `;
+  document.getElementById('dayTaskSubtitle').textContent = `${d.label}'s themed work — complete all tasks below.`;
+}
+
+// ===== NON-NEGOTIABLES =====
+function renderNonNegotiables() {
+  const list = document.getElementById('nonNegList');
+  const saved = JSON.parse(LS.getItem(`snapdeal_nn_${currentWeek}_${currentDay}`) || '{}');
+  list.innerHTML = NON_NEGOTIABLES.map(nn => {
+    const done = saved[nn.id] || false;
+    return `<div class="task-item ${done ? 'done' : ''}" onclick="toggleNN('${nn.id}')">
+      <input type="checkbox" ${done ? 'checked' : ''} onclick="event.stopPropagation();toggleNN('${nn.id}')">
+      <div><div class="t-text">${nn.text}</div><div class="t-note">${nn.note}</div></div>
+    </div>`;
+  }).join('');
+}
+
+function toggleNN(id) {
+  const key = `snapdeal_nn_${currentWeek}_${currentDay}`;
+  const saved = JSON.parse(LS.getItem(key) || '{}');
+  saved[id] = !saved[id];
+  LS.setItem(key, JSON.stringify(saved));
+  renderNonNegotiables();
+  renderWeekProgress();
+}
+
+// ===== DAY TASKS =====
+function renderDayTasks() {
+  const d = DAY_DATA[currentDay];
+  if (!d) return;
+  const list = document.getElementById('taskList');
+  const saved = JSON.parse(LS.getItem(`snapdeal_tasks_${currentWeek}_${currentDay}`) || '{}');
+  const total = d.tasks.length;
+  const done = d.tasks.filter(t => saved[t.id]).length;
+  document.getElementById('taskProgress').textContent = `(${done}/${total} done)`;
+
+  list.innerHTML = d.tasks.map(t => {
+    const isDone = saved[t.id] || false;
+    const tagSpans = (t.tags || []).map(tag => {
+      if (tag === 'must') return '<span class="tag-must">MUST</span>';
+      if (tag === 'stop') return '<span class="tag-stop">STOP-LOSS</span>';
+      if (tag === 'danger') return '<span class="tag-danger">DANGER</span>';
+      if (tag === 'warn') return '<span class="tag-danger">WARNING</span>';
+      if (tag === 'rule') return '<span class="tag-rule">RULE</span>';
+      if (tag === 'rec') return '<span class="tag-rec">RECOMMENDED</span>';
+      return '';
+    }).join('');
+    return `<div class="task-item ${isDone ? 'done' : ''}" onclick="toggleTask('${t.id}')">
+      <input type="checkbox" ${isDone ? 'checked' : ''} onclick="event.stopPropagation();toggleTask('${t.id}')">
+      <div><div class="t-text">${t.text} ${tagSpans}</div>${t.note ? `<div class="t-note">${t.note}</div>` : ''}</div>
+    </div>`;
+  }).join('');
+}
+
+function toggleTask(id) {
+  const key = `snapdeal_tasks_${currentWeek}_${currentDay}`;
+  const saved = JSON.parse(LS.getItem(key) || '{}');
+  saved[id] = !saved[id];
+  LS.setItem(key, JSON.stringify(saved));
+  renderDayTasks();
+  renderWeekProgress();
+  renderWeekSummaryGrid();
+}
+
+// ===== MUST DO =====
+function renderMustDo() {
+  const d = DAY_DATA[currentDay];
+  if (!d) return;
+  const list = document.getElementById('mustList');
+  const saved = JSON.parse(LS.getItem(`snapdeal_must_${currentWeek}_${currentDay}`) || '{}');
+  list.innerHTML = d.mustDo.map((m, i) => {
+    const mid = `must_${i}`;
+    const done = saved[mid] || false;
+    return `<div class="ach-item ${done ? 'done' : ''}" onclick="toggleMust('${mid}')">
+      <input type="checkbox" ${done ? 'checked' : ''} onclick="event.stopPropagation();toggleMust('${mid}')">
+      <div class="t-text">${m}</div>
+    </div>`;
+  }).join('');
+}
+
+function toggleMust(id) {
+  const key = `snapdeal_must_${currentWeek}_${currentDay}`;
+  const saved = JSON.parse(LS.getItem(key) || '{}');
+  saved[id] = !saved[id];
+  LS.setItem(key, JSON.stringify(saved));
+  renderMustDo();
+  renderWeekProgress();
+}
+
+// ===== TIME BLOCKS =====
+function renderTimeBlocks() {
+  const d = DAY_DATA[currentDay];
+  if (!d || !d.timeBlocks) {
+    document.getElementById('timeBlockCard').style.display = 'none';
+    return;
+  }
+  document.getElementById('timeBlockCard').style.display = 'block';
+  document.getElementById('timeBlockList').innerHTML = d.timeBlocks.map(tb => `
+    <div class="time-block">
+      <div class="tb-time">${tb.time}</div>
+      <div class="tb-content">
+        <div class="tb-title">${tb.title}</div>
+        <div class="tb-desc">${tb.desc}</div>
+        ${tb.kpi ? `<div class="tb-kpi">Target: ${tb.kpi}</div>` : ''}
+      </div>
+    </div>
+  `).join('');
+}
+
+// ===== STOP LOSS =====
+function renderStopLoss() {
+  const data = getCurrentNumbers();
+  const list = document.getElementById('stopLossList');
+  list.innerHTML = STOP_LOSS_RULES.map(rule => {
+    const triggered = data.hasData ? rule.check(data) : false;
+    const cls = triggered ? 'sl-danger' : data.hasData ? 'sl-safe' : '';
+    const actCls = triggered ? 'danger-act' : data.hasData ? 'safe-act' : '';
+    const icon = triggered ? '&#x1F6A8;' : '&#x2714;';
+    return `<div class="sl-item ${cls}" onclick="showStopLossDetail('${rule.id}')">
+      <h4>${icon} ${rule.name}</h4>
+      <p>${rule.condition}</p>
+      ${triggered ? `<div class="sl-action ${actCls}">${rule.action}</div>` : data.hasData ? `<div class="sl-action ${actCls}">Safe for now</div>` : '<div class="sl-action" style="color:#718096">Enter numbers to check</div>'}
+    </div>`;
+  }).join('');
+}
+
+function showStopLossDetail(ruleId) {
+  const rule = STOP_LOSS_RULES.find(r => r.id === ruleId);
+  if (!rule) return;
+  showModal('stop', rule.name, `
+    <div class="action-box">Trigger: ${rule.condition}</div>
+    <h4>What This Means</h4>
+    <p>${rule.severity === 'danger' ? 'This is a CRITICAL stop-loss. Take action immediately.' : 'This is a WARNING. Fix it before it becomes critical.'}</p>
+    <h4>Action Required</h4>
+    <div class="${rule.severity === 'danger' ? 'action-box' : 'warn-box'}">${rule.action}</div>
+    <h4>Why This Rule Exists</h4>
+    <p>These rules protect your money. Every rupee saved on a failing ad is a rupee that can go to a winning ad. Don't get emotional. Follow the rule.</p>
+  `);
+}
+
+// ===== HEALTH CHECK =====
+function renderHealthCheck() {
+  const data = getCurrentNumbers();
+  const box = document.getElementById('healthBox');
+  const hint = document.getElementById('healthHint');
+  if (!data.hasData) {
+    box.innerHTML = '';
+    hint.textContent = 'Enter today\'s numbers above to see health status.';
+    return;
+  }
+  hint.textContent = '';
+  const zones = getHealthStatus(data);
+  box.innerHTML = zones.map(z => `<span class="health-pill ${z.cls}">${z.label}</span>`).join('');
+}
+
+// ===== WEEK PROGRESS =====
+function renderWeekProgress() {
+  const container = document.getElementById('weekProgress');
+  const days = ['MON','TUE','WED','THU','FRI','SAT'];
+  const dayLabels = {MON:'Mon',TUE:'Tue',WED:'Wed',THU:'Thu',FRI:'Fri',SAT:'Sat'};
+  let html = '';
+  days.forEach(d => {
+    const nnKey = `snapdeal_nn_${currentWeek}_${d}`;
+    const taskKey = `snapdeal_tasks_${currentWeek}_${d}`;
+    const mustKey = `snapdeal_must_${currentWeek}_${d}`;
+    const nnSaved = JSON.parse(LS.getItem(nnKey) || '{}');
+    const taskSaved = JSON.parse(LS.getItem(taskKey) || '{}');
+    const mustSaved = JSON.parse(LS.getItem(mustKey) || '{}');
+    const nnTotal = NON_NEGOTIABLES.length;
+    const nnDone = NON_NEGOTIABLES.filter(n => nnSaved[n.id]).length;
+    const dayTasks = DAY_DATA[d]?.tasks || [];
+    const taskTotal = dayTasks.length;
+    const taskDone = dayTasks.filter(t => taskSaved[t.id]).length;
+    const mustTotal = DAY_DATA[d]?.mustDo?.length || 0;
+    const mustDone = Object.values(mustSaved).filter(v => v).length;
+    const totalItems = nnTotal + taskTotal + mustTotal;
+    const totalDone = nnDone + taskDone + mustDone;
+    const pct = totalItems > 0 ? Math.round((totalDone / totalItems) * 100) : 0;
+    const isToday = d === currentDay;
+    html += `<div class="day-prog-item">
+      <span class="dp-label" style="${isToday ? 'color:#E4002B;font-weight:800;' : ''}">${dayLabels[d]}</span>
+      <div class="dp-bar"><div class="dp-fill" style="width:${pct}%;background:${pct >= 80 ? '#28A745' : pct >= 40 ? '#FF6B35' : '#E4002B'}"></div></div>
+      <span class="dp-pct">${pct}%</span>
+    </div>`;
+  });
+  container.innerHTML = html;
+}
+
+// ===== AD GUIDANCE =====
+function renderAdGuidance() {
+  const w = WEEK_DATA[currentWeek];
+  if (!w) return;
+  const div = document.getElementById('adGuidanceText');
+  if (w.adBudget === 0) {
+    div.innerHTML = `<div class="ad-guidance-box"><strong>NO ADS THIS WEEK.</strong><br>Week ${currentWeek} is about fixing listings first. Running ads on a broken listing is like inviting 100 people to a restaurant with no chairs. Fix listings first. Ads start Week 3.</div>`;
+  } else {
+    div.innerHTML = `<div class="ad-guidance-box">
+      <strong>Daily Budget: Rs. ${w.adBudget}/day</strong><br>
+      <strong>Weekly Total: ${w.adSpend}</strong><br><br>
+      ${currentWeek <= 4 ? 'Ads ONLY on Hero SKU (Choco Coffee Face Wash). Sponsored Product ads.' : ''}
+      ${currentWeek >= 5 && currentWeek <= 8 ? 'Hero SKU + top-performing bundle (if ROAS > 1.5x). Cut losers.' : ''}
+      ${currentWeek >= 9 ? '60% Hero SKU, 25% top bundle, 15% promising secondary. Profitability over growth.' : ''}<br><br>
+      <strong>Ad Timing:</strong> Run ads 6 PM – 10 PM only (peak traffic).<br>
+      <strong>Golden Rule:</strong> Ad money goes to exactly TWO products max: Hero SKU (always) and top bundle (only if ROAS > 1.5x).
+    </div>`;
+  }
+}
+
+// ===== SKU REFERENCE =====
+function renderSKUReference() {
+  document.getElementById('skuReference').innerHTML = `
+    <div class="sku-row"><span class="badge hero">HERO</span><span class="sku-name"><strong>Choco Coffee Face Wash 150ml</strong></span><span class="sku-note">10 sales in April. Opening batsman.</span></div>
+    <div class="sku-row"><span class="badge support">SUPPORT</span><span class="sku-name"><strong>Neem Foaming Face Wash 150ml</strong></span><span class="sku-note">9 sales in April. Solid #3 batsman.</span></div>
+    <div class="sku-row"><span class="badge bundle">BUNDLE</span><span class="sku-name"><strong>Variety Power Pack</strong> (Choco + Neem)</span><span class="sku-note">Rs.299 | Profit: Rs.130/order | +98%</span></div>
+    <div class="sku-row"><span class="badge bundle">BUNDLE</span><span class="sku-name"><strong>Family Saver Pack</strong> (2x Choco + 1x Neem)</span><span class="sku-note">Rs.399 | Profit: Rs.182/order | +176%</span></div>
+    <div class="sku-row"><span class="badge bundle">BUNDLE</span><span class="sku-name"><strong>Choco Coffee Duo</strong> (2x Choco)</span><span class="sku-note">Rs.299 | Stock-up price</span></div>
+    <div class="sku-row"><span class="badge bundle">BUNDLE</span><span class="sku-name"><strong>Neem Fresh Duo</strong> (2x Neem)</span><span class="sku-note">Rs.299 | Acne/oily skin buyers</span></div>
+  `;
+}
+
+// ===== REVIEW QUICK REF =====
+function renderReviewQuickRef() {
+  document.getElementById('reviewQuickText').innerHTML = `
+    <div style="font-size:11px;line-height:1.7">
+      <strong>Total per week: EXACTLY 12</strong> <span class="tag-stop">NEVER MORE</span><br>
+      <strong>Source:</strong> 8 agency + 4 friends/family<br><br>
+      <strong>Priority (ONLY for SKUs with organic sale in past 7 days):</strong><br>
+      1. Choco Coffee Face Wash — <strong>4 reviews/week</strong><br>
+      2. Neem Face Wash — <strong>3 reviews/week</strong><br>
+      3. Variety Bundle — <strong>2 reviews/week</strong><br>
+      4. Rotating other SKUs — <strong>3 reviews/week</strong><br><br>
+      <div class="stop-box" style="margin:0">Reviews on dead products = fertilizer on concrete. Only review what sold.</div>
+    </div>
+  `;
+}
+
+// ===== WEEK SUMMARY GRID =====
+function renderWeekSummaryGrid() {
+  const grid = document.getElementById('wkSummaryGrid');
+  const days = ['MON','TUE','WED','THU','FRI','SAT'];
+  const dayLabels = {MON:'Mon',TUE:'Tue',WED:'Wed',THU:'Thu',FRI:'Fri',SAT:'Sat'};
+
+  // Collect all unique task IDs across all days for this week
+  const allTaskIds = new Set();
+  const allMustIds = new Set();
+  days.forEach(d => {
+    (DAY_DATA[d]?.tasks || []).forEach(t => allTaskIds.add(t.id));
+    (DAY_DATA[d]?.mustDo || []).forEach((_, i) => allMustIds.add(`must_${i}`));
+  });
+
+  let html = `<div class="sum-grid-header"><div class="sum-task">Task</div>${days.map(d => `<div class="sum-day">${dayLabels[d]}</div>`).join('')}</div>`;
+
+  // Non-negotiables rows
+  NON_NEGOTIABLES.forEach(nn => {
+    html += `<div class="sum-row"><div class="sum-task" style="font-size:10px;color:#4a5568">${nn.text}</div>`;
+    days.forEach(d => {
+      const saved = JSON.parse(LS.getItem(`snapdeal_nn_${currentWeek}_${d}`) || '{}');
+      const done = saved[nn.id];
+      html += `<div class="sum-day ${done ? 'done' : ''}" data-w="${currentWeek}" data-d="${d}" data-id="${nn.id}" onclick="toggleGridNN('${nn.id}','${d}')">${done ? '&#10003;' : '&#9675;'}</div>`;
+    });
+    html += '</div>';
+  });
+
+  // Task rows
+  allTaskIds.forEach(tid => {
+    const taskDay = days.find(d => (DAY_DATA[d]?.tasks || []).some(t => t.id === tid));
+    const task = taskDay ? DAY_DATA[taskDay].tasks.find(t => t.id === tid) : null;
+    if (!task) return;
+    html += `<div class="sum-row"><div class="sum-task" style="font-size:10px;color:#4a5568">${task.text}</div>`;
+    days.forEach(d => {
+      const saved = JSON.parse(LS.getItem(`snapdeal_tasks_${currentWeek}_${d}`) || '{}');
+      const done = saved[tid];
+      html += `<div class="sum-day ${done ? 'done' : ''}" onclick="toggleGridTask('${tid}','${d}')">${done ? '&#10003;' : '&#9675;'}</div>`;
+    });
+    html += '</div>';
+  });
+
+  grid.innerHTML = html;
+}
+
+function toggleGridNN(id, day) {
+  const key = `snapdeal_nn_${currentWeek}_${day}`;
+  const saved = JSON.parse(LS.getItem(key) || '{}');
+  saved[id] = !saved[id];
+  LS.setItem(key, JSON.stringify(saved));
+  renderWeekSummaryGrid();
+  renderWeekProgress();
+}
+
+function toggleGridTask(id, day) {
+  const key = `snapdeal_tasks_${currentWeek}_${day}`;
+  const saved = JSON.parse(LS.getItem(key) || '{}');
+  saved[id] = !saved[id];
+  LS.setItem(key, JSON.stringify(saved));
+  renderWeekSummaryGrid();
+  renderWeekProgress();
+}
+
+// ===== GET CURRENT NUMBERS =====
+function getCurrentNumbers() {
+  const orders = parseFloat(document.getElementById('n_orders').value) || 0;
+  const ctr = parseFloat(document.getElementById('n_ctr').value) || 0;
+  const cvr = parseFloat(document.getElementById('n_cvr').value) || 0;
+  const adSpend = parseFloat(document.getElementById('n_adspend').value) || 0;
+  const adRev = parseFloat(document.getElementById('n_adrev').value) || 0;
+  const returns = parseFloat(document.getElementById('n_returns').value) || 0;
+  const weekOrders = parseFloat(document.getElementById('n_weekorders').value) || 0;
+  const returnRate = parseFloat(document.getElementById('n_returnrate').value) || 0;
+  const roas = adSpend > 0 ? parseFloat((adRev / adSpend).toFixed(2)) : (parseFloat(document.getElementById('n_roas').value) || 0);
+  const aov = parseFloat(document.getElementById('n_aov').value) || 0;
+  const impressions = parseFloat(document.getElementById('n_impressions').value) || 0;
+  const clicks = parseFloat(document.getElementById('n_clicks').value) || 0;
+  const hasData = orders > 0 || ctr > 0 || adSpend > 0 || impressions > 0;
+  return { orders, ctr, cvr, adSpend, adRev, returns, weekOrders, returnRate, roas, aov, impressions, clicks, hasData };
+}
+
+// ===== STOP-LOSS CHECK ON INPUT =====
+function checkStopLossOnInput() {
+  const data = getCurrentNumbers();
+  if (!data.hasData) return;
+
+  // Auto-calculate ROAS
+  if (data.adSpend > 0 && data.adRev > 0) {
+    document.getElementById('n_roas').value = (data.adRev / data.adSpend).toFixed(2);
+  }
+
+  renderStopLoss();
+  renderHealthCheck();
+
+  // Check for critical alerts
+  const critical = STOP_LOSS_RULES.filter(r => r.severity === 'danger' && r.check(data));
+  const warnings = STOP_LOSS_RULES.filter(r => r.severity === 'warn' && r.check(data));
+
+  if (critical.length > 0) {
+    document.getElementById('slAlertMsg').innerHTML = `<strong>CRITICAL:</strong> ${critical.map(r => r.name).join(', ')} — Take action NOW!`;
+    document.getElementById('slAlertBar').classList.add('show');
+  } else {
+    document.getElementById('slAlertBar').classList.remove('show');
+  }
+
+  if (warnings.length > 0) {
+    document.getElementById('warnAlertMsg').innerHTML = `<strong>WARNING:</strong> ${warnings.map(r => r.name).join(', ')} — Fix before it gets worse.`;
+    document.getElementById('warnAlertBar').classList.add('show');
+  } else {
+    document.getElementById('warnAlertBar').classList.remove('show');
+  }
+}
+
+// ===== SAVE NUMBERS =====
+function saveNumbers() {
+  const data = {
+    week: currentWeek,
+    day: currentDay,
+    orders: document.getElementById('n_orders').value,
+    ctr: document.getElementById('n_ctr').value,
+    cvr: document.getElementById('n_cvr').value,
+    adSpend: document.getElementById('n_adspend').value,
+    adRev: document.getElementById('n_adrev').value,
+    returns: document.getElementById('n_returns').value,
+    weekOrders: document.getElementById('n_weekorders').value,
+    returnRate: document.getElementById('n_returnrate').value,
+    roas: document.getElementById('n_roas').value,
+    aov: document.getElementById('n_aov').value,
+    impressions: document.getElementById('n_impressions').value,
+    clicks: document.getElementById('n_clicks').value,
+    notes: document.getElementById('n_notes').value,
+    date: new Date().toISOString()
+  };
+  const key = `snapdeal_numbers_${currentWeek}_${currentDay}`;
+  LS.setItem(key, JSON.stringify(data));
+  document.getElementById('savedMsg').style.display = 'block';
+  setTimeout(() => document.getElementById('savedMsg').style.display = 'none', 2000);
+}
+
+// ===== SAVE SCOREBOARD =====
+function saveScoreboard() {
+  const data = {
+    week: currentWeek,
+    sales: document.getElementById('sb_sales').value,
+    gmv: document.getElementById('sb_gmv').value,
+    adSpend: document.getElementById('sb_adspend').value,
+    profit: document.getElementById('sb_profit').value,
+    ctr: document.getElementById('sb_ctr').value,
+    aov: document.getElementById('sb_aov').value,
+    reviews: document.getElementById('sb_reviews').value,
+    edits: document.getElementById('sb_edits').value,
+    date: new Date().toISOString()
+  };
+  LS.setItem(`snapdeal_scoreboard_${currentWeek}`, JSON.stringify(data));
+  document.getElementById('sbSavedMsg').style.display = 'block';
+  setTimeout(() => document.getElementById('sbSavedMsg').style.display = 'none', 2000);
+}
+
+// ===== EVENT HANDLERS =====
+function onWeekChange() {
+  currentWeek = parseInt(document.getElementById('weekSelect').value);
+  LS.setItem('snapdeal_currentWeek', currentWeek);
+  // Update Saturday time block dynamic content
+  DAY_DATA.SAT.tasks[0].note = `Compare to Week ${currentWeek} targets. Where are you ahead? Behind?`;
+  renderAll();
+}
+
+function onDayChange(day) {
+  currentDay = day;
+  LS.setItem('snapdeal_currentDay', currentDay);
+  document.querySelectorAll('.day-tab').forEach(t => t.classList.remove('active'));
+  const tab = document.querySelector(`.day-tab[data-day="${day}"]`);
+  if (tab) tab.classList.add('active');
+  renderAll();
+}
+
+function dismissAlert(id) {
+  document.getElementById(id).classList.remove('show');
+}
+
+function showModal(type, title, body) {
+  document.getElementById('modalTitle').textContent = title;
+  document.getElementById('modalBody').innerHTML = body;
+  const head = document.getElementById('modalHead');
+  head.className = 'modal-head';
+  if (type === 'warn') head.classList.add('warn-head');
+  else if (type === 'info') head.classList.add('info-head');
+  document.getElementById('modalOverlay').classList.add('show');
+}
+
+function closeModal() {
+  document.getElementById('modalOverlay').classList.remove('show');
+}
+
+function toggleCollapsible(id) {
+  document.getElementById(id).classList.toggle('show');
+}
+
+function highlightCurrentWeekInTables() {
+  document.querySelectorAll('#tgtTable tr').forEach(tr => {
+    tr.classList.remove('current-week');
+    if (tr.dataset.wk == currentWeek) tr.classList.add('current-week');
+  });
+}
+
+// ===== KEYBOARD SHORTCUTS =====
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') closeModal();
+});
+
+// ===== INIT =====
+init();
+</script>
+</body>
+</html>
