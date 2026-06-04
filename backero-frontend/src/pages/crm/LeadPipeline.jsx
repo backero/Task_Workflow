@@ -6,7 +6,7 @@ import {
   PlusIcon, PhoneIcon, EnvelopeIcon, XMarkIcon,
   MapPinIcon, CurrencyRupeeIcon, UserIcon, ClockIcon, CheckCircleIcon,
   ArrowRightIcon, TableCellsIcon, CalendarDaysIcon, ChatBubbleLeftIcon,
-  QuestionMarkCircleIcon, ArrowTopRightOnSquareIcon,
+  QuestionMarkCircleIcon, ArrowTopRightOnSquareIcon, TrashIcon,
   ChartBarIcon, SparklesIcon, ArrowTrendingUpIcon, FunnelIcon,
 } from '@heroicons/react/24/outline';
 import api from '../../api/axios';
@@ -147,6 +147,8 @@ function LeadCard({ lead, stage, onClick }) {
 function LeadSlideOver({ leadId, onClose, onUpdated }) {
   const qc = useQueryClient();
   const navigate = useNavigate();
+  const { user } = useAuthStore();
+  const isAdmin = ['admin', 'founder', 'chairman', 'super_admin'].includes(user?.role);
   const [showFollowUpForm, setShowFollowUpForm] = useState(false);
   const [showQueryForm, setShowQueryForm] = useState(false);
   const [pendingStage, setPendingStage] = useState(null);
@@ -154,6 +156,17 @@ function LeadSlideOver({ leadId, onClose, onUpdated }) {
   const [queryItems, setQueryItems] = useState([{ id: 1, title: '', description: '', assignedTo: '', urgency: 'medium' }]);
   const [submittingQueries, setSubmittingQueries] = useState(false);
   const { register, handleSubmit, reset, formState: { errors } } = useForm();
+
+  const deleteMutation = useMutation({
+    mutationFn: () => api.delete(`/crm/leads/${leadId}`),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['crm'] });
+      toast.success('Lead deleted');
+      onClose();
+      if (onUpdated) onUpdated();
+    },
+    onError: () => toast.error('Failed to delete lead'),
+  });
 
   const addQueryCard = () => setQueryItems(prev => [...prev, { id: Date.now(), title: '', description: '', assignedTo: '', urgency: 'medium' }]);
   const removeQueryCard = (id) => setQueryItems(prev => prev.length > 1 ? prev.filter(q => q.id !== id) : prev);
@@ -272,6 +285,20 @@ function LeadSlideOver({ leadId, onClose, onUpdated }) {
                 <ArrowTopRightOnSquareIcon className="w-3.5 h-3.5" />
                 Details
               </button>
+              {isAdmin && (
+                <button
+                  onClick={() => {
+                    if (window.confirm(`Delete "${lead?.name}"? This cannot be undone.`)) {
+                      deleteMutation.mutate();
+                    }
+                  }}
+                  disabled={deleteMutation.isPending}
+                  className="flex items-center gap-1.5 text-xs font-semibold text-red-600 dark:text-red-400 px-2.5 py-1.5 rounded-lg bg-red-50 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors disabled:opacity-50"
+                >
+                  <TrashIcon className="w-3.5 h-3.5" />
+                  Delete
+                </button>
+              )}
               <button onClick={onClose} className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-[#17263d] transition-colors">
                 <XMarkIcon className="w-4 h-4 text-gray-400" />
               </button>
