@@ -177,17 +177,13 @@ exports.sendLoginOTP = asyncHandler(async (req, res) => {
 
   logger.info(`[OTP] ${phone} → ${otp}`);
 
-  // Send OTP via WhatsApp to all users
-  try {
-    const { sendMessage } = require('../services/whatsapp.service');
-    await sendMessage(phone, `🔐 *Backero Login OTP*\n\nYour OTP is: *${otp}*\n\nValid for 10 minutes. Do not share this with anyone.`);
-  } catch (e) {
-    logger.error('[OTP] WhatsApp send failed:', e.message);
-  }
-
-  // In dev mode return OTP directly so it can be tested without SMS/WhatsApp
+  // Respond immediately — OTP is already in DB, WhatsApp sends in background
   const devPayload = process.env.NODE_ENV !== 'production' ? { _devOtp: otp } : {};
   sendSuccess(res, devPayload, 'OTP sent to your mobile number');
+
+  const { sendMessage } = require('../services/whatsapp.service');
+  sendMessage(phone, `🔐 *Backero Login OTP*\n\nYour OTP is: *${otp}*\n\nValid for 10 minutes. Do not share this with anyone.`)
+    .catch(e => logger.error('[OTP] WhatsApp send failed:', e.message));
 });
 
 // POST /api/auth/verify-login-otp  (public — no auth required)
