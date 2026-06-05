@@ -3,6 +3,7 @@ import { Outlet } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import Header from './Header';
 import HelpDrawer from '../help/HelpDrawer';
+import GlobalTimerWidget from '../tasks/GlobalTimerWidget';
 
 export default function Layout() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -38,6 +39,7 @@ export default function Layout() {
         </main>
       </div>
       <HelpDrawer />
+      <GlobalTimerWidget />
     </div>
   );
 }

@@ -13,6 +13,7 @@ import { useSocketStore } from '../../store/useSocketStore';
 import { format, isPast, isToday, formatDistanceToNow } from 'date-fns';
 import { clsx } from 'clsx';
 import toast from 'react-hot-toast';
+import TaskTimer from '../../components/tasks/TaskTimer';
 
 const STATUS_COLORS = {
   'Pending': 'badge-gray', 'Assigned': 'badge-blue', 'In Progress': 'badge-yellow',
@@ -261,6 +262,12 @@ function TaskDrawer({ task: initialTask, onClose, onUpdated }) {
               )}
             </div>
           )}
+        </div>
+
+        {/* Time Tracker */}
+        <div className="px-5 py-3 border-b border-gray-100 dark:border-[#1b2e4a]">
+          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Time Tracker</p>
+          <TaskTimer task={task} />
         </div>
 
         {/* Description */}

@@ -946,3 +946,81 @@ exports.rejectManagerAssignment = asyncHandler(async (req, res) => {
 
   sendSuccess(res, {}, 'Manager assignment rejected');
 });
+
+// ── Time Tracker ──────────────────────────────────────────────────────────────
+
+// GET /api/tasks/timer/active
+exports.getActiveTimer = asyncHandler(async (req, res) => {
+  const task = await Task.findOne({
+    organizationId: req.user.organizationId,
+    'activeTimer.user': req.user._id,
+  }).select('_id title department activeTimer totalTrackedMs');
+
+  if (!task) return sendSuccess(res, { activeTimer: null }, 'No active timer');
+
+  sendSuccess(res, {
+    activeTimer: {
+      taskId: task._id,
+      title: task.title,
+      department: task.department,
+      startedAt: task.activeTimer.startedAt,
+      totalTrackedMs: task.totalTrackedMs,
+    },
+  }, 'Active timer found');
+});
+
+// POST /api/tasks/:id/timer/start
+exports.startTimer = asyncHandler(async (req, res) => {
+  const task = await Task.findOne({ _id: req.params.id, organizationId: req.user.organizationId });
+  if (!task) return sendError(res, 'Task not found.', 404);
+
+  // If user has a timer running on another task, auto-stop it
+  const otherTask = await Task.findOne({
+    organizationId: req.user.organizationId,
+    'activeTimer.user': req.user._id,
+    _id: { $ne: task._id },
+  });
+  if (otherTask) {
+    const durationMs = Date.now() - new Date(otherTask.activeTimer.startedAt).getTime();
+    otherTask.timerSessions.push({ startedAt: otherTask.activeTimer.startedAt, stoppedAt: new Date(), durationMs, user: req.user._id });
+    otherTask.totalTrackedMs = (otherTask.totalTrackedMs || 0) + durationMs;
+    otherTask.activeTimer = undefined;
+    await otherTask.save();
+  }
+
+  if (task.activeTimer?.user?.toString() === req.user._id.toString()) {
+    return sendError(res, 'Timer is already running for this task.', 400);
+  }
+
+  task.activeTimer = { startedAt: new Date(), user: req.user._id };
+  task.activity.push({ action: 'timer_started', performedBy: req.user._id });
+  await task.save();
+
+  sendSuccess(res, { activeTimer: task.activeTimer, totalTrackedMs: task.totalTrackedMs }, 'Timer started');
+});
+
+// POST /api/tasks/:id/timer/stop
+exports.stopTimer = asyncHandler(async (req, res) => {
+  const { note } = req.body;
+  const task = await Task.findOne({ _id: req.params.id, organizationId: req.user.organizationId });
+  if (!task) return sendError(res, 'Task not found.', 404);
+
+  if (!task.activeTimer?.startedAt || task.activeTimer?.user?.toString() !== req.user._id.toString()) {
+    return sendError(res, 'No active timer found for this task.', 400);
+  }
+
+  const startedAt = new Date(task.activeTimer.startedAt);
+  const stoppedAt = new Date();
+  const durationMs = stoppedAt - startedAt;
+
+  task.timerSessions.push({ startedAt, stoppedAt, durationMs, user: req.user._id, note: note?.trim() || undefined });
+  task.totalTrackedMs = (task.totalTrackedMs || 0) + durationMs;
+  task.activeTimer = undefined;
+  task.activity.push({ action: 'timer_stopped', performedBy: req.user._id, details: { durationMs } });
+  await task.save();
+
+  sendSuccess(res, {
+    session: task.timerSessions[task.timerSessions.length - 1],
+    totalTrackedMs: task.totalTrackedMs,
+  }, 'Timer stopped');
+});

@@ -131,6 +131,20 @@ const taskSchema = new mongoose.Schema({
     reviewedAt: { type: Date },
   },
 
+  // ── Time Tracker ──────────────────────────────────────────────────────────
+  timerSessions: [{
+    startedAt: { type: Date },
+    stoppedAt: { type: Date },
+    durationMs: { type: Number, default: 0 },
+    user: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    note: { type: String },
+  }],
+  totalTrackedMs: { type: Number, default: 0 },
+  activeTimer: {
+    startedAt: { type: Date },
+    user: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+  },
+
   createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   updatedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
 

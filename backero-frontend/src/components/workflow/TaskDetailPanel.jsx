@@ -6,6 +6,7 @@ import { useWorkflowStore } from '../../store/useWorkflowStore';
 import { useAuthStore } from '../../store/useAuthStore';
 import api from '../../api/axios';
 import ConfirmDialog from '../common/ConfirmDialog';
+import TaskTimer from '../tasks/TaskTimer';
 
 const STATUS_COLORS = {
   'Pending':           'text-slate-700 bg-slate-100 dark:bg-[#1b2e4a] dark:text-slate-300 border-slate-300 dark:border-[#1b2e4a]',
@@ -306,6 +307,10 @@ export default function TaskDetailPanel({ onAddSubtask }) {
                   <span className="text-xs font-medium text-gray-800">{data.actualHours || 0} / {data.estimatedHours}h logged</span>
                 </InfoRow>
               )}
+              <div className="mt-3">
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Time Tracker</p>
+                <TaskTimer task={taskDetail} />
+              </div>
               <InfoRow label="Subtasks">
                 <span className="text-xs font-medium text-gray-800">{data.childCount} subtask{data.childCount !== 1 ? 's' : ''}</span>
               </InfoRow>

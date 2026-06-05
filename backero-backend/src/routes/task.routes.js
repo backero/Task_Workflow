@@ -11,6 +11,7 @@ router.use(authenticate, orgIsolation);
 router.get('/', ctrl.getTasks);
 router.get('/analytics', ctrl.getAnalytics);
 router.get('/extension-requests', ctrl.getExtensionRequests);
+router.get('/timer/active', ctrl.getActiveTimer);
 
 // Bulk import (must be before /:id routes)
 router.get('/import/template', importCtrl.downloadTemplate);
@@ -26,6 +27,8 @@ router.patch('/:id/archive', authorizeAdminOrAbove, ctrl.archiveTask);
 router.delete('/:id', authorizeAdminOrAbove, ctrl.deleteTask);
 
 // Self-service — any logged-in member can use these on their own tasks
+router.post('/:id/timer/start', ctrl.startTimer);
+router.post('/:id/timer/stop', ctrl.stopTimer);
 router.post('/:id/start', ctrl.startTask);
 router.post('/:id/request-completion', ctrl.requestCompletion);
 router.post('/:id/daily-update', ctrl.addDailyUpdate);
