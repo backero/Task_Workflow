@@ -16,7 +16,7 @@ const lineItemSchema = new mongoose.Schema({
 const invoiceSchema = new mongoose.Schema({
   organizationId: { type: mongoose.Schema.Types.ObjectId, ref: 'Organization', required: true, index: true },
   invoiceNumber: { type: String, required: true },
-  type: { type: String, enum: ['invoice', 'proforma', 'credit_note', 'debit_note'], default: 'invoice' },
+  type: { type: String, enum: ['invoice', 'quotation', 'proforma', 'credit_note', 'debit_note'], default: 'invoice' },
   status: { type: String, enum: ['draft', 'sent', 'paid', 'partially_paid', 'overdue', 'cancelled'], default: 'draft', index: true },
 
   // Client
@@ -60,6 +60,7 @@ const invoiceSchema = new mongoose.Schema({
 
   notes: { type: String },
   terms: { type: String },
+  signatoryName: { type: String },
   pdfUrl: { type: String },
 
   createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },

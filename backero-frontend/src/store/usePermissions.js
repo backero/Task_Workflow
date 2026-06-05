@@ -15,7 +15,7 @@ const DEPT_MODULES = {
 };
 
 // Modules a manager can access (dept modules + management)
-const MANAGER_EXTRA = ['management', 'tasks.team', 'tasks.approvals', 'tasks.analytics', 'tasks.calendar'];
+const MANAGER_EXTRA = ['management', 'tasks.team', 'tasks.approvals', 'tasks.analytics', 'tasks.calendar', 'finance'];
 
 export const usePermissions = () => {
   const { user } = useAuthStore();

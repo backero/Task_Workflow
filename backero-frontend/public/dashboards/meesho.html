@@ -2266,21 +2266,5 @@ document.getElementById('weekSelect').addEventListener('change', function() {
 
 init();
 </script>
-<script>
-(function(){
-  var PLATFORM='Meesho', PREFIX='meesho_';
-  function collect(){var d={};for(var i=0;i<localStorage.length;i++){var k=localStorage.key(i);if(k&&k.startsWith(PREFIX))d[k]=localStorage.getItem(k);}return d;}
-  function restore(d){if(!d)return;Object.keys(d).forEach(function(k){if(k.startsWith(PREFIX))localStorage.setItem(k,d[k]);});}
-  function save(){window.parent.postMessage({type:'DASH_SAVE',platform:PLATFORM,data:collect()},'*');}
-  window.addEventListener('message',function(e){
-    if(!e.data||e.data.type!=='DASH_DATA'||e.data.platform!==PLATFORM)return;
-    restore(e.data.data);
-    if(typeof render==='function')render();
-  });
-  setInterval(save,60000);
-  document.addEventListener('visibilitychange',function(){if(document.hidden)save();});
-  window.addEventListener('load',function(){setTimeout(function(){window.parent.postMessage({type:'DASH_LOAD',platform:PLATFORM},'*');},400);});
-})();
-</script>
 </body>
 </html>

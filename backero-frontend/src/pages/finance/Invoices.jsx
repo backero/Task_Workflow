@@ -8,6 +8,8 @@ import {
   ArrowLeftIcon,
 } from '@heroicons/react/24/outline';
 import api from '../../api/axios';
+import backeroLogo from '../../assets/Backero.png';
+import { useAuthStore } from '../../store/useAuthStore';
 import { clsx } from 'clsx';
 import { format } from 'date-fns';
 import toast from 'react-hot-toast';
@@ -26,8 +28,15 @@ const STATUS_STYLES = {
 
 const INR = (n) => `₹${Number(n || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
+const BACKERO = {
+  name: 'Backero Private Limited',
+  address: '42, Interflex Complex, Near 5K Car Care, Trichy Road, Sulur, Coimbatore - 641402',
+  gst: '33AAJCB0859L1ZH',
+  website: 'www.backero.in',
+};
+
 // ── PDF / Print ───────────────────────────────────────────────────────────────
-function printInvoice(inv, org) {
+function printInvoice(inv, org, user) {
   const fmtDate = (d) => d ? format(new Date(d), 'dd MMM yyyy') : '—';
   const rows = (inv.lineItems || []).map((it, i) => `
     <tr style="background:${i % 2 === 0 ? '#ffffff' : '#f8fafc'}">
@@ -41,10 +50,10 @@ function printInvoice(inv, org) {
       <td style="padding:9px 8px;border-bottom:1px solid #e2e8f0;text-align:right;font-weight:600">${INR(it.total)}</td>
     </tr>`).join('');
 
-  const addr = org?.address
-    ? [org.address.street, org.address.city, org.address.state, org.address.pincode].filter(Boolean).join(', ')
-    : '';
   const bd = org?.bankDetails || {};
+  const userPhone = user?.phone || user?.mobile || '';
+  const userEmail = user?.email || '';
+  const sigName = inv.signatoryName || user?.name || '';
 
   const win = window.open('', '_blank', 'width=900,height=700');
   win.document.write(`<!DOCTYPE html>
@@ -100,17 +109,18 @@ function printInvoice(inv, org) {
 <body><div class="page">
   <div class="header">
     <div>
-      ${org?.logo ? `<img src="${org.logo}" class="logo" alt="Logo" />` : `<div class="logo-placeholder">${org?.name || 'Company'}</div>`}
-      <div style="margin-top:8px;font-size:11px;color:#475569">
-        ${addr ? `<div>${addr}</div>` : ''}
-        ${org?.phone ? `<div>📞 ${org.phone}</div>` : ''}
-        ${org?.email ? `<div>✉ ${org.email}</div>` : ''}
-        ${org?.gstNumber ? `<div style="font-family:monospace;font-size:10px;color:#64748b;margin-top:4px">GSTIN: ${org.gstNumber}</div>` : ''}
+      <img src="${backeroLogo}" class="logo" alt="Backero" style="height:52px;max-width:160px;object-fit:contain;margin-bottom:6px" />
+      <div style="font-size:14px;font-weight:800;color:#1e293b;margin-bottom:4px">${BACKERO.name}</div>
+      <div style="font-size:10px;color:#475569;line-height:1.7">
+        <div>${BACKERO.address}</div>
+        ${userPhone ? `<div>📞 ${userPhone}</div>` : ''}
+        ${userEmail ? `<div>✉ ${userEmail}</div>` : ''}
+        <div style="font-family:monospace;font-size:10px;color:#64748b">GSTIN: ${BACKERO.gst}</div>
+        <div>🌐 ${BACKERO.website}</div>
       </div>
     </div>
     <div class="invoice-label">
-      <div class="type">${(inv.type || 'invoice').toUpperCase().replace('_', ' ')}</div>
-      <h1>INVOICE</h1>
+      <h1>${inv.type === 'quotation' ? 'QUOTATION' : inv.type === 'proforma' ? 'PROFORMA' : inv.type === 'credit_note' ? 'CREDIT NOTE' : inv.type === 'debit_note' ? 'DEBIT NOTE' : 'INVOICE'}</h1>
       <div class="num">${inv.invoiceNumber}</div>
     </div>
   </div>
@@ -180,8 +190,11 @@ function printInvoice(inv, org) {
       ` : '<p style="color:#94a3b8;font-size:11px">No bank details configured</p>'}
     </div>
     <div class="sig">
-      ${org?.signatureUrl ? `<img src="${org.signatureUrl}" alt="Signature" />` : '<div style="height:60px"></div>'}
-      <div class="sig-line">Authorized Signatory<br/><span style="font-weight:400">${org?.name || ''}</span></div>
+      ${org?.signatureUrl
+        ? `<img src="${org.signatureUrl}" alt="Signature" />`
+        : `<div style="height:54px;display:flex;align-items:flex-end;justify-content:center;padding-bottom:2px"><span style="font-family:'Brush Script MT','Dancing Script',cursive;font-size:32px;color:#1e293b">${sigName}</span></div>`
+      }
+      <div class="sig-line">Authorized Signatory<br/><span style="font-weight:400">${BACKERO.name}</span></div>
     </div>
   </div>
 
@@ -210,9 +223,20 @@ function useTotals(control) {
   }, [JSON.stringify(items)]);
 }
 
+// ── Live Signature Preview ────────────────────────────────────────────────────
+function SignaturePreview({ control }) {
+  const name = useWatch({ control, name: 'signatoryName' }) || '';
+  return (
+    <span style={{ fontFamily: "'Brush Script MT', 'Dancing Script', cursive", fontSize: '30px', color: '#1e293b', lineHeight: 1.1 }}>
+      {name || <span style={{ fontSize: '13px', fontFamily: 'inherit', color: '#94a3b8', fontStyle: 'italic' }}>signature appears here…</span>}
+    </span>
+  );
+}
+
 // ── Invoice Form (Create / Edit) ──────────────────────────────────────────────
 function InvoiceForm({ existingInv, orgData, onClose, onSaved }) {
   const qc = useQueryClient();
+  const { user } = useAuthStore();
 
   const defaultLineItem = { description: '', hsnCode: '', quantity: 1, unit: 'pcs', unitPrice: 0, gstRate: 18, discount: 0 };
 
@@ -222,6 +246,7 @@ function InvoiceForm({ existingInv, orgData, onClose, onSaved }) {
       issueDate: existingInv.issueDate ? existingInv.issueDate.split('T')[0] : new Date().toISOString().split('T')[0],
       dueDate: existingInv.dueDate ? existingInv.dueDate.split('T')[0] : '',
       lineItems: existingInv.lineItems?.length ? existingInv.lineItems : [defaultLineItem],
+      signatoryName: existingInv.signatoryName || user?.name || '',
     } : {
       type: 'invoice',
       status: 'draft',
@@ -230,6 +255,7 @@ function InvoiceForm({ existingInv, orgData, onClose, onSaved }) {
       paymentTerms: 'Net 30',
       notes: '',
       terms: orgData?.invoiceTerms || 'Payment due within 30 days of invoice date.',
+      signatoryName: user?.name || '',
       client: { name: '', email: '', phone: '', address: '', gstin: '', state: '' },
       lineItems: [defaultLineItem],
     },
@@ -275,6 +301,7 @@ function InvoiceForm({ existingInv, orgData, onClose, onSaved }) {
               <label className="label">Invoice Type</label>
               <select {...register('type')} className="input">
                 <option value="invoice">Tax Invoice</option>
+                <option value="quotation">Quotation</option>
                 <option value="proforma">Proforma Invoice</option>
                 <option value="credit_note">Credit Note</option>
                 <option value="debit_note">Debit Note</option>
@@ -419,6 +446,31 @@ function InvoiceForm({ existingInv, orgData, onClose, onSaved }) {
             <div>
               <label className="label">Terms & Conditions</label>
               <textarea {...register('terms')} rows={3} className="input resize-none" placeholder="Payment due within 30 days..." />
+            </div>
+          </div>
+
+          {/* Signatory */}
+          <div className="border border-gray-200 dark:border-[#1b2e4a] rounded-xl p-4 bg-gray-50 dark:bg-[#0f1a2e]">
+            <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">Authorized Signatory</h3>
+            <div className="grid grid-cols-2 gap-4 items-start">
+              <div>
+                <label className="label">Signatory Name</label>
+                <input
+                  {...register('signatoryName')}
+                  className="input"
+                  placeholder="Type name to generate signature…"
+                />
+                <p className="text-xs text-gray-400 mt-1">Name will be converted to signature style</p>
+              </div>
+              <div>
+                <label className="label text-gray-400 dark:text-gray-500">Signature Preview</label>
+                <div className="border-2 border-dashed border-gray-300 dark:border-[#1b2e4a] rounded-lg px-5 py-3 bg-white dark:bg-[#070c17] min-h-[64px] flex flex-col justify-end">
+                  <SignaturePreview control={control} />
+                  <div className="border-t border-gray-300 dark:border-gray-600 mt-2 pt-1">
+                    <p className="text-[10px] text-gray-400 uppercase tracking-wide">Authorized Signatory</p>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -578,17 +630,15 @@ function LineItemRow({ idx, control, register, remove, canRemove, setValue }) {
 // ── Invoice Preview Modal ─────────────────────────────────────────────────────
 function InvoicePreview({ inv, orgData, onEdit, onClose }) {
   const org = orgData?.organization;
-  const addr = org?.address
-    ? [org.address.street, org.address.city, org.address.state, org.address.pincode].filter(Boolean).join(', ')
-    : '';
+  const { user } = useAuthStore();
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto py-6 px-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3">
       <div className="absolute inset-0 bg-gray-900/80 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative bg-white dark:bg-[#070c17] w-full max-w-4xl rounded-2xl shadow-2xl">
+      <div className="relative flex flex-col w-full max-w-[920px] rounded-2xl shadow-2xl overflow-hidden" style={{ maxHeight: '95vh' }}>
 
         {/* Toolbar */}
-        <div className="flex items-center justify-between px-6 py-3 bg-slate-50 dark:bg-[#0f1a2e] border-b border-slate-200 dark:border-[#1b2e4a] print:hidden rounded-t-2xl">
+        <div className="flex-shrink-0 flex items-center justify-between px-6 py-3 bg-slate-50 dark:bg-[#0f1a2e] border-b border-slate-200 dark:border-[#1b2e4a] print:hidden">
           <div className="flex items-center gap-3">
             <button
               onClick={onClose}
@@ -604,7 +654,7 @@ function InvoicePreview({ inv, orgData, onEdit, onClose }) {
           </div>
           <div className="flex items-center gap-2">
             <button
-              onClick={() => printInvoice(inv, org)}
+              onClick={() => printInvoice(inv, org, user)}
               className="btn-secondary gap-2 text-sm"
             >
               <ArrowDownTrayIcon className="w-4 h-4" /> Download PDF
@@ -620,29 +670,28 @@ function InvoicePreview({ inv, orgData, onEdit, onClose }) {
           </div>
         </div>
 
-        {/* Invoice Preview Body */}
-        <div className="p-8 bg-white text-gray-900 overflow-x-auto">
+        {/* Document Viewer */}
+        <div className="flex-1 overflow-y-auto bg-slate-300 dark:bg-slate-700 py-6 px-4">
+        <div className="max-w-[794px] mx-auto bg-white shadow-2xl text-gray-900" style={{ padding: '48px 52px', minHeight: '1050px' }}>
 
           {/* Header */}
           <div className="flex items-start justify-between pb-5 border-b-2 border-gray-800 mb-6">
             <div>
-              {org?.logo
-                ? <img src={org.logo} alt="Logo" className="h-14 max-w-[160px] object-contain mb-2" />
-                : <div className="text-2xl font-black text-gray-900 mb-1">{org?.name || 'Company Name'}</div>
-              }
-              <div className="text-xs text-gray-500 space-y-0.5">
-                {addr && <div>{addr}</div>}
-                {org?.phone && <div>📞 {org.phone}</div>}
-                {org?.email && <div>✉ {org.email}</div>}
-                {org?.gstNumber && <div className="font-mono">GSTIN: {org.gstNumber}</div>}
+              <img src={backeroLogo} alt="Backero" className="h-12 max-w-[180px] object-contain mb-2" />
+              <div className="font-bold text-sm text-gray-900 mb-1">{BACKERO.name}</div>
+              <div className="text-xs text-gray-500 space-y-0.5 leading-relaxed">
+                <div>{BACKERO.address}</div>
+                {user?.phone && <div>📞 {user.phone}</div>}
+                {user?.email && <div>✉ {user.email}</div>}
+                <div className="font-mono">GSTIN: {BACKERO.gst}</div>
+                <div>🌐 {BACKERO.website}</div>
               </div>
             </div>
             <div className="text-right">
-              <div className="text-xs bg-blue-50 text-blue-700 border border-blue-200 px-3 py-1 rounded-full font-bold uppercase tracking-wider inline-block mb-2">
-                {(inv.type || 'invoice').replace('_', ' ')}
+              <div className="text-4xl font-black text-blue-600 mb-1">
+                {inv.type === 'quotation' ? 'QUOTATION' : inv.type === 'proforma' ? 'PROFORMA' : inv.type === 'credit_note' ? 'CREDIT NOTE' : inv.type === 'debit_note' ? 'DEBIT NOTE' : 'INVOICE'}
               </div>
-              <div className="text-3xl font-black text-blue-600">INVOICE</div>
-              <div className="text-sm text-gray-500 font-mono mt-1">{inv.invoiceNumber}</div>
+              <div className="text-sm text-gray-500 font-mono">{inv.invoiceNumber}</div>
             </div>
           </div>
 
@@ -747,21 +796,26 @@ function InvoicePreview({ inv, orgData, onEdit, onClose }) {
                 <p className="text-xs text-gray-400 italic">Configure bank details in Settings → Invoice</p>
               )}
             </div>
-            <div className="text-center min-w-[160px]">
+            <div className="text-center min-w-[200px]">
               {org?.signatureUrl
-                ? <img src={org.signatureUrl} alt="Signature" className="max-h-16 max-w-[150px] object-contain mx-auto mb-2" />
-                : <div className="h-12 mb-2" />
+                ? <img src={org.signatureUrl} alt="Signature" className="max-h-16 max-w-[150px] object-contain mx-auto mb-1" />
+                : <div className="h-14 flex items-end justify-center pb-1">
+                    <span style={{ fontFamily: "'Brush Script MT', 'Dancing Script', cursive", fontSize: '34px', color: '#1e293b', lineHeight: 1 }}>
+                      {inv.signatoryName || user?.name || ''}
+                    </span>
+                  </div>
               }
               <div className="border-t-2 border-gray-700 pt-2">
                 <p className="text-xs font-bold text-gray-700 uppercase tracking-wide">Authorized Signatory</p>
-                <p className="text-xs text-gray-500 mt-0.5">{org?.name || 'Company Name'}</p>
+                <p className="text-xs text-gray-500 mt-0.5">{BACKERO.name}</p>
               </div>
             </div>
           </div>
 
           <p className="text-center text-xs text-gray-400 mt-6 pt-4 border-t border-dashed border-gray-200">
-            This is a computer-generated invoice • Generated by Backero
+            This is a computer-generated document • Generated by Backero
           </p>
+        </div>
         </div>
       </div>
     </div>
@@ -812,6 +866,7 @@ function PaymentModal({ inv, onClose }) {
 // ── Main Invoices Page ────────────────────────────────────────────────────────
 export default function Invoices() {
   const qc = useQueryClient();
+  const { user } = useAuthStore();
   const [view, setView] = useState('list'); // 'list' | 'form' | 'preview'
   const [selectedInv, setSelectedInv] = useState(null);
   const [showPayment, setShowPayment] = useState(null);
@@ -957,7 +1012,7 @@ export default function Invoices() {
                       )}
                       <button
                         title="Download PDF"
-                        onClick={() => printInvoice(inv, orgData?.organization)}
+                        onClick={() => printInvoice(inv, orgData?.organization, user)}
                         className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-[#132035] text-gray-400 hover:text-gray-700"
                       >
                         <ArrowDownTrayIcon className="w-4 h-4" />
