@@ -1,12 +1,14 @@
 ﻿import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { PlusIcon, ExclamationTriangleIcon, MagnifyingGlassIcon } from '@heroicons/react/24/outline';
+import { PlusIcon, ExclamationTriangleIcon, MagnifyingGlassIcon, QrCodeIcon } from '@heroicons/react/24/outline';
 import ImportButton from '../../components/common/ImportButton';
 import api from '../../api/axios';
 import { clsx } from 'clsx';
 import toast from 'react-hot-toast';
 import { useForm } from 'react-hook-form';
 import { useAuthStore } from '../../store/useAuthStore';
+import QRLabelModal from '../../components/inventory/QRLabelModal';
+import QRScannerModal from '../../components/inventory/QRScannerModal';
 
 function ProductForm({ onClose, onSuccess, initial }) {
   const { register, handleSubmit, formState: { errors } } = useForm({ defaultValues: initial });
@@ -159,6 +161,8 @@ export default function Products() {
   const [showForm, setShowForm] = useState(false);
   const [editProduct, setEditProduct] = useState(null);
   const [stockProduct, setStockProduct] = useState(null);
+  const [qrProduct, setQrProduct] = useState(null);
+  const [showScanner, setShowScanner] = useState(false);
   const [search, setSearch] = useState('');
   const [lowStockOnly, setLowStockOnly] = useState(false);
   const { isManagerOrAbove } = useAuthStore();
@@ -256,6 +260,9 @@ export default function Products() {
                       <td className="py-3 px-4 text-right">
                         <div className="flex gap-1 justify-end">
                           <button onClick={() => setStockProduct(product)} className="btn-secondary text-xs px-2 py-1">Stock</button>
+                          <button onClick={() => setQrProduct(product)} className="btn-ghost text-xs px-2 py-1" title="Print QR Label">
+                            <QrCodeIcon className="w-4 h-4" />
+                          </button>
                           <button onClick={() => setEditProduct(product)} className="btn-ghost text-xs px-2 py-1">Edit</button>
                         </div>
                       </td>
@@ -286,6 +293,32 @@ export default function Products() {
           onClose={() => setStockProduct(null)}
           onSuccess={() => { setStockProduct(null); qc.invalidateQueries({ queryKey: ['inventory'] }); }}
         />
+      )}
+
+      {qrProduct && (
+        <QRLabelModal
+          products={[qrProduct]}
+          onClose={() => setQrProduct(null)}
+        />
+      )}
+
+      {showScanner && (
+        <QRScannerModal
+          onClose={() => setShowScanner(false)}
+          onSuccess={() => qc.invalidateQueries({ queryKey: ['inventory'] })}
+        />
+      )}
+
+      {/* Floating Scan FAB */}
+      {isManagerOrAbove() && (
+        <button
+          onClick={() => setShowScanner(true)}
+          className="fixed bottom-6 right-6 z-30 flex items-center gap-2 bg-orange-500 hover:bg-orange-600 text-white font-semibold px-4 py-3 rounded-full shadow-lg transition-colors"
+          title="Scan QR Code"
+        >
+          <QrCodeIcon className="w-5 h-5" />
+          <span className="text-sm hidden sm:inline">Scan QR</span>
+        </button>
       )}
     </div>
   );

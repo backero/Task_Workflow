@@ -2,10 +2,12 @@ const router = require('express').Router();
 const ctrl = require('../controllers/inventory.controller');
 const { authenticate } = require('../middleware/auth.middleware');
 const { orgIsolation } = require('../middleware/orgIsolation.middleware');
-const { authorizeAdminOrAbove } = require('../middleware/role.middleware');
+const { authorizeAdminOrAbove, authorizeManagerOrAbove } = require('../middleware/role.middleware');
 const { asyncHandler, sendSuccess, sendError } = require('../utils/helpers');
 const upload = require('../middleware/upload.middleware');
 const { buildProductTemplate, importProducts } = require('../services/import.service');
+const QRCode = require('qrcode');
+const Product = require('../models/Product');
 
 router.use(authenticate, orgIsolation);
 
@@ -26,15 +28,28 @@ router.post('/import', authorizeAdminOrAbove, upload.single('file'), asyncHandle
 }));
 
 router.get('/products', ctrl.getProducts);
-router.get('/products/:id', ctrl.getProduct);
 router.get('/movements', ctrl.getMovements);
 router.get('/alerts', ctrl.getLowStockAlerts);
 router.get('/analytics', ctrl.getAnalytics);
+
+// QR code for a product label (must be before /:id)
+router.get('/products/:id/qr', asyncHandler(async (req, res) => {
+  const product = await Product.findOne({ _id: req.params.id, organizationId: req.user.organizationId })
+    .select('name sku _id');
+  if (!product) return sendError(res, 'Product not found', 404);
+  const svg = await QRCode.toString(`backero:inv:${product._id}`, { type: 'svg', margin: 1 });
+  res.setHeader('Content-Type', 'image/svg+xml');
+  res.setHeader('Cache-Control', 'public, max-age=86400');
+  res.send(svg);
+}));
+
+router.get('/products/:id', ctrl.getProduct);
 router.post('/products', authorizeAdminOrAbove, ctrl.createProduct);
 router.put('/products/:id', authorizeAdminOrAbove, ctrl.updateProduct);
 router.delete('/products/:id', authorizeAdminOrAbove, ctrl.deleteProduct);
-router.post('/stock-in', authorizeAdminOrAbove, ctrl.stockIn);
-router.post('/stock-out', authorizeAdminOrAbove, ctrl.stockOut);
-router.post('/adjustment', authorizeAdminOrAbove, ctrl.stockAdjustment);
+// Allow managers and above to do stock movements (warehouse ops)
+router.post('/stock-in', authorizeManagerOrAbove, ctrl.stockIn);
+router.post('/stock-out', authorizeManagerOrAbove, ctrl.stockOut);
+router.post('/adjustment', authorizeManagerOrAbove, ctrl.stockAdjustment);
 
 module.exports = router;
