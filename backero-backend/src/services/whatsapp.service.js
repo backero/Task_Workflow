@@ -59,11 +59,20 @@ const initWhatsApp = async (io) => {
           connectionStatus = 'disconnected';
 
           let shouldReconnect = true;
+          let isLoggedOut = false;
           try {
             const statusCode = lastDisconnect?.error?.output?.statusCode;
             if (statusCode === DisconnectReason.loggedOut) {
-              logger.warn('WhatsApp logged out — clearing session and regenerating QR');
-              // Auto-clear stale session so next connect produces a fresh QR
+              isLoggedOut = true;
+              shouldReconnect = false; // handled manually below after async clear
+            }
+            logger.info(`WhatsApp closed (code: ${statusCode})`);
+          } catch { /* ignore */ }
+
+          if (isLoggedOut) {
+            // Use async IIFE — event handler is non-async so await is invalid here
+            (async () => {
+              logger.warn('WhatsApp logged out — clearing session for fresh QR');
               if (process.env.NODE_ENV === 'production') {
                 const { clearMongoSession } = require('./whatsappMongoAuth');
                 await clearMongoSession().catch(() => {});
@@ -72,12 +81,10 @@ const initWhatsApp = async (io) => {
                 const sessionPath = process.env.WA_SESSION_PATH || './wa_session';
                 if (fs.existsSync(sessionPath)) fs.rmSync(sessionPath, { recursive: true, force: true });
               }
-              shouldReconnect = true; // reconnect with fresh empty session → QR
-            }
-            logger.info(`WhatsApp closed (code: ${statusCode})`);
-          } catch { /* ignore */ }
-
-          if (shouldReconnect) {
+              logger.info('[WhatsApp] Session cleared — reconnecting in 5 s for fresh QR');
+              setTimeout(connect, 5000);
+            })();
+          } else if (shouldReconnect) {
             logger.info('WhatsApp reconnecting in 5 s...');
             setTimeout(connect, 5000);
           }
