@@ -70,7 +70,10 @@ const initWhatsApp = async (io) => {
           } catch { /* ignore */ }
 
           if (isLoggedOut) {
-            // Use async IIFE — event handler is non-async so await is invalid here
+            // Use async IIFE — event handler is non-async so await is invalid here.
+            // Must call initWhatsApp() not connect() — connect() closes over the old
+            // in-memory state object, so it would still send the stale credentials.
+            // initWhatsApp() reloads state fresh from storage after clearing.
             (async () => {
               logger.warn('WhatsApp logged out — clearing session for fresh QR');
               if (process.env.NODE_ENV === 'production') {
@@ -81,8 +84,8 @@ const initWhatsApp = async (io) => {
                 const sessionPath = process.env.WA_SESSION_PATH || './wa_session';
                 if (fs.existsSync(sessionPath)) fs.rmSync(sessionPath, { recursive: true, force: true });
               }
-              logger.info('[WhatsApp] Session cleared — reconnecting in 5 s for fresh QR');
-              setTimeout(connect, 5000);
+              logger.info('[WhatsApp] Session cleared — reinitialising in 5 s for fresh QR');
+              setTimeout(() => initWhatsApp(io_ref), 5000);
             })();
           } else if (shouldReconnect) {
             logger.info('WhatsApp reconnecting in 5 s...');
