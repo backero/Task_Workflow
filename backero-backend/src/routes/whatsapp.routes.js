@@ -8,7 +8,57 @@ const { runDailyReport } = require('../services/automation.service');
 const Task = require('../models/Task');
 const User = require('../models/User');
 
-// ── Public endpoint — no auth needed (only for initial WA setup) ──────────────
+// ── Public endpoints — no auth needed (only for initial WA setup) ─────────────
+// GET /api/whatsapp/setup — auto-refreshing HTML page for QR scanning
+router.get('/setup', (req, res) => {
+  const host = `${req.protocol}://${req.get('host')}`;
+  res.setHeader('Content-Type', 'text/html');
+  res.send(`<!DOCTYPE html><html><head><meta charset="utf-8">
+<title>Backero — WhatsApp Setup</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+  body{font-family:sans-serif;background:#0f172a;color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;margin:0;gap:20px}
+  h2{margin:0;font-size:1.3rem;color:#93c5fd}
+  #status{font-size:.9rem;color:#94a3b8;min-height:1.2em}
+  #qr{width:280px;height:280px;background:#1e293b;border-radius:12px;display:flex;align-items:center;justify-content:center;overflow:hidden}
+  #qr img{width:280px;height:280px;display:none}
+  #spinner{font-size:2rem;animation:spin 1s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .connected{color:#4ade80!important}
+</style></head><body>
+<h2>Backero WhatsApp Setup</h2>
+<div id="qr"><span id="spinner">⟳</span><img id="img" alt="QR Code"></div>
+<div id="status">Waiting for QR…</div>
+<script>
+const imgUrl='${host}/api/whatsapp/qr/image';
+function poll(){
+  fetch('/api/whatsapp/qr/image',{cache:'no-store'})
+    .then(r=>{
+      if(r.ok){
+        document.getElementById('img').src=imgUrl+'?t='+Date.now();
+        document.getElementById('img').style.display='block';
+        document.getElementById('spinner').style.display='none';
+        document.getElementById('status').textContent='Scan with WhatsApp → Linked Devices → Link a Device';
+        setTimeout(poll,5000);
+      } else {
+        return r.json().then(d=>{
+          document.getElementById('img').style.display='none';
+          document.getElementById('spinner').style.display='';
+          if(d.status==='connected'){
+            document.getElementById('status').className='connected';
+            document.getElementById('status').textContent='✅ WhatsApp Connected!';
+          } else {
+            document.getElementById('status').textContent=d.message||'Waiting…';
+            setTimeout(poll,3000);
+          }
+        });
+      }
+    }).catch(()=>setTimeout(poll,3000));
+}
+poll();
+</script></body></html>`);
+});
+
 // GET /api/whatsapp/qr/image — returns QR as PNG image
 router.get('/qr/image', asyncHandler(async (req, res) => {
   const qrString = getQRCode();
