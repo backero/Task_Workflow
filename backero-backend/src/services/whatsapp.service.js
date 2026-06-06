@@ -14,8 +14,10 @@ const initWhatsApp = async (io) => {
     const makeWASocket = baileys.default ?? baileys.makeWASocket;
     const { useMultiFileAuthState, DisconnectReason, fetchLatestBaileysVersion } = baileys;
 
-    // Use file-based auth — persists on Render disk (/mnt/wa_session) in prod
-    const sessionPath = process.env.WA_SESSION_PATH || './wa_session';
+    // Use /tmp for session — always writable, cleared on each deploy (fresh QR each time)
+    const fs = require('fs');
+    const sessionPath = '/tmp/wa_session';
+    if (!fs.existsSync(sessionPath)) fs.mkdirSync(sessionPath, { recursive: true });
     const { state, saveCreds } = await useMultiFileAuthState(sessionPath);
 
     const { version } = await fetchLatestBaileysVersion();
@@ -71,7 +73,7 @@ const initWhatsApp = async (io) => {
             (async () => {
               logger.warn('WhatsApp logged out — clearing session for fresh QR');
               const fs = require('fs');
-              const sessionPath = process.env.WA_SESSION_PATH || './wa_session';
+              const sessionPath = '/tmp/wa_session';
               if (fs.existsSync(sessionPath)) fs.rmSync(sessionPath, { recursive: true, force: true });
               logger.info('[WhatsApp] Session cleared — reinitialising in 5 s for fresh QR');
               setTimeout(() => initWhatsApp(io_ref), 5000);
@@ -321,7 +323,7 @@ const reinitWhatsApp = async () => {
 
   // Clear session files so Baileys starts fresh and generates a new QR
   const fs = require('fs');
-  const sessionPath = process.env.WA_SESSION_PATH || './wa_session';
+  const sessionPath = '/tmp/wa_session';
   if (fs.existsSync(sessionPath)) {
     fs.rmSync(sessionPath, { recursive: true, force: true });
     logger.info('[WhatsApp] Session cleared — fresh QR will be generated');
