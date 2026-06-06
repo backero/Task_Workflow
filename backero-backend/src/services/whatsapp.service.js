@@ -23,6 +23,19 @@ const initWhatsApp = async (io) => {
     const connect = async () => {
       connectionStatus = 'connecting';
 
+      // Safety net: if still connecting with no QR after 45s, the stored session
+      // is probably silently broken. Clear it and start fresh.
+      const connectWatchdog = setTimeout(() => {
+        if (connectionStatus === 'connecting') {
+          logger.warn('[WhatsApp] Stuck connecting for 45s — clearing session for fresh QR');
+          if (sock) { sock.ev.removeAllListeners(); sock = null; }
+          (async () => {
+            await clearMongoSession().catch(() => {});
+            setTimeout(() => initWhatsApp(io_ref), 2000);
+          })();
+        }
+      }, 45000);
+
       const noop = () => {};
       const silentLogger = { level: 'silent', info: noop, warn: noop, error: noop, debug: noop, trace: noop, fatal: noop, child: () => silentLogger };
 
@@ -49,36 +62,39 @@ const initWhatsApp = async (io) => {
         }
 
         if (connection === 'close') {
+          clearTimeout(connectWatchdog);
           sock = null;
           connectionStatus = 'disconnected';
 
-          let shouldReconnect = true;
-          let isLoggedOut = false;
-          try {
-            const statusCode = lastDisconnect?.error?.output?.statusCode;
-            if (statusCode === DisconnectReason.loggedOut) {
-              isLoggedOut = true;
-              shouldReconnect = false; // handled manually below after async clear
-            }
-            logger.info(`WhatsApp closed (code: ${statusCode})`);
-          } catch { /* ignore */ }
+          const statusCode = lastDisconnect?.error?.output?.statusCode;
+          logger.info(`WhatsApp closed (code: ${statusCode})`);
 
-          if (isLoggedOut) {
+          // These codes mean the stored session is irrecoverable — clear it and get a fresh QR.
+          // Reconnecting with the same stale credentials would loop forever without ever showing a QR.
+          const IRRECOVERABLE = new Set([
+            DisconnectReason.loggedOut,           // 401 — device removed from phone
+            DisconnectReason.badSession,          // 500 — corrupt / replaced session
+            DisconnectReason.multideviceMismatch, // 411 — device key mismatch
+            DisconnectReason.connectionReplaced,  // 440 — another client took over
+          ]);
+
+          if (IRRECOVERABLE.has(statusCode)) {
             // Use async IIFE — event handler is non-async so await is invalid here.
             // Must call initWhatsApp() not connect() — connect() closes over the old
             // in-memory state object, so it would still send the stale credentials.
             // initWhatsApp() reloads state fresh from MongoDB after clearing.
             (async () => {
-              logger.warn('WhatsApp logged out — clearing MongoDB session for fresh QR');
+              logger.warn(`WhatsApp irrecoverable disconnect (${statusCode}) — clearing MongoDB session for fresh QR`);
               await clearMongoSession().catch(() => {});
               logger.info('[WhatsApp] Session cleared — reinitialising in 5s for fresh QR');
               setTimeout(() => initWhatsApp(io_ref), 5000);
             })();
-          } else if (shouldReconnect) {
+          } else {
             logger.info('WhatsApp reconnecting in 5s...');
             setTimeout(connect, 5000);
           }
         } else if (connection === 'open') {
+          clearTimeout(connectWatchdog);
           qrCode = null;
           connectionStatus = 'connected';
           logger.info('✅ WhatsApp connected and ready to send messages');
