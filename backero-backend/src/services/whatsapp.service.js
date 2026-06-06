@@ -1,4 +1,5 @@
 const logger = require('../utils/logger');
+const { useMongoAuthState, clearMongoSession } = require('./whatsappMongoAuth');
 
 let sock = null;
 let qrCode = null;
@@ -12,13 +13,10 @@ const initWhatsApp = async (io) => {
     // @whiskeysockets/baileys is ESM-only — use dynamic import
     const baileys = await import('@whiskeysockets/baileys');
     const makeWASocket = baileys.default ?? baileys.makeWASocket;
-    const { useMultiFileAuthState, DisconnectReason, fetchLatestBaileysVersion } = baileys;
+    const { DisconnectReason, fetchLatestBaileysVersion } = baileys;
 
-    // Use /tmp for session — always writable, cleared on each deploy (fresh QR each time)
-    const fs = require('fs');
-    const sessionPath = '/tmp/wa_session';
-    if (!fs.existsSync(sessionPath)) fs.mkdirSync(sessionPath, { recursive: true });
-    const { state, saveCreds } = await useMultiFileAuthState(sessionPath);
+    // MongoDB auth persists across Render restarts; file-based /tmp is wiped on each deploy
+    const { state, saveCreds } = await useMongoAuthState(baileys);
 
     const { version } = await fetchLatestBaileysVersion();
 
@@ -69,17 +67,15 @@ const initWhatsApp = async (io) => {
             // Use async IIFE — event handler is non-async so await is invalid here.
             // Must call initWhatsApp() not connect() — connect() closes over the old
             // in-memory state object, so it would still send the stale credentials.
-            // initWhatsApp() reloads state fresh from storage after clearing.
+            // initWhatsApp() reloads state fresh from MongoDB after clearing.
             (async () => {
-              logger.warn('WhatsApp logged out — clearing session for fresh QR');
-              const fs = require('fs');
-              const sessionPath = '/tmp/wa_session';
-              if (fs.existsSync(sessionPath)) fs.rmSync(sessionPath, { recursive: true, force: true });
-              logger.info('[WhatsApp] Session cleared — reinitialising in 5 s for fresh QR');
+              logger.warn('WhatsApp logged out — clearing MongoDB session for fresh QR');
+              await clearMongoSession().catch(() => {});
+              logger.info('[WhatsApp] Session cleared — reinitialising in 5s for fresh QR');
               setTimeout(() => initWhatsApp(io_ref), 5000);
             })();
           } else if (shouldReconnect) {
-            logger.info('WhatsApp reconnecting in 5 s...');
+            logger.info('WhatsApp reconnecting in 5s...');
             setTimeout(connect, 5000);
           }
         } else if (connection === 'open') {
@@ -321,13 +317,9 @@ const reinitWhatsApp = async () => {
     }
   } catch {}
 
-  // Clear session files so Baileys starts fresh and generates a new QR
-  const fs = require('fs');
-  const sessionPath = '/tmp/wa_session';
-  if (fs.existsSync(sessionPath)) {
-    fs.rmSync(sessionPath, { recursive: true, force: true });
-    logger.info('[WhatsApp] Session cleared — fresh QR will be generated');
-  }
+  // Clear MongoDB session so Baileys starts fresh and generates a new QR
+  await clearMongoSession().catch(() => {});
+  logger.info('[WhatsApp] MongoDB session cleared — fresh QR will be generated');
 
   qrCode = null;
   connectionStatus = 'disconnected';
