@@ -14,15 +14,9 @@ const initWhatsApp = async (io) => {
     const makeWASocket = baileys.default ?? baileys.makeWASocket;
     const { useMultiFileAuthState, DisconnectReason, fetchLatestBaileysVersion } = baileys;
 
-    // Use MongoDB auth in production so session survives Render restarts
-    let state, saveCreds;
-    if (process.env.NODE_ENV === 'production') {
-      const { useMongoAuthState } = require('./whatsappMongoAuth');
-      ({ state, saveCreds } = await useMongoAuthState(baileys));
-    } else {
-      const sessionPath = process.env.WA_SESSION_PATH || './wa_session';
-      ({ state, saveCreds } = await useMultiFileAuthState(sessionPath));
-    }
+    // Use file-based auth — persists on Render disk (/mnt/wa_session) in prod
+    const sessionPath = process.env.WA_SESSION_PATH || './wa_session';
+    const { state, saveCreds } = await useMultiFileAuthState(sessionPath);
 
     const { version } = await fetchLatestBaileysVersion();
 
@@ -76,14 +70,9 @@ const initWhatsApp = async (io) => {
             // initWhatsApp() reloads state fresh from storage after clearing.
             (async () => {
               logger.warn('WhatsApp logged out — clearing session for fresh QR');
-              if (process.env.NODE_ENV === 'production') {
-                const { clearMongoSession } = require('./whatsappMongoAuth');
-                await clearMongoSession().catch(() => {});
-              } else {
-                const fs = require('fs');
-                const sessionPath = process.env.WA_SESSION_PATH || './wa_session';
-                if (fs.existsSync(sessionPath)) fs.rmSync(sessionPath, { recursive: true, force: true });
-              }
+              const fs = require('fs');
+              const sessionPath = process.env.WA_SESSION_PATH || './wa_session';
+              if (fs.existsSync(sessionPath)) fs.rmSync(sessionPath, { recursive: true, force: true });
               logger.info('[WhatsApp] Session cleared — reinitialising in 5 s for fresh QR');
               setTimeout(() => initWhatsApp(io_ref), 5000);
             })();
@@ -330,18 +319,12 @@ const reinitWhatsApp = async () => {
     }
   } catch {}
 
-  // Clear stale session so Baileys starts fresh and generates a new QR
-  if (process.env.NODE_ENV === 'production') {
-    const { clearMongoSession } = require('./whatsappMongoAuth');
-    await clearMongoSession().catch(() => {});
-    logger.info('[WhatsApp] MongoDB session cleared — fresh QR will be generated');
-  } else {
-    const fs = require('fs');
-    const sessionPath = process.env.WA_SESSION_PATH || './wa_session';
-    if (fs.existsSync(sessionPath)) {
-      fs.rmSync(sessionPath, { recursive: true, force: true });
-      logger.info('[WhatsApp] Dev session cleared — fresh QR will be generated');
-    }
+  // Clear session files so Baileys starts fresh and generates a new QR
+  const fs = require('fs');
+  const sessionPath = process.env.WA_SESSION_PATH || './wa_session';
+  if (fs.existsSync(sessionPath)) {
+    fs.rmSync(sessionPath, { recursive: true, force: true });
+    logger.info('[WhatsApp] Session cleared — fresh QR will be generated');
   }
 
   qrCode = null;
