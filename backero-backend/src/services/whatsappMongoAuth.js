@@ -71,4 +71,9 @@ const useMongoAuthState = async (baileys) => {
   return { state, saveCreds };
 };
 
-module.exports = { useMongoAuthState };
+const clearMongoSession = async () => {
+  await waitForMongoose();
+  await WASession.deleteMany({});
+};
+
+module.exports = { useMongoAuthState, clearMongoSession };

@@ -62,8 +62,17 @@ const initWhatsApp = async (io) => {
           try {
             const statusCode = lastDisconnect?.error?.output?.statusCode;
             if (statusCode === DisconnectReason.loggedOut) {
-              logger.warn('WhatsApp logged out — re-scan QR at GET /api/whatsapp/qr');
-              shouldReconnect = false;
+              logger.warn('WhatsApp logged out — clearing session and regenerating QR');
+              // Auto-clear stale session so next connect produces a fresh QR
+              if (process.env.NODE_ENV === 'production') {
+                const { clearMongoSession } = require('./whatsappMongoAuth');
+                await clearMongoSession().catch(() => {});
+              } else {
+                const fs = require('fs');
+                const sessionPath = process.env.WA_SESSION_PATH || './wa_session';
+                if (fs.existsSync(sessionPath)) fs.rmSync(sessionPath, { recursive: true, force: true });
+              }
+              shouldReconnect = true; // reconnect with fresh empty session → QR
             }
             logger.info(`WhatsApp closed (code: ${statusCode})`);
           } catch { /* ignore */ }
@@ -311,8 +320,12 @@ const reinitWhatsApp = async () => {
     }
   } catch {}
 
-  // Clear stale dev session files so a fresh QR is generated
-  if (process.env.NODE_ENV !== 'production') {
+  // Clear stale session so Baileys starts fresh and generates a new QR
+  if (process.env.NODE_ENV === 'production') {
+    const { clearMongoSession } = require('./whatsappMongoAuth');
+    await clearMongoSession().catch(() => {});
+    logger.info('[WhatsApp] MongoDB session cleared — fresh QR will be generated');
+  } else {
     const fs = require('fs');
     const sessionPath = process.env.WA_SESSION_PATH || './wa_session';
     if (fs.existsSync(sessionPath)) {
