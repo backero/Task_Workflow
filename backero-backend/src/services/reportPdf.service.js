@@ -58,6 +58,7 @@ const generateDailyReportPDF = async (reportData) => {
     departmentStats = [],
     marketplaceToday = null,
     platformListings = [],
+    platformPlanSummary = [],
   } = reportData;
 
   const reportsDir = path.join(process.cwd(), 'reports', 'daily');
@@ -195,6 +196,68 @@ const generateDailyReportPDF = async (reportData) => {
         statBox(doc, p._id || '—', p.count, 40 + i * (pw + 4), y, pw, C.accent);
       });
       y += 62;
+    }
+
+    // ── MARKETPLACE PLATFORM PLANS ────────────────────────────────────────────
+    if (platformPlanSummary.length > 0) {
+      y += 8;
+      if (y > 680) { y = newPage(doc, orgName, date); }
+      y = sectionHeader(doc, 'MARKETPLACE PLATFORM PLANS — TODAY\'S FOCUS', y);
+
+      const planCols = [
+        { label: 'Platform',   x: 40,  w: 72  },
+        { label: 'Week',       x: 112, w: 32  },
+        { label: 'Week Name',  x: 144, w: 70  },
+        { label: 'Focus',      x: 214, w: 120 },
+        { label: 'Must (Non-Neg)', x: 334, w: 110 },
+        { label: "Today's Tasks", x: 444, w: 64  },
+      ];
+
+      // Table header row
+      doc.rect(40, y, 515, 18).fill(C.primary);
+      planCols.forEach((c) => {
+        doc.fillColor(C.white).fontSize(7).font('Helvetica-Bold')
+           .text(c.label, c.x + 3, y + 5, { width: c.w - 4, lineBreak: false });
+      });
+      y += 18;
+
+      platformPlanSummary.forEach((p, i) => {
+        if (y > 760) { y = newPage(doc, orgName, date); }
+        const rowHeight = 20;
+        const bg = i % 2 === 0 ? C.white : C.lightGray;
+        doc.rect(40, y, 515, rowHeight).fill(bg).stroke(C.border);
+
+        const taskSummary = p.totalTodayTasks === 0
+          ? 'No tasks'
+          : `${p.checkedCount}/${p.totalTodayTasks} done`;
+
+        [
+          { col: planCols[0], val: p.platform,    color: C.accent,   bold: true  },
+          { col: planCols[1], val: `W${p.currentWeek || '—'}/${p.totalWeeks}`, color: C.purple },
+          { col: planCols[2], val: p.weekName || '—',  color: C.primary },
+          { col: planCols[3], val: p.focus || '—',     color: C.gray    },
+          { col: planCols[4], val: p.mustNonNeg || '—',color: C.warning },
+          { col: planCols[5], val: taskSummary,         color: p.checkedCount === p.totalTodayTasks && p.totalTodayTasks > 0 ? C.success : C.danger },
+        ].forEach((cell) => {
+          doc.fillColor(cell.color).fontSize(7).font(cell.bold ? 'Helvetica-Bold' : 'Helvetica')
+             .text(cell.val, cell.col.x + 3, y + 6, { width: cell.col.w - 6, lineBreak: false, ellipsis: true });
+        });
+        y += rowHeight;
+
+        // Show today's tasks as sub-rows if any
+        if (p.todayTasks.length > 0) {
+          p.todayTasks.forEach((task) => {
+            if (y > 760) { y = newPage(doc, orgName, date); }
+            doc.rect(40, y, 515, 14).fill('#f8faff').stroke(C.border);
+            doc.fillColor(C.gray).fontSize(6).font('Helvetica')
+               .text('↳', 52, y + 4, { width: 10, lineBreak: false });
+            doc.fillColor(C.primary).fontSize(6.5).font('Helvetica')
+               .text(task.text || '', 64, y + 4, { width: 430, lineBreak: false, ellipsis: true });
+            y += 14;
+          });
+        }
+      });
+      y += 4;
     }
 
     // ── FINANCE ───────────────────────────────────────────────────────────────

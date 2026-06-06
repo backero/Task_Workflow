@@ -310,6 +310,17 @@ const reinitWhatsApp = async () => {
       sock = null;
     }
   } catch {}
+
+  // Clear stale dev session files so a fresh QR is generated
+  if (process.env.NODE_ENV !== 'production') {
+    const fs = require('fs');
+    const sessionPath = process.env.WA_SESSION_PATH || './wa_session';
+    if (fs.existsSync(sessionPath)) {
+      fs.rmSync(sessionPath, { recursive: true, force: true });
+      logger.info('[WhatsApp] Dev session cleared — fresh QR will be generated');
+    }
+  }
+
   qrCode = null;
   connectionStatus = 'disconnected';
   await initWhatsApp(io_ref);

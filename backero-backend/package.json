@@ -11,7 +11,7 @@
   "dependencies": {
     "@anthropic-ai/sdk": "^0.97.1",
     "@google/generative-ai": "^0.24.1",
-    "@whiskeysockets/baileys": "^7.0.0-rc10",
+    "@whiskeysockets/baileys": "^7.0.0-rc13",
     "axios": "^1.6.0",
     "bcryptjs": "^2.4.3",
     "bull": "^4.12.2",

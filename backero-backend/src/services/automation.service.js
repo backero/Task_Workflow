@@ -6,6 +6,8 @@ const Transaction = require('../models/Transaction');
 const User = require('../models/User');
 const Organization = require('../models/Organization');
 const MarketplaceDaily = require('../models/MarketplaceDaily');
+const MarketplacePlan = require('../models/MarketplacePlan');
+const MarketplacePlanProgress = require('../models/MarketplacePlanProgress');
 const { createNotification, bulkCreateNotifications } = require('./notification.service');
 const { sendTaskOverdueEmployee, sendTaskOverdueManager, sendDailyReport, sendDailyReportWithPDF } = require('./whatsapp.service');
 const { generateDailyReportPDF } = require('./reportPdf.service');
@@ -370,6 +372,8 @@ const runDailyReport = async (targetPhones = null) => {
       departmentStats,
       marketplaceToday,
       platformListings,
+      marketplacePlans,
+      platformProgress,
     ] = await Promise.all([
       safe(Task.countDocuments({ organizationId: org._id, status: 'Completed', completedAt: { $gte: today } })),
       safe(Task.countDocuments({ organizationId: org._id, isOverdue: true })),
@@ -423,11 +427,43 @@ const runDailyReport = async (targetPhones = null) => {
         { $group: { _id: '$marketplaceListings.platform', count: { $sum: 1 } } },
         { $sort: { count: -1 } },
       ])),
+      // Marketplace plans (all platforms)
+      safe(MarketplacePlan.find({ organizationId: org._id }).lean()),
+      // Latest progress per platform (highest week with data)
+      safe(MarketplacePlanProgress.aggregate([
+        { $match: { organizationId: org._id } },
+        { $sort: { week: -1 } },
+        { $group: { _id: '$platform', latestDoc: { $first: '$$ROOT' } } },
+      ])),
     ]);
 
     const topP = (topPerformer || [])[0];
     const topPerformerName = topP?.user ? `${topP.user.firstName} ${topP.user.lastName}` : null;
     const reportDate = today.toLocaleDateString('en-IN', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' });
+
+    const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    const todayDayKey = dayNames[today.getDay()];
+    const progressByPlatform = {};
+    for (const p of (platformProgress || [])) progressByPlatform[p._id] = p.latestDoc;
+
+    const platformPlanSummary = (marketplacePlans || []).map((plan) => {
+      const prog = progressByPlatform[plan.platform];
+      const currentWeekNum = prog ? prog.week : (plan.weeks.length > 0 ? 1 : null);
+      const weekData = plan.weeks.find((w) => w.week === currentWeekNum) || plan.weeks[0] || null;
+      const todayTasks = weekData?.specific?.[todayDayKey] || [];
+      const checkedIds = prog?.days?.[todayDayKey]?.checked || [];
+      return {
+        platform: plan.platform,
+        currentWeek: currentWeekNum,
+        weekName: weekData?.name || '',
+        focus: weekData?.focus || '',
+        mustNonNeg: weekData?.mustNonNeg || '',
+        totalWeeks: plan.weeks.length,
+        todayTasks,
+        checkedCount: checkedIds.length,
+        totalTodayTasks: todayTasks.length,
+      };
+    });
 
     const reportData = {
       orgName: org.name,
@@ -449,6 +485,7 @@ const runDailyReport = async (targetPhones = null) => {
       departmentStats: departmentStats || [],
       marketplaceToday: marketplaceToday || null,
       platformListings: platformListings || [],
+      platformPlanSummary,
     };
 
     // Generate PDF (best-effort — don't block sending if PDF fails)

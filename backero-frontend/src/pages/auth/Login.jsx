@@ -35,11 +35,18 @@ export default function Login() {
     if (phone.length !== 10) return toast.error('Enter a valid 10-digit mobile number');
     setLoading(true);
     try {
-      await api.post('/auth/send-login-otp', { phone: fullPhone() });
+      const res = await api.post('/auth/send-login-otp', { phone: fullPhone() });
+      const devOtp = res.data?._devOtp;
       setStep(2);
       setResendTimer(60);
-      toast.success('OTP sent to your WhatsApp!');
-      setTimeout(() => otpRefs.current[0]?.focus(), 100);
+      if (devOtp) {
+        const digits = String(devOtp).split('');
+        setOtp(digits);
+        setTimeout(() => submitOTP(String(devOtp)), 300);
+      } else {
+        toast.success('OTP sent to your WhatsApp!');
+        setTimeout(() => otpRefs.current[0]?.focus(), 100);
+      }
     } catch (err) {
       if (!err.response) {
         toast.error('Cannot reach server. Please check your internet connection and try again.');

@@ -158,7 +158,15 @@ exports.sendLoginOTP = asyncHandler(async (req, res) => {
   if (!phone) return sendError(res, 'Phone number is required.', 400);
 
   const digits = phone.replace(/\D/g, '').slice(-10);
-  const user = await User.findOne({ phone: new RegExp(digits + '$') }).select('+otp +otpExpiry');
+  // Left-anchored regexes allow MongoDB to use the phone index
+  const user = await User.findOne({
+    $or: [
+      { phone: new RegExp(`^\\+91${digits}$`) },
+      { phone: new RegExp(`^91${digits}$`) },
+      { phone: new RegExp(`^0${digits}$`) },
+      { phone: new RegExp(`^${digits}$`) },
+    ],
+  }).select('+otp +otpExpiry');
   if (!user) return sendError(res, 'No account found with this mobile number.', 404);
   if (!user.isActive) return sendError(res, 'Your account has been deactivated.', 403);
 
@@ -181,9 +189,18 @@ exports.sendLoginOTP = asyncHandler(async (req, res) => {
   const devPayload = process.env.NODE_ENV !== 'production' ? { _devOtp: otp } : {};
   sendSuccess(res, devPayload, 'OTP sent to your mobile number');
 
+  // Retry up to 4 times (0s, 5s, 15s, 30s) to handle WhatsApp cold-start reconnection
   const { sendMessage } = require('../services/whatsapp.service');
-  sendMessage(phone, `🔐 *Backero Login OTP*\n\nYour OTP is: *${otp}*\n\nValid for 10 minutes. Do not share this with anyone.`)
-    .catch(e => logger.error('[OTP] WhatsApp send failed:', e.message));
+  const otpMsg = `🔐 *Backero Login OTP*\n\nYour OTP is: *${otp}*\n\nValid for 10 minutes. Do not share this with anyone.`;
+  (async () => {
+    const delays = [0, 5000, 15000, 30000];
+    for (const delay of delays) {
+      if (delay > 0) await new Promise((r) => setTimeout(r, delay));
+      const sent = await sendMessage(phone, otpMsg).catch(() => false);
+      if (sent) return;
+    }
+    logger.error(`[OTP] WhatsApp delivery failed for ${phone} after all retries`);
+  })();
 });
 
 // POST /api/auth/verify-login-otp  (public — no auth required)
@@ -195,7 +212,12 @@ exports.verifyLoginOTP = asyncHandler(async (req, res) => {
   const hashedOtp = crypto.createHash('sha256').update(String(otp)).digest('hex');
 
   const user = await User.findOne({
-    phone: new RegExp(digits + '$'),
+    $or: [
+      { phone: new RegExp(`^\\+91${digits}$`) },
+      { phone: new RegExp(`^91${digits}$`) },
+      { phone: new RegExp(`^0${digits}$`) },
+      { phone: new RegExp(`^${digits}$`) },
+    ],
     otp: hashedOtp,
     otpExpiry: { $gt: Date.now() },
   }).select('+otp +otpExpiry +refreshToken').populate('organizationId', 'name logo isActive plan');
