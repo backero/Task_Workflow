@@ -51,6 +51,7 @@ const organizationSchema = new mongoose.Schema({
     accountName: { type: String },
     branch: { type: String },
     upiId: { type: String },
+    upiQrUrl: { type: String },
   },
   invoicePrefix: { type: String, default: 'INV' },
   invoiceTerms: { type: String, default: 'Payment due within 30 days of invoice date. Late payments attract 2% interest per month.' },

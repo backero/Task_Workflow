@@ -7,6 +7,7 @@ import {
   BanknotesIcon, ArrowDownTrayIcon, CubeIcon, MagnifyingGlassIcon,
   ArrowLeftIcon,
 } from '@heroicons/react/24/outline';
+import QRCode from 'react-qr-code';
 import api from '../../api/axios';
 import backeroLogo from '../../assets/Backero.png';
 import { useAuthStore } from '../../store/useAuthStore';
@@ -54,6 +55,12 @@ function printInvoice(inv, org, user) {
   const userPhone = user?.phone || user?.mobile || '';
   const userEmail = user?.email || '';
   const sigName = inv.signatoryName || user?.name || '';
+  const payAmt = inv.balanceAmount > 0 ? inv.balanceAmount : inv.totalAmount;
+  const upiUri = bd.upiId
+    ? `upi://pay?pa=${bd.upiId}&pn=${encodeURIComponent(bd.accountName || BACKERO.name)}&am=${payAmt}&tn=${inv.invoiceNumber}&cu=INR`
+    : null;
+  const qrImgUrl = bd.upiQrUrl
+    || (upiUri ? `https://chart.googleapis.com/chart?chs=120x120&cht=qr&chl=${encodeURIComponent(upiUri)}` : null);
 
   const win = window.open('', '_blank', 'width=900,height=700');
   win.document.write(`<!DOCTYPE html>
@@ -179,7 +186,8 @@ function printInvoice(inv, org, user) {
   ${inv.terms ? `<div class="terms"><h4>Terms &amp; Conditions</h4><p>${inv.terms}</p></div>` : ''}
 
   <div class="footer">
-    <div class="bank">
+    <div class="bank" style="display:flex;gap:20px;align-items:flex-end">
+      <div>
       ${(bd.bankName || bd.accountNumber) ? `
         <h4>Bank Details</h4>
         ${bd.accountName ? `<p>Account Name: <span class="val">${bd.accountName}</span></p>` : ''}
@@ -188,6 +196,12 @@ function printInvoice(inv, org, user) {
         ${bd.ifscCode ? `<p>IFSC: <span class="val">${bd.ifscCode}</span></p>` : ''}
         ${bd.upiId ? `<p>UPI: <span class="val">${bd.upiId}</span></p>` : ''}
       ` : '<p style="color:#94a3b8;font-size:11px">No bank details configured</p>'}
+      </div>
+      ${qrImgUrl ? `
+      <div style="text-align:center;flex-shrink:0">
+        <img src="${qrImgUrl}" width="110" height="110" style="display:block;border:1px solid #e2e8f0;border-radius:6px;padding:4px;background:#fff" alt="UPI QR" />
+        <p style="font-size:9px;color:#64748b;margin-top:4px;font-weight:600">Scan to Pay via UPI</p>
+      </div>` : ''}
     </div>
     <div class="sig">
       ${org?.signatureUrl
@@ -780,21 +794,42 @@ function InvoicePreview({ inv, orgData, onEdit, onClose }) {
 
           {/* Footer: Bank + Signature */}
           <div className="flex items-end justify-between pt-5 border-t border-gray-200">
-            <div>
-              {(org?.bankDetails?.bankName || org?.bankDetails?.accountNumber) ? (
-                <>
-                  <p className="text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">Bank Details</p>
-                  <div className="text-sm text-gray-600 space-y-0.5">
-                    {org.bankDetails.accountName && <p><span className="text-gray-400">A/c Name:</span> <strong>{org.bankDetails.accountName}</strong></p>}
-                    {org.bankDetails.bankName && <p><span className="text-gray-400">Bank:</span> {org.bankDetails.bankName}{org.bankDetails.branch ? ` — ${org.bankDetails.branch}` : ''}</p>}
-                    {org.bankDetails.accountNumber && <p><span className="text-gray-400">A/c No:</span> <strong className="font-mono">{org.bankDetails.accountNumber}</strong></p>}
-                    {org.bankDetails.ifscCode && <p><span className="text-gray-400">IFSC:</span> {org.bankDetails.ifscCode}</p>}
-                    {org.bankDetails.upiId && <p><span className="text-gray-400">UPI:</span> {org.bankDetails.upiId}</p>}
+            <div className="flex gap-5 items-end">
+              <div>
+                {(org?.bankDetails?.bankName || org?.bankDetails?.accountNumber) ? (
+                  <>
+                    <p className="text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">Bank Details</p>
+                    <div className="text-sm text-gray-600 space-y-0.5">
+                      {org.bankDetails.accountName && <p><span className="text-gray-400">A/c Name:</span> <strong>{org.bankDetails.accountName}</strong></p>}
+                      {org.bankDetails.bankName && <p><span className="text-gray-400">Bank:</span> {org.bankDetails.bankName}{org.bankDetails.branch ? ` — ${org.bankDetails.branch}` : ''}</p>}
+                      {org.bankDetails.accountNumber && <p><span className="text-gray-400">A/c No:</span> <strong className="font-mono">{org.bankDetails.accountNumber}</strong></p>}
+                      {org.bankDetails.ifscCode && <p><span className="text-gray-400">IFSC:</span> {org.bankDetails.ifscCode}</p>}
+                      {org.bankDetails.upiId && <p><span className="text-gray-400">UPI:</span> {org.bankDetails.upiId}</p>}
+                    </div>
+                  </>
+                ) : (
+                  <p className="text-xs text-gray-400 italic">Configure bank details in Settings → Invoice</p>
+                )}
+              </div>
+              {(() => {
+                const bd = org?.bankDetails || {};
+                if (!bd.upiId && !bd.upiQrUrl) return null;
+                const payAmt = inv.balanceAmount > 0 ? inv.balanceAmount : inv.totalAmount;
+                const upiUri = bd.upiId
+                  ? `upi://pay?pa=${bd.upiId}&pn=${encodeURIComponent(bd.accountName || BACKERO.name)}&am=${payAmt}&tn=${inv.invoiceNumber}&cu=INR`
+                  : null;
+                return (
+                  <div className="text-center flex-shrink-0">
+                    <div className="border border-gray-200 rounded-lg p-1.5 bg-white inline-block">
+                      {bd.upiQrUrl
+                        ? <img src={bd.upiQrUrl} alt="UPI QR" className="w-24 h-24 object-contain" />
+                        : <QRCode value={upiUri} size={96} />
+                      }
+                    </div>
+                    <p className="text-xs text-gray-400 mt-1 font-medium">Scan to Pay via UPI</p>
                   </div>
-                </>
-              ) : (
-                <p className="text-xs text-gray-400 italic">Configure bank details in Settings → Invoice</p>
-              )}
+                );
+              })()}
             </div>
             <div className="text-center min-w-[200px]">
               {org?.signatureUrl

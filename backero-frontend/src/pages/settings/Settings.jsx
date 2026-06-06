@@ -10,6 +10,7 @@ export default function Settings() {
   const [activeTab, setActiveTab] = useState('profile');
   const [sigPreview, setSigPreview] = useState('');
   const [logoPreview, setLogoPreview] = useState('');
+  const [qrPreview, setQrPreview] = useState('');
   const queryClient = useQueryClient();
 
   const { register, handleSubmit } = useForm({ defaultValues: { firstName: user?.firstName, lastName: user?.lastName, phone: user?.phone, designation: user?.designation } });
@@ -36,16 +37,20 @@ export default function Settings() {
         accountName: b.accountName || '',
         branch: b.branch || '',
         upiId: b.upiId || '',
+        upiQrUrl: b.upiQrUrl || '',
       });
       setSigPreview(orgData.signatureUrl || '');
       setLogoPreview(orgData.logo || '');
+      setQrPreview(b.upiQrUrl || '');
     }
   }, [orgData, activeTab, resetInv]);
 
   const sigUrl = watchInv ? watchInv('signatureUrl') : '';
   const logoUrl = watchInv ? watchInv('logo') : '';
+  const qrUrl = watchInv ? watchInv('upiQrUrl') : '';
   useEffect(() => { setSigPreview(sigUrl || ''); }, [sigUrl]);
   useEffect(() => { setLogoPreview(logoUrl || ''); }, [logoUrl]);
+  useEffect(() => { setQrPreview(qrUrl || ''); }, [qrUrl]);
 
   const profileMutation = useMutation({
     mutationFn: (data) => api.patch('/users/me/profile', data),
@@ -72,6 +77,7 @@ export default function Settings() {
         accountName: data.accountName,
         branch: data.branch,
         upiId: data.upiId,
+        upiQrUrl: data.upiQrUrl,
       },
     }),
     onSuccess: () => { queryClient.invalidateQueries(['org-me']); toast.success('Invoice settings saved'); },
@@ -223,6 +229,25 @@ export default function Settings() {
               <div><label className="label">Branch</label><input {...regInv('branch')} className="input" placeholder="Koramangala, Bengaluru" /></div>
               <div><label className="label">UPI ID</label><input {...regInv('upiId')} className="input" placeholder="company@upi" /></div>
             </div>
+
+            <div>
+              <label className="label">UPI QR Code Image URL</label>
+              <input {...regInv('upiQrUrl')} className="input" placeholder="https://example.com/upi-qr.png" />
+              <p className="text-xs text-gray-400 mt-1">Upload your GPay / PhonePe / bank QR image and paste the URL here. This QR will appear on all invoices.</p>
+            </div>
+            {qrPreview && (
+              <div className="mt-2">
+                <p className="text-xs text-gray-400 mb-2">QR Preview:</p>
+                <div className="border border-gray-200 dark:border-[#1b2e4a] rounded-lg p-3 inline-block bg-white">
+                  <img
+                    src={qrPreview}
+                    alt="UPI QR preview"
+                    className="w-28 h-28 object-contain"
+                    onError={(e) => { e.target.style.display = 'none'; }}
+                  />
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Signature */}
