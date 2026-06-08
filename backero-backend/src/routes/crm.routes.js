@@ -2,7 +2,7 @@ const router = require('express').Router();
 const ctrl = require('../controllers/crm.controller');
 const { authenticate } = require('../middleware/auth.middleware');
 const { orgIsolation } = require('../middleware/orgIsolation.middleware');
-const { authorizeAdminOrAbove } = require('../middleware/role.middleware');
+const { authorizeAdminOrAbove, authorizeManagerOrAbove } = require('../middleware/role.middleware');
 const { asyncHandler, sendSuccess, sendError } = require('../utils/helpers');
 const Organization = require('../models/Organization');
 const { syncLeadsFromSheet, previewSheet, hasWriteCredentials } = require('../services/googleSheets.service');
@@ -91,13 +91,13 @@ router.get('/leads/pipeline', ctrl.getPipeline);
 router.get('/leads/analytics', ctrl.getAnalytics);
 router.get('/leads/by-task/:taskId', ctrl.getLeadByTask);
 router.get('/leads/:id', ctrl.getLead);
-router.post('/leads', authorizeAdminOrAbove, ctrl.createLead);
-router.put('/leads/:id', authorizeAdminOrAbove, ctrl.updateLead);
-router.post('/leads/:id/followup', authorizeAdminOrAbove, ctrl.addFollowUp);
-router.post('/leads/:id/assign', authorizeAdminOrAbove, ctrl.assignLead);
-router.post('/leads/:id/convert-to-task', authorizeAdminOrAbove, ctrl.convertToTask);
-router.post('/leads/:id/send-update', authorizeAdminOrAbove, ctrl.sendClientUpdate);
-router.delete('/leads/:id', authorizeAdminOrAbove, ctrl.deleteLead);
+router.post('/leads', authorizeManagerOrAbove, ctrl.createLead);
+router.put('/leads/:id', authorizeManagerOrAbove, ctrl.updateLead);
+router.post('/leads/:id/followup', authorizeManagerOrAbove, ctrl.addFollowUp);
+router.post('/leads/:id/assign', authorizeManagerOrAbove, ctrl.assignLead);
+router.post('/leads/:id/convert-to-task', authorizeManagerOrAbove, ctrl.convertToTask);
+router.post('/leads/:id/send-update', authorizeManagerOrAbove, ctrl.sendClientUpdate);
+router.delete('/leads/:id', authorizeManagerOrAbove, ctrl.deleteLead);
 
 // ── Technical Queries ─────────────────────────────────────────────────────────
 
