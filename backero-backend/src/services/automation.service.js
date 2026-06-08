@@ -9,7 +9,8 @@ const MarketplaceDaily = require('../models/MarketplaceDaily');
 const MarketplacePlan = require('../models/MarketplacePlan');
 const MarketplacePlanProgress = require('../models/MarketplacePlanProgress');
 const { createNotification, bulkCreateNotifications } = require('./notification.service');
-const { sendTaskOverdueEmployee, sendTaskOverdueManager, sendDailyReport, sendDailyReportWithPDF } = require('./whatsapp.service');
+const { sendTaskOverdueEmployee, sendTaskOverdueManager, sendTaskOverdueGroup, sendDailyReport, sendDailyReportWithPDF } = require('./whatsapp.service');
+const Department = require('../models/Department');
 const { generateDailyReportPDF } = require('./reportPdf.service');
 const { autoSyncAllOrgs } = require('./googleSheets.service');
 const { TASK_STATUS, ROLES, ROLE_HIERARCHY, SOCKET_EVENTS } = require('../utils/constants');
@@ -127,7 +128,20 @@ const runOverdueTaskCheck = async () => {
       }
     }
 
-    // 3. WhatsApp to ALL admins/founders for critical/urgent tasks
+    // 3. WhatsApp to department group
+    const deptDoc = await Department.findOne({
+      organizationId: task.organizationId,
+      $or: [{ name: task.department }, { code: task.department }],
+    }).select('whatsappGroupId');
+    if (deptDoc?.whatsappGroupId) {
+      await sendTaskOverdueGroup(deptDoc.whatsappGroupId, {
+        title: task.title, employeeName,
+        department: task.department, dueDate: task.dueDate,
+        priority: task.priority, overdueCount: 1, taskId: task._id,
+      });
+    }
+
+    // 4. WhatsApp to ALL admins/founders for critical/urgent tasks
     if (task.priority === 'critical' || task.priority === 'urgent') {
       await escalateToFounders(task, employeeName);
     }
@@ -185,6 +199,19 @@ const runOverdueTaskCheck = async () => {
           department: task.department, dueDate: task.dueDate, priority: task.priority,
         });
       }
+    }
+
+    // Department group — every repeat reminder
+    const deptDoc2 = await Department.findOne({
+      organizationId: task.organizationId,
+      $or: [{ name: task.department }, { code: task.department }],
+    }).select('whatsappGroupId');
+    if (deptDoc2?.whatsappGroupId) {
+      await sendTaskOverdueGroup(deptDoc2.whatsappGroupId, {
+        title: task.title, employeeName,
+        department: task.department, dueDate: task.dueDate,
+        priority: task.priority, overdueCount: task.overdueNotificationsSent, taskId: task._id,
+      });
     }
 
     // Escalate to admins after 3 reminders

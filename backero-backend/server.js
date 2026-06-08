@@ -175,7 +175,13 @@ if (process.env.NODE_ENV !== 'test') {
   const { initWhatsApp } = require('./src/services/whatsapp.service');
   const { setSocketIO } = require('./src/services/workflowEngine.service');
   startAutomationEngine(io);
-  initWhatsApp(io);
+  // Skip WhatsApp on local when WHATSAPP_ENABLED=false — prevents local from fighting
+  // with Render over the same MongoDB session (causes 440 disconnect loop on both)
+  if (process.env.WHATSAPP_ENABLED !== 'false') {
+    initWhatsApp(io);
+  } else {
+    logger.info('[WhatsApp] Disabled via WHATSAPP_ENABLED=false — skipping init');
+  }
   setSocketIO(io);
 }
 

@@ -137,10 +137,26 @@ const sendMessage = async (phone, message) => {
 
 // ── Group join via invite link ────────────────────────────────────────────────
 const joinGroupViaLink = async (inviteLink) => {
-  if (!sock || connectionStatus !== 'connected') throw new Error('WhatsApp not connected');
-  // Extract invite code from full URL or bare code
+  // Extract invite code first so we can validate before waiting
   const code = inviteLink.replace(/^https?:\/\/chat\.whatsapp\.com\//i, '').trim();
   if (!code) throw new Error('Invalid invite link');
+
+  // Wait up to 30s for a stable connection (handles brief 440 reconnect cycles)
+  if (connectionStatus !== 'connected') {
+    logger.info(`[WhatsApp] joinGroup: waiting for connection (current: ${connectionStatus})`);
+    await new Promise((resolve, reject) => {
+      const deadline = setTimeout(() => reject(new Error('WhatsApp not connected — scan QR at /api/whatsapp/setup and retry')), 30000);
+      const check = setInterval(() => {
+        if (connectionStatus === 'connected') {
+          clearInterval(check);
+          clearTimeout(deadline);
+          resolve();
+        }
+      }, 500);
+    });
+  }
+
+  if (!sock) throw new Error('WhatsApp socket unavailable');
   const groupJid = await sock.groupAcceptInvite(code);
   logger.info(`[WhatsApp] ✅ Joined group ${groupJid} via invite`);
   return groupJid;

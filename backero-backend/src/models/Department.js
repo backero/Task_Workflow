@@ -27,6 +27,7 @@ const departmentSchema = new mongoose.Schema({
     reminderFrequency: { type: String, default: 'daily' },
     platforms: [{ type: String }],
   },
+  whatsappGroupId: { type: String, default: null },
   automationRules: [{
     name: String,
     trigger: String,
