@@ -189,11 +189,15 @@ exports.sendLoginOTP = asyncHandler(async (req, res) => {
   const devPayload = process.env.NODE_ENV !== 'production' ? { _devOtp: otp } : {};
   sendSuccess(res, devPayload, 'OTP sent to your mobile number');
 
-  // Retry up to 4 times (0s, 5s, 15s, 30s) to handle WhatsApp cold-start reconnection
-  const { sendMessage } = require('../services/whatsapp.service');
+  // Retry up to 5 times — trigger reinit if disconnected, then retry with increasing delays
+  const { sendMessage, isConnected, reinitWhatsApp } = require('../services/whatsapp.service');
   const otpMsg = `🔐 *Backero Login OTP*\n\nYour OTP is: *${otp}*\n\nValid for 10 minutes. Do not share this with anyone.`;
   (async () => {
-    const delays = [0, 5000, 15000, 30000];
+    if (!isConnected()) {
+      logger.info(`[OTP] WhatsApp not connected — triggering reinit for ${phone}`);
+      reinitWhatsApp().catch(() => {});
+    }
+    const delays = [0, 5000, 15000, 30000, 60000];
     for (const delay of delays) {
       if (delay > 0) await new Promise((r) => setTimeout(r, delay));
       const sent = await sendMessage(phone, otpMsg).catch(() => false);
