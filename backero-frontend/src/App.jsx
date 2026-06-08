@@ -134,6 +134,7 @@ export default function App() {
 
           {/* Inventory */}
           <Route path="/inventory/products" element={<PermissionRoute module="inventory"><Products /></PermissionRoute>} />
+          <Route path="/inventory/rawmaterials" element={<PermissionRoute module="inventory"><Products /></PermissionRoute>} />
           <Route path="/inventory/movements" element={<PermissionRoute module="inventory"><StockMovements /></PermissionRoute>} />
           <Route path="/inventory/alerts" element={<PermissionRoute module="inventory"><InventoryAlerts /></PermissionRoute>} />
 

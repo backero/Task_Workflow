@@ -17,8 +17,10 @@ const productSchema = new mongoose.Schema({
   mrp: { type: Number, default: 0 },
   gstRate: { type: Number, default: 18 },
   hsnCode: { type: String },
+  batchNumber: { type: String },
 
   // Stock
+  lastStockIn: { type: Date },
   currentStock: { type: Number, default: 0, min: 0 },
   minStockLevel: { type: Number, default: 0 },
   maxStockLevel: { type: Number },

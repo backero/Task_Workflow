@@ -88,6 +88,7 @@ exports.stockIn = asyncHandler(async (req, res) => {
 
   const previousStock = product.currentStock;
   product.currentStock += quantity;
+  product.lastStockIn = new Date();
   product.updatedBy = req.user._id;
   await product.save();
 

@@ -103,8 +103,7 @@ export default function Sidebar({ collapsed, onToggle }) {
   if (canInventory) {
     opsItems.push({ label: 'Inventory', icon: CubeIcon, children: [
       { label: 'Products', to: '/inventory/products' },
-      { label: 'Stock Movements', to: '/inventory/movements' },
-      { label: 'Low Stock Alerts', to: '/inventory/alerts' },
+      { label: 'Raw Materials', to: '/inventory/rawmaterials' },
     ]});
   }
   if (canProduction) {
