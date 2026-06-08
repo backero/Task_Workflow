@@ -44,9 +44,9 @@ router.get('/products/:id/qr', asyncHandler(async (req, res) => {
 }));
 
 router.get('/products/:id', ctrl.getProduct);
-router.post('/products', authorizeAdminOrAbove, ctrl.createProduct);
-router.put('/products/:id', authorizeAdminOrAbove, ctrl.updateProduct);
-router.delete('/products/:id', authorizeAdminOrAbove, ctrl.deleteProduct);
+router.post('/products', authorizeManagerOrAbove, ctrl.createProduct);
+router.put('/products/:id', authorizeManagerOrAbove, ctrl.updateProduct);
+router.delete('/products/:id', authorizeManagerOrAbove, ctrl.deleteProduct);
 // Allow managers and above to do stock movements (warehouse ops)
 router.post('/stock-in', authorizeManagerOrAbove, ctrl.stockIn);
 router.post('/stock-out', authorizeManagerOrAbove, ctrl.stockOut);

@@ -3,10 +3,12 @@ const QRCode = require('qrcode');
 const { authenticate } = require('../middleware/auth.middleware');
 const { authorizeAdminOrAbove } = require('../middleware/role.middleware');
 const { asyncHandler, sendSuccess } = require('../utils/helpers');
-const { getStatus, getQRCode, isConnected, reinitWhatsApp, sendTaskAssigned } = require('../services/whatsapp.service');
+const { getStatus, getQRCode, isConnected, reinitWhatsApp, sendTaskAssigned, getJoinedGroups, joinGroupViaLink } = require('../services/whatsapp.service');
 const { runDailyReport } = require('../services/automation.service');
 const Task = require('../models/Task');
 const User = require('../models/User');
+const Department = require('../models/Department');
+const Organization = require('../models/Organization');
 
 // ── Public endpoints — no auth needed (only for initial WA setup) ─────────────
 // GET /api/whatsapp/setup — auto-refreshing HTML page for QR scanning
@@ -157,6 +159,65 @@ router.post('/notify-assignments', asyncHandler(async (req, res) => {
 
   sendSuccess(res, { sent, skipped, total: tasks.length },
     `Assignment notifications sent: ${sent} WhatsApp messages, ${skipped} skipped (no phone)`);
+}));
+
+// GET /api/whatsapp/groups — list all WA groups the bot has joined
+router.get('/groups', asyncHandler(async (req, res) => {
+  const groups = await getJoinedGroups();
+  sendSuccess(res, { groups, count: groups.length });
+}));
+
+// POST /api/whatsapp/departments/:id/join-group — bot joins via invite link + auto-saves JID
+// Body: { inviteLink: 'https://chat.whatsapp.com/XXXXX' }
+router.post('/departments/:id/join-group', asyncHandler(async (req, res) => {
+  const { inviteLink } = req.body;
+  if (!inviteLink) return res.status(400).json({ success: false, message: 'inviteLink is required' });
+
+  const groupJid = await joinGroupViaLink(inviteLink);
+
+  const dept = await Department.findOneAndUpdate(
+    { _id: req.params.id, organizationId: req.user.organizationId },
+    { whatsappGroupId: groupJid },
+    { new: true },
+  ).select('name whatsappGroupId');
+  if (!dept) return res.status(404).json({ success: false, message: 'Department not found' });
+
+  sendSuccess(res, { department: dept.name, whatsappGroupId: groupJid },
+    `Bot joined group and linked to ${dept.name}`);
+}));
+
+// POST /api/whatsapp/departments/:id/group — set department's WA group JID
+// Body: { groupJid: '120363XXXXXX@g.us' }  OR  { groupJid: null } to clear
+router.post('/departments/:id/group', asyncHandler(async (req, res) => {
+  const { groupJid } = req.body;
+  const dept = await Department.findOneAndUpdate(
+    { _id: req.params.id, organizationId: req.user.organizationId },
+    { whatsappGroupId: groupJid || null },
+    { new: true },
+  ).select('name whatsappGroupId');
+  if (!dept) return res.status(404).json({ success: false, message: 'Department not found' });
+  sendSuccess(res, { department: dept.name, whatsappGroupId: dept.whatsappGroupId },
+    groupJid ? `Group set for ${dept.name}` : `Group cleared for ${dept.name}`);
+}));
+
+// POST /api/whatsapp/crm/join-group — bot joins via invite link + saves JID for CRM lead alerts
+router.post('/crm/join-group', asyncHandler(async (req, res) => {
+  const { inviteLink } = req.body;
+  if (!inviteLink) return res.status(400).json({ success: false, message: 'inviteLink is required' });
+
+  const groupJid = await joinGroupViaLink(inviteLink);
+
+  await Organization.findByIdAndUpdate(req.user.organizationId, { crmLeadGroupId: groupJid });
+
+  sendSuccess(res, { groupJid }, 'Bot joined CRM group — new lead alerts enabled');
+}));
+
+// POST /api/whatsapp/crm/group — manually set or clear CRM group JID
+router.post('/crm/group', asyncHandler(async (req, res) => {
+  const { groupJid } = req.body;
+  await Organization.findByIdAndUpdate(req.user.organizationId, { crmLeadGroupId: groupJid || null });
+  sendSuccess(res, { groupJid: groupJid || null },
+    groupJid ? 'CRM lead group set' : 'CRM lead group cleared');
 }));
 
 module.exports = router;

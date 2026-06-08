@@ -30,6 +30,7 @@ const organizationSchema = new mongoose.Schema({
   },
   departments: [{ type: String }],
   whatsappSessionActive: { type: Boolean, default: false },
+  crmLeadGroupId: { type: String, default: null },
   googleSheets: {
     sheetId: { type: String },
     sheetGid: { type: String },           // tab GID from URL (#gid=xxx)

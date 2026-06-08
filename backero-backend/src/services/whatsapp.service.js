@@ -135,6 +135,49 @@ const sendMessage = async (phone, message) => {
   return false;
 };
 
+// ── Group join via invite link ────────────────────────────────────────────────
+const joinGroupViaLink = async (inviteLink) => {
+  if (!sock || connectionStatus !== 'connected') throw new Error('WhatsApp not connected');
+  // Extract invite code from full URL or bare code
+  const code = inviteLink.replace(/^https?:\/\/chat\.whatsapp\.com\//i, '').trim();
+  if (!code) throw new Error('Invalid invite link');
+  const groupJid = await sock.groupAcceptInvite(code);
+  logger.info(`[WhatsApp] ✅ Joined group ${groupJid} via invite`);
+  return groupJid;
+};
+
+// ── Group messaging ───────────────────────────────────────────────────────────
+const sendGroupMessage = async (groupJid, message) => {
+  if (!groupJid || !message) return false;
+  if (sock && connectionStatus === 'connected') {
+    try {
+      await sock.sendMessage(groupJid, { text: message });
+      logger.info(`[WhatsApp] ✅ Sent to group ${groupJid}`);
+      return true;
+    } catch (err) {
+      logger.error(`[WhatsApp] ❌ Failed to group ${groupJid}: ${err.message}`);
+      return false;
+    }
+  }
+  logger.info(`[WhatsApp STUB] → group:${groupJid}\n${message.substring(0, 120)}`);
+  return false;
+};
+
+const getJoinedGroups = async () => {
+  if (!sock || connectionStatus !== 'connected') return [];
+  try {
+    const groups = await sock.groupFetchAllParticipating();
+    return Object.values(groups).map(g => ({
+      jid: g.id,
+      name: g.subject,
+      participants: g.participants?.length || 0,
+    }));
+  } catch (err) {
+    logger.error(`[WhatsApp] Failed to fetch groups: ${err.message}`);
+    return [];
+  }
+};
+
 // ── Formatted message builders ────────────────────────────────────────────────
 
 const fmt = (n) => (n || 0).toLocaleString('en-IN');
@@ -190,7 +233,41 @@ const sendTaskOverdueManager = async (phone, { title, employeeName, department, 
   return sendMessage(phone, msg);
 };
 
-// 4. Daily 9 PM Report → admins / founders
+const sendTaskOverdueGroup = async (groupJid, { title, employeeName, department, dueDate, priority, overdueCount, taskId }) => {
+  const link = taskId ? `${APP_URL}/tasks/${taskId}` : `${APP_URL}/tasks/my`;
+  const msg =
+    `🚨 *OVERDUE TASK ALERT — ${department || 'Department'}*\n\n` +
+    `📌 *Task:* ${title}\n` +
+    `👤 *Assigned to:* ${employeeName}\n` +
+    `${PRIORITY_EMOJI[priority] || '🔵'} *Priority:* ${(priority || 'medium').toUpperCase()}\n` +
+    `📅 *Was Due:* ${fmtDate(dueDate)}\n` +
+    (overdueCount > 1 ? `🔁 *Reminder #${overdueCount}*\n` : '') +
+    `\n⚡ This task is overdue. Team lead please follow up immediately.\n` +
+    `\n🔗 ${link}\n` +
+    `\n_Backero Task Management_`;
+  return sendGroupMessage(groupJid, msg);
+};
+
+// 4. New Lead → CRM group
+const sendNewLeadAlert = async (groupJid, { name, phone, company, city, state, source, priority, productInterest, estimatedValue, createdByName }) => {
+  const PRIORITY_LABEL = { critical: '🔴 CRITICAL', high: '🟡 HIGH', medium: '🔵 MEDIUM', low: '⚪ LOW' };
+  const msg =
+    `🆕 *New Lead — Backero CRM*\n\n` +
+    `👤 *Name:* ${name}\n` +
+    `📱 *Phone:* ${phone}\n` +
+    (company ? `🏢 *Company:* ${company}\n` : '') +
+    (city || state ? `📍 *Location:* ${[city, state].filter(Boolean).join(', ')}\n` : '') +
+    (source ? `🔗 *Source:* ${source}\n` : '') +
+    (priority ? `⭐ *Priority:* ${PRIORITY_LABEL[priority] || priority}\n` : '') +
+    (productInterest?.length ? `📦 *Interest:* ${productInterest.join(', ')}\n` : '') +
+    (estimatedValue ? `💰 *Est. Value:* ₹${Number(estimatedValue).toLocaleString('en-IN')}\n` : '') +
+    `\n👤 *Added by:* ${createdByName}\n` +
+    `\n🔗 ${APP_URL}/crm/pipeline\n` +
+    `\n_Backero CRM_`;
+  return sendGroupMessage(groupJid, msg);
+};
+
+// 5. Daily 9 PM Report → admins / founders
 const sendDailyReport = async (phone, {
   orgName, date,
   tasksCompleted, tasksOverdue, tasksPendingApproval, tasksInProgress, totalTasks,
@@ -346,9 +423,14 @@ module.exports = {
   initWhatsApp,
   reinitWhatsApp,
   sendMessage,
+  joinGroupViaLink,
+  sendGroupMessage,
+  getJoinedGroups,
   sendTaskAssigned,
   sendTaskOverdueEmployee,
   sendTaskOverdueManager,
+  sendTaskOverdueGroup,
+  sendNewLeadAlert,
   sendDailyReport,
   sendDailyReportWithPDF,
   getStatus,

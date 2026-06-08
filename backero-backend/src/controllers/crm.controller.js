@@ -7,6 +7,7 @@ const { asyncHandler, sendSuccess, sendError, paginate, paginateResponse } = req
 const { LEAD_STATUS, SOCKET_EVENTS, ROLE_HIERARCHY, ROLES } = require('../utils/constants');
 const { createNotification } = require('../services/notification.service');
 const { appendLeadToSheet, updateLeadInSheet } = require('../services/googleSheets.service');
+const { sendNewLeadAlert } = require('../services/whatsapp.service');
 
 // GET /api/crm/leads
 exports.getLeads = asyncHandler(async (req, res) => {
@@ -97,8 +98,12 @@ exports.createLead = asyncHandler(async (req, res) => {
     reference: { model: 'Lead', id: lead._id, title: name },
   });
 
-  // Write-back to Google Sheets (async, non-blocking)
-  Organization.findById(req.user.organizationId).select('googleSheets').then((org) => {
+  // Notify CRM WhatsApp group (async, non-blocking)
+  Organization.findById(req.user.organizationId).select('googleSheets crmLeadGroupId').then((org) => {
+    if (org?.crmLeadGroupId) {
+      const createdByName = `${req.user.firstName} ${req.user.lastName}`.trim();
+      sendNewLeadAlert(org.crmLeadGroupId, { ...lead, createdByName }).catch(() => {});
+    }
     if (org?.googleSheets?.writeBackEnabled && org?.googleSheets?.sheetId) {
       appendLeadToSheet(org, lead).catch(() => {});
     }
