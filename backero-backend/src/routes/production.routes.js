@@ -5,7 +5,7 @@ const StockMovement = require('../models/StockMovement');
 const ActivityLog = require('../models/ActivityLog');
 const { authenticate } = require('../middleware/auth.middleware');
 const { orgIsolation } = require('../middleware/orgIsolation.middleware');
-const { authorizeAdminOrAbove } = require('../middleware/role.middleware');
+const { authorizeAdminOrAbove, authorizeManagerOrAbove } = require('../middleware/role.middleware');
 const { asyncHandler, sendSuccess, sendError, paginate, paginateResponse } = require('../utils/helpers');
 const { PRODUCTION_STATUS, STOCK_MOVEMENT_TYPES, SOCKET_EVENTS } = require('../utils/constants');
 
@@ -34,8 +34,8 @@ router.get('/', asyncHandler(async (req, res) => {
   sendSuccess(res, paginateResponse(orders, total, page, limit));
 }));
 
-// POST create production order (admin+)
-router.post('/', authorizeAdminOrAbove, asyncHandler(async (req, res) => {
+// POST create production order (manager+)
+router.post('/', authorizeManagerOrAbove, asyncHandler(async (req, res) => {
   const io = req.app.get('io');
   const count = await ProductionOrder.countDocuments({ organizationId: req.user.organizationId });
   const orderNumber = `PO-${new Date().getFullYear()}-${String(count + 1).padStart(4, '0')}`;
@@ -65,8 +65,8 @@ router.get('/:id', asyncHandler(async (req, res) => {
   sendSuccess(res, { order });
 }));
 
-// PATCH update production status (admin+)
-router.patch('/:id/status', authorizeAdminOrAbove, asyncHandler(async (req, res) => {
+// PATCH update production status (manager+)
+router.patch('/:id/status', authorizeManagerOrAbove, asyncHandler(async (req, res) => {
   const { status, notes } = req.body;
   const io = req.app.get('io');
 
@@ -129,7 +129,7 @@ router.patch('/:id/status', authorizeAdminOrAbove, asyncHandler(async (req, res)
 }));
 
 // POST add quality check
-router.post('/:id/quality-check', authorizeAdminOrAbove, asyncHandler(async (req, res) => {
+router.post('/:id/quality-check', authorizeManagerOrAbove, asyncHandler(async (req, res) => {
   const { checkType, result, notes } = req.body;
   const order = await ProductionOrder.findOne({ _id: req.params.id, organizationId: req.user.organizationId });
   if (!order) return sendError(res, 'Order not found.', 404);
@@ -140,8 +140,8 @@ router.post('/:id/quality-check', authorizeAdminOrAbove, asyncHandler(async (req
   sendSuccess(res, { order }, 'Quality check added');
 }));
 
-// DELETE production order (admin+, only if not completed)
-router.delete('/:id', authorizeAdminOrAbove, asyncHandler(async (req, res) => {
+// DELETE production order (manager+, only if not completed)
+router.delete('/:id', authorizeManagerOrAbove, asyncHandler(async (req, res) => {
   const order = await ProductionOrder.findOne({ _id: req.params.id, organizationId: req.user.organizationId });
   if (!order) return sendError(res, 'Production order not found.', 404);
   if (order.status === 'completed') return sendError(res, 'Cannot delete a completed production order.', 400);
