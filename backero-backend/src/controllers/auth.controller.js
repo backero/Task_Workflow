@@ -185,43 +185,12 @@ exports.sendLoginOTP = asyncHandler(async (req, res) => {
 
   logger.info(`[OTP] ${phone} → ${otp}`);
 
-  // Respond immediately — OTP is already in DB, WhatsApp sends in background
+  // Respond immediately — OTP is in DB; deliver via SMS in background
   const devPayload = process.env.NODE_ENV !== 'production' ? { _devOtp: otp } : {};
   sendSuccess(res, devPayload, 'OTP sent to your mobile number');
 
-  const { sendMessage, isConnected, getStatus } = require('../services/whatsapp.service');
-  const otpMsg = `🔐 *Backero Login OTP*\n\nYour OTP is: *${otp}*\n\nValid for 10 minutes. Do not share this with anyone.`;
-  (async () => {
-    try {
-      logger.info(`[OTP] Background send start — phone: ${phone}, WA: ${getStatus()}`);
-
-      if (!isConnected()) {
-        logger.info(`[OTP] Waiting for WA connect (up to 90s)…`);
-        await new Promise((resolve) => {
-          const deadline = setTimeout(resolve, 90000);
-          const poll = setInterval(() => {
-            if (isConnected()) { clearInterval(poll); clearTimeout(deadline); resolve(); }
-          }, 2000);
-        });
-        logger.info(`[OTP] Poll ended — WA status: ${getStatus()}`);
-      }
-
-      const delays = [0, 5000, 15000];
-      for (const delay of delays) {
-        if (delay > 0) await new Promise((r) => setTimeout(r, delay));
-        logger.info(`[OTP] sendMessage attempt — phone: ${phone}, connected: ${isConnected()}`);
-        const sent = await sendMessage(phone, otpMsg).catch((err) => {
-          logger.error(`[OTP] sendMessage threw: ${err.message}`);
-          return false;
-        });
-        if (sent) { logger.info(`[OTP] ✅ Delivered to ${phone}`); return; }
-        logger.warn(`[OTP] attempt failed for ${phone} (delay=${delay}ms)`);
-      }
-      logger.error(`[OTP] ❌ All retries failed for ${phone} — WA: ${getStatus()}`);
-    } catch (err) {
-      logger.error(`[OTP] IIFE crashed for ${phone}: ${err.message}`);
-    }
-  })();
+  const { sendSMSOTP } = require('../services/sms.service');
+  sendSMSOTP(phone, otp).catch((err) => logger.error(`[OTP] SMS crashed: ${err.message}`));
 });
 
 // POST /api/auth/verify-login-otp  (public — no auth required)
