@@ -185,12 +185,33 @@ exports.sendLoginOTP = asyncHandler(async (req, res) => {
 
   logger.info(`[OTP] ${phone} → ${otp}`);
 
-  // Respond immediately — OTP is in DB; deliver via SMS in background
+  // Respond immediately — OTP is in DB; deliver via WhatsApp in background
   const devPayload = process.env.NODE_ENV !== 'production' ? { _devOtp: otp } : {};
   sendSuccess(res, devPayload, 'OTP sent to your mobile number');
 
-  const { sendSMSOTP } = require('../services/sms.service');
-  sendSMSOTP(phone, otp).catch((err) => logger.error(`[OTP] SMS crashed: ${err.message}`));
+  const { sendMessage, isConnected, getStatus } = require('../services/whatsapp.service');
+  const otpMsg = `🔐 *Backero Login OTP*\n\nYour OTP is: *${otp}*\n\nValid for 10 minutes. Do not share this with anyone.`;
+  (async () => {
+    try {
+      if (!isConnected()) {
+        logger.info(`[OTP] WA not ready (${getStatus()}) — waiting up to 20s for reconnect`);
+        await new Promise((resolve) => {
+          const deadline = setTimeout(resolve, 20000);
+          const poll = setInterval(() => {
+            if (isConnected()) { clearInterval(poll); clearTimeout(deadline); resolve(); }
+          }, 1000);
+        });
+      }
+      const sent = await sendMessage(phone, otpMsg).catch((err) => {
+        logger.error(`[OTP] sendMessage threw: ${err.message}`);
+        return false;
+      });
+      if (sent) logger.info(`[OTP] ✅ Delivered to ${phone}`);
+      else logger.error(`[OTP] ❌ Failed for ${phone} — WA status: ${getStatus()}`);
+    } catch (err) {
+      logger.error(`[OTP] crashed: ${err.message}`);
+    }
+  })();
 });
 
 // POST /api/auth/verify-login-otp  (public — no auth required)
