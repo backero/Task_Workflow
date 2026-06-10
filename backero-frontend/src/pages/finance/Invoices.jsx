@@ -1,4 +1,5 @@
-﻿import React, { useState, useMemo } from 'react';
+﻿
+import React, { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useFieldArray, useForm, useWatch } from 'react-hook-form';
 import {
@@ -59,8 +60,9 @@ function printInvoice(inv, org, user) {
   const upiUri = bd.upiId
     ? `upi://pay?pa=${bd.upiId}&pn=${encodeURIComponent(bd.accountName || BACKERO.name)}&am=${payAmt}&tn=${inv.invoiceNumber}&cu=INR`
     : null;
-  const qrImgUrl = bd.upiQrUrl
-    || (upiUri ? `https://chart.googleapis.com/chart?chs=120x120&cht=qr&chl=${encodeURIComponent(upiUri)}` : null);
+  const qrApiUrl = upiUri
+    ? `https://chart.googleapis.com/chart?chs=120x120&cht=qr&chl=${encodeURIComponent(upiUri)}`
+    : null;
 
   const win = window.open('', '_blank', 'width=900,height=700');
   win.document.write(`<!DOCTYPE html>
@@ -197,9 +199,9 @@ function printInvoice(inv, org, user) {
         ${bd.upiId ? `<p>UPI: <span class="val">${bd.upiId}</span></p>` : ''}
       ` : '<p style="color:#94a3b8;font-size:11px">No bank details configured</p>'}
       </div>
-      ${qrImgUrl ? `
+      ${qrApiUrl ? `
       <div style="text-align:center;flex-shrink:0">
-        <img src="${qrImgUrl}" width="110" height="110" style="display:block;border:1px solid #e2e8f0;border-radius:6px;padding:4px;background:#fff" alt="UPI QR" />
+        <img src="${qrApiUrl}" width="110" height="110" style="display:block;border:1px solid #e2e8f0;border-radius:6px;padding:4px;background:#fff" alt="UPI QR" />
         <p style="font-size:9px;color:#64748b;margin-top:4px;font-weight:600">Scan to Pay via UPI</p>
       </div>` : ''}
     </div>
@@ -813,18 +815,13 @@ function InvoicePreview({ inv, orgData, onEdit, onClose }) {
               </div>
               {(() => {
                 const bd = org?.bankDetails || {};
-                if (!bd.upiId && !bd.upiQrUrl) return null;
+                if (!bd.upiId) return null;
                 const payAmt = inv.balanceAmount > 0 ? inv.balanceAmount : inv.totalAmount;
-                const upiUri = bd.upiId
-                  ? `upi://pay?pa=${bd.upiId}&pn=${encodeURIComponent(bd.accountName || BACKERO.name)}&am=${payAmt}&tn=${inv.invoiceNumber}&cu=INR`
-                  : null;
+                const upiUri = `upi://pay?pa=${bd.upiId}&pn=${encodeURIComponent(bd.accountName || BACKERO.name)}&am=${payAmt}&tn=${inv.invoiceNumber}&cu=INR`;
                 return (
                   <div className="text-center flex-shrink-0">
                     <div className="border border-gray-200 rounded-lg p-1.5 bg-white inline-block">
-                      {bd.upiQrUrl
-                        ? <img src={bd.upiQrUrl} alt="UPI QR" className="w-24 h-24 object-contain" />
-                        : <QRCode value={upiUri} size={96} />
-                      }
+                      <QRCode value={upiUri} size={96} />
                     </div>
                     <p className="text-xs text-gray-400 mt-1 font-medium">Scan to Pay via UPI</p>
                   </div>
