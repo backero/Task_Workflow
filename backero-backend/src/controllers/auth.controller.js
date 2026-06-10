@@ -189,15 +189,23 @@ exports.sendLoginOTP = asyncHandler(async (req, res) => {
   const devPayload = process.env.NODE_ENV !== 'production' ? { _devOtp: otp } : {};
   sendSuccess(res, devPayload, 'OTP sent to your mobile number');
 
-  // Retry up to 5 times — trigger reinit if disconnected, then retry with increasing delays
-  const { sendMessage, isConnected, reinitWhatsApp } = require('../services/whatsapp.service');
+  const { sendMessage, isConnected } = require('../services/whatsapp.service');
   const otpMsg = `🔐 *Backero Login OTP*\n\nYour OTP is: *${otp}*\n\nValid for 10 minutes. Do not share this with anyone.`;
   (async () => {
+    // Wait up to 90s for WhatsApp to (re)connect — covers Render cold-start wakeup,
+    // 440 reconnect cycles, and normal post-deploy reconnects.
+    // Do NOT call reinitWhatsApp() here — that logs out + clears MongoDB, destroying
+    // a valid session. The service's own reconnect loop handles recovery correctly.
     if (!isConnected()) {
-      logger.info(`[OTP] WhatsApp not connected — triggering reinit for ${phone}`);
-      reinitWhatsApp().catch(() => {});
+      logger.info(`[OTP] WhatsApp not connected — waiting for reconnect (${phone})`);
+      await new Promise((resolve) => {
+        const deadline = setTimeout(resolve, 90000);
+        const poll = setInterval(() => {
+          if (isConnected()) { clearInterval(poll); clearTimeout(deadline); resolve(); }
+        }, 2000);
+      });
     }
-    const delays = [0, 5000, 15000, 30000, 60000];
+    const delays = [0, 5000, 15000];
     for (const delay of delays) {
       if (delay > 0) await new Promise((r) => setTimeout(r, delay));
       const sent = await sendMessage(phone, otpMsg).catch(() => false);

@@ -1,18 +1,15 @@
 ﻿import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { DevicePhoneMobileIcon, ArrowLeftIcon, EnvelopeIcon, LockClosedIcon } from '@heroicons/react/24/outline';
+import { DevicePhoneMobileIcon, ArrowLeftIcon } from '@heroicons/react/24/outline';
 import { useAuthStore } from '../../store/useAuthStore';
 import api from '../../api/axios';
 import toast from 'react-hot-toast';
 
 export default function Login() {
-  const [mode, setMode] = useState('otp'); // 'otp' | 'password'
   const [step, setStep] = useState(1);
   const [phone, setPhone] = useState('');
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [resendTimer, setResendTimer] = useState(0);
   const otpRefs = useRef([]);
@@ -27,6 +24,7 @@ export default function Login() {
 
 
   const fullPhone = () => `+91${phone}`;
+
 
   // ── OTP flow ──────────────────────────────────────────────────────────────
 
@@ -111,26 +109,7 @@ export default function Login() {
     }
   };
 
-  // ── Password flow ─────────────────────────────────────────────────────────
-
-  const handlePasswordLogin = async (e) => {
-    e.preventDefault();
-    if (!email.trim() || !password) return toast.error('Enter email and password');
-    setLoading(true);
-    try {
-      const res = await api.post('/auth/login', { email: email.trim().toLowerCase(), password });
-      const { accessToken, user, organization } = res.data;
-      setAuth(user, accessToken, organization);
-      toast.success(`Welcome back, ${user.firstName}!`);
-      navigate('/');
-    } catch (err) {
-      toast.error(err.response?.data?.message || 'Invalid credentials.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // ── Shared UI ─────────────────────────────────────────────────────────────
+  // ── UI ────────────────────────────────────────────────────────────────────
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-900 via-gray-900 to-brand-950 p-4">
@@ -148,80 +127,8 @@ export default function Login() {
         </div>
 
         <div className="bg-white dark:bg-[#070c17] rounded-2xl p-8 shadow-modal overflow-hidden">
-          {/* Mode toggle */}
-          <div className="flex gap-1 p-1 bg-gray-100 dark:bg-[#0f1a2e] rounded-xl mb-6">
-            <button
-              onClick={() => { setMode('otp'); setStep(1); }}
-              className={`flex-1 py-2 text-sm font-medium rounded-lg transition-all ${mode === 'otp' ? 'bg-white dark:bg-[#132035] text-gray-900 dark:text-white shadow-sm' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'}`}
-            >
-              <DevicePhoneMobileIcon className="w-4 h-4 inline mr-1.5" />
-              OTP Login
-            </button>
-            <button
-              onClick={() => setMode('password')}
-              className={`flex-1 py-2 text-sm font-medium rounded-lg transition-all ${mode === 'password' ? 'bg-white dark:bg-[#132035] text-gray-900 dark:text-white shadow-sm' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'}`}
-            >
-              <LockClosedIcon className="w-4 h-4 inline mr-1.5" />
-              Password Login
-            </button>
-          </div>
-
           <AnimatePresence mode="wait">
-            {mode === 'password' ? (
-              <motion.div
-                key="password-mode"
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: 20 }}
-                transition={{ duration: 0.2 }}
-              >
-                <div className="flex items-center gap-3 mb-6">
-                  <div className="w-10 h-10 rounded-full bg-brand-100 dark:bg-brand-900/30 flex items-center justify-center shrink-0">
-                    <EnvelopeIcon className="w-5 h-5 text-brand-600" />
-                  </div>
-                  <div>
-                    <h2 className="text-xl font-bold text-gray-900 dark:text-white">Admin Sign in</h2>
-                    <p className="text-sm text-gray-500">Use your registered email and password</p>
-                  </div>
-                </div>
-
-                <form onSubmit={handlePasswordLogin} className="space-y-4">
-                  <div>
-                    <label className="label">Email Address</label>
-                    <input
-                      type="email"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      className="input"
-                      placeholder="admin@company.com"
-                      autoFocus
-                    />
-                  </div>
-                  <div>
-                    <label className="label">Password</label>
-                    <input
-                      type="password"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      className="input"
-                      placeholder="••••••••"
-                    />
-                  </div>
-                  <button
-                    type="submit"
-                    disabled={loading || !email || !password}
-                    className="btn-primary w-full justify-center py-2.5 mt-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {loading ? (
-                      <span className="flex items-center gap-2">
-                        <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                        Signing in...
-                      </span>
-                    ) : 'Sign In'}
-                  </button>
-                </form>
-              </motion.div>
-            ) : step === 1 ? (
+            {step === 1 ? (
               <motion.div
                 key="phone-step"
                 initial={{ opacity: 0, x: -24 }}

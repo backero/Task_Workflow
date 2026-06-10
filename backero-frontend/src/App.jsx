@@ -8,7 +8,6 @@ import PermissionRoute from './components/common/PermissionRoute';
 
 // Auth pages
 import Login from './pages/auth/Login';
-import Register from './pages/auth/Register';
 import Onboarding from './pages/auth/Onboarding';
 
 // Dashboard pages
@@ -108,7 +107,7 @@ export default function App() {
       <Routes>
         {/* Public routes */}
         <Route path="/login" element={!user ? <Login /> : <Navigate to="/" replace />} />
-        <Route path="/register" element={!user ? <Register /> : <Navigate to="/" replace />} />
+        <Route path="/register" element={<Navigate to="/login" replace />} />
 
         {/* Protected routes */}
         <Route element={<ProtectedRoute><Layout /></ProtectedRoute>}>

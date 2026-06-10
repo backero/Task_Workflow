@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { PlusIcon, ExclamationTriangleIcon, MagnifyingGlassIcon, QrCodeIcon, BeakerIcon } from '@heroicons/react/24/outline';
+import { PlusIcon, ExclamationTriangleIcon, MagnifyingGlassIcon, QrCodeIcon, BeakerIcon, TrashIcon } from '@heroicons/react/24/outline';
 import ImportButton from '../../components/common/ImportButton';
 import api from '../../api/axios';
 import { clsx } from 'clsx';
@@ -292,7 +292,7 @@ function timeAgo(date) {
   return new Date(date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: '2-digit' });
 }
 
-function ProductTable({ products, isManagerOrAbove, onStock, onEdit, onQr, onUse, isRawMaterial }) {
+function ProductTable({ products, isManagerOrAbove, onStock, onEdit, onQr, onUse, onDelete, isRawMaterial }) {
   return (
     <div className="card overflow-hidden">
       <table className="w-full text-sm">
@@ -374,6 +374,13 @@ function ProductTable({ products, isManagerOrAbove, onStock, onEdit, onQr, onUse
                         <QrCodeIcon className="w-4 h-4" />
                       </button>
                       <button onClick={() => onEdit(product)} className="btn-ghost text-xs px-2 py-1">Edit</button>
+                      <button
+                        onClick={() => onDelete(product)}
+                        className="btn-ghost text-xs px-2 py-1 text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20"
+                        title="Delete"
+                      >
+                        <TrashIcon className="w-4 h-4" />
+                      </button>
                     </div>
                   </td>
                 )}
@@ -400,6 +407,8 @@ export default function Products() {
   const [useProduct, setUseProduct] = useState(null);
   const [qrProduct, setQrProduct] = useState(null);
   const [showScanner, setShowScanner] = useState(false);
+  const [deleteProduct, setDeleteProduct] = useState(null);
+  const [deleting, setDeleting] = useState(false);
   const [search, setSearch] = useState('');
   const [lowStockOnly, setLowStockOnly] = useState(false);
   const { isManagerOrAbove } = useAuthStore();
@@ -425,6 +434,21 @@ export default function Products() {
   const lowStockCount = products.filter((p) => p.currentStock <= p.minStockLevel).length;
 
   const invalidate = () => qc.invalidateQueries({ queryKey: ['inventory'] });
+
+  const handleDelete = async () => {
+    if (!deleteProduct) return;
+    setDeleting(true);
+    try {
+      await api.delete(`/inventory/products/${deleteProduct._id}`);
+      toast.success(`${deleteProduct.name} deleted`);
+      setDeleteProduct(null);
+      invalidate();
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Delete failed');
+    } finally {
+      setDeleting(false);
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -517,6 +541,7 @@ export default function Products() {
           onEdit={setEditProduct}
           onQr={setQrProduct}
           onUse={setUseProduct}
+          onDelete={setDeleteProduct}
           isRawMaterial={isRawTab}
         />
       )}
@@ -569,6 +594,37 @@ export default function Products() {
           <QrCodeIcon className="w-5 h-5" />
           <span className="text-sm hidden sm:inline">Scan QR</span>
         </button>
+      )}
+
+      {deleteProduct && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-gray-900/60" onClick={() => setDeleteProduct(null)} />
+          <div className="relative card w-full max-w-sm shadow-modal p-6 space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center shrink-0">
+                <TrashIcon className="w-5 h-5 text-red-600" />
+              </div>
+              <div>
+                <h3 className="font-bold text-gray-900 dark:text-white">Delete {isRawTab ? 'Raw Material' : 'Product'}?</h3>
+                <p className="text-sm text-gray-500 mt-0.5">This cannot be undone.</p>
+              </div>
+            </div>
+            <div className="rounded-lg bg-gray-50 dark:bg-[#0f1a2e] px-4 py-3">
+              <p className="font-semibold text-gray-900 dark:text-white">{deleteProduct.name}</p>
+              <p className="text-xs text-gray-500 mt-0.5">SKU: {deleteProduct.sku} · Stock: {deleteProduct.currentStock} {deleteProduct.unit}</p>
+            </div>
+            <div className="flex gap-3">
+              <button onClick={() => setDeleteProduct(null)} className="btn-secondary flex-1 justify-center">Cancel</button>
+              <button
+                onClick={handleDelete}
+                disabled={deleting}
+                className="flex-1 justify-center bg-red-600 hover:bg-red-700 text-white font-medium py-2 px-4 rounded-lg transition-colors disabled:opacity-50"
+              >
+                {deleting ? 'Deleting...' : 'Delete'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
