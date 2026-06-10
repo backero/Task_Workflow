@@ -3,7 +3,7 @@ const QRCode = require('qrcode');
 const { authenticate } = require('../middleware/auth.middleware');
 const { authorizeAdminOrAbove } = require('../middleware/role.middleware');
 const { asyncHandler, sendSuccess } = require('../utils/helpers');
-const { getStatus, getQRCode, isConnected, reinitWhatsApp, sendTaskAssigned, getJoinedGroups, joinGroupViaLink } = require('../services/whatsapp.service');
+const { getStatus, getQRCode, isConnected, reinitWhatsApp, sendTaskAssigned, getJoinedGroups, joinGroupViaLink, getDebugInfo } = require('../services/whatsapp.service');
 const { runDailyReport } = require('../services/automation.service');
 const Task = require('../models/Task');
 const User = require('../models/User');
@@ -32,12 +32,7 @@ router.post('/force-qr', (req, res) => {
 
 // GET /api/whatsapp/debug — public; shows internal WA state (no auth)
 router.get('/debug', (req, res) => {
-  res.json({
-    status: getStatus(),
-    connected: isConnected(),
-    hasQR: !!getQRCode(),
-    timestamp: new Date().toISOString(),
-  });
+  res.json({ ...getDebugInfo(), timestamp: new Date().toISOString() });
 });
 
 // GET /api/whatsapp/setup — auto-refreshing HTML page for QR scanning

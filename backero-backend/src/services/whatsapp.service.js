@@ -7,6 +7,7 @@ let connectionStatus = 'disconnected'; // 'disconnected' | 'connecting' | 'qr_re
 let io_ref = null;
 let consecutive440s = 0;
 let isInitializing = false;
+let lastError = null;
 
 // ── Init ─────────────────────────────────────────────────────────────────────
 const initWhatsApp = async (io) => {
@@ -25,7 +26,19 @@ const initWhatsApp = async (io) => {
     // MongoDB auth persists across Render restarts; file-based /tmp is wiped on each deploy
     const { state, saveCreds } = await useMongoAuthState(baileys);
 
-    const { version } = await fetchLatestBaileysVersion();
+    // fetchLatestBaileysVersion() hits GitHub — can hang on Render; timeout + fallback
+    let version;
+    try {
+      const result = await Promise.race([
+        fetchLatestBaileysVersion(),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('fetchLatestBaileysVersion timeout')), 8000)),
+      ]);
+      version = result.version;
+      logger.info(`[WhatsApp] Baileys version: ${version}`);
+    } catch (vErr) {
+      version = [2, 3000, 1017531287]; // known stable fallback
+      logger.warn(`[WhatsApp] fetchLatestBaileysVersion failed (${vErr.message}) — using fallback ${version}`);
+    }
 
     const connect = async () => {
       connectionStatus = 'connecting';
@@ -138,6 +151,7 @@ const initWhatsApp = async (io) => {
     await connect();
   } catch (err) {
     connectionStatus = 'unavailable';
+    lastError = err.message;
     logger.error(`[WhatsApp] initWhatsApp FAILED: ${err.message}`);
     logger.error(err.stack || err);
     logger.warn('Run: npm install @whiskeysockets/baileys  to enable WhatsApp sending');
@@ -451,6 +465,15 @@ const sendDailyReportWithPDF = async (phone, pdfBuffer, fileName) => {
 const getStatus = () => connectionStatus;
 const getQRCode = () => qrCode;
 const isConnected = () => connectionStatus === 'connected';
+const getDebugInfo = () => ({
+  status: connectionStatus,
+  connected: connectionStatus === 'connected',
+  hasQR: !!qrCode,
+  isInitializing,
+  consecutive440s,
+  lastError,
+  sockAlive: !!sock,
+});
 
 const reinitWhatsApp = async () => {
   // Reset guard first so initWhatsApp isn't blocked
@@ -475,6 +498,7 @@ const reinitWhatsApp = async () => {
 module.exports = {
   initWhatsApp,
   reinitWhatsApp,
+  getDebugInfo,
   sendMessage,
   joinGroupViaLink,
   sendGroupMessage,
