@@ -30,6 +30,16 @@ router.post('/force-qr', (req, res) => {
   res.json({ success: true, message: 'Reinitialising — QR should appear in 5–10 seconds', status: 'reinitialising' });
 });
 
+// GET /api/whatsapp/debug — public; shows internal WA state (no auth)
+router.get('/debug', (req, res) => {
+  res.json({
+    status: getStatus(),
+    connected: isConnected(),
+    hasQR: !!getQRCode(),
+    timestamp: new Date().toISOString(),
+  });
+});
+
 // GET /api/whatsapp/setup — auto-refreshing HTML page for QR scanning
 router.get('/setup', (req, res) => {
   const host = `${req.protocol}://${req.get('host')}`;

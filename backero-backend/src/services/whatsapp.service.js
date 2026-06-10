@@ -453,6 +453,9 @@ const getQRCode = () => qrCode;
 const isConnected = () => connectionStatus === 'connected';
 
 const reinitWhatsApp = async () => {
+  // Reset guard first so initWhatsApp isn't blocked
+  isInitializing = false;
+
   try {
     if (sock) {
       sock.ev.removeAllListeners();
@@ -461,7 +464,6 @@ const reinitWhatsApp = async () => {
     }
   } catch {}
 
-  // Clear MongoDB session so Baileys starts fresh and generates a new QR
   await clearMongoSession().catch(() => {});
   logger.info('[WhatsApp] MongoDB session cleared — fresh QR will be generated');
 
