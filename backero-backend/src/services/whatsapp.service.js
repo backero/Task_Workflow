@@ -8,16 +8,28 @@ let io_ref = null;
 let isInitializing = false;
 let lastError = null;
 let _consecutive440s = 0;
+let _lastConnectedAt = 0;   // timestamp of last successful connection.open
+let _postConnectRetries = 0; // reconnect attempts within 2 min of a successful connect
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
+
+// Properly close the socket WebSocket without logging out the linked device
+const _closeSock = () => {
+  if (!sock) return;
+  try { sock.ev.removeAllListeners(); } catch {}
+  try { sock.end(undefined); } catch {}  // close WebSocket cleanly
+  sock = null;
+};
 
 // Schedule a fresh initWhatsApp after delayMs. Resets guard so it's never blocked.
 const _scheduleReinit = (delayMs = 3000, clearSession = false) => {
   isInitializing = false;
   if (clearSession) {
-    clearMongoSession().catch(() => {}).finally(() => {
-      setTimeout(() => initWhatsApp(io_ref), delayMs);
-    });
+    // Small pause so any in-flight MongoDB writes from the dying socket finish first
+    setTimeout(async () => {
+      await clearMongoSession().catch(() => {});
+      setTimeout(() => initWhatsApp(io_ref), 500);
+    }, 200);
   } else {
     setTimeout(() => initWhatsApp(io_ref), delayMs);
   }
@@ -32,11 +44,10 @@ const initWhatsApp = async (io) => {
   isInitializing = true;
   io_ref = io || io_ref;
 
-  // Kill any lingering socket from a previous init
-  if (sock) {
-    try { sock.ev.removeAllListeners(); } catch {}
-    sock = null;
-  }
+  // Kill any lingering socket — must close WebSocket too, not just remove listeners.
+  // Without sock.end(), the old TCP connection stays open and WhatsApp sees two
+  // clients with the same credentials → immediate 440 on the new connection.
+  _closeSock();
 
   connectionStatus = 'connecting';
 
@@ -67,7 +78,7 @@ const initWhatsApp = async (io) => {
     const watchdog = setTimeout(async () => {
       if (connectionStatus === 'connecting') {
         logger.warn('[WhatsApp] Watchdog: stuck connecting 60s — clearing session for fresh QR');
-        if (sock) { try { sock.ev.removeAllListeners(); } catch {} sock = null; }
+        _closeSock();
         _scheduleReinit(2000, true);
       }
     }, 60000);
@@ -103,39 +114,66 @@ const initWhatsApp = async (io) => {
         qrCode = null;
         connectionStatus = 'connected';
         _consecutive440s = 0;
+        _lastConnectedAt = Date.now();
+        _postConnectRetries = 0;
         logger.info('[WhatsApp] ✅ Connected and ready');
         io_ref?.emit('wa_connected', {});
       }
 
       if (connection === 'close') {
         clearTimeout(watchdog);
+        // Connection is already closed — just detach listeners, no need to call end()
         if (sock) { try { sock.ev.removeAllListeners(); } catch {} sock = null; }
         connectionStatus = 'disconnected';
 
         const code = lastDisconnect?.error?.output?.statusCode;
-        logger.warn(`[WhatsApp] Disconnected — code: ${code}`);
+        const errMsg = lastDisconnect?.error?.message || '';
+        logger.warn(`[WhatsApp] Disconnected — code: ${code} | ${errMsg}`);
+
+        // How long since last successful connection?
+        const msSinceConnect = _lastConnectedAt ? Date.now() - _lastConnectedAt : Infinity;
+        const freshSession = msSinceConnect < 120000; // within 2 min = just scanned QR
 
         if (code === DisconnectReason.connectionReplaced) {
           // 440: another client grabbed the same session slot
           _consecutive440s++;
-          logger.warn(`[WhatsApp] 440 connectionReplaced × ${_consecutive440s}`);
+          logger.warn(`[WhatsApp] 440 × ${_consecutive440s}`);
           if (_consecutive440s >= 3) {
             logger.warn('[WhatsApp] 3× 440 — clearing session for fresh QR');
             _consecutive440s = 0;
             _scheduleReinit(2000, true);
           } else {
-            // Wait briefly then retry with same session — deploy overlap usually resolves in 1-2 tries
             _scheduleReinit(6000, false);
           }
-        } else if (
-          code === DisconnectReason.loggedOut ||           // 401 — removed from phone
-          code === DisconnectReason.badSession ||          // 500 — corrupt session
-          code === DisconnectReason.multideviceMismatch    // 411 — key mismatch
-        ) {
-          logger.warn(`[WhatsApp] Irrecoverable (${code}) — clearing session for fresh QR`);
+
+        } else if (code === DisconnectReason.loggedOut) {
+          // 401 — device removed from phone; need new QR regardless
+          logger.warn('[WhatsApp] Logged out (401) — clearing session for fresh QR');
           _scheduleReinit(3000, true);
+
+        } else if (
+          code === DisconnectReason.badSession ||         // 500
+          code === DisconnectReason.multideviceMismatch  // 411
+        ) {
+          if (freshSession) {
+            // Prekey bundle conflict on a just-scanned session.
+            // Don't clear — just reconnect; Baileys will resolve prekeys automatically.
+            _postConnectRetries++;
+            logger.warn(`[WhatsApp] ${code} on fresh session (${Math.round(msSinceConnect/1000)}s ago) — reconnecting without clear (attempt ${_postConnectRetries})`);
+            if (_postConnectRetries >= 4) {
+              logger.warn('[WhatsApp] 4 post-connect failures — clearing session for fresh QR');
+              _postConnectRetries = 0;
+              _scheduleReinit(3000, true);
+            } else {
+              _scheduleReinit(4000, false);
+            }
+          } else {
+            logger.warn(`[WhatsApp] Irrecoverable (${code}) on old session — clearing for fresh QR`);
+            _scheduleReinit(3000, true);
+          }
+
         } else {
-          // Generic/transient disconnect — reload state from MongoDB and reconnect
+          // Generic / transient disconnect — reconnect with same session
           logger.info(`[WhatsApp] Reconnecting in 5s (code: ${code})…`);
           _scheduleReinit(5000, false);
         }
@@ -402,17 +440,21 @@ const getDebugInfo = () => ({
   hasQR: !!qrCode,
   isInitializing,
   consecutive440s: _consecutive440s,
+  postConnectRetries: _postConnectRetries,
+  lastConnectedSecsAgo: _lastConnectedAt ? Math.round((Date.now() - _lastConnectedAt) / 1000) : null,
   lastError,
   sockAlive: !!sock,
 });
 
 const reinitWhatsApp = async () => {
   isInitializing = false;
-  if (sock) { try { sock.ev.removeAllListeners(); await sock.logout().catch(() => {}); } catch {} sock = null; }
+  _closeSock();
   await clearMongoSession().catch(() => {});
   logger.info('[WhatsApp] Session cleared via reinit — fresh QR incoming');
   qrCode = null;
   connectionStatus = 'disconnected';
+  _lastConnectedAt = 0;
+  _postConnectRetries = 0;
   await initWhatsApp(io_ref);
 };
 
