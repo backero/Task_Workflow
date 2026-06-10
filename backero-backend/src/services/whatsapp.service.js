@@ -69,17 +69,24 @@ const initWhatsApp = async (io) => {
           const statusCode = lastDisconnect?.error?.output?.statusCode;
           logger.info(`WhatsApp closed (code: ${statusCode})`);
 
+          // 440 connectionReplaced — credentials are still valid; another client (old Render
+          // dyno during deploy overlap) grabbed the same session slot. Do NOT clear MongoDB.
+          // Wait 30s so the competing dyno dies, then reconnect and win the slot cleanly.
+          if (statusCode === DisconnectReason.connectionReplaced) {
+            logger.warn('[WhatsApp] 440 connectionReplaced — waiting 30s for competing instance to die, then reconnecting');
+            setTimeout(connect, 30000);
+            return;
+          }
+
           // These codes mean the stored session is irrecoverable — clear it and get a fresh QR.
           // Reconnecting with the same stale credentials would loop forever without ever showing a QR.
           const IRRECOVERABLE = new Set([
             DisconnectReason.loggedOut,           // 401 — device removed from phone
             DisconnectReason.badSession,          // 500 — corrupt / replaced session
             DisconnectReason.multideviceMismatch, // 411 — device key mismatch
-            DisconnectReason.connectionReplaced,  // 440 — another client took over
           ]);
 
           if (IRRECOVERABLE.has(statusCode)) {
-            // Use async IIFE — event handler is non-async so await is invalid here.
             // Must call initWhatsApp() not connect() — connect() closes over the old
             // in-memory state object, so it would still send the stale credentials.
             // initWhatsApp() reloads state fresh from MongoDB after clearing.
