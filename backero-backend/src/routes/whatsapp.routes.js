@@ -9,8 +9,27 @@ const Task = require('../models/Task');
 const User = require('../models/User');
 const Department = require('../models/Department');
 const Organization = require('../models/Organization');
+const logger = require('../utils/logger');
 
 // ── Public endpoints — no auth needed (only for initial WA setup) ─────────────
+
+// POST /api/whatsapp/force-qr — public; clears session + forces fresh QR generation
+// Used by setup page when QR never appears (stuck in connecting / 440 loop)
+let _lastForceQR = 0;
+router.post('/force-qr', (req, res) => {
+  if (isConnected()) {
+    return res.json({ success: true, message: 'Already connected', status: 'connected' });
+  }
+  const now = Date.now();
+  if (now - _lastForceQR < 30000) {
+    return res.json({ success: false, message: 'Too soon — wait 30s before retrying', status: getStatus() });
+  }
+  _lastForceQR = now;
+  logger.info('[WhatsApp] force-qr triggered via setup page — clearing session and reinitialising');
+  reinitWhatsApp().catch((err) => logger.error(`[WhatsApp] force-qr reinit error: ${err.message}`));
+  res.json({ success: true, message: 'Reinitialising — QR should appear in 5–10 seconds', status: 'reinitialising' });
+});
+
 // GET /api/whatsapp/setup — auto-refreshing HTML page for QR scanning
 router.get('/setup', (req, res) => {
   const host = `${req.protocol}://${req.get('host')}`;
@@ -21,18 +40,26 @@ router.get('/setup', (req, res) => {
 <style>
   body{font-family:sans-serif;background:#0f172a;color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;margin:0;gap:20px}
   h2{margin:0;font-size:1.3rem;color:#93c5fd}
-  #status{font-size:.9rem;color:#94a3b8;min-height:1.2em}
+  #status{font-size:.9rem;color:#94a3b8;min-height:1.2em;text-align:center}
   #qr{width:280px;height:280px;background:#1e293b;border-radius:12px;display:flex;align-items:center;justify-content:center;overflow:hidden}
   #qr img{width:280px;height:280px;display:none}
   #spinner{font-size:2rem;animation:spin 1s linear infinite}
   @keyframes spin{to{transform:rotate(360deg)}}
   .connected{color:#4ade80!important}
+  #forceBtn{display:none;padding:10px 24px;background:#3b82f6;color:#fff;border:none;border-radius:8px;font-size:.9rem;cursor:pointer;margin-top:4px}
+  #forceBtn:hover{background:#2563eb}
+  #forceBtn:disabled{background:#475569;cursor:not-allowed}
+  #timer{font-size:.75rem;color:#64748b}
 </style></head><body>
 <h2>Backero WhatsApp Setup</h2>
 <div id="qr"><span id="spinner">⟳</span><img id="img" alt="QR Code"></div>
 <div id="status">Waiting for QR…</div>
+<div id="timer"></div>
+<button id="forceBtn" onclick="forceQR()">Force QR Generation</button>
 <script>
 const imgUrl='${host}/api/whatsapp/qr/image';
+let waitSec=0, forceTriggered=false, pollTimer=null;
+
 function poll(){
   fetch('/api/whatsapp/qr/image',{cache:'no-store'})
     .then(r=>{
@@ -41,22 +68,51 @@ function poll(){
         document.getElementById('img').style.display='block';
         document.getElementById('spinner').style.display='none';
         document.getElementById('status').textContent='Scan with WhatsApp → Linked Devices → Link a Device';
-        setTimeout(poll,5000);
+        document.getElementById('forceBtn').style.display='none';
+        document.getElementById('timer').textContent='';
+        forceTriggered=false; waitSec=0;
+        pollTimer=setTimeout(poll,5000);
       } else {
         return r.json().then(d=>{
           document.getElementById('img').style.display='none';
           document.getElementById('spinner').style.display='';
           if(d.status==='connected'){
             document.getElementById('status').className='connected';
-            document.getElementById('status').textContent='✅ WhatsApp Connected!';
+            document.getElementById('status').textContent='✅ WhatsApp Connected! OTP delivery is now active.';
+            document.getElementById('forceBtn').style.display='none';
+            document.getElementById('timer').textContent='';
           } else {
             document.getElementById('status').textContent=d.message||'Waiting…';
-            setTimeout(poll,3000);
+            waitSec+=3;
+            if(waitSec>=60 && !forceTriggered){
+              forceTriggered=true;
+              document.getElementById('timer').textContent='Auto-triggering QR reset…';
+              forceQR();
+            } else if(waitSec>=30){
+              document.getElementById('forceBtn').style.display='inline-block';
+              document.getElementById('timer').textContent='Waited '+waitSec+'s — click button to force QR';
+            }
+            pollTimer=setTimeout(poll,3000);
           }
         });
       }
-    }).catch(()=>setTimeout(poll,3000));
+    }).catch(()=>{pollTimer=setTimeout(poll,3000);});
 }
+
+function forceQR(){
+  const btn=document.getElementById('forceBtn');
+  btn.disabled=true; btn.textContent='Resetting…';
+  document.getElementById('timer').textContent='Clearing session — QR will appear in 5–10s';
+  fetch('/api/whatsapp/force-qr',{method:'POST',cache:'no-store'})
+    .then(r=>r.json())
+    .then(d=>{
+      document.getElementById('status').textContent=d.message||'Reinitialising…';
+      waitSec=0;
+      setTimeout(()=>{ btn.disabled=false; btn.textContent='Force QR Generation'; },32000);
+    })
+    .catch(()=>{ btn.disabled=false; btn.textContent='Force QR Generation'; });
+}
+
 poll();
 </script></body></html>`);
 });
