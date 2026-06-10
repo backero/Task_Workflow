@@ -71,10 +71,13 @@ const initWhatsApp = async (io) => {
 
           // 440 connectionReplaced — credentials are still valid; another client (old Render
           // dyno during deploy overlap) grabbed the same session slot. Do NOT clear MongoDB.
-          // Wait 30s so the competing dyno dies, then reconnect and win the slot cleanly.
+          // Jitter (30-50s) ensures two competing dynos don't reconnect simultaneously,
+          // which would cause them to keep kicking each other in an infinite 440 loop.
           if (statusCode === DisconnectReason.connectionReplaced) {
-            logger.warn('[WhatsApp] 440 connectionReplaced — waiting 30s for competing instance to die, then reconnecting');
-            setTimeout(connect, 30000);
+            const jitter = Math.floor(Math.random() * 20000); // 0–20s random
+            const delay = 30000 + jitter;
+            logger.warn(`[WhatsApp] 440 connectionReplaced — waiting ${Math.round(delay/1000)}s (jitter) before reconnect`);
+            setTimeout(connect, delay);
             return;
           }
 

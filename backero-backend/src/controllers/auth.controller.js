@@ -189,29 +189,38 @@ exports.sendLoginOTP = asyncHandler(async (req, res) => {
   const devPayload = process.env.NODE_ENV !== 'production' ? { _devOtp: otp } : {};
   sendSuccess(res, devPayload, 'OTP sent to your mobile number');
 
-  const { sendMessage, isConnected } = require('../services/whatsapp.service');
+  const { sendMessage, isConnected, getStatus } = require('../services/whatsapp.service');
   const otpMsg = `🔐 *Backero Login OTP*\n\nYour OTP is: *${otp}*\n\nValid for 10 minutes. Do not share this with anyone.`;
   (async () => {
-    // Wait up to 90s for WhatsApp to (re)connect — covers Render cold-start wakeup,
-    // 440 reconnect cycles, and normal post-deploy reconnects.
-    // Do NOT call reinitWhatsApp() here — that logs out + clears MongoDB, destroying
-    // a valid session. The service's own reconnect loop handles recovery correctly.
-    if (!isConnected()) {
-      logger.info(`[OTP] WhatsApp not connected — waiting for reconnect (${phone})`);
-      await new Promise((resolve) => {
-        const deadline = setTimeout(resolve, 90000);
-        const poll = setInterval(() => {
-          if (isConnected()) { clearInterval(poll); clearTimeout(deadline); resolve(); }
-        }, 2000);
-      });
+    try {
+      logger.info(`[OTP] Background send start — phone: ${phone}, WA: ${getStatus()}`);
+
+      if (!isConnected()) {
+        logger.info(`[OTP] Waiting for WA connect (up to 90s)…`);
+        await new Promise((resolve) => {
+          const deadline = setTimeout(resolve, 90000);
+          const poll = setInterval(() => {
+            if (isConnected()) { clearInterval(poll); clearTimeout(deadline); resolve(); }
+          }, 2000);
+        });
+        logger.info(`[OTP] Poll ended — WA status: ${getStatus()}`);
+      }
+
+      const delays = [0, 5000, 15000];
+      for (const delay of delays) {
+        if (delay > 0) await new Promise((r) => setTimeout(r, delay));
+        logger.info(`[OTP] sendMessage attempt — phone: ${phone}, connected: ${isConnected()}`);
+        const sent = await sendMessage(phone, otpMsg).catch((err) => {
+          logger.error(`[OTP] sendMessage threw: ${err.message}`);
+          return false;
+        });
+        if (sent) { logger.info(`[OTP] ✅ Delivered to ${phone}`); return; }
+        logger.warn(`[OTP] attempt failed for ${phone} (delay=${delay}ms)`);
+      }
+      logger.error(`[OTP] ❌ All retries failed for ${phone} — WA: ${getStatus()}`);
+    } catch (err) {
+      logger.error(`[OTP] IIFE crashed for ${phone}: ${err.message}`);
     }
-    const delays = [0, 5000, 15000];
-    for (const delay of delays) {
-      if (delay > 0) await new Promise((r) => setTimeout(r, delay));
-      const sent = await sendMessage(phone, otpMsg).catch(() => false);
-      if (sent) return;
-    }
-    logger.error(`[OTP] WhatsApp delivery failed for ${phone} after all retries`);
   })();
 });
 
