@@ -3,169 +3,160 @@ const { useMongoAuthState, clearMongoSession } = require('./whatsappMongoAuth');
 
 let sock = null;
 let qrCode = null;
-let connectionStatus = 'disconnected'; // 'disconnected' | 'connecting' | 'qr_ready' | 'connected' | 'unavailable'
+let connectionStatus = 'disconnected';
 let io_ref = null;
-let consecutive440s = 0;
 let isInitializing = false;
 let lastError = null;
+let _consecutive440s = 0;
 
-// ── Init ─────────────────────────────────────────────────────────────────────
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+// Schedule a fresh initWhatsApp after delayMs. Resets guard so it's never blocked.
+const _scheduleReinit = (delayMs = 3000, clearSession = false) => {
+  isInitializing = false;
+  if (clearSession) {
+    clearMongoSession().catch(() => {}).finally(() => {
+      setTimeout(() => initWhatsApp(io_ref), delayMs);
+    });
+  } else {
+    setTimeout(() => initWhatsApp(io_ref), delayMs);
+  }
+};
+
+// ── Init ──────────────────────────────────────────────────────────────────────
 const initWhatsApp = async (io) => {
   if (isInitializing) {
-    logger.warn('[WhatsApp] initWhatsApp already in progress — skipping duplicate call');
+    logger.warn('[WhatsApp] Init already in progress — ignoring duplicate call');
     return;
   }
   isInitializing = true;
-  io_ref = io;
+  io_ref = io || io_ref;
+
+  // Kill any lingering socket from a previous init
+  if (sock) {
+    try { sock.ev.removeAllListeners(); } catch {}
+    sock = null;
+  }
+
+  connectionStatus = 'connecting';
+
   try {
-    // @whiskeysockets/baileys is ESM-only — use dynamic import
     const baileys = await import('@whiskeysockets/baileys');
     const makeWASocket = baileys.default ?? baileys.makeWASocket;
     const { DisconnectReason, fetchLatestBaileysVersion } = baileys;
 
-    // MongoDB auth persists across Render restarts; file-based /tmp is wiped on each deploy
     const { state, saveCreds } = await useMongoAuthState(baileys);
 
-    // fetchLatestBaileysVersion() hits GitHub — can hang on Render; timeout + fallback
+    // fetchLatestBaileysVersion hits GitHub and can hang — 10s timeout + stable fallback
     let version;
     try {
-      const result = await Promise.race([
+      const r = await Promise.race([
         fetchLatestBaileysVersion(),
-        new Promise((_, reject) => setTimeout(() => reject(new Error('fetchLatestBaileysVersion timeout')), 8000)),
+        new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 10000)),
       ]);
-      version = result.version;
-      logger.info(`[WhatsApp] Baileys version: ${version}`);
-    } catch (vErr) {
-      version = [2, 3000, 1017531287]; // known stable fallback
-      logger.warn(`[WhatsApp] fetchLatestBaileysVersion failed (${vErr.message}) — using fallback ${version}`);
+      version = r?.version || [2, 3000, 1017531287];
+    } catch {
+      version = [2, 3000, 1017531287];
     }
 
-    const connect = async () => {
-      connectionStatus = 'connecting';
+    const hasCreds = !!state.creds?.me;
+    logger.info(`[WhatsApp] Starting — version: ${version} | storedSession: ${hasCreds}`);
 
-      // Safety net: if still connecting with no QR after 45s, the stored session
-      // is probably silently broken. Clear it and start fresh.
-      const connectWatchdog = setTimeout(() => {
-        if (connectionStatus === 'connecting') {
-          logger.warn('[WhatsApp] Stuck connecting for 20s — clearing session for fresh QR');
-          if (sock) { sock.ev.removeAllListeners(); sock = null; }
-          isInitializing = false;
-          (async () => {
-            await clearMongoSession().catch(() => {});
-            setTimeout(() => initWhatsApp(io_ref), 2000);
-          })();
-        }
-      }, 20000);
+    // Watchdog: if no QR/connection after 60s, session is silently broken — clear + fresh QR
+    // 60s gives Render cold starts (30s wake + 10s DB + 10s WA handshake) enough margin.
+    const watchdog = setTimeout(async () => {
+      if (connectionStatus === 'connecting') {
+        logger.warn('[WhatsApp] Watchdog: stuck connecting 60s — clearing session for fresh QR');
+        if (sock) { try { sock.ev.removeAllListeners(); } catch {} sock = null; }
+        _scheduleReinit(2000, true);
+      }
+    }, 60000);
 
-      const noop = () => {};
-      const silentLogger = { level: 'silent', info: noop, warn: noop, error: noop, debug: noop, trace: noop, fatal: noop, child: () => silentLogger };
-
-      sock = makeWASocket({
-        version,
-        auth: state,
-        printQRInTerminal: true,
-        browser: ['Backero', 'Chrome', '1.0.0'],
-        generateHighQualityLinkPreview: false,
-        getMessage: async () => undefined,
-        logger: silentLogger,
-      });
-
-      sock.ev.on('creds.update', saveCreds);
-
-      sock.ev.on('connection.update', (update) => {
-        const { connection, lastDisconnect, qr } = update;
-
-        if (qr) {
-          qrCode = qr;
-          connectionStatus = 'qr_ready';
-          logger.info('WhatsApp QR ready → visit GET /api/whatsapp/qr to scan');
-          io_ref?.emit('wa_qr', { qr });
-        }
-
-        if (connection === 'close') {
-          clearTimeout(connectWatchdog);
-          sock = null;
-          connectionStatus = 'disconnected';
-
-          const statusCode = lastDisconnect?.error?.output?.statusCode;
-          logger.info(`WhatsApp closed (code: ${statusCode})`);
-
-          // 440 connectionReplaced — another client grabbed the same session slot.
-          // Track consecutive 440s: after 3 in a row the competing client is not a
-          // transient deploy overlap but something persistent (stale session, ghost dyno).
-          // At that point clear MongoDB so a fresh QR is generated instead of looping.
-          if (statusCode === DisconnectReason.connectionReplaced) {
-            consecutive440s++;
-            logger.warn(`[WhatsApp] 440 connectionReplaced (consecutive: ${consecutive440s})`);
-            if (consecutive440s >= 3) {
-              logger.warn('[WhatsApp] 3 consecutive 440s — clearing session for fresh QR');
-              consecutive440s = 0;
-              isInitializing = false;
-              (async () => {
-                await clearMongoSession().catch(() => {});
-                setTimeout(() => initWhatsApp(io_ref), 2000);
-              })();
-            } else {
-              const jitter = Math.floor(Math.random() * 3000);
-              const delay = 5000 + jitter;
-              logger.warn(`[WhatsApp] Waiting ${Math.round(delay/1000)}s before reconnect`);
-              setTimeout(connect, delay);
-            }
-            return;
-          }
-
-          // These codes mean the stored session is irrecoverable — clear it and get a fresh QR.
-          // Reconnecting with the same stale credentials would loop forever without ever showing a QR.
-          const IRRECOVERABLE = new Set([
-            DisconnectReason.loggedOut,           // 401 — device removed from phone
-            DisconnectReason.badSession,          // 500 — corrupt / replaced session
-            DisconnectReason.multideviceMismatch, // 411 — device key mismatch
-          ]);
-
-          if (IRRECOVERABLE.has(statusCode)) {
-            // Must call initWhatsApp() not connect() — connect() closes over the old
-            // in-memory state object, so it would still send the stale credentials.
-            // initWhatsApp() reloads state fresh from MongoDB after clearing.
-            isInitializing = false;
-            (async () => {
-              logger.warn(`WhatsApp irrecoverable disconnect (${statusCode}) — clearing MongoDB session for fresh QR`);
-              await clearMongoSession().catch(() => {});
-              logger.info('[WhatsApp] Session cleared — reinitialising in 5s for fresh QR');
-              setTimeout(() => initWhatsApp(io_ref), 5000);
-            })();
-          } else {
-            logger.info('WhatsApp reconnecting in 5s...');
-            setTimeout(connect, 5000);
-          }
-        } else if (connection === 'open') {
-          clearTimeout(connectWatchdog);
-          qrCode = null;
-          connectionStatus = 'connected';
-          consecutive440s = 0;
-          logger.info('✅ WhatsApp connected and ready to send messages');
-          io_ref?.emit('wa_connected', {});
-        }
-      });
+    const noop = () => {};
+    const silentLogger = {
+      level: 'silent', info: noop, warn: noop, error: noop,
+      debug: noop, trace: noop, fatal: noop, child: () => silentLogger,
     };
 
-    await connect();
+    sock = makeWASocket({
+      version,
+      auth: state,
+      printQRInTerminal: true,
+      browser: ['Backero', 'Chrome', '1.0.0'],
+      generateHighQualityLinkPreview: false,
+      getMessage: async () => undefined,
+      logger: silentLogger,
+    });
+
+    sock.ev.on('creds.update', saveCreds);
+
+    sock.ev.on('connection.update', async ({ connection, lastDisconnect, qr }) => {
+      if (qr) {
+        qrCode = qr;
+        connectionStatus = 'qr_ready';
+        logger.info('[WhatsApp] QR ready — open /api/whatsapp/setup to scan');
+        io_ref?.emit('wa_qr', { qr });
+      }
+
+      if (connection === 'open') {
+        clearTimeout(watchdog);
+        qrCode = null;
+        connectionStatus = 'connected';
+        _consecutive440s = 0;
+        logger.info('[WhatsApp] ✅ Connected and ready');
+        io_ref?.emit('wa_connected', {});
+      }
+
+      if (connection === 'close') {
+        clearTimeout(watchdog);
+        if (sock) { try { sock.ev.removeAllListeners(); } catch {} sock = null; }
+        connectionStatus = 'disconnected';
+
+        const code = lastDisconnect?.error?.output?.statusCode;
+        logger.warn(`[WhatsApp] Disconnected — code: ${code}`);
+
+        if (code === DisconnectReason.connectionReplaced) {
+          // 440: another client grabbed the same session slot
+          _consecutive440s++;
+          logger.warn(`[WhatsApp] 440 connectionReplaced × ${_consecutive440s}`);
+          if (_consecutive440s >= 3) {
+            logger.warn('[WhatsApp] 3× 440 — clearing session for fresh QR');
+            _consecutive440s = 0;
+            _scheduleReinit(2000, true);
+          } else {
+            // Wait briefly then retry with same session — deploy overlap usually resolves in 1-2 tries
+            _scheduleReinit(6000, false);
+          }
+        } else if (
+          code === DisconnectReason.loggedOut ||           // 401 — removed from phone
+          code === DisconnectReason.badSession ||          // 500 — corrupt session
+          code === DisconnectReason.multideviceMismatch    // 411 — key mismatch
+        ) {
+          logger.warn(`[WhatsApp] Irrecoverable (${code}) — clearing session for fresh QR`);
+          _scheduleReinit(3000, true);
+        } else {
+          // Generic/transient disconnect — reload state from MongoDB and reconnect
+          logger.info(`[WhatsApp] Reconnecting in 5s (code: ${code})…`);
+          _scheduleReinit(5000, false);
+        }
+      }
+    });
+
   } catch (err) {
     connectionStatus = 'unavailable';
     lastError = err.message;
-    logger.error(`[WhatsApp] initWhatsApp FAILED: ${err.message}`);
-    logger.error(err.stack || err);
-    logger.warn('Run: npm install @whiskeysockets/baileys  to enable WhatsApp sending');
+    logger.error(`[WhatsApp] Init failed: ${err.message}`);
+    logger.error(err.stack || '');
   } finally {
     isInitializing = false;
   }
 };
 
-// ── Core send ────────────────────────────────────────────────────────────────
+// ── Core send ─────────────────────────────────────────────────────────────────
 const sendMessage = async (phone, message) => {
   if (!phone || !message) return false;
 
   const digits = phone.replace(/\D/g, '');
-  // Add India country code if number is 10 digits
   const withCC = digits.length === 10 ? `91${digits}` : digits;
 
   if (sock && connectionStatus === 'connected') {
@@ -179,28 +170,21 @@ const sendMessage = async (phone, message) => {
     }
   }
 
-  // Fallback: log so you can verify the message content
   logger.info(`[WhatsApp STUB] → +${withCC}\n${message.substring(0, 120)}`);
   return false;
 };
 
-// ── Group join via invite link ────────────────────────────────────────────────
+// ── Group join via invite link ─────────────────────────────────────────────────
 const joinGroupViaLink = async (inviteLink) => {
-  // Extract invite code first so we can validate before waiting
   const code = inviteLink.replace(/^https?:\/\/chat\.whatsapp\.com\//i, '').trim();
   if (!code) throw new Error('Invalid invite link');
 
-  // Wait up to 30s for a stable connection (handles brief 440 reconnect cycles)
   if (connectionStatus !== 'connected') {
     logger.info(`[WhatsApp] joinGroup: waiting for connection (current: ${connectionStatus})`);
     await new Promise((resolve, reject) => {
       const deadline = setTimeout(() => reject(new Error('WhatsApp not connected — scan QR at /api/whatsapp/setup and retry')), 30000);
       const check = setInterval(() => {
-        if (connectionStatus === 'connected') {
-          clearInterval(check);
-          clearTimeout(deadline);
-          resolve();
-        }
+        if (connectionStatus === 'connected') { clearInterval(check); clearTimeout(deadline); resolve(); }
       }, 500);
     });
   }
@@ -243,18 +227,15 @@ const getJoinedGroups = async () => {
   }
 };
 
-// ── Formatted message builders ────────────────────────────────────────────────
-
+// ── Message builders ──────────────────────────────────────────────────────────
 const fmt = (n) => (n || 0).toLocaleString('en-IN');
 const fmtDate = (d) => d ? new Date(d).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : 'No due date';
 const PRIORITY_EMOJI = { critical: '🔴', urgent: '🟠', high: '🟡', medium: '🔵', low: '⚪' };
-
-// 1. Task Assigned → send to employee
 const APP_URL = process.env.APP_URL || 'https://backero-worktaskflow.netlify.app';
 
 const sendTaskAssigned = async (phone, { title, assignedByName, priority, department, dueDate, description, taskId }) => {
   const link = taskId ? `${APP_URL}/tasks/${taskId}` : APP_URL;
-  const msg =
+  return sendMessage(phone,
     `🎯 *New Task Assigned — Backero*\n\n` +
     `📌 *Task:* ${title}\n` +
     `👤 *Assigned by:* ${assignedByName}\n` +
@@ -262,30 +243,26 @@ const sendTaskAssigned = async (phone, { title, assignedByName, priority, depart
     `🏢 *Department:* ${department || '—'}\n` +
     `📅 *Due Date:* ${fmtDate(dueDate)}\n` +
     (description ? `📝 *Note:* ${description.substring(0, 100)}${description.length > 100 ? '...' : ''}\n` : '') +
-    `\n🔗 *View Task:* ${link}\n` +
-    `\n_Reply with your update when work starts_`;
-  return sendMessage(phone, msg);
+    `\n🔗 *View Task:* ${link}\n\n_Reply with your update when work starts_`
+  );
 };
 
-// 2. Task Overdue → employee
 const sendTaskOverdueEmployee = async (phone, { title, assignedByName, dueDate, overdueCount, taskId }) => {
   const link = taskId ? `${APP_URL}/tasks/${taskId}` : APP_URL;
-  const msg =
+  return sendMessage(phone,
     `⚠️ *TASK OVERDUE — Backero Alert*\n\n` +
     `📌 *Task:* ${title}\n` +
     `📅 *Was Due:* ${fmtDate(dueDate)}\n` +
     `👤 *Assigned by:* ${assignedByName || '—'}\n` +
     (overdueCount > 1 ? `🔁 *Reminder #${overdueCount}*\n` : '') +
-    `\n⚡ Your task is overdue! Please update your progress immediately or raise a completion request.\n` +
-    `\n🔗 *Take Action:* ${link}\n` +
-    `\n_Login to Backero to take action_`;
-  return sendMessage(phone, msg);
+    `\n⚡ Your task is overdue! Please update your progress immediately.\n` +
+    `\n🔗 *Take Action:* ${link}\n\n_Login to Backero to take action_`
+  );
 };
 
-// 3. Task Overdue → manager / admin
 const sendTaskOverdueManager = async (phone, { title, employeeName, department, dueDate, priority, taskId }) => {
   const link = taskId ? `${APP_URL}/tasks/${taskId}` : `${APP_URL}/tasks/my`;
-  const msg =
+  return sendMessage(phone,
     `🚨 *TEAM TASK OVERDUE — Backero*\n\n` +
     `📌 *Task:* ${title}\n` +
     `👤 *Assigned to:* ${employeeName}\n` +
@@ -293,14 +270,13 @@ const sendTaskOverdueManager = async (phone, { title, employeeName, department, 
     `${PRIORITY_EMOJI[priority] || '🔵'} *Priority:* ${(priority || 'medium').toUpperCase()}\n` +
     `📅 *Was Due:* ${fmtDate(dueDate)}\n` +
     `\n⚡ Action required: Please follow up with ${employeeName} immediately.\n` +
-    `\n🔗 *Review:* ${link}\n` +
-    `\n_Login to Backero → Team Tasks to review_`;
-  return sendMessage(phone, msg);
+    `\n🔗 *Review:* ${link}\n\n_Login to Backero → Team Tasks to review_`
+  );
 };
 
 const sendTaskOverdueGroup = async (groupJid, { title, employeeName, department, dueDate, priority, overdueCount, taskId }) => {
   const link = taskId ? `${APP_URL}/tasks/${taskId}` : `${APP_URL}/tasks/my`;
-  const msg =
+  return sendGroupMessage(groupJid,
     `🚨 *OVERDUE TASK ALERT — ${department || 'Department'}*\n\n` +
     `📌 *Task:* ${title}\n` +
     `👤 *Assigned to:* ${employeeName}\n` +
@@ -308,15 +284,13 @@ const sendTaskOverdueGroup = async (groupJid, { title, employeeName, department,
     `📅 *Was Due:* ${fmtDate(dueDate)}\n` +
     (overdueCount > 1 ? `🔁 *Reminder #${overdueCount}*\n` : '') +
     `\n⚡ This task is overdue. Team lead please follow up immediately.\n` +
-    `\n🔗 ${link}\n` +
-    `\n_Backero Task Management_`;
-  return sendGroupMessage(groupJid, msg);
+    `\n🔗 ${link}\n\n_Backero Task Management_`
+  );
 };
 
-// 4. New Lead → CRM group
 const sendNewLeadAlert = async (groupJid, { name, phone, company, city, state, source, priority, productInterest, estimatedValue, createdByName }) => {
   const PRIORITY_LABEL = { critical: '🔴 CRITICAL', high: '🟡 HIGH', medium: '🔵 MEDIUM', low: '⚪ LOW' };
-  const msg =
+  return sendGroupMessage(groupJid,
     `🆕 *New Lead — Backero CRM*\n\n` +
     `👤 *Name:* ${name}\n` +
     `📱 *Phone:* ${phone}\n` +
@@ -327,12 +301,10 @@ const sendNewLeadAlert = async (groupJid, { name, phone, company, city, state, s
     (productInterest?.length ? `📦 *Interest:* ${productInterest.join(', ')}\n` : '') +
     (estimatedValue ? `💰 *Est. Value:* ₹${Number(estimatedValue).toLocaleString('en-IN')}\n` : '') +
     `\n👤 *Added by:* ${createdByName}\n` +
-    `\n🔗 ${APP_URL}/crm/pipeline\n` +
-    `\n_Backero CRM_`;
-  return sendGroupMessage(groupJid, msg);
+    `\n🔗 ${APP_URL}/crm/pipeline\n\n_Backero CRM_`
+  );
 };
 
-// 5. Daily 9 PM Report → admins / founders
 const sendDailyReport = async (phone, {
   orgName, date,
   tasksCompleted, tasksOverdue, tasksPendingApproval, tasksInProgress, totalTasks,
@@ -347,106 +319,65 @@ const sendDailyReport = async (phone, {
   const netToday = (incomeToday || 0) - (expenseToday || 0);
   const fmtD = (d) => d ? new Date(d).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' }) : '—';
 
-  // Department breakdown lines (compact: one line per dept)
   let deptSection = '';
-  if (departmentStats && departmentStats.length > 0) {
+  if (departmentStats?.length > 0) {
     const lines = departmentStats.map((d) => {
       const parts = [];
       if (d.completed)  parts.push(`✅${d.completed}`);
       if (d.inProgress) parts.push(`🔄${d.inProgress}`);
       if (d.overdue)    parts.push(`⏰${d.overdue}`);
       if (d.pending)    parts.push(`🕐${d.pending}`);
-      const sub  = d.subtaskCount ? ` · ${d.subtaskCount} sub` : '';
-      const due  = d.nearestDue   ? ` · due ${fmtD(d.nearestDue)}` : '';
+      const sub = d.subtaskCount ? ` · ${d.subtaskCount} sub` : '';
+      const due = d.nearestDue   ? ` · due ${fmtD(d.nearestDue)}` : '';
       return `▸ *${d.department}*  ${d.total} tasks  ${parts.join(' ')}${sub}${due}`;
     });
-    deptSection =
-      `━━━━━━━━━━━━━━━━━━━━\n` +
-      `📂 *DEPARTMENT BREAKDOWN*\n` +
-      lines.join('\n') + '\n\n';
+    deptSection = `━━━━━━━━━━━━━━━━━━━━\n📂 *DEPARTMENT BREAKDOWN*\n${lines.join('\n')}\n\n`;
   }
 
-  // Marketplace section
   let mktSection = '';
   if (marketplaceToday) {
     const net = (marketplaceToday.adRevenue || 0) - (marketplaceToday.adSpend || 0);
     mktSection =
-      `━━━━━━━━━━━━━━━━━━━━\n` +
-      `🛒 *MARKETPLACE TODAY*\n` +
+      `━━━━━━━━━━━━━━━━━━━━\n🛒 *MARKETPLACE TODAY*\n` +
       `💰 Total Sales: *₹${fmt(marketplaceToday.totalSales)}*\n` +
       `📢 Ad Spend: *₹${fmt(marketplaceToday.adSpend)}*  |  Ad Revenue: *₹${fmt(marketplaceToday.adRevenue)}*\n` +
       `${net >= 0 ? '📈' : '📉'} Ad Net: *₹${fmt(Math.abs(net))}* ${net < 0 ? '(loss)' : '(profit)'}\n` +
       `📊 CTR: *${(marketplaceToday.ctr || 0).toFixed(2)}%*  |  CVR: *${(marketplaceToday.cvr || 0).toFixed(2)}%*\n` +
-      `🔄 Returns: *${fmt(marketplaceToday.returns)}*\n`;
-
-    if (platformListings.length > 0) {
-      const platLines = platformListings.map((p) => `  • ${p._id}: *${p.count}* listings`).join('\n');
-      mktSection += `📦 *Listings per Platform:*\n${platLines}\n`;
-    }
-    mktSection += '\n';
+      `🔄 Returns: *${fmt(marketplaceToday.returns)}*\n` +
+      (platformListings.length > 0 ? `📦 *Listings per Platform:*\n${platformListings.map((p) => `  • ${p._id}: *${p.count}* listings`).join('\n')}\n` : '') +
+      '\n';
   } else if (platformListings.length > 0) {
-    const platLines = platformListings.map((p) => `  • ${p._id}: *${p.count}* listings`).join('\n');
     mktSection =
-      `━━━━━━━━━━━━━━━━━━━━\n` +
-      `🛒 *MARKETPLACE*\n` +
-      `📦 *Listings per Platform:*\n${platLines}\n\n`;
+      `━━━━━━━━━━━━━━━━━━━━\n🛒 *MARKETPLACE*\n` +
+      `📦 *Listings per Platform:*\n${platformListings.map((p) => `  • ${p._id}: *${p.count}* listings`).join('\n')}\n\n`;
   }
 
-  const msg =
-    `📊 *Daily Operations Report*\n` +
-    `🏢 *${orgName}*\n` +
-    `📅 *${date}*\n\n` +
-
-    `━━━━━━━━━━━━━━━━━━━━\n` +
-    `📋 *TASKS OVERVIEW*\n` +
-    `✅ Completed Today: *${tasksCompleted}*\n` +
-    `🔄 In Progress: *${tasksInProgress}*\n` +
-    `⏰ Overdue: *${tasksOverdue}*\n` +
-    `🔍 Pending Approvals: *${tasksPendingApproval}*\n` +
-    `📝 Total Active: *${totalTasks}*\n\n` +
-
-    deptSection +
-    mktSection +
-
-    `━━━━━━━━━━━━━━━━━━━━\n` +
-    `👥 *CRM / LEADS*\n` +
-    `🆕 New Leads Today: *${newLeadsToday}*\n` +
-    `🏆 Won Today: *${leadsWonToday}*\n` +
-    `📊 Total Active Leads: *${activeLeads}*\n\n` +
-
-    `━━━━━━━━━━━━━━━━━━━━\n` +
-    `💰 *FINANCE (Today)*\n` +
-    `💚 Income: *₹${fmt(incomeToday)}*\n` +
-    `🔴 Expense: *₹${fmt(expenseToday)}*\n` +
+  return sendMessage(phone,
+    `📊 *Daily Operations Report*\n🏢 *${orgName}*\n📅 *${date}*\n\n` +
+    `━━━━━━━━━━━━━━━━━━━━\n📋 *TASKS OVERVIEW*\n` +
+    `✅ Completed Today: *${tasksCompleted}*\n🔄 In Progress: *${tasksInProgress}*\n` +
+    `⏰ Overdue: *${tasksOverdue}*\n🔍 Pending Approvals: *${tasksPendingApproval}*\n📝 Total Active: *${totalTasks}*\n\n` +
+    deptSection + mktSection +
+    `━━━━━━━━━━━━━━━━━━━━\n👥 *CRM / LEADS*\n` +
+    `🆕 New Leads Today: *${newLeadsToday}*\n🏆 Won Today: *${leadsWonToday}*\n📊 Total Active Leads: *${activeLeads}*\n\n` +
+    `━━━━━━━━━━━━━━━━━━━━\n💰 *FINANCE (Today)*\n` +
+    `💚 Income: *₹${fmt(incomeToday)}*\n🔴 Expense: *₹${fmt(expenseToday)}*\n` +
     `${netToday >= 0 ? '📈' : '📉'} Net: *₹${fmt(Math.abs(netToday))}* ${netToday < 0 ? '(loss)' : '(profit)'}\n\n` +
-
-    `━━━━━━━━━━━━━━━━━━━━\n` +
-    `📦 *INVENTORY & PRODUCTION*\n` +
-    `⚠️ Low Stock Alerts: *${lowStockCount}*\n` +
-    `🏭 Active Production Orders: *${activeProductionOrders}*\n\n` +
-
-    (topPerformerName
-      ? `━━━━━━━━━━━━━━━━━━━━\n🏆 *TOP PERFORMER TODAY*\n👑 ${topPerformerName} — *${topPerformerCount} tasks completed*\n\n`
-      : '') +
-
-    `━━━━━━━━━━━━━━━━━━━━\n` +
-    `_Backero Enterprise Platform_\n` +
-    `_Automated Daily Report · 9 PM IST_\n` +
-    `_📄 Full PDF report attached_`;
-  return sendMessage(phone, msg);
+    `━━━━━━━━━━━━━━━━━━━━\n📦 *INVENTORY & PRODUCTION*\n` +
+    `⚠️ Low Stock Alerts: *${lowStockCount}*\n🏭 Active Production Orders: *${activeProductionOrders}*\n\n` +
+    (topPerformerName ? `━━━━━━━━━━━━━━━━━━━━\n🏆 *TOP PERFORMER TODAY*\n👑 ${topPerformerName} — *${topPerformerCount} tasks completed*\n\n` : '') +
+    `━━━━━━━━━━━━━━━━━━━━\n_Backero Enterprise Platform_\n_Automated Daily Report · 9 PM IST_\n_📄 Full PDF report attached_`
+  );
 };
 
-// 5. Send PDF report as WhatsApp document
 const sendDailyReportWithPDF = async (phone, pdfBuffer, fileName) => {
   if (!pdfBuffer || !phone) return false;
   const digits = phone.replace(/\D/g, '');
   const withCC = digits.length === 10 ? `91${digits}` : digits;
-
   if (sock && connectionStatus === 'connected') {
     try {
       await sock.sendMessage(`${withCC}@s.whatsapp.net`, {
-        document: pdfBuffer,
-        mimetype: 'application/pdf',
+        document: pdfBuffer, mimetype: 'application/pdf',
         fileName: fileName || 'daily-report.pdf',
         caption: '📊 Daily Operations Report — Full PDF',
       });
@@ -461,35 +392,25 @@ const sendDailyReportWithPDF = async (phone, pdfBuffer, fileName) => {
   return false;
 };
 
-// ── Status helpers ────────────────────────────────────────────────────────────
-const getStatus = () => connectionStatus;
-const getQRCode = () => qrCode;
-const isConnected = () => connectionStatus === 'connected';
+// ── Status ────────────────────────────────────────────────────────────────────
+const getStatus    = () => connectionStatus;
+const getQRCode    = () => qrCode;
+const isConnected  = () => connectionStatus === 'connected';
 const getDebugInfo = () => ({
   status: connectionStatus,
   connected: connectionStatus === 'connected',
   hasQR: !!qrCode,
   isInitializing,
-  consecutive440s,
+  consecutive440s: _consecutive440s,
   lastError,
   sockAlive: !!sock,
 });
 
 const reinitWhatsApp = async () => {
-  // Reset guard first so initWhatsApp isn't blocked
   isInitializing = false;
-
-  try {
-    if (sock) {
-      sock.ev.removeAllListeners();
-      await sock.logout().catch(() => {});
-      sock = null;
-    }
-  } catch {}
-
+  if (sock) { try { sock.ev.removeAllListeners(); await sock.logout().catch(() => {}); } catch {} sock = null; }
   await clearMongoSession().catch(() => {});
-  logger.info('[WhatsApp] MongoDB session cleared — fresh QR will be generated');
-
+  logger.info('[WhatsApp] Session cleared via reinit — fresh QR incoming');
   qrCode = null;
   connectionStatus = 'disconnected';
   await initWhatsApp(io_ref);
