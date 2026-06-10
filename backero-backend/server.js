@@ -65,6 +65,7 @@ const allowedOrigins = [
   'http://localhost:3000',
   'https://resplendent-shortbread-91ee46.netlify.app',
   'https://backero-worktaskflow.netlify.app',
+  'https://task-workflow-liart.vercel.app',
   ...(process.env.FRONTEND_URL ? [process.env.FRONTEND_URL] : []),
 ];
 
@@ -77,8 +78,12 @@ app.use(cors({
     if (process.env.NODE_ENV !== 'production' && /^http:\/\/localhost:\d+$/.test(origin)) {
       return callback(null, true);
     }
-    // Allow Netlify preview deploys for the same site (branch/deploy previews)
+    // Allow Netlify preview deploys
     if (/^https:\/\/[a-z0-9-]+--(resplendent-shortbread-91ee46|backero-worktaskflow)\.netlify\.app$/.test(origin)) {
+      return callback(null, true);
+    }
+    // Allow all Vercel deployments for this project (preview + production)
+    if (/^https:\/\/task-workflow[a-z0-9-]*\.vercel\.app$/.test(origin)) {
       return callback(null, true);
     }
     callback(new Error(`CORS: origin ${origin} not allowed`));
