@@ -5,6 +5,7 @@ let sock = null;
 let qrCode = null;
 let connectionStatus = 'disconnected'; // 'disconnected' | 'connecting' | 'qr_ready' | 'connected' | 'unavailable'
 let io_ref = null;
+let consecutive440s = 0;
 
 // ── Init ─────────────────────────────────────────────────────────────────────
 const initWhatsApp = async (io) => {
@@ -69,15 +70,26 @@ const initWhatsApp = async (io) => {
           const statusCode = lastDisconnect?.error?.output?.statusCode;
           logger.info(`WhatsApp closed (code: ${statusCode})`);
 
-          // 440 connectionReplaced — credentials are still valid; another client (old Render
-          // dyno during deploy overlap) grabbed the same session slot. Do NOT clear MongoDB.
-          // Jitter (30-50s) ensures two competing dynos don't reconnect simultaneously,
-          // which would cause them to keep kicking each other in an infinite 440 loop.
+          // 440 connectionReplaced — another client grabbed the same session slot.
+          // Track consecutive 440s: after 3 in a row the competing client is not a
+          // transient deploy overlap but something persistent (stale session, ghost dyno).
+          // At that point clear MongoDB so a fresh QR is generated instead of looping.
           if (statusCode === DisconnectReason.connectionReplaced) {
-            const jitter = Math.floor(Math.random() * 20000); // 0–20s random
-            const delay = 30000 + jitter;
-            logger.warn(`[WhatsApp] 440 connectionReplaced — waiting ${Math.round(delay/1000)}s (jitter) before reconnect`);
-            setTimeout(connect, delay);
+            consecutive440s++;
+            logger.warn(`[WhatsApp] 440 connectionReplaced (consecutive: ${consecutive440s})`);
+            if (consecutive440s >= 3) {
+              logger.warn('[WhatsApp] 3 consecutive 440s — clearing session for fresh QR');
+              consecutive440s = 0;
+              (async () => {
+                await clearMongoSession().catch(() => {});
+                setTimeout(() => initWhatsApp(io_ref), 3000);
+              })();
+            } else {
+              const jitter = Math.floor(Math.random() * 20000);
+              const delay = 30000 + jitter;
+              logger.warn(`[WhatsApp] Waiting ${Math.round(delay/1000)}s before reconnect`);
+              setTimeout(connect, delay);
+            }
             return;
           }
 
@@ -107,6 +119,7 @@ const initWhatsApp = async (io) => {
           clearTimeout(connectWatchdog);
           qrCode = null;
           connectionStatus = 'connected';
+          consecutive440s = 0;
           logger.info('✅ WhatsApp connected and ready to send messages');
           io_ref?.emit('wa_connected', {});
         }
