@@ -6,9 +6,15 @@ let qrCode = null;
 let connectionStatus = 'disconnected'; // 'disconnected' | 'connecting' | 'qr_ready' | 'connected' | 'unavailable'
 let io_ref = null;
 let consecutive440s = 0;
+let isInitializing = false;
 
 // ── Init ─────────────────────────────────────────────────────────────────────
 const initWhatsApp = async (io) => {
+  if (isInitializing) {
+    logger.warn('[WhatsApp] initWhatsApp already in progress — skipping duplicate call');
+    return;
+  }
+  isInitializing = true;
   io_ref = io;
   try {
     // @whiskeysockets/baileys is ESM-only — use dynamic import
@@ -30,6 +36,7 @@ const initWhatsApp = async (io) => {
         if (connectionStatus === 'connecting') {
           logger.warn('[WhatsApp] Stuck connecting for 20s — clearing session for fresh QR');
           if (sock) { sock.ev.removeAllListeners(); sock = null; }
+          isInitializing = false;
           (async () => {
             await clearMongoSession().catch(() => {});
             setTimeout(() => initWhatsApp(io_ref), 2000);
@@ -80,6 +87,7 @@ const initWhatsApp = async (io) => {
             if (consecutive440s >= 3) {
               logger.warn('[WhatsApp] 3 consecutive 440s — clearing session for fresh QR');
               consecutive440s = 0;
+              isInitializing = false;
               (async () => {
                 await clearMongoSession().catch(() => {});
                 setTimeout(() => initWhatsApp(io_ref), 2000);
@@ -105,6 +113,7 @@ const initWhatsApp = async (io) => {
             // Must call initWhatsApp() not connect() — connect() closes over the old
             // in-memory state object, so it would still send the stale credentials.
             // initWhatsApp() reloads state fresh from MongoDB after clearing.
+            isInitializing = false;
             (async () => {
               logger.warn(`WhatsApp irrecoverable disconnect (${statusCode}) — clearing MongoDB session for fresh QR`);
               await clearMongoSession().catch(() => {});
@@ -129,8 +138,11 @@ const initWhatsApp = async (io) => {
     await connect();
   } catch (err) {
     connectionStatus = 'unavailable';
-    logger.warn(`WhatsApp unavailable: ${err.message}`);
+    logger.error(`[WhatsApp] initWhatsApp FAILED: ${err.message}`);
+    logger.error(err.stack || err);
     logger.warn('Run: npm install @whiskeysockets/baileys  to enable WhatsApp sending');
+  } finally {
+    isInitializing = false;
   }
 };
 
