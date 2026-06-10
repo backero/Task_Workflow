@@ -57,6 +57,10 @@ app.use(helmet());
 app.use(mongoSanitize());
 app.use(hpp());
 
+// Passport (stateless — no session)
+const passport = require('passport');
+app.use(passport.initialize());
+
 // CORS
 const allowedOrigins = [
   'http://localhost:5173',

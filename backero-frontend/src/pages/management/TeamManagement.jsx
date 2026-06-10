@@ -36,15 +36,15 @@ function UserModal({ open, onClose, editUser }) {
   const isEdit = !!editUser;
   const { register, handleSubmit, reset, formState: { errors } } = useForm({
     defaultValues: editUser
-      ? { firstName: editUser.firstName, lastName: editUser.lastName, phone: editUser.phone, role: editUser.role, department: editUser.department, designation: editUser.designation }
+      ? { firstName: editUser.firstName, lastName: editUser.lastName, phone: editUser.phone, role: editUser.role, department: editUser.department, designation: editUser.designation, googleEmail: editUser.googleEmail || '' }
       : { role: 'member' },
   });
 
   React.useEffect(() => {
     if (open) {
       reset(editUser
-        ? { firstName: editUser.firstName, lastName: editUser.lastName, phone: editUser.phone, role: editUser.role, department: editUser.department || '', designation: editUser.designation || '' }
-        : { role: 'member', firstName: '', lastName: '', phone: '', department: '', designation: '' }
+        ? { firstName: editUser.firstName, lastName: editUser.lastName, phone: editUser.phone, role: editUser.role, department: editUser.department || '', designation: editUser.designation || '', googleEmail: editUser.googleEmail || '' }
+        : { role: 'member', firstName: '', lastName: '', phone: '', department: '', designation: '', googleEmail: '' }
       );
     }
   }, [open, editUser]);
@@ -132,6 +132,20 @@ function UserModal({ open, onClose, editUser }) {
           <div>
             <label className="label">Designation</label>
             <input {...register('designation')} className="input" placeholder="e.g. Sales Executive" />
+          </div>
+
+          <div>
+            <label className="label">Google Email <span className="text-gray-400 font-normal">(for Google login)</span></label>
+            <input
+              {...register('googleEmail', {
+                pattern: { value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/, message: 'Enter a valid email' },
+              })}
+              className="input"
+              placeholder="employee@gmail.com"
+              type="email"
+            />
+            {errors.googleEmail && <p className="text-red-500 text-xs mt-1">{errors.googleEmail.message}</p>}
+            <p className="text-xs text-gray-400 mt-1">Employee will use this Gmail to sign in with Google</p>
           </div>
 
           <div className="flex gap-3 pt-2">

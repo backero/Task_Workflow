@@ -9,7 +9,9 @@ const userSchema = new mongoose.Schema({
   email: { type: String, required: true, lowercase: true, trim: true },
   phone: { type: String, required: true },
   whatsapp: { type: String },
-  password: { type: String, required: true, select: false, minlength: 8 },
+  password: { type: String, required: false, select: false, minlength: 8 },
+  googleId: { type: String, select: false },
+  googleEmail: { type: String, lowercase: true, trim: true },
   role: {
     type: String,
     enum: Object.values(ROLES),

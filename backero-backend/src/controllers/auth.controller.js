@@ -1,5 +1,7 @@
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
+const passport = require('passport');
+require('../config/passport');
 const User = require('../models/User');
 const Organization = require('../models/Organization');
 const ActivityLog = require('../models/ActivityLog');
@@ -183,33 +185,36 @@ exports.sendLoginOTP = asyncHandler(async (req, res) => {
     otpExpiry: new Date(Date.now() + 10 * 60 * 1000),
   });
 
-  logger.info(`[OTP] ${phone} → ${otp}`);
+  logger.info(`[OTP] generated for ${phone}`);
 
-  // Respond immediately — OTP is in DB; deliver via WhatsApp in background
+  // ── Email (primary — awaited before responding so user is never left waiting) ──
+  const { sendOTPEmail } = require('../services/email.service');
+  const emailSent = user.email
+    ? await sendOTPEmail(user.email, otp).catch(() => false)
+    : false;
+
+  // Respond immediately after email attempt
   const devPayload = process.env.NODE_ENV !== 'production' ? { _devOtp: otp } : {};
-  sendSuccess(res, devPayload, 'OTP sent to your mobile number');
+  sendSuccess(res, devPayload, 'OTP sent to your registered email and mobile number');
 
+  // ── WhatsApp (bonus — fire-and-forget, no retry loops) ───────────────────────
   const { sendMessage, isConnected, getStatus } = require('../services/whatsapp.service');
   const otpMsg = `🔐 *Backero Login OTP*\n\nYour OTP is: *${otp}*\n\nValid for 10 minutes. Do not share this with anyone.`;
   (async () => {
     try {
       if (!isConnected()) {
-        logger.info(`[OTP] WA not ready (${getStatus()}) — waiting up to 20s for reconnect`);
+        logger.info(`[OTP] WA not ready (${getStatus()}) — waiting up to 15s`);
         await new Promise((resolve) => {
-          const deadline = setTimeout(resolve, 20000);
+          const deadline = setTimeout(resolve, 15000);
           const poll = setInterval(() => {
             if (isConnected()) { clearInterval(poll); clearTimeout(deadline); resolve(); }
           }, 1000);
         });
       }
-      const sent = await sendMessage(phone, otpMsg).catch((err) => {
-        logger.error(`[OTP] sendMessage threw: ${err.message}`);
-        return false;
-      });
-      if (sent) logger.info(`[OTP] ✅ Delivered to ${phone}`);
-      else logger.error(`[OTP] ❌ Failed for ${phone} — WA status: ${getStatus()}`);
+      const sent = await sendMessage(phone, otpMsg).catch(() => false);
+      logger.info(`[OTP] WhatsApp → ${phone}: ${sent ? '✅' : '❌'} | email: ${emailSent ? '✅' : '❌ (no email/SMTP)'}`);
     } catch (err) {
-      logger.error(`[OTP] crashed: ${err.message}`);
+      logger.error(`[OTP] WhatsApp error: ${err.message}`);
     }
   })();
 });
@@ -323,3 +328,37 @@ exports.changePassword = asyncHandler(async (req, res) => {
 
   sendSuccess(res, {}, 'Password changed successfully');
 });
+
+// GET /api/auth/google  — redirects to Google consent (handled by passport middleware in routes)
+// GET /api/auth/google/callback
+exports.googleCallback = (req, res, next) => {
+  const frontendUrl = process.env.FRONTEND_URL || 'https://task-workflow-liart.vercel.app';
+
+  passport.authenticate('google', { session: false }, async (err, user, info) => {
+    try {
+      if (err || !user) {
+        const errorMap = { no_account: 'no_account', deactivated: 'deactivated', no_email: 'no_email' };
+        const code = errorMap[info?.message] || 'auth_failed';
+        return res.redirect(`${frontendUrl}/auth/callback?error=${code}`);
+      }
+
+      const { accessToken, refreshToken } = generateTokens(user._id, user.organizationId, user.role);
+      await User.findByIdAndUpdate(user._id, { refreshToken, lastLogin: new Date(), lastActive: new Date() });
+
+      setRefreshCookie(res, refreshToken);
+
+      await ActivityLog.create({
+        organizationId: user.organizationId,
+        performedBy: user._id,
+        action: 'User login via Google',
+        module: 'auth',
+        ipAddress: req.ip,
+      });
+
+      res.redirect(`${frontendUrl}/auth/callback?token=${accessToken}`);
+    } catch (e) {
+      logger.error(`[GoogleOAuth] callback error: ${e.message}`);
+      res.redirect(`${frontendUrl}/auth/callback?error=server_error`);
+    }
+  })(req, res, next);
+};
