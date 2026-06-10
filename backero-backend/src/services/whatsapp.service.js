@@ -28,14 +28,14 @@ const initWhatsApp = async (io) => {
       // is probably silently broken. Clear it and start fresh.
       const connectWatchdog = setTimeout(() => {
         if (connectionStatus === 'connecting') {
-          logger.warn('[WhatsApp] Stuck connecting for 45s — clearing session for fresh QR');
+          logger.warn('[WhatsApp] Stuck connecting for 20s — clearing session for fresh QR');
           if (sock) { sock.ev.removeAllListeners(); sock = null; }
           (async () => {
             await clearMongoSession().catch(() => {});
             setTimeout(() => initWhatsApp(io_ref), 2000);
           })();
         }
-      }, 45000);
+      }, 20000);
 
       const noop = () => {};
       const silentLogger = { level: 'silent', info: noop, warn: noop, error: noop, debug: noop, trace: noop, fatal: noop, child: () => silentLogger };
@@ -82,11 +82,11 @@ const initWhatsApp = async (io) => {
               consecutive440s = 0;
               (async () => {
                 await clearMongoSession().catch(() => {});
-                setTimeout(() => initWhatsApp(io_ref), 3000);
+                setTimeout(() => initWhatsApp(io_ref), 2000);
               })();
             } else {
-              const jitter = Math.floor(Math.random() * 20000);
-              const delay = 30000 + jitter;
+              const jitter = Math.floor(Math.random() * 3000);
+              const delay = 5000 + jitter;
               logger.warn(`[WhatsApp] Waiting ${Math.round(delay/1000)}s before reconnect`);
               setTimeout(connect, delay);
             }
