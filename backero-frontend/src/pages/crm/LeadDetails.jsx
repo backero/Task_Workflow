@@ -206,7 +206,7 @@ export default function LeadDetails() {
             </button>
             {lead.isConverted ? (
               <button
-                onClick={() => navigate(`/dept-workflow?project=${lead.convertedToTask?._id || ''}`)}
+                onClick={() => navigate(`/workflow/${lead.convertedToTask?._id || ''}`)}
                 className="btn-secondary gap-1.5 text-sm text-green-700 border-green-300 bg-green-50 hover:bg-green-100"
               >
                 <ArrowTopRightOnSquareIcon className="w-4 h-4" /> View Project

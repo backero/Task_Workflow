@@ -1461,10 +1461,7 @@ export default function WorkflowLanding() {
             refetch();
             qc.invalidateQueries({ queryKey: ['tasks'] });
             qc.invalidateQueries({ queryKey: ['crm'] });
-            // If came from a lead, go to dept-workflow to see the project
-            if (leadPrefill?.leadId) {
-              navigate(`/dept-workflow?project=${id}`);
-            } else if (id) {
+            if (id) {
               navigate(`/workflow/${id}`);
             }
           }}
