@@ -129,6 +129,7 @@ export default function App() {
 
           {/* CRM */}
           <Route path="/crm/pipeline" element={<PermissionRoute module="crm"><LeadPipeline /></PermissionRoute>} />
+          <Route path="/crm/leads" element={<PermissionRoute module="crm"><LeadPipeline /></PermissionRoute>} />
           <Route path="/crm/leads/:id" element={<PermissionRoute module="crm"><LeadDetails /></PermissionRoute>} />
           <Route path="/crm/calendar" element={<PermissionRoute module="crm"><FollowUpCalendar /></PermissionRoute>} />
           <Route path="/crm/queries" element={<TechnicalQueries />} />

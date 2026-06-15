@@ -743,8 +743,8 @@ function LeadSlideOver({ leadId, onClose, onUpdated }) {
 }
 
 // ── Create Lead Modal ────────────────────────────────────────────────────────
-function CreateLeadModal({ onClose, onSuccess }) {
-  const { register, handleSubmit, formState: { errors } } = useForm();
+function CreateLeadModal({ onClose, onSuccess, onRefresh }) {
+  const { register, handleSubmit, reset, formState: { errors } } = useForm();
   const [loading, setLoading] = useState(false);
 
   const { data: usersData } = useQuery({
@@ -752,12 +752,17 @@ function CreateLeadModal({ onClose, onSuccess }) {
     queryFn: () => api.get('/users?limit=100').then((r) => r.data),
   });
 
-  const onSubmit = async (data) => {
+  const onSubmit = async (data, addAnother = false) => {
     setLoading(true);
     try {
       await api.post('/crm/leads', data);
       toast.success('Lead created');
-      onSuccess();
+      if (addAnother) {
+        reset();
+        if (onRefresh) onRefresh();
+      } else {
+        onSuccess();
+      }
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed');
     } finally {
@@ -834,7 +839,20 @@ function CreateLeadModal({ onClose, onSuccess }) {
           </div>
           <div className="flex gap-3">
             <button type="button" onClick={onClose} className="btn-secondary flex-1 justify-center">Cancel</button>
-            <button type="submit" disabled={loading} className="btn-primary flex-1 justify-center">
+            <button
+              type="button"
+              disabled={loading}
+              onClick={handleSubmit((data) => onSubmit(data, true))}
+              className="flex-1 justify-center flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold border border-brand-300 dark:border-brand-700 text-brand-700 dark:text-brand-300 hover:bg-brand-50 dark:hover:bg-brand-900/20 transition-all disabled:opacity-50"
+            >
+              {loading ? 'Creating...' : '+ Add More'}
+            </button>
+            <button
+              type="button"
+              disabled={loading}
+              onClick={handleSubmit((data) => onSubmit(data, false))}
+              className="btn-primary flex-1 justify-center disabled:opacity-50"
+            >
               {loading ? 'Creating...' : 'Create Lead'}
             </button>
           </div>
@@ -844,10 +862,113 @@ function CreateLeadModal({ onClose, onSuccess }) {
   );
 }
 
+// ── Stage Leads Modal ────────────────────────────────────────────────────────
+function StageLeadsModal({ stage, onClose, onSelectLead }) {
+  const [search, setSearch] = useState('');
+  const meta = STAGE_META[stage] || STAGE_META['New Lead'];
+
+  const { data, isLoading } = useQuery({
+    queryKey: ['crm', 'leads', 'stage', stage],
+    queryFn: () => api.get(`/crm/leads?status=${encodeURIComponent(stage)}&limit=200`).then(r => r.data),
+    enabled: !!stage,
+  });
+
+  const leads = (data?.leads || data?.data || []).filter(l => {
+    if (!search.trim()) return true;
+    const q = search.toLowerCase();
+    return (l.name || '').toLowerCase().includes(q)
+      || (l.phone || '').includes(q)
+      || (l.company || '').toLowerCase().includes(q);
+  });
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
+      <div className="absolute inset-0 bg-gray-900/60 backdrop-blur-sm" onClick={onClose} />
+      <motion.div
+        initial={{ y: 60, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        exit={{ y: 60, opacity: 0 }}
+        transition={{ type: 'spring', damping: 28, stiffness: 300 }}
+        className="relative bg-white dark:bg-[#070c17] rounded-t-3xl sm:rounded-2xl w-full sm:max-w-lg max-h-[85vh] flex flex-col shadow-2xl border border-gray-100 dark:border-[#1b2e4a] overflow-hidden"
+      >
+        {/* Gradient header */}
+        <div className="flex-shrink-0 px-5 pt-5 pb-4" style={{ background: meta.grad }}>
+          <div className="flex items-center justify-between mb-3">
+            <div>
+              <h3 className="text-base font-bold text-white">{stage}</h3>
+              <p className="text-xs text-white/60 mt-0.5">{data?.pagination?.total || leads.length} leads in this stage</p>
+            </div>
+            <button onClick={onClose} className="p-2 rounded-xl bg-white/20 hover:bg-white/30 transition-colors">
+              <XMarkIcon className="w-4 h-4 text-white" />
+            </button>
+          </div>
+          {/* Search */}
+          <div className="relative">
+            <input
+              autoFocus
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="Search by name, phone, company…"
+              className="w-full bg-white/20 placeholder-white/50 text-white text-sm rounded-xl px-3 py-2 outline-none border border-white/20 focus:border-white/50 transition-colors"
+            />
+          </div>
+        </div>
+
+        {/* Leads list */}
+        <div className="flex-1 overflow-y-auto p-3 space-y-2">
+          {isLoading ? (
+            <div className="flex justify-center py-10">
+              <div className="w-6 h-6 border-2 border-brand-500 border-t-transparent rounded-full animate-spin" />
+            </div>
+          ) : leads.length === 0 ? (
+            <div className="text-center py-10 text-gray-400 text-sm">No leads found</div>
+          ) : (
+            leads.map(lead => {
+              const p = PRIORITY_CFG[lead.priority] || PRIORITY_CFG.low;
+              const initials = (lead.name || '?').split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
+              return (
+                <button
+                  key={lead._id}
+                  onClick={() => { onSelectLead(lead._id); onClose(); }}
+                  className="w-full text-left flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-gray-50 dark:hover:bg-[#0f1a2e] transition-colors border border-transparent hover:border-gray-100 dark:hover:border-[#1b2e4a]"
+                >
+                  <div
+                    className="w-8 h-8 rounded-xl flex-shrink-0 flex items-center justify-center text-white text-[10px] font-black"
+                    style={{ background: meta.grad }}
+                  >
+                    {initials}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-semibold text-sm text-gray-900 dark:text-white truncate">{lead.name}</p>
+                    <p className="text-xs text-gray-400 truncate">{lead.phone}{lead.company ? ` · ${lead.company}` : ''}</p>
+                  </div>
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    {lead.estimatedValue > 0 && (
+                      <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400">
+                        ₹{lead.estimatedValue.toLocaleString('en-IN')}
+                      </span>
+                    )}
+                    <span className={clsx('text-[10px] px-1.5 py-0.5 rounded-full font-bold flex items-center gap-0.5', p.pill)}>
+                      <span className={clsx('w-1.5 h-1.5 rounded-full', p.dot)} />
+                      {lead.priority?.[0]?.toUpperCase()}
+                    </span>
+                    <ArrowRightIcon className="w-3.5 h-3.5 text-gray-300 dark:text-gray-600" />
+                  </div>
+                </button>
+              );
+            })
+          )}
+        </div>
+      </motion.div>
+    </div>
+  );
+}
+
 // ── Main Pipeline Page ────────────────────────────────────────────────────────
 export default function LeadPipeline() {
   const [showForm, setShowForm] = useState(false);
   const [selectedLeadId, setSelectedLeadId] = useState(null);
+  const [stageModal, setStageModal] = useState(null);
   const { isManagerOrAbove } = useAuthStore();
   const qc = useQueryClient();
   const navigate = useNavigate();
@@ -974,7 +1095,7 @@ export default function LeadPipeline() {
                     ))}
                     {count > 8 && (
                       <button
-                        onClick={() => navigate(`/crm/leads?status=${encodeURIComponent(stage)}`)}
+                        onClick={() => setStageModal(stage)}
                         className="w-full text-[11px] font-semibold text-gray-400 dark:text-gray-500 text-center py-2 rounded-xl border border-dashed border-gray-200 dark:border-[#1b2e4a] hover:border-gray-300 dark:hover:border-slate-500 hover:text-gray-600 dark:hover:text-gray-300 transition-all"
                       >
                         +{count - 8} more
@@ -994,6 +1115,17 @@ export default function LeadPipeline() {
         </div>
       )}
 
+      {/* Stage Leads Modal */}
+      <AnimatePresence>
+        {stageModal && (
+          <StageLeadsModal
+            stage={stageModal}
+            onClose={() => setStageModal(null)}
+            onSelectLead={(id) => setSelectedLeadId(id)}
+          />
+        )}
+      </AnimatePresence>
+
       {/* Lead Slide-Over */}
       <AnimatePresence>
         {selectedLeadId && (
@@ -1008,6 +1140,7 @@ export default function LeadPipeline() {
       {showForm && (
         <CreateLeadModal
           onClose={() => setShowForm(false)}
+          onRefresh={() => qc.invalidateQueries({ queryKey: ['crm'] })}
           onSuccess={() => {
             setShowForm(false);
             qc.invalidateQueries({ queryKey: ['crm'] });
