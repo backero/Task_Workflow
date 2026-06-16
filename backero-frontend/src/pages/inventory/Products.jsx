@@ -292,7 +292,7 @@ function timeAgo(date) {
   return new Date(date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: '2-digit' });
 }
 
-function ProductTable({ products, isManagerOrAbove, onStock, onEdit, onQr, onUse, onDelete, isRawMaterial }) {
+function ProductTable({ products, canWrite, canDelete, onStock, onEdit, onQr, onUse, onDelete, isRawMaterial }) {
   return (
     <div className="card overflow-hidden">
       <table className="w-full text-sm">
@@ -306,7 +306,7 @@ function ProductTable({ products, isManagerOrAbove, onStock, onEdit, onQr, onUse
             <th className="text-right py-3 px-4 text-gray-500 font-medium">Price &amp; GST</th>
             <th className="text-center py-3 px-4 text-gray-500 font-medium">Status</th>
             <th className="text-center py-3 px-4 text-gray-500 font-medium">Last Stock In</th>
-            {isManagerOrAbove && <th className="text-right py-3 px-4 text-gray-500 font-medium">Actions</th>}
+            {canWrite && <th className="text-right py-3 px-4 text-gray-500 font-medium">Actions</th>}
           </tr>
         </thead>
         <tbody className="divide-y divide-gray-100 dark:divide-[#1b2e4a]">
@@ -349,7 +349,7 @@ function ProductTable({ products, isManagerOrAbove, onStock, onEdit, onQr, onUse
                     ? <span className="text-xs text-gray-500">{timeAgo(product.lastStockIn)}</span>
                     : <span className="text-xs text-gray-300">—</span>}
                 </td>
-                {isManagerOrAbove && (
+                {canWrite && (
                   <td className="py-3 px-4 text-right">
                     <div className="flex gap-1 justify-end">
                       {isRawMaterial ? (
@@ -374,17 +374,19 @@ function ProductTable({ products, isManagerOrAbove, onStock, onEdit, onQr, onUse
                         <QrCodeIcon className="w-4 h-4" />
                       </button>
                       <button onClick={() => onEdit(product)} className="btn-ghost text-xs px-2 py-1">Edit</button>
-                      <button
-                        onClick={() => onDelete(product)}
-                        className="btn-ghost text-xs px-2 py-1 text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20"
-                        title="Delete"
-                      >
-                        <TrashIcon className="w-4 h-4" />
-                      </button>
+                      {canDelete && (
+                        <button
+                          onClick={() => onDelete(product)}
+                          className="btn-ghost text-xs px-2 py-1 text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20"
+                          title="Delete"
+                        >
+                          <TrashIcon className="w-4 h-4" />
+                        </button>
+                      )}
                     </div>
                   </td>
                 )}
-                {!isManagerOrAbove && <td />}
+                {!canWrite && <td />}
               </tr>
             );
           })}
@@ -411,7 +413,7 @@ export default function Products() {
   const [deleting, setDeleting] = useState(false);
   const [search, setSearch] = useState('');
   const [lowStockOnly, setLowStockOnly] = useState(false);
-  const { isManagerOrAbove } = useAuthStore();
+  const { isManagerOrAbove, hasInventoryWrite } = useAuthStore();
   const qc = useQueryClient();
 
   const isRawTab = activeTab === 'rawmaterials';
@@ -457,7 +459,7 @@ export default function Products() {
           <h1 className="page-title">Products & Inventory</h1>
           <p className="text-gray-500 text-sm">{data?.pagination?.total || 0} products • {lowStockCount} low stock</p>
         </div>
-        {isManagerOrAbove() && (
+        {hasInventoryWrite() && (
           <div className="flex items-center gap-2">
             {!isRawTab && (
               <ImportButton
@@ -536,7 +538,8 @@ export default function Products() {
       ) : (
         <ProductTable
           products={products}
-          isManagerOrAbove={isManagerOrAbove()}
+          canWrite={hasInventoryWrite()}
+          canDelete={isManagerOrAbove()}
           onStock={setStockProduct}
           onEdit={setEditProduct}
           onQr={setQrProduct}
@@ -585,7 +588,7 @@ export default function Products() {
         />
       )}
 
-      {isManagerOrAbove() && (
+      {hasInventoryWrite() && (
         <button
           onClick={() => setShowScanner(true)}
           className="fixed bottom-6 right-6 z-30 flex items-center gap-2 bg-orange-500 hover:bg-orange-600 text-white font-semibold px-4 py-3 rounded-full shadow-lg transition-colors"

@@ -36,6 +36,13 @@ export const useAuthStore = create(
         const user = get().user;
         return user ? (hierarchyMap[user.role] || 0) >= 5 : false;
       },
+
+      hasInventoryWrite: () => {
+        const hierarchyMap = { super_admin: 7, chairman: 6, founder: 5, admin: 4, manager: 3, team_lead: 2, member: 1 };
+        const user = get().user;
+        if (!user) return false;
+        return (hierarchyMap[user.role] || 0) >= 3 || (user.permissions || []).includes('inventory:write');
+      },
     }),
     {
       name: 'backero-auth',
