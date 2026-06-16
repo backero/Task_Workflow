@@ -76,6 +76,8 @@ function DepartmentGroups({ isConnected }) {
   const [saving, setSaving] = useState({});
   const [saved, setSaved] = useState({});
   const [expanded, setExpanded] = useState({});
+  const [testing, setTesting] = useState({});
+  const [testResult, setTestResult] = useState({});
 
   const { data: deptsData } = useQuery({
     queryKey: ['departments'],
@@ -182,6 +184,27 @@ function DepartmentGroups({ isConnected }) {
                     )}
                     {saved[dept._id] && (
                       <span className="text-xs text-green-600 font-medium">✓ Saved</span>
+                    )}
+                    {testResult[dept._id] && (
+                      <span className="text-xs text-green-600 font-medium">✓ Sent!</span>
+                    )}
+                    {dept.whatsappGroupId && isConnected && (
+                      <button
+                        onClick={async () => {
+                          setTesting(s => ({ ...s, [dept._id]: true }));
+                          setTestResult(s => ({ ...s, [dept._id]: false }));
+                          try {
+                            await api.post(`/whatsapp/departments/${dept._id}/test`);
+                            setTestResult(s => ({ ...s, [dept._id]: true }));
+                            setTimeout(() => setTestResult(s => ({ ...s, [dept._id]: false })), 4000);
+                          } catch {}
+                          setTesting(s => ({ ...s, [dept._id]: false }));
+                        }}
+                        disabled={testing[dept._id]}
+                        className="text-xs px-3 py-1.5 rounded-lg border border-green-300 dark:border-green-700 text-green-700 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/20 transition-colors font-medium disabled:opacity-50"
+                      >
+                        {testing[dept._id] ? 'Sending…' : 'Send Alert'}
+                      </button>
                     )}
                     <button
                       onClick={() => isConnected && setExpanded(s => ({ ...s, [dept._id]: !s[dept._id] }))}

@@ -3,8 +3,8 @@ const QRCode = require('qrcode');
 const { authenticate } = require('../middleware/auth.middleware');
 const { authorizeAdminOrAbove } = require('../middleware/role.middleware');
 const { asyncHandler, sendSuccess } = require('../utils/helpers');
-const { getStatus, getQRCode, isConnected, reinitWhatsApp, sendTaskAssigned, getJoinedGroups, joinGroupViaLink, getDebugInfo } = require('../services/whatsapp.service');
-const { runDailyReport } = require('../services/automation.service');
+const { getStatus, getQRCode, isConnected, reinitWhatsApp, sendTaskAssigned, getJoinedGroups, joinGroupViaLink, getDebugInfo, sendGroupMessage, sendTaskOverdueGroup } = require('../services/whatsapp.service');
+const { runDailyReport, runOverdueTaskCheck } = require('../services/automation.service');
 const Task = require('../models/Task');
 const User = require('../models/User');
 const Department = require('../models/Department');
@@ -179,6 +179,47 @@ router.post('/test-report', asyncHandler(async (req, res) => {
   const phones = Array.isArray(req.body?.phones) && req.body.phones.length > 0 ? req.body.phones : null;
   runDailyReport(phones).catch(() => {});
   sendSuccess(res, {}, `Daily report triggered → ${phones ? phones.join(', ') : 'all admins'} — check WhatsApp in 10 seconds`);
+}));
+
+// POST /api/whatsapp/run-overdue-check — manually run overdue task check right now
+router.post('/run-overdue-check', authorizeAdminOrAbove, asyncHandler(async (req, res) => {
+  if (!isConnected()) return res.status(503).json({ success: false, message: 'WhatsApp not connected' });
+  runOverdueTaskCheck().catch(logger.error);
+  sendSuccess(res, {}, 'Overdue check triggered — alerts will be sent to department groups in a few seconds');
+}));
+
+// POST /api/whatsapp/departments/:id/test — send a test message to department group
+router.post('/departments/:id/test', authorizeAdminOrAbove, asyncHandler(async (req, res) => {
+  if (!isConnected()) return res.status(503).json({ success: false, message: 'WhatsApp not connected' });
+  const dept = await Department.findOne({ _id: req.params.id, organizationId: req.user.organizationId });
+  if (!dept) return res.status(404).json({ success: false, message: 'Department not found' });
+  if (!dept.whatsappGroupId) return res.status(400).json({ success: false, message: 'No WhatsApp group linked for this department' });
+
+  // Find actual overdue tasks for this dept and send real alert
+  const { TASK_STATUS } = require('../utils/constants');
+  const overdueTasks = await Task.find({
+    organizationId: req.user.organizationId,
+    department: dept.name,
+    isOverdue: true,
+    status: { $nin: [TASK_STATUS.COMPLETED, TASK_STATUS.CANCELLED] },
+  }).populate('assignedTo', 'firstName lastName').limit(5);
+
+  if (overdueTasks.length > 0) {
+    for (const task of overdueTasks) {
+      const empName = task.assignedTo ? `${task.assignedTo.firstName} ${task.assignedTo.lastName}` : 'Unassigned';
+      await sendTaskOverdueGroup(dept.whatsappGroupId, {
+        title: task.title, employeeName: empName,
+        department: dept.name, dueDate: task.dueDate,
+        priority: task.priority, overdueCount: task.overdueNotificationsSent || 1, taskId: task._id,
+      });
+    }
+    sendSuccess(res, { sent: overdueTasks.length }, `Sent ${overdueTasks.length} overdue alert(s) to ${dept.name} group`);
+  } else {
+    await sendGroupMessage(dept.whatsappGroupId,
+      `✅ *${dept.name} — Test Alert*\n\nBackero WhatsApp group is connected and working!\nNo overdue tasks right now.\n\n_Backero Task Management_`
+    );
+    sendSuccess(res, {}, `Test message sent to ${dept.name} group`);
+  }
 }));
 
 // POST /api/whatsapp/notify-assignments
