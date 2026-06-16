@@ -17,8 +17,8 @@
   --b-chrome:   rgba(255,255,255,0.09);
 
   --t-primary:  #0f172a;          /* slate-900                                 */
-  --t-sub:      #64748b;          /* slate-500                                 */
-  --t-muted:    #94a3b8;          /* slate-400                                 */
+  --t-sub:      #475569;          /* slate-600                                 */
+  --t-muted:    #64748b;          /* slate-500 — readable on white at small sizes */
 
   --grad-brand: linear-gradient(135deg, #ea580c 0%, #f97316 60%, #fb923c 100%);
   --grad-glow:  rgba(234,88,12,0.38);
@@ -34,8 +34,8 @@
   --b-default:  #334155;          /* slate-700                                 */
 
   --t-primary:  #f8fafc;
-  --t-sub:      #94a3b8;
-  --t-muted:    #475569;          /* slate-600                                 */
+  --t-sub:      #94a3b8;          /* slate-400                                 */
+  --t-muted:    #94a3b8;          /* slate-400 — visible on dark backgrounds   */
 }
 
 /* ─── Base ──────────────────────────────────────────────────────────────── */

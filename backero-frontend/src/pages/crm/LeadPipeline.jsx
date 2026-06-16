@@ -638,7 +638,7 @@ function LeadSlideOver({ leadId, onClose, onUpdated }) {
               <div className="px-5 py-6 text-center text-gray-400">
                 <CalendarDaysIcon className="w-8 h-8 mx-auto mb-2 opacity-50" />
                 <p className="text-sm">No follow-ups logged yet</p>
-                <p className="text-xs mt-1">Click "Log Follow-Up" to record your first interaction</p>
+                <p className="text-xs mt-1">No interactions recorded yet</p>
               </div>
             )}
 
