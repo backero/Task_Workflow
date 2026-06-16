@@ -282,6 +282,8 @@ exports.sendClientUpdate = asyncHandler(async (req, res) => {
     outcome: 'WhatsApp update sent to client',
     performedBy: req.user._id,
   });
+  lead.lastUpdateText = message.trim();
+  lead.lastUpdateAt = new Date();
   await lead.save();
 
   sendSuccess(res, { sent }, 'Update sent to client via WhatsApp');

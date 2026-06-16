@@ -3,8 +3,9 @@ const { Strategy: GoogleStrategy } = require('passport-google-oauth20');
 const User = require('../models/User');
 const logger = require('../utils/logger');
 
+if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_ID.trim()) {
 passport.use(new GoogleStrategy({
-  clientID: process.env.GOOGLE_CLIENT_ID,
+  clientID: process.env.GOOGLE_CLIENT_ID.trim(),
   clientSecret: process.env.GOOGLE_CLIENT_SECRET,
   callbackURL: process.env.GOOGLE_CALLBACK_URL,
 }, async (_accessToken, _refreshToken, profile, done) => {
@@ -28,5 +29,8 @@ passport.use(new GoogleStrategy({
     return done(err);
   }
 }));
+} else {
+  logger.warn('[GoogleOAuth] GOOGLE_CLIENT_ID not set — Google login disabled');
+}
 
 module.exports = passport;

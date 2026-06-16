@@ -9,7 +9,7 @@ const MarketplaceDaily = require('../models/MarketplaceDaily');
 const MarketplacePlan = require('../models/MarketplacePlan');
 const MarketplacePlanProgress = require('../models/MarketplacePlanProgress');
 const { createNotification, bulkCreateNotifications } = require('./notification.service');
-const { sendTaskOverdueEmployee, sendTaskOverdueManager, sendTaskOverdueGroup, sendDailyReport, sendDailyReportWithPDF } = require('./whatsapp.service');
+const { sendTaskOverdueEmployee, sendTaskOverdueManager, sendTaskOverdueGroup, sendDailyReport, sendDailyReportWithPDF, sendInProgressLeadUpdate } = require('./whatsapp.service');
 const Department = require('../models/Department');
 const { generateDailyReportPDF } = require('./reportPdf.service');
 const { autoSyncAllOrgs } = require('./googleSheets.service');
@@ -50,6 +50,11 @@ const startAutomationEngine = (socketIo) => {
   // Weekly report every Monday at 9 AM IST
   cron.schedule('30 3 * * 1', () => {
     runWeeklyReport().catch(logger.error);
+  });
+
+  // Every day at 10 AM IST: send WhatsApp update to all In Progress leads
+  cron.schedule('30 4 * * *', () => {  // 10 AM IST = 4:30 AM UTC
+    runInProgressLeadMessages().catch(logger.error);
   });
 
   // Every 5 minutes: sync Google Sheets leads for all connected orgs
@@ -340,6 +345,39 @@ const runLowStockCheck = async () => {
   }
 
   logger.info(`Low stock check: ${lowStockProducts.length} products below minimum`);
+};
+
+const runInProgressLeadMessages = async () => {
+  logger.info('[InProgress] Sending daily WhatsApp updates to In Progress leads...');
+
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
+
+  const leads = await Lead.find({
+    status: 'In Progress',
+    $or: [{ whatsapp: { $exists: true, $ne: '' } }, { phone: { $exists: true, $ne: '' } }],
+  });
+
+  let sent = 0, skipped = 0;
+  for (const lead of leads) {
+    const phone = lead.whatsapp || lead.phone;
+    if (!phone) continue;
+
+    // Skip if an update was already posted today (WhatsApp sent at post time)
+    if (lead.lastUpdateAt && lead.lastUpdateAt >= todayStart) {
+      skipped++;
+      continue;
+    }
+
+    // Resend last update, or fall back to last follow-up note
+    const lastUpdate = lead.lastUpdateText ||
+      (lead.followUps?.length ? [...lead.followUps].reverse()[0]?.notes : null);
+
+    await sendInProgressLeadUpdate(phone, { name: lead.name, lastUpdate });
+    sent++;
+  }
+
+  logger.info(`[InProgress] Daily updates: ${sent} sent, ${skipped} skipped (already updated today)`);
 };
 
 const runFollowUpReminders = async () => {

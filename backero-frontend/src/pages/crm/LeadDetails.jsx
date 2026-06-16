@@ -386,56 +386,6 @@ export default function LeadDetails() {
             )}
           </div>
 
-          {/* Log Follow-Up */}
-          <div className="card p-5">
-            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-4">Log Follow-Up</p>
-            <form onSubmit={handleFollowUpSubmit(onSubmitFollowUp)} className="space-y-4">
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="label">Type</label>
-                  <select {...regFollowUp('type')} className="input">
-                    {FOLLOWUP_TYPES.map(t => (
-                      <option key={t} value={t}>{FOLLOWUP_ICONS[t]} {t.charAt(0).toUpperCase() + t.slice(1)}</option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="label">Contact Date & Time</label>
-                  <input
-                    {...regFollowUp('scheduledAt')}
-                    type="datetime-local"
-                    defaultValue={new Date().toISOString().slice(0, 16)}
-                    className="input"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="label">What happened / Notes *</label>
-                <textarea
-                  {...regFollowUp('notes', { required: 'Add a note about this interaction' })}
-                  rows={3}
-                  className="input resize-none"
-                  placeholder="e.g. Spoke with Rajesh. He is interested in the Enterprise plan. Will share pricing sheet by tomorrow..."
-                />
-                {fuErrors.notes && <p className="text-red-500 text-xs mt-1">{fuErrors.notes.message}</p>}
-              </div>
-
-              <div>
-                <label className="label">Schedule Next Follow-Up (optional)</label>
-                <input {...regFollowUp('nextFollowUpAt')} type="datetime-local" className="input" />
-                <p className="text-xs text-gray-400 mt-1">This will appear in your Follow-Up Calendar</p>
-              </div>
-
-              <button
-                type="submit"
-                disabled={followUpMutation.isPending}
-                className="btn-primary disabled:opacity-50"
-              >
-                {followUpMutation.isPending ? 'Saving…' : 'Save Follow-Up'}
-              </button>
-            </form>
-          </div>
         </div>
 
         {/* Right column: History */}

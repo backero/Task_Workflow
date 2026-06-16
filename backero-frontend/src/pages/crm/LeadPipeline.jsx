@@ -151,8 +151,12 @@ function LeadSlideOver({ leadId, onClose, onUpdated }) {
   const isAdmin = ['admin', 'founder', 'chairman', 'super_admin'].includes(user?.role);
   const [showFollowUpForm, setShowFollowUpForm] = useState(false);
   const [showQueryForm, setShowQueryForm] = useState(false);
+  const [updateText, setUpdateText] = useState('');
+  const [followUpNote, setFollowUpNote] = useState('');
   const [pendingStage, setPendingStage] = useState(null);
   const [stageShiftReason, setStageShiftReason] = useState('');
+  const [showLeadTimeModal, setShowLeadTimeModal] = useState(false);
+  const [leadTimeDays, setLeadTimeDays] = useState('');
   const [queryItems, setQueryItems] = useState([{ id: 1, title: '', description: '', assignedTo: '', urgency: 'medium' }]);
   const [submittingQueries, setSubmittingQueries] = useState(false);
   const { register, handleSubmit, reset, formState: { errors } } = useForm();
@@ -179,7 +183,10 @@ function LeadSlideOver({ leadId, onClose, onUpdated }) {
   });
 
   const statusMutation = useMutation({
-    mutationFn: (status) => api.put(`/crm/leads/${leadId}`, { status }),
+    mutationFn: (payload) => {
+      const data = typeof payload === 'string' ? { status: payload } : payload;
+      return api.put(`/crm/leads/${leadId}`, data);
+    },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['crm', 'lead', leadId] });
       qc.refetchQueries({ queryKey: ['crm', 'pipeline'] });
@@ -198,6 +205,16 @@ function LeadSlideOver({ leadId, onClose, onUpdated }) {
     queryKey: ['crm', 'lead', leadId, 'queries'],
     queryFn: () => api.get(`/crm/leads/${leadId}/queries`).then(r => r.data.queries),
     enabled: !!leadId,
+  });
+
+  const sendUpdateMutation = useMutation({
+    mutationFn: (message) => api.post(`/crm/leads/${leadId}/send-update`, { message }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['crm', 'lead', leadId] });
+      toast.success('Update sent via WhatsApp');
+      setUpdateText('');
+    },
+    onError: () => toast.error('Failed to send update'),
   });
 
   const followUpMutation = useMutation({
@@ -323,7 +340,10 @@ function LeadSlideOver({ leadId, onClose, onUpdated }) {
                   <button
                     key={stage}
                     onClick={() => {
-                      if (lead?.status === 'New Lead' && stage !== 'New Lead') {
+                      if (stage === 'In Progress' && lead?.status !== 'In Progress') {
+                        setShowLeadTimeModal(true);
+                        setLeadTimeDays('');
+                      } else if (lead?.status === 'New Lead' && stage !== 'New Lead') {
                         setPendingStage(stage);
                         setStageShiftReason('');
                       } else {
@@ -426,83 +446,163 @@ function LeadSlideOver({ leadId, onClose, onUpdated }) {
                   <p className="text-sm text-gray-700 dark:text-gray-300">{lead.notes}</p>
                 </div>
               )}
-            </div>
 
-            {/* Log Follow-Up */}
-            <div className="px-5 py-4 border-b border-gray-100 dark:border-[#1b2e4a]">
-              <button
-                onClick={() => setShowFollowUpForm(p => !p)}
-                className={clsx(
-                  'w-full flex items-center justify-between px-4 py-2.5 rounded-xl font-medium text-sm transition-colors',
-                  showFollowUpForm
-                    ? 'bg-brand-600 text-white'
-                    : 'bg-brand-50 dark:bg-brand-900/20 text-brand-700 dark:text-brand-300 hover:bg-brand-100 dark:hover:bg-brand-900/30'
-                )}
-              >
-                <span className="flex items-center gap-2">
-                  <CheckCircleIcon className="w-4 h-4" />
-                  Log Follow-Up / Update
-                </span>
-                <ArrowRightIcon className={clsx('w-4 h-4 transition-transform', showFollowUpForm && 'rotate-90')} />
-              </button>
+              {/* Follow-up conversation guide — shown only for Follow-up status leads */}
+              {lead.status === 'Follow-up' && (() => {
+                const lastFU = lead.followUps && lead.followUps.length > 0
+                  ? [...lead.followUps].reverse()[0]
+                  : null;
+                return (
+                  <div className="rounded-xl border-2 border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-900/20 p-4 space-y-3">
+                    <p className="text-xs font-bold text-blue-700 dark:text-blue-300 uppercase tracking-wider flex items-center gap-1.5">
+                      💬 Follow-up Guide — What to discuss
+                    </p>
 
-              <AnimatePresence>
-                {showFollowUpForm && (
-                  <motion.form
-                    initial={{ height: 0, opacity: 0 }}
-                    animate={{ height: 'auto', opacity: 1 }}
-                    exit={{ height: 0, opacity: 0 }}
-                    onSubmit={handleSubmit(onSubmitFollowUp)}
-                    className="mt-3 space-y-3 overflow-hidden"
-                  >
-                    <div className="grid grid-cols-2 gap-3">
+                    {lastFU?.nextAction ? (
                       <div>
-                        <label className="label">Type</label>
-                        <select {...register('type')} className="input text-sm">
-                          {FOLLOWUP_TYPES.map(t => (
-                            <option key={t} value={t}>{FOLLOWUP_ICONS[t]} {t.charAt(0).toUpperCase() + t.slice(1)}</option>
+                        <p className="text-xs text-blue-500 dark:text-blue-400 font-medium mb-1">Next action (from last log)</p>
+                        <p className="text-sm text-blue-900 dark:text-blue-100 font-medium">{lastFU.nextAction}</p>
+                      </div>
+                    ) : null}
+
+                    {lastFU?.notes ? (
+                      <div>
+                        <p className="text-xs text-blue-500 dark:text-blue-400 font-medium mb-1">Last conversation</p>
+                        <p className="text-sm text-blue-800 dark:text-blue-200">{lastFU.notes}</p>
+                      </div>
+                    ) : null}
+
+                    {lead.productInterest && lead.productInterest.length > 0 && (
+                      <div>
+                        <p className="text-xs text-blue-500 dark:text-blue-400 font-medium mb-1">Interested in</p>
+                        <div className="flex flex-wrap gap-1.5">
+                          {lead.productInterest.map((p, i) => (
+                            <span key={i} className="text-xs px-2 py-0.5 rounded-full bg-blue-200 dark:bg-blue-800 text-blue-800 dark:text-blue-200 font-medium">{p}</span>
                           ))}
-                        </select>
+                        </div>
                       </div>
-                      <div>
-                        <label className="label">Contact Date</label>
-                        <input
-                          {...register('scheduledAt')}
-                          type="datetime-local"
-                          defaultValue={new Date().toISOString().slice(0, 16)}
-                          className="input text-sm"
-                        />
+                    )}
+
+                    {!lastFU && !lead.productInterest?.length && (
+                      <p className="text-sm text-blue-600 dark:text-blue-400">Ask about their requirement, budget, and timeline.</p>
+                    )}
+
+                    {lead.nextFollowUpAt && isValid(new Date(lead.nextFollowUpAt)) && (
+                      <div className="pt-2 border-t border-blue-200 dark:border-blue-700">
+                        <p className="text-xs text-blue-500 dark:text-blue-400">
+                          Scheduled follow-up: <span className="font-semibold text-blue-700 dark:text-blue-300">{format(new Date(lead.nextFollowUpAt), 'dd MMM yyyy, h:mm a')}</span>
+                        </p>
                       </div>
-                    </div>
+                    )}
+                  </div>
+                );
+              })()}
 
-                    <div>
-                      <label className="label">What happened / Notes</label>
-                      <textarea
-                        {...register('notes', { required: 'Add a note' })}
-                        rows={2}
-                        className="input resize-none text-sm"
-                        placeholder="e.g. Discussed pricing, client is interested in premium plan..."
-                      />
-                      {errors.notes && <p className="text-red-500 text-xs mt-0.5">{errors.notes.message}</p>}
+              {/* Follow-up internal note box */}
+              {lead.status === 'Follow-up' && (
+                <div className="mt-3 border-t border-blue-100 dark:border-blue-900 pt-3 space-y-2">
+                  <p className="text-xs font-semibold text-gray-500 dark:text-gray-400">📝 Log what was discussed</p>
+                  {lead.followUps?.length > 0 && [...lead.followUps].reverse()[0]?.notes && (
+                    <div className="bg-gray-50 dark:bg-[#0f1a2e] rounded-lg p-2.5">
+                      <p className="text-xs text-gray-400 mb-0.5">Last note</p>
+                      <p className="text-sm text-gray-700 dark:text-gray-300">{[...lead.followUps].reverse()[0].notes}</p>
                     </div>
-
-                    <div>
-                      <label className="label">Next follow-up date (optional)</label>
-                      <input {...register('nextFollowUpAt')} type="datetime-local" className="input text-sm" />
-                      <p className="text-xs text-gray-400 mt-0.5">Sets a reminder on the CRM calendar</p>
-                    </div>
-
-                    <button
-                      type="submit"
-                      disabled={followUpMutation.isPending}
-                      className="btn-primary w-full justify-center disabled:opacity-50"
-                    >
-                      {followUpMutation.isPending ? 'Saving…' : 'Save Follow-Up'}
-                    </button>
-                  </motion.form>
-                )}
-              </AnimatePresence>
+                  )}
+                  <textarea
+                    value={followUpNote}
+                    onChange={e => setFollowUpNote(e.target.value)}
+                    rows={2}
+                    className="input resize-none text-sm w-full"
+                    placeholder="e.g. Customer said they need 2 more days to decide..."
+                  />
+                  <button
+                    onClick={() => {
+                      if (!followUpNote.trim()) return;
+                      followUpMutation.mutate({
+                        scheduledAt: new Date().toISOString(),
+                        type: 'call',
+                        notes: followUpNote.trim(),
+                        outcome: followUpNote.trim(),
+                        nextAction: '',
+                      }, { onSuccess: () => setFollowUpNote('') });
+                    }}
+                    disabled={!followUpNote.trim() || followUpMutation.isPending}
+                    className="btn-secondary w-full justify-center text-sm disabled:opacity-50"
+                  >
+                    {followUpMutation.isPending ? 'Saving…' : 'Save Note'}
+                  </button>
+                </div>
+              )}
             </div>
+
+
+            {/* Dispatch deadline badge for In Progress leads */}
+            {lead.status === 'In Progress' && lead.leadTime && lead.inProgressAt && (() => {
+              const deadline = new Date(lead.inProgressAt);
+              deadline.setDate(deadline.getDate() + lead.leadTime);
+              const today = new Date();
+              const daysLeft = Math.ceil((deadline - today) / (1000 * 60 * 60 * 24));
+              return (
+                <div className="px-5 py-3 border-b border-gray-100 dark:border-[#1b2e4a]">
+                  <div className={clsx(
+                    'rounded-lg px-3 py-2 flex items-center gap-2',
+                    daysLeft < 0 ? 'bg-red-100 dark:bg-red-900/30' :
+                    daysLeft <= 2 ? 'bg-orange-100 dark:bg-orange-900/30' :
+                    'bg-teal-50 dark:bg-teal-900/20'
+                  )}>
+                    <span className="text-lg">{daysLeft < 0 ? '🚨' : daysLeft <= 2 ? '⚠️' : '🚚'}</span>
+                    <div>
+                      <p className={clsx('text-xs font-bold',
+                        daysLeft < 0 ? 'text-red-700 dark:text-red-300' :
+                        daysLeft <= 2 ? 'text-orange-700 dark:text-orange-300' :
+                        'text-teal-700 dark:text-teal-300'
+                      )}>
+                        {daysLeft < 0
+                          ? `Dispatch overdue by ${Math.abs(daysLeft)} day${Math.abs(daysLeft) !== 1 ? 's' : ''}`
+                          : daysLeft === 0 ? 'Dispatch due today'
+                          : `${daysLeft} day${daysLeft !== 1 ? 's' : ''} left to dispatch`}
+                      </p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">
+                        Deadline: {format(deadline, 'dd MMM yyyy')} · Lead time: {lead.leadTime}d
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
+
+            {/* Update box — In Progress only */}
+            {lead.status === 'In Progress' && (
+              <div className="px-5 py-4 border-b border-gray-100 dark:border-[#1b2e4a]">
+                <p className="text-xs font-bold text-green-700 dark:text-green-400 uppercase tracking-wider mb-3 flex items-center gap-1.5">
+                  📦 Send Update to Customer
+                </p>
+
+                {lead.lastUpdateText && (
+                  <div className="mb-3 bg-green-50 dark:bg-green-900/20 rounded-lg p-3">
+                    <p className="text-xs text-green-600 dark:text-green-400 font-medium mb-1">
+                      Last update {lead.lastUpdateAt ? `— ${format(new Date(lead.lastUpdateAt), 'dd MMM, h:mm a')}` : ''}
+                    </p>
+                    <p className="text-sm text-green-800 dark:text-green-200">{lead.lastUpdateText}</p>
+                  </div>
+                )}
+
+                <textarea
+                  value={updateText}
+                  onChange={e => setUpdateText(e.target.value)}
+                  rows={3}
+                  className="input resize-none text-sm w-full"
+                  placeholder="e.g. Your order has been packed and will be dispatched tomorrow..."
+                />
+                <button
+                  onClick={() => { if (updateText.trim()) sendUpdateMutation.mutate(updateText.trim()); }}
+                  disabled={!updateText.trim() || sendUpdateMutation.isPending}
+                  className="mt-2 btn-primary w-full justify-center disabled:opacity-50"
+                >
+                  {sendUpdateMutation.isPending ? 'Sending…' : '📲 Send WhatsApp Update'}
+                </button>
+              </div>
+            )}
 
             {/* Follow-Up History */}
             {lead.followUps && lead.followUps.length > 0 && (
@@ -690,6 +790,61 @@ function LeadSlideOver({ leadId, onClose, onUpdated }) {
           </div>
         )}
       </motion.div>
+
+      {/* Lead Time Modal (→ In Progress) */}
+      {showLeadTimeModal && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-gray-900/60 backdrop-blur-sm" onClick={() => setShowLeadTimeModal(false)} />
+          <div className="relative bg-white dark:bg-[#070c17] rounded-2xl shadow-2xl w-full max-w-md border border-gray-200 dark:border-[#1b2e4a]">
+            <div className="p-5 border-b border-gray-200 dark:border-[#1b2e4a] flex items-center justify-between">
+              <div>
+                <h3 className="font-bold text-gray-900 dark:text-white">🚚 Moving to In Progress</h3>
+                <p className="text-sm text-gray-500 mt-0.5">How many days to dispatch this order?</p>
+              </div>
+              <button onClick={() => setShowLeadTimeModal(false)} className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-[#17263d]">
+                <XMarkIcon className="w-5 h-5 text-gray-500" />
+              </button>
+            </div>
+            <div className="p-5 space-y-4">
+              <div>
+                <label className="label">Lead Time (days) *</label>
+                <input
+                  type="number"
+                  min="1"
+                  value={leadTimeDays}
+                  onChange={e => setLeadTimeDays(e.target.value)}
+                  className="input"
+                  placeholder="e.g. 7"
+                  autoFocus
+                />
+                {leadTimeDays && (
+                  <p className="text-xs text-gray-400 mt-1">
+                    Dispatch deadline: {format(new Date(Date.now() + Number(leadTimeDays) * 86400000), 'dd MMM yyyy')}
+                  </p>
+                )}
+              </div>
+              <div className="flex gap-3">
+                <button type="button" onClick={() => setShowLeadTimeModal(false)} className="btn-secondary flex-1 justify-center">
+                  Cancel
+                </button>
+                <button
+                  onClick={() => {
+                    if (!leadTimeDays || Number(leadTimeDays) < 1) { toast.error('Enter a valid lead time'); return; }
+                    statusMutation.mutate(
+                      { status: 'In Progress', leadTime: Number(leadTimeDays), inProgressAt: new Date().toISOString() },
+                      { onSuccess: () => setShowLeadTimeModal(false) }
+                    );
+                  }}
+                  disabled={statusMutation.isPending}
+                  className="btn-primary flex-1 justify-center disabled:opacity-50"
+                >
+                  {statusMutation.isPending ? 'Moving…' : 'Confirm'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Stage Shift Confirmation (New Lead → any other stage) */}
       {pendingStage && (

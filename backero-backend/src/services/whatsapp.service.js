@@ -458,6 +458,17 @@ const reinitWhatsApp = async () => {
   await initWhatsApp(io_ref);
 };
 
+const sendInProgressLeadUpdate = async (phone, { name, lastUpdate }) => {
+  const msg =
+    `Hello ${name} 👋\n\n` +
+    `Your order is currently *In Progress* with us.\n\n` +
+    (lastUpdate ? `📋 *Latest Update:*\n${lastUpdate}\n\n` : '') +
+    `We're working on it and will keep you posted.\n` +
+    `For any queries, feel free to reach out anytime.\n\n` +
+    `— Backero Team`;
+  return sendMessage(phone, msg);
+};
+
 module.exports = {
   initWhatsApp,
   reinitWhatsApp,
@@ -471,6 +482,7 @@ module.exports = {
   sendTaskOverdueManager,
   sendTaskOverdueGroup,
   sendNewLeadAlert,
+  sendInProgressLeadUpdate,
   sendDailyReport,
   sendDailyReportWithPDF,
   getStatus,

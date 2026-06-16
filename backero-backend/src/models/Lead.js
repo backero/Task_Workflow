@@ -61,6 +61,14 @@ const leadSchema = new mongoose.Schema({
   followUps: [followUpSchema],
   notes: { type: String },
 
+  // In Progress updates
+  lastUpdateText: { type: String },
+  lastUpdateAt: { type: Date },
+
+  // Lead time (dispatch deadline)
+  leadTime: { type: Number },        // days to dispatch from inProgressAt
+  inProgressAt: { type: Date },      // when status moved to In Progress
+
   // Google Sheets sync
   sheetRowId: { type: String },
   sheetId: { type: String },
