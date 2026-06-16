@@ -102,7 +102,7 @@ exports.createLead = asyncHandler(async (req, res) => {
   Organization.findById(req.user.organizationId).select('googleSheets crmLeadGroupId').then((org) => {
     if (org?.crmLeadGroupId) {
       const createdByName = `${req.user.firstName} ${req.user.lastName}`.trim();
-      sendNewLeadAlert(org.crmLeadGroupId, { ...lead, createdByName }).catch(() => {});
+      sendNewLeadAlert(org.crmLeadGroupId, { ...lead.toObject(), createdByName }).catch(() => {});
     }
     if (org?.googleSheets?.writeBackEnabled && org?.googleSheets?.sheetId) {
       appendLeadToSheet(org, lead).catch(() => {});
