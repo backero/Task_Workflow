@@ -269,7 +269,7 @@ const getJoinedGroups = async () => {
 const fmt = (n) => (n || 0).toLocaleString('en-IN');
 const fmtDate = (d) => d ? new Date(d).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : 'No due date';
 const PRIORITY_EMOJI = { critical: '🔴', urgent: '🟠', high: '🟡', medium: '🔵', low: '⚪' };
-const APP_URL = process.env.APP_URL || 'https://backero-worktaskflow.netlify.app';
+const APP_URL = process.env.APP_URL || process.env.FRONTEND_URL || 'https://task-workflow-liart.vercel.app';
 
 const sendTaskAssigned = async (phone, { title, assignedByName, priority, department, dueDate, description, taskId }) => {
   const link = taskId ? `${APP_URL}/tasks/${taskId}` : APP_URL;
