@@ -14,12 +14,12 @@ const generateTokens = (userId, orgId, role) => {
   const accessToken = jwt.sign(
     { id: userId, organizationId: orgId, role },
     process.env.JWT_SECRET,
-    { expiresIn: process.env.JWT_EXPIRES_IN || '15m' }
+    { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
   );
   const refreshToken = jwt.sign(
     { id: userId, organizationId: orgId },
     process.env.JWT_REFRESH_SECRET,
-    { expiresIn: process.env.JWT_REFRESH_EXPIRES_IN || '7d' }
+    { expiresIn: process.env.JWT_REFRESH_EXPIRES_IN || '30d' }
   );
   return { accessToken, refreshToken };
 };
