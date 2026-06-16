@@ -97,11 +97,11 @@ export default function CreateTaskModal({ onClose, onCreated }) {
 
           {/* Title */}
           <div>
-            <label className="block text-xs font-semibold text-gray-700 mb-1.5">Task Title <span className="text-red-500">*</span></label>
+            <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">Task Title <span className="text-red-500">*</span></label>
             <input
               value={form.title}
               onChange={e => set('title', e.target.value)}
-              className="w-full border border-gray-200 rounded-xl px-3.5 py-2.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent placeholder-gray-400"
+              className="w-full border border-gray-200 dark:border-[#1b2e4a] rounded-xl px-3.5 py-2.5 text-sm text-gray-900 dark:text-white dark:bg-[#0f1a2e] focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent placeholder-gray-400"
               placeholder="What needs to be done?"
               autoFocus
             />
@@ -109,12 +109,12 @@ export default function CreateTaskModal({ onClose, onCreated }) {
 
           {/* Description */}
           <div>
-            <label className="block text-xs font-semibold text-gray-700 mb-1.5">Description</label>
+            <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">Description</label>
             <textarea
               value={form.description}
               onChange={e => set('description', e.target.value)}
               rows={3}
-              className="w-full border border-gray-200 rounded-xl px-3.5 py-2.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none placeholder-gray-400"
+              className="w-full border border-gray-200 dark:border-[#1b2e4a] rounded-xl px-3.5 py-2.5 text-sm text-gray-900 dark:text-white dark:bg-[#0f1a2e] focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none placeholder-gray-400"
               placeholder="Detailed instructions (optional)…"
             />
           </div>
@@ -122,28 +122,28 @@ export default function CreateTaskModal({ onClose, onCreated }) {
           {/* Department + Priority row */}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-semibold text-gray-700 mb-1.5">Department <span className="text-red-500">*</span></label>
+              <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">Department <span className="text-red-500">*</span></label>
               {isAdmin ? (
                 <select
                   value={form.department}
                   onChange={e => set('department', e.target.value)}
-                  className="w-full border border-gray-200 rounded-xl px-3.5 py-2.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
+                  className="w-full border border-gray-200 dark:border-[#1b2e4a] rounded-xl px-3.5 py-2.5 text-sm text-gray-900 dark:text-white dark:bg-[#0f1a2e] focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 >
                   <option value="">Select dept…</option>
                   {DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
                 </select>
               ) : (
-                <div className="w-full border border-gray-200 rounded-xl px-3.5 py-2.5 text-sm font-medium text-indigo-700 bg-indigo-50">
+                <div className="w-full border border-gray-200 dark:border-[#1b2e4a] rounded-xl px-3.5 py-2.5 text-sm font-medium text-indigo-700 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-900/30">
                   {user?.department || 'Not set'}
                 </div>
               )}
             </div>
             <div>
-              <label className="block text-xs font-semibold text-gray-700 mb-1.5">Priority</label>
+              <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">Priority</label>
               <select
                 value={form.priority}
                 onChange={e => set('priority', e.target.value)}
-                className="w-full border border-gray-200 rounded-xl px-3.5 py-2.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
+                className="w-full border border-gray-200 dark:border-[#1b2e4a] rounded-xl px-3.5 py-2.5 text-sm text-gray-900 dark:text-white dark:bg-[#0f1a2e] focus:outline-none focus:ring-2 focus:ring-indigo-500"
               >
                 {PRIORITIES.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
               </select>
@@ -152,14 +152,14 @@ export default function CreateTaskModal({ onClose, onCreated }) {
 
           {/* Assign to */}
           <div>
-            <label className="block text-xs font-semibold text-gray-700 mb-1.5">
+            <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">
               Assign To
               {isManager && <span className="ml-1 text-[10px] text-gray-400 font-normal">(your department only)</span>}
             </label>
             <select
               value={form.assignedTo}
               onChange={e => set('assignedTo', e.target.value)}
-              className="w-full border border-gray-200 rounded-xl px-3.5 py-2.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
+              className="w-full border border-gray-200 dark:border-[#1b2e4a] rounded-xl px-3.5 py-2.5 text-sm text-gray-900 dark:text-white dark:bg-[#0f1a2e] focus:outline-none focus:ring-2 focus:ring-indigo-500"
               disabled={!form.department && isAdmin}
             >
               <option value="">Unassigned</option>
@@ -177,13 +177,13 @@ export default function CreateTaskModal({ onClose, onCreated }) {
           {/* Due date + Hours row */}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-semibold text-gray-700 mb-1.5">Due Date</label>
+              <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">Due Date</label>
               <input
                 type="date"
                 value={form.dueDate}
                 onChange={e => set('dueDate', e.target.value)}
                 min={new Date().toISOString().split('T')[0]}
-                className="w-full border border-gray-200 rounded-xl px-3.5 py-2.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="w-full border border-gray-200 dark:border-[#1b2e4a] rounded-xl px-3.5 py-2.5 text-sm text-gray-900 dark:text-white dark:bg-[#0f1a2e] focus:outline-none focus:ring-2 focus:ring-indigo-500"
               />
             </div>
             <div>

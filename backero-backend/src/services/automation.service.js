@@ -9,7 +9,7 @@ const MarketplaceDaily = require('../models/MarketplaceDaily');
 const MarketplacePlan = require('../models/MarketplacePlan');
 const MarketplacePlanProgress = require('../models/MarketplacePlanProgress');
 const { createNotification, bulkCreateNotifications } = require('./notification.service');
-const { sendTaskOverdueEmployee, sendTaskOverdueManager, sendTaskOverdueGroup, sendDailyReport, sendDailyReportWithPDF, sendInProgressLeadUpdate } = require('./whatsapp.service');
+const { sendTaskOverdueEmployee, sendTaskOverdueManager, sendTaskOverdueGroup, sendTasksDueTodayGroup, sendDailyReport, sendDailyReportWithPDF, sendInProgressLeadUpdate } = require('./whatsapp.service');
 const Department = require('../models/Department');
 const { generateDailyReportPDF } = require('./reportPdf.service');
 const { autoSyncAllOrgs } = require('./googleSheets.service');
@@ -55,6 +55,11 @@ const startAutomationEngine = (socketIo) => {
   // Every day at 10 AM IST: send WhatsApp update to all In Progress leads
   cron.schedule('30 4 * * *', () => {  // 10 AM IST = 4:30 AM UTC
     runInProgressLeadMessages().catch(logger.error);
+  });
+
+  // Every day at 9 AM IST: send due-today task reminders to department groups
+  cron.schedule('30 3 * * *', () => {  // 9 AM IST = 3:30 AM UTC
+    runDueTodayTaskReminder().catch(logger.error);
   });
 
   // Every 5 minutes: sync Google Sheets leads for all connected orgs
@@ -378,6 +383,50 @@ const runInProgressLeadMessages = async () => {
   }
 
   logger.info(`[InProgress] Daily updates: ${sent} sent, ${skipped} skipped (already updated today)`);
+};
+
+const runDueTodayTaskReminder = async () => {
+  logger.info('[DueToday] Sending morning due-today reminders to department groups...');
+
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
+  const todayEnd = new Date();
+  todayEnd.setHours(23, 59, 59, 999);
+
+  const tasks = await Task.find({
+    dueDate: { $gte: todayStart, $lte: todayEnd },
+    status: { $nin: [TASK_STATUS.COMPLETED, TASK_STATUS.CANCELLED] },
+    isOverdue: false,
+  })
+    .populate('assignedTo', 'firstName lastName')
+    .lean();
+
+  if (tasks.length === 0) {
+    logger.info('[DueToday] No tasks due today');
+    return;
+  }
+
+  // Group by organizationId + department
+  const byOrgDept = {};
+  for (const task of tasks) {
+    const key = `${task.organizationId}__${task.department}`;
+    if (!byOrgDept[key]) byOrgDept[key] = { organizationId: task.organizationId, department: task.department, tasks: [] };
+    byOrgDept[key].tasks.push(task);
+  }
+
+  let sent = 0;
+  for (const { organizationId, department, tasks: deptTasks } of Object.values(byOrgDept)) {
+    const deptDoc = await Department.findOne({
+      organizationId,
+      $or: [{ name: department }, { code: department }],
+    }).select('whatsappGroupId');
+    if (!deptDoc?.whatsappGroupId) continue;
+
+    await sendTasksDueTodayGroup(deptDoc.whatsappGroupId, { department, tasks: deptTasks });
+    sent++;
+  }
+
+  logger.info(`[DueToday] Sent to ${sent} department group(s), ${tasks.length} tasks total`);
 };
 
 const runFollowUpReminders = async () => {

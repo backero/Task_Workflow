@@ -458,6 +458,22 @@ const reinitWhatsApp = async () => {
   await initWhatsApp(io_ref);
 };
 
+const sendTasksDueTodayGroup = async (groupJid, { department, tasks }) => {
+  if (!tasks || tasks.length === 0) return;
+  const lines = tasks.map((t, i) => {
+    const assignee = t.assignedTo ? `${t.assignedTo.firstName} ${t.assignedTo.lastName}` : 'Unassigned';
+    const p = PRIORITY_EMOJI[t.priority] || '🔵';
+    return `${i + 1}. ${p} *${t.title}*\n   👤 ${assignee}`;
+  });
+  return sendGroupMessage(groupJid,
+    `📋 *TASKS DUE TODAY — ${department}*\n\n` +
+    `${tasks.length} task${tasks.length !== 1 ? 's' : ''} must be completed today:\n\n` +
+    lines.join('\n\n') +
+    `\n\n⚡ Please ensure all tasks are submitted for review by end of day.\n` +
+    `🔗 ${APP_URL}/tasks/my\n\n_Backero Task Management_`
+  );
+};
+
 const sendInProgressLeadUpdate = async (phone, { name, lastUpdate }) => {
   const msg =
     `Hello ${name} 👋\n\n` +
@@ -481,6 +497,7 @@ module.exports = {
   sendTaskOverdueEmployee,
   sendTaskOverdueManager,
   sendTaskOverdueGroup,
+  sendTasksDueTodayGroup,
   sendNewLeadAlert,
   sendInProgressLeadUpdate,
   sendDailyReport,

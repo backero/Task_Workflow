@@ -101,7 +101,7 @@ function TaskCard({ task, colors, canDelete, onDelete }) {
 
   return (
     <>
-    <div className={clsx('group bg-white rounded-xl border border-gray-200 border-l-4 shadow-sm transition-shadow hover:shadow-md', PRIORITY_BORDER[task.priority] || 'border-l-slate-300')}>
+    <div className={clsx('group bg-white dark:bg-[#0f172a] rounded-xl border border-gray-200 dark:border-[#1b2e4a] border-l-4 shadow-sm transition-shadow hover:shadow-md', PRIORITY_BORDER[task.priority] || 'border-l-slate-300')}>
 
       {/* ── Main task row ── */}
       <div className="flex items-start gap-2 px-3 pt-3 pb-2">
@@ -135,7 +135,7 @@ function TaskCard({ task, colors, canDelete, onDelete }) {
                   const parentId = task.parentTask;
                   navigate(parentId ? `/workflow/${parentId}?view=dept` : `/workflow/${task._id}`);
                 }}
-                className="text-xs font-semibold text-gray-900 leading-snug flex-1 text-left hover:text-brand-600 transition-colors cursor-pointer">
+                className="text-xs font-semibold text-gray-900 dark:text-white leading-snug flex-1 text-left hover:text-brand-600 transition-colors cursor-pointer">
                 {task.title}
               </button>
             )}
@@ -201,12 +201,12 @@ function TaskCard({ task, colors, canDelete, onDelete }) {
               ? ((s.assignedTo.firstName?.[0] || '') + (s.assignedTo.lastName?.[0] || '')).toUpperCase()
               : null;
             return (
-              <div key={i} className="flex items-start gap-2 pl-9 pr-3 py-2 border-b border-gray-50 last:border-b-0 hover:bg-gray-50/60">
+              <div key={i} className="flex items-start gap-2 pl-9 pr-3 py-2 border-b border-gray-50 dark:border-[#1b2e4a] last:border-b-0 hover:bg-gray-50/60 dark:hover:bg-[#17263d]/40">
                 <span className={clsx('w-1.5 h-1.5 rounded-full flex-shrink-0 mt-1.5', STATUS_DOT[s.status] || 'bg-gray-300')} />
                 <div className="flex-1 min-w-0">
                   {/* Sub title + status */}
                   <div className="flex items-start justify-between gap-1">
-                    <p className={clsx('text-[10px] font-medium leading-snug flex-1', s.status === 'Completed' ? 'line-through text-gray-400' : 'text-gray-700')}>
+                    <p className={clsx('text-[10px] font-medium leading-snug flex-1', s.status === 'Completed' ? 'line-through text-gray-400' : 'text-gray-700 dark:text-gray-300')}>
                       {s.title}
                     </p>
                     <span className={clsx('text-[9px] px-1.5 py-0.5 rounded-full font-semibold flex-shrink-0 whitespace-nowrap', STATUS_STYLE[s.status] || 'bg-gray-100 text-gray-500')}>
@@ -273,7 +273,7 @@ function DeptColumn({ dept, tasks, colors, canDelete, onDelete }) {
   const overdue = tasks.filter(t => t.dueDate && isPast(new Date(t.dueDate)) && t.status !== 'Completed').length;
 
   return (
-    <div className="flex-shrink-0 w-72 flex flex-col rounded-2xl overflow-hidden border border-gray-200 shadow-sm">
+    <div className="flex-shrink-0 w-72 flex flex-col rounded-2xl overflow-hidden border border-gray-200 dark:border-[#1b2e4a] shadow-sm">
       {/* Column header */}
       <div className={clsx('px-4 pt-3.5 pb-3', colors.bg)}>
         <div className="flex items-center justify-between mb-1">
@@ -310,13 +310,13 @@ function DeptColumn({ dept, tasks, colors, canDelete, onDelete }) {
 
 function StatCard({ label, value, color, icon }) {
   return (
-    <div className="bg-white rounded-xl border border-gray-200 shadow-sm px-4 py-3 flex items-center gap-3">
+    <div className="bg-white dark:bg-[#0f172a] rounded-xl border border-gray-200 dark:border-[#1b2e4a] shadow-sm px-4 py-3 flex items-center gap-3">
       <div className={clsx('w-9 h-9 rounded-lg flex items-center justify-center text-white text-sm font-bold flex-shrink-0', color)}>
         {icon}
       </div>
       <div>
-        <p className="text-xl font-bold text-gray-900 leading-none">{value}</p>
-        <p className="text-[11px] text-gray-500 font-medium mt-0.5">{label}</p>
+        <p className="text-xl font-bold text-gray-900 dark:text-white leading-none">{value}</p>
+        <p className="text-[11px] text-gray-500 dark:text-gray-400 font-medium mt-0.5">{label}</p>
       </div>
     </div>
   );
@@ -885,16 +885,16 @@ function ImportModal({ onClose, onImported }) {
               </div>
 
               {/* Row-by-row results */}
-              <div className="border border-gray-200 rounded-xl overflow-hidden">
-                <div className="bg-gray-50 px-4 py-2 border-b border-gray-200">
-                  <p className="text-xs font-bold text-gray-600">Row Details ({result.results?.length} rows)</p>
+              <div className="border border-gray-200 dark:border-[#1b2e4a] rounded-xl overflow-hidden">
+                <div className="bg-gray-50 dark:bg-[#0f1a2e] px-4 py-2 border-b border-gray-200 dark:border-[#1b2e4a]">
+                  <p className="text-xs font-bold text-gray-600 dark:text-gray-300">Row Details ({result.results?.length} rows)</p>
                 </div>
-                <div className="max-h-52 overflow-y-auto divide-y divide-gray-100">
+                <div className="max-h-52 overflow-y-auto divide-y divide-gray-100 dark:divide-[#1b2e4a]">
                   {(result.results || []).map((r, i) => (
                     <div key={i} className="flex items-center justify-between gap-3 px-4 py-2.5">
                       <div className="flex items-center gap-2 min-w-0">
                         <span className="text-[10px] text-gray-400 font-mono flex-shrink-0">#{r.row}</span>
-                        <p className="text-xs text-gray-700 truncate font-medium">{r.title}</p>
+                        <p className="text-xs text-gray-700 dark:text-gray-300 truncate font-medium">{r.title}</p>
                         {r.pendingAssignee && (
                           <span className="text-[10px] text-blue-500 flex-shrink-0">→ {r.pendingAssignee}</span>
                         )}
@@ -1133,7 +1133,7 @@ export default function WorkflowLanding() {
       )}
 
       {/* ── Page header ── */}
-      <div className="bg-white dark:bg-[#070c17] rounded-2xl border border-gray-200 shadow-sm px-6 py-4">
+      <div className="bg-white dark:bg-[#070c17] rounded-2xl border border-gray-200 dark:border-[#1b2e4a] shadow-sm px-6 py-4">
         <div className="flex items-center justify-between gap-4 flex-wrap">
 
           {/* Title */}
@@ -1374,7 +1374,7 @@ export default function WorkflowLanding() {
             <h3 className="font-bold text-gray-900 dark:text-white text-sm">Reject Assignment</h3>
             <p className="text-xs text-gray-500">Rejecting assignment for <span className="font-semibold text-gray-700">"{assignRejectModal.title}"</span>. The requesting manager will be notified.</p>
             <div>
-              <label className="block text-xs font-bold text-gray-700 mb-1.5">Reason (optional)</label>
+              <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1.5">Reason (optional)</label>
               <textarea
                 value={assignRejectNote}
                 onChange={e => setAssignRejectNote(e.target.value)}
@@ -1403,7 +1403,7 @@ export default function WorkflowLanding() {
             <h3 className="font-bold text-gray-900 dark:text-white text-sm">Reject Dept Hub</h3>
             <p className="text-xs text-gray-500">Rejecting <span className="font-semibold text-gray-700">"{rejectModal.title}"</span>. The manager will be notified.</p>
             <div>
-              <label className="block text-xs font-bold text-gray-700 mb-1.5">Reason (optional)</label>
+              <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1.5">Reason (optional)</label>
               <textarea
                 value={rejectNote}
                 onChange={e => setRejectNote(e.target.value)}

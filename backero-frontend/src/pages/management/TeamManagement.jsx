@@ -1,6 +1,6 @@
 ﻿import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { PlusIcon, MagnifyingGlassIcon, PencilIcon, XCircleIcon, CheckCircleIcon, XMarkIcon } from '@heroicons/react/24/outline';
+import { PlusIcon, MagnifyingGlassIcon, PencilIcon, XCircleIcon, CheckCircleIcon, XMarkIcon, CubeIcon } from '@heroicons/react/24/outline';
 import { useForm } from 'react-hook-form';
 import api from '../../api/axios';
 import toast from 'react-hot-toast';
@@ -202,6 +202,22 @@ export default function TeamManagement() {
     onError: () => toast.error('Failed to update status'),
   });
 
+  const toggleInventory = useMutation({
+    mutationFn: ({ id, permissions }) => {
+      const has = (permissions || []).includes('inventory:write');
+      const next = has
+        ? (permissions || []).filter(p => p !== 'inventory:write')
+        : [...(permissions || []), 'inventory:write'];
+      return api.put(`/users/${id}`, { permissions: next });
+    },
+    onSuccess: (_, { permissions }) => {
+      qc.invalidateQueries({ queryKey: ['team'] });
+      const had = (permissions || []).includes('inventory:write');
+      toast.success(had ? 'Inventory access removed' : 'Inventory access granted');
+    },
+    onError: () => toast.error('Failed to update permissions'),
+  });
+
   const openAdd = () => { setEditUser(null); setModalOpen(true); };
   const openEdit = (u) => { setEditUser(u); setModalOpen(true); };
 
@@ -306,9 +322,16 @@ export default function TeamManagement() {
                     </td>
                     <td className="py-3 px-4 text-gray-600 dark:text-gray-400">{u.department || '—'}</td>
                     <td className="py-3 px-4 text-center">
-                      <span className={`badge ${roleColor(u.role)} capitalize`}>
-                        {u.role?.replace('_', ' ')}
-                      </span>
+                      <div className="flex items-center justify-center gap-1.5 flex-wrap">
+                        <span className={`badge ${roleColor(u.role)} capitalize`}>
+                          {u.role?.replace('_', ' ')}
+                        </span>
+                        {(u.permissions || []).includes('inventory:write') && (
+                          <span className="badge badge-teal flex items-center gap-0.5">
+                            <CubeIcon className="w-2.5 h-2.5" /> Inventory
+                          </span>
+                        )}
+                      </div>
                     </td>
                     <td className="py-3 px-4 text-center">
                       <span className={`badge ${u.isActive ? 'badge-green' : 'badge-gray'}`}>
@@ -317,6 +340,20 @@ export default function TeamManagement() {
                     </td>
                     <td className="py-3 px-4">
                       <div className="flex items-center justify-end gap-2">
+                        {['member', 'team_lead'].includes(u.role) && (
+                          <button
+                            onClick={() => toggleInventory.mutate({ id: u._id, permissions: u.permissions })}
+                            className={clsx(
+                              'p-1.5 rounded transition-colors',
+                              (u.permissions || []).includes('inventory:write')
+                                ? 'bg-teal-50 dark:bg-teal-900/30 text-teal-600 dark:text-teal-400 hover:bg-teal-100'
+                                : 'text-gray-400 hover:bg-teal-50 dark:hover:bg-teal-900/20 hover:text-teal-600'
+                            )}
+                            title={(u.permissions || []).includes('inventory:write') ? 'Remove inventory access' : 'Grant inventory access'}
+                          >
+                            <CubeIcon className="w-4 h-4" />
+                          </button>
+                        )}
                         <button
                           onClick={() => openEdit(u)}
                           className="p-1.5 rounded hover:bg-gray-100 dark:hover:bg-[#17263d] text-gray-500 hover:text-brand-600 transition-colors"

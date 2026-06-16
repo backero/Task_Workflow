@@ -191,7 +191,7 @@ export default function TaskDetailPanel({ onAddSubtask }) {
     <div className="absolute top-0 right-0 h-full w-[400px] bg-white dark:bg-[#0f1a2e] border-l border-gray-200 dark:border-[#1b2e4a] shadow-2xl z-20 flex flex-col overflow-hidden">
 
       {/* ── Header ── */}
-      <div className="px-5 py-4 border-b border-gray-100 bg-gradient-to-br from-indigo-50 via-white to-purple-50 flex-shrink-0">
+      <div className="px-5 py-4 border-b border-gray-100 dark:border-[#1b2e4a] bg-gradient-to-br from-indigo-50 via-white to-purple-50 dark:from-[#0f172a] dark:via-[#0f172a] dark:to-[#0f172a] flex-shrink-0">
         <div className="flex items-start justify-between gap-3">
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap mb-1.5">
@@ -216,7 +216,7 @@ export default function TaskDetailPanel({ onAddSubtask }) {
               />
             ) : (
               <div className="flex items-start gap-1.5">
-                <h2 className="text-sm font-bold text-gray-900 leading-snug line-clamp-2 flex-1">{data.title}</h2>
+                <h2 className="text-sm font-bold text-gray-900 dark:text-white leading-snug line-clamp-2 flex-1">{data.title}</h2>
                 {isManager && (
                   <button
                     onClick={startRenameTitle}
@@ -255,7 +255,7 @@ export default function TaskDetailPanel({ onAddSubtask }) {
       </div>
 
       {/* ── Tabs ── */}
-      <div className="flex border-b border-gray-100 flex-shrink-0">
+      <div className="flex border-b border-gray-100 dark:border-[#1b2e4a] flex-shrink-0">
         {[
           { id: 'info', label: 'Info' },
           { id: 'updates', label: `Updates${updates.length > 0 ? ` (${updates.length})` : ''}` },
@@ -267,8 +267,8 @@ export default function TaskDetailPanel({ onAddSubtask }) {
             className={clsx(
               'flex-1 py-2.5 text-xs font-semibold transition-colors',
               activeTab === tab.id
-                ? 'text-indigo-600 border-b-2 border-indigo-600 bg-indigo-50/50'
-                : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50',
+                ? 'text-indigo-600 border-b-2 border-indigo-600 bg-indigo-50/50 dark:bg-[#132035]/50'
+                : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-[#1b2e4a]',
             )}
           >
             {tab.label}
@@ -290,13 +290,13 @@ export default function TaskDetailPanel({ onAddSubtask }) {
                     <div className="w-5 h-5 rounded-full bg-indigo-600 flex items-center justify-center text-white text-[9px] font-bold">
                       {(data.assignedTo.firstName?.[0] || '') + (data.assignedTo.lastName?.[0] || '')}
                     </div>
-                    <span className="text-xs font-medium text-gray-800">{data.assignedTo.firstName} {data.assignedTo.lastName}</span>
+                    <span className="text-xs font-medium text-gray-800 dark:text-gray-100">{data.assignedTo.firstName} {data.assignedTo.lastName}</span>
                   </div>
                 </InfoRow>
               )}
               {data.dueDate && (
                 <InfoRow label="Due date">
-                  <span className={clsx('text-xs font-medium', data.isOverdue && data.status !== 'Completed' ? 'text-red-600' : 'text-gray-800')}>
+                  <span className={clsx('text-xs font-medium', data.isOverdue && data.status !== 'Completed' ? 'text-red-600' : 'text-gray-800 dark:text-gray-100')}>
                     {format(new Date(data.dueDate), 'dd MMM yyyy')}
                     {data.isOverdue && data.status !== 'Completed' && ' ⚠'}
                   </span>
@@ -304,7 +304,7 @@ export default function TaskDetailPanel({ onAddSubtask }) {
               )}
               {data.estimatedHours && (
                 <InfoRow label="Hours">
-                  <span className="text-xs font-medium text-gray-800">{data.actualHours || 0} / {data.estimatedHours}h logged</span>
+                  <span className="text-xs font-medium text-gray-800 dark:text-gray-100">{data.actualHours || 0} / {data.estimatedHours}h logged</span>
                 </InfoRow>
               )}
               <div className="mt-3">
@@ -312,18 +312,18 @@ export default function TaskDetailPanel({ onAddSubtask }) {
                 <TaskTimer task={taskDetail} />
               </div>
               <InfoRow label="Subtasks">
-                <span className="text-xs font-medium text-gray-800">{data.childCount} subtask{data.childCount !== 1 ? 's' : ''}</span>
+                <span className="text-xs font-medium text-gray-800 dark:text-gray-100">{data.childCount} subtask{data.childCount !== 1 ? 's' : ''}</span>
               </InfoRow>
               <InfoRow label="Depth">
-                <span className="text-xs font-medium text-gray-800">Level {(data.depth || 0) + 1}</span>
+                <span className="text-xs font-medium text-gray-800 dark:text-gray-100">Level {(data.depth || 0) + 1}</span>
               </InfoRow>
             </div>
 
             {/* Description */}
             {taskDetail?.description && (
-              <div className="bg-blue-50 rounded-xl p-3">
-                <p className="text-[11px] text-gray-500 font-semibold mb-1">Description</p>
-                <p className="text-xs text-gray-700 leading-relaxed">{taskDetail.description}</p>
+              <div className="bg-blue-50 dark:bg-[#0f1a2e] rounded-xl p-3">
+                <p className="text-[11px] text-gray-500 dark:text-gray-400 font-semibold mb-1">Description</p>
+                <p className="text-xs text-gray-700 dark:text-gray-300 leading-relaxed">{taskDetail.description}</p>
               </div>
             )}
 
@@ -379,7 +379,7 @@ export default function TaskDetailPanel({ onAddSubtask }) {
                         <div className="w-5 h-5 rounded-full bg-indigo-600 flex items-center justify-center text-white text-[9px] font-bold">
                           {(u.author?.firstName?.[0] || '') + (u.author?.lastName?.[0] || '?')}
                         </div>
-                        <span className="text-[11px] font-semibold text-gray-800">
+                        <span className="text-[11px] font-semibold text-gray-800 dark:text-gray-100">
                           {u.author?.firstName} {u.author?.lastName}
                         </span>
                       </div>
@@ -387,7 +387,7 @@ export default function TaskDetailPanel({ onAddSubtask }) {
                         {u.createdAt ? formatDistanceToNow(new Date(u.createdAt), { addSuffix: true }) : ''}
                       </span>
                     </div>
-                    <p className="text-xs text-gray-700 leading-relaxed">{u.content}</p>
+                    <p className="text-xs text-gray-700 dark:text-gray-300 leading-relaxed">{u.content}</p>
                     {u.hoursWorked && (
                       <p className="text-[10px] text-indigo-500 mt-1 font-medium">⏱ {u.hoursWorked}h logged</p>
                     )}
@@ -454,7 +454,7 @@ export default function TaskDetailPanel({ onAddSubtask }) {
 
             {/* Notes/reason textarea */}
             <div>
-              <label className="block text-xs font-semibold text-gray-700 mb-1.5">Notes / Reason</label>
+              <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1.5">Notes / Reason</label>
               <textarea
                 rows={3}
                 value={actionNotes}
@@ -478,7 +478,7 @@ export default function TaskDetailPanel({ onAddSubtask }) {
                 {['In Progress', 'Changes Requested'].includes(data.status) && !hasChildren && (
                   <div className="bg-gray-50 dark:bg-[#132035] rounded-xl p-3 space-y-2">
                     <div className="flex justify-between">
-                      <span className="text-xs font-semibold text-gray-700">Manual Progress</span>
+                      <span className="text-xs font-semibold text-gray-700 dark:text-gray-300">Manual Progress</span>
                       <span className="text-xs font-bold text-indigo-600">{manualProgress}%</span>
                     </div>
                     <input
@@ -604,7 +604,7 @@ export default function TaskDetailPanel({ onAddSubtask }) {
 
             {/* ── DELETE (manager/admin only) ── */}
             {isManager && (
-              <div className="pt-2 border-t border-gray-100">
+              <div className="pt-2 border-t border-gray-100 dark:border-[#1b2e4a]">
                 <button
                   onClick={() => setConfirmDelete(true)}
                   className="w-full py-2 text-xs font-semibold text-red-600 border border-red-200 rounded-xl hover:bg-red-50 transition-colors flex items-center justify-center gap-1.5"

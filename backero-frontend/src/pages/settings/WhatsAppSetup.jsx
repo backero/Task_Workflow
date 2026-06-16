@@ -572,6 +572,12 @@ export default function WhatsAppSetup() {
               always: true,
             },
             {
+              icon: '📋',
+              title: 'Tasks Due Today — Department Group',
+              desc: 'Department WhatsApp group gets a morning summary (9 AM) of all tasks due that day',
+              always: false,
+            },
+            {
               icon: '👥',
               title: 'Task Overdue — Department Group',
               desc: 'Department WhatsApp group gets an alert when any task in that department goes overdue',
@@ -646,8 +652,10 @@ export default function WhatsAppSetup() {
           {[
             { time: 'Every 30 min',  event: 'Check for newly overdue tasks' },
             { time: 'Every hour',    event: 'Check stale CRM leads (48h no contact)' },
+            { time: '9:00 AM IST',   event: 'Due-today task reminders to department groups' },
             { time: '9:00 PM IST',   event: 'Daily report WhatsApp to all admins' },
             { time: '8:00 AM IST',   event: 'Follow-up reminders for CRM leads' },
+            { time: '10:00 AM IST',  event: 'Daily WhatsApp updates to In Progress leads' },
             { time: 'Every 6 hours', event: 'Low stock inventory check' },
           ].map((row) => (
             <div key={row.time} className="flex items-center gap-3">

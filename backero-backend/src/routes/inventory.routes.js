@@ -2,7 +2,7 @@ const router = require('express').Router();
 const ctrl = require('../controllers/inventory.controller');
 const { authenticate } = require('../middleware/auth.middleware');
 const { orgIsolation } = require('../middleware/orgIsolation.middleware');
-const { authorizeAdminOrAbove, authorizeManagerOrAbove } = require('../middleware/role.middleware');
+const { authorizeAdminOrAbove, authorizeManagerOrAbove, authorizeInventoryWrite } = require('../middleware/role.middleware');
 const { asyncHandler, sendSuccess, sendError } = require('../utils/helpers');
 const upload = require('../middleware/upload.middleware');
 const { buildProductTemplate, importProducts } = require('../services/import.service');
@@ -44,12 +44,11 @@ router.get('/products/:id/qr', asyncHandler(async (req, res) => {
 }));
 
 router.get('/products/:id', ctrl.getProduct);
-router.post('/products', authorizeManagerOrAbove, ctrl.createProduct);
-router.put('/products/:id', authorizeManagerOrAbove, ctrl.updateProduct);
+router.post('/products', authorizeInventoryWrite, ctrl.createProduct);
+router.put('/products/:id', authorizeInventoryWrite, ctrl.updateProduct);
 router.delete('/products/:id', authorizeManagerOrAbove, ctrl.deleteProduct);
-// Allow managers and above to do stock movements (warehouse ops)
-router.post('/stock-in', authorizeManagerOrAbove, ctrl.stockIn);
-router.post('/stock-out', authorizeManagerOrAbove, ctrl.stockOut);
-router.post('/adjustment', authorizeManagerOrAbove, ctrl.stockAdjustment);
+router.post('/stock-in', authorizeInventoryWrite, ctrl.stockIn);
+router.post('/stock-out', authorizeInventoryWrite, ctrl.stockOut);
+router.post('/adjustment', authorizeInventoryWrite, ctrl.stockAdjustment);
 
 module.exports = router;

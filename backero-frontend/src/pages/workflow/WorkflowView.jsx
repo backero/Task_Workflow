@@ -61,15 +61,15 @@ export default function WorkflowView() {
   const deptC = DEPT_COLORS[dept] || DEPT_COLORS.Management;
 
   return (
-    <div className="flex flex-col -m-4 lg:-m-6 bg-gray-50 overflow-hidden" style={{ height: 'calc(100vh - 64px)' }}>
+    <div className="flex flex-col -m-4 lg:-m-6 bg-gray-50 dark:bg-[#020617] overflow-hidden" style={{ height: 'calc(100vh - 64px)' }}>
       {/* Top bar */}
-      <div className="flex-shrink-0 bg-white border-b border-gray-200 px-6 py-3 shadow-sm">
+      <div className="flex-shrink-0 bg-white dark:bg-[#0f172a] border-b border-gray-200 dark:border-[#1b2e4a] px-6 py-3 shadow-sm">
         <div className="flex items-center justify-between gap-4">
           <div className="flex items-center gap-3 min-w-0">
             {/* Back button */}
             <button
               onClick={() => navigate('/workflow')}
-              className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-800 font-medium transition-colors flex-shrink-0 px-2.5 py-1.5 rounded-lg hover:bg-gray-100"
+              className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-800 dark:hover:text-gray-200 font-medium transition-colors flex-shrink-0 px-2.5 py-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-[#1b2e4a]"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
@@ -89,7 +89,7 @@ export default function WorkflowView() {
                   </svg>
                 </div>
                 <div className="min-w-0">
-                  <h1 className="text-sm font-bold text-gray-900 leading-tight truncate max-w-xs">
+                  <h1 className="text-sm font-bold text-gray-900 dark:text-white leading-tight truncate max-w-xs">
                     {rootTask.title}
                   </h1>
                   <div className="flex items-center gap-2 mt-0.5 flex-wrap">
@@ -115,10 +115,10 @@ export default function WorkflowView() {
           <div className="flex items-center gap-3 flex-shrink-0">
             {/* Overall progress */}
             {totalNodes > 0 && (
-              <div className="hidden md:flex items-center gap-2.5 bg-gray-50 border border-gray-200 rounded-xl px-3 py-1.5">
+              <div className="hidden md:flex items-center gap-2.5 bg-gray-50 dark:bg-[#0f1a2e] border border-gray-200 dark:border-[#1b2e4a] rounded-xl px-3 py-1.5">
                 <div className="flex flex-col items-end">
                   <span className="text-[10px] text-gray-400 font-medium">{completedNodes}/{totalNodes} tasks</span>
-                  <span className="text-xs font-bold text-gray-800">{overallProgress}% done</span>
+                  <span className="text-xs font-bold text-gray-800 dark:text-gray-100">{overallProgress}% done</span>
                 </div>
                 <div className="w-20 bg-gray-200 rounded-full h-2 overflow-hidden">
                   <div
@@ -130,7 +130,7 @@ export default function WorkflowView() {
             )}
 
             {/* View switcher */}
-            <div className="flex items-center bg-gray-100 rounded-xl p-0.5">
+            <div className="flex items-center bg-gray-100 dark:bg-[#0f1a2e] rounded-xl p-0.5">
               {[
                 { key: 'workflow', label: '🌐 Canvas' },
                 { key: 'tree',     label: '🌲 Tree'   },
@@ -141,7 +141,7 @@ export default function WorkflowView() {
                   onClick={() => setView(v.key)}
                   className={clsx(
                     'px-3 py-1.5 text-xs font-semibold rounded-lg transition-all',
-                    view === v.key ? 'bg-white shadow text-gray-900' : 'text-gray-500 hover:text-gray-700',
+                    view === v.key ? 'bg-white dark:bg-[#132035] shadow text-gray-900 dark:text-white' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300',
                   )}
                 >
                   {v.label}
@@ -275,7 +275,7 @@ function DeptTaskNode({ node, depth = 0, canEdit, onStatusChange, onAddSubtask, 
     : null;
 
   return (
-    <div className={clsx('rounded-lg border bg-white', depth === 0 ? 'border-gray-200' : 'border-gray-100 ml-4 mt-1.5')}>
+    <div className={clsx('rounded-lg border bg-white dark:bg-[#0f172a]', depth === 0 ? 'border-gray-200 dark:border-[#1b2e4a]' : 'border-gray-100 dark:border-[#1b2e4a] ml-4 mt-1.5')}>
       <div
         className={clsx('flex items-start gap-2 px-3 py-2 group', hasKids && 'cursor-pointer hover:bg-gray-50')}
         onClick={() => hasKids && setOpen(p => !p)}
@@ -301,7 +301,7 @@ function DeptTaskNode({ node, depth = 0, canEdit, onStatusChange, onAddSubtask, 
               className="w-full text-xs font-medium border border-indigo-400 rounded px-1.5 py-0.5 focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-white"
             />
           ) : (
-            <p className={clsx('text-xs font-medium leading-snug', isDone ? 'line-through text-gray-400' : 'text-gray-800')}>
+            <p className={clsx('text-xs font-medium leading-snug', isDone ? 'line-through text-gray-400' : 'text-gray-800 dark:text-gray-100')}>
               {node.title}
             </p>
           )}
@@ -329,10 +329,10 @@ function DeptTaskNode({ node, depth = 0, canEdit, onStatusChange, onAddSubtask, 
                   {statusKey} ▾
                 </button>
                 {statusOpen && (
-                  <div className="absolute left-0 top-full mt-1 z-50 bg-white border border-gray-200 rounded-lg shadow-xl py-1 min-w-[150px]">
+                  <div className="absolute left-0 top-full mt-1 z-50 bg-white dark:bg-[#0f1a2e] border border-gray-200 dark:border-[#1b2e4a] rounded-lg shadow-xl py-1 min-w-[150px]">
                     {ALL_STATUSES.map(s => (
                       <button key={s} onMouseDown={e => { e.preventDefault(); onStatusChange(node._id, s); setStatusOpen(false); }}
-                        className={clsx('w-full text-left px-3 py-1.5 text-xs hover:bg-gray-50 flex items-center gap-2', node.status === s ? 'font-bold text-brand-600' : 'text-gray-700')}>
+                        className={clsx('w-full text-left px-3 py-1.5 text-xs hover:bg-gray-50 dark:hover:bg-[#1b2e4a] flex items-center gap-2', node.status === s ? 'font-bold text-brand-600' : 'text-gray-700 dark:text-gray-300')}>
                         <span className={clsx('w-2 h-2 rounded-full', DSTATUS_DOT[s] || 'bg-gray-400')} />
                         {s}
                         {node.status === s && <span className="ml-auto">✓</span>}
@@ -467,7 +467,7 @@ function DeptHubColumn({ dept, nodes, cfg, canEdit, onAddTask, onStatusChange, o
       </div>
 
       {/* Task list */}
-      <div className="flex-1 p-3 space-y-2 overflow-y-auto max-h-[400px] bg-white">
+      <div className="flex-1 p-3 space-y-2 overflow-y-auto max-h-[400px] bg-white dark:bg-[#0f172a]">
         {nodes.map(n => (
           <DeptTaskNode key={n._id} node={n} depth={0}
             canEdit={canEdit} onStatusChange={onStatusChange} onAddSubtask={onAddSubtask} onDelete={onDelete} onRename={onRename} />
@@ -651,13 +651,13 @@ function DeptHubView() {
       </div>
 
       {/* Overall progress strip */}
-      <div className="flex-shrink-0 px-6 py-3 bg-white border-b border-gray-200 flex items-center gap-4 flex-wrap">
+      <div className="flex-shrink-0 px-6 py-3 bg-white dark:bg-[#0f172a] border-b border-gray-200 dark:border-[#1b2e4a] flex items-center gap-4 flex-wrap">
         <div className="flex-1 min-w-[200px]">
           <div className="flex items-center gap-3">
             <div className="flex-1 bg-gray-200 rounded-full h-2.5 overflow-hidden">
               <div className="h-full rounded-full bg-gradient-to-r from-indigo-500 to-purple-500 transition-all duration-500" style={{ width: `${overallPct}%` }} />
             </div>
-            <span className="text-sm font-bold text-gray-700 whitespace-nowrap">{overallPct}% Overall</span>
+            <span className="text-sm font-bold text-gray-700 dark:text-gray-300 whitespace-nowrap">{overallPct}% Overall</span>
             <span className="text-xs text-gray-400 whitespace-nowrap">{overallProg.done}/{overallProg.total} tasks</span>
           </div>
         </div>
@@ -739,8 +739,8 @@ function TaskTreeRow({ node, depth }) {
     <div>
       <div
         className={clsx(
-          'flex items-center gap-3 p-3 rounded-xl border-l-4 border border-gray-200 shadow-sm cursor-pointer hover:shadow-md transition-all',
-          STATUS_BG[node.status] || 'bg-white border-l-slate-300',
+          'flex items-center gap-3 p-3 rounded-xl border-l-4 border border-gray-200 dark:border-[#1b2e4a] shadow-sm cursor-pointer hover:shadow-md transition-all',
+          STATUS_BG[node.status] || 'bg-white dark:bg-[#0f172a] border-l-slate-300',
         )}
         style={{ marginLeft: `${depth * 28}px` }}
       >
@@ -755,7 +755,7 @@ function TaskTreeRow({ node, depth }) {
 
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
-            <span className="text-xs font-semibold text-gray-900 truncate">{node.title}</span>
+            <span className="text-xs font-semibold text-gray-900 dark:text-white truncate">{node.title}</span>
             {node.isOverdue && node.status !== 'Completed' && (
               <span className="text-[10px] font-bold text-red-600 bg-red-100 px-1.5 rounded-full">OVERDUE</span>
             )}
@@ -783,7 +783,7 @@ function TaskTreeRow({ node, depth }) {
               style={{ width: `${node.progress || 0}%` }}
             />
           </div>
-          <span className="text-[10px] font-bold text-gray-600 w-7 text-right">{node.progress || 0}%</span>
+          <span className="text-[10px] font-bold text-gray-600 dark:text-gray-400 w-7 text-right">{node.progress || 0}%</span>
         </div>
       </div>
 

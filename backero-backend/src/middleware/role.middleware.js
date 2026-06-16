@@ -23,4 +23,14 @@ const authorizeManagerOrAbove = authorizeMinRole('manager');
 const authorizeAdminOrAbove = authorizeMinRole('admin');
 const authorizeFounderOrAbove = authorizeMinRole('founder');
 
-module.exports = { authorize, authorizeMinRole, authorizeManagerOrAbove, authorizeAdminOrAbove, authorizeFounderOrAbove };
+// manager+ OR explicit inventory:write permission
+const authorizeInventoryWrite = (req, res, next) => {
+  if (!req.user) return sendError(res, 'Authentication required.', 401);
+  const level = ROLE_HIERARCHY[req.user.role] || 0;
+  if (level >= ROLE_HIERARCHY['manager'] || (req.user.permissions || []).includes('inventory:write')) {
+    return next();
+  }
+  return sendError(res, 'Access denied. Inventory write permission required.', 403);
+};
+
+module.exports = { authorize, authorizeMinRole, authorizeManagerOrAbove, authorizeAdminOrAbove, authorizeFounderOrAbove, authorizeInventoryWrite };
