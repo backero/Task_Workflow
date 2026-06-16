@@ -16,6 +16,56 @@ const STATUS_CONFIG = {
   unavailable:  { label: 'Unavailable',   color: 'gray',   icon: ExclamationTriangleIcon },
 };
 
+const DEFAULT_DEPARTMENTS = [
+  { name: 'Marketing',           code: 'MKT',  color: '#9333ea' },
+  { name: 'Marketplace',         code: 'MKTPL', color: '#f97316' },
+  { name: 'Sales',               code: 'SALES', color: '#16a34a' },
+  { name: 'Production',          code: 'PROD',  color: '#2563eb' },
+  { name: 'R&D',                 code: 'RND',   color: '#0891b2' },
+  { name: 'Operations',          code: 'OPS',   color: '#4f46e5' },
+  { name: 'Accounts & Finance',  code: 'ACCFIN', color: '#059669' },
+  { name: 'HR',                  code: 'HR',    color: '#d97706' },
+  { name: 'Management',          code: 'MGMT',  color: '#475569' },
+];
+
+function SeedDepartments({ onDone }) {
+  const [loading, setLoading] = React.useState(false);
+  const [result, setResult] = React.useState(null);
+
+  const handleSeed = async () => {
+    setLoading(true);
+    let created = 0, skipped = 0;
+    for (const dept of DEFAULT_DEPARTMENTS) {
+      try {
+        await api.post('/departments', dept);
+        created++;
+      } catch (e) {
+        if (e.response?.status === 409 || e.response?.data?.message?.includes('exists')) skipped++;
+      }
+    }
+    setResult({ created, skipped });
+    setLoading(false);
+    onDone();
+  };
+
+  return (
+    <div className="text-center py-6">
+      <p className="text-sm text-gray-500 mb-3">No departments found. Auto-create standard departments.</p>
+      {result ? (
+        <p className="text-sm text-green-600 font-medium">{result.created} departments created, {result.skipped} already existed</p>
+      ) : (
+        <button
+          onClick={handleSeed}
+          disabled={loading}
+          className="text-sm px-4 py-2 rounded-lg bg-brand-600 hover:bg-brand-700 text-white font-medium transition-colors disabled:opacity-50"
+        >
+          {loading ? 'Creating…' : 'Auto-create Departments from Tasks'}
+        </button>
+      )}
+    </div>
+  );
+}
+
 function DepartmentGroups({ isConnected }) {
   const qc = useQueryClient();
   const [inviteLinks, setInviteLinks] = useState({});
@@ -102,23 +152,8 @@ function DepartmentGroups({ isConnected }) {
       )}
 
       {departments.length === 0 ? (
-        <div className="text-center py-6">
-          <p className="text-sm text-gray-500 mb-3">No departments found. Auto-create them from your existing tasks.</p>
-          <button
-            onClick={async () => {
-              try {
-                const r = await api.post('/departments/seed');
-                qc.invalidateQueries(['departments']);
-                alert(r.data?.message || 'Departments created!');
-              } catch (e) {
-                alert(e.response?.data?.message || 'Failed to seed departments');
-              }
-            }}
-            className="text-sm px-4 py-2 rounded-lg bg-brand-600 hover:bg-brand-700 text-white font-medium transition-colors"
-          >
-            Auto-create Departments from Tasks
-          </button>
-        </div>
+        <SeedDepartments onDone={() => qc.invalidateQueries(['departments'])} />
+
       ) : (
         <div className="space-y-3">
           {departments.map(dept => {
