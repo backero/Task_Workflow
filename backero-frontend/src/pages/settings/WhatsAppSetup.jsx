@@ -102,7 +102,23 @@ function DepartmentGroups({ isConnected }) {
       )}
 
       {departments.length === 0 ? (
-        <p className="text-sm text-gray-400">No departments found.</p>
+        <div className="text-center py-6">
+          <p className="text-sm text-gray-500 mb-3">No departments found. Auto-create them from your existing tasks.</p>
+          <button
+            onClick={async () => {
+              try {
+                const r = await api.post('/departments/seed');
+                qc.invalidateQueries(['departments']);
+                alert(r.data?.message || 'Departments created!');
+              } catch (e) {
+                alert(e.response?.data?.message || 'Failed to seed departments');
+              }
+            }}
+            className="text-sm px-4 py-2 rounded-lg bg-brand-600 hover:bg-brand-700 text-white font-medium transition-colors"
+          >
+            Auto-create Departments from Tasks
+          </button>
+        </div>
       ) : (
         <div className="space-y-3">
           {departments.map(dept => {
