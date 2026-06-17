@@ -1424,6 +1424,7 @@ function toggleNN(id) {
   const saved = JSON.parse(LS.getItem(key) || '{}');
   saved[id] = !saved[id];
   LS.setItem(key, JSON.stringify(saved));
+  scheduleSave();
   renderNonNegotiables();
   renderWeekProgress();
 }
@@ -1461,6 +1462,7 @@ function toggleTask(id) {
   const saved = JSON.parse(LS.getItem(key) || '{}');
   saved[id] = !saved[id];
   LS.setItem(key, JSON.stringify(saved));
+  scheduleSave();
   renderDayTasks();
   renderWeekProgress();
   renderWeekSummaryGrid();
@@ -1487,6 +1489,7 @@ function toggleMust(id) {
   const saved = JSON.parse(LS.getItem(key) || '{}');
   saved[id] = !saved[id];
   LS.setItem(key, JSON.stringify(saved));
+  scheduleSave();
   renderMustDo();
   renderWeekProgress();
 }
@@ -1687,6 +1690,7 @@ function toggleGridNN(id, day) {
   const saved = JSON.parse(LS.getItem(key) || '{}');
   saved[id] = !saved[id];
   LS.setItem(key, JSON.stringify(saved));
+  scheduleSave();
   renderWeekSummaryGrid();
   renderWeekProgress();
 }
@@ -1696,6 +1700,7 @@ function toggleGridTask(id, day) {
   const saved = JSON.parse(LS.getItem(key) || '{}');
   saved[id] = !saved[id];
   LS.setItem(key, JSON.stringify(saved));
+  scheduleSave();
   renderWeekSummaryGrid();
   renderWeekProgress();
 }
@@ -1772,6 +1777,7 @@ function saveNumbers() {
   };
   const key = `snapdeal_numbers_${currentWeek}_${currentDay}`;
   LS.setItem(key, JSON.stringify(data));
+  scheduleSave();
   document.getElementById('savedMsg').style.display = 'block';
   setTimeout(() => document.getElementById('savedMsg').style.display = 'none', 2000);
 }
@@ -1791,6 +1797,7 @@ function saveScoreboard() {
     date: new Date().toISOString()
   };
   LS.setItem(`snapdeal_scoreboard_${currentWeek}`, JSON.stringify(data));
+  scheduleSave();
   document.getElementById('sbSavedMsg').style.display = 'block';
   setTimeout(() => document.getElementById('sbSavedMsg').style.display = 'none', 2000);
 }
@@ -1799,6 +1806,7 @@ function saveScoreboard() {
 function onWeekChange() {
   currentWeek = parseInt(document.getElementById('weekSelect').value);
   LS.setItem('snapdeal_currentWeek', currentWeek);
+  scheduleSave();
   // Update Saturday time block dynamic content
   DAY_DATA.SAT.tasks[0].note = `Compare to Week ${currentWeek} targets. Where are you ahead? Behind?`;
   renderAll();
@@ -1807,6 +1815,7 @@ function onWeekChange() {
 function onDayChange(day) {
   currentDay = day;
   LS.setItem('snapdeal_currentDay', currentDay);
+  scheduleSave();
   document.querySelectorAll('.day-tab').forEach(t => t.classList.remove('active'));
   const tab = document.querySelector(`.day-tab[data-day="${day}"]`);
   if (tab) tab.classList.add('active');
@@ -1847,24 +1856,41 @@ document.addEventListener('keydown', e => {
   if (e.key === 'Escape') closeModal();
 });
 
+// ── DB Sync via postMessage bridge ───────────────────────────────────────
+const PLATFORM = 'Snapdeal';
+const LS_PREFIX = 'snapdeal_';
+
+function gatherData() {
+  const blob = {};
+  for (let i = 0; i < localStorage.length; i++) {
+    const k = localStorage.key(i);
+    if (k && k.startsWith(LS_PREFIX)) blob[k] = localStorage.getItem(k);
+  }
+  return blob;
+}
+
+function restoreData(blob) {
+  if (!blob || typeof blob !== 'object') return;
+  Object.entries(blob).forEach(([k, v]) => { if (k.startsWith(LS_PREFIX)) localStorage.setItem(k, v); });
+}
+
+let _syncTimer;
+function scheduleSave() {
+  clearTimeout(_syncTimer);
+  _syncTimer = setTimeout(() => {
+    window.parent.postMessage({ type: 'DASH_SAVE', platform: PLATFORM, data: gatherData() }, '*');
+  }, 800);
+}
+
+window.addEventListener('message', (e) => {
+  if (!e.data || e.data.type !== 'DASH_DATA' || e.data.platform !== PLATFORM) return;
+  restoreData(e.data.data);
+  renderAll();
+});
+
 // ===== INIT =====
+window.parent.postMessage({ type: 'DASH_LOAD', platform: PLATFORM }, '*');
 init();
-</script>
-<script>
-(function(){
-  var PLATFORM='Snapdeal', PREFIX='snapdeal_';
-  function collect(){var d={};for(var i=0;i<localStorage.length;i++){var k=localStorage.key(i);if(k&&k.startsWith(PREFIX))d[k]=localStorage.getItem(k);}return d;}
-  function restore(d){if(!d)return;Object.keys(d).forEach(function(k){if(k.startsWith(PREFIX))localStorage.setItem(k,d[k]);});}
-  function save(){window.parent.postMessage({type:'DASH_SAVE',platform:PLATFORM,data:collect()},'*');}
-  window.addEventListener('message',function(e){
-    if(!e.data||e.data.type!=='DASH_DATA'||e.data.platform!==PLATFORM)return;
-    restore(e.data.data);
-    if(typeof renderAll==='function')renderAll();
-  });
-  setInterval(save,60000);
-  document.addEventListener('visibilitychange',function(){if(document.hidden)save();});
-  window.addEventListener('load',function(){setTimeout(function(){window.parent.postMessage({type:'DASH_LOAD',platform:PLATFORM},'*');},400);});
-})();
 </script>
 </body>
 </html>

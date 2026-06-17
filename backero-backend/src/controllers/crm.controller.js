@@ -235,7 +235,7 @@ exports.convertToTask = asyncHandler(async (req, res) => {
   const phone = lead.whatsapp || lead.phone;
   if (phone) {
     const { sendMessage } = require('../services/whatsapp.service');
-    const APP_URL = process.env.APP_URL || 'https://backero-worktaskflow.netlify.app';
+    const APP_URL = process.env.APP_URL || process.env.FRONTEND_URL || 'https://backero-worktaskflow.vercel.app';
     const trackingUrl = `${APP_URL}/track/${trackingToken}`;
     const deliveryDays = dueDate
       ? Math.ceil((new Date(dueDate) - new Date()) / (1000 * 60 * 60 * 24))

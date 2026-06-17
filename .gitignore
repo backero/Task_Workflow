@@ -9,3 +9,6 @@ Thumbs.db
 *.local
 # WhatsApp session (contains auth credentials — never commit)
 backend/wa-session/
+
+# Local Netlify folder
+.netlify

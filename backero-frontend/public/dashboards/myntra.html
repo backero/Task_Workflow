@@ -700,10 +700,10 @@ function sk(id){ return `tm_w${currentWeek}_${currentDay}_${id}`; }
 function nk(){ return `tm_w${currentWeek}_${currentDay}_numbers`; }
 function noteKey(){ return `tm_w${currentWeek}_${currentDay}_notes`; }
 function getChk(id){ return localStorage.getItem(sk(id)) === '1'; }
-function setChk(id,v){ localStorage.setItem(sk(id), v?'1':'0'); }
+function setChk(id,v){ localStorage.setItem(sk(id), v?'1':'0'); scheduleSave(); }
 function getDayChk(w,d,id){ return localStorage.getItem(`tm_w${w}_${d}_${id}`) === '1'; }
 function getAdPath(w){ return localStorage.getItem(`tm_adpath_w${w}`) || 'b'; }
-function setAdPathSaved(w,p){ localStorage.setItem(`tm_adpath_w${w}`,p); }
+function setAdPathSaved(w,p){ localStorage.setItem(`tm_adpath_w${w}`,p); scheduleSave(); }
 
 // ─────────────────────────────────────────────
 // AUTO-DETECT WEEK & DAY
@@ -1071,6 +1071,7 @@ function saveNumbers(){
     data[f] = el ? el.value : '';
   });
   localStorage.setItem(nk(), JSON.stringify(data));
+  scheduleSave();
   const msg=document.getElementById('savedMsg');
   msg.style.display='block';
   setTimeout(()=>{msg.style.display='none';},2500);
@@ -1117,6 +1118,7 @@ function loadNotes(){
 document.addEventListener('DOMContentLoaded',()=>{
   document.getElementById('notesArea').addEventListener('input',function(){
     localStorage.setItem(noteKey(), this.value);
+    scheduleSave();
   });
 });
 
@@ -1275,6 +1277,7 @@ function resetDay(){
   const visible=getVisibleTasks(currentDay);
   const must=MUST[currentDay]||[];
   [...visible,...CONSTANTS,...must].forEach(t=>{ localStorage.removeItem(sk(t.id)); });
+  scheduleSave();
   render();
 }
 
@@ -1293,28 +1296,45 @@ function onDayChange(d){
   updateBottomBar();
 }
 
+// ── DB Sync via postMessage bridge ───────────────────────────────────────
+const PLATFORM = 'Myntra';
+const LS_PREFIX = 'tm_';
+
+function gatherData() {
+  const blob = {};
+  for (let i = 0; i < localStorage.length; i++) {
+    const k = localStorage.key(i);
+    if (k && k.startsWith(LS_PREFIX)) blob[k] = localStorage.getItem(k);
+  }
+  return blob;
+}
+
+function restoreData(blob) {
+  if (!blob || typeof blob !== 'object') return;
+  Object.entries(blob).forEach(([k, v]) => { if (k.startsWith(LS_PREFIX)) localStorage.setItem(k, v); });
+}
+
+let _syncTimer;
+function scheduleSave() {
+  clearTimeout(_syncTimer);
+  _syncTimer = setTimeout(() => {
+    window.parent.postMessage({ type: 'DASH_SAVE', platform: PLATFORM, data: gatherData() }, '*');
+  }, 800);
+}
+
+window.addEventListener('message', (e) => {
+  if (!e.data || e.data.type !== 'DASH_DATA' || e.data.platform !== PLATFORM) return;
+  restoreData(e.data.data);
+  render();
+  updateBottomBar();
+});
+
 // ─────────────────────────────────────────────
 // BOOT
 // ─────────────────────────────────────────────
+window.parent.postMessage({ type: 'DASH_LOAD', platform: PLATFORM }, '*');
 init();
 updateBottomBar();
-</script>
-<script>
-(function(){
-  var PLATFORM='Myntra', PREFIX='tm_';
-  function collect(){var d={};for(var i=0;i<localStorage.length;i++){var k=localStorage.key(i);if(k&&k.startsWith(PREFIX))d[k]=localStorage.getItem(k);}return d;}
-  function restore(d){if(!d)return;Object.keys(d).forEach(function(k){if(k.startsWith(PREFIX))localStorage.setItem(k,d[k]);});}
-  function save(){window.parent.postMessage({type:'DASH_SAVE',platform:PLATFORM,data:collect()},'*');}
-  window.addEventListener('message',function(e){
-    if(!e.data||e.data.type!=='DASH_DATA'||e.data.platform!==PLATFORM)return;
-    restore(e.data.data);
-    if(typeof render==='function')render();
-    if(typeof updateBottomBar==='function')updateBottomBar();
-  });
-  setInterval(save,60000);
-  document.addEventListener('visibilitychange',function(){if(document.hidden)save();});
-  window.addEventListener('load',function(){setTimeout(function(){window.parent.postMessage({type:'DASH_LOAD',platform:PLATFORM},'*');},400);});
-})();
 </script>
 </body>
 </html>

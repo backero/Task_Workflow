@@ -193,7 +193,7 @@ exports.createTask = asyncHandler(async (req, res) => {
         priority: 'high',
         actionUrl: '/workflow',
         reference: { model: 'Task', id: task._id },
-        channels: { inApp: true, whatsapp: false },
+        channels: { inApp: true, whatsapp: true },
       }, io);
     }
     return sendSuccess(res, { task: populatedTask }, 'Dept Hub submitted for admin approval', 201);
@@ -216,7 +216,7 @@ exports.createTask = asyncHandler(async (req, res) => {
         priority: 'high',
         actionUrl: '/workflow',
         reference: { model: 'Task', id: task._id },
-        channels: { inApp: true, whatsapp: false },
+        channels: { inApp: true, whatsapp: true },
       }, io);
     }
     return sendSuccess(res, { task: populatedTask, pendingManagerAssignment: true }, 'Task submitted — assignment pending admin approval', 201);

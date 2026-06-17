@@ -51,7 +51,7 @@ const createNotification = async (data, io) => {
   }
 };
 
-const APP_URL = process.env.APP_URL || 'https://backero-worktaskflow.netlify.app';
+const APP_URL = process.env.APP_URL || process.env.FRONTEND_URL || 'https://backero-worktaskflow.vercel.app';
 
 const sendWhatsAppNotification = async (phone, title, message, actionUrl) => {
   try {
