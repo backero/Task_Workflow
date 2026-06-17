@@ -11,8 +11,10 @@ import { useAuthStore } from '../../store/useAuthStore';
 import QRLabelModal from '../../components/inventory/QRLabelModal';
 import QRScannerModal from '../../components/inventory/QRScannerModal';
 
+const WEIGHT_UNITS = ['g', 'kg', 'ml', 'litre'];
+
 function ProductForm({ onClose, onSuccess, initial, forceRawMaterial }) {
-  const { register, handleSubmit } = useForm({
+  const { register, handleSubmit, watch, setValue } = useForm({
     defaultValues: {
       ...initial,
       isRawMaterial: forceRawMaterial ? true : (initial?.isRawMaterial ?? false),
@@ -20,6 +22,13 @@ function ProductForm({ onClose, onSuccess, initial, forceRawMaterial }) {
     },
   });
   const [loading, setLoading] = useState(false);
+  const [purchaseAmt, setPurchaseAmt] = useState('');
+  const [purchaseQty, setPurchaseQty] = useState('');
+  const watchedUnit = watch('unit', initial?.unit || 'pcs');
+  const isWeightUnit = WEIGHT_UNITS.includes(watchedUnit);
+  const calcPerUnit = purchaseAmt && purchaseQty && Number(purchaseQty) > 0
+    ? (Number(purchaseAmt) / Number(purchaseQty))
+    : null;
 
   const onSubmit = async (data) => {
     setLoading(true);
@@ -87,10 +96,49 @@ function ProductForm({ onClose, onSuccess, initial, forceRawMaterial }) {
               <input {...register('batchNumber')} className="input" placeholder="e.g. BATCH-2026-01" />
             </div>
           </div>
+          {isWeightUnit && (
+            <div className="rounded-lg border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-900/20 p-3 space-y-2">
+              <p className="text-xs font-semibold text-blue-700 dark:text-blue-300 uppercase tracking-wide">Purchase Price Calculator</p>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="label text-xs">Total Amount Paid (₹)</label>
+                  <input
+                    type="number" min="0" className="input"
+                    placeholder="e.g. 500"
+                    value={purchaseAmt}
+                    onChange={(e) => setPurchaseAmt(e.target.value)}
+                  />
+                </div>
+                <div>
+                  <label className="label text-xs">Total Quantity ({watchedUnit})</label>
+                  <input
+                    type="number" min="0" className="input"
+                    placeholder="e.g. 1000"
+                    value={purchaseQty}
+                    onChange={(e) => setPurchaseQty(e.target.value)}
+                  />
+                </div>
+              </div>
+              {calcPerUnit !== null && (
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-bold text-blue-800 dark:text-blue-200">
+                    = ₹{calcPerUnit.toFixed(4)} per {watchedUnit}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setValue('costPrice', parseFloat(calcPerUnit.toFixed(4)))}
+                    className="text-xs px-3 py-1 rounded-md bg-blue-600 text-white font-semibold hover:bg-blue-700 transition-colors"
+                  >
+                    Apply as Cost Price
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
           <div className="grid grid-cols-3 gap-3">
             <div>
-              <label className="label">Cost Price (₹)</label>
-              <input {...register('costPrice')} type="number" min="0" className="input" />
+              <label className="label">Cost Price {isWeightUnit ? `(₹ per ${watchedUnit})` : '(₹)'}</label>
+              <input {...register('costPrice')} type="number" min="0" step="0.0001" className="input" />
             </div>
             <div>
               <label className="label">Selling Price (₹)</label>
@@ -265,9 +313,17 @@ function UseRawMaterialModal({ product, onClose, onSuccess }) {
           />
         </div>
         {qty && Number(qty) > 0 && Number(qty) <= product.currentStock && (
-          <p className="text-xs text-gray-500 bg-gray-50 dark:bg-gray-800 rounded px-3 py-2">
-            Stock after usage: <span className="font-semibold text-gray-800 dark:text-white">{product.currentStock - Number(qty)} {product.unit}</span>
-          </p>
+          <div className="space-y-1.5">
+            <p className="text-xs text-gray-500 bg-gray-50 dark:bg-gray-800 rounded px-3 py-2">
+              Stock after usage: <span className="font-semibold text-gray-800 dark:text-white">{product.currentStock - Number(qty)} {product.unit}</span>
+            </p>
+            {product.costPrice > 0 && (
+              <p className="text-xs bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 rounded px-3 py-2 text-orange-700 dark:text-orange-300">
+                Estimated material cost: <span className="font-bold">₹{(Number(qty) * product.costPrice).toFixed(2)}</span>
+                <span className="ml-1 opacity-70">({Number(qty)} {product.unit} × ₹{product.costPrice} per {product.unit})</span>
+              </p>
+            )}
+          </div>
         )}
         <div className="flex gap-2">
           <button onClick={onClose} className="btn-secondary flex-1 justify-center">Cancel</button>
@@ -303,7 +359,7 @@ function ProductTable({ products, canWrite, canDelete, onStock, onEdit, onQr, on
             <th className="text-left py-3 px-4 text-gray-500 font-medium">HSN Code</th>
             <th className="text-center py-3 px-4 text-gray-500 font-medium">Stock</th>
             <th className="text-center py-3 px-4 text-gray-500 font-medium">Min Level</th>
-            <th className="text-right py-3 px-4 text-gray-500 font-medium">Price &amp; GST</th>
+            <th className="text-right py-3 px-4 text-gray-500 font-medium">{isRawMaterial ? 'Cost / Unit' : 'Price & GST'}</th>
             <th className="text-center py-3 px-4 text-gray-500 font-medium">Status</th>
             <th className="text-center py-3 px-4 text-gray-500 font-medium">Last Stock In</th>
             {canWrite && <th className="text-right py-3 px-4 text-gray-500 font-medium">Actions</th>}
@@ -331,11 +387,24 @@ function ProductTable({ products, canWrite, canDelete, onStock, onEdit, onQr, on
                   <span className="text-xs text-gray-400 ml-1">{product.unit}</span>
                 </td>
                 <td className="py-3 px-4 text-right">
-                  <p className="text-gray-900 dark:text-white">₹{product.sellingPrice?.toLocaleString('en-IN')}</p>
-                  <p className="text-xs text-gray-400">
-                    Cost: ₹{product.costPrice?.toLocaleString('en-IN')}
-                    {product.gstRate != null && <span className="ml-1 text-blue-500">GST {product.gstRate}%</span>}
-                  </p>
+                  {isRawMaterial ? (
+                    product.costPrice > 0 ? (
+                      <p className="font-semibold text-gray-900 dark:text-white">
+                        ₹{product.costPrice % 1 === 0 ? product.costPrice.toLocaleString('en-IN') : product.costPrice.toFixed(4)}
+                        <span className="text-xs text-gray-400 font-normal ml-1">/ {product.unit}</span>
+                      </p>
+                    ) : (
+                      <span className="text-xs text-gray-300">—</span>
+                    )
+                  ) : (
+                    <>
+                      <p className="text-gray-900 dark:text-white">₹{product.sellingPrice?.toLocaleString('en-IN')}</p>
+                      <p className="text-xs text-gray-400">
+                        Cost: ₹{product.costPrice?.toLocaleString('en-IN')}
+                        {product.gstRate != null && <span className="ml-1 text-blue-500">GST {product.gstRate}%</span>}
+                      </p>
+                    </>
+                  )}
                 </td>
                 <td className="py-3 px-4 text-center">
                   {isOut
