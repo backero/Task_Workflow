@@ -167,8 +167,22 @@ const syncLeadsFromSheet = async (organizationId, sheetId, sheetGid = '', sheetN
 };
 
 const processRows = async (organizationId, headers, dataRows, sheetId, sheetGid, assignedTo, columnMap = {}) => {
-  let synced = 0, skipped = 0, updated = 0;
+  let synced = 0, skipped = 0, updated = 0, deleted = 0;
   const errors = [];
+
+  // Collect all valid phones in this sheet snapshot (used for delete-sync below)
+  const sheetPhones = new Set();
+  for (const row of dataRows) {
+    const lead = {};
+    headers.forEach((header, idx) => {
+      const field = resolveHeader(header, columnMap);
+      if (field && row[idx]) lead[field] = row[idx].trim();
+    });
+    if (lead.phone) {
+      const cp = String(lead.phone).replace(/\D/g, '').slice(-10);
+      if (cp.length === 10) sheetPhones.add(cp);
+    }
+  }
 
   for (let i = 0; i < dataRows.length; i++) {
     const row = dataRows[i];
@@ -197,10 +211,10 @@ const processRows = async (organizationId, headers, dataRows, sheetId, sheetGid,
       });
 
       if (existing) {
-        // Update notes/status if changed
+        // Update name if it was missing, and update notes if changed
         let changed = false;
+        if (lead.name && existing.name !== lead.name) { existing.name = lead.name; changed = true; }
         if (lead.notes && existing.notes !== lead.notes) { existing.notes = lead.notes; changed = true; }
-        if (lead.rawStatus) { /* status changes handled manually by sales */ }
         if (changed) { await existing.save(); updated++; } else { skipped++; }
         continue;
       }
@@ -240,8 +254,20 @@ const processRows = async (organizationId, headers, dataRows, sheetId, sheetGid,
     }
   }
 
-  logger.info(`[Sheets] Sync complete [org:${organizationId}]: ${synced} new, ${updated} updated, ${skipped} existing, ${errors.length} errors`);
-  return { synced, updated, skipped, errors, totalRows: dataRows.length };
+  // Remove leads that were deleted from the sheet
+  if (sheetPhones.size > 0) {
+    const deleteResult = await Lead.deleteMany({
+      organizationId,
+      sheetId,
+      source: 'Google Sheets',
+      phone: { $nin: Array.from(sheetPhones) },
+    });
+    deleted = deleteResult.deletedCount || 0;
+    if (deleted > 0) logger.info(`[Sheets] Delete-sync [org:${organizationId}]: removed ${deleted} leads no longer in sheet`);
+  }
+
+  logger.info(`[Sheets] Sync complete [org:${organizationId}]: ${synced} new, ${updated} updated, ${skipped} existing, ${deleted} deleted, ${errors.length} errors`);
+  return { synced, updated, skipped, deleted, errors, totalRows: dataRows.length };
 };
 
 // ── Auto-sync all orgs ────────────────────────────────────────────────────

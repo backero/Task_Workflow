@@ -1,5 +1,6 @@
 const TaskApproval = require('../models/TaskApproval');
 const Task = require('../models/Task');
+const User = require('../models/User');
 const ActivityLog = require('../models/ActivityLog');
 const { asyncHandler, sendSuccess, sendError, paginate, paginateResponse } = require('../utils/helpers');
 const { TASK_STATUS, APPROVAL_STATUS, SOCKET_EVENTS, ROLE_HIERARCHY } = require('../utils/constants');
@@ -14,15 +15,25 @@ exports.getApprovals = asyncHandler(async (req, res) => {
   if (status) filter.status = status;
   else filter.status = APPROVAL_STATUS.PENDING;
 
-  // Only show approvals that this user can review
-  if (ROLE_HIERARCHY[req.user.role] < ROLE_HIERARCHY['manager']) {
+  const userLevel = ROLE_HIERARCHY[req.user.role] || 0;
+  if (userLevel < ROLE_HIERARCHY['manager']) {
+    // Members see only their own requests
     filter.requestedBy = req.user._id;
+  } else if (userLevel < ROLE_HIERARCHY['admin']) {
+    // Managers see only approvals for tasks they assigned
+    const myTaskIds = await Task.find({ organizationId: req.user.organizationId, assignedBy: req.user._id }).distinct('_id');
+    filter.taskId = { $in: myTaskIds };
   }
+  // Admin+ see all
 
   const [approvals, total] = await Promise.all([
     TaskApproval.find(filter)
-      .populate('taskId', 'title description department priority dueDate status progress proofOfWork')
-      .populate('requestedBy', 'firstName lastName avatar department')
+      .populate({
+        path: 'taskId',
+        select: 'title description department priority dueDate status progress proofOfWork assignedBy',
+        populate: { path: 'assignedBy', select: 'firstName lastName role' },
+      })
+      .populate('requestedBy', 'firstName lastName avatar department role')
       .populate('reviewedBy', 'firstName lastName avatar')
       .sort({ requestedAt: -1 })
       .skip(skip)
@@ -33,20 +44,45 @@ exports.getApprovals = asyncHandler(async (req, res) => {
   sendSuccess(res, paginateResponse(approvals, total, page, limit));
 });
 
+// Helper: check if current user is allowed to review this approval
+const checkApprovalAuthority = async (req, approval) => {
+  const approverLevel = ROLE_HIERARCHY[req.user.role] || 0;
+  const adminLevel = ROLE_HIERARCHY['admin'];
+  const managerLevel = ROLE_HIERARCHY['manager'];
+
+  const task = await Task.findById(approval.taskId);
+  if (!task) return { task: null, error: 'Task not found.' };
+
+  const requester = await User.findById(approval.requestedBy).select('role');
+  const requesterLevel = ROLE_HIERARCHY[requester?.role] || 0;
+
+  if (requesterLevel >= managerLevel) {
+    // Manager submitted → only admin+ can approve
+    if (approverLevel < adminLevel) {
+      return { task, error: 'Only admins can approve tasks submitted by managers.' };
+    }
+  } else {
+    // Member/team_lead submitted → assigning manager OR any admin can approve
+    const isAssigner = String(task.assignedBy) === String(req.user._id);
+    if (!isAssigner && approverLevel < adminLevel) {
+      return { task, error: 'Only the manager who assigned this task can approve it.' };
+    }
+  }
+
+  return { task, error: null };
+};
+
 // POST /api/approvals/:id/approve
 exports.approveTask = asyncHandler(async (req, res) => {
   const io = req.app.get('io');
   const { reviewNotes } = req.body;
 
-  if (ROLE_HIERARCHY[req.user.role] < ROLE_HIERARCHY['manager']) {
-    return sendError(res, 'Only managers and above can approve tasks.', 403);
-  }
-
   const approval = await TaskApproval.findOne({ _id: req.params.id, organizationId: req.user.organizationId });
   if (!approval) return sendError(res, 'Approval request not found.', 404);
   if (approval.status !== APPROVAL_STATUS.PENDING) return sendError(res, 'This approval has already been reviewed.', 400);
 
-  const task = await Task.findById(approval.taskId);
+  const { task, error } = await checkApprovalAuthority(req, approval);
+  if (error) return sendError(res, error, 403);
   if (!task) return sendError(res, 'Task not found.', 404);
 
   approval.status = APPROVAL_STATUS.APPROVED;
@@ -113,15 +149,12 @@ exports.rejectTask = asyncHandler(async (req, res) => {
 
   if (!reviewNotes?.trim()) return sendError(res, 'Rejection reason is required.', 400);
 
-  if (ROLE_HIERARCHY[req.user.role] < ROLE_HIERARCHY['manager']) {
-    return sendError(res, 'Only managers and above can reject tasks.', 403);
-  }
-
   const approval = await TaskApproval.findOne({ _id: req.params.id, organizationId: req.user.organizationId });
   if (!approval) return sendError(res, 'Approval request not found.', 404);
   if (approval.status !== APPROVAL_STATUS.PENDING) return sendError(res, 'This approval has already been reviewed.', 400);
 
-  const task = await Task.findById(approval.taskId);
+  const { task, error } = await checkApprovalAuthority(req, approval);
+  if (error) return sendError(res, error, 403);
   if (!task) return sendError(res, 'Task not found.', 404);
 
   approval.status = APPROVAL_STATUS.REJECTED;
@@ -161,7 +194,9 @@ exports.requestChanges = asyncHandler(async (req, res) => {
   const approval = await TaskApproval.findOne({ _id: req.params.id, organizationId: req.user.organizationId });
   if (!approval) return sendError(res, 'Approval not found.', 404);
 
-  const task = await Task.findById(approval.taskId);
+  const { task, error } = await checkApprovalAuthority(req, approval);
+  if (error) return sendError(res, error, 403);
+  if (!task) return sendError(res, 'Task not found.', 404);
 
   approval.status = APPROVAL_STATUS.CHANGES_REQUESTED;
   approval.reviewedBy = req.user._id;

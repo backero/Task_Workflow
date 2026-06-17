@@ -1,7 +1,7 @@
 ﻿import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
-import { CheckIcon, XMarkIcon, ArrowPathIcon, ClockIcon, ChatBubbleLeftIcon, CalendarDaysIcon } from '@heroicons/react/24/outline';
+import { CheckIcon, XMarkIcon, ArrowPathIcon, ClockIcon, ChatBubbleLeftIcon, CalendarDaysIcon, CheckCircleIcon, NoSymbolIcon } from '@heroicons/react/24/outline';
 import api from '../../api/axios';
 import toast from 'react-hot-toast';
 import { formatDistanceToNow, format } from 'date-fns';
@@ -169,11 +169,36 @@ function RejectPrompt({ onConfirm, onCancel }) {
   );
 }
 
+const ROLE_LEVEL = { super_admin: 7, chairman: 6, founder: 5, admin: 4, manager: 3, team_lead: 2, member: 1 };
+
+// Returns true if currentUser is allowed to approve/reject this approval.
+// Backend already filters the list so managers only see their own tasks —
+// frontend just gates on role level. Backend enforces the exact check.
+function canUserApprove(approval, currentUser) {
+  if (!currentUser || !approval) return false;
+  const approverLevel = ROLE_LEVEL[currentUser.role] || 0;
+  const submitterLevel = ROLE_LEVEL[approval.requestedBy?.role] || 0;
+  if (approverLevel < ROLE_LEVEL['manager']) return false;
+  // If submitter is a manager or above → only admin+ can approve
+  if (submitterLevel >= ROLE_LEVEL['manager']) return approverLevel >= ROLE_LEVEL['admin'];
+  // Member/team_lead submitted → any manager can see the button (backend enforces assigner check)
+  return true;
+}
+
+// Label shown on card: who is authorized to approve
+function approverLabel(approval) {
+  const submitterLevel = ROLE_LEVEL[approval.requestedBy?.role] || 0;
+  if (submitterLevel >= ROLE_LEVEL['manager']) return { text: 'Requires Admin Approval', color: 'text-red-600 bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800' };
+  const ab = approval.taskId?.assignedBy;
+  const name = ab ? `${ab.firstName} ${ab.lastName}` : '—';
+  return { text: `Approver: ${name}`, color: 'text-blue-700 bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800' };
+}
+
 export default function ApprovalQueue() {
   const [selected, setSelected] = useState(null);
   const [rejectTarget, setRejectTarget] = useState(null);
   const [activeTab, setActiveTab] = useState('completions');
-  const { isManagerOrAbove } = useAuthStore();
+  const { user: currentUser, isManagerOrAbove } = useAuthStore();
   const qc = useQueryClient();
 
   const { data, isLoading } = useQuery({
@@ -192,6 +217,18 @@ export default function ApprovalQueue() {
     queryFn: () => api.get('/tasks/extension-requests').then((r) => r.data),
     refetchInterval: 5 * 60 * 1000,
     enabled: isManagerOrAbove(),
+  });
+
+  const { data: historyData, isLoading: historyLoading } = useQuery({
+    queryKey: ['approvals', 'history'],
+    queryFn: async () => {
+      const [approved, rejected] = await Promise.all([
+        api.get('/approvals?status=approved&limit=100').then((r) => r.data.data || []),
+        api.get('/approvals?status=rejected&limit=100').then((r) => r.data.data || []),
+      ]);
+      return [...approved, ...rejected].sort((a, b) => new Date(b.reviewedAt) - new Date(a.reviewedAt));
+    },
+    enabled: activeTab === 'history',
   });
 
   const approveMutation = useMutation({
@@ -238,12 +275,16 @@ export default function ApprovalQueue() {
       {statsData && (
         <div className="grid grid-cols-4 gap-4">
           {[
-            { label: 'Pending', value: statsData.pending, color: 'orange' },
-            { label: 'Approved', value: statsData.approved, color: 'green' },
-            { label: 'Rejected', value: statsData.rejected, color: 'red' },
-            { label: 'My Requests', value: statsData.myRequests, color: 'blue' },
+            { label: 'Pending', value: statsData.pending, color: 'orange', tab: 'completions' },
+            { label: 'Approved', value: statsData.approved, color: 'green', tab: 'history' },
+            { label: 'Rejected', value: statsData.rejected, color: 'red', tab: 'history' },
+            { label: 'My Requests', value: statsData.myRequests, color: 'blue', tab: null },
           ].map((s) => (
-            <div key={s.label} className="card p-4 text-center">
+            <div
+              key={s.label}
+              onClick={() => s.tab && setActiveTab(s.tab)}
+              className={`card p-4 text-center ${s.tab ? 'cursor-pointer hover:shadow-md transition-shadow' : ''}`}
+            >
               <p className={`text-2xl font-bold text-${s.color}-600`}>{s.value}</p>
               <p className="text-sm text-gray-500">{s.label}</p>
             </div>
@@ -256,6 +297,7 @@ export default function ApprovalQueue() {
         {[
           { key: 'completions', label: 'Completion Requests', count: approvals.length },
           { key: 'extensions',  label: 'Extension Requests',  count: totalExtensions },
+          { key: 'history',     label: 'History', count: (statsData?.approved || 0) + (statsData?.rejected || 0) },
         ].map(({ key, label, count }) => (
           <button
             key={key}
@@ -308,18 +350,26 @@ export default function ApprovalQueue() {
                       )}
                     </div>
                     <h3 className="font-semibold text-gray-900 dark:text-white">{approval.taskId?.title}</h3>
-                    <div className="flex items-center gap-4 mt-2 text-sm text-gray-500">
-                      <span>By: <strong className="text-gray-700 dark:text-gray-300">{approval.requestedBy?.firstName} {approval.requestedBy?.lastName}</strong></span>
+                    <div className="flex items-center gap-4 mt-2 text-sm text-gray-500 flex-wrap">
+                      <span>Submitted by: <strong className="text-gray-700 dark:text-gray-300">{approval.requestedBy?.firstName} {approval.requestedBy?.lastName}</strong>
+                        <span className="ml-1 text-xs text-gray-400">({approval.requestedBy?.role})</span>
+                      </span>
                       <span className="flex items-center gap-1">
                         <ClockIcon className="w-3.5 h-3.5" />
                         {formatDistanceToNow(new Date(approval.requestedAt), { addSuffix: true })}
                       </span>
                     </div>
+                    {/* Who can approve this task */}
+                    {(() => { const lbl = approverLabel(approval); return (
+                      <span className={`mt-2 inline-flex text-xs font-semibold px-2 py-0.5 rounded-full border ${lbl.color}`}>
+                        {lbl.text}
+                      </span>
+                    ); })()}
                     {approval.requestNotes && (
                       <p className="text-sm text-gray-600 dark:text-gray-400 mt-2 italic line-clamp-2">"{approval.requestNotes}"</p>
                     )}
                   </div>
-                  {isManagerOrAbove() && (
+                  {canUserApprove(approval, currentUser) ? (
                     <div className="flex gap-2 flex-shrink-0">
                       <button onClick={() => setRejectTarget(approval._id)} className="btn-danger text-xs px-3 py-1.5">
                         <XMarkIcon className="w-3.5 h-3.5" /> Reject
@@ -334,6 +384,8 @@ export default function ApprovalQueue() {
                         <CheckIcon className="w-3.5 h-3.5" /> Approve
                       </button>
                     </div>
+                  ) : isManagerOrAbove() && (
+                    <span className="text-xs text-gray-400 italic flex-shrink-0 self-center">Not your task to approve</span>
                   )}
                 </div>
               </motion.div>
@@ -416,6 +468,66 @@ export default function ApprovalQueue() {
                 </motion.div>
               ))
             )}
+          </div>
+        )
+      )}
+
+      {/* ── History tab ── */}
+      {activeTab === 'history' && (
+        historyLoading ? (
+          <div className="flex justify-center py-12"><div className="w-8 h-8 border-2 border-brand-500 border-t-transparent rounded-full animate-spin" /></div>
+        ) : !historyData?.length ? (
+          <div className="card p-12 text-center">
+            <CheckCircleIcon className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">No history yet</h3>
+            <p className="text-gray-500 text-sm mt-1">Approved and rejected approvals will appear here</p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {historyData.map((approval) => {
+              const isApproved = approval.status === 'approved';
+              return (
+                <motion.div
+                  key={approval._id}
+                  initial={{ opacity: 0, y: 5 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className={`card p-5 border-l-4 ${isApproved ? 'border-l-green-500' : 'border-l-red-500'}`}
+                >
+                  <div className="flex items-start gap-4">
+                    <div className={`mt-0.5 w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center ${isApproved ? 'bg-green-100 dark:bg-green-900/30' : 'bg-red-100 dark:bg-red-900/30'}`}>
+                      {isApproved
+                        ? <CheckCircleIcon className="w-5 h-5 text-green-600 dark:text-green-400" />
+                        : <NoSymbolIcon className="w-5 h-5 text-red-600 dark:text-red-400" />}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap mb-1">
+                        <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${isApproved ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'}`}>
+                          {isApproved ? 'Approved' : 'Rejected'}
+                        </span>
+                        <span className={`badge ${PRIORITY_COLORS[approval.taskId?.priority]}`}>{approval.taskId?.priority}</span>
+                        <span className="text-xs text-gray-400">{approval.taskId?.department}</span>
+                      </div>
+                      <h3 className="font-semibold text-gray-900 dark:text-white">{approval.taskId?.title}</h3>
+                      <div className="flex items-center gap-4 mt-1.5 text-sm text-gray-500 flex-wrap">
+                        <span>By: <strong className="text-gray-700 dark:text-gray-300">{approval.requestedBy?.firstName} {approval.requestedBy?.lastName}</strong></span>
+                        <span>{isApproved ? 'Approved' : 'Rejected'} by: <strong className="text-gray-700 dark:text-gray-300">{approval.reviewedBy?.firstName} {approval.reviewedBy?.lastName}</strong></span>
+                        {approval.reviewedAt && (
+                          <span className="flex items-center gap-1 text-xs">
+                            <ClockIcon className="w-3.5 h-3.5" />
+                            {format(new Date(approval.reviewedAt), 'dd MMM yyyy, hh:mm a')}
+                          </span>
+                        )}
+                      </div>
+                      {approval.reviewNotes && (
+                        <p className={`text-sm mt-2 italic px-2.5 py-1.5 rounded-lg ${isApproved ? 'bg-green-50 dark:bg-green-900/15 text-green-800 dark:text-green-300' : 'bg-red-50 dark:bg-red-900/15 text-red-800 dark:text-red-300'}`}>
+                          "{approval.reviewNotes}"
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </motion.div>
+              );
+            })}
           </div>
         )
       )}

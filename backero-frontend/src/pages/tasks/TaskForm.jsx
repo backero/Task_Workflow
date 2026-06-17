@@ -4,15 +4,19 @@ import { useQuery, useMutation } from '@tanstack/react-query';
 import { XMarkIcon } from '@heroicons/react/24/outline';
 import api from '../../api/axios';
 import toast from 'react-hot-toast';
+import { useAuthStore } from '../../store/useAuthStore';
 
 const DEPARTMENTS = ['Marketing', 'Marketplace', 'Sales', 'Production', 'R&D', 'Operations', 'Accounts & Finance', 'HR'];
 const PRIORITIES = ['low', 'medium', 'high', 'critical', 'urgent'];
 const PLATFORMS = ['Amazon', 'Flipkart', 'Meesho', 'Myntra', 'JioMart', 'Snapdeal'];
 const TASK_TYPES = ['Instagram Reel', 'YouTube Video', 'Product Shoot', 'Ad Creative', 'Influencer Campaign', 'Listing Creation', 'SEO Optimization', 'Price Update', 'Campaign Setup', 'Quality Check', 'Production Run', 'Follow-up', 'General'];
 
+const ROLE_LEVEL = { super_admin: 7, chairman: 6, founder: 5, admin: 4, manager: 3, team_lead: 2, member: 1 };
+
 export default function TaskForm({ onClose, onSuccess, initialData }) {
   const { register, handleSubmit, watch, formState: { errors } } = useForm({ defaultValues: initialData });
   const [loading, setLoading] = useState(false);
+  const { user: currentUser } = useAuthStore();
 
   const dept = watch('department');
 
@@ -21,7 +25,12 @@ export default function TaskForm({ onClose, onSuccess, initialData }) {
     queryFn: () => api.get('/users?limit=100').then((r) => r.data),
   });
 
-  const users = usersData?.data || [];
+  const allUsers = usersData?.data || [];
+  const isManagerOnly = (ROLE_LEVEL[currentUser?.role] || 0) === ROLE_LEVEL['manager'];
+  // Managers can only assign within their own department
+  const users = isManagerOnly
+    ? allUsers.filter((u) => u.department === currentUser?.department)
+    : allUsers;
 
   const onSubmit = async (data) => {
     setLoading(true);
