@@ -1,8 +1,8 @@
 {
   "Amazon": "/dashboards/amazon.html",
   "Flipkart": "/dashboards/flipkart.html",
+  "JioMart": "/dashboards/jiomart.html",
   "Meesho": "/dashboards/meesho.html",
   "Myntra": "/dashboards/myntra.html",
-  "JioMart": "/dashboards/jiomart.html",
   "Snapdeal": "/dashboards/snapdeal.html"
 }
