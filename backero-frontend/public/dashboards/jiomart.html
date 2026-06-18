@@ -1,0 +1,1294 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Treyfa x JioMart — Complete 12-Week Playbook Dashboard</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',Arial,sans-serif;background:#f0f4f8;color:#1a202c;font-size:14px;line-height:1.5}
+
+/* ===== HEADER ===== */
+.hdr{background:#0A2885;color:#fff;padding:14px 24px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px}
+.hdr-logo{font-size:20px;font-weight:800;letter-spacing:1px}
+.hdr-logo span{color:#64b5f6}
+.hdr-right{font-size:12px;opacity:.7}
+
+/* ===== CONTROLS ===== */
+.ctrl{background:#fff;border-bottom:2px solid #e2e8f0;padding:12px 24px;display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+.ctrl select{padding:8px 12px;border:2px solid #1565C0;border-radius:8px;font-size:13px;font-weight:700;color:#0A2885;background:#e3f2fd;cursor:pointer}
+.week-theme-box{background:#e3f2fd;border-left:4px solid #1565C0;padding:8px 14px;border-radius:0 8px 8px 0;flex:1;min-width:200px}
+.week-theme-box .wt-label{font-size:10px;font-weight:700;color:#1565C0;text-transform:uppercase;letter-spacing:.5px}
+.week-theme-box .wt-desc{font-size:12px;color:#2d3748;margin-top:2px}
+
+/* ===== PHASE BADGES ===== */
+.phase-badge{font-size:10px;font-weight:800;padding:3px 10px;border-radius:6px;margin-left:8px}
+.phase-foundation{background:#fef3c7;color:#92400e}
+.phase-fire{background:#fff5f5;color:#c53030}
+.phase-scale{background:#f0fff4;color:#276749}
+
+/* ===== DAY TABS ===== */
+.day-tabs{display:flex;background:#fff;border-bottom:2px solid #e2e8f0;padding:0 24px;overflow-x:auto}
+.day-tab{padding:12px 18px;cursor:pointer;font-weight:700;font-size:13px;color:#718096;border-bottom:3px solid transparent;white-space:nowrap;transition:all .15s}
+.day-tab:hover{color:#2d3748;background:#f7fafc}
+.day-tab.active{color:#0A2885;border-bottom-color:#1565C0}
+.day-tab .done-dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:#1565C0;margin-left:5px;vertical-align:middle}
+
+/* ===== ALERT BARS ===== */
+.sl-alert{background:#fff5f5;border-left:5px solid #e53e3e;padding:12px 24px;margin:14px 24px 0;border-radius:0 8px 8px 0;display:none;align-items:center;gap:10px}
+.sl-alert.show{display:flex}
+.sl-alert .sl-icon{font-size:22px}
+.sl-alert .sl-msg{font-size:13px;color:#c53030;font-weight:600;flex:1}
+.sl-alert .sl-close{background:#e53e3e;color:#fff;border:none;padding:4px 10px;border-radius:4px;font-size:11px;cursor:pointer}
+
+/* ===== MAIN LAYOUT ===== */
+.main{display:flex;gap:18px;padding:18px 24px;max-width:1500px;margin:0 auto}
+.left{flex:1.7;display:flex;flex-direction:column;gap:14px}
+.right{flex:1;display:flex;flex-direction:column;gap:14px}
+
+/* ===== CARDS ===== */
+.card{background:#fff;border-radius:12px;padding:18px;box-shadow:0 1px 4px rgba(0,0,0,.09)}
+.card-title{font-size:14px;font-weight:800;color:#2d3748;margin-bottom:14px;display:flex;align-items:center;gap:8px}
+.card-title .ic{font-size:17px}
+.card-subtitle{font-size:11px;color:#718096;margin-bottom:12px;line-height:1.5}
+
+/* ===== DAY HEADER CARD ===== */
+.day-hdr-card{background:linear-gradient(135deg,#0A2885,#1565C0);color:#fff;border-radius:12px;padding:16px 20px}
+.day-hdr-card h1{font-size:17px;font-weight:800}
+.day-hdr-card p{font-size:12px;opacity:.88;margin-top:4px;line-height:1.5}
+
+/* ===== TASK ITEMS ===== */
+.task-item{display:flex;align-items:flex-start;gap:11px;padding:11px 12px;border-radius:8px;border:1.5px solid #e2e8f0;margin-bottom:7px;cursor:pointer;transition:all .15s;user-select:none}
+.task-item:hover{border-color:#90cdf4;background:#ebf8ff}
+.task-item.done{background:#f0fff4;border-color:#68d391}
+.task-item.done .t-text{color:#718096;text-decoration:line-through}
+.task-item input[type=checkbox]{width:17px;height:17px;margin-top:2px;flex-shrink:0;cursor:pointer;accent-color:#1565C0}
+.t-text{font-size:13px;line-height:1.55}
+.t-note{font-size:11px;color:#718096;margin-top:3px;font-style:italic}
+
+/* ===== MUST-ACHIEVE ===== */
+.must-section{border-top:2px dashed #e2e8f0;padding-top:14px;margin-top:6px}
+.must-section h3{font-size:12px;font-weight:800;color:#c53030;margin-bottom:10px;text-transform:uppercase;letter-spacing:.4px}
+.ach-item{display:flex;align-items:flex-start;gap:10px;padding:9px 11px;border-radius:8px;border:1.5px solid #fed7d7;margin-bottom:6px;cursor:pointer;transition:all .15s;user-select:none}
+.ach-item:hover{background:#fff5f5}
+.ach-item.done{background:#f0fff4;border-color:#68d391}
+.ach-item.done .t-text{color:#718096;text-decoration:line-through}
+.ach-item input[type=checkbox]{width:17px;height:17px;margin-top:2px;flex-shrink:0;cursor:pointer;accent-color:#e53e3e}
+
+/* ===== TIME BLOCKS ===== */
+.time-block{display:flex;gap:10px;padding:10px 12px;border-radius:8px;border:1.5px solid #e2e8f0;margin-bottom:6px;background:#fafafa}
+.time-block .tb-time{font-size:10px;font-weight:800;color:#4a5568;background:#e2e8f0;padding:3px 8px;border-radius:4px;white-space:nowrap;height:fit-content}
+.time-block .tb-content{flex:1}
+.time-block .tb-title{font-size:12px;font-weight:700;color:#2d3748}
+.time-block .tb-desc{font-size:11px;color:#4a5568;margin-top:2px;line-height:1.5}
+
+/* ===== NUMBERS FORM ===== */
+.numbers-grid{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-bottom:8px}
+.nm-field{display:flex;flex-direction:column;gap:3px}
+.nm-field label{font-size:10px;font-weight:700;color:#718096;text-transform:uppercase;letter-spacing:.4px}
+.nm-field input{padding:7px 9px;border:1.5px solid #e2e8f0;border-radius:6px;font-size:13px;width:100%}
+.nm-field input:focus{outline:none;border-color:#1565C0;box-shadow:0 0 0 2px rgba(21,101,192,.18)}
+.nm-full{grid-column:1/-1}
+.save-btn{background:#1565C0;color:#fff;border:none;padding:9px;border-radius:8px;font-weight:700;cursor:pointer;width:100%;font-size:13px;margin-top:4px}
+.save-btn:hover{background:#0A2885}
+.saved-msg{font-size:11px;color:#1565C0;text-align:center;margin-top:4px;font-weight:600;display:none}
+
+/* ===== STOP-LOSS PANEL ===== */
+.sl-item{padding:11px 12px;border-radius:8px;margin-bottom:8px;border:1.5px solid #e2e8f0;cursor:pointer;transition:all .15s}
+.sl-item:hover{border-color:#90cdf4}
+.sl-item h4{font-size:12px;font-weight:800;margin-bottom:3px;display:flex;align-items:center;gap:6px}
+.sl-item p{font-size:11px;color:#4a5568;line-height:1.5}
+.sl-item .sl-action{font-size:11px;font-weight:700;margin-top:5px;padding:4px 8px;border-radius:4px;display:inline-block}
+.sl-safe{background:#f0fff4;border-color:#68d391}
+.sl-danger{background:#fff5f5;border-color:#fc8181}
+.sl-warn{background:#fffbeb;border-color:#fbd38d}
+.sl-safe h4{color:#276749}
+.sl-danger h4{color:#c53030}
+.sl-warn h4{color:#92400e}
+.sl-action.safe-act{background:#c6f6d5;color:#276749}
+.sl-action.danger-act{background:#fed7d7;color:#c53030}
+.sl-action.warn-act{background:#fef3c7;color:#92400e}
+
+/* ===== PROGRESS ===== */
+.day-prog-item{display:flex;align-items:center;gap:9px;padding:5px 0}
+.dp-label{font-size:11px;font-weight:700;width:32px;color:#4a5568}
+.dp-bar{flex:1;height:7px;background:#e2e8f0;border-radius:4px;overflow:hidden}
+.dp-fill{height:100%;background:#1565C0;border-radius:4px;transition:width .3s}
+.dp-pct{font-size:10px;color:#718096;width:28px;text-align:right}
+
+/* ===== SKU REFERENCE ===== */
+.sku-row{display:flex;justify-content:space-between;align-items:flex-start;padding:6px 0;border-bottom:1px solid #f7fafc;gap:8px}
+.sku-row:last-child{border-bottom:none}
+.sku-code{font-size:10px;font-weight:700;font-family:monospace;color:#4a5568}
+.sku-name{font-size:11px;color:#2d3748;flex:1}
+.badge{font-size:9px;padding:2px 6px;border-radius:4px;font-weight:700;flex-shrink:0}
+.badge.hero{background:#ebf8ff;color:#2b6cb0}
+.badge.support{background:#fef3c7;color:#92400e}
+.badge.zero{background:#e2e8f0;color:#718096}
+
+/* ===== TARGET TABLE ===== */
+.tgt-table{width:100%;border-collapse:collapse;font-size:11px}
+.tgt-table th{background:#f7fafc;padding:6px 8px;text-align:left;font-size:9px;text-transform:uppercase;color:#718096;border-bottom:2px solid #e2e8f0}
+.tgt-table td{padding:6px 8px;border-bottom:1px solid #f7fafc}
+.tgt-table tr:hover{background:#f7fafc}
+.tgt-table .current-week{background:#e3f2fd;font-weight:700}
+
+/* ===== COLLAPSIBLE SECTIONS ===== */
+.collapsible-section{background:#fff;border-radius:12px;padding:20px;margin:0 24px 20px;box-shadow:0 1px 4px rgba(0,0,0,.09)}
+.collapsible-section h2{font-size:16px;font-weight:800;color:#2d3748;margin-bottom:4px;cursor:pointer;display:flex;align-items:center;gap:8px}
+.collapsible-section h2 .toggle-icon{font-size:12px;color:#718096}
+.collapsible-section .coll-content{display:none;margin-top:12px}
+.collapsible-section .coll-content.show{display:block}
+
+/* ===== SCOREBOARD ===== */
+.scoreboard-section{background:#fff;border-radius:12px;padding:20px;margin:0 24px 20px;box-shadow:0 1px 4px rgba(0,0,0,.09);display:none}
+.scoreboard-section.show{display:block}
+.scoreboard-section h2{font-size:16px;font-weight:800;color:#2d3748;margin-bottom:4px}
+.scoreboard-section .sb-sub{font-size:12px;color:#718096;margin-bottom:16px}
+.sb-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;margin-bottom:16px}
+.sb-field{display:flex;flex-direction:column;gap:4px}
+.sb-field label{font-size:10px;font-weight:700;color:#718096;text-transform:uppercase;letter-spacing:.4px}
+.sb-field input,.sb-field textarea{padding:8px;border:1.5px solid #e2e8f0;border-radius:6px;font-size:12px;width:100%}
+.sb-field textarea{min-height:56px;resize:vertical}
+.sb-full{grid-column:1/-1}
+.gen-btn{background:#0A2885;color:#fff;border:none;padding:11px 24px;border-radius:8px;font-weight:700;cursor:pointer;font-size:14px}
+.gen-btn:hover{background:#1565C0}
+.sb-output{background:#f7fafc;border:1.5px solid #e2e8f0;border-radius:8px;padding:16px;margin-top:14px;white-space:pre-wrap;font-size:12px;line-height:1.7;display:none;font-family:'Courier New',monospace}
+.copy-btn{background:#718096;color:#fff;border:none;padding:7px 14px;border-radius:6px;cursor:pointer;margin-top:8px;font-size:12px}
+.copy-btn:hover{background:#4a5568}
+
+/* ===== TRUTH MANIFESTO ===== */
+.truth-item{padding:10px 12px;border-radius:8px;border-left:4px solid #1565C0;margin-bottom:8px;background:#f7fafc}
+.truth-item .truth-num{font-size:11px;font-weight:800;color:#1565C0}
+.truth-item .truth-text{font-size:12px;color:#2d3748;margin-top:2px}
+
+/* ===== HEALTH ===== */
+.health-box{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap}
+.health-pill{font-size:10px;padding:4px 10px;border-radius:6px;font-weight:700}
+.hp-green{background:#c6f6d5;color:#276749}
+.hp-yellow{background:#fef3c7;color:#92400e}
+.hp-red{background:#fed7d7;color:#c53030}
+.hp-gray{background:#e2e8f0;color:#718096}
+
+/* ===== DATA TABLES ===== */
+.data-table{width:100%;border-collapse:collapse;font-size:11px;margin-top:8px}
+.data-table th{background:#f7fafc;padding:6px 8px;text-align:left;font-size:9px;text-transform:uppercase;color:#718096;border-bottom:2px solid #e2e8f0}
+.data-table td{padding:6px 8px;border-bottom:1px solid #f7fafc}
+.data-table tr:hover{background:#f7fafc}
+
+/* ===== AUDIT BOXES ===== */
+.audit-box{background:#fff5f5;border:2px solid #fc8181;border-radius:8px;padding:12px;margin-bottom:12px}
+.audit-box h4{color:#c53030;font-size:13px;margin-bottom:8px}
+.audit-ok{background:#f0fff4;border-color:#68d391}
+.audit-ok h4{color:#276749}
+.audit-warn{background:#fffbeb;border-color:#fbd38d}
+.audit-warn h4{color:#92400e}
+
+/* ===== MODAL ===== */
+.modal-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.6);z-index:1000;display:none;align-items:center;justify-content:center;padding:20px}
+.modal-overlay.show{display:flex}
+.modal-box{background:#fff;border-radius:16px;max-width:600px;width:100%;max-height:85vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.3);animation:modalIn .3s ease}
+@keyframes modalIn{from{opacity:0;transform:scale(.9)}to{opacity:1;transform:scale(1)}}
+.modal-head{background:#c53030;color:#fff;padding:16px 20px;display:flex;align-items:center;justify-content:space-between}
+.modal-head .modal-close{background:rgba(255,255,255,.2);border:none;color:#fff;width:28px;height:28px;border-radius:50%;cursor:pointer;font-size:16px}
+.modal-body{padding:20px;font-size:13px;line-height:1.7}
+
+/* ===== RESPONSIVE ===== */
+@media(max-width:880px){
+  .main{flex-direction:column}
+  .numbers-grid{grid-template-columns:1fr 1fr}
+  .sb-grid{grid-template-columns:1fr 1fr}
+  .hdr{flex-direction:column;align-items:flex-start}
+  .ctrl{flex-direction:column;align-items:stretch}
+  .day-tabs{padding:0 10px}
+  .sl-alert{margin:10px 10px 0}
+  .main{padding:10px}
+  .scoreboard-section,.collapsible-section{margin:0 10px 10px}
+}
+@media(max-width:480px){
+  .numbers-grid{grid-template-columns:1fr}
+  .sb-grid{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+
+<!-- ===== HEADER ===== -->
+<div class="hdr">
+  <div class="hdr-logo">TREYFA <span>x</span> JIOMART &nbsp;|&nbsp; 12-Week Playbook Dashboard v3.2</div>
+  <div class="hdr-right" id="dateDisplay"></div>
+</div>
+
+<!-- ===== CONTROLS ===== -->
+<div class="ctrl">
+  <div>
+    <label style="font-size:10px;font-weight:700;color:#718096;display:block;margin-bottom:3px">SELECT WEEK</label>
+    <select id="weekSelect" onchange="onWeekChange()">
+      <option value="1">Week 1 (Foundation)</option>
+      <option value="2">Week 2 (Foundation)</option>
+      <option value="3">Week 3 (Foundation)</option>
+      <option value="4">Week 4 (Foundation)</option>
+      <option value="5">Week 5 (Fire)</option>
+      <option value="6">Week 6 (Fire)</option>
+      <option value="7">Week 7 (Fire)</option>
+      <option value="8">Week 8 (Fire)</option>
+      <option value="9">Week 9 (Scale)</option>
+      <option value="10">Week 10 (Scale)</option>
+      <option value="11">Week 11 (Scale)</option>
+      <option value="12">Week 12 (Scale)</option>
+    </select>
+  </div>
+  <div class="week-theme-box">
+    <div class="wt-label">This Week's Focus</div>
+    <div class="wt-desc" id="weekThemeDesc"></div>
+  </div>
+  <div style="margin-left:auto;display:flex;gap:8px;align-items:center" id="weekTargetBox">
+    <span style="font-size:10px;color:#718096">ORDER TARGET:</span>
+    <span style="font-size:14px;font-weight:800;color:#0A2885" id="weekTargetDisplay"></span>
+  </div>
+</div>
+
+<!-- ===== DAY TABS ===== -->
+<div class="day-tabs" id="dayTabs">
+  <div class="day-tab active" data-day="MON" onclick="onDayChange('MON')">Monday</div>
+  <div class="day-tab" data-day="TUE" onclick="onDayChange('TUE')">Tuesday</div>
+  <div class="day-tab" data-day="WED" onclick="onDayChange('WED')">Wednesday</div>
+  <div class="day-tab" data-day="THU" onclick="onDayChange('THU')">Thursday</div>
+  <div class="day-tab" data-day="FRI" onclick="onDayChange('FRI')">Friday</div>
+  <div class="day-tab" data-day="SAT" onclick="onDayChange('SAT')">Saturday</div>
+</div>
+
+<!-- ===== ALERT BAR ===== -->
+<div class="sl-alert" id="slAlertBar">
+  <div class="sl-icon">&#x1F6A8;</div>
+  <div class="sl-msg" id="slAlertMsg">Stop-loss rule triggered! Check the Stop-Loss panel.</div>
+  <button class="sl-close" onclick="dismissAlert('slAlertBar')">Dismiss</button>
+</div>
+
+<!-- ===== MAIN ===== -->
+<div class="main">
+  <!-- LEFT PANEL -->
+  <div class="left">
+    <div class="day-hdr-card" id="dayHdrCard"></div>
+    <div class="card" id="constantsCard">
+      <div class="card-title"><span class="ic">&#x1F501;</span> Daily Constants — Do These Every Day (~105 min total)</div>
+      <div class="card-subtitle">These 4 jobs happen every day Monday-Saturday. They never change. From Chapter 15.</div>
+      <div id="constantsList"></div>
+    </div>
+    <div class="card" id="tasksCard">
+      <div class="card-title"><span class="ic">&#x1F4CB;</span> Today's Work List <span style="font-size:11px;font-weight:400;color:#718096" id="taskProgress"></span></div>
+      <div class="card-subtitle" id="dayTaskSubtitle"></div>
+      <div id="taskList"></div>
+      <div class="must-section">
+        <h3>&#x2705; Must Achieve Before Day Ends</h3>
+        <div id="mustList"></div>
+      </div>
+    </div>
+    <div class="card" id="timeBlockCard">
+      <div class="card-title"><span class="ic">&#x23F0;</span> Today's Time Schedule (4 Hours)</div>
+      <div class="card-subtitle">From Chapter 15: Your Daily Schedule. Every minute has a job.</div>
+      <div id="timeBlockList"></div>
+    </div>
+  </div>
+
+  <!-- RIGHT PANEL -->
+  <div class="right">
+    <div class="card" id="numbersCard">
+      <div class="card-title"><span class="ic">&#x1F4CA;</span> Enter Today's Numbers</div>
+      <div class="card-subtitle">Enter data every day. Stop-loss rules trigger automatically. From Chapter 16.</div>
+      <div class="numbers-grid">
+        <div class="nm-field"><label>Total Orders Today</label><input type="number" id="n_orders" placeholder="e.g. 5" onchange="checkStopLossOnInput()"></div>
+        <div class="nm-field"><label>Overall CTR (%)</label><input type="number" step="0.01" id="n_ctr" placeholder="e.g. 1.12" onchange="checkStopLossOnInput()"></div>
+        <div class="nm-field"><label>Overall CVR (%)</label><input type="number" step="0.01" id="n_cvr" placeholder="e.g. 3.90" onchange="checkStopLossOnInput()"></div>
+        <div class="nm-field"><label>Ad Spend Today (Rs)</label><input type="number" id="n_adspend" placeholder="e.g. 100" onchange="checkStopLossOnInput()"></div>
+        <div class="nm-field"><label>Ad Revenue Today (Rs)</label><input type="number" id="n_adrev" placeholder="e.g. 350" onchange="checkStopLossOnInput()"></div>
+        <div class="nm-field"><label>Returns Count Today</label><input type="number" id="n_returns" placeholder="e.g. 0" onchange="checkStopLossOnInput()"></div>
+        <div class="nm-field"><label>Total Orders This Week So Far</label><input type="number" id="n_weekorders" placeholder="e.g. 18" onchange="checkStopLossOnInput()"></div>
+        <div class="nm-field"><label>Return Rate (%)</label><input type="number" step="0.1" id="n_returnrate" placeholder="e.g. 15.5" onchange="checkStopLossOnInput()"></div>
+        <div class="nm-field"><label>ACOS (%)</label><input type="number" step="0.1" id="n_acos" placeholder="Auto" onchange="checkStopLossOnInput()"></div>
+        <div class="nm-field"><label>CPC — Cost Per Click (Rs)</label><input type="number" step="0.1" id="n_cpc" placeholder="e.g. 5.5" onchange="checkStopLossOnInput()"></div>
+        <div class="nm-field nm-full"><label>Ad Clicks Today</label><input type="number" id="n_clicks" placeholder="e.g. 25" onchange="checkStopLossOnInput()"></div>
+        <div class="nm-field nm-full"><label>Notes / Problems Seen Today</label><input type="text" id="n_notes" placeholder="e.g. Basil Oil CTR dropped"></div>
+      </div>
+      <button class="save-btn" onclick="saveNumbers()">&#x1F4BE; Save Today's Numbers</button>
+      <div class="saved-msg" id="savedMsg">&#x2713; Numbers saved!</div>
+    </div>
+
+    <div class="card" id="stoplossCard">
+      <div class="card-title"><span class="ic">&#x1F6D1;</span> Stop-Loss Watch — Auto Check Every Day</div>
+      <div class="card-subtitle">From Chapter 16: 6 ad rules + 7 business health rules. Red = danger. Yellow = warning. Green = safe.</div>
+      <div id="stopLossList"></div>
+    </div>
+
+    <div class="card" id="healthCard">
+      <div class="card-title"><span class="ic">&#x1FA7A;</span> Store Health Check</div>
+      <div class="card-subtitle">From Part VIII: Green zone = winning. Yellow = caution. Red = problem.</div>
+      <div class="health-box" id="healthBox"></div>
+      <div style="font-size:10px;color:#718096;margin-top:8px" id="healthHint">Enter today's numbers above to see health status.</div>
+    </div>
+
+    <div class="card" id="progressCard">
+      <div class="card-title"><span class="ic">&#x1F4C8;</span> This Week's Work Progress</div>
+      <div id="weekProgress"></div>
+    </div>
+
+    <div class="card" id="skuCard">
+      <div class="card-title"><span class="ic">&#x1F3F7;</span> Your Products — Hero / Support / Zero</div>
+      <div style="font-size:10px;color:#718096;margin-bottom:8px">80% time on Hero | 15% on Support | 5% on Zero. From Chapter 18.</div>
+      <div id="skuReference"></div>
+    </div>
+
+    <div class="card" id="targetVsActualCard">
+      <div class="card-title"><span class="ic">&#x1F3AF;</span> Target vs Actual — This Week</div>
+      <div id="targetVsActual"></div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ===== APRIL DATA SECTION ===== -->
+<div class="collapsible-section">
+  <h2 onclick="toggleCollapsible(this)">&#x1F4CA; Part I: Your April Data Explained <span class="toggle-icon">&#x25BC;</span></h2>
+  <div class="coll-content">
+    <p style="font-size:12px;color:#718096;margin-bottom:12px">From Chapter 1-5: Everything that happened in April, explained like you are 10 years old.</p>
+    <div class="audit-box">
+      <h4>&#x1F4C8; April Summary (15 Total Orders)</h4>
+      <p style="font-size:12px">9 orders delivered (60%) | 4 orders returned (26.7% — corrected rate) | 2 orders cancelled (13.3%)</p>
+      <p style="font-size:11px;color:#718096;margin-top:4px">Think of it like this: 15 kids said they wanted your lemonade. 4 kids changed their mind. 2 kids never got it. Only 9 kids actually drank it.</p>
+    </div>
+    <table class="data-table">
+      <tr><th>Product</th><th>Orders</th><th>Returns</th><th>Success Rate</th><th>Status</th></tr>
+      <tr><td><strong>Coconut Basil Heaven Heal Oil 100ml</strong> (TRBHO100) at Rs 149</td><td>3</td><td>0</td><td>100%</td><td><span class="badge hero">HERO</span></td></tr>
+      <tr><td><strong>Coconut Neem Anti-Dandruff Oil 200ml</strong> (TRNHO200) at Rs 189</td><td>1 order, Qty=2</td><td>0</td><td>100% (n=1)</td><td><span class="badge hero">HERO</span></td></tr>
+      <tr><td><strong>Turmeric Shampoo Conditioner 100ml</strong> (TRTSC100) at Rs 148</td><td>1</td><td>0</td><td>100% (n=1)</td><td><span class="badge hero">HERO</span></td></tr>
+      <tr><td><strong>Coconut Henna Black Hair Oil</strong> (TRCHBO100)</td><td>3</td><td>1</td><td>67%</td><td><span class="badge support">SUPPORT</span></td></tr>
+      <tr><td><strong>Hibiscus Shampoo 100ml</strong> (TRHS100)</td><td>3</td><td>1</td><td>67%</td><td><span class="badge support">SUPPORT</span></td></tr>
+      <tr><td><strong>Hibiscus Shampoo 200ml</strong> (TRHS200) at Rs 199</td><td>1</td><td>1</td><td>0%</td><td><span class="badge zero">ZERO</span></td></tr>
+      <tr><td><strong>Choco Coffee Shampoo Conditioner</strong> (TRCCSC100)</td><td>1</td><td>1</td><td>0%</td><td><span class="badge zero">ZERO</span></td></tr>
+      <tr><td><strong>Turmeric Vit C Face Wash</strong> (TRTFW100) — stock issue</td><td>0</td><td>0</td><td>Cancelled</td><td><span class="badge zero">ZERO</span></td></tr>
+      <tr><td><strong>Neem Shampoo Conditioner 200ml</strong> (TRNSC200) — stock issue</td><td>0</td><td>0</td><td>Cancelled</td><td><span class="badge zero">ZERO</span></td></tr>
+    </table>
+    <div class="audit-warn" style="margin-top:12px;padding:10px;border-radius:8px">
+      <h4>&#x26A0; The Magic Price is Rs 149</h4>
+      <p style="font-size:12px">At Rs 148-149: 8 delivered out of 11 ordered (72.7% success). At Rs 199: 0% success (1 ordered, 1 returned). The math does not lie. Rs 149 is the door that opens easily.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ===== ALGORITHM SECTION ===== -->
+<div class="collapsible-section">
+  <h2 onclick="toggleCollapsible(this)">&#x1F916; Part II: How JioMart Works (The 4-Factor Algorithm) <span class="toggle-icon">&#x25BC;</span></h2>
+  <div class="coll-content">
+    <p style="font-size:12px;color:#718096;margin-bottom:12px">From Chapter 6: You are building a relationship with a computer program. It cares about 4 things only.</p>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
+      <div class="truth-item">
+        <div class="truth-num">Item Completeness — 40% WEIGHT</div>
+        <div class="truth-text">Fill EVERY blank field. Title, category, description, ingredients, usage, hair type, scalp type, storage, origin, shelf life, gender, age, fragrance, color, pack size, safety. 90% completion = 73% higher ranking.</div>
+      </div>
+      <div class="truth-item">
+        <div class="truth-num">Performance Metrics — 30% WEIGHT</div>
+        <div class="truth-text">CTR (click-through rate): target above 2%. CVR (conversion rate): target above 1.5%. Return rate: below 15%. Order defect rate: below 2%. The algorithm sees ALL of this.</div>
+      </div>
+      <div class="truth-item">
+        <div class="truth-num">Competitive Pricing — 20% WEIGHT</div>
+        <div class="truth-text">Keep price within 5% of category average. If average is Rs 140-150, stay in range. 10% higher = buried. 20% lower = flagged as suspicious.</div>
+      </div>
+      <div class="truth-item">
+        <div class="truth-num">Content Quality — 10% WEIGHT</div>
+        <div class="truth-text">Images, descriptions, reviews, enhanced content. Important ONLY after the other three are done. A beautiful listing with empty attributes is a shiny car with no engine.</div>
+      </div>
+    </div>
+    <table class="data-table">
+      <tr><th>Metric</th><th>What It Means</th><th>Good Score</th><th>Your April Score</th></tr>
+      <tr><td>CTR</td><td>Out of 100 who saw, how many clicked?</td><td>Above 2%</td><td>Unknown (check now)</td></tr>
+      <tr><td>CVR</td><td>Out of 100 who clicked, how many bought?</td><td>Above 1.5%</td><td>Unknown (check now)</td></tr>
+      <tr><td>Return Rate</td><td>How many orders came back?</td><td>Below 15%</td><td>26.7% (BAD)</td></tr>
+      <tr><td>Order Defect Rate</td><td>Cancellations + returns + complaints</td><td>Below 2%</td><td>~13% (BAD)</td></tr>
+    </table>
+  </div>
+</div>
+
+<!-- ===== FOUNDATION CHECKLIST ===== -->
+<div class="collapsible-section">
+  <h2 onclick="toggleCollapsible(this)">&#x2705; Foundation Checklist (Weeks 1-4 Already Done?) <span class="toggle-icon">&#x25BC;</span></h2>
+  <div class="coll-content">
+    <p style="font-size:12px;color:#718096;margin-bottom:12px">From Chapter 8: Be honest. Check each one. If NO, fix it THIS week.</p>
+    <table class="data-table">
+      <tr><th>Foundation Task</th><th>Why It Matters</th><th>Did You Do It?</th></tr>
+      <tr><td>All 25+ SKUs at 90%+ attribute completion</td><td>40% of algorithm ranking weight</td><td>Check now</td></tr>
+      <tr><td>All images have text overlays (price + benefit)</td><td>Customers scan, they do not read</td><td>Check now</td></tr>
+      <tr><td>Stock status live for ALL SKUs</td><td>Cancellations kill your ranking</td><td>Check now</td></tr>
+      <tr><td>48 reviews placed (12/week x 4 weeks)</td><td>Social proof drives conversion</td><td>Count now</td></tr>
+      <tr><td>Return rate dropped from 26.7% to below 25%</td><td>Proves your fixes are working</td><td>Calculate now</td></tr>
+      <tr><td>CTR above 0.5% on Hero SKUs</td><td>Minimum threshold for ad readiness</td><td>Check seller dashboard</td></tr>
+    </table>
+    <div class="audit-box" style="margin-top:12px">
+      <h4>&#x26A0; WARNING: Honesty Check</h4>
+      <p style="font-size:12px">If you have NOT done the foundation tasks above, do NOT proceed to Week 5. Go back and finish them. Running ads on a bad listing is like pouring water into a bucket with holes.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ===== PHASE 3 SCENARIOS ===== -->
+<div class="collapsible-section">
+  <h2 onclick="toggleCollapsible(this)">&#x1F3AF; Phase 3 Scenarios (Weeks 9-12) <span class="toggle-icon">&#x25BC;</span></h2>
+  <div class="coll-content">
+    <p style="font-size:12px;color:#718096;margin-bottom:12px">From Chapter 13: By Week 9, one of three things will have happened. Be honest about which one.</p>
+    <table class="data-table">
+      <tr><th>Scenario</th><th>Your Numbers</th><th>What It Means</th><th>Your Action</th></tr>
+      <tr style="background:#c6f6d5"><td><strong>A: Algorithm Loves You</strong></td><td>CTR &gt; 1.5%, CVR &gt; 2%, ACOS &lt; 25%, Organic 60%+</td><td>Your listing is a winner</td><td>SCALE AGGRESSIVELY</td></tr>
+      <tr style="background:#fef3c7"><td><strong>B: Algorithm Is Neutral</strong></td><td>CTR 0.8-1.2%, CVR 1-1.5%, ACOS 25-35%</td><td>Your listing is okay but not great</td><td>OPTIMIZE, DO NOT SCALE</td></tr>
+      <tr style="background:#fed7d7"><td><strong>C: Algorithm Ignores You</strong></td><td>CTR &lt; 0.8%, CVR &lt; 1%, ACOS &gt; 35%</td><td>Something is fundamentally wrong</td><td>GO BACK TO FOUNDATION</td></tr>
+    </table>
+  </div>
+</div>
+
+<!-- ===== REVIEW CHANNELIZATION ===== -->
+<div class="collapsible-section">
+  <h2 onclick="toggleCollapsible(this)">&#x2B50; Part VI: Review Channelization Plan <span class="toggle-icon">&#x25BC;</span></h2>
+  <div class="coll-content">
+    <p style="font-size:12px;color:#718096;margin-bottom:12px">From Chapter 17: Transition from pushed reviews to organic reviews over 12 weeks.</p>
+    <table class="data-table">
+      <tr><th>Week</th><th>Agency</th><th>Friends/Family</th><th>Organic Expected</th><th>Total</th><th>Focus</th></tr>
+      <tr><td>Week 1</td><td>4</td><td>3</td><td>3</td><td>10</td><td>Hero SKU push</td></tr>
+      <tr><td>Week 2</td><td>3</td><td>3</td><td>4</td><td>10</td><td>Support SKU balance</td></tr>
+      <tr><td>Week 3</td><td>3</td><td>2</td><td>5</td><td>10</td><td>Diversify</td></tr>
+      <tr><td>Week 4</td><td>2</td><td>2</td><td>6</td><td>10</td><td>Naturalizing</td></tr>
+      <tr><td>Week 5</td><td>2</td><td>2</td><td>6</td><td>10</td><td>Maintenance</td></tr>
+      <tr><td>Week 6</td><td>2</td><td>1</td><td>7</td><td>10</td><td>Organic dominant</td></tr>
+      <tr><td>Week 7</td><td>1</td><td>1</td><td>6</td><td>8</td><td>Reduce pushed</td></tr>
+      <tr><td>Week 8</td><td>1</td><td>1</td><td>6</td><td>8</td><td>Near-natural</td></tr>
+      <tr><td>Week 9</td><td>1</td><td>1</td><td>6</td><td>8</td><td>Minimal push</td></tr>
+      <tr><td>Week 10</td><td>1</td><td>0</td><td>7</td><td>8</td><td>Almost organic</td></tr>
+      <tr><td>Week 11</td><td>0</td><td>0</td><td>7</td><td>7</td><td>Fully organic</td></tr>
+      <tr><td>Week 12</td><td>0</td><td>0</td><td>8</td><td>8</td><td>Self-sustaining</td></tr>
+    </table>
+    <p style="font-size:11px;color:#718096;margin-top:8px"><strong>Rules:</strong> 1) Agency reviews to Hero SKUs only. 2) F&amp;F reviews to Support SKUs. 3) Space reviews 2-3 days apart. 4) Agency reviews must be 50+ words with photo. 5) NEVER use the same words.</p>
+  </div>
+</div>
+
+<!-- ===== FULL TARGET TABLE ===== -->
+<div class="collapsible-section">
+  <h2 onclick="toggleCollapsible(this)">&#x1F3AF; Complete 12-Week Target Table <span class="toggle-icon">&#x25BC;</span></h2>
+  <div class="coll-content">
+    <p style="font-size:12px;color:#718096;margin-bottom:12px">From Chapter 20: Every week's targets at a glance. Print and stick on your wall.</p>
+    <table class="tgt-table" id="fullTargetTable">
+      <tr><th>Wk</th><th>Phase</th><th>Orders</th><th>Revenue</th><th>Ad/Day</th><th>Cum. Ad</th><th>ACOS</th><th>Focus</th><th>Organic %</th></tr>
+      <tr><td>1</td><td>Foundation</td><td>15-20</td><td>Rs 2,250</td><td>Rs 0</td><td>Rs 0</td><td>N/A</td><td>Attribute completion</td><td>100%</td></tr>
+      <tr><td>2</td><td>Foundation</td><td>20-25</td><td>Rs 3,000</td><td>Rs 0</td><td>Rs 0</td><td>N/A</td><td>Descriptions + images</td><td>100%</td></tr>
+      <tr><td>3</td><td>Foundation</td><td>25-30</td><td>Rs 3,750</td><td>Rs 0</td><td>Rs 0</td><td>N/A</td><td>Competitor analysis</td><td>100%</td></tr>
+      <tr><td>4</td><td>Foundation</td><td>30-35</td><td>Rs 4,500</td><td>Rs 0</td><td>Rs 0</td><td>N/A</td><td>Review accumulation</td><td>100%</td></tr>
+      <tr><td>5</td><td>Fire</td><td>20-25</td><td>Rs 3,000</td><td>Rs 100</td><td>Rs 700</td><td>&lt;40%</td><td>First ads + completeness</td><td>70%</td></tr>
+      <tr><td>6</td><td>Fire</td><td>30-40</td><td>Rs 4,500</td><td>Rs 125</td><td>Rs 1,575</td><td>&lt;35%</td><td>Ad optimization</td><td>65%</td></tr>
+      <tr><td>7</td><td>Fire</td><td>45-55</td><td>Rs 6,750</td><td>Rs 150</td><td>Rs 2,625</td><td>&lt;30%</td><td>Category rank</td><td>60%</td></tr>
+      <tr><td>8</td><td>Fire</td><td>55-70</td><td>Rs 8,400</td><td>Rs 150</td><td>Rs 3,675</td><td>&lt;25%</td><td>Profitability</td><td>60%</td></tr>
+      <tr><td>9</td><td>Scale</td><td>70-85</td><td>Rs 10,500</td><td>Rs 200</td><td>Rs 5,075</td><td>&lt;22%</td><td>Volume push</td><td>65%</td></tr>
+      <tr><td>10</td><td>Scale</td><td>85-100</td><td>Rs 12,750</td><td>Rs 225</td><td>Rs 6,650</td><td>&lt;22%</td><td>Profit max</td><td>70%</td></tr>
+      <tr><td>11</td><td>Scale</td><td>100-115</td><td>Rs 15,000</td><td>Rs 250</td><td>Rs 8,400</td><td>&lt;20%</td><td>Portfolio</td><td>72%</td></tr>
+      <tr><td>12</td><td>Scale</td><td>110-125</td><td>Rs 16,500</td><td>Rs 250</td><td>Rs 10,150</td><td>&lt;20%</td><td>Lock-in</td><td>75%</td></tr>
+    </table>
+  </div>
+</div>
+
+<!-- ===== TRUTH MANIFESTO ===== -->
+<div class="collapsible-section">
+  <h2 onclick="toggleCollapsible(this)">&#x1F4DC; Part X: The Truth Manifesto — Read This Every Morning <span class="toggle-icon">&#x25BC;</span></h2>
+  <div class="coll-content">
+    <p style="font-size:12px;color:#718096;margin-bottom:12px">From Chapter 20: The 10 Truths of Selling on JioMart.</p>
+    <div class="truth-item"><div class="truth-num">Truth #1</div><div class="truth-text">The algorithm does not care about you. It cares about completeness, performance, price, and content. Feed it those four things and it will feed you customers.</div></div>
+    <div class="truth-item"><div class="truth-num">Truth #2</div><div class="truth-text">There are no shortcuts. Every seller who tried to hack the algorithm got banned or buried. The only sustainable strategy is: better listing, better price, better product.</div></div>
+    <div class="truth-item"><div class="truth-num">Truth #3</div><div class="truth-text">Your first 4 weeks were practice. The real game starts now. Everything before this was warm-up. From Week 5 onward, every action either makes you money or costs you money.</div></div>
+    <div class="truth-item"><div class="truth-num">Truth #4</div><div class="truth-text">Rs 149 is your superpower. Not your branding. Not your packaging. Not your story. Your price. At Rs 149, you outcompete 70% of hair oil sellers on JioMart.</div></div>
+    <div class="truth-item"><div class="truth-num">Truth #5</div><div class="truth-text">Returns are your biggest enemy. Not competitors. Not low sales. RETURNS. Every return costs you money AND hurts your algorithm score. Get it below 15% or nothing else works.</div></div>
+    <div class="truth-item"><div class="truth-num">Truth #6</div><div class="truth-text">Ads are fuel, not fire. Ads do not create demand. They AMPLIFY demand. If your listing is bad, ads just burn money faster. Fix the listing FIRST. Then add fuel.</div></div>
+    <div class="truth-item"><div class="truth-num">Truth #7</div><div class="truth-text">Consistency beats intensity. Updating 1 SKU per day for 30 days beats updating 30 SKUs in one day. The algorithm rewards consistency.</div></div>
+    <div class="truth-item"><div class="truth-num">Truth #8</div><div class="truth-text">Data is your only friend. Feelings lie. Opinions lie. Data tells the truth. If your CTR is 0.3%, your listing is bad — even if YOU think it looks great.</div></div>
+    <div class="truth-item"><div class="truth-num">Truth #9</div><div class="truth-text">80% of results come from 20% of effort. Your two Hero SKUs (Basil Oil + Neem Oil) will generate 80% of your profit. Spend your time accordingly.</div></div>
+    <div class="truth-item"><div class="truth-num">Truth #10</div><div class="truth-text">This playbook is worthless without execution. You can read this 100 times. But if you do not follow the daily matrix, if you skip Saturday analysis — this is just paper. Execution is everything.</div></div>
+  </div>
+</div>
+
+<!-- ===== INDEPENDENT AUDIT ===== -->
+<div class="collapsible-section">
+  <h2 onclick="toggleCollapsible(this)">&#x1F50E; Appendix A: Independent Audit Results <span class="toggle-icon">&#x25BC;</span></h2>
+  <div class="coll-content">
+    <p style="font-size:12px;color:#718096;margin-bottom:12px">Verified by independent agent against YOUR actual April 2026 shipment data. 6 FLAGGED claims, 21 VERIFIED claims, 11 MISSING items.</p>
+    <div class="audit-box">
+      <h4>CRITICAL FIX #1: Return Rate is 26.7%, NOT 31%</h4>
+      <p style="font-size:12px">The document incorrectly excluded cancelled orders. Correct: 4 returns / 15 total orders = 26.7%. Still BAD (healthy is 10-15%), but 4 points lower.</p>
+    </div>
+    <div class="audit-box">
+      <h4>CRITICAL FIX #2: Profit Per Unit is Rs 11, NOT Rs 21-23</h4>
+      <p style="font-size:12px">The document made an arithmetic error. Correct math: Rs 149 - Rs 15 commission - Rs 20 closing - Rs 30 shipping - Rs 3 payment - Rs 60 COGS - Rs 10 ad = Rs 11 profit per unit.</p>
+    </div>
+    <div class="audit-box">
+      <h4>CRITICAL FIX #3: 8-Week Net Profit is Rs 0-3,000 (Not Rs 8,000-15,000)</h4>
+      <p style="font-size:12px">At Rs 11/unit x 565 average units = Rs 6,215 gross profit MINUS Rs 10,150 ad spend = Rs -3,935. You actually LOSE money at Rs 60 COGS unless your COGS is below Rs 55.</p>
+    </div>
+    <div class="audit-warn" style="padding:12px;border-radius:8px;margin-top:12px">
+      <h4>&#x26A0; THE HONEST BOTTOM LINE</h4>
+      <p style="font-size:12px">This playbook gives you a FRAMEWORK that works. The FINANCIAL PROJECTIONS were wrong (arithmetic errors + unverified COGS assumptions). The real value is the MACHINE you build: a well-ranked listing, disciplined execution, and a profitable ad engine. Month 4+ is where the real money comes from.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ===== SATURDAY SCOREBOARD ===== -->
+<div class="scoreboard-section" id="scoreboardSection">
+  <h2>&#x1F4E8; Saturday Scoreboard — Send to Founder Before 6 PM</h2>
+  <div class="sb-sub">Fill all boxes. Click "Make Scoreboard" for ready-to-send report.</div>
+  <div class="sb-grid">
+    <div class="sb-field"><label>Week Sales Target</label><input id="sb_target" placeholder="e.g. 20-25 orders"></div>
+    <div class="sb-field"><label>Actual Sales This Week</label><input id="sb_actual" placeholder="e.g. 18 orders"></div>
+    <div class="sb-field"><label>Best Product This Week</label><input id="sb_best" placeholder="e.g. Basil Oil — 8 orders"></div>
+    <div class="sb-field"><label>Worst Product This Week</label><input id="sb_worst" placeholder="e.g. Hibiscus Shampoo 200ml — 0 orders"></div>
+    <div class="sb-field"><label>Total Ad Spend This Week (Rs)</label><input id="sb_adspend" placeholder="e.g. 700"></div>
+    <div class="sb-field"><label>Total Ad Revenue This Week (Rs)</label><input id="sb_adrev" placeholder="e.g. 2,400"></div>
+    <div class="sb-field"><label>Average ACOS This Week (%)</label><input id="sb_acos" placeholder="e.g. 28%"></div>
+    <div class="sb-field"><label>Return Rate This Week (%)</label><input id="sb_returnrate" placeholder="e.g. 18%"></div>
+    <div class="sb-field"><label>Organic % This Week</label><input id="sb_organic" placeholder="e.g. 65%"></div>
+    <div class="sb-field"><label>Freshness Edits Done (out of 18)</label><input id="sb_freshness" placeholder="e.g. 16"></div>
+    <div class="sb-field"><label>Stop-Losses Triggered This Week</label><input id="sb_stoploss" placeholder="e.g. None"></div>
+    <div class="sb-field"><label>Stock Status</label><input id="sb_stock" placeholder="e.g. All Hero SKUs have 21+ days stock"></div>
+    <div class="sb-field sb-full"><label>Top 3 Wins This Week</label><textarea id="sb_wins" placeholder="1. Orders exceeded target&#10;2. ACOS dropped below 30%&#10;3. Got 3 organic reviews"></textarea></div>
+    <div class="sb-field sb-full"><label>Top 3 Problems This Week</label><textarea id="sb_misses" placeholder="1. Return rate still above 20%&#10;2. One SKU went out of stock&#10;3. Ad CTR dropped on Day 2"></textarea></div>
+    <div class="sb-field sb-full"><label>One Decision Needed From Founder</label><textarea id="sb_decision" placeholder="e.g. Should we increase ad budget to Rs 150/day?"></textarea></div>
+  </div>
+  <button class="gen-btn" onclick="generateScoreboard()">&#x1F4C4; Make Scoreboard</button>
+  <div class="sb-output" id="sbOutput"></div>
+  <button class="copy-btn" id="copyBtn" onclick="copyScoreboard()" style="display:none">&#x1F4CB; Copy to Clipboard</button>
+</div>
+
+
+<script>
+// ===================== WEEK THEMES =====================
+const WEEK_THEMES = {
+  1: {name: "Foundation — Attribute Completion", desc: "All 25+ SKUs at 90%+ attribute completion. Fill EVERY blank field. No ads.", phase: "foundation", orders: "15-20", rev: "Rs 2,250", ad: "Rs 0", acos: "N/A", focus: "Attribute completion", organic: "100%"},
+  2: {name: "Foundation — Descriptions + Images", desc: "All images have text overlays. 48 reviews placed. Return rate dropping toward 25%.", phase: "foundation", orders: "20-25", rev: "Rs 3,000", ad: "Rs 0", acos: "N/A", focus: "Descriptions + images", organic: "100%"},
+  3: {name: "Foundation — Competitor Analysis", desc: "Search competitor prices. Write 200+ word descriptions for top 8 SKUs. No ads.", phase: "foundation", orders: "25-30", rev: "Rs 3,750", ad: "Rs 0", acos: "N/A", focus: "Competitor analysis", organic: "100%"},
+  4: {name: "Foundation — Review Accumulation", desc: "Confirm 48 reviews live. CTR above 0.5% on Hero SKUs. Prepare for Week 5 ads.", phase: "foundation", orders: "30-35", rev: "Rs 4,500", ad: "Rs 0", acos: "N/A", focus: "Review accumulation", organic: "100%"},
+  5: {name: "Algorithm Seduction Week — First Ads", desc: "Feed the algorithm everything. Attribute completion 95%+. Sponsored Products ONLY. Rs 100/day.", phase: "fire", orders: "20-25", rev: "Rs 3,000", ad: "Rs 100/day", acos: "<40%", focus: "First ads + completeness", organic: "70%"},
+  6: {name: "Ad Optimization Week", desc: "Make ads profitable. Cut waste. Double down on what works. ACOS below 35%.", phase: "fire", orders: "30-40", rev: "Rs 4,500", ad: "Rs 125/day", acos: "<35%", focus: "Ad optimization", organic: "65%"},
+  7: {name: "Category Domination Week", desc: "Rank in top 20 for coconut hair oil and herbal hair oil. Freshness blitz.", phase: "fire", orders: "45-55", rev: "Rs 6,750", ad: "Rs 150/day", acos: "<30%", focus: "Category rank", organic: "60%"},
+  8: {name: "Profitability Week", desc: "Lock in gains. Make the business profitable. Net profit: first positive week!", phase: "fire", orders: "55-70", rev: "Rs 8,400", ad: "Rs 150/day", acos: "<25%", focus: "Profitability", organic: "60%"},
+  9: {name: "Scale — Volume Push", desc: "70-85 orders. Rs 200/day ads. <22% ACOS. Scenario-dependent actions.", phase: "scale", orders: "70-85", rev: "Rs 10,500", ad: "Rs 200/day", acos: "<22%", focus: "Volume push", organic: "65%"},
+  10: {name: "Scale — Profit Maximization", desc: "85-100 orders. Push 70% ad budget to most profitable SKU. Test bundle.", phase: "scale", orders: "85-100", rev: "Rs 12,750", ad: "Rs 225/day", acos: "<22%", focus: "Profit max", organic: "70%"},
+  11: {name: "Scale — Portfolio Expansion", desc: "100-115 orders. Create more bundles if bundle worked. Push Support SKUs.", phase: "scale", orders: "100-115", rev: "Rs 15,000", ad: "Rs 250/day", acos: "<20%", focus: "Portfolio", organic: "72%"},
+  12: {name: "Scale — Lock-In + Systems", desc: "110-125 orders. Document everything. Set automated rules. Executive runs without you.", phase: "scale", orders: "110-125", rev: "Rs 16,500", ad: "Rs 250/day", acos: "<20%", focus: "Lock-in", organic: "75%"}
+};
+
+const PHASE_BADGES = {
+  foundation: "phase-foundation",
+  fire: "phase-fire",
+  scale: "phase-scale"
+};
+
+// ===================== DAILY CONSTANTS =====================
+const CONSTANTS = [
+  {id: "c1", title: "DATA CHECK (4:00-4:30 PM, 30 min)", text: "Check orders, CTR, CVR, ad spend, ACOS, returns. You cannot fix what you do not measure.", note: "Open JioMart Seller Dashboard. Write all numbers in daily log."},
+  {id: "c2", title: "FRESHNESS EDIT (4:30-5:00 PM, 30 min)", text: "Update 1-2 SKUs. Change price by Rs 1-5, swap a word in title, rotate tags, or swap an image.", note: "Algorithm rewards daily updates. Skip this and JioMart forgets you exist."},
+  {id: "c3", title: "REVIEW COORDINATION + Q&A (5:00-5:30 PM, 30 min)", text: "Coordinate next week's reviews with agency. Respond to ALL buyer questions.", note: "Reviews build trust. Q&A responses affect conversion. Meesho tracks reply speed."},
+  {id: "c4", title: "STOP-LOSS CHECK (5:30-5:45 PM, 15 min)", text: "Check the stop-loss rules panel on the right. Are we on track? Any fires?", note: "Catch problems before they become disasters. This 15 minutes saves thousands."}
+];
+
+// ===================== TASKS BY DAY AND WEEK =====================
+const TASKS = {
+  MON: {
+    title: "Monday — Data + Planning Day",
+    tagline: "Monday sets the tone. Look at weekend numbers, compare to last week, decide what matters.",
+    subtitle: "Monday is your war room day. Before firing a single bullet, count your ammunition and study the map.",
+    tasks: [
+      {id: "m1", text: "Check Saturday and Sunday orders. Weekend shoppers behave differently. Write in daily log.", note: "Weekend = 30-40% of weekly orders."},
+      {id: "m2", text: "Compare Week X to Week X-1. Are orders up? Down? Flat? Calculate week-over-week change %.", note: "Even 5% change is significant at this stage."},
+      {id: "m3", text: "Check ACOS trend. Is it going up or down? If trending up for 3+ days, investigate.", note: "Rising ACOS = something is breaking. Find it now."},
+      {id: "m4", text: "Write 3 MUST-DO tasks for this week. Not 10. THREE. Pick what moves the needle most.", note: "More than 3 priorities = nothing gets done properly."},
+      {id: "m5", text: "Do today's freshness edit on 1-2 SKUs (daily constant — done first).", note: "Part of daily constants."}
+    ],
+    must: [
+      {id: "mm1", text: "Weekend numbers logged. Week-over-week comparison written."},
+      {id: "mm2", text: "ACOS trend identified (up/down/flat)."},
+      {id: "mm3", text: "3 MUST-DO tasks written for this week."}
+    ]
+  },
+  TUE: {
+    title: "Tuesday — Content + Optimization Day",
+    tagline: "Steal from competitors. Not copy-paste — learn. The best sellers are doing something right.",
+    subtitle: "Tuesday is about learning from competitors. Find out what they do better, then do it yourself.",
+    tasks: [
+      {id: "t1", text: "Search your main keyword on JioMart. Click on top 3 products.", note: "See what the algorithm already rewards."},
+      {id: "t2", text: "Screenshot their main image, title, and first description paragraph.", note: "Visual proof beats memory every time."},
+      {id: "t3", text: "Write down ONE thing each competitor does better than you.", note: "Be honest. Ego costs money."},
+      {id: "t4", text: "Implement ONE improvement on your listing based on competitor analysis.", note: "One improvement implemented beats ten improvements planned."},
+      {id: "t5", text: "Do today's freshness edit on 1-2 SKUs (daily constant).", note: "Part of daily constants."}
+    ],
+    must: [
+      {id: "tm1", text: "Top 3 competitors analyzed with screenshots."},
+      {id: "tm2", text: "ONE improvement implemented on your listing."},
+      {id: "tm3", text: "Competitor insights documented for future reference."}
+    ]
+  },
+  WED: {
+    title: "Wednesday — Ad + Pricing Day",
+    tagline: "Wednesday is about MONEY. Are ads profitable? Is price right?",
+    subtitle: "Check 7-day ad performance. Kill bad keywords. Optimize bids. Check competitor prices.",
+    tasks: [
+      {id: "w1", text: "Check 7-day ad performance. Which keywords convert? Which burn money?", note: "Data from JioMart Seller Dashboard > Advertising."},
+      {id: "w2", text: "Kill keywords with CTR below 0.5% after 100+ impressions. Add to NEGATIVE list.", note: "Every rupee must work. No charity for bad keywords."},
+      {id: "w3", text: "Increase bids 10% on keywords with ACOS below 20%.", note: "Feed winners, starve losers."},
+      {id: "w4", text: "Check competitor prices on top 10 listings. Adjust if needed.", note: "A Rs 10 price gap can halve your orders overnight."},
+      {id: "w5", text: "Do today's freshness edit on 1-2 SKUs (daily constant).", note: "Part of daily constants."}
+    ],
+    must: [
+      {id: "wm1", text: "7-day ad performance reviewed. Loser keywords identified."},
+      {id: "wm2", text: "Bid adjustments made: losers killed, winners boosted."},
+      {id: "wm3", text: "Competitor prices checked. Price decision documented."}
+    ]
+  },
+  THU: {
+    title: "Thursday — Review + Quality Day",
+    tagline: "Thursday is about TRUST. Reviews are social proof. Q&A shows you care.",
+    subtitle: "Check review distribution. Coordinate next week's reviews. Respond to ALL buyer questions.",
+    tasks: [
+      {id: "th1", text: "Check review distribution across SKUs. Are reviews balanced?", note: "All reviews on one SKU looks fake. Spread them out."},
+      {id: "th2", text: "Coordinate next week's reviews with agency. Send WRITTEN brief.", note: "Which SKU, how many, what angle, which cities."},
+      {id: "th3", text: "Respond to ALL unanswered buyer questions.", note: "Meesho tracks response time. Fast replies = higher ranking."},
+      {id: "th4", text: "Check for negative reviews (1-2 stars). Respond professionally. Offer replacement.", note: "Never argue publicly. Always offer solution."},
+      {id: "th5", text: "Do today's freshness edit on 1-2 SKUs (daily constant).", note: "Part of daily constants."}
+    ],
+    must: [
+      {id: "thm1", text: "Review distribution checked and balanced."},
+      {id: "thm2", text: "Next week's review plan coordinated with agency."},
+      {id: "thm3", text: "All buyer questions answered. Negative reviews handled."}
+    ]
+  },
+  FRI: {
+    title: "Friday — Freshness + Push Day",
+    tagline: "Friday is about MOMENTUM. Push hard so weekend shoppers see your best listings.",
+    subtitle: "Update 3-5 SKUs. Deploy pending changes. Confirm offers are live. Set Monday priorities.",
+    tasks: [
+      {id: "f1", text: "Freshness blitz: Update 3-5 SKUs that have not been touched this week.", note: "Friday updates = weekend shoppers see fresh content."},
+      {id: "f2", text: "Deploy any pending changes (price adjustments, image swaps).", note: "Pending changes = lost opportunities."},
+      {id: "f3", text: "Confirm all offers and discounts are live and working.", note: "Broken offer = customer clicks away = lost sale."},
+      {id: "f4", text: "Set weekend priorities for Monday. Write Monday prep note.", note: "Monday starts with execution, not planning."},
+      {id: "f5", text: "Do today's freshness edit on 1-2 SKUs (daily constant).", note: "Part of daily constants."}
+    ],
+    must: [
+      {id: "fm1", text: "3-5 SKUs freshness-edited this week."},
+      {id: "fm2", text: "All pending changes deployed and live."},
+      {id: "fm3", text: "Monday prep note written with 3 priorities."}
+    ]
+  },
+  SAT: {
+    title: "Saturday — Analysis + Documentation Day",
+    tagline: "Saturday is the most important day. This is where LEARNING happens.",
+    subtitle: "Without documentation, you repeat mistakes. Every Saturday, spend the full 4 hours analyzing.",
+    tasks: [
+      {id: "s1", text: "Compile full week numbers: orders, revenue, ad spend, ACOS, returns.", note: "Download from JioMart Seller Dashboard."},
+      {id: "s2", text: "Week-over-week comparison. What improved? What got worse?", note: "Numbers tell the story. Listen to them."},
+      {id: "s3", text: "Write 3 learnings from this week. Be specific, not vague.", note: "Learning: Basil Oil CTR dropped 0.3% when we changed the image."},
+      {id: "s4", text: "Write next week's 3 priorities based on Saturday analysis.", note: "Specific actions, not generic goals."},
+      {id: "s5", text: "Archive data in a spreadsheet (Google Sheets or Excel).", note: "Historical data = pattern recognition = better decisions."},
+      {id: "s6", text: "Fill and send the Saturday Scoreboard to founder BEFORE 6 PM.", note: "Late scoreboard = wasted weekend."}
+    ],
+    must: [
+      {id: "sm1", text: "Full week numbers compiled and archived."},
+      {id: "sm2", text: "3 specific learnings written."},
+      {id: "sm3", text: "Next week's 3 priorities written."},
+      {id: "sm4", text: "Saturday Scoreboard sent to founder before 6 PM."}
+    ]
+  }
+};
+
+// ===================== SKUS =====================
+const SKUS = [
+  {code: "TRBHO100", name: "Coconut Basil Heaven Heal Oil 100ml", type: "hero", note: "3 orders, 0 returns, Rs 149. Your #1 performer. 40% of your time."},
+  {code: "TRNHO200", name: "Coconut Neem Anti-Dandruff Oil 200ml", type: "hero", note: "1 order (Qty=2), 0 returns, Rs 189. n=1, not statistically proven. 25% of time."},
+  {code: "TRTSC100", name: "Turmeric Shampoo Conditioner 100ml", type: "hero", note: "1 order, 0 returns, Rs 148. n=1, promising signal. 15% of time."},
+  {code: "TRCHBO100", name: "Coconut Henna Black Hair Oil 100ml", type: "support", note: "33% return rate. Needs better description. 8% of time."},
+  {code: "TRHS100", name: "Hibiscus Shampoo 100ml", type: "support", note: "33% return rate. Needs expectation management. 7% of time."},
+  {code: "TRHS200", name: "Hibiscus Shampoo 200ml", type: "zero", note: "100% return rate at Rs 199. Drop price to Rs 149 or delist."},
+  {code: "TRCCSC100", name: "Choco Coffee Shampoo Conditioner 100ml", type: "zero", note: "100% return rate. Fix description or delist."},
+  {code: "TRTFW100", name: "Turmeric Vit C Face Wash 100ml", type: "zero", note: "Cancelled — stock issue. Fix stock or delist."},
+  {code: "TRNSC200", name: "Neem Shampoo Conditioner 200ml", type: "zero", note: "Cancelled — stock issue. Fix stock or delist."}
+];
+
+// ===================== TARGET TABLE =====================
+const TARGET_TABLE = [
+  {wk: 1, phase: "Foundation", orders: "15-20", rev: "Rs 2,250", adDay: "Rs 0", cumAd: "Rs 0", acos: "N/A", focus: "Attribute completion", organic: "100%"},
+  {wk: 2, phase: "Foundation", orders: "20-25", rev: "Rs 3,000", adDay: "Rs 0", cumAd: "Rs 0", acos: "N/A", focus: "Descriptions + images", organic: "100%"},
+  {wk: 3, phase: "Foundation", orders: "25-30", rev: "Rs 3,750", adDay: "Rs 0", cumAd: "Rs 0", acos: "N/A", focus: "Competitor analysis", organic: "100%"},
+  {wk: 4, phase: "Foundation", orders: "30-35", rev: "Rs 4,500", adDay: "Rs 0", cumAd: "Rs 0", acos: "N/A", focus: "Review accumulation", organic: "100%"},
+  {wk: 5, phase: "Fire", orders: "20-25", rev: "Rs 3,000", adDay: "Rs 100", cumAd: "Rs 700", acos: "<40%", focus: "First ads + completeness", organic: "70%"},
+  {wk: 6, phase: "Fire", orders: "30-40", rev: "Rs 4,500", adDay: "Rs 125", cumAd: "Rs 1,575", acos: "<35%", focus: "Ad optimization", organic: "65%"},
+  {wk: 7, phase: "Fire", orders: "45-55", rev: "Rs 6,750", adDay: "Rs 150", cumAd: "Rs 2,625", acos: "<30%", focus: "Category rank", organic: "60%"},
+  {wk: 8, phase: "Fire", orders: "55-70", rev: "Rs 8,400", adDay: "Rs 150", cumAd: "Rs 3,675", acos: "<25%", focus: "Profitability", organic: "60%"},
+  {wk: 9, phase: "Scale", orders: "70-85", rev: "Rs 10,500", adDay: "Rs 200", cumAd: "Rs 5,075", acos: "<22%", focus: "Volume push", organic: "65%"},
+  {wk: 10, phase: "Scale", orders: "85-100", rev: "Rs 12,750", adDay: "Rs 225", cumAd: "Rs 6,650", acos: "<22%", focus: "Profit max", organic: "70%"},
+  {wk: 11, phase: "Scale", orders: "100-115", rev: "Rs 15,000", adDay: "Rs 250", cumAd: "Rs 8,400", acos: "<20%", focus: "Portfolio", organic: "72%"},
+  {wk: 12, phase: "Scale", orders: "110-125", rev: "Rs 16,500", adDay: "Rs 250", cumAd: "Rs 10,150", acos: "<20%", focus: "Lock-in", organic: "75%"}
+];
+
+// ===================== STATE =====================
+let currentWeek = 5;
+let currentDay = "MON";
+const DAYS = ["MON", "TUE", "WED", "THU", "FRI", "SAT"];
+const DAY_LABELS = {MON: "Monday", TUE: "Tuesday", WED: "Wednesday", THU: "Thursday", FRI: "Friday", SAT: "Saturday"};
+
+function storageKey(taskId) {
+  return "v32_" + currentWeek + "_" + currentDay + "_" + taskId;
+}
+function numbersKey() {
+  return "v32_" + currentWeek + "_" + currentDay + "_numbers";
+}
+function getChecked(taskId) {
+  return localStorage.getItem(storageKey(taskId)) === "1";
+}
+function setChecked(taskId, val) {
+  localStorage.setItem(storageKey(taskId), val ? "1" : "0");
+  scheduleSave();
+}
+function getDayChecked(week, day, taskId) {
+  return localStorage.getItem("v32_" + week + "_" + day + "_" + taskId) === "1";
+}
+
+// ===================== RENDER =====================
+function render() {
+  renderWeekTheme();
+  renderDayTabs();
+  renderDayHeader();
+  renderConstants();
+  renderTasks();
+  renderMustAchieve();
+  renderTimeBlocks();
+  renderStopLoss();
+  renderHealth();
+  renderWeekProgress();
+  renderTargetVsActual();
+  renderSkuReference();
+  var sb = document.getElementById("scoreboardSection");
+  if (sb) sb.style.display = (currentDay === "SAT") ? "block" : "none";
+  loadNumbers();
+  checkStopLossOnLoad();
+}
+
+function renderWeekTheme() {
+  var t = WEEK_THEMES[currentWeek];
+  var badgeClass = PHASE_BADGES[t.phase] || "phase-foundation";
+  document.getElementById("weekThemeDesc").innerHTML =
+    "<strong>Week " + currentWeek + ": " + t.name + "</strong> <span class=\"phase-badge " + badgeClass + "\">" + t.phase.toUpperCase() + "</span> — " + t.desc;
+  document.getElementById("weekTargetDisplay").textContent = t.orders + " orders";
+}
+
+function renderDayTabs() {
+  DAYS.forEach(function(d) {
+    var el = document.querySelector(".day-tab[data-day=\'" + d + "\']");
+    var visible = TASKS[d].tasks;
+    var mustVisible = TASKS[d].must;
+    var total = visible.length + CONSTANTS.length + mustVisible.length;
+    var done = visible.filter(function(t) { return getDayChecked(currentWeek, d, t.id); }).length +
+      CONSTANTS.filter(function(c) { return getDayChecked(currentWeek, d, c.id); }).length +
+      mustVisible.filter(function(t) { return getDayChecked(currentWeek, d, t.id); }).length;
+    var allDone = total > 0 && done === total;
+    var someDone = done > 0;
+    el.className = "day-tab" + (d === currentDay ? " active" : "");
+    var html = DAY_LABELS[d];
+    if (allDone) html += " <span class=\"done-dot\"></span>";
+    el.innerHTML = html;
+  });
+}
+
+function renderDayHeader() {
+  var d = TASKS[currentDay];
+  var html = "<h1>" + d.title + "</h1><p>" + d.tagline + "</p>";
+  document.getElementById("dayHdrCard").innerHTML = html;
+  document.getElementById("dayTaskSubtitle").textContent = d.subtitle || "";
+}
+
+function renderConstants() {
+  var html = "";
+  CONSTANTS.forEach(function(c) {
+    var checked = getChecked(c.id);
+    html += "<div class=\"task-item " + (checked ? "done" : "") + "\" onclick=\"toggleTask(\'" + c.id + "\',this)\">" +
+      "<input type=\"checkbox\" " + (checked ? "checked" : "") + " onclick=\"event.stopPropagation();toggleTask(\'" + c.id + "\',this.parentNode)\">" +
+      "<div><div class=\"t-text\"><strong>" + c.title + "</strong> — " + c.text + "</div>" +
+      (c.note ? "<div class=\"t-note\">&#x1F4A1; " + c.note + "</div>" : "") +
+      "</div></div>";
+  });
+  document.getElementById("constantsList").innerHTML = html;
+}
+
+function renderTasks() {
+  var visible = TASKS[currentDay].tasks;
+  var total = visible.length;
+  var done = visible.filter(function(t) { return getChecked(t.id); }).length;
+  document.getElementById("taskProgress").textContent = "(" + done + "/" + total + " done)";
+  var html = "";
+  visible.forEach(function(t) {
+    var checked = getChecked(t.id);
+    html += "<div class=\"task-item " + (checked ? "done" : "") + "\" onclick=\"toggleTask(\'" + t.id + "\',this)\">" +
+      "<input type=\"checkbox\" " + (checked ? "checked" : "") + " onclick=\"event.stopPropagation();toggleTask(\'" + t.id + "\',this.parentNode)\">" +
+      "<div><div class=\"t-text\">" + t.text + "</div>" +
+      (t.note ? "<div class=\"t-note\">&#x1F4A1; " + t.note + "</div>" : "") +
+      "</div></div>";
+  });
+  document.getElementById("taskList").innerHTML = html;
+}
+
+function renderMustAchieve() {
+  var mustVisible = TASKS[currentDay].must;
+  var html = "";
+  mustVisible.forEach(function(t) {
+    var checked = getChecked(t.id);
+    html += "<div class=\"ach-item " + (checked ? "done" : "") + "\" onclick=\"toggleTask(\'" + t.id + "\',this)\">" +
+      "<input type=\"checkbox\" " + (checked ? "checked" : "") + " onclick=\"event.stopPropagation();toggleTask(\'" + t.id + "\',this.parentNode)\">" +
+      "<div class=\"t-text\">" + t.text + "</div></div>";
+  });
+  document.getElementById("mustList").innerHTML = html;
+}
+
+function renderTimeBlocks() {
+  var daySchedules = {
+    MON: [
+      {time: "4:00-4:30", title: "Data Check", desc: "Weekend orders, CTR, CVR, ad spend, returns", kpi: "All numbers logged"},
+      {time: "4:30-5:00", title: "Freshness Edit", desc: "Update 1-2 SKUs (daily constant)", kpi: "SKUs updated, log written"},
+      {time: "5:00-5:30", title: "Review Coord + Q&A", desc: "Respond to buyer questions, plan reviews", kpi: "All Q&A answered"},
+      {time: "5:30-5:45", title: "Stop-Loss Check", desc: "Check all stop-loss rules", kpi: "No red flags OR action taken"},
+      {time: "5:45-6:45", title: "Strategy: Week Planning", desc: "Compare Week X to X-1. Write 3 MUST-DO tasks.", kpi: "3 priorities written"},
+      {time: "6:45-7:45", title: "Execution: Plan + Prep", desc: "Write specific actions for each priority", kpi: "Action plan ready"},
+      {time: "7:45-8:00", title: "Log Results", desc: "Document today, plan tomorrow", kpi: "Daily log complete"}
+    ],
+    TUE: [
+      {time: "4:00-4:30", title: "Data Check", desc: "Orders, CTR, CVR, ad spend, returns", kpi: "Numbers logged"},
+      {time: "4:30-5:00", title: "Freshness Edit", desc: "Update 1-2 SKUs", kpi: "SKUs updated"},
+      {time: "5:00-5:30", title: "Review Coord + Q&A", desc: "Respond to questions, coordinate reviews", kpi: "Q&A done"},
+      {time: "5:30-5:45", title: "Stop-Loss Check", desc: "Check stop-loss rules", kpi: "Flags checked"},
+      {time: "5:45-6:45", title: "Strategy: Competitor Analysis", desc: "Search top 3 competitors. Screenshot. Analyze.", kpi: "3 competitors analyzed"},
+      {time: "6:45-7:45", title: "Execution: Implement Improvement", desc: "Apply ONE insight from competitor analysis", kpi: "1 improvement live"},
+      {time: "7:45-8:00", title: "Log Results", desc: "Document learnings and actions", kpi: "Log complete"}
+    ],
+    WED: [
+      {time: "4:00-4:30", title: "Data Check", desc: "Orders, CTR, CVR, ad spend, returns", kpi: "Numbers logged"},
+      {time: "4:30-5:00", title: "Freshness Edit", desc: "Update 1-2 SKUs", kpi: "SKUs updated"},
+      {time: "5:00-5:30", title: "Review Coord + Q&A", desc: "Respond to questions, plan reviews", kpi: "Q&A done"},
+      {time: "5:30-5:45", title: "Stop-Loss Check", desc: "Check stop-loss rules", kpi: "Flags checked"},
+      {time: "5:45-6:45", title: "Strategy: Ad + Price Audit", desc: "7-day ad performance. Kill losers. Boost winners. Check prices.", kpi: "Bids adjusted, prices checked"},
+      {time: "6:45-7:45", title: "Execution: Apply Changes", desc: "Pause bad keywords. Increase good ones. Adjust prices.", kpi: "Changes deployed"},
+      {time: "7:45-8:00", title: "Log Results", desc: "Document changes and expected impact", kpi: "Log complete"}
+    ],
+    THU: [
+      {time: "4:00-4:30", title: "Data Check", desc: "Orders, CTR, CVR, ad spend, returns", kpi: "Numbers logged"},
+      {time: "4:30-5:00", title: "Freshness Edit", desc: "Update 1-2 SKUs", kpi: "SKUs updated"},
+      {time: "5:00-5:30", title: "Review Coord + Q&A", desc: "Respond to questions, handle negative reviews", kpi: "All reviews handled"},
+      {time: "5:30-5:45", title: "Stop-Loss Check", desc: "Check stop-loss rules", kpi: "Flags checked"},
+      {time: "5:45-6:45", title: "Strategy: Review Distribution", desc: "Balance reviews across SKUs. Coordinate next week.", kpi: "Review plan written"},
+      {time: "6:45-7:45", title: "Execution: Agency Brief", desc: "Write and send detailed brief to review agency", kpi: "Brief sent"},
+      {time: "7:45-8:00", title: "Log Results", desc: "Document review plan and agency communication", kpi: "Log complete"}
+    ],
+    FRI: [
+      {time: "4:00-4:30", title: "Data Check", desc: "Orders, CTR, CVR, ad spend, returns", kpi: "Numbers logged"},
+      {time: "4:30-5:00", title: "Freshness Edit", desc: "Update 1-2 SKUs", kpi: "SKUs updated"},
+      {time: "5:00-5:30", title: "Review Coord + Q&A", desc: "Respond to questions, final review check", kpi: "Q&A done"},
+      {time: "5:30-5:45", title: "Stop-Loss Check", desc: "Check stop-loss rules", kpi: "Flags checked"},
+      {time: "5:45-6:45", title: "Strategy: Freshness Blitz", desc: "Update 3-5 untouched SKUs for weekend shoppers", kpi: "3-5 SKUs updated"},
+      {time: "6:45-7:45", title: "Execution: Deploy Changes", desc: "Deploy all pending changes. Confirm offers live.", kpi: "All changes live"},
+      {time: "7:45-8:00", title: "Log Results", desc: "Write Monday prep note", kpi: "Monday note ready"}
+    ],
+    SAT: [
+      {time: "4:00-4:30", title: "Data Check", desc: "Full week numbers compilation", kpi: "All numbers compiled"},
+      {time: "4:30-5:00", title: "Freshness Edit", desc: "Quick update on 1-2 SKUs", kpi: "SKUs updated"},
+      {time: "5:00-5:30", title: "Review Coord + Q&A", desc: "Catch up on any pending responses", kpi: "All caught up"},
+      {time: "5:30-5:45", title: "Stop-Loss Check", desc: "Final week stop-loss review", kpi: "Week status clear"},
+      {time: "5:45-6:45", title: "Strategy: Full Week Analysis", desc: "Week-over-week comparison. 3 learnings. 3 priorities.", kpi: "Analysis complete"},
+      {time: "6:45-7:45", title: "Execution: Scoreboard + Archive", desc: "Fill scoreboard. Send to founder. Archive data.", kpi: "Scoreboard sent"},
+      {time: "7:45-8:00", title: "Log Results", desc: "Final log entry. Close the week.", kpi: "Week closed"}
+    ]
+  };
+  var blocks = daySchedules[currentDay] || [];
+  var html = "";
+  blocks.forEach(function(tb) {
+    html += "<div class=\"time-block\"><div class=\"tb-time\">" + tb.time + "</div>" +
+      "<div class=\"tb-content\"><div class=\"tb-title\">" + tb.title + "</div>" +
+      "<div class=\"tb-desc\">" + tb.desc + "</div>" +
+      "<div class=\"tb-kpi\">&#x1F3AF; Target: " + tb.kpi + "</div></div></div>";
+  });
+  document.getElementById("timeBlockList").innerHTML = html;
+}
+
+// ===================== TOGGLE =====================
+function toggleTask(taskId, el) {
+  var checked = !el.classList.contains("done");
+  if (checked) {
+    el.classList.add("done");
+    el.querySelector("input[type=checkbox]").checked = true;
+  } else {
+    el.classList.remove("done");
+    el.querySelector("input[type=checkbox]").checked = false;
+  }
+  setChecked(taskId, !checked);
+  renderDayTabs();
+  renderWeekProgress();
+}
+
+// ===================== WEEK/DAY CHANGE =====================
+function onWeekChange() {
+  currentWeek = parseInt(document.getElementById("weekSelect").value);
+  render();
+}
+function onDayChange(day) {
+  currentDay = day;
+  render();
+}
+
+// ===================== STOP-LOSS ENGINE =====================
+function getSavedNumbers() {
+  var raw = localStorage.getItem(numbersKey());
+  return raw ? JSON.parse(raw) : {};
+}
+function checkStopLossOnLoad() {
+  var nums = getSavedNumbers();
+  if (nums.orders !== undefined && nums.orders !== "") {
+    updateStopLossAndHealth();
+  }
+}
+function checkStopLossOnInput() {
+  updateStopLossAndHealth();
+}
+function updateStopLossAndHealth() {
+  renderStopLoss();
+  renderHealth();
+}
+
+function renderStopLoss() {
+  var nums = getSavedNumbers();
+  var cvr = parseFloat(nums.cvr) || 0;
+  var ctr = parseFloat(nums.ctr) || 0;
+  var adspend = parseFloat(nums.adspend) || 0;
+  var adrev = parseFloat(nums.adrev) || 0;
+  var acos = parseFloat(nums.acos) || (adrev > 0 ? (adspend / adrev) * 100 : 0);
+  var returnrate = parseFloat(nums.returnrate) || 0;
+  var cpc = parseFloat(nums.cpc) || 0;
+  var clicks = parseFloat(nums.clicks) || 0;
+  var weekorders = parseFloat(nums.weekorders) || 0;
+  var hasAds = currentWeek >= 5;
+  var hasData = nums.orders !== undefined && nums.orders !== "";
+
+  var r1 = hasAds && hasData && acos > 40;
+  var r2 = hasAds && hasData && ctr < 0.3 && adspend >= 100;
+  var r3 = hasAds && hasData && clicks === 0 && adspend > 0;
+  var r4 = hasAds && hasData && cvr < 0.5 && clicks >= 100;
+  var r5 = hasAds && hasData && returnrate > 25;
+  var r6 = hasAds && hasData && cpc > 12;
+  var b1 = hasData && weekorders > 0 && nums.prevWeekOrders && (weekorders < nums.prevWeekOrders * 0.8);
+  var b2 = false;
+  var b3 = false;
+
+  var anyRed = r1 || r2 || r3 || r4 || r5 || r6;
+  var slBar = document.getElementById("slAlertBar");
+  if (anyRed) {
+    slBar.className = "sl-alert show";
+    var msgs = [];
+    if (r1) msgs.push("ACOS above 40% — PAUSE ads now");
+    if (r2) msgs.push("CTR below 0.3% after Rs 100+ spent — fix image");
+    if (r3) msgs.push("Zero impressions — check category/status");
+    if (r4) msgs.push("CVR below 0.5% after 100 clicks — check price/reviews");
+    if (r5) msgs.push("Return rate above 25% — PAUSE ads on that SKU");
+    if (r6) msgs.push("CPC above Rs 12 — find cheaper keywords");
+    document.getElementById("slAlertMsg").textContent = "STOP-LOSS TRIGGERED: " + msgs.join(" | ");
+  } else {
+    slBar.className = "sl-alert";
+  }
+
+  var html = "";
+  html += makeSLItem("ACOS &gt; 40% for 2 days", "PAUSE all ads immediately. Fix listing before restarting.",
+    "ACOS: " + (acos > 0 ? acos.toFixed(1) + "%" : "Not entered"), r1, r1 && acos > 35 && acos <= 40);
+  html += makeSLItem("Ad CTR &lt; 0.3% after 48hrs", "Reduce bid 50% or PAUSE. Test new main image for 48hrs.",
+    "CTR: " + (ctr || "Not entered") + "% | Spend: Rs " + (adspend || 0), r2, false);
+  html += makeSLItem("Zero impressions after 24hrs", "Check category. Check product status in dashboard.",
+    "Clicks today: " + (clicks || 0), r3, false);
+  html += makeSLItem("CVR &lt; 0.5% after 100 clicks", "Check price vs competitors. Check reviews.",
+    "CVR: " + (cvr || "Not entered") + "% | Clicks: " + (clicks || 0), r4, false);
+  html += makeSLItem("Return rate from ads &gt; 25%", "PAUSE ads on that SKU. Fix description. Add usage guide.",
+    "Return rate: " + (returnrate || "Not entered") + "%", r5, returnrate > 20 && returnrate <= 25);
+  html += makeSLItem("CPC &gt; Rs 12 consistently", "Reduce bid or change keywords.",
+    "CPC: Rs " + (cpc || "Not entered"), r6, cpc > 10 && cpc <= 12);
+
+  document.getElementById("stopLossList").innerHTML = html;
+}
+
+function makeSLItem(trigger, action, current, isRed, isYellow) {
+  var cls = isRed ? "sl-danger" : (isYellow ? "sl-warn" : "sl-safe");
+  var actCls = isRed ? "danger-act" : (isYellow ? "warn-act" : "safe-act");
+  var status = isRed ? "TRIGGERED" : (isYellow ? "WARNING" : "OK");
+  var statusIcon = isRed ? "&#x1F534;" : (isYellow ? "&#x1F7E1;" : "&#x1F7E2;");
+  return "<div class=\"sl-item " + cls + "\"><h4>" + statusIcon + " " + trigger + " — " + status + "</h4>" +
+    "<p>" + action + "</p>" +
+    "<p style=\"margin-top:4px;font-weight:700;color:#4a5568\">Current: " + current + "</p>" +
+    "<div class=\"sl-action " + actCls + "\">" + (isRed ? "ACT NOW — Within 24 hours" : (isYellow ? "Watch closely" : "No action needed")) + "</div></div>";
+}
+
+// ===================== HEALTH =====================
+function renderHealth() {
+  var nums = getSavedNumbers();
+  var cvr = parseFloat(nums.cvr) || 0;
+  var ctr = parseFloat(nums.ctr) || 0;
+  var acos = parseFloat(nums.acos) || (parseFloat(nums.adspend) > 0 && parseFloat(nums.adrev) > 0 ? (parseFloat(nums.adspend) / parseFloat(nums.adrev)) * 100 : 0);
+  var returnrate = parseFloat(nums.returnrate) || 0;
+  var weekorders = parseFloat(nums.weekorders) || 0;
+  var hasData = nums.orders !== undefined && nums.orders !== "";
+  var html = "";
+
+  if (weekorders > 0) {
+    var tgtMin = 20, tgtMax = 25;
+    if (currentWeek === 6) { tgtMin = 30; tgtMax = 40; }
+    else if (currentWeek === 7) { tgtMin = 45; tgtMax = 55; }
+    else if (currentWeek === 8) { tgtMin = 55; tgtMax = 70; }
+    else if (currentWeek === 9) { tgtMin = 70; tgtMax = 85; }
+    else if (currentWeek === 10) { tgtMin = 85; tgtMax = 100; }
+    else if (currentWeek === 11) { tgtMin = 100; tgtMax = 115; }
+    else if (currentWeek === 12) { tgtMin = 110; tgtMax = 125; }
+    if (weekorders >= tgtMin) html += "<span class=\"health-pill hp-green\">Orders: On Track (" + weekorders + "/" + tgtMin + "-" + tgtMax + ")</span>";
+    else if (weekorders >= tgtMin * 0.7) html += "<span class=\"health-pill hp-yellow\">Orders: Behind (" + weekorders + "/" + tgtMin + "-" + tgtMax + ")</span>";
+    else html += "<span class=\"health-pill hp-red\">Orders: Too Low (" + weekorders + "/" + tgtMin + "-" + tgtMax + ")</span>";
+  } else { html += "<span class=\"health-pill hp-gray\">Orders: Enter data</span>"; }
+
+  if (ctr > 0) {
+    if (ctr >= 1.5) html += "<span class=\"health-pill hp-green\">CTR: Good (" + ctr + "%)</span>";
+    else if (ctr >= 0.8) html += "<span class=\"health-pill hp-yellow\">CTR: Low (" + ctr + "%)</span>";
+    else html += "<span class=\"health-pill hp-red\">CTR: Bad (" + ctr + "%)</span>";
+  } else { html += "<span class=\"health-pill hp-gray\">CTR: Enter data</span>"; }
+
+  if (cvr > 0) {
+    if (cvr >= 2) html += "<span class=\"health-pill hp-green\">CVR: Good (" + cvr + "%)</span>";
+    else if (cvr >= 1) html += "<span class=\"health-pill hp-yellow\">CVR: Low (" + cvr + "%)</span>";
+    else html += "<span class=\"health-pill hp-red\">CVR: Bad (" + cvr + "%)</span>";
+  } else { html += "<span class=\"health-pill hp-gray\">CVR: Enter data</span>"; }
+
+  if (currentWeek >= 5 && acos > 0) {
+    if (acos <= 25) html += "<span class=\"health-pill hp-green\">ACOS: Excellent (" + acos.toFixed(1) + "%)</span>";
+    else if (acos <= 35) html += "<span class=\"health-pill hp-yellow\">ACOS: Warning (" + acos.toFixed(1) + "%)</span>";
+    else html += "<span class=\"health-pill hp-red\">ACOS: DANGER (" + acos.toFixed(1) + "%)</span>";
+  } else if (currentWeek >= 5) { html += "<span class=\"health-pill hp-gray\">ACOS: Enter data</span>"; }
+
+  if (returnrate > 0) {
+    if (returnrate < 15) html += "<span class=\"health-pill hp-green\">Returns: OK (" + returnrate + "%)</span>";
+    else if (returnrate <= 25) html += "<span class=\"health-pill hp-yellow\">Returns: High (" + returnrate + "%)</span>";
+    else html += "<span class=\"health-pill hp-red\">Returns: DANGER (" + returnrate + "%)</span>";
+  } else { html += "<span class=\"health-pill hp-gray\">Returns: Enter data</span>"; }
+
+  document.getElementById("healthBox").innerHTML = html;
+  document.getElementById("healthHint").textContent = hasData ? "Health indicators update automatically." : "Enter today's numbers above to see health status.";
+}
+
+// ===================== PROGRESS =====================
+function renderWeekProgress() {
+  var html = "";
+  DAYS.forEach(function(d) {
+    var visible = TASKS[d].tasks;
+    var mustVisible = TASKS[d].must;
+    var total = visible.length + CONSTANTS.length + mustVisible.length;
+    var done = visible.filter(function(t) { return getDayChecked(currentWeek, d, t.id); }).length +
+      CONSTANTS.filter(function(c) { return getDayChecked(currentWeek, d, c.id); }).length +
+      mustVisible.filter(function(t) { return getDayChecked(currentWeek, d, t.id); }).length;
+    var pct = total > 0 ? Math.round((done / total) * 100) : 0;
+    var color = pct === 100 ? "#1565C0" : pct > 50 ? "#3182ce" : "#a0aec0";
+    html += "<div class=\"day-prog-item\"><div class=\"dp-label\">" + DAY_LABELS[d].substring(0, 3) + "</div>" +
+      "<div class=\"dp-bar\"><div class=\"dp-fill\" style=\"width:" + pct + "%;background:" + color + "\"></div></div>" +
+      "<div class=\"dp-pct\">" + pct + "%</div></div>";
+  });
+  document.getElementById("weekProgress").innerHTML = html;
+}
+
+// ===================== TARGET VS ACTUAL =====================
+function renderTargetVsActual() {
+  var nums = getSavedNumbers();
+  var wk = TARGET_TABLE[currentWeek - 1];
+  var weekorders = parseFloat(nums.weekorders) || 0;
+  var acos = parseFloat(nums.acos) || 0;
+  var html = "<table style=\"width:100%;font-size:11px;border-collapse:collapse\">" +
+    "<tr style=\"background:#f7fafc\"><th style=\"padding:4px 6px;text-align:left\">Metric</th>" +
+    "<th style=\"padding:4px 6px;text-align:center\">Target</th><th style=\"padding:4px 6px;text-align:center\">Your Number</th></tr>" +
+    "<tr><td style=\"padding:4px 6px;border-bottom:1px solid #f7fafc\">Orders (week)</td>" +
+    "<td style=\"text-align:center\">" + wk.orders + "</td><td style=\"text-align:center;font-weight:700\">" + (weekorders || "—") + "</td></tr>" +
+    "<tr><td style=\"padding:4px 6px;border-bottom:1px solid #f7fafc\">CTR</td>" +
+    "<td style=\"text-align:center\">&gt;1.5%</td><td style=\"text-align:center;font-weight:700\">" + (nums.ctr || "—") + (nums.ctr ? "%" : "") + "</td></tr>" +
+    "<tr><td style=\"padding:4px 6px;border-bottom:1px solid #f7fafc\">CVR</td>" +
+    "<td style=\"text-align:center\">&gt;2%</td><td style=\"text-align:center;font-weight:700\">" + (nums.cvr || "—") + (nums.cvr ? "%" : "") + "</td></tr>";
+  if (currentWeek >= 5) {
+    html += "<tr><td style=\"padding:4px 6px;border-bottom:1px solid #f7fafc\">ACOS</td>" +
+      "<td style=\"text-align:center\">" + wk.acos + "</td><td style=\"text-align:center;font-weight:700\">" + (acos > 0 ? acos.toFixed(1) + "%" : "—") + "</td></tr>";
+  }
+  html += "<tr><td style=\"padding:4px 6px\">Ad Spend</td><td style=\"text-align:center\">" + wk.adDay + "</td>" +
+    "<td style=\"text-align:center;font-weight:700\">" + (nums.adspend ? "Rs " + nums.adspend : "—") + "</td></tr>" +
+    "<tr><td style=\"padding:4px 6px\">Focus</td><td style=\"text-align:center\" colspan=\"2\">" + wk.focus + "</td></tr>" +
+    "</table>";
+  document.getElementById("targetVsActual").innerHTML = html;
+}
+
+// ===================== SKU REFERENCE =====================
+function renderSkuReference() {
+  var html = "";
+  SKUS.forEach(function(s) {
+    html += "<div class=\"sku-row\"><span class=\"badge " + s.type + "\">" + s.type.toUpperCase() + "</span>" +
+      "<div style=\"flex:1;padding:0 8px\"><div class=\"sku-code\">" + s.code + "</div>" +
+      "<div class=\"sku-name\">" + s.name + "</div>" +
+      "<div style=\"font-size:10px;color:#718096;font-style:italic\">" + s.note + "</div></div></div>";
+  });
+  document.getElementById("skuReference").innerHTML = html;
+}
+
+// ===================== NUMBERS SAVE/LOAD =====================
+function saveNumbers() {
+  var nums = {
+    orders: document.getElementById("n_orders").value,
+    ctr: document.getElementById("n_ctr").value,
+    cvr: document.getElementById("n_cvr").value,
+    adspend: document.getElementById("n_adspend").value,
+    adrev: document.getElementById("n_adrev").value,
+    returns: document.getElementById("n_returns").value,
+    weekorders: document.getElementById("n_weekorders").value,
+    returnrate: document.getElementById("n_returnrate").value,
+    acos: document.getElementById("n_acos").value,
+    cpc: document.getElementById("n_cpc").value,
+    clicks: document.getElementById("n_clicks").value,
+    notes: document.getElementById("n_notes").value
+  };
+  localStorage.setItem(numbersKey(), JSON.stringify(nums));
+  scheduleSave();
+  var msg = document.getElementById("savedMsg");
+  msg.style.display = "block";
+  setTimeout(function() { msg.style.display = "none"; }, 2000);
+  renderStopLoss();
+  renderHealth();
+  renderTargetVsActual();
+}
+function loadNumbers() {
+  var nums = getSavedNumbers();
+  if (nums.orders !== undefined) document.getElementById("n_orders").value = nums.orders || "";
+  if (nums.ctr !== undefined) document.getElementById("n_ctr").value = nums.ctr || "";
+  if (nums.cvr !== undefined) document.getElementById("n_cvr").value = nums.cvr || "";
+  if (nums.adspend !== undefined) document.getElementById("n_adspend").value = nums.adspend || "";
+  if (nums.adrev !== undefined) document.getElementById("n_adrev").value = nums.adrev || "";
+  if (nums.returns !== undefined) document.getElementById("n_returns").value = nums.returns || "";
+  if (nums.weekorders !== undefined) document.getElementById("n_weekorders").value = nums.weekorders || "";
+  if (nums.returnrate !== undefined) document.getElementById("n_returnrate").value = nums.returnrate || "";
+  if (nums.acos !== undefined) document.getElementById("n_acos").value = nums.acos || "";
+  if (nums.cpc !== undefined) document.getElementById("n_cpc").value = nums.cpc || "";
+  if (nums.clicks !== undefined) document.getElementById("n_clicks").value = nums.clicks || "";
+  if (nums.notes !== undefined) document.getElementById("n_notes").value = nums.notes || "";
+}
+
+// ===================== COLLAPSIBLE =====================
+function toggleCollapsible(header) {
+  var content = header.nextElementSibling;
+  if (content.classList.contains("show")) {
+    content.classList.remove("show");
+  } else {
+    content.classList.add("show");
+  }
+}
+
+// ===================== SCOREBOARD =====================
+function generateScoreboard() {
+  var target = document.getElementById("sb_target").value || "—";
+  var actual = document.getElementById("sb_actual").value || "—";
+  var best = document.getElementById("sb_best").value || "—";
+  var worst = document.getElementById("sb_worst").value || "—";
+  var adspend = document.getElementById("sb_adspend").value || "0";
+  var adrev = document.getElementById("sb_adrev").value || "0";
+  var acos = document.getElementById("sb_acos").value || "—";
+  var retrate = document.getElementById("sb_returnrate").value || "—";
+  var organic = document.getElementById("sb_organic").value || "—";
+  var freshness = document.getElementById("sb_freshness").value || "—";
+  var stoploss = document.getElementById("sb_stoploss").value || "—";
+  var stock = document.getElementById("sb_stock").value || "—";
+  var wins = document.getElementById("sb_wins").value || "—";
+  var misses = document.getElementById("sb_misses").value || "—";
+  var decision = document.getElementById("sb_decision").value || "—";
+  var t = WEEK_THEMES[currentWeek];
+  var today = new Date().toLocaleDateString("en-IN", {day: "numeric", month: "long", year: "numeric"});
+  var roas = parseFloat(adspend) > 0 ? (parseFloat(adrev) / parseFloat(adspend)).toFixed(2) : "N/A";
+
+  var text = "TREYFA x JIOMART — WEEK " + currentWeek + " SCOREBOARD\n" +
+    "Date: " + today + "\n" +
+    "Week Focus: " + t.name + "\n" +
+    "Phase: " + t.phase.toUpperCase() + "\n" +
+    "════════════════════════════════════════════\n\n" +
+    "TARGET vs ACTUAL\n" +
+    "Target: " + target + "\n" +
+    "Actual: " + actual + "\n\n" +
+    "PRODUCT PERFORMANCE\n" +
+    "Best: " + best + "\n" +
+    "Worst: " + worst + "\n\n" +
+    "AD PERFORMANCE\n" +
+    "Ad Spend: Rs " + adspend + "\n" +
+    "Ad Revenue: Rs " + adrev + "\n" +
+    "ROAS: " + roas + "x\n" +
+    "ACOS: " + acos + "\n\n" +
+    "HEALTH METRICS\n" +
+    "Return Rate: " + retrate + "\n" +
+    "Organic %: " + organic + "\n" +
+    "Freshness Edits: " + freshness + "/18\n" +
+    "Stock: " + stock + "\n" +
+    "Stop-Losses: " + stoploss + "\n\n" +
+    "WINS THIS WEEK\n" + wins + "\n\n" +
+    "PROBLEMS THIS WEEK\n" + misses + "\n\n" +
+    "DECISION NEEDED\n" + decision + "\n\n" +
+    "════════════════════════════════════════════\n" +
+    "Generated from Treyfa x JioMart Dashboard v3.2";
+
+  var out = document.getElementById("sbOutput");
+  out.textContent = text;
+  out.style.display = "block";
+  document.getElementById("copyBtn").style.display = "inline-block";
+}
+function copyScoreboard() {
+  var text = document.getElementById("sbOutput").textContent;
+  navigator.clipboard.writeText(text).then(function() {
+    var btn = document.getElementById("copyBtn");
+    btn.textContent = "Copied!";
+    setTimeout(function() { btn.textContent = "Copy to Clipboard"; }, 2000);
+  });
+}
+function dismissAlert(id) {
+  document.getElementById(id).classList.remove("show");
+}
+
+// ── DB Sync via postMessage bridge ───────────────────────────────────────
+const PLATFORM = 'JioMart';
+const LS_PREFIX = 'v32_';
+
+function gatherData() {
+  var blob = {};
+  for (var i = 0; i < localStorage.length; i++) {
+    var k = localStorage.key(i);
+    if (k && k.startsWith(LS_PREFIX)) blob[k] = localStorage.getItem(k);
+  }
+  return blob;
+}
+
+function restoreData(blob) {
+  if (!blob || typeof blob !== 'object') return;
+  Object.keys(blob).forEach(function(k) { if (k.startsWith(LS_PREFIX)) localStorage.setItem(k, blob[k]); });
+}
+
+var _syncTimer;
+function scheduleSave() {
+  clearTimeout(_syncTimer);
+  _syncTimer = setTimeout(function() {
+    window.parent.postMessage({ type: 'DASH_SAVE', platform: PLATFORM, data: gatherData() }, '*');
+  }, 800);
+}
+
+window.addEventListener('message', function(e) {
+  if (!e.data || e.data.type !== 'DASH_DATA' || e.data.platform !== PLATFORM) return;
+  restoreData(e.data.data);
+  render();
+});
+
+// ===================== INIT =====================
+document.getElementById("dateDisplay").textContent = new Date().toLocaleDateString("en-IN", {weekday: "long", day: "numeric", month: "long", year: "numeric"});
+document.getElementById("weekSelect").value = currentWeek;
+window.parent.postMessage({ type: 'DASH_LOAD', platform: PLATFORM }, '*');
+render();
+</script>
+</body>
+</html>
