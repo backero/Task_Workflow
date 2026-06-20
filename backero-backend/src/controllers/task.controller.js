@@ -3,6 +3,7 @@ const TaskApproval = require('../models/TaskApproval');
 const Notification = require('../models/Notification');
 const ActivityLog = require('../models/ActivityLog');
 const User = require('../models/User');
+const Organization = require('../models/Organization');
 const { asyncHandler, sendSuccess, sendError, paginate, paginateResponse } = require('../utils/helpers');
 const { TASK_STATUS, SOCKET_EVENTS, ROLES, ROLE_HIERARCHY } = require('../utils/constants');
 const { createNotification } = require('../services/notification.service');
@@ -154,9 +155,10 @@ exports.createTask = asyncHandler(async (req, res) => {
     }
   }
 
-  // For dept hub tasks, fall back to the creator so the task is never left unassigned
+  // For dept hub tasks, assign to the org's admin (createdBy) so the task is never left unassigned
   if (isDeptHub && !actualAssignedTo) {
-    actualAssignedTo = req.user._id;
+    const org = await Organization.findById(req.user.organizationId).select('createdBy');
+    actualAssignedTo = org?.createdBy || req.user._id;
     pendingManagerAssignmentData = undefined;
   }
 
