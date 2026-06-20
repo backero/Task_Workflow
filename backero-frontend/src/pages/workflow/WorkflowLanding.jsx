@@ -340,7 +340,7 @@ function DeptHubModal({ onClose, onCreated, prefill }) {
     priority: prefill?.priority || 'high',
   });
   const emptyRow = () => ({ id: uid(), dept: '', taskTitle: '', managerId: '', dueDate: '' });
-  const [rows, setRows]     = useState([emptyRow()]);
+  const [rows, setRows]     = useState([{ id: uid(), dept: 'Production', taskTitle: '', managerId: '', dueDate: '' }]);
   const [allUsers, setAll]  = useState([]);
   const [busy, setBusy]     = useState(false);
   const [err,  setErr]      = useState('');
