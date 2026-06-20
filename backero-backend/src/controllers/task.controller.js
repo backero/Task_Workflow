@@ -154,6 +154,12 @@ exports.createTask = asyncHandler(async (req, res) => {
     }
   }
 
+  // For dept hub tasks, fall back to the creator so the task is never left unassigned
+  if (isDeptHub && !actualAssignedTo) {
+    actualAssignedTo = req.user._id;
+    pendingManagerAssignmentData = undefined;
+  }
+
   const task = await Task.create({
     organizationId: req.user.organizationId,
     title, description, department, assignedTo: actualAssignedTo, priority, dueDate, estimatedHours, tags, taskType, platform, relatedTo, isRecurring, recurringConfig, parentTask, watchers,
