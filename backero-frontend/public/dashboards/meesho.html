@@ -1409,7 +1409,7 @@ const DAY_LABELS = {MON:'Monday',TUE:'Tuesday',WED:'Wednesday',THU:'Thursday',FR
 function storageKey(type) {return `meesho_w${currentWeek}_${currentDay}_${type}_${currentRole}`;}
 function numbersKey() {return `meesho_w${currentWeek}_${currentDay}_numbers`;}
 function getChecked(id) {return localStorage.getItem(`meesho_w${currentWeek}_${currentDay}_${id}`) === '1';}
-function setChecked(id, val) {localStorage.setItem(`meesho_w${currentWeek}_${currentDay}_${id}`, val ? '1' : '0'); scheduleSave();}
+function setChecked(id, val) {localStorage.setItem(`meesho_w${currentWeek}_${currentDay}_${id}`, val ? '1' : '0');}
 function getDayChecked(week, day, id) {return localStorage.getItem(`meesho_w${week}_${day}_${id}`) === '1';}
 
 // ===================== RENDER =====================
@@ -2223,7 +2223,6 @@ function saveNumbersToStorage() {
     notes: document.getElementById('n_notes').value,
   };
   localStorage.setItem(numbersKey(), JSON.stringify(nums));
-  scheduleSave();
 }
 
 function loadNumbers() {
@@ -2263,43 +2262,33 @@ function init() {
 // Save week when changed
 document.getElementById('weekSelect').addEventListener('change', function() {
   localStorage.setItem('meesho_current_week', this.value);
-  scheduleSave();
 });
 
-// ── DB Sync via postMessage bridge ───────────────────────────────────────
-const PLATFORM = 'Meesho';
-const LS_PREFIX = 'meesho_';
-
-function gatherData() {
-  const blob = {};
-  for (let i = 0; i < localStorage.length; i++) {
-    const k = localStorage.key(i);
-    if (k && k.startsWith(LS_PREFIX)) blob[k] = localStorage.getItem(k);
-  }
-  return blob;
-}
-
-function restoreData(blob) {
-  if (!blob || typeof blob !== 'object') return;
-  Object.entries(blob).forEach(([k, v]) => { if (k.startsWith(LS_PREFIX)) localStorage.setItem(k, v); });
-}
-
-let _syncTimer;
-function scheduleSave() {
-  clearTimeout(_syncTimer);
-  _syncTimer = setTimeout(() => {
-    window.parent.postMessage({ type: 'DASH_SAVE', platform: PLATFORM, data: gatherData() }, '*');
-  }, 800);
-}
-
-window.addEventListener('message', (e) => {
-  if (!e.data || e.data.type !== 'DASH_DATA' || e.data.platform !== PLATFORM) return;
-  restoreData(e.data.data);
-  render();
-});
-
-window.parent.postMessage({ type: 'DASH_LOAD', platform: PLATFORM }, '*');
 init();
+</script>
+<script>
+/* Backero backend sync bridge v2 */
+(function(){
+  var P='Meesho',PFX='meesho_',_r=false,_t=null;
+  var _orig=Storage.prototype.setItem;
+  Storage.prototype.setItem=function(k,v){
+    _orig.call(this,k,v);
+    if(this!==window.localStorage||_r)return;
+    clearTimeout(_t);
+    _t=setTimeout(function(){
+      var d={};for(var i=0;i<localStorage.length;i++){var k2=localStorage.key(i);if(k2&&k2.indexOf(PFX)===0)d[k2]=localStorage.getItem(k2);}
+      if(!Object.keys(d).length)return;
+      try{window.parent.postMessage({type:'DASH_SAVE',platform:P,data:d},'*');}catch(e){}
+    },1500);
+  };
+  window.addEventListener('message',function(e){
+    if(!e.data||e.data.type!=='DASH_DATA'||e.data.platform!==P)return;
+    _r=true;var d=e.data.data||{};Object.keys(d).forEach(function(k){_orig.call(localStorage,k,d[k]);});_r=false;
+    if(typeof render==='function')render();
+  });
+  function reqLoad(){try{if(window.parent!==window)window.parent.postMessage({type:'DASH_LOAD',platform:P},'*');}catch(e){}}
+  if(document.readyState==='complete')reqLoad();else window.addEventListener('load',reqLoad);
+})();
 </script>
 </body>
 </html>

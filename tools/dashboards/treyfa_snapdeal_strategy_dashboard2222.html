@@ -1850,5 +1850,15 @@ document.addEventListener('keydown', e => {
 // ===== INIT =====
 init();
 </script>
+<script>
+/* Backero backend sync bridge */
+(function(){
+  var P='Snapdeal',PFX='snapdeal_',_r=false,_t=null;
+  var _s=window.localStorage.setItem.bind(window.localStorage);
+  window.localStorage.setItem=function(k,v){_s(k,v);if(_r)return;clearTimeout(_t);_t=setTimeout(function(){var d={};for(var i=0;i<localStorage.length;i++){var k2=localStorage.key(i);if(k2&&k2.indexOf(PFX)===0)d[k2]=localStorage.getItem(k2);}try{parent.postMessage({type:'DASH_SAVE',platform:P,data:d},'*');}catch(e){}},1500);};
+  window.addEventListener('message',function(e){if(!e.data||e.data.type!=='DASH_DATA'||e.data.platform!==P)return;_r=true;var d=e.data.data||{};Object.keys(d).forEach(function(k){_s(k,d[k]);});_r=false;if(typeof renderAll==='function')renderAll();else if(typeof render==='function')render();});
+  window.addEventListener('load',function(){try{parent.postMessage({type:'DASH_LOAD',platform:P},'*');}catch(e){}});
+})();
+</script>
 </body>
 </html>

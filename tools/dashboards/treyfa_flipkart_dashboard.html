@@ -852,5 +852,29 @@ document.getElementById('weekSelect').addEventListener('change', function() {
 
 init();
 </script>
+<script>
+/* Backero backend sync bridge v2 */
+(function(){
+  var P='Flipkart',PFX='treyfa_',_r=false,_t=null;
+  var _orig=Storage.prototype.setItem;
+  Storage.prototype.setItem=function(k,v){
+    _orig.call(this,k,v);
+    if(this!==window.localStorage||_r)return;
+    clearTimeout(_t);
+    _t=setTimeout(function(){
+      var d={};for(var i=0;i<localStorage.length;i++){var k2=localStorage.key(i);if(k2&&k2.indexOf(PFX)===0)d[k2]=localStorage.getItem(k2);}
+      if(!Object.keys(d).length)return;
+      try{window.parent.postMessage({type:'DASH_SAVE',platform:P,data:d},'*');}catch(e){}
+    },1500);
+  };
+  window.addEventListener('message',function(e){
+    if(!e.data||e.data.type!=='DASH_DATA'||e.data.platform!==P)return;
+    _r=true;var d=e.data.data||{};Object.keys(d).forEach(function(k){_orig.call(localStorage,k,d[k]);});_r=false;
+    if(typeof render==='function')render();
+  });
+  function reqLoad(){try{if(window.parent!==window)window.parent.postMessage({type:'DASH_LOAD',platform:P},'*');}catch(e){}}
+  if(document.readyState==='complete')reqLoad();else window.addEventListener('load',reqLoad);
+})();
+</script>
 </body>
 </html>

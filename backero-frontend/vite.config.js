@@ -8,6 +8,11 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const KNOWN_PLATFORMS = ['amazon', 'flipkart', 'meesho', 'snapdeal', 'myntra', 'jiomart'];
 
+const PLATFORM_DISPLAY = {
+  amazon: 'Amazon', flipkart: 'Flipkart', meesho: 'Meesho',
+  snapdeal: 'Snapdeal', myntra: 'Myntra', jiomart: 'JioMart',
+};
+
 function getPlatformKey(filename) {
   const lower = filename.toLowerCase();
   for (const p of KNOWN_PLATFORMS) {
@@ -17,7 +22,7 @@ function getPlatformKey(filename) {
 }
 
 function capitalize(s) {
-  return s.charAt(0).toUpperCase() + s.slice(1);
+  return PLATFORM_DISPLAY[s] || (s.charAt(0).toUpperCase() + s.slice(1));
 }
 
 function dashboardSyncPlugin() {

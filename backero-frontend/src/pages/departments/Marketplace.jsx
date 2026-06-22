@@ -22,6 +22,17 @@ const PLATFORM_META = {
   JioMart:  { color: '#0077B6', bg: '#eff6ff', text: '#1e40af', initial: 'J' },
   Snapdeal: { color: '#e40046', bg: '#fff1f2', text: '#9f1239', initial: 'S' },
 };
+const DAY_ORDER = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+const DASH_KEY_PARSERS = {
+  Amazon:   /^ta_w(\d+)_([A-Za-z]+)_numbers$/,
+  Flipkart: /^treyfa_w(\d+)_([A-Za-z]+)_numbers$/,
+  Meesho:   /^meesho_w(\d+)_([A-Za-z]+)_numbers$/,
+  Myntra:   /^tm_w(\d+)_([A-Za-z]+)_numbers$/,
+  Snapdeal: /^snapdeal_numbers_(\d+)_([A-Za-z]+)$/,
+  JioMart:  /^v32_w(\d+)_([A-Za-z]+)_numbers$/,
+};
+
 const STATUS_COLORS = {
   'Completed':        { dot: '#22c55e', badge: 'bg-green-100 text-green-700' },
   'In Progress':      { dot: '#eab308', badge: 'bg-yellow-100 text-yellow-800' },
@@ -2193,13 +2204,121 @@ function PlanTab({ platform = 'Amazon' }) {
   );
 }
 
+// ── Dashboard Numbers Report ──────────────────────────────────────────────────
+
+function DashboardReport({ platform }) {
+  const cfg      = PLATFORM_PLAN_CONFIG[platform] || PLATFORM_PLAN_CONFIG.Amazon;
+  const re       = DASH_KEY_PARSERS[platform];
+  const meta     = PLATFORM_META[platform] || {};
+  const color    = meta.color || '#f97316';
+
+  const { data: rawData, isLoading } = useQuery({
+    queryKey: ['dash-report', platform],
+    queryFn:  () => api.get(`/marketplace/dashboard/${platform}`).then(r => r.data?.data || {}),
+    staleTime: 15000,
+  });
+
+  const entries = useMemo(() => {
+    if (!rawData || !re) return [];
+    const rows = [];
+    Object.entries(rawData).forEach(([key, val]) => {
+      const m = re.exec(key);
+      if (!m) return;
+      try { rows.push({ week: parseInt(m[1]), day: m[2], nums: JSON.parse(val) }); } catch {}
+    });
+    return rows.sort((a, b) => a.week - b.week || DAY_ORDER.indexOf(a.day) - DAY_ORDER.indexOf(b.day));
+  }, [rawData, re]);
+
+  const kpiFields = useMemo(() => cfg.getKpiFields(null, cfg.budgetLabels[1] || 'base'), [cfg]);
+
+  const byWeek = useMemo(() => {
+    const map = {};
+    entries.forEach(e => { (map[e.week] = map[e.week] || []).push(e); });
+    return map;
+  }, [entries]);
+
+  if (isLoading) return (
+    <div className="flex items-center justify-center py-16 text-gray-400">
+      <ArrowPathIcon className="w-5 h-5 animate-spin mr-2" /> Loading report…
+    </div>
+  );
+
+  if (!entries.length) return (
+    <div className="text-center py-16 text-gray-400">
+      <ChartBarIcon className="w-10 h-10 mx-auto mb-3 opacity-20" />
+      <p className="text-sm font-medium text-gray-500">No numbers saved yet for {platform}</p>
+      <p className="text-xs mt-1 text-gray-400">Open the {platform} dashboard, enter today's numbers, and click "Save Today's Numbers"</p>
+    </div>
+  );
+
+  return (
+    <div className="space-y-5">
+      {Object.entries(byWeek).map(([week, rows]) => (
+        <div key={week} className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
+          <div className="px-4 py-2.5 flex items-center gap-2" style={{ background: color + '18', borderBottom: `2px solid ${color}30` }}>
+            <span className="text-xs font-black" style={{ color }}>WEEK {week}</span>
+            <span className="text-[10px] text-gray-400 font-medium">{rows.length} day{rows.length > 1 ? 's' : ''} recorded</span>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="bg-gray-50 border-b border-gray-100">
+                  <th className="text-left px-4 py-2 font-bold text-gray-500 w-16">Day</th>
+                  {kpiFields.map(f => (
+                    <th key={f.key} className="text-right px-3 py-2 font-bold text-gray-500 whitespace-nowrap">{f.label}</th>
+                  ))}
+                  {rows[0]?.nums?.notes !== undefined && (
+                    <th className="text-left px-3 py-2 font-bold text-gray-500">Notes</th>
+                  )}
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map(({ day, nums }) => {
+                  const alerts = cfg.evalAlerts ? cfg.evalAlerts(nums) : [];
+                  const hasAlert = alerts.some(a => a.level === 'red');
+                  const hasWarn  = !hasAlert && alerts.some(a => a.level === 'amber');
+                  return (
+                    <tr key={day} className={clsx('border-b border-gray-50 last:border-0 hover:bg-gray-50 transition-colors',
+                      hasAlert ? 'bg-red-50' : hasWarn ? 'bg-amber-50' : '')}>
+                      <td className="px-4 py-2.5 font-bold text-gray-700">
+                        {day}
+                        {hasAlert && <span className="ml-1 text-red-500 text-[9px]">⛔</span>}
+                        {hasWarn  && <span className="ml-1 text-amber-500 text-[9px]">⚠️</span>}
+                      </td>
+                      {kpiFields.map(f => {
+                        const v = nums[f.key] ?? nums[f.key === 'adRevenue' ? 'adRev' : f.key];
+                        const hasVal = v !== undefined && v !== '' && v !== null;
+                        return (
+                          <td key={f.key} className={clsx('px-3 py-2.5 text-right font-mono',
+                            hasVal ? 'text-gray-800 font-semibold' : 'text-gray-300')}>
+                            {hasVal ? v : '—'}
+                          </td>
+                        );
+                      })}
+                      {nums.notes !== undefined && (
+                        <td className="px-3 py-2.5 text-gray-500 max-w-[200px] truncate">{nums.notes || '—'}</td>
+                      )}
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 // ── Main Export ───────────────────────────────────────────────────────────────
 
 export default function MarketplaceDept() {
   const [activeTab, setActiveTab]       = useState('overview');
   const [activePlan, setActivePlan]     = useState('Amazon');
   const [showPlanDropdown, setShowPlanDropdown] = useState(false);
+  const [showReport, setShowReport]     = useState(false);
   const [dashboardFiles, setDashboardFiles] = useState({});
+  const [dashSavedAt, setDashSavedAt]   = useState(null);
   const dropdownRef = useRef(null);
   const iframeRef   = useRef(null);
 
@@ -2215,7 +2334,12 @@ export default function MarketplaceDept() {
     const handler = async (e) => {
       if (!e.data?.type) return;
       if (e.data.type === 'DASH_SAVE' && e.data.platform && e.data.data) {
-        api.put(`/marketplace/dashboard/${e.data.platform}`, { data: e.data.data }).catch(() => {});
+        api.put(`/marketplace/dashboard/${e.data.platform}`, { data: e.data.data })
+          .then(() => {
+            setDashSavedAt(new Date());
+            toast.success(`✓ ${e.data.platform} data saved to cloud`, { duration: 2000, id: 'dash-save' });
+          })
+          .catch(() => {});
       }
       if (e.data.type === 'DASH_LOAD' && e.data.platform) {
         try {
@@ -2290,7 +2414,7 @@ export default function MarketplaceDept() {
                       const meta = PLATFORM_META[p];
                       const isActive = activePlan === p && activeTab === 'plan';
                       return (
-                        <button key={p} onClick={() => { setActivePlan(p); setActiveTab('plan'); setShowPlanDropdown(false); }}
+                        <button key={p} onClick={() => { setActivePlan(p); setActiveTab('plan'); setShowPlanDropdown(false); setShowReport(false); }}
                           className={clsx('w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold hover:bg-gray-50 transition-colors', isActive ? 'bg-gray-50' : 'text-gray-600')}>
                           <span className="w-5 h-5 rounded-md flex items-center justify-center text-white text-[9px] font-black flex-shrink-0" style={{ background: meta.color }}>{meta.initial}</span>
                           <span style={isActive ? { color: meta.color } : {}}>{p} Plan</span>
@@ -2301,22 +2425,55 @@ export default function MarketplaceDept() {
                   </div>
                 )}
               </div>
+              {activeTab === 'plan' && (
+                <button
+                  onClick={() => setShowReport(s => !s)}
+                  className={clsx('flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border transition-all',
+                    showReport ? 'text-white border-transparent' : 'bg-white text-gray-600 border-gray-200 hover:border-gray-400')}
+                  style={showReport ? { background: PLATFORM_PLAN_CONFIG[activePlan]?.color || '#f97316' } : {}}>
+                  📊 {showReport ? 'Hide Report' : 'Numbers Report'}
+                </button>
+              )}
             </div>
           </div>
         </div>
       </div>
       {activeTab === 'overview'
         ? <OverviewTab allTasks={allTasks} tasksLoading={tasksLoading} navigate={navigate} />
-        : dashboardFiles[activePlan]
-            ? <iframe
-                key={activePlan}
-                ref={iframeRef}
-                src={dashboardFiles[activePlan]}
-                className="w-full rounded-2xl border border-gray-200"
-                style={{ height: 'calc(100vh - 160px)', display: 'block' }}
-                title={`${activePlan} Dashboard`}
-              />
-            : <PlanTab key={activePlan} platform={activePlan} />
+        : showReport
+            ? <div className="space-y-3">
+                <div className="bg-white rounded-2xl border border-gray-200 px-4 py-3 flex items-center justify-between">
+                  <div>
+                    <h2 className="text-sm font-bold text-gray-800">
+                      📊 {activePlan} — Daily Numbers Report
+                    </h2>
+                    <p className="text-xs text-gray-400 mt-0.5">All saved numbers from the {activePlan} dashboard</p>
+                  </div>
+                  <button onClick={() => setShowReport(false)}
+                    className="text-xs font-bold text-gray-500 hover:text-gray-800 px-3 py-1.5 border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors">
+                    ← Back to Dashboard
+                  </button>
+                </div>
+                <DashboardReport platform={activePlan} />
+              </div>
+            : dashboardFiles[activePlan]
+                ? <div className="relative">
+                    {dashSavedAt && (
+                      <div className="absolute top-2 right-3 z-10 flex items-center gap-1.5 bg-green-50 border border-green-200 text-green-700 text-[10px] font-bold px-2.5 py-1 rounded-full shadow-sm pointer-events-none">
+                        <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
+                        Saved to cloud · {dashSavedAt.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
+                      </div>
+                    )}
+                    <iframe
+                      key={activePlan}
+                      ref={iframeRef}
+                      src={dashboardFiles[activePlan]}
+                      className="w-full rounded-2xl border border-gray-200"
+                      style={{ height: 'calc(100vh - 160px)', display: 'block' }}
+                      title={`${activePlan} Dashboard`}
+                    />
+                  </div>
+                : <PlanTab key={activePlan} platform={activePlan} />
       }
     </div>
   );
