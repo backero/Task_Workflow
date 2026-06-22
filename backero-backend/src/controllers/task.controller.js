@@ -417,19 +417,44 @@ exports.requestCompletion = asyncHandler(async (req, res) => {
   task.updatedBy = req.user._id;
   await task.save();
 
-  // Notify manager/assignedBy
   const notifyUserId = task.reportingManager || task.assignedBy;
-  await createNotification({
-    organizationId: req.user.organizationId,
-    recipient: notifyUserId,
-    title: 'Task Completion Requested',
-    message: `${req.user.firstName} ${req.user.lastName} has requested completion for "${task.title}"`,
-    type: 'approval',
-    priority: 'high',
-    actionUrl: `/approvals/${approval._id}`,
-    reference: { model: 'Task', id: task._id },
-    channels: { inApp: true, whatsapp: true },
-  }, io);
+  const requesterLevel = ROLE_HIERARCHY[req.user.role] || 0;
+  const approvalMsg = `${req.user.firstName} ${req.user.lastName} has requested completion for "${task.title}"`;
+
+  if (requesterLevel >= ROLE_HIERARCHY['manager']) {
+    // Manager submitting their own task → notify all admins/founders only
+    const adminUsers = await User.find({
+      organizationId: req.user.organizationId,
+      role: { $in: [ROLES.SUPER_ADMIN, ROLES.CHAIRMAN, ROLES.FOUNDER, ROLES.ADMIN] },
+      isActive: true,
+    }).select('_id');
+    for (const admin of adminUsers) {
+      await createNotification({
+        organizationId: req.user.organizationId,
+        recipient: admin._id,
+        title: '📋 Manager Task Completion Requested',
+        message: approvalMsg,
+        type: 'approval', priority: 'high',
+        actionUrl: `/approvals/${approval._id}`,
+        reference: { model: 'Task', id: task._id },
+        channels: { inApp: true, whatsapp: true },
+      }, io);
+    }
+  } else {
+    // Member / team_lead submitting → notify only their direct manager (assignedBy)
+    if (notifyUserId) {
+      await createNotification({
+        organizationId: req.user.organizationId,
+        recipient: notifyUserId,
+        title: '📋 Task Completion Requested',
+        message: approvalMsg,
+        type: 'approval', priority: 'high',
+        actionUrl: `/approvals/${approval._id}`,
+        reference: { model: 'Task', id: task._id },
+        channels: { inApp: true, whatsapp: true },
+      }, io);
+    }
+  }
 
   io?.to(`org:${req.user.organizationId}`).emit(SOCKET_EVENTS.TASK_REVIEW_REQUESTED, { taskId: task._id, approval });
 
