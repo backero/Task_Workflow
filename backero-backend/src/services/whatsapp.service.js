@@ -208,7 +208,7 @@ const sendMessage = async (phone, message) => {
     }
   }
 
-  logger.info(`[WhatsApp STUB] → +${withCC}\n${message.substring(0, 120)}`);
+  logger.warn(`[WhatsApp] Not connected (${connectionStatus}) — message to +${withCC} dropped`);
   return false;
 };
 

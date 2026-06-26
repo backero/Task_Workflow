@@ -441,11 +441,22 @@ exports.requestCompletion = asyncHandler(async (req, res) => {
       }, io);
     }
   } else {
-    // Member / team_lead submitting → notify only their direct manager (assignedBy)
-    if (notifyUserId) {
+    // Member / team_lead submitting → notify assignedBy + all dept managers who can approve
+    const notifySet = new Set();
+    if (notifyUserId) notifySet.add(String(notifyUserId));
+
+    const deptManagers = await User.find({
+      organizationId: req.user.organizationId,
+      role: 'manager',
+      department: req.user.department,
+      isActive: true,
+    }).select('_id');
+    deptManagers.forEach((m) => notifySet.add(String(m._id)));
+
+    for (const recipientId of notifySet) {
       await createNotification({
         organizationId: req.user.organizationId,
-        recipient: notifyUserId,
+        recipient: recipientId,
         title: '📋 Task Completion Requested',
         message: approvalMsg,
         type: 'approval', priority: 'high',
