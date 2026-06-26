@@ -20,9 +20,15 @@ exports.getApprovals = asyncHandler(async (req, res) => {
     // Members see only their own requests
     filter.requestedBy = req.user._id;
   } else if (userLevel < ROLE_HIERARCHY['admin']) {
-    // Managers see only approvals for tasks they assigned
-    const myTaskIds = await Task.find({ organizationId: req.user.organizationId, assignedBy: req.user._id }).distinct('_id');
-    filter.taskId = { $in: myTaskIds };
+    // Managers see: tasks they assigned + all tasks from members in their department
+    const [assignedTaskIds, deptMemberIds] = await Promise.all([
+      Task.find({ organizationId: req.user.organizationId, assignedBy: req.user._id }).distinct('_id'),
+      User.find({ organizationId: req.user.organizationId, department: req.user.department }).distinct('_id'),
+    ]);
+    filter.$or = [
+      { taskId: { $in: assignedTaskIds } },
+      { requestedBy: { $in: deptMemberIds } },
+    ];
   }
   // Admin+ see all
 
@@ -53,7 +59,7 @@ const checkApprovalAuthority = async (req, approval) => {
   const task = await Task.findById(approval.taskId);
   if (!task) return { task: null, error: 'Task not found.' };
 
-  const requester = await User.findById(approval.requestedBy).select('role');
+  const requester = await User.findById(approval.requestedBy).select('role department');
   const requesterLevel = ROLE_HIERARCHY[requester?.role] || 0;
 
   if (requesterLevel >= managerLevel) {
@@ -62,10 +68,13 @@ const checkApprovalAuthority = async (req, approval) => {
       return { task, error: 'Only admins can approve tasks submitted by managers.' };
     }
   } else {
-    // Member/team_lead submitted → assigning manager OR any admin can approve
+    // Member/team_lead submitted → assigning manager, reporting manager, same-dept manager, or admin can approve
     const isAssigner = String(task.assignedBy) === String(req.user._id);
-    if (!isAssigner && approverLevel < adminLevel) {
-      return { task, error: 'Only the manager who assigned this task can approve it.' };
+    const isReportingManager = task.reportingManager && String(task.reportingManager) === String(req.user._id);
+    const isSameDeptManager = approverLevel >= managerLevel && req.user.department && req.user.department === requester?.department;
+
+    if (!isAssigner && !isReportingManager && !isSameDeptManager && approverLevel < adminLevel) {
+      return { task, error: 'Only the assigned manager, a department manager, or an admin can approve this task.' };
     }
   }
 
