@@ -35,91 +35,55 @@ router.get('/debug', (req, res) => {
   res.json({ ...getDebugInfo(), timestamp: new Date().toISOString() });
 });
 
-// GET /api/whatsapp/setup — auto-refreshing HTML page for QR scanning
-router.get('/setup', (req, res) => {
+// GET /api/whatsapp/setup — server-renders QR inline so it appears instantly
+router.get('/setup', asyncHandler(async (req, res) => {
   res.setHeader('Content-Type', 'text/html');
-  res.send(`<!DOCTYPE html><html><head><meta charset="utf-8">
-<title>Backero — WhatsApp Setup</title>
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<style>
-  body{font-family:sans-serif;background:#0f172a;color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;margin:0;gap:20px}
+
+  const css = `body{font-family:sans-serif;background:#0f172a;color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;margin:0;gap:20px}
   h2{margin:0;font-size:1.3rem;color:#93c5fd}
-  #status{font-size:.9rem;color:#94a3b8;min-height:1.2em;text-align:center}
-  #qr{width:280px;height:280px;background:#1e293b;border-radius:12px;display:flex;align-items:center;justify-content:center;overflow:hidden}
-  #qr img{width:280px;height:280px;display:none}
-  #spinner{font-size:2rem;animation:spin 1s linear infinite}
-  @keyframes spin{to{transform:rotate(360deg)}}
-  .connected{color:#4ade80!important}
-  #forceBtn{display:none;padding:10px 24px;background:#3b82f6;color:#fff;border:none;border-radius:8px;font-size:.9rem;cursor:pointer;margin-top:4px}
-  #forceBtn:hover{background:#2563eb}
-  #forceBtn:disabled{background:#475569;cursor:not-allowed}
-  #timer{font-size:.75rem;color:#64748b}
-</style></head><body>
+  p{font-size:.9rem;color:#94a3b8;text-align:center;margin:0}
+  .ok{color:#4ade80}
+  .box{width:280px;height:280px;background:#1e293b;border-radius:12px;display:flex;align-items:center;justify-content:center;overflow:hidden}
+  .box img{width:280px;height:280px}
+  .spin{font-size:2rem;animation:s 1s linear infinite}
+  @keyframes s{to{transform:rotate(360deg)}}
+  a.btn{display:inline-block;margin-top:8px;padding:10px 24px;background:#3b82f6;color:#fff;border-radius:8px;font-size:.9rem;text-decoration:none}
+  a.btn:hover{background:#2563eb}`;
+
+  if (isConnected()) {
+    return res.send(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Backero — WhatsApp Setup</title><meta name="viewport" content="width=device-width,initial-scale=1"><style>${css}</style></head><body>
 <h2>Backero WhatsApp Setup</h2>
-<div id="qr"><span id="spinner">⟳</span><img id="img" alt="QR Code"></div>
-<div id="status">Waiting for QR…</div>
-<div id="timer"></div>
-<button id="forceBtn" onclick="forceQR()">Force QR Generation</button>
+<p class="ok">✅ WhatsApp Connected! Notifications are active.</p>
+</body></html>`);
+  }
+
+  const qrString = getQRCode();
+  if (!qrString) {
+    return res.send(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Backero — WhatsApp Setup</title><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="refresh" content="5"><style>${css}</style></head><body>
+<h2>Backero WhatsApp Setup</h2>
+<div class="box"><span class="spin">⟳</span></div>
+<p>Generating QR… page refreshes automatically in 5s</p>
+</body></html>`);
+  }
+
+  const qrDataUrl = await QRCode.toDataURL(qrString, { width: 320, margin: 2 });
+
+  res.send(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Backero — WhatsApp Setup</title><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="refresh" content="30"><style>${css}</style></head><body>
+<h2>Backero WhatsApp Setup</h2>
+<div class="box"><img src="${qrDataUrl}" alt="WhatsApp QR Code"></div>
+<p>Scan with WhatsApp → Linked Devices → Link a Device</p>
+<p style="color:#64748b;font-size:.75rem">Page auto-refreshes every 30s with a fresh QR</p>
+<a class="btn" href="/api/whatsapp/setup">Refresh QR</a>
 <script>
-const imgUrl='/api/whatsapp/qr/image';
-let waitSec=0, forceTriggered=false, pollTimer=null;
-
-function poll(){
-  fetch('/api/whatsapp/qr/image',{cache:'no-store'})
-    .then(r=>{
-      if(r.ok){
-        document.getElementById('img').src=imgUrl+'?t='+Date.now();
-        document.getElementById('img').style.display='block';
-        document.getElementById('spinner').style.display='none';
-        document.getElementById('status').textContent='Scan with WhatsApp → Linked Devices → Link a Device';
-        document.getElementById('forceBtn').style.display='none';
-        document.getElementById('timer').textContent='';
-        forceTriggered=false; waitSec=0;
-        pollTimer=setTimeout(poll,5000);
-      } else {
-        return r.json().then(d=>{
-          document.getElementById('img').style.display='none';
-          document.getElementById('spinner').style.display='';
-          if(d.status==='connected'){
-            document.getElementById('status').className='connected';
-            document.getElementById('status').textContent='✅ WhatsApp Connected! OTP delivery is now active.';
-            document.getElementById('forceBtn').style.display='none';
-            document.getElementById('timer').textContent='';
-          } else {
-            document.getElementById('status').textContent=d.message||'Waiting…';
-            waitSec+=3;
-            if(waitSec>=60 && !forceTriggered){
-              forceTriggered=true;
-              document.getElementById('timer').textContent='Auto-triggering QR reset…';
-              forceQR();
-            } else if(waitSec>=30){
-              document.getElementById('forceBtn').style.display='inline-block';
-              document.getElementById('timer').textContent='Waited '+waitSec+'s — click button to force QR';
-            }
-            pollTimer=setTimeout(poll,3000);
-          }
-        });
-      }
-    }).catch(()=>{pollTimer=setTimeout(poll,3000);});
-}
-
-function forceQR(){
-  const btn=document.getElementById('forceBtn');
-  btn.disabled=true; btn.textContent='Resetting…';
-  document.getElementById('timer').textContent='Clearing session — QR will appear in 5–10s';
-  fetch('/api/whatsapp/force-qr',{method:'POST',cache:'no-store'})
-    .then(r=>r.json())
-    .then(d=>{
-      document.getElementById('status').textContent=d.message||'Reinitialising…';
-      waitSec=0;
-      setTimeout(()=>{ btn.disabled=false; btn.textContent='Force QR Generation'; },32000);
-    })
-    .catch(()=>{ btn.disabled=false; btn.textContent='Force QR Generation'; });
-}
-
-poll();
-</script></body></html>`);
-});
+// Poll for connection — redirect when connected
+setInterval(()=>{
+  fetch('/api/whatsapp/debug',{cache:'no-store'}).then(r=>r.json()).then(d=>{
+    if(d.connected) location.reload();
+  }).catch(()=>{});
+}, 5000);
+</script>
+</body></html>`);
+}));
 
 // GET /api/whatsapp/qr/image — returns QR as PNG image
 router.get('/qr/image', asyncHandler(async (req, res) => {
