@@ -37,7 +37,6 @@ router.get('/debug', (req, res) => {
 
 // GET /api/whatsapp/setup — auto-refreshing HTML page for QR scanning
 router.get('/setup', (req, res) => {
-  const host = `${req.protocol}://${req.get('host')}`;
   res.setHeader('Content-Type', 'text/html');
   res.send(`<!DOCTYPE html><html><head><meta charset="utf-8">
 <title>Backero — WhatsApp Setup</title>
@@ -62,7 +61,7 @@ router.get('/setup', (req, res) => {
 <div id="timer"></div>
 <button id="forceBtn" onclick="forceQR()">Force QR Generation</button>
 <script>
-const imgUrl='${host}/api/whatsapp/qr/image';
+const imgUrl='/api/whatsapp/qr/image';
 let waitSec=0, forceTriggered=false, pollTimer=null;
 
 function poll(){
