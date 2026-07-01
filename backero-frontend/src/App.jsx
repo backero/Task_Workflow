@@ -8,6 +8,8 @@ import PermissionRoute from './components/common/PermissionRoute';
 
 // Auth pages
 import Login from './pages/auth/Login';
+import ForgotPassword from './pages/auth/ForgotPassword';
+import ResetPassword from './pages/auth/ResetPassword';
 import Onboarding from './pages/auth/Onboarding';
 import AuthCallback from './pages/auth/AuthCallback';
 
@@ -110,6 +112,8 @@ export default function App() {
       <Routes>
         {/* Public routes */}
         <Route path="/login" element={!user ? <Login /> : <Navigate to="/" replace />} />
+        <Route path="/forgot-password" element={!user ? <ForgotPassword /> : <Navigate to="/" replace />} />
+        <Route path="/reset-password" element={!user ? <ResetPassword /> : <Navigate to="/" replace />} />
         <Route path="/register" element={<Navigate to="/login" replace />} />
         <Route path="/auth/callback" element={<AuthCallback />} />
 

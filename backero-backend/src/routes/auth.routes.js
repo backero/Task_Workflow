@@ -8,6 +8,8 @@ router.post('/register', ctrl.register);
 router.post('/login', ctrl.login);
 router.post('/send-login-otp', ctrl.sendLoginOTP);
 router.post('/verify-login-otp', ctrl.verifyLoginOTP);
+router.post('/forgot-password', ctrl.forgotPassword);
+router.post('/reset-password', ctrl.resetPassword);
 router.post('/refresh', ctrl.refresh);
 router.post('/logout', authenticate, ctrl.logout);
 router.post('/send-otp', authenticate, ctrl.sendOTP);

@@ -54,4 +54,34 @@ const sendOTPEmail = async (toEmail, otp) => {
   }
 };
 
-module.exports = { sendOTPEmail };
+const sendPasswordResetEmail = async (toEmail, resetUrl, firstName) => {
+  const transporter = getTransporter();
+  if (!transporter) return false;
+
+  const from = process.env.SMTP_FROM || process.env.SMTP_USER;
+
+  try {
+    await transporter.sendMail({
+      from: `"Backero" <${from}>`,
+      to: toEmail,
+      subject: 'Reset your Backero password',
+      text: `Hi ${firstName},\n\nClick the link below to reset your password:\n${resetUrl}\n\nThis link expires in 1 hour. If you didn't request this, ignore this email.`,
+      html: `
+        <div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:32px;background:#f8fafc;border-radius:12px">
+          <h2 style="color:#1e40af;margin:0 0 8px">Reset your password</h2>
+          <p style="color:#475569;margin:0 0 24px">Hi ${firstName}, click the button below to reset your Backero password.</p>
+          <a href="${resetUrl}" style="display:inline-block;background:#2563eb;color:#fff;font-weight:600;padding:12px 28px;border-radius:8px;text-decoration:none;font-size:15px">Reset Password</a>
+          <p style="color:#94a3b8;font-size:12px;margin:24px 0 0">This link expires in 1 hour. If you didn't request a password reset, you can safely ignore this email.</p>
+          <p style="color:#cbd5e1;font-size:11px;margin:8px 0 0;word-break:break-all">${resetUrl}</p>
+        </div>
+      `,
+    });
+    logger.info(`[Email] ✅ Password reset sent to ${toEmail}`);
+    return true;
+  } catch (err) {
+    logger.error(`[Email] ❌ Password reset failed to ${toEmail}: ${err.message}`);
+    return false;
+  }
+};
+
+module.exports = { sendOTPEmail, sendPasswordResetEmail };

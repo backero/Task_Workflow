@@ -329,6 +329,58 @@ exports.changePassword = asyncHandler(async (req, res) => {
   sendSuccess(res, {}, 'Password changed successfully');
 });
 
+// POST /api/auth/forgot-password
+exports.forgotPassword = asyncHandler(async (req, res) => {
+  const { email } = req.body;
+  if (!email) return sendError(res, 'Email is required.', 400);
+
+  const user = await User.findOne({ email: email.toLowerCase() });
+  // Always respond success to avoid email enumeration
+  if (!user || !user.isActive) {
+    return sendSuccess(res, {}, 'If that email is registered, a reset link has been sent.');
+  }
+
+  const plainToken = crypto.randomBytes(32).toString('hex');
+  const hashedToken = crypto.createHash('sha256').update(plainToken).digest('hex');
+
+  await User.findByIdAndUpdate(user._id, {
+    resetPasswordToken: hashedToken,
+    resetPasswordExpires: new Date(Date.now() + 60 * 60 * 1000), // 1 hour
+  });
+
+  const frontendUrl = process.env.FRONTEND_URL || 'https://task-workflow-liart.vercel.app';
+  const resetUrl = `${frontendUrl}/reset-password?token=${plainToken}`;
+
+  const { sendPasswordResetEmail } = require('../services/email.service');
+  await sendPasswordResetEmail(user.email, resetUrl, user.firstName);
+
+  sendSuccess(res, {}, 'If that email is registered, a reset link has been sent.');
+});
+
+// POST /api/auth/reset-password
+exports.resetPassword = asyncHandler(async (req, res) => {
+  const { token, password } = req.body;
+  if (!token || !password) return sendError(res, 'Token and new password are required.', 400);
+  if (password.length < 8) return sendError(res, 'Password must be at least 8 characters.', 400);
+
+  const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
+
+  const user = await User.findOne({
+    resetPasswordToken: hashedToken,
+    resetPasswordExpires: { $gt: Date.now() },
+  }).select('+resetPasswordToken +resetPasswordExpires +refreshToken');
+
+  if (!user) return sendError(res, 'Reset link is invalid or has expired.', 400);
+
+  user.password = password;
+  user.resetPasswordToken = undefined;
+  user.resetPasswordExpires = undefined;
+  user.refreshToken = undefined;
+  await user.save();
+
+  sendSuccess(res, {}, 'Password reset successful. You can now sign in.');
+});
+
 // GET /api/auth/google  — redirects to Google consent (handled by passport middleware in routes)
 // GET /api/auth/google/callback
 exports.googleCallback = (req, res, next) => {

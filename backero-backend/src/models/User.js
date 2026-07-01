@@ -30,6 +30,8 @@ const userSchema = new mongoose.Schema({
   refreshToken: { type: String, select: false },
   otp: { type: String, select: false },
   otpExpiry: { type: Date, select: false },
+  resetPasswordToken: { type: String, select: false },
+  resetPasswordExpires: { type: Date, select: false },
   permissions: [{ type: String }],
   settings: {
     theme: { type: String, enum: ['light', 'dark', 'system'], default: 'system' },
