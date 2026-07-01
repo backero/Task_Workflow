@@ -12,3 +12,16 @@ backend/wa-session/
 
 # Local Netlify folder
 .netlify
+
+.vercel
+.env*
+
+# Generated reports
+backero-backend/reports/
+
+# Local dev/test files
+wa-qr*.html
+wa-qr*.png
+
+# Claude Code local config
+.claude/
