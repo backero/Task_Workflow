@@ -4,6 +4,20 @@ const ActivityLog = require('../models/ActivityLog');
 const { asyncHandler, sendSuccess, sendError, paginate, paginateResponse } = require('../utils/helpers');
 const { STOCK_MOVEMENT_TYPES, SOCKET_EVENTS } = require('../utils/constants');
 
+const PRODUCT_FIELDS = [
+  'name','sku','barcode','category','subCategory','unit','description','images',
+  'costPrice','sellingPrice','mrp','gstRate','hsnCode','batchNumber',
+  'minStockLevel','maxStockLevel','reorderPoint','reorderQuantity','currentStock',
+  'warehouseLocation','shelf','supplier','enableMinStock',
+  'qcChecker','qcNumber','refCheckNumber','qcPassed','qcNotes',
+  'productType','shelfLife','certifications','storageConditions','variants',
+  'formulation','standardAssumptions','rnd','productionOverhead','bomPackaging','costing','marketplace',
+  'isRawMaterial','isFinishedGood','isSellable','marketplaceListings','isActive',
+];
+
+const pickFields = (body, fields) =>
+  fields.reduce((acc, key) => { if (key in body) acc[key] = body[key]; return acc; }, {});
+
 // GET /api/inventory/products
 exports.getProducts = asyncHandler(async (req, res) => {
   const { page = 1, limit = 20, category, search, isLowStock, isRawMaterial } = req.query;
@@ -36,7 +50,7 @@ exports.createProduct = asyncHandler(async (req, res) => {
   if (existing) return sendError(res, 'Product with this SKU already exists.', 409);
 
   const product = await Product.create({
-    ...req.body,
+    ...pickFields(req.body, PRODUCT_FIELDS),
     sku: req.body.sku?.toUpperCase(),
     organizationId: req.user.organizationId,
     createdBy: req.user._id,
@@ -70,7 +84,7 @@ exports.getProduct = asyncHandler(async (req, res) => {
 exports.updateProduct = asyncHandler(async (req, res) => {
   const product = await Product.findOneAndUpdate(
     { _id: req.params.id, organizationId: req.user.organizationId },
-    { ...req.body, updatedBy: req.user._id },
+    { ...pickFields(req.body, PRODUCT_FIELDS), updatedBy: req.user._id },
     { new: true, runValidators: true }
   );
   if (!product) return sendError(res, 'Product not found.', 404);

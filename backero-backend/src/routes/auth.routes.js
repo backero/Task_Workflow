@@ -1,15 +1,32 @@
 const router = require('express').Router();
 const passport = require('passport');
+const rateLimit = require('express-rate-limit');
 require('../config/passport');
 const ctrl = require('../controllers/auth.controller');
 const { authenticate } = require('../middleware/auth.middleware');
 
-router.post('/register', ctrl.register);
-router.post('/login', ctrl.login);
-router.post('/send-login-otp', ctrl.sendLoginOTP);
-router.post('/verify-login-otp', ctrl.verifyLoginOTP);
-router.post('/forgot-password', ctrl.forgotPassword);
-router.post('/reset-password', ctrl.resetPassword);
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { success: false, message: 'Too many attempts. Please try again after 15 minutes.' },
+});
+
+const forgotLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { success: false, message: 'Too many reset requests. Please try again after 15 minutes.' },
+});
+
+router.post('/register', authLimiter, ctrl.register);
+router.post('/login', authLimiter, ctrl.login);
+router.post('/send-login-otp', authLimiter, ctrl.sendLoginOTP);
+router.post('/verify-login-otp', authLimiter, ctrl.verifyLoginOTP);
+router.post('/forgot-password', forgotLimiter, ctrl.forgotPassword);
+router.post('/reset-password', authLimiter, ctrl.resetPassword);
 router.post('/refresh', ctrl.refresh);
 router.post('/logout', authenticate, ctrl.logout);
 router.post('/send-otp', authenticate, ctrl.sendOTP);
