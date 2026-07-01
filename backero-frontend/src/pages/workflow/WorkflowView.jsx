@@ -610,7 +610,12 @@ function DeptHubView() {
             <p className="text-[10px] text-white/50 uppercase tracking-widest font-semibold">Cross-Department Project</p>
             <h2 className="text-sm font-bold text-white truncate">{tree?.title}</h2>
             <div className="flex items-center gap-3 mt-0.5 flex-wrap">
-              {rootTask?.assignedBy && (
+              {rootTask?.assignedTo && (
+                <span className="text-[10px] text-white/60">
+                  Owner: {rootTask.assignedTo.firstName} {rootTask.assignedTo.lastName}
+                </span>
+              )}
+              {!rootTask?.assignedTo && rootTask?.assignedBy && (
                 <span className="text-[10px] text-white/60">
                   Created by {rootTask.assignedBy.firstName} {rootTask.assignedBy.lastName}
                 </span>

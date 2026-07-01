@@ -121,6 +121,9 @@ const taskSchema = new mongoose.Schema({
     reviewedAt: { type: Date },
   },
 
+  // Dept Hub flag — true on root tasks created via the DeptHub modal
+  isDeptHub: { type: Boolean, default: false, index: true },
+
   // Dept Hub approval (set on root hub tasks created by managers)
   pendingHubApproval: { type: Boolean, default: false, index: true },
   hubApproval: {

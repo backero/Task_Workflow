@@ -155,8 +155,9 @@ exports.createTask = asyncHandler(async (req, res) => {
     }
   }
 
-  // For dept hub tasks, assign to the org's admin (createdBy) so the task is never left unassigned
-  if (isDeptHub && !actualAssignedTo) {
+  // DeptHub root — always auto-assign to org admin so it is never left unassigned
+  const isDeptHubRoot = !!isDeptHub && !parentTask;
+  if (isDeptHubRoot && !actualAssignedTo) {
     const org = await Organization.findById(req.user.organizationId).select('createdBy');
     actualAssignedTo = org?.createdBy || req.user._id;
     pendingManagerAssignmentData = undefined;
@@ -167,6 +168,7 @@ exports.createTask = asyncHandler(async (req, res) => {
     title, description, department, assignedTo: actualAssignedTo, priority, dueDate, estimatedHours, tags, taskType, platform, relatedTo, isRecurring, recurringConfig, parentTask, watchers,
     assignedBy: req.user._id,
     reportingManager: req.user._id,
+    isDeptHub: isDeptHubRoot,
     status: (actualAssignedTo && !pendingManagerAssignmentData) ? TASK_STATUS.ASSIGNED : TASK_STATUS.PENDING,
     createdBy: req.user._id,
     updatedBy: req.user._id,
@@ -1067,4 +1069,36 @@ exports.stopTimer = asyncHandler(async (req, res) => {
     session: task.timerSessions[task.timerSessions.length - 1],
     totalTrackedMs: task.totalTrackedMs,
   }, 'Timer stopped');
+});
+
+// POST /api/tasks/fix-dept-hub-assignees — admin one-time patch: assign unassigned DeptHub roots to org admin
+exports.fixDeptHubAssignees = asyncHandler(async (req, res) => {
+  const userLevel = ROLE_HIERARCHY[req.user.role] || 0;
+  if (userLevel < ROLE_HIERARCHY['admin']) return sendError(res, 'Admin only.', 403);
+
+  const org = await Organization.findById(req.user.organizationId).select('createdBy');
+  const adminId = org?.createdBy;
+  if (!adminId) return sendError(res, 'Org admin not found.', 404);
+
+  // Find DeptHub root tasks that are still unassigned:
+  // — manager-created (hubApproval set) OR isDeptHub=true, no parentTask, no assignedTo
+  const unassigned = await Task.find({
+    organizationId: req.user.organizationId,
+    assignedTo: { $in: [null, undefined] },
+    parentTask: { $in: [null, undefined] },
+    $or: [
+      { isDeptHub: true },
+      { 'hubApproval.status': { $exists: true } },
+      { pendingHubApproval: true },
+    ],
+  }).select('_id title');
+
+  if (!unassigned.length) return sendSuccess(res, { patched: 0 }, 'No unassigned DeptHub roots found.');
+
+  await Task.updateMany(
+    { _id: { $in: unassigned.map(t => t._id) } },
+    { $set: { assignedTo: adminId, isDeptHub: true, status: TASK_STATUS.ASSIGNED } },
+  );
+
+  sendSuccess(res, { patched: unassigned.length, tasks: unassigned.map(t => t.title) }, `Patched ${unassigned.length} DeptHub root(s).`);
 });

@@ -41,5 +41,6 @@ router.post('/:id/hub-approve', authorizeAdminOrAbove, ctrl.approveDeptHub);
 router.post('/:id/hub-reject', authorizeAdminOrAbove, ctrl.rejectDeptHub);
 router.post('/:id/manager-assign-approve', authorizeAdminOrAbove, ctrl.approveManagerAssignment);
 router.post('/:id/manager-assign-reject', authorizeAdminOrAbove, ctrl.rejectManagerAssignment);
+router.post('/fix-dept-hub-assignees', authorizeAdminOrAbove, ctrl.fixDeptHubAssignees);
 
 module.exports = router;

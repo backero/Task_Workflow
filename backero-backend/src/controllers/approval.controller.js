@@ -67,6 +67,14 @@ const checkApprovalAuthority = async (req, approval) => {
   const isSameDeptManager = approverLevel >= managerLevel && req.user.department &&
     (req.user.department === requester?.department || req.user.department === task.department);
 
+  // DeptHub root tasks (isDeptHub=true, no parentTask) — admin-only final approval
+  if (task.isDeptHub && !task.parentTask) {
+    if (approverLevel < adminLevel) {
+      return { task, error: 'DeptHub project completion requires admin final approval.' };
+    }
+    return { task, error: null };
+  }
+
   if (requesterLevel >= managerLevel) {
     // Manager submitted → assigning manager or admin+ can approve
     if (!isAssigner && approverLevel < adminLevel) {
