@@ -104,6 +104,7 @@ export default function Sidebar({ collapsed, onToggle }) {
     opsItems.push({ label: 'Inventory', icon: CubeIcon, children: [
       { label: 'Products', to: '/inventory/products' },
       { label: 'Raw Materials', to: '/inventory/rawmaterials' },
+      { label: 'Product Catalog', to: '/inventory/catalog' },
     ]});
   }
   if (canProduction) {

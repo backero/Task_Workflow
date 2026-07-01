@@ -31,6 +31,52 @@ const productSchema = new mongoose.Schema({
   warehouseLocation: { type: String },
   shelf: { type: String },
 
+  // Supplier
+  supplier: { type: String },
+
+  // Raw material batch tracking
+  enableMinStock: { type: Boolean, default: true },
+  batches: [{
+    batchId:      { type: String },
+    quantity:     { type: Number, default: 0 },
+    price:        { type: Number },
+    batchNumber:  { type: String },
+    expiryDate:   { type: Date },
+    receivedDate: { type: Date },
+    notes:        { type: String },
+  }],
+
+  // ISO 9001:2015 QC fields (raw materials)
+  qcChecker:       { type: String },
+  qcNumber:        { type: String },
+  refCheckNumber:  { type: String },
+  qcPassed:        { type: Boolean, default: false },
+  qcNotes:         { type: String },
+
+  // Finished good fields
+  productType:       { type: String },
+  shelfLife:         { type: Number },
+  certifications:    { type: String },
+  storageConditions: { type: String },
+  variants: [{
+    name:         { type: String },
+    size:         { type: Number },
+    unit:         { type: String },
+    moq:          { type: Number },
+    moqUnit:      { type: String },
+    sellingPrice: { type: Number },
+    mrp:          { type: Number },
+  }],
+
+  // Phase 2: Formulation, Costing & Marketplace (stored as flexible embedded docs)
+  formulation:         { type: mongoose.Schema.Types.Mixed, default: null },
+  standardAssumptions: { type: mongoose.Schema.Types.Mixed, default: null },
+  rnd:                 { type: mongoose.Schema.Types.Mixed, default: null },
+  productionOverhead:  { type: mongoose.Schema.Types.Mixed, default: null },
+  bomPackaging:        { type: mongoose.Schema.Types.Mixed, default: null },
+  costing:             { type: mongoose.Schema.Types.Mixed, default: null },
+  marketplace:         { type: mongoose.Schema.Types.Mixed, default: null },
+
   // Type flags
   isRawMaterial: { type: Boolean, default: false },
   isFinishedGood: { type: Boolean, default: true },

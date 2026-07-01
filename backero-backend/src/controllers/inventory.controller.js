@@ -236,6 +236,153 @@ exports.getAnalytics = asyncHandler(async (req, res) => {
   sendSuccess(res, { analytics: { totalProducts, lowStockCount, categoryBreakdown, totalInventoryValue: stockValue[0]?.totalValue || 0 } });
 });
 
+// ── RAW MATERIALS ──────────────────────────────────────────────────────────
+
+// GET /api/inventory/raw-materials/stats
+exports.getRawMaterialStats = asyncHandler(async (req, res) => {
+  const orgId = req.user.organizationId;
+  const today = new Date();
+  const in30 = new Date(); in30.setDate(today.getDate() + 30);
+
+  const materials = await Product.find({ organizationId: orgId, isRawMaterial: true, isActive: true }).lean();
+
+  let totalValue = 0, lowStockCount = 0, expiringCount = 0;
+  for (const m of materials) {
+    const stock = (m.batches || []).reduce((s, b) => s + (b.quantity || 0), 0);
+    totalValue += stock * (m.costPrice || 0);
+    if (m.enableMinStock && stock <= (m.minStockLevel || 0)) lowStockCount++;
+    const hasExpiring = (m.batches || []).some(b => {
+      if (!b.expiryDate) return false;
+      const e = new Date(b.expiryDate);
+      return e >= today && e <= in30;
+    });
+    if (hasExpiring) expiringCount++;
+  }
+
+  sendSuccess(res, { total: materials.length, totalValue, lowStockCount, expiringCount });
+});
+
+// GET /api/inventory/raw-materials
+exports.getRawMaterials = asyncHandler(async (req, res) => {
+  const { search } = req.query;
+  const filter = { organizationId: req.user.organizationId, isRawMaterial: true, isActive: true };
+  if (search) {
+    const esc = search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    filter.$or = [
+      { name: { $regex: esc, $options: 'i' } },
+      { sku: { $regex: esc, $options: 'i' } },
+      { category: { $regex: esc, $options: 'i' } },
+      { supplier: { $regex: esc, $options: 'i' } },
+      { hsnCode: { $regex: esc, $options: 'i' } },
+    ];
+  }
+  const materials = await Product.find(filter).sort({ name: 1 }).lean();
+  sendSuccess(res, { materials });
+});
+
+// POST /api/inventory/raw-materials
+exports.createRawMaterial = asyncHandler(async (req, res) => {
+  const { name, hsnCode, category, supplier, warehouseLocation, unit, costPrice, gstRate,
+    initialStock, initialExpiry, initialBatchNumber,
+    enableMinStock, minStockLevel,
+    qcChecker, qcNumber, refCheckNumber, qcPassed, qcNotes } = req.body;
+
+  // Auto-generate RM-xxxx SKU
+  const count = await Product.countDocuments({ organizationId: req.user.organizationId, isRawMaterial: true });
+  const sku = 'RM-' + String(count + 1).padStart(4, '0');
+
+  const batches = [];
+  if (parseFloat(initialStock) > 0) {
+    batches.push({
+      batchId: 'BATCH-' + Date.now(),
+      quantity: parseFloat(initialStock),
+      price: parseFloat(costPrice) || 0,
+      batchNumber: initialBatchNumber || ('LOT-' + sku),
+      expiryDate: initialExpiry || null,
+      receivedDate: new Date(),
+      notes: 'Initial stock',
+    });
+  }
+
+  const product = await Product.create({
+    organizationId: req.user.organizationId,
+    name, hsnCode, category, supplier, warehouseLocation, unit,
+    costPrice: parseFloat(costPrice) || 0,
+    gstRate: parseInt(gstRate) || 0,
+    currentStock: batches.reduce((s, b) => s + b.quantity, 0),
+    enableMinStock: enableMinStock !== false,
+    minStockLevel: parseFloat(minStockLevel) || 0,
+    isRawMaterial: true, isFinishedGood: false, isSellable: false,
+    sku,
+    batches,
+    qcChecker, qcNumber, refCheckNumber,
+    qcPassed: !!qcPassed,
+    qcNotes,
+    createdBy: req.user._id,
+  });
+
+  sendSuccess(res, { product }, 'Raw material created', 201);
+});
+
+// PUT /api/inventory/raw-materials/:id
+exports.updateRawMaterial = asyncHandler(async (req, res) => {
+  const { name, hsnCode, category, supplier, warehouseLocation, unit, costPrice, gstRate,
+    enableMinStock, minStockLevel,
+    qcChecker, qcNumber, refCheckNumber, qcPassed, qcNotes } = req.body;
+
+  const product = await Product.findOneAndUpdate(
+    { _id: req.params.id, organizationId: req.user.organizationId, isRawMaterial: true },
+    {
+      name, hsnCode, category, supplier, warehouseLocation, unit,
+      costPrice: parseFloat(costPrice) || 0,
+      gstRate: parseInt(gstRate) || 0,
+      enableMinStock: enableMinStock !== false,
+      minStockLevel: parseFloat(minStockLevel) || 0,
+      qcChecker, qcNumber, refCheckNumber,
+      qcPassed: !!qcPassed,
+      qcNotes,
+      updatedBy: req.user._id,
+    },
+    { new: true, runValidators: true }
+  );
+  if (!product) return sendError(res, 'Raw material not found.', 404);
+  sendSuccess(res, { product }, 'Raw material updated');
+});
+
+// POST /api/inventory/raw-materials/:id/batches
+exports.addRawMaterialBatch = asyncHandler(async (req, res) => {
+  const { quantity, price, batchNumber, expiryDate, receivedDate, notes } = req.body;
+  const qty = parseFloat(quantity);
+  if (!qty || qty <= 0) return sendError(res, 'Quantity must be positive.', 400);
+
+  const product = await Product.findOne({ _id: req.params.id, organizationId: req.user.organizationId, isRawMaterial: true });
+  if (!product) return sendError(res, 'Raw material not found.', 404);
+
+  const batchPrice = parseFloat(price) || product.costPrice || 0;
+  product.batches.push({
+    batchId: 'BATCH-' + Date.now(),
+    quantity: qty,
+    price: batchPrice,
+    batchNumber: batchNumber || ('LOT-' + product.sku + '-' + (product.batches.length + 1)),
+    expiryDate: expiryDate || null,
+    receivedDate: receivedDate ? new Date(receivedDate) : new Date(),
+    notes: notes || '',
+  });
+
+  // Recompute total stock and weighted avg cost price
+  const totalQty = product.batches.reduce((s, b) => s + (b.quantity || 0), 0);
+  if (totalQty > 0) {
+    const weightedSum = product.batches.reduce((s, b) => s + (b.quantity || 0) * (b.price || product.costPrice || 0), 0);
+    product.costPrice = parseFloat((weightedSum / totalQty).toFixed(2));
+  }
+  product.currentStock = totalQty;
+  product.lastStockIn = new Date();
+  product.updatedBy = req.user._id;
+  await product.save();
+
+  sendSuccess(res, { product }, 'Batch added');
+});
+
 exports.deleteProduct = asyncHandler(async (req, res) => {
   const product = await Product.findOne({ _id: req.params.id, organizationId: req.user.organizationId });
   if (!product) return sendError(res, 'Product not found.', 404);

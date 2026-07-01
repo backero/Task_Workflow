@@ -34,6 +34,8 @@ import TechnicalQueries from './pages/crm/TechnicalQueries';
 import Products from './pages/inventory/Products';
 import StockMovements from './pages/inventory/StockMovements';
 import InventoryAlerts from './pages/inventory/InventoryAlerts';
+import RawMaterials from './pages/inventory/RawMaterials';
+import ProductCatalog from './pages/inventory/ProductCatalog';
 
 // Production pages
 import ProductionOrders from './pages/production/ProductionOrders';
@@ -136,7 +138,8 @@ export default function App() {
 
           {/* Inventory */}
           <Route path="/inventory/products" element={<PermissionRoute module="inventory"><Products /></PermissionRoute>} />
-          <Route path="/inventory/rawmaterials" element={<PermissionRoute module="inventory"><Products /></PermissionRoute>} />
+          <Route path="/inventory/rawmaterials" element={<PermissionRoute module="inventory"><RawMaterials /></PermissionRoute>} />
+          <Route path="/inventory/catalog" element={<PermissionRoute module="inventory"><ProductCatalog /></PermissionRoute>} />
           <Route path="/inventory/movements" element={<PermissionRoute module="inventory"><StockMovements /></PermissionRoute>} />
           <Route path="/inventory/alerts" element={<PermissionRoute module="inventory"><InventoryAlerts /></PermissionRoute>} />
 

@@ -27,6 +27,14 @@ router.post('/import', authorizeAdminOrAbove, upload.single('file'), asyncHandle
   sendSuccess(res, results, `Import complete: ${results.imported} added, ${results.skipped} skipped`);
 }));
 
+// Raw Materials
+router.get('/raw-materials/stats', ctrl.getRawMaterialStats);
+router.get('/raw-materials', ctrl.getRawMaterials);
+router.post('/raw-materials', authorizeInventoryWrite, ctrl.createRawMaterial);
+router.put('/raw-materials/:id', authorizeInventoryWrite, ctrl.updateRawMaterial);
+router.delete('/raw-materials/:id', authorizeManagerOrAbove, ctrl.deleteProduct);
+router.post('/raw-materials/:id/batches', authorizeInventoryWrite, ctrl.addRawMaterialBatch);
+
 router.get('/products', ctrl.getProducts);
 router.get('/movements', ctrl.getMovements);
 router.get('/alerts', ctrl.getLowStockAlerts);

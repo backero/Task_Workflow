@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { createPortal } from 'react-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { PlusIcon, ExclamationTriangleIcon, MagnifyingGlassIcon, QrCodeIcon, BeakerIcon, TrashIcon } from '@heroicons/react/24/outline';
+import { ExclamationTriangleIcon, MagnifyingGlassIcon, QrCodeIcon, TrashIcon } from '@heroicons/react/24/outline';
 import ImportButton from '../../components/common/ImportButton';
 import api from '../../api/axios';
 import { clsx } from 'clsx';
@@ -11,185 +11,293 @@ import { useAuthStore } from '../../store/useAuthStore';
 import QRLabelModal from '../../components/inventory/QRLabelModal';
 import QRScannerModal from '../../components/inventory/QRScannerModal';
 
-const WEIGHT_UNITS = ['g', 'kg', 'ml', 'litre'];
+// ── Add / Edit Modal ───────────────────────────────────────────────────────
 
-function ProductForm({ onClose, onSuccess, initial, forceRawMaterial }) {
-  const { register, handleSubmit, watch, setValue } = useForm({
-    defaultValues: {
-      ...initial,
-      isRawMaterial: forceRawMaterial ? true : (initial?.isRawMaterial ?? false),
-      isFinishedGood: forceRawMaterial ? false : (initial?.isFinishedGood ?? true),
-    },
-  });
+const FORM_TABS = [
+  { id: 'basic',   label: 'Basic Info',  icon: '📋' },
+  { id: 'pricing', label: 'Pricing',     icon: '💰' },
+  { id: 'stock',   label: 'Stock',       icon: '📦' },
+];
+
+const CATEGORIES = [
+  'Hair Care','Skin Care','Face Care','Body Care','Oral Care',
+  "Men's Care",'Baby Care','Sun Care','Makeup','Fragrance',
+  'Wellness','Professional','Electronics','Apparel','Other',
+];
+
+const PRODUCT_TYPES = [
+  'Shampoo','Conditioner','Hair Oil','Serum','Cream','Lotion',
+  'Face Wash','Mask','Scrub','Toner','Moisturizer','Cleanser',
+  'Soap','Body Wash','Sunscreen','Lip Balm','Deodorant','Perfume',
+  'Toothpaste','Hair Spray','Other',
+];
+
+function ProductFormModal({ onClose, onSuccess, initial }) {
+  const [activeTab, setActiveTab] = useState('basic');
   const [loading, setLoading] = useState(false);
   const [purchaseAmt, setPurchaseAmt] = useState('');
   const [purchaseQty, setPurchaseQty] = useState('');
-  const watchedUnit = watch('unit', initial?.unit || 'pcs');
-  const isWeightUnit = WEIGHT_UNITS.includes(watchedUnit);
+
+  const { register, handleSubmit, watch, setValue } = useForm({
+    defaultValues: {
+      name:              initial?.name || '',
+      sku:               initial?.sku || '',
+      category:          initial?.category || '',
+      subCategory:       initial?.subCategory || '',
+      productType:       initial?.productType || '',
+      unit:              initial?.unit || 'pcs',
+      description:       initial?.description || '',
+      hsnCode:           initial?.hsnCode || '',
+      batchNumber:       initial?.batchNumber || '',
+      gstRate:           initial?.gstRate ?? 18,
+      costPrice:         initial?.costPrice || '',
+      sellingPrice:      initial?.sellingPrice || '',
+      mrp:               initial?.mrp || '',
+      minStockLevel:     initial?.minStockLevel || 0,
+      currentStock:      initial?.currentStock || 0,
+      warehouseLocation: initial?.warehouseLocation || '',
+      certifications:    initial?.certifications || '',
+      storageConditions: initial?.storageConditions || '',
+      barcode:           initial?.barcode || '',
+      shelfLife:         initial?.shelfLife || '',
+    },
+  });
+
+  const watchedUnit = watch('unit');
+  const isWeightUnit = ['g','kg','ml','litre','L'].includes(watchedUnit);
   const calcPerUnit = purchaseAmt && purchaseQty && Number(purchaseQty) > 0
-    ? (Number(purchaseAmt) / Number(purchaseQty))
-    : null;
+    ? Number(purchaseAmt) / Number(purchaseQty) : null;
 
   const onSubmit = async (data) => {
     setLoading(true);
     try {
-      if (forceRawMaterial) {
-        data.isRawMaterial = true;
-        data.isFinishedGood = false;
-      }
+      const payload = { ...data, isRawMaterial: false, isFinishedGood: true, isSellable: true };
       if (initial?._id) {
-        await api.put(`/inventory/products/${initial._id}`, data);
+        await api.put(`/inventory/products/${initial._id}`, payload);
         toast.success('Product updated');
       } else {
-        await api.post('/inventory/products', data);
-        toast.success('Product created');
+        await api.post('/inventory/products', payload);
+        toast.success('Product added');
       }
       onSuccess();
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed');
+      toast.error(err.response?.data?.message || 'Failed to save');
     } finally {
       setLoading(false);
     }
   };
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-gray-900/60" onClick={onClose} />
-      <div className="relative card w-full max-w-xl shadow-modal max-h-[90vh] overflow-y-auto">
-        <div className="p-6 border-b">
-          <h3 className="font-bold text-gray-900 dark:text-white">
-            {initial ? 'Edit' : 'Add'} {forceRawMaterial ? 'Raw Material' : 'Product'}
-          </h3>
+  return createPortal(
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/70 backdrop-blur-sm" onClick={onClose}>
+      <div className="relative w-full max-w-xl card shadow-2xl" onClick={e => e.stopPropagation()}>
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-700">
+          <h2 className="font-bold text-gray-100 text-base">
+            {initial ? `Edit — ${initial.name}` : 'Add New Product'}
+          </h2>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-200 text-2xl w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-700">&times;</button>
         </div>
-        <form onSubmit={handleSubmit(onSubmit)} className="p-6 space-y-4">
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="label">Name *</label>
-              <input {...register('name', { required: true })} className="input" placeholder="Product name" />
-            </div>
-            <div>
-              <label className="label">SKU *</label>
-              <input {...register('sku', { required: true })} className="input" placeholder="SKU-001" />
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="label">Category *</label>
-              <input {...register('category', { required: true })} className="input" placeholder="Electronics" />
-            </div>
-            <div>
-              <label className="label">Unit *</label>
-              <select {...register('unit', { required: true })} className="input">
-                {['pcs', 'kg', 'g', 'litre', 'ml', 'box', 'pack', 'set', 'pair'].map((u) => (
-                  <option key={u} value={u}>{u}</option>
-                ))}
-              </select>
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="label">HSN Code</label>
-              <input {...register('hsnCode')} className="input" placeholder="e.g. 33049910" />
-            </div>
-            <div>
-              <label className="label">Batch Number</label>
-              <input {...register('batchNumber')} className="input" placeholder="e.g. BATCH-2026-01" />
-            </div>
-          </div>
-          {isWeightUnit && (
-            <div className="rounded-lg border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-900/20 p-3 space-y-2">
-              <p className="text-xs font-semibold text-blue-700 dark:text-blue-300 uppercase tracking-wide">Purchase Price Calculator</p>
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <label className="label text-xs">Total Amount Paid (₹)</label>
-                  <input
-                    type="number" min="0" className="input"
-                    placeholder="e.g. 500"
-                    value={purchaseAmt}
-                    onChange={(e) => setPurchaseAmt(e.target.value)}
-                  />
+
+        {/* Tabs */}
+        <div className="flex border-b border-gray-700 px-6">
+          {FORM_TABS.map(t => (
+            <button key={t.id} type="button" onClick={() => setActiveTab(t.id)}
+              className={`flex items-center gap-1.5 px-4 py-3 text-xs font-semibold border-b-2 transition-colors -mb-px ${
+                activeTab === t.id ? 'border-indigo-500 text-indigo-400' : 'border-transparent text-gray-400 hover:text-gray-200'
+              }`}>
+              {t.icon} {t.label}
+            </button>
+          ))}
+        </div>
+
+        <form onSubmit={handleSubmit(onSubmit)}>
+          <div className="p-6 space-y-4 max-h-[55vh] overflow-y-auto">
+
+            {/* Tab: Basic Info */}
+            {activeTab === 'basic' && (
+              <>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="label">Product Name <span className="text-red-400">*</span></label>
+                    <input {...register('name', { required: true })} className="input" placeholder="e.g. Turmeric Shampoo" />
+                  </div>
+                  {!initial && (
+                    <div>
+                      <label className="label">SKU <span className="text-red-400">*</span></label>
+                      <input {...register('sku', { required: true })} className="input" placeholder="e.g. FG-HC-001" />
+                    </div>
+                  )}
+                  {initial && (
+                    <div>
+                      <label className="label">SKU</label>
+                      <input value={initial.sku} readOnly className="input opacity-50 cursor-not-allowed" />
+                    </div>
+                  )}
+                </div>
+                <div className="grid grid-cols-3 gap-4">
+                  <div>
+                    <label className="label">Category <span className="text-red-400">*</span></label>
+                    <select {...register('category', { required: true })} className="input">
+                      <option value="">Select</option>
+                      {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="label">Sub-Category</label>
+                    <input {...register('subCategory')} className="input" placeholder="e.g. Shampoo" />
+                  </div>
+                  <div>
+                    <label className="label">Product Type</label>
+                    <select {...register('productType')} className="input">
+                      <option value="">Select</option>
+                      {PRODUCT_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+                    </select>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="label">Unit <span className="text-red-400">*</span></label>
+                    <select {...register('unit', { required: true })} className="input">
+                      {['pcs','kg','g','litre','ml','L','box','pack','set','pair'].map(u => <option key={u} value={u}>{u}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="label">Shelf Life (months)</label>
+                    <input {...register('shelfLife')} type="number" min="0" className="input" placeholder="e.g. 36" />
+                  </div>
                 </div>
                 <div>
-                  <label className="label text-xs">Total Quantity ({watchedUnit})</label>
-                  <input
-                    type="number" min="0" className="input"
-                    placeholder="e.g. 1000"
-                    value={purchaseQty}
-                    onChange={(e) => setPurchaseQty(e.target.value)}
-                  />
+                  <label className="label">Description</label>
+                  <textarea {...register('description')} className="input resize-none" rows={2} placeholder="Key claims, benefits..." />
                 </div>
-              </div>
-              {calcPerUnit !== null && (
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-bold text-blue-800 dark:text-blue-200">
-                    = ₹{calcPerUnit.toFixed(4)} per {watchedUnit}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => setValue('costPrice', parseFloat(calcPerUnit.toFixed(4)))}
-                    className="text-xs px-3 py-1 rounded-md bg-blue-600 text-white font-semibold hover:bg-blue-700 transition-colors"
-                  >
-                    Apply as Cost Price
-                  </button>
+              </>
+            )}
+
+            {/* Tab: Pricing */}
+            {activeTab === 'pricing' && (
+              <>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="label">HSN Code</label>
+                    <input {...register('hsnCode')} className="input" placeholder="e.g. 33049910" />
+                  </div>
+                  <div>
+                    <label className="label">GST Rate (%)</label>
+                    <select {...register('gstRate')} className="input">
+                      {[0,5,12,18,28].map(r => <option key={r} value={r}>{r}%</option>)}
+                    </select>
+                  </div>
                 </div>
+
+                {/* Purchase Price Calculator */}
+                {isWeightUnit && (
+                  <div className="rounded-lg border border-blue-500/30 bg-blue-500/5 p-3 space-y-2">
+                    <p className="text-xs font-semibold text-blue-400 uppercase tracking-wide">Purchase Price Calculator</p>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="label text-xs">Total Amount Paid (₹)</label>
+                        <input type="number" min="0" className="input" placeholder="e.g. 500" value={purchaseAmt} onChange={e => setPurchaseAmt(e.target.value)} />
+                      </div>
+                      <div>
+                        <label className="label text-xs">Total Quantity ({watchedUnit})</label>
+                        <input type="number" min="0" className="input" placeholder="e.g. 1000" value={purchaseQty} onChange={e => setPurchaseQty(e.target.value)} />
+                      </div>
+                    </div>
+                    {calcPerUnit !== null && (
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-bold text-blue-300">= ₹{calcPerUnit.toFixed(4)} per {watchedUnit}</span>
+                        <button type="button" onClick={() => setValue('costPrice', parseFloat(calcPerUnit.toFixed(4)))} className="text-xs px-3 py-1 rounded-md bg-blue-600 text-white font-semibold hover:bg-blue-700 transition-colors">Apply as Cost Price</button>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                <div className="grid grid-cols-3 gap-4">
+                  <div>
+                    <label className="label">Cost Price (₹)</label>
+                    <input {...register('costPrice')} type="number" min="0" step="0.0001" className="input" />
+                  </div>
+                  <div>
+                    <label className="label">Selling Price (₹)</label>
+                    <input {...register('sellingPrice')} type="number" min="0" step="0.01" className="input" />
+                  </div>
+                  <div>
+                    <label className="label">MRP (₹)</label>
+                    <input {...register('mrp')} type="number" min="0" step="0.01" className="input" />
+                  </div>
+                </div>
+                <div>
+                  <label className="label">Barcode</label>
+                  <input {...register('barcode')} className="input" placeholder="e.g. 8901234567890" />
+                </div>
+              </>
+            )}
+
+            {/* Tab: Stock */}
+            {activeTab === 'stock' && (
+              <>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="label">Min Stock Level</label>
+                    <input {...register('minStockLevel')} type="number" min="0" className="input" />
+                  </div>
+                  {!initial && (
+                    <div>
+                      <label className="label">Opening Stock</label>
+                      <input {...register('currentStock')} type="number" min="0" className="input" />
+                    </div>
+                  )}
+                </div>
+                <div>
+                  <label className="label">Warehouse Location</label>
+                  <input {...register('warehouseLocation')} className="input" placeholder="e.g. Shelf A-3" />
+                </div>
+                <div>
+                  <label className="label">Batch Number</label>
+                  <input {...register('batchNumber')} className="input" placeholder="e.g. BATCH-2026-01" />
+                </div>
+                <div>
+                  <label className="label">Certifications</label>
+                  <input {...register('certifications')} className="input" placeholder="e.g. Organic, GMP, Cruelty-Free" />
+                </div>
+                <div>
+                  <label className="label">Storage Conditions</label>
+                  <input {...register('storageConditions')} className="input" placeholder="e.g. Store in cool, dry place" />
+                </div>
+              </>
+            )}
+          </div>
+
+          {/* Footer */}
+          <div className="flex items-center justify-between px-6 py-4 border-t border-gray-700">
+            <div className="flex gap-1">
+              {FORM_TABS.map(t => (
+                <button key={t.id} type="button" onClick={() => setActiveTab(t.id)}
+                  className={`w-2 h-2 rounded-full transition-colors ${activeTab === t.id ? 'bg-indigo-500' : 'bg-gray-600 hover:bg-gray-500'}`} />
+              ))}
+            </div>
+            <div className="flex gap-3">
+              <button type="button" onClick={onClose} className="btn btn-ghost">Cancel</button>
+              {activeTab !== 'stock' ? (
+                <button type="button" onClick={() => {
+                  const idx = FORM_TABS.findIndex(t => t.id === activeTab);
+                  setActiveTab(FORM_TABS[idx + 1].id);
+                }} className="btn btn-primary">Next →</button>
+              ) : (
+                <button type="submit" disabled={loading} className="btn btn-primary">
+                  {loading ? 'Saving…' : initial ? 'Update Product' : 'Add Product'}
+                </button>
               )}
             </div>
-          )}
-          <div className="grid grid-cols-3 gap-3">
-            <div>
-              <label className="label">Cost Price {isWeightUnit ? `(₹ per ${watchedUnit})` : '(₹)'}</label>
-              <input {...register('costPrice')} type="number" min="0" step="0.0001" className="input" />
-            </div>
-            <div>
-              <label className="label">Selling Price (₹)</label>
-              <input {...register('sellingPrice')} type="number" min="0" className="input" />
-            </div>
-            <div>
-              <label className="label">MRP (₹)</label>
-              <input {...register('mrp')} type="number" min="0" className="input" />
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="label">GST Rate (%)</label>
-              <select {...register('gstRate')} className="input">
-                {[0, 5, 12, 18, 28].map((r) => (
-                  <option key={r} value={r}>{r}%</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="label">Min Stock Level</label>
-              <input {...register('minStockLevel')} type="number" min="0" className="input" />
-            </div>
-          </div>
-          <div>
-            <label className="label">Initial Stock</label>
-            <input {...register('currentStock')} type="number" min="0" className="input" />
-          </div>
-          {!forceRawMaterial && (
-            <div className="flex items-center gap-4">
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input {...register('isRawMaterial')} type="checkbox" className="rounded" />
-                <span className="text-sm">Raw Material</span>
-              </label>
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input {...register('isFinishedGood')} type="checkbox" className="rounded" defaultChecked />
-                <span className="text-sm">Finished Good</span>
-              </label>
-            </div>
-          )}
-          <div className="flex gap-3">
-            <button type="button" onClick={onClose} className="btn-secondary flex-1 justify-center">Cancel</button>
-            <button type="submit" disabled={loading} className="btn-primary flex-1 justify-center">
-              {loading ? 'Saving...' : 'Save'}
-            </button>
           </div>
         </form>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
+
+// ── Stock Adjust Modal ─────────────────────────────────────────────────────
 
 function StockAdjustModal({ product, onClose, onSuccess }) {
   const [qty, setQty] = useState('');
@@ -216,125 +324,43 @@ function StockAdjustModal({ product, onClose, onSuccess }) {
     }
   };
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-gray-900/60" onClick={onClose} />
-      <div className="relative card w-full max-w-sm shadow-modal p-6 space-y-4">
-        <h3 className="font-bold text-gray-900 dark:text-white">Stock Movement — {product.name}</h3>
-        <p className="text-sm text-gray-500">
-          Current stock: <span className="font-semibold text-gray-800 dark:text-white">{product.currentStock}</span> {product.unit}
-        </p>
+  return createPortal(
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/70 backdrop-blur-sm" onClick={onClose}>
+      <div className="relative card w-full max-w-sm shadow-2xl p-6 space-y-4" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between">
+          <h3 className="font-bold text-gray-100">Stock Movement</h3>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-200 text-2xl w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-700">&times;</button>
+        </div>
+        <p className="text-sm text-gray-400">{product.name} · <span className="font-semibold text-gray-200">{product.currentStock} {product.unit}</span> current</p>
         <div className="flex gap-2">
-          <button onClick={() => setType('IN')} className={clsx('flex-1 py-2 rounded-lg text-sm font-medium border-2', type === 'IN' ? 'bg-green-600 text-white border-green-600' : 'border-gray-300 text-gray-600')}>Stock In</button>
-          <button onClick={() => setType('OUT')} className={clsx('flex-1 py-2 rounded-lg text-sm font-medium border-2', type === 'OUT' ? 'bg-red-600 text-white border-red-600' : 'border-gray-300 text-gray-600')}>Stock Out</button>
+          <button onClick={() => setType('IN')} className={clsx('flex-1 py-2 rounded-lg text-sm font-medium border-2 transition-colors', type === 'IN' ? 'bg-emerald-600 text-white border-emerald-600' : 'border-gray-600 text-gray-400 hover:border-gray-500')}>Stock In</button>
+          <button onClick={() => setType('OUT')} className={clsx('flex-1 py-2 rounded-lg text-sm font-medium border-2 transition-colors', type === 'OUT' ? 'bg-red-600 text-white border-red-600' : 'border-gray-600 text-gray-400 hover:border-gray-500')}>Stock Out</button>
         </div>
         <div>
           <label className="label">Quantity ({product.unit})</label>
-          <input type="number" min="1" value={qty} onChange={(e) => setQty(e.target.value)} className="input" placeholder="Enter quantity" />
+          <input type="number" min="1" value={qty} onChange={e => setQty(e.target.value)} className="input" placeholder="Enter quantity" />
         </div>
         {type === 'IN' && (
           <div>
             <label className="label">Batch Number</label>
-            <input type="text" value={batch} onChange={(e) => setBatch(e.target.value)} className="input" placeholder="e.g. BATCH-2026-01" />
+            <input type="text" value={batch} onChange={e => setBatch(e.target.value)} className="input" placeholder="e.g. BATCH-2026-01" />
           </div>
         )}
         <div>
           <label className="label">Notes</label>
-          <input type="text" value={notes} onChange={(e) => setNotes(e.target.value)} className="input" placeholder="Reason..." />
+          <input type="text" value={notes} onChange={e => setNotes(e.target.value)} className="input" placeholder="Reason..." />
         </div>
-        <div className="flex gap-2">
-          <button onClick={onClose} className="btn-secondary flex-1 justify-center">Cancel</button>
-          <button onClick={handleSubmit} disabled={loading} className="btn-primary flex-1 justify-center">
-            {loading ? 'Processing...' : 'Confirm'}
-          </button>
+        <div className="flex gap-2 pt-2">
+          <button onClick={onClose} className="btn btn-ghost flex-1">Cancel</button>
+          <button onClick={handleSubmit} disabled={loading} className="btn btn-primary flex-1">{loading ? 'Processing…' : 'Confirm'}</button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 
-function UseRawMaterialModal({ product, onClose, onSuccess }) {
-  const [qty, setQty] = useState('');
-  const [notes, setNotes] = useState('');
-  const [loading, setLoading] = useState(false);
-
-  const handleSubmit = async () => {
-    if (!qty || isNaN(qty) || Number(qty) <= 0) return toast.error('Enter valid quantity');
-    if (Number(qty) > product.currentStock) return toast.error(`Only ${product.currentStock} ${product.unit} available`);
-    setLoading(true);
-    try {
-      await api.post('/inventory/stock-out', {
-        productId: product._id,
-        quantity: Number(qty),
-        type: 'PRODUCTION_USE',
-        notes: notes || 'Production usage',
-      });
-      toast.success('Usage recorded — stock reduced');
-      onSuccess();
-    } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-gray-900/60" onClick={onClose} />
-      <div className="relative card w-full max-w-sm shadow-modal p-6 space-y-4">
-        <div>
-          <h3 className="font-bold text-gray-900 dark:text-white">Record Production Usage</h3>
-          <p className="text-sm text-gray-500 mt-0.5">{product.name}</p>
-        </div>
-        <div className="rounded-lg bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 px-4 py-3 flex justify-between items-center">
-          <span className="text-sm text-orange-700 dark:text-orange-300">Available stock</span>
-          <span className="font-bold text-orange-700 dark:text-orange-300">{product.currentStock} {product.unit}</span>
-        </div>
-        <div>
-          <label className="label">Quantity Used ({product.unit})</label>
-          <input
-            type="number"
-            min="1"
-            max={product.currentStock}
-            value={qty}
-            onChange={(e) => setQty(e.target.value)}
-            className="input"
-            placeholder="Enter quantity used"
-          />
-        </div>
-        <div>
-          <label className="label">Notes (optional)</label>
-          <input
-            type="text"
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            className="input"
-            placeholder="e.g. Batch PO-2026-001"
-          />
-        </div>
-        {qty && Number(qty) > 0 && Number(qty) <= product.currentStock && (
-          <div className="space-y-1.5">
-            <p className="text-xs text-gray-500 bg-gray-50 dark:bg-gray-800 rounded px-3 py-2">
-              Stock after usage: <span className="font-semibold text-gray-800 dark:text-white">{product.currentStock - Number(qty)} {product.unit}</span>
-            </p>
-            {product.costPrice > 0 && (
-              <p className="text-xs bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 rounded px-3 py-2 text-orange-700 dark:text-orange-300">
-                Estimated material cost: <span className="font-bold">₹{(Number(qty) * product.costPrice).toFixed(2)}</span>
-                <span className="ml-1 opacity-70">({Number(qty)} {product.unit} × ₹{product.costPrice} per {product.unit})</span>
-              </p>
-            )}
-          </div>
-        )}
-        <div className="flex gap-2">
-          <button onClick={onClose} className="btn-secondary flex-1 justify-center">Cancel</button>
-          <button onClick={handleSubmit} disabled={loading} className="bg-orange-600 hover:bg-orange-700 text-white font-medium py-2 px-4 rounded-lg flex-1 justify-center transition-colors">
-            {loading ? 'Recording...' : 'Record Usage'}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
+// ── Helpers ────────────────────────────────────────────────────────────────
 
 function timeAgo(date) {
   if (!date) return null;
@@ -345,10 +371,12 @@ function timeAgo(date) {
   if (hrs < 24) return `${hrs}h ago`;
   const days = Math.floor(hrs / 24);
   if (days < 30) return `${days}d ago`;
-  return new Date(date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: '2-digit' });
+  return new Date(date).toLocaleDateString('en-IN', { day:'numeric', month:'short', year:'2-digit' });
 }
 
-function ProductTable({ products, canWrite, canDelete, onStock, onEdit, onQr, onUse, onDelete, isRawMaterial }) {
+// ── Product Table ──────────────────────────────────────────────────────────
+
+function ProductTable({ products, canWrite, canDelete, onStock, onEdit, onQr, onDelete }) {
   return (
     <div className="card overflow-hidden">
       <table className="w-full text-sm">
@@ -356,55 +384,40 @@ function ProductTable({ products, canWrite, canDelete, onStock, onEdit, onQr, on
           <tr>
             <th className="text-left py-3 px-4 text-gray-500 font-medium">Product</th>
             <th className="text-left py-3 px-4 text-gray-500 font-medium">SKU</th>
-            <th className="text-left py-3 px-4 text-gray-500 font-medium">HSN Code</th>
+            <th className="text-left py-3 px-4 text-gray-500 font-medium">Category</th>
             <th className="text-center py-3 px-4 text-gray-500 font-medium">Stock</th>
-            <th className="text-center py-3 px-4 text-gray-500 font-medium">Min Level</th>
-            <th className="text-right py-3 px-4 text-gray-500 font-medium">{isRawMaterial ? 'Cost / Unit' : 'Price & GST'}</th>
+            <th className="text-right py-3 px-4 text-gray-500 font-medium">Price & GST</th>
             <th className="text-center py-3 px-4 text-gray-500 font-medium">Status</th>
             <th className="text-center py-3 px-4 text-gray-500 font-medium">Last Stock In</th>
             {canWrite && <th className="text-right py-3 px-4 text-gray-500 font-medium">Actions</th>}
           </tr>
         </thead>
         <tbody className="divide-y divide-gray-100 dark:divide-[#1b2e4a]">
-          {products.map((product) => {
+          {products.map(product => {
             const isLow = product.currentStock <= product.minStockLevel;
             const isOut = product.currentStock === 0;
             return (
               <tr key={product._id} className="hover:bg-gray-50 dark:hover:bg-[#17263d]/50 transition-colors">
                 <td className="py-3 px-4">
                   <p className="font-medium text-gray-900 dark:text-white">{product.name}</p>
-                  <p className="text-xs text-gray-400">{product.category}</p>
+                  <p className="text-xs text-gray-400">{product.productType || product.subCategory || '—'}</p>
                 </td>
                 <td className="py-3 px-4 font-mono text-xs text-gray-500">{product.sku}</td>
-                <td className="py-3 px-4 text-xs text-gray-500">{product.hsnCode || <span className="text-gray-300">—</span>}</td>
+                <td className="py-3 px-4">
+                  <span className="text-xs px-2 py-0.5 bg-gray-100 dark:bg-gray-700/60 text-gray-600 dark:text-gray-300 rounded-full">{product.category}</span>
+                </td>
                 <td className="py-3 px-4 text-center">
-                  <span className={clsx('font-semibold', isOut ? 'text-red-600' : isLow ? 'text-orange-600' : 'text-gray-900 dark:text-white')}>
+                  <span className={clsx('font-semibold', isOut ? 'text-red-500' : isLow ? 'text-orange-500' : 'text-gray-900 dark:text-white')}>
                     {product.currentStock}
                   </span>
-                </td>
-                <td className="py-3 px-4 text-center text-gray-500">
-                  {product.minStockLevel}
                   <span className="text-xs text-gray-400 ml-1">{product.unit}</span>
                 </td>
                 <td className="py-3 px-4 text-right">
-                  {isRawMaterial ? (
-                    product.costPrice > 0 ? (
-                      <p className="font-semibold text-gray-900 dark:text-white">
-                        ₹{product.costPrice % 1 === 0 ? product.costPrice.toLocaleString('en-IN') : product.costPrice.toFixed(4)}
-                        <span className="text-xs text-gray-400 font-normal ml-1">/ {product.unit}</span>
-                      </p>
-                    ) : (
-                      <span className="text-xs text-gray-300">—</span>
-                    )
-                  ) : (
-                    <>
-                      <p className="text-gray-900 dark:text-white">₹{product.sellingPrice?.toLocaleString('en-IN')}</p>
-                      <p className="text-xs text-gray-400">
-                        Cost: ₹{product.costPrice?.toLocaleString('en-IN')}
-                        {product.gstRate != null && <span className="ml-1 text-blue-500">GST {product.gstRate}%</span>}
-                      </p>
-                    </>
-                  )}
+                  {product.mrp > 0 && <p className="text-gray-900 dark:text-white font-medium">MRP ₹{product.mrp?.toLocaleString('en-IN')}</p>}
+                  <p className="text-xs text-gray-400">
+                    SP: ₹{product.sellingPrice?.toLocaleString('en-IN') || '—'}
+                    {product.gstRate != null && <span className="ml-1 text-blue-500">GST {product.gstRate}%</span>}
+                  </p>
                 </td>
                 <td className="py-3 px-4 text-center">
                   {isOut
@@ -413,49 +426,23 @@ function ProductTable({ products, canWrite, canDelete, onStock, onEdit, onQr, on
                     ? <span className="badge badge-orange">Low Stock</span>
                     : <span className="badge badge-green">In Stock</span>}
                 </td>
-                <td className="py-3 px-4 text-center">
-                  {product.lastStockIn
-                    ? <span className="text-xs text-gray-500">{timeAgo(product.lastStockIn)}</span>
-                    : <span className="text-xs text-gray-300">—</span>}
+                <td className="py-3 px-4 text-center text-xs text-gray-500">
+                  {product.lastStockIn ? timeAgo(product.lastStockIn) : <span className="text-gray-300">—</span>}
                 </td>
                 {canWrite && (
                   <td className="py-3 px-4 text-right">
                     <div className="flex gap-1 justify-end">
-                      {isRawMaterial ? (
-                        <>
-                          <button
-                            onClick={() => onStock(product)}
-                            className="btn-secondary text-xs px-2 py-1 text-green-700 border-green-200 hover:bg-green-50"
-                          >
-                            Add Stock
-                          </button>
-                          <button
-                            onClick={() => onUse(product)}
-                            className="text-xs px-2 py-1 rounded border border-orange-300 text-orange-700 hover:bg-orange-50 transition-colors font-medium"
-                          >
-                            Use
-                          </button>
-                        </>
-                      ) : (
-                        <button onClick={() => onStock(product)} className="btn-secondary text-xs px-2 py-1">Stock</button>
-                      )}
-                      <button onClick={() => onQr(product)} className="btn-ghost text-xs px-2 py-1" title="Print QR Label">
-                        <QrCodeIcon className="w-4 h-4" />
-                      </button>
+                      <button onClick={() => onStock(product)} className="btn-secondary text-xs px-2 py-1">Stock</button>
+                      <button onClick={() => onQr(product)} className="btn-ghost text-xs px-2 py-1" title="QR Label"><QrCodeIcon className="w-4 h-4" /></button>
                       <button onClick={() => onEdit(product)} className="btn-ghost text-xs px-2 py-1">Edit</button>
                       {canDelete && (
-                        <button
-                          onClick={() => onDelete(product)}
-                          className="btn-ghost text-xs px-2 py-1 text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20"
-                          title="Delete"
-                        >
+                        <button onClick={() => onDelete(product)} className="btn-ghost text-xs px-2 py-1 text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20" title="Delete">
                           <TrashIcon className="w-4 h-4" />
                         </button>
                       )}
                     </div>
                   </td>
                 )}
-                {!canWrite && <td />}
               </tr>
             );
           })}
@@ -468,14 +455,12 @@ function ProductTable({ products, canWrite, canDelete, onStock, onEdit, onQr, on
   );
 }
 
+// ── Main Page ──────────────────────────────────────────────────────────────
+
 export default function Products() {
-  const { pathname } = useLocation();
-  const navigate = useNavigate();
-  const activeTab = pathname === '/inventory/rawmaterials' ? 'rawmaterials' : 'products';
   const [showForm, setShowForm] = useState(false);
   const [editProduct, setEditProduct] = useState(null);
   const [stockProduct, setStockProduct] = useState(null);
-  const [useProduct, setUseProduct] = useState(null);
   const [qrProduct, setQrProduct] = useState(null);
   const [showScanner, setShowScanner] = useState(false);
   const [deleteProduct, setDeleteProduct] = useState(null);
@@ -485,24 +470,22 @@ export default function Products() {
   const { isManagerOrAbove, hasInventoryWrite } = useAuthStore();
   const qc = useQueryClient();
 
-  const isRawTab = activeTab === 'rawmaterials';
-
   const { data, isLoading } = useQuery({
-    queryKey: ['inventory', 'products', activeTab, search, lowStockOnly],
+    queryKey: ['inventory', 'products', 'finished', search, lowStockOnly],
     queryFn: () =>
       api.get('/inventory/products', {
         params: {
           search: search || undefined,
           isLowStock: lowStockOnly || undefined,
-          isRawMaterial: isRawTab ? true : undefined,
-          limit: 50,
+          isRawMaterial: false,
+          limit: 100,
         },
-      }).then((r) => r.data),
+      }).then(r => r.data),
     refetchInterval: 5 * 60 * 1000,
   });
 
-  const products = data?.data || [];
-  const lowStockCount = products.filter((p) => p.currentStock <= p.minStockLevel).length;
+  const products = (data?.data?.products || data?.data || []).filter(p => !p.isRawMaterial);
+  const lowStockCount = products.filter(p => p.currentStock <= p.minStockLevel).length;
 
   const invalidate = () => qc.invalidateQueries({ queryKey: ['inventory'] });
 
@@ -525,52 +508,22 @@ export default function Products() {
     <div className="space-y-6">
       <div className="page-header">
         <div>
-          <h1 className="page-title">Products & Inventory</h1>
-          <p className="text-gray-500 text-sm">{data?.pagination?.total || 0} products • {lowStockCount} low stock</p>
+          <h1 className="page-title">Products</h1>
+          <p className="text-gray-500 text-sm">{products.length} products · {lowStockCount} low stock</p>
         </div>
         {hasInventoryWrite() && (
           <div className="flex items-center gap-2">
-            {!isRawTab && (
-              <ImportButton
-                templateUrl="/inventory/import/template"
-                importUrl="/inventory/import"
-                onSuccess={invalidate}
-                label="Import"
-              />
-            )}
+            <ImportButton
+              templateUrl="/inventory/import/template"
+              importUrl="/inventory/import"
+              onSuccess={invalidate}
+              label="Import"
+            />
             <button onClick={() => setShowForm(true)} className="btn-primary gap-2">
-              <PlusIcon className="w-4 h-4" />
-              {isRawTab ? 'Add Raw Material' : 'Add Product'}
+              + Add Product
             </button>
           </div>
         )}
-      </div>
-
-      {/* Tabs */}
-      <div className="flex gap-1 p-1 bg-gray-100 dark:bg-[#0f1a2e] rounded-lg w-fit">
-        <button
-          onClick={() => { navigate('/inventory/products'); setSearch(''); setLowStockOnly(false); }}
-          className={clsx(
-            'px-4 py-2 rounded-md text-sm font-medium transition-colors',
-            !isRawTab
-              ? 'bg-white dark:bg-[#17263d] text-gray-900 dark:text-white shadow-sm'
-              : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
-          )}
-        >
-          Finished Products
-        </button>
-        <button
-          onClick={() => { navigate('/inventory/rawmaterials'); setSearch(''); setLowStockOnly(false); }}
-          className={clsx(
-            'px-4 py-2 rounded-md text-sm font-medium transition-colors flex items-center gap-2',
-            isRawTab
-              ? 'bg-white dark:bg-[#17263d] text-gray-900 dark:text-white shadow-sm'
-              : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
-          )}
-        >
-          <BeakerIcon className="w-4 h-4" />
-          Raw Materials
-        </button>
       </div>
 
       {/* Filters */}
@@ -579,26 +532,20 @@ export default function Products() {
           <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
           <input
             type="text"
-            placeholder={isRawTab ? 'Search raw materials...' : 'Search products, SKU...'}
+            placeholder="Search products, SKU..."
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={e => setSearch(e.target.value)}
             className="input pl-9"
           />
         </div>
         <button
-          onClick={() => setLowStockOnly((p) => !p)}
+          onClick={() => setLowStockOnly(p => !p)}
           className={clsx('btn-secondary gap-2', lowStockOnly && 'bg-red-50 text-red-600 border-red-200')}
         >
           <ExclamationTriangleIcon className="w-4 h-4" />
           Low Stock Only
         </button>
       </div>
-
-      {isRawTab && (
-        <div className="rounded-lg border border-orange-200 bg-orange-50 dark:bg-orange-900/10 dark:border-orange-800 px-4 py-3 text-sm text-orange-700 dark:text-orange-300">
-          <strong>Raw Materials</strong> — Use <span className="font-semibold">Add Stock</span> when materials arrive. Use <span className="font-semibold">Use</span> to record production consumption (stock reduces automatically).
-        </div>
-      )}
 
       {isLoading ? (
         <div className="flex justify-center py-12">
@@ -612,16 +559,14 @@ export default function Products() {
           onStock={setStockProduct}
           onEdit={setEditProduct}
           onQr={setQrProduct}
-          onUse={setUseProduct}
           onDelete={setDeleteProduct}
-          isRawMaterial={isRawTab}
         />
       )}
 
+      {/* Modals */}
       {(showForm || editProduct) && (
-        <ProductForm
+        <ProductFormModal
           initial={editProduct}
-          forceRawMaterial={isRawTab && !editProduct}
           onClose={() => { setShowForm(false); setEditProduct(null); }}
           onSuccess={() => { setShowForm(false); setEditProduct(null); invalidate(); }}
         />
@@ -632,14 +577,6 @@ export default function Products() {
           product={stockProduct}
           onClose={() => setStockProduct(null)}
           onSuccess={() => { setStockProduct(null); invalidate(); }}
-        />
-      )}
-
-      {useProduct && (
-        <UseRawMaterialModal
-          product={useProduct}
-          onClose={() => setUseProduct(null)}
-          onSuccess={() => { setUseProduct(null); invalidate(); }}
         />
       )}
 
@@ -657,27 +594,24 @@ export default function Products() {
         />
       )}
 
-      {hasInventoryWrite() && (
-        <button
-          onClick={() => setShowScanner(true)}
-          className="fixed bottom-6 right-6 z-30 flex items-center gap-2 bg-orange-500 hover:bg-orange-600 text-white font-semibold px-4 py-3 rounded-full shadow-lg transition-colors"
-          title="Scan QR Code"
-        >
-          <QrCodeIcon className="w-5 h-5" />
-          <span className="text-sm hidden sm:inline">Scan QR</span>
-        </button>
-      )}
+      <button
+        onClick={() => setShowScanner(true)}
+        className="fixed bottom-6 right-6 z-30 flex items-center gap-2 bg-orange-500 hover:bg-orange-600 text-white font-semibold px-4 py-3 rounded-full shadow-lg transition-colors"
+        title="Scan QR Code"
+      >
+        <QrCodeIcon className="w-5 h-5" />
+        <span className="text-sm hidden sm:inline">Scan QR</span>
+      </button>
 
-      {deleteProduct && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-gray-900/60" onClick={() => setDeleteProduct(null)} />
-          <div className="relative card w-full max-w-sm shadow-modal p-6 space-y-4">
+      {deleteProduct && createPortal(
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/70 backdrop-blur-sm" onClick={() => setDeleteProduct(null)}>
+          <div className="relative card w-full max-w-sm shadow-2xl p-6 space-y-4" onClick={e => e.stopPropagation()}>
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center shrink-0">
                 <TrashIcon className="w-5 h-5 text-red-600" />
               </div>
               <div>
-                <h3 className="font-bold text-gray-900 dark:text-white">Delete {isRawTab ? 'Raw Material' : 'Product'}?</h3>
+                <h3 className="font-bold text-gray-900 dark:text-white">Delete Product?</h3>
                 <p className="text-sm text-gray-500 mt-0.5">This cannot be undone.</p>
               </div>
             </div>
@@ -686,17 +620,14 @@ export default function Products() {
               <p className="text-xs text-gray-500 mt-0.5">SKU: {deleteProduct.sku} · Stock: {deleteProduct.currentStock} {deleteProduct.unit}</p>
             </div>
             <div className="flex gap-3">
-              <button onClick={() => setDeleteProduct(null)} className="btn-secondary flex-1 justify-center">Cancel</button>
-              <button
-                onClick={handleDelete}
-                disabled={deleting}
-                className="flex-1 justify-center bg-red-600 hover:bg-red-700 text-white font-medium py-2 px-4 rounded-lg transition-colors disabled:opacity-50"
-              >
-                {deleting ? 'Deleting...' : 'Delete'}
+              <button onClick={() => setDeleteProduct(null)} className="btn btn-ghost flex-1">Cancel</button>
+              <button onClick={handleDelete} disabled={deleting} className="flex-1 bg-red-600 hover:bg-red-700 text-white font-medium py-2 px-4 rounded-lg transition-colors disabled:opacity-50">
+                {deleting ? 'Deleting…' : 'Delete'}
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
