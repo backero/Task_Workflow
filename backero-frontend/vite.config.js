@@ -80,4 +80,19 @@ export default defineConfig({
       '@': '/src',
     },
   },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'vendor-react': ['react', 'react-dom', 'react-router-dom'],
+          'vendor-query': ['@tanstack/react-query'],
+          'vendor-charts': ['recharts'],
+          'vendor-motion': ['framer-motion'],
+          'vendor-forms': ['react-hook-form'],
+          'vendor-date': ['date-fns'],
+          'vendor-ui': ['clsx', 'react-hot-toast'],
+        },
+      },
+    },
+  },
 });

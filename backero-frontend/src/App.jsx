@@ -5,6 +5,7 @@ import { useSocketStore } from './store/useSocketStore';
 import Layout from './components/layout/Layout';
 import ProtectedRoute from './components/common/ProtectedRoute';
 import PermissionRoute from './components/common/PermissionRoute';
+import DevAutoLogin from './components/common/DevAutoLogin';
 
 // Auth pages
 import Login from './pages/auth/Login';
@@ -109,6 +110,7 @@ export default function App() {
 
   return (
     <BrowserRouter>
+      {import.meta.env.DEV && <DevAutoLogin />}
       <Routes>
         {/* Public routes */}
         <Route path="/login" element={!user ? <Login /> : <Navigate to="/" replace />} />

@@ -5,7 +5,10 @@ require('../config/passport');
 const ctrl = require('../controllers/auth.controller');
 const { authenticate } = require('../middleware/auth.middleware');
 
-const authLimiter = rateLimit({
+const isDev = process.env.NODE_ENV !== 'production';
+const noopMiddleware = (_req, _res, next) => next();
+
+const authLimiter = isDev ? noopMiddleware : rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 10,
   standardHeaders: true,
@@ -13,7 +16,7 @@ const authLimiter = rateLimit({
   message: { success: false, message: 'Too many attempts. Please try again after 15 minutes.' },
 });
 
-const forgotLimiter = rateLimit({
+const forgotLimiter = isDev ? noopMiddleware : rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 5,
   standardHeaders: true,

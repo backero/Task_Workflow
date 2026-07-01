@@ -142,7 +142,7 @@ function statusBadge(status) {
 function StatCard({ label, value, icon, color }) {
   return (
     <div className="card p-5 flex justify-between items-start">
-      <div><p className="text-xs text-gray-400 font-medium mb-1">{label}</p><p className="text-2xl font-bold text-gray-100">{value}</p></div>
+      <div><p className="text-xs text-gray-400 font-medium mb-1">{label}</p><p className="text-2xl font-bold text-gray-900 dark:text-gray-100">{value}</p></div>
       <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-lg ${color}`}>{icon}</div>
     </div>
   );
@@ -188,13 +188,13 @@ function ProductModal({ onClose, onSuccess, initial }) {
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/70 backdrop-blur-sm" onClick={onClose}>
       <div className="relative w-full max-w-2xl card shadow-2xl" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-700">
-          <h2 className="font-bold text-gray-100 text-base">{initial ? `Edit — ${initial.name}` : 'Add New Product'}</h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-200 text-2xl w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-700">&times;</button>
+          <h2 className="font-bold text-gray-900 dark:text-gray-100 text-base">{initial ? `Edit — ${initial.name}` : 'Add New Product'}</h2>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 text-2xl w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700">&times;</button>
         </div>
         <div className="flex border-b border-gray-700 px-6">
           {MODAL_TABS.map(t => (
             <button key={t.id} type="button" onClick={() => setActiveTab(t.id)}
-              className={`flex items-center gap-1.5 px-3 py-3 text-xs font-semibold border-b-2 transition-colors -mb-px ${activeTab === t.id ? 'border-indigo-500 text-indigo-400' : 'border-transparent text-gray-400 hover:text-gray-200'}`}>
+              className={`flex items-center gap-1.5 px-3 py-3 text-xs font-semibold border-b-2 transition-colors -mb-px ${activeTab === t.id ? 'border-indigo-500 text-indigo-400' : 'border-transparent text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'}`}>
               {t.icon} {t.label}
             </button>
           ))}
@@ -287,13 +287,13 @@ function QRModal({ product, onClose }) {
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/70 backdrop-blur-sm" onClick={onClose}>
       <div className="relative w-full max-w-sm card shadow-2xl" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-700">
-          <h2 className="font-bold text-gray-100">QR Label</h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-200 text-2xl w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-700">&times;</button>
+          <h2 className="font-bold text-gray-900 dark:text-gray-100">QR Label</h2>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 text-2xl w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700">&times;</button>
         </div>
         <div className="p-6 flex flex-col items-center gap-4">
           <div className="bg-white p-4 rounded-xl"><QRCode value={qrData} size={200} /></div>
           <div className="text-center">
-            <p className="font-bold text-gray-100">{product.name}</p>
+            <p className="font-bold text-gray-900 dark:text-gray-100">{product.name}</p>
             <p className="text-xs text-gray-400 mt-1"><span className="block">SKU: {product.sku}</span><span className="block">HSN: {product.hsnCode||'-'} · GST: {product.gstRate}%</span>{product.mrp && <span className="block">MRP: ₹{product.mrp}</span>}</p>
           </div>
           <button className="btn btn-primary w-full" onClick={() => window.print()}>🖨️ Print Label</button>
@@ -394,19 +394,19 @@ function ProductDetailModal({ product, onClose, onSuccess }) {
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-3 border-b border-gray-700 flex-shrink-0">
           <div>
-            <h2 className="font-bold text-gray-100">{draft.name}</h2>
+            <h2 className="font-bold text-gray-900 dark:text-gray-100">{draft.name}</h2>
             <p className="text-xs text-gray-400">{draft.sku} · {draft.category}{draft.productType ? ` · ${draft.productType}` : ''}</p>
           </div>
           <div className="flex items-center gap-2">
             <button onClick={handleSave} disabled={saving} className="btn btn-primary text-xs">{saving ? 'Saving…' : '💾 Save All'}</button>
-            <button onClick={onClose} className="text-gray-400 hover:text-gray-200 text-2xl w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-700">&times;</button>
+            <button onClick={onClose} className="text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 text-2xl w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700">&times;</button>
           </div>
         </div>
         {/* Tabs */}
         <div className="flex border-b border-gray-700 px-4 flex-shrink-0 overflow-x-auto">
           {DETAIL_TABS.map(t => (
             <button key={t.id} onClick={() => setActiveTab(t.id)}
-              className={`flex items-center gap-1.5 px-4 py-3 text-xs font-semibold border-b-2 transition-colors -mb-px whitespace-nowrap ${activeTab === t.id ? 'border-indigo-500 text-indigo-400' : 'border-transparent text-gray-400 hover:text-gray-200'}`}>
+              className={`flex items-center gap-1.5 px-4 py-3 text-xs font-semibold border-b-2 transition-colors -mb-px whitespace-nowrap ${activeTab === t.id ? 'border-indigo-500 text-indigo-400' : 'border-transparent text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'}`}>
               {t.icon} {t.label}
             </button>
           ))}
@@ -420,26 +420,26 @@ function ProductDetailModal({ product, onClose, onSuccess }) {
               <div className="space-y-1">
                 <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-2">📋 Basic Info</p>
                 {[['SKU',draft.sku],['Category',draft.category],['Sub-Category',draft.subCategory||'-'],['Type',draft.productType||'-'],['Base Unit',draft.unit],['Shelf Life',draft.shelfLife?`${draft.shelfLife} months`:'-'],['Status',draft.status||'Active']].map(([l,v]) => (
-                  <div key={l} className="flex justify-between py-1.5 border-b border-gray-700/30 text-xs"><span className="text-gray-400">{l}</span><span className="font-medium text-gray-200">{v}</span></div>
+                  <div key={l} className="flex justify-between py-1.5 border-b border-gray-700/30 text-xs"><span className="text-gray-400">{l}</span><span className="font-medium text-gray-700 dark:text-gray-200">{v}</span></div>
                 ))}
               </div>
               <div className="space-y-1">
                 <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-2">💰 Pricing</p>
                 {[['HSN Code',draft.hsnCode||'-'],['GST Rate',`${draft.gstRate}%`],['Cost Price',draft.costPrice?fmt(draft.costPrice):'-'],['Selling Price',draft.sellingPrice?fmt(draft.sellingPrice):'-'],['MRP',draft.mrp?fmt(draft.mrp):'-'],['BOM Cost/unit',costs.total>0?fmt(costs.total,4):'—']].map(([l,v]) => (
-                  <div key={l} className="flex justify-between py-1.5 border-b border-gray-700/30 text-xs"><span className="text-gray-400">{l}</span><span className="font-medium text-gray-200">{v}</span></div>
+                  <div key={l} className="flex justify-between py-1.5 border-b border-gray-700/30 text-xs"><span className="text-gray-400">{l}</span><span className="font-medium text-gray-700 dark:text-gray-200">{v}</span></div>
                 ))}
               </div>
               <div>
                 <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-2">🧴 Variants</p>
                 {draft.variants?.length ? draft.variants.map((v,i) => (
                   <div key={i} className="flex items-center justify-between px-2 py-2 bg-gray-700/30 rounded-lg text-xs mb-1">
-                    <span className="font-semibold text-indigo-300">{v.name||`${v.size}${v.unit}`}</span>
-                    <span className="text-gray-400">MOQ: {v.moq||'-'}</span>
-                    <span className="text-emerald-400">{v.mrp?`₹${v.mrp}`:v.sellingPrice?`₹${v.sellingPrice}`:'-'}</span>
+                    <span className="font-semibold text-indigo-600 dark:text-indigo-300">{v.name||`${v.size}${v.unit}`}</span>
+                    <span className="text-gray-500 dark:text-gray-400">MOQ: {v.moq||'-'}</span>
+                    <span className="text-emerald-600 dark:text-emerald-400">{v.mrp?`₹${v.mrp}`:v.sellingPrice?`₹${v.sellingPrice}`:'-'}</span>
                   </div>
                 )) : <p className="text-xs text-gray-500">No variants</p>}
-                {draft.certifications && <div className="mt-3 p-2 bg-gray-700/20 rounded-lg text-xs text-gray-300"><span className="font-semibold">Certs: </span>{draft.certifications}</div>}
-                {draft.storageConditions && <div className="mt-1 p-2 bg-gray-700/20 rounded-lg text-xs text-gray-300"><span className="font-semibold">Storage: </span>{draft.storageConditions}</div>}
+                {draft.certifications && <div className="mt-3 p-2 bg-gray-100 dark:bg-gray-700/20 rounded-lg text-xs text-gray-700 dark:text-gray-300"><span className="font-semibold">Certs: </span>{draft.certifications}</div>}
+                {draft.storageConditions && <div className="mt-1 p-2 bg-gray-100 dark:bg-gray-700/20 rounded-lg text-xs text-gray-700 dark:text-gray-300"><span className="font-semibold">Storage: </span>{draft.storageConditions}</div>}
               </div>
             </div>
           )}
@@ -456,7 +456,7 @@ function ProductDetailModal({ product, onClose, onSuccess }) {
                 <div className="ml-auto flex gap-4 text-xs">
                   <span className={`font-semibold ${Math.abs(formStats.totalPct-100)<0.01?'text-emerald-400':formStats.totalPct>100?'text-red-400':'text-amber-400'}`}>Total: {f2(formStats.totalPct,2)}%</span>
                   <span className="text-gray-400">Cost/unit: <span className="text-indigo-300 font-bold">{fmt(formStats.costPerUnit,4)}</span></span>
-                  <span className="text-gray-400">Batch total: <span className="text-gray-200 font-semibold">{fmt(formStats.totalAmount)}</span></span>
+                  <span className="text-gray-500 dark:text-gray-400">Batch total: <span className="text-gray-800 dark:text-gray-200 font-semibold">{fmt(formStats.totalAmount)}</span></span>
                 </div>
               </div>
               <datalist id="rm-list">{rawMats.map(m => <option key={m._id} value={m.name} />)}</datalist>
@@ -473,7 +473,7 @@ function ProductDetailModal({ product, onClose, onSuccess }) {
                       const qty = ((r.percentage||0)/100) * (draft.formulation.refWeight||100) * (r.conversion||1);
                       const amount = qty * (r.unitPrice||0);
                       return (
-                        <tr key={i} className="hover:bg-gray-700/20">
+                        <tr key={i} className="hover:bg-gray-100 dark:hover:bg-gray-700/20">
                           <td className="px-2 py-1.5 text-gray-500 text-center">{i+1}</td>
                           <td className="px-1 py-1.5"><input value={r.code||''} onChange={e=>setFormRow(i,'code',e.target.value)} className="input text-xs py-1 w-20" placeholder="Code" /></td>
                           <td className="px-1 py-1.5"><input list="rm-list" value={r.name||''} onChange={e=>setFormRow(i,'name',e.target.value)} onBlur={e=>handleMatInput(i,e.target.value)} className="input text-xs py-1 w-40" placeholder="Type material…" /></td>
@@ -496,7 +496,7 @@ function ProductDetailModal({ product, onClose, onSuccess }) {
               {draft.formulation.rows.length > 0 && (
                 <div className="grid grid-cols-3 gap-3">
                   {[['Total Formulation Cost',fmt(formStats.totalAmount)],['Reference Weight',`${draft.formulation.refWeight} ${draft.formulation.refUnit}`],['Cost Per Unit',fmt(formStats.costPerUnit,4)]].map(([l,v]) => (
-                    <div key={l} className="p-3 bg-gray-700/20 rounded-lg text-center"><p className="text-xs text-gray-400">{l}</p><p className="text-lg font-bold text-indigo-300 mt-1">{v}</p></div>
+                    <div key={l} className="p-3 bg-gray-100 dark:bg-gray-700/20 rounded-lg text-center"><p className="text-xs text-gray-500 dark:text-gray-400">{l}</p><p className="text-lg font-bold text-indigo-600 dark:text-indigo-300 mt-1">{v}</p></div>
                   ))}
                 </div>
               )}
@@ -507,7 +507,7 @@ function ProductDetailModal({ product, onClose, onSuccess }) {
           {activeTab === 'overheads' && (
             <div className="grid grid-cols-2 gap-5">
               <div className="space-y-2 p-4 bg-gray-700/10 rounded-xl border border-gray-700">
-                <p className="text-xs font-bold text-gray-300 mb-3">⚖️ Standard Assumptions (% of formulation cost)</p>
+                <p className="text-xs font-bold text-gray-700 dark:text-gray-300 mb-3">⚖️ Standard Assumptions (% of formulation cost)</p>
                 {[['Equipment Depreciation','equipmentPct'],['Consumables','consumablesPct'],['Storage','storagePct'],['Housekeeping','housekeepingPct'],['Admin & Management','adminPct'],['Wastage Allowance','wastagePct']].map(([label,key]) => (
                   <div key={key} className="flex items-center gap-3 text-xs">
                     <span className="text-gray-400 flex-1">{label}</span>
@@ -516,10 +516,10 @@ function ProductDetailModal({ product, onClose, onSuccess }) {
                   </div>
                 ))}
                 <div className="pt-2 border-t border-gray-700 flex justify-between text-xs"><span className="text-gray-400">Total Indirect</span><span className="font-bold text-amber-400">{costs.saPct.toFixed(1)}%</span></div>
-                <div className="flex justify-between text-xs"><span className="text-gray-400">SA Amount / unit</span><span className="font-bold text-gray-200">{fmt(costs.saPerUnit,4)}</span></div>
+                <div className="flex justify-between text-xs"><span className="text-gray-500 dark:text-gray-400">SA Amount / unit</span><span className="font-bold text-gray-800 dark:text-gray-200">{fmt(costs.saPerUnit,4)}</span></div>
               </div>
               <div className="space-y-2 p-4 bg-gray-700/10 rounded-xl border border-gray-700">
-                <p className="text-xs font-bold text-gray-300 mb-3">🔬 R&D Costs (amortized over lifecycle)</p>
+                <p className="text-xs font-bold text-gray-700 dark:text-gray-300 mb-3">🔬 R&D Costs (amortized over lifecycle)</p>
                 {[['Lab Testing (₹)','testing'],['R&D Consumables (₹)','consumables'],['Samples (₹)','samples'],['Overhead (₹)','overhead'],['Other Overhead (₹)','otherOverhead'],['QC Cost (₹)','qc']].map(([label,key]) => (
                   <div key={key} className="flex items-center gap-3 text-xs">
                     <span className="text-gray-400 flex-1">{label}</span>
@@ -528,12 +528,12 @@ function ProductDetailModal({ product, onClose, onSuccess }) {
                 ))}
                 <div className="flex items-center gap-3 text-xs"><span className="text-gray-400 flex-1">Lifecycle (batches)</span><input type="number" step="1" min="1" value={draft.rnd.lifecycle||1000} onChange={e=>numField('rnd.lifecycle',e.target.value)} className="input text-xs py-1 w-28 text-right" /></div>
                 <div className="pt-2 border-t border-gray-700 space-y-1 text-xs">
-                  <div className="flex justify-between"><span className="text-gray-400">Total R&D Cost</span><span className="font-bold text-gray-200">{fmt(costs.rndTotal)}</span></div>
-                  <div className="flex justify-between"><span className="text-gray-400">Per Batch Amortized</span><span className="font-bold text-indigo-300">{fmt(costs.rndPerUnit,4)}</span></div>
+                  <div className="flex justify-between"><span className="text-gray-500 dark:text-gray-400">Total R&D Cost</span><span className="font-bold text-gray-800 dark:text-gray-200">{fmt(costs.rndTotal)}</span></div>
+                  <div className="flex justify-between"><span className="text-gray-500 dark:text-gray-400">Per Batch Amortized</span><span className="font-bold text-indigo-600 dark:text-indigo-300">{fmt(costs.rndPerUnit,4)}</span></div>
                 </div>
               </div>
               <div className="space-y-2 p-4 bg-gray-700/10 rounded-xl border border-gray-700">
-                <p className="text-xs font-bold text-gray-300 mb-3">🏭 Production Overhead (per {draft.formulation.refWeight} {draft.formulation.refUnit} batch)</p>
+                <p className="text-xs font-bold text-gray-700 dark:text-gray-300 mb-3">🏭 Production Overhead (per {draft.formulation.refWeight} {draft.formulation.refUnit} batch)</p>
                 {[['Electricity (₹)','electricity'],['Labor (₹)','labor'],['Lab Testing (₹)','labTesting'],['Other (₹)','other']].map(([label,key]) => (
                   <div key={key} className="flex items-center gap-3 text-xs">
                     <span className="text-gray-400 flex-1">{label}</span>
@@ -541,16 +541,16 @@ function ProductDetailModal({ product, onClose, onSuccess }) {
                   </div>
                 ))}
                 <div className="pt-2 border-t border-gray-700 space-y-1 text-xs">
-                  <div className="flex justify-between"><span className="text-gray-400">Total Overhead</span><span className="font-bold text-gray-200">{fmt(costs.ohTotal)}</span></div>
-                  <div className="flex justify-between"><span className="text-gray-400">Per unit</span><span className="font-bold text-indigo-300">{fmt(costs.ohPerUnit,4)}</span></div>
+                  <div className="flex justify-between"><span className="text-gray-500 dark:text-gray-400">Total Overhead</span><span className="font-bold text-gray-800 dark:text-gray-200">{fmt(costs.ohTotal)}</span></div>
+                  <div className="flex justify-between"><span className="text-gray-500 dark:text-gray-400">Per unit</span><span className="font-bold text-indigo-600 dark:text-indigo-300">{fmt(costs.ohPerUnit,4)}</span></div>
                 </div>
               </div>
               <div className="space-y-2 p-4 bg-indigo-500/5 rounded-xl border border-indigo-500/20">
-                <p className="text-xs font-bold text-gray-300 mb-3">📊 Cost Summary (per unit)</p>
+                <p className="text-xs font-bold text-gray-700 dark:text-gray-300 mb-3">📊 Cost Summary (per unit)</p>
                 {[['Formulation',costs.formCostPerUnit],['Std Assumptions',costs.saPerUnit],['Prod Overhead',costs.ohPerUnit],['R&D Amortized',costs.rndPerUnit],['Packaging',costs.pkgPerUnit]].map(([l,v]) => (
-                  <div key={l} className="flex justify-between py-1 border-b border-gray-700/30 text-xs"><span className="text-gray-400">{l}</span><span className="text-gray-200">{fmt(v,4)}</span></div>
+                  <div key={l} className="flex justify-between py-1 border-b border-gray-200 dark:border-gray-700/30 text-xs"><span className="text-gray-500 dark:text-gray-400">{l}</span><span className="text-gray-800 dark:text-gray-200">{fmt(v,4)}</span></div>
                 ))}
-                <div className="flex justify-between pt-2 font-bold"><span className="text-gray-300 text-sm">Total Cost / unit</span><span className="text-indigo-300 text-base">{fmt(costs.total,4)}</span></div>
+                <div className="flex justify-between pt-2 font-bold"><span className="text-gray-700 dark:text-gray-300 text-sm">Total Cost / unit</span><span className="text-indigo-600 dark:text-indigo-300 text-base">{fmt(costs.total,4)}</span></div>
                 <p className="text-[10px] text-gray-500">Ref: {draft.formulation.refWeight} {draft.formulation.refUnit} batch</p>
               </div>
             </div>
@@ -561,19 +561,19 @@ function ProductDetailModal({ product, onClose, onSuccess }) {
             <div className="space-y-5">
               <div className="grid grid-cols-4 gap-3">
                 {[['Formulation',fmt(costs.formCostPerUnit,4),'bg-blue-500/15'],['Std Assumptions',fmt(costs.saPerUnit,4),'bg-amber-500/15'],['Overhead + R&D',fmt(costs.ohPerUnit+costs.rndPerUnit,4),'bg-purple-500/15'],['Input Total',fmt(costs.formCostPerUnit+costs.saPerUnit+costs.ohPerUnit+costs.rndPerUnit,4),'bg-indigo-500/15']].map(([l,v,bg]) => (
-                  <div key={l} className={`p-3 rounded-lg ${bg} text-center`}><p className="text-[10px] text-gray-400">{l}</p><p className="text-sm font-bold text-gray-100 mt-1">{v}</p></div>
+                  <div key={l} className={`p-3 rounded-lg ${bg} text-center`}><p className="text-[10px] text-gray-400">{l}</p><p className="text-sm font-bold text-gray-900 dark:text-gray-100 mt-1">{v}</p></div>
                 ))}
               </div>
 
               {/* Packaging */}
               <div>
-                <div className="flex items-center justify-between mb-2"><p className="text-xs font-bold text-gray-300">📦 Packaging Items</p><button onClick={()=>addPkgItem('bomPackaging.items')} className="text-xs text-indigo-400 hover:text-indigo-300">+ Add Item</button></div>
+                <div className="flex items-center justify-between mb-2"><p className="text-xs font-bold text-gray-700 dark:text-gray-300">📦 Packaging Items</p><button onClick={()=>addPkgItem('bomPackaging.items')} className="text-xs text-indigo-600 dark:text-indigo-400 hover:text-indigo-400 dark:hover:text-indigo-300">+ Add Item</button></div>
                 <div className="rounded-lg border border-gray-700 overflow-hidden">
                   <table className="w-full text-xs">
                     <thead className="bg-gray-800/60"><tr><th className="px-3 py-2 text-left text-gray-400">Item</th><th className="px-3 py-2 text-gray-400">Qty</th><th className="px-3 py-2 text-gray-400">Rate ₹</th><th className="px-3 py-2 text-gray-400">Amount</th><th className="px-3 py-2 text-gray-400">Optional</th><th></th></tr></thead>
                     <tbody className="divide-y divide-gray-700/30">
                       {(draft.bomPackaging.items||[]).map((item, i) => (
-                        <tr key={i} className="hover:bg-gray-700/20">
+                        <tr key={i} className="hover:bg-gray-100 dark:hover:bg-gray-700/20">
                           <td className="px-2 py-1.5"><input value={item.name||''} onChange={e=>setPkgItem('bomPackaging.items',i,'name',e.target.value)} className="input text-xs py-1 min-w-32" /></td>
                           <td className="px-2 py-1.5"><input type="number" step="0.01" value={item.qty||0} onChange={e=>setPkgItem('bomPackaging.items',i,'qty',e.target.value)} className="input text-xs py-1 w-16" /></td>
                           <td className="px-2 py-1.5"><input type="number" step="0.01" value={item.rate||0} onChange={e=>setPkgItem('bomPackaging.items',i,'rate',e.target.value)} className="input text-xs py-1 w-20" /></td>
@@ -594,11 +594,11 @@ function ProductDetailModal({ product, onClose, onSuccess }) {
 
               {/* Grand Total */}
               <div className="p-4 bg-indigo-500/5 border border-indigo-500/20 rounded-xl">
-                <p className="text-xs font-bold text-gray-300 mb-3">🏆 Grand Total Cost (per unit)</p>
+                <p className="text-xs font-bold text-gray-700 dark:text-gray-300 mb-3">🏆 Grand Total Cost (per unit)</p>
                 <div className="grid grid-cols-5 gap-2 text-center text-xs">
                   {[['Ingredients',costs.formCostPerUnit],['Std Assumptions',costs.saPerUnit],['Overhead',costs.ohPerUnit+costs.rndPerUnit],['Packaging',costs.pkgPerUnit],['Grand Total',costs.total]].map(([l,v],i) => (
-                    <div key={l} className={`p-2 rounded-lg ${i===4?'bg-indigo-500/20 border border-indigo-500/30':'bg-gray-700/30'}`}>
-                      <p className="text-[10px] text-gray-400">{l}</p><p className={`font-bold mt-1 ${i===4?'text-indigo-300 text-base':'text-gray-200'}`}>{fmt(v,2)}</p>
+                    <div key={l} className={`p-2 rounded-lg ${i===4?'bg-indigo-500/20 border border-indigo-500/30':'bg-gray-100 dark:bg-gray-700/30'}`}>
+                      <p className="text-[10px] text-gray-500 dark:text-gray-400">{l}</p><p className={`font-bold mt-1 ${i===4?'text-indigo-600 dark:text-indigo-300 text-base':'text-gray-800 dark:text-gray-200'}`}>{fmt(v,2)}</p>
                     </div>
                   ))}
                 </div>
@@ -606,7 +606,7 @@ function ProductDetailModal({ product, onClose, onSuccess }) {
 
               {/* Margins */}
               <div>
-                <p className="text-xs font-bold text-gray-300 mb-3">📈 Pricing Margins (%)</p>
+                <p className="text-xs font-bold text-gray-700 dark:text-gray-300 mb-3">📈 Pricing Margins (%)</p>
                 <div className="grid grid-cols-4 gap-3">
                   {[['Ex-Factory','exFactory'],['Dealer','dealer'],['Distributor','distributor'],['Retailer','retailer'],['Selling','selling'],['B2B Direct','b2b'],['B2C Direct','b2c']].map(([l,k]) => (
                     <div key={k} className="flex items-center justify-between gap-2 text-xs p-2 bg-gray-700/20 rounded-lg">
@@ -633,12 +633,12 @@ function ProductDetailModal({ product, onClose, onSuccess }) {
                           const di = dl*(1+m.distributor/100); const rt = di*(1+m.retailer/100);
                           const sl = rt*(1+m.selling/100); const b2b = pc*(1+m.b2b/100); const b2c = pc*(1+m.b2c/100);
                           return (
-                            <tr key={i} className="hover:bg-gray-700/20">
-                              <td className="px-2 py-2 font-semibold text-indigo-300">{v.name||`${v.size}${v.unit}`}</td>
-                              <td className="px-2 py-2 text-gray-400">{v.size} {v.unit}</td>
-                              <td className="px-2 py-2 text-gray-200 font-semibold">{fmt(pc)}</td>
-                              <td className="px-2 py-2 text-gray-300">{fmt(eF)}</td><td className="px-2 py-2 text-gray-300">{fmt(dl)}</td>
-                              <td className="px-2 py-2 text-gray-300">{fmt(di)}</td><td className="px-2 py-2 text-gray-300">{fmt(rt)}</td>
+                            <tr key={i} className="hover:bg-gray-100 dark:hover:bg-gray-700/20">
+                              <td className="px-2 py-2 font-semibold text-indigo-600 dark:text-indigo-300">{v.name||`${v.size}${v.unit}`}</td>
+                              <td className="px-2 py-2 text-gray-500 dark:text-gray-400">{v.size} {v.unit}</td>
+                              <td className="px-2 py-2 text-gray-800 dark:text-gray-200 font-semibold">{fmt(pc)}</td>
+                              <td className="px-2 py-2 text-gray-700 dark:text-gray-300">{fmt(eF)}</td><td className="px-2 py-2 text-gray-700 dark:text-gray-300">{fmt(dl)}</td>
+                              <td className="px-2 py-2 text-gray-700 dark:text-gray-300">{fmt(di)}</td><td className="px-2 py-2 text-gray-700 dark:text-gray-300">{fmt(rt)}</td>
                               <td className="px-2 py-2 text-emerald-400 font-bold">{fmt(sl)}</td>
                               <td className="px-2 py-2 text-blue-400">{fmt(b2b)}</td><td className="px-2 py-2 text-purple-400">{fmt(b2c)}</td>
                             </tr>
@@ -666,12 +666,12 @@ function ProductDetailModal({ product, onClose, onSuccess }) {
               <div className="space-y-5">
                 <div className="p-3 bg-gray-700/20 rounded-lg flex flex-wrap gap-4 text-xs items-center">
                   {[['Formulation',fmt(costs.formCostPerUnit,4)],['Std Ass',fmt(costs.saPerUnit,4)],['Overhead',fmt(costs.ohPerUnit,4)],['R&D',fmt(costs.rndPerUnit,4)],['MP Packaging',fmt(mpPkgTotal)]].map(([l,v])=>(
-                    <span key={l} className="text-gray-400">{l}: <span className="text-gray-200 font-semibold">{v}</span></span>
+                    <span key={l} className="text-gray-500 dark:text-gray-400">{l}: <span className="text-gray-800 dark:text-gray-200 font-semibold">{v}</span></span>
                   ))}
-                  <span className="font-bold text-indigo-300 ml-auto">Base Cost: {fmt(baseCost)}</span>
+                  <span className="font-bold text-indigo-600 dark:text-indigo-300 ml-auto">Base Cost: {fmt(baseCost)}</span>
                 </div>
                 <div>
-                  <div className="flex items-center justify-between mb-2"><p className="text-xs font-bold text-gray-300">📦 Marketplace Packaging</p><button onClick={()=>addPkgItem('marketplace.packaging')} className="text-xs text-indigo-400">+ Add</button></div>
+                  <div className="flex items-center justify-between mb-2"><p className="text-xs font-bold text-gray-700 dark:text-gray-300">📦 Marketplace Packaging</p><button onClick={()=>addPkgItem('marketplace.packaging')} className="text-xs text-indigo-600 dark:text-indigo-400">+ Add</button></div>
                   <div className="rounded-lg border border-gray-700 overflow-hidden">
                     <table className="w-full text-xs">
                       <thead className="bg-gray-800/60"><tr><th className="px-3 py-2 text-left text-gray-400">Item</th><th className="px-3 py-2 text-gray-400">Qty</th><th className="px-3 py-2 text-gray-400">Rate ₹</th><th className="px-3 py-2 text-gray-400">Amount</th><th></th></tr></thead>
@@ -697,8 +697,8 @@ function ProductDetailModal({ product, onClose, onSuccess }) {
                     return (
                       <div key={key} className={`p-4 rounded-xl border ${color} space-y-2`}>
                         <div className="flex items-center justify-between">
-                          <p className="text-sm font-bold text-gray-100">{label}</p>
-                          <div className="text-right"><p className="text-[10px] text-gray-400">Min Selling Price</p><p className="text-base font-bold text-indigo-300">{fmt(res.minSelling)}</p></div>
+                          <p className="text-sm font-bold text-gray-900 dark:text-gray-100">{label}</p>
+                          <div className="text-right"><p className="text-[10px] text-gray-500 dark:text-gray-400">Min Selling Price</p><p className="text-base font-bold text-indigo-600 dark:text-indigo-300">{fmt(res.minSelling)}</p></div>
                         </div>
                         <div className="grid grid-cols-2 gap-2 text-xs">
                           {fields.map(([fl,fk]) => (
@@ -726,7 +726,7 @@ function ProductDetailModal({ product, onClose, onSuccess }) {
                 <QRCode value={JSON.stringify({ sku:draft.sku, name:draft.name, category:draft.category, hsn:draft.hsnCode||'', gst:draft.gstRate, unit:draft.unit, mrp:draft.mrp })} size={220} />
               </div>
               <div className="text-center">
-                <p className="font-bold text-gray-100 text-lg">{draft.name}</p>
+                <p className="font-bold text-gray-900 dark:text-gray-100 text-lg">{draft.name}</p>
                 <p className="text-sm text-gray-400 mt-1">SKU: {draft.sku}</p>
                 <p className="text-sm text-gray-400">HSN: {draft.hsnCode||'-'} · GST: {draft.gstRate}%</p>
                 {draft.mrp && <p className="text-sm text-gray-400">MRP: ₹{draft.mrp}</p>}
@@ -748,27 +748,27 @@ function ProductDetailModal({ product, onClose, onSuccess }) {
 function DetailRow({ product, onOpenDetail }) {
   return (
     <tr>
-      <td colSpan={8} className="p-0 border-b border-gray-700/50">
-        <div className="grid grid-cols-3 gap-5 p-5 bg-gray-800/50">
+      <td colSpan={8} className="p-0 border-b border-gray-200 dark:border-gray-700/50">
+        <div className="grid grid-cols-3 gap-5 p-5 bg-gray-50 dark:bg-gray-800/50">
           <div>
             <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-2">📋 Product Info</p>
             {[['Sub-Category',product.subCategory||'-'],['Product Type',product.productType||'-'],['Shelf Life',product.shelfLife?`${product.shelfLife} months`:'-'],['Certifications',product.certifications||'-'],['Storage',product.storageConditions||'-'],['Barcode',product.barcode||'-']].map(([l,v]) => (
-              <div key={l} className="flex justify-between py-1.5 border-b border-gray-700/30 text-xs"><span className="text-gray-400">{l}</span><span className="font-medium text-gray-200 text-right max-w-[60%] truncate">{v}</span></div>
+              <div key={l} className="flex justify-between py-1.5 border-b border-gray-700/30 text-xs"><span className="text-gray-400">{l}</span><span className="font-medium text-gray-700 dark:text-gray-200 text-right max-w-[60%] truncate">{v}</span></div>
             ))}
           </div>
           <div>
             <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-2">💰 Pricing</p>
             {[['Cost Price',product.costPrice?`₹${product.costPrice}`:'-'],['Selling Price',product.sellingPrice?`₹${product.sellingPrice}`:'-'],['MRP',product.mrp?`₹${product.mrp}`:'-'],['GST',`${product.gstRate}%`],['HSN Code',product.hsnCode||'-'],['Stock',`${product.currentStock||0} ${product.unit}`]].map(([l,v]) => (
-              <div key={l} className="flex justify-between py-1.5 border-b border-gray-700/30 text-xs"><span className="text-gray-400">{l}</span><span className="font-medium text-gray-200">{v}</span></div>
+              <div key={l} className="flex justify-between py-1.5 border-b border-gray-700/30 text-xs"><span className="text-gray-400">{l}</span><span className="font-medium text-gray-700 dark:text-gray-200">{v}</span></div>
             ))}
           </div>
           <div>
             <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-2">🧴 Variants</p>
             {product.variants?.length ? product.variants.map((v,i) => (
               <div key={i} className="flex items-center justify-between px-2 py-1.5 bg-gray-700/30 rounded-lg text-xs mb-1">
-                <span className="font-semibold text-indigo-300">{v.name||`${v.size}${v.unit}`}</span>
-                <span className="text-gray-400">MOQ: {v.moq||'-'}</span>
-                <span className="text-emerald-400">{v.mrp?`₹${v.mrp}`:v.sellingPrice?`₹${v.sellingPrice}`:'-'}</span>
+                <span className="font-semibold text-indigo-600 dark:text-indigo-300">{v.name||`${v.size}${v.unit}`}</span>
+                <span className="text-gray-500 dark:text-gray-400">MOQ: {v.moq||'-'}</span>
+                <span className="text-emerald-600 dark:text-emerald-400">{v.mrp?`₹${v.mrp}`:v.sellingPrice?`₹${v.sellingPrice}`:'-'}</span>
               </div>
             )) : <p className="text-xs text-gray-500 py-2">No variants</p>}
             <button onClick={() => onOpenDetail(product)} className="mt-3 w-full py-2 text-xs rounded-lg border border-indigo-500/30 text-indigo-400 hover:bg-indigo-500/10 transition-colors font-semibold">🧮 Open Full Details + BOM</button>
@@ -787,18 +787,18 @@ function ProductCard({ product, onEdit, onDetail, onQR, onDelete }) {
       <div className="w-full h-28 rounded-lg bg-gray-700/30 flex items-center justify-center text-4xl">🧴</div>
       <div>
         <div className="flex items-start justify-between gap-1"><p className="text-xs text-gray-500 font-semibold">{product.sku}</p>{statusBadge(product.status||'Active')}</div>
-        <p className="font-bold text-gray-100 text-sm mt-1 leading-tight">{product.name}</p>
+        <p className="font-bold text-gray-900 dark:text-gray-100 text-sm mt-1 leading-tight">{product.name}</p>
         <p className="text-xs text-gray-400 mt-0.5">{product.category}{product.subCategory?` · ${product.subCategory}`:''}</p>
       </div>
       <div className="flex items-center justify-between">
         <span className="text-sm font-bold text-indigo-400">{product.mrp?`₹${product.mrp}`:product.sellingPrice?`₹${product.sellingPrice}`:'—'}</span>
         <span className="text-xs text-gray-400">{product.variants?.length?`${product.variants.length} variants`:product.unit}</span>
       </div>
-      <div className="flex gap-1 pt-1 border-t border-gray-700">
-        <button onClick={()=>onEdit(product)} className="flex-1 py-1.5 text-xs rounded-lg bg-gray-700/40 hover:bg-indigo-500/20 text-gray-300 hover:text-indigo-300 transition-colors font-medium">✏️ Edit</button>
-        <button onClick={()=>onDetail(product)} className="flex-1 py-1.5 text-xs rounded-lg bg-gray-700/40 hover:bg-amber-500/20 text-gray-300 hover:text-amber-300 transition-colors font-medium">🧮 BOM</button>
-        <button onClick={()=>onQR(product)} className="py-1.5 px-2 text-xs rounded-lg bg-gray-700/40 hover:bg-purple-500/20 text-purple-400 transition-colors">🔲</button>
-        <button onClick={()=>onDelete(product)} className="py-1.5 px-2 text-xs rounded-lg bg-gray-700/40 hover:bg-red-500/20 text-red-400 transition-colors">🗑️</button>
+      <div className="flex gap-1 pt-1 border-t border-gray-200 dark:border-gray-700">
+        <button onClick={()=>onEdit(product)} className="flex-1 py-1.5 text-xs rounded-lg bg-gray-100 dark:bg-gray-700/40 hover:bg-indigo-500/20 text-gray-600 dark:text-gray-300 hover:text-indigo-600 dark:hover:text-indigo-300 transition-colors font-medium">✏️ Edit</button>
+        <button onClick={()=>onDetail(product)} className="flex-1 py-1.5 text-xs rounded-lg bg-gray-100 dark:bg-gray-700/40 hover:bg-amber-500/20 text-gray-600 dark:text-gray-300 hover:text-amber-600 dark:hover:text-amber-300 transition-colors font-medium">🧮 BOM</button>
+        <button onClick={()=>onQR(product)} className="py-1.5 px-2 text-xs rounded-lg bg-gray-100 dark:bg-gray-700/40 hover:bg-purple-500/20 text-purple-600 dark:text-purple-400 transition-colors">🔲</button>
+        <button onClick={()=>onDelete(product)} className="py-1.5 px-2 text-xs rounded-lg bg-gray-100 dark:bg-gray-700/40 hover:bg-red-500/20 text-red-500 dark:text-red-400 transition-colors">🗑️</button>
       </div>
     </div>
   );
@@ -880,7 +880,7 @@ export default function ProductCatalog() {
   return (
     <div className="p-6 space-y-5 max-w-screen-2xl mx-auto">
       <div className="flex items-center justify-between">
-        <div><h1 className="text-xl font-bold text-gray-100">Product Catalog</h1><p className="text-sm text-gray-400 mt-0.5">Finished Goods — B2B Cosmetic Manufacturing</p></div>
+        <div><h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">Product Catalog</h1><p className="text-sm text-gray-400 mt-0.5">Finished Goods — B2B Cosmetic Manufacturing</p></div>
         <div className="flex gap-2">
           <button onClick={exportCSV} className="btn btn-ghost text-sm">📥 Export CSV</button>
           <button onClick={() => setShowAddModal(true)} className="btn btn-primary text-sm">+ Add Product</button>
@@ -896,14 +896,14 @@ export default function ProductCatalog() {
 
       <div className="card overflow-hidden">
         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-700 flex-wrap gap-3">
-          <h2 className="font-semibold text-gray-100 text-sm">🧴 Products</h2>
+          <h2 className="font-semibold text-gray-900 dark:text-gray-100 text-sm">🧴 Products</h2>
           <div className="flex items-center gap-2 flex-wrap">
             <div className="relative"><span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">🔍</span><input value={search} onChange={e=>setSearch(e.target.value)} className="input pl-8 w-52 text-sm" placeholder="Search name, SKU…" /></div>
             <select value={filterCat} onChange={e=>setFilterCat(e.target.value)} className="input text-sm w-40"><option value="">All Categories</option>{categories.map(c=><option key={c} value={c}>{c}</option>)}</select>
             <select value={filterStatus} onChange={e=>setFilterStatus(e.target.value)} className="input text-sm w-32"><option value="">All Status</option>{STATUSES.map(s=><option key={s} value={s}>{s}</option>)}</select>
             <div className="flex gap-1 bg-gray-700/40 p-1 rounded-lg border border-gray-600/50">
-              <button onClick={()=>setView('list')} className={`px-2.5 py-1 rounded text-xs font-semibold transition-colors ${view==='list'?'bg-gray-600 text-gray-100':'text-gray-400 hover:text-gray-200'}`}>☰ List</button>
-              <button onClick={()=>setView('grid')} className={`px-2.5 py-1 rounded text-xs font-semibold transition-colors ${view==='grid'?'bg-gray-600 text-gray-100':'text-gray-400 hover:text-gray-200'}`}>⊞ Grid</button>
+              <button onClick={()=>setView('list')} className={`px-2.5 py-1 rounded text-xs font-semibold transition-colors ${view==='list'?'bg-gray-600 text-gray-100':'text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'}`}>☰ List</button>
+              <button onClick={()=>setView('grid')} className={`px-2.5 py-1 rounded text-xs font-semibold transition-colors ${view==='grid'?'bg-gray-600 text-gray-100':'text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'}`}>⊞ Grid</button>
             </div>
           </div>
         </div>
@@ -919,10 +919,10 @@ export default function ProductCatalog() {
         {view === 'list' && (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
-              <thead className="bg-gray-800/50">
+              <thead className="bg-gray-50 dark:bg-gray-800/50">
                 <tr>
                   {[['sku','SKU'],['name','Product Name'],['category','Category'],['productType','Type'],['sellingPrice','Price'],['currentStock','Stock'],['status','Status']].map(([key,label]) => (
-                    <th key={key} onClick={()=>handleSort(key)} className="px-4 py-3 text-left text-[11px] font-semibold text-gray-400 uppercase tracking-wider cursor-pointer hover:text-gray-200 transition-colors whitespace-nowrap">
+                    <th key={key} onClick={()=>handleSort(key)} className="px-4 py-3 text-left text-[11px] font-semibold text-gray-400 uppercase tracking-wider cursor-pointer hover:text-gray-700 dark:hover:text-gray-200 transition-colors whitespace-nowrap">
                       {label}<SortIcon col={key} />
                     </th>
                   ))}
@@ -936,12 +936,12 @@ export default function ProductCatalog() {
                   const isExpanded = expandedId === p._id;
                   return (
                     <React.Fragment key={p._id}>
-                      <tr className="hover:bg-gray-700/20 transition-colors">
+                      <tr className="hover:bg-gray-100 dark:hover:bg-gray-700/20 transition-colors">
                         <td className="px-4 py-3"><button onClick={()=>setExpandedId(isExpanded?null:p._id)} className="font-bold text-indigo-400 hover:underline">{p.sku}</button></td>
-                        <td className="px-4 py-3"><button onClick={()=>setExpandedId(isExpanded?null:p._id)} className="font-semibold text-gray-200 hover:text-indigo-400 transition-colors text-left">{p.name}</button></td>
-                        <td className="px-4 py-3"><span className="text-xs px-2 py-1 bg-gray-700/60 text-gray-300 rounded-full">{p.category}</span></td>
-                        <td className="px-4 py-3 text-gray-400 text-xs">{p.productType||'-'}</td>
-                        <td className="px-4 py-3 text-gray-300">{p.mrp?`₹${p.mrp}`:p.sellingPrice?`₹${p.sellingPrice}`:'—'}</td>
+                        <td className="px-4 py-3"><button onClick={()=>setExpandedId(isExpanded?null:p._id)} className="font-semibold text-gray-800 dark:text-gray-200 hover:text-indigo-400 transition-colors text-left">{p.name}</button></td>
+                        <td className="px-4 py-3"><span className="text-xs px-2 py-1 bg-gray-100 dark:bg-gray-700/60 text-gray-600 dark:text-gray-300 rounded-full">{p.category}</span></td>
+                        <td className="px-4 py-3 text-gray-500 dark:text-gray-400 text-xs">{p.productType||'-'}</td>
+                        <td className="px-4 py-3 text-gray-700 dark:text-gray-300">{p.mrp?`₹${p.mrp}`:p.sellingPrice?`₹${p.sellingPrice}`:'—'}</td>
                         <td className="px-4 py-3 text-emerald-400 font-semibold">{p.currentStock||0} {p.unit}</td>
                         <td className="px-4 py-3">{statusBadge(p.status||'Active')}</td>
                         <td className="px-4 py-3">

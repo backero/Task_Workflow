@@ -5,6 +5,7 @@ const ActivityLog = require('../models/ActivityLog');
 const { asyncHandler, sendSuccess, sendError, paginate, paginateResponse } = require('../utils/helpers');
 const { TASK_STATUS, APPROVAL_STATUS, SOCKET_EVENTS, ROLE_HIERARCHY } = require('../utils/constants');
 const { createNotification } = require('../services/notification.service');
+const { sendTaskNotificationEmail } = require('../services/email.service');
 
 // GET /api/approvals - Get approval queue
 exports.getApprovals = asyncHandler(async (req, res) => {
@@ -149,6 +150,20 @@ exports.approveTask = asyncHandler(async (req, res) => {
   io?.to(`org:${req.user.organizationId}`).emit(SOCKET_EVENTS.TASK_APPROVED, { taskId: task._id, approvalId: approval._id });
   io?.to(`user:${approval.requestedBy}`).emit(SOCKET_EVENTS.TASK_APPROVED, { taskId: task._id });
 
+  // Email the task owner
+  User.findById(approval.requestedBy).select('email settings').then((requester) => {
+    if (requester?.email && !requester.email.endsWith('@backero.internal') && requester.settings?.notifications?.email !== false) {
+      const taskUrl = `${process.env.FRONTEND_URL || 'https://task-workflow-liart.vercel.app'}/workflow/${task._id}`;
+      sendTaskNotificationEmail(requester.email, {
+        type: 'approved',
+        taskTitle: task.title,
+        assignedByName: `${req.user.firstName} ${req.user.lastName}`,
+        priority: task.priority,
+        taskUrl,
+      }).catch(() => {});
+    }
+  }).catch(() => {});
+
   await ActivityLog.create({
     organizationId: req.user.organizationId,
     performedBy: req.user._id,
@@ -200,6 +215,20 @@ exports.rejectTask = asyncHandler(async (req, res) => {
   }, io);
 
   io?.to(`user:${approval.requestedBy}`).emit(SOCKET_EVENTS.TASK_REJECTED, { taskId: task._id, reason: reviewNotes });
+
+  // Email the task owner
+  User.findById(approval.requestedBy).select('email settings').then((requester) => {
+    if (requester?.email && !requester.email.endsWith('@backero.internal') && requester.settings?.notifications?.email !== false) {
+      const taskUrl = `${process.env.FRONTEND_URL || 'https://task-workflow-liart.vercel.app'}/workflow/${task._id}`;
+      sendTaskNotificationEmail(requester.email, {
+        type: 'rejected',
+        taskTitle: task.title,
+        assignedByName: `${req.user.firstName} ${req.user.lastName}`,
+        priority: task.priority,
+        taskUrl,
+      }).catch(() => {});
+    }
+  }).catch(() => {});
 
   sendSuccess(res, { approval, task }, 'Task rejected with feedback');
 });

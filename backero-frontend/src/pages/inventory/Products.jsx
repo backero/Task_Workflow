@@ -92,10 +92,10 @@ function ProductFormModal({ onClose, onSuccess, initial }) {
       <div className="relative w-full max-w-xl card shadow-2xl" onClick={e => e.stopPropagation()}>
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-700">
-          <h2 className="font-bold text-gray-100 text-base">
+          <h2 className="font-bold text-gray-900 dark:text-gray-100 text-base">
             {initial ? `Edit — ${initial.name}` : 'Add New Product'}
           </h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-200 text-2xl w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-700">&times;</button>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 text-2xl w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700">&times;</button>
         </div>
 
         {/* Tabs */}
@@ -103,7 +103,7 @@ function ProductFormModal({ onClose, onSuccess, initial }) {
           {FORM_TABS.map(t => (
             <button key={t.id} type="button" onClick={() => setActiveTab(t.id)}
               className={`flex items-center gap-1.5 px-4 py-3 text-xs font-semibold border-b-2 transition-colors -mb-px ${
-                activeTab === t.id ? 'border-indigo-500 text-indigo-400' : 'border-transparent text-gray-400 hover:text-gray-200'
+                activeTab === t.id ? 'border-indigo-500 text-indigo-400' : 'border-transparent text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
               }`}>
               {t.icon} {t.label}
             </button>
@@ -328,10 +328,10 @@ function StockAdjustModal({ product, onClose, onSuccess }) {
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/70 backdrop-blur-sm" onClick={onClose}>
       <div className="relative card w-full max-w-sm shadow-2xl p-6 space-y-4" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between">
-          <h3 className="font-bold text-gray-100">Stock Movement</h3>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-200 text-2xl w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-700">&times;</button>
+          <h3 className="font-bold text-gray-900 dark:text-gray-100">Stock Movement</h3>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 text-2xl w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700">&times;</button>
         </div>
-        <p className="text-sm text-gray-400">{product.name} · <span className="font-semibold text-gray-200">{product.currentStock} {product.unit}</span> current</p>
+        <p className="text-sm text-gray-400">{product.name} · <span className="font-semibold text-gray-800 dark:text-gray-200">{product.currentStock} {product.unit}</span> current</p>
         <div className="flex gap-2">
           <button onClick={() => setType('IN')} className={clsx('flex-1 py-2 rounded-lg text-sm font-medium border-2 transition-colors', type === 'IN' ? 'bg-emerald-600 text-white border-emerald-600' : 'border-gray-600 text-gray-400 hover:border-gray-500')}>Stock In</button>
           <button onClick={() => setType('OUT')} className={clsx('flex-1 py-2 rounded-lg text-sm font-medium border-2 transition-colors', type === 'OUT' ? 'bg-red-600 text-white border-red-600' : 'border-gray-600 text-gray-400 hover:border-gray-500')}>Stock Out</button>

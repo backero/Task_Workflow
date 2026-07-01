@@ -163,12 +163,23 @@ taskSchema.index({ organizationId: 1, dueDate: 1, isOverdue: 1 });
 taskSchema.index({ organizationId: 1, assignedBy: 1 });
 taskSchema.index({ organizationId: 1, department: 1, platform: 1 });
 
-// Auto-set isOverdue
+// Auto-set isOverdue on save
 taskSchema.pre('save', function (next) {
   if (this.dueDate && this.status !== 'Completed' && this.status !== 'Cancelled') {
     this.isOverdue = new Date() > this.dueDate;
   }
   next();
+});
+
+// Always compute isOverdue live in API responses so stale DB value never misleads clients
+taskSchema.set('toJSON', {
+  transform: (doc, ret) => {
+    if (doc.dueDate && !['Completed', 'Cancelled'].includes(doc.status)) {
+      ret.isOverdue = new Date() > doc.dueDate;
+    }
+    delete ret.__v;
+    return ret;
+  },
 });
 
 module.exports = mongoose.model('Task', taskSchema);

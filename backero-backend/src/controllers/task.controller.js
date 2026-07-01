@@ -8,6 +8,7 @@ const { asyncHandler, sendSuccess, sendError, paginate, paginateResponse } = req
 const { TASK_STATUS, SOCKET_EVENTS, ROLES, ROLE_HIERARCHY } = require('../utils/constants');
 const { createNotification } = require('../services/notification.service');
 const { sendTaskAssigned } = require('../services/whatsapp.service');
+const { sendTaskNotificationEmail } = require('../services/email.service');
 
 // GET /api/tasks
 exports.getTasks = asyncHandler(async (req, res) => {
@@ -246,19 +247,41 @@ exports.createTask = asyncHandler(async (req, res) => {
       channels: { inApp: true, whatsapp: false },
     }, io);
 
-    // Direct WhatsApp with rich formatting
-    const assigneeUser = await User.findById(assignedTo).select('phone whatsapp');
+    // Fetch assignee and org settings once for both WA and email
+    const [assigneeUser, orgSettings] = await Promise.all([
+      User.findById(assignedTo).select('phone whatsapp email settings'),
+      Organization.findById(req.user.organizationId).select('settings.enableWhatsApp'),
+    ]);
+
     if (assigneeUser) {
-      const phone = assigneeUser.whatsapp || assigneeUser.phone;
-      if (phone) {
-        sendTaskAssigned(phone, {
-          title,
+      // WhatsApp — only if org has it enabled
+      if (orgSettings?.settings?.enableWhatsApp) {
+        const phone = assigneeUser.whatsapp || assigneeUser.phone;
+        if (phone) {
+          sendTaskAssigned(phone, {
+            title,
+            assignedByName: `${req.user.firstName} ${req.user.lastName}`,
+            priority,
+            department,
+            dueDate,
+            description,
+            taskId: task._id,
+          }).catch(() => {});
+        }
+      }
+
+      // Email — only if user has email notifications on and email is real
+      const emailEnabled = assigneeUser.settings?.notifications?.email !== false;
+      const hasRealEmail = assigneeUser.email && !assigneeUser.email.endsWith('@backero.internal');
+      if (emailEnabled && hasRealEmail) {
+        const taskUrl = `${process.env.FRONTEND_URL || 'https://task-workflow-liart.vercel.app'}/workflow/${task._id}`;
+        sendTaskNotificationEmail(assigneeUser.email, {
+          type: 'assigned',
+          taskTitle: title,
           assignedByName: `${req.user.firstName} ${req.user.lastName}`,
           priority,
-          department,
           dueDate,
-          description,
-          taskId: task._id,
+          taskUrl,
         }).catch(() => {});
       }
     }

@@ -44,7 +44,7 @@ function UserModal({ open, onClose, editUser }) {
     if (open) {
       reset(editUser
         ? { firstName: editUser.firstName, lastName: editUser.lastName, phone: editUser.phone, role: editUser.role, department: editUser.department || '', designation: editUser.designation || '', googleEmail: editUser.googleEmail || '' }
-        : { role: 'member', firstName: '', lastName: '', phone: '', department: '', designation: '', googleEmail: '' }
+        : { role: 'member', firstName: '', lastName: '', email: '', password: '', phone: '', department: '', designation: '', googleEmail: '' }
       );
     }
   }, [open, editUser]);
@@ -89,26 +89,56 @@ function UserModal({ open, onClose, editUser }) {
             </div>
           </div>
 
+          {!isEdit && (
+            <div>
+              <label className="label">Email Address *</label>
+              <input
+                {...register('email', {
+                  required: 'Email is required',
+                  pattern: { value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/, message: 'Enter a valid email' },
+                })}
+                className="input"
+                placeholder="employee@example.com"
+                type="email"
+              />
+              {errors.email && <p className="text-red-500 text-xs mt-1">{errors.email.message}</p>}
+            </div>
+          )}
+
+          {!isEdit && (
+            <div>
+              <label className="label">Password *</label>
+              <input
+                {...register('password', {
+                  required: 'Password is required',
+                  minLength: { value: 8, message: 'Minimum 8 characters' },
+                })}
+                className="input"
+                type="password"
+                placeholder="Minimum 8 characters"
+              />
+              {errors.password && <p className="text-red-500 text-xs mt-1">{errors.password.message}</p>}
+              <p className="text-xs text-gray-400 mt-1">Employee will use this to sign in with email</p>
+            </div>
+          )}
+
           <div>
-            <label className="label">Mobile Number *</label>
+            <label className="label">Mobile Number</label>
             <div className="flex gap-2">
               <span className="flex items-center px-3 bg-gray-100 dark:bg-[#0f1a2e] border border-gray-300 dark:border-[#1b2e4a] rounded-lg text-sm font-semibold text-gray-500 shrink-0">
                 +91
               </span>
               <input
                 {...register('phone', {
-                  required: 'Phone is required',
                   pattern: { value: /^\d{10}$/, message: 'Enter 10-digit number' },
                 })}
                 className="input flex-1"
                 placeholder="98765 43210"
                 inputMode="numeric"
                 maxLength={10}
-                disabled={isEdit}
               />
             </div>
             {errors.phone && <p className="text-red-500 text-xs mt-1">{errors.phone.message}</p>}
-            {isEdit && <p className="text-xs text-gray-400 mt-1">Phone cannot be changed after creation</p>}
           </div>
 
           <div className="grid grid-cols-2 gap-3">

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Outlet } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import Header from './Header';
+import MobileNav from './MobileNav';
 import HelpDrawer from '../help/HelpDrawer';
 import GlobalTimerWidget from '../tasks/GlobalTimerWidget';
 
@@ -32,12 +33,13 @@ export default function Layout() {
           sidebarOpen={sidebarOpen}
           onMobileMenuToggle={() => setMobileSidebarOpen(true)}
         />
-        <main className="flex-1 overflow-y-auto p-4 lg:p-6 dot-grid">
+        <main className="flex-1 overflow-y-auto p-4 lg:p-6 pb-20 lg:pb-6 dot-grid">
           <div className="max-w-screen-2xl mx-auto animate-page">
             <Outlet />
           </div>
         </main>
       </div>
+      <MobileNav onMenuOpen={() => setMobileSidebarOpen(true)} />
       <HelpDrawer />
       <GlobalTimerWidget />
     </div>

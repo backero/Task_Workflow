@@ -84,4 +84,83 @@ const sendPasswordResetEmail = async (toEmail, resetUrl, firstName) => {
   }
 };
 
-module.exports = { sendOTPEmail, sendPasswordResetEmail };
+const sendWelcomeEmail = async (toEmail, firstName, loginUrl) => {
+  const transporter = getTransporter();
+  if (!transporter) return false;
+  const from = process.env.SMTP_FROM || process.env.SMTP_USER;
+  try {
+    await transporter.sendMail({
+      from: `"Backero" <${from}>`,
+      to: toEmail,
+      subject: `Welcome to Backero, ${firstName}!`,
+      text: `Hi ${firstName},\n\nYour Backero account has been created.\n\nLogin at: ${loginUrl}\nEmail: ${toEmail}\n\nYour admin set a password for you. You can change it at any time from Settings.`,
+      html: `
+        <div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:32px;background:#f8fafc;border-radius:12px">
+          <h2 style="color:#1e40af;margin:0 0 8px">Welcome to Backero!</h2>
+          <p style="color:#475569;margin:0 0 24px">Hi ${firstName}, your account is ready. Click below to sign in.</p>
+          <div style="background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:20px;margin:0 0 20px">
+            <p style="margin:0 0 6px;color:#64748b;font-size:13px">Your login email:</p>
+            <p style="margin:0;font-size:15px;font-weight:600;color:#1e293b">${toEmail}</p>
+          </div>
+          <a href="${loginUrl}" style="display:inline-block;background:#2563eb;color:#fff;font-weight:600;padding:12px 28px;border-radius:8px;text-decoration:none;font-size:15px">Sign In to Backero</a>
+          <p style="color:#94a3b8;font-size:12px;margin:20px 0 0">You can change your password anytime from the Settings page.</p>
+        </div>
+      `,
+    });
+    logger.info(`[Email] ✅ Welcome sent to ${toEmail}`);
+    return true;
+  } catch (err) {
+    logger.error(`[Email] ❌ Welcome failed to ${toEmail}: ${err.message}`);
+    return false;
+  }
+};
+
+const PRIORITY_LABEL = { critical: '🔴 Critical', urgent: '🟠 Urgent', high: '🟡 High', medium: '🔵 Medium', low: '⚪ Low' };
+
+const sendTaskNotificationEmail = async (toEmail, { type = 'assigned', taskTitle, assignedByName, priority, dueDate, taskUrl }) => {
+  const transporter = getTransporter();
+  if (!transporter) return false;
+  const from = process.env.SMTP_FROM || process.env.SMTP_USER;
+
+  const dueLine = dueDate ? `<p style="margin:4px 0 0;color:#64748b;font-size:13px">Due: <strong>${new Date(dueDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</strong></p>` : '';
+  const subjects = {
+    assigned: `New task assigned: ${taskTitle}`,
+    approved: `Task approved: ${taskTitle}`,
+    rejected: `Changes requested: ${taskTitle}`,
+    completion_requested: `Completion review needed: ${taskTitle}`,
+  };
+  const headings = {
+    assigned: `You have a new task`,
+    approved: `Your task was approved`,
+    rejected: `Changes requested on your task`,
+    completion_requested: `Task completion needs your review`,
+  };
+
+  try {
+    await transporter.sendMail({
+      from: `"Backero" <${from}>`,
+      to: toEmail,
+      subject: subjects[type] || `Task update: ${taskTitle}`,
+      html: `
+        <div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:32px;background:#f8fafc;border-radius:12px">
+          <h2 style="color:#1e40af;margin:0 0 8px">${headings[type] || 'Task update'}</h2>
+          <p style="color:#475569;margin:0 0 20px">From ${assignedByName} on Backero</p>
+          <div style="background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:20px;margin:0 0 20px">
+            <p style="margin:0;font-size:16px;font-weight:700;color:#1e293b">${taskTitle}</p>
+            <p style="margin:6px 0 0;color:#64748b;font-size:13px">Priority: <strong>${PRIORITY_LABEL[priority] || priority || 'Medium'}</strong></p>
+            ${dueLine}
+          </div>
+          <a href="${taskUrl}" style="display:inline-block;background:#2563eb;color:#fff;font-weight:600;padding:12px 28px;border-radius:8px;text-decoration:none;font-size:15px">View Task</a>
+          <p style="color:#94a3b8;font-size:12px;margin:20px 0 0">You're receiving this because you have email notifications enabled in Backero.</p>
+        </div>
+      `,
+    });
+    logger.info(`[Email] ✅ Task ${type} email sent to ${toEmail}`);
+    return true;
+  } catch (err) {
+    logger.error(`[Email] ❌ Task email failed to ${toEmail}: ${err.message}`);
+    return false;
+  }
+};
+
+module.exports = { sendOTPEmail, sendPasswordResetEmail, sendWelcomeEmail, sendTaskNotificationEmail };

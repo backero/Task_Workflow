@@ -6,6 +6,7 @@ const { authorizeAdminOrAbove } = require('../middleware/role.middleware');
 const { asyncHandler, sendSuccess, sendError, paginate, paginateResponse, sanitizeUser } = require('../utils/helpers');
 const upload = require('../middleware/upload.middleware');
 const { buildTeamTemplate, importTeam } = require('../services/import.service');
+const { sendWelcomeEmail } = require('../services/email.service');
 
 router.use(authenticate, orgIsolation);
 
@@ -45,23 +46,32 @@ router.get('/', asyncHandler(async (req, res) => {
 }));
 
 router.post('/', authorizeAdminOrAbove, asyncHandler(async (req, res) => {
-  const { firstName, lastName, phone, role, department, designation, reportsTo } = req.body;
-  if (!phone) return sendError(res, 'Phone number is required.', 400);
+  const { firstName, lastName, email, password, phone, role, department, designation, reportsTo } = req.body;
+  if (!email) return sendError(res, 'Email is required.', 400);
+  if (!password || password.length < 8) return sendError(res, 'Password must be at least 8 characters.', 400);
 
-  const existingPhone = await User.findOne({ organizationId: req.user.organizationId, phone: phone.trim() });
-  if (existingPhone) return sendError(res, 'A user with this phone number already exists in your organization.', 409);
+  const existingEmail = await User.findOne({ organizationId: req.user.organizationId, email: email.toLowerCase().trim() });
+  if (existingEmail) return sendError(res, 'A user with this email already exists in your organization.', 409);
 
-  // Email and password are not used for login (OTP-only), generate placeholders
-  const email = `${phone.replace(/\D/g, '')}@backero.internal`;
-  const password = require('crypto').randomBytes(16).toString('hex');
+  if (phone) {
+    const existingPhone = await User.findOne({ organizationId: req.user.organizationId, phone: phone.trim() });
+    if (existingPhone) return sendError(res, 'A user with this phone number already exists in your organization.', 409);
+  }
 
   const user = await User.create({
     organizationId: req.user.organizationId,
-    firstName, lastName, email, phone: phone.trim(), password,
+    firstName, lastName,
+    email: email.toLowerCase().trim(),
+    password,
+    phone: phone ? phone.trim() : undefined,
     role: role || 'member', department, designation, reportsTo,
     isVerified: true,
     createdBy: req.user._id,
   });
+
+  const loginUrl = process.env.FRONTEND_URL || 'https://task-workflow-liart.vercel.app';
+  sendWelcomeEmail(user.email, firstName, loginUrl).catch(() => {});
+
   sendSuccess(res, { user: sanitizeUser(user) }, 'User created', 201);
 }));
 

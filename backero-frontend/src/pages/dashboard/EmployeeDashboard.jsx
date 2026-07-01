@@ -52,6 +52,7 @@ export default function EmployeeDashboard() {
   const { data, isLoading } = useQuery({
     queryKey: ['dashboard', 'employee'],
     queryFn: () => api.get('/dashboard/employee').then((r) => r.data.dashboard),
+    staleTime: 5 * 60 * 1000,
     refetchInterval: 5 * 60 * 1000,
   });
 

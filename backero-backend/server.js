@@ -1,4 +1,13 @@
 require('dotenv').config();
+
+// Fail fast if critical secrets are missing — JWT would silently sign with 'undefined'
+const REQUIRED_ENV = ['JWT_SECRET', 'JWT_REFRESH_SECRET', 'MONGODB_URI'];
+const missing = REQUIRED_ENV.filter((k) => !process.env[k]);
+if (missing.length) {
+  console.error(`[startup] Missing required env vars: ${missing.join(', ')}. Server will not start.`);
+  process.exit(1);
+}
+
 const express = require('express');
 const http = require('http');
 const cors = require('cors');

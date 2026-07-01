@@ -101,7 +101,7 @@ function StatCard({ label, value, icon, color, onClick }) {
     >
       <div>
         <p className="text-xs text-gray-400 font-medium mb-1">{label}</p>
-        <p className="text-2xl font-bold text-gray-100">{value}</p>
+        <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">{value}</p>
       </div>
       <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-lg ${color}`}>{icon}</div>
     </div>
@@ -178,15 +178,15 @@ function MaterialModal({ onClose, onSuccess, initial }) {
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/70 backdrop-blur-sm" onClick={onClose}>
       <div className="relative w-full max-w-2xl card shadow-2xl" onClick={e => e.stopPropagation()}>
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-700">
-          <h2 className="font-bold text-gray-100 text-base">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+          <h2 className="font-bold text-gray-900 dark:text-gray-100 text-base">
             {initial ? `Edit — ${initial.name}` : 'Add New Raw Material'}
           </h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-200 text-2xl leading-none w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-700 transition-colors">&times;</button>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 text-2xl leading-none w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">&times;</button>
         </div>
 
         {/* Tabs */}
-        <div className="flex border-b border-gray-700 px-6">
+        <div className="flex border-b border-gray-200 dark:border-gray-700 px-6">
           {TABS.map(t => (
             <button
               key={t.id}
@@ -195,7 +195,7 @@ function MaterialModal({ onClose, onSuccess, initial }) {
               className={`flex items-center gap-1.5 px-4 py-3 text-xs font-semibold border-b-2 transition-colors -mb-px ${
                 activeTab === t.id
                   ? 'border-indigo-500 text-indigo-400'
-                  : 'border-transparent text-gray-400 hover:text-gray-200'
+                  : 'border-transparent text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
               }`}
             >
               {t.icon} {t.label}
@@ -221,7 +221,7 @@ function MaterialModal({ onClose, onSuccess, initial }) {
                     {catSuggestions.length > 0 && (
                       <div className="absolute top-full left-0 right-0 bg-gray-800 border border-gray-600 rounded-lg shadow-xl z-20 max-h-40 overflow-y-auto">
                         {catSuggestions.map(c => (
-                          <div key={c} className="px-3 py-2 hover:bg-gray-700 cursor-pointer text-xs text-gray-200" onClick={() => { setValue('category', c); setCatSuggestions([]); }}>{c}</div>
+                          <div key={c} className="px-3 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer text-xs text-gray-200" onClick={() => { setValue('category', c); setCatSuggestions([]); }}>{c}</div>
                         ))}
                       </div>
                     )}
@@ -232,7 +232,7 @@ function MaterialModal({ onClose, onSuccess, initial }) {
                     {hsnSuggestions.length > 0 && (
                       <div className="absolute top-full left-0 right-0 bg-gray-800 border border-gray-600 rounded-lg shadow-xl z-20 max-h-40 overflow-y-auto">
                         {hsnSuggestions.map(h => (
-                          <div key={h.code} className="px-3 py-2 hover:bg-gray-700 cursor-pointer text-xs" onClick={() => { setValue('hsnCode', h.code); setHsnSuggestions([]); }}>
+                          <div key={h.code} className="px-3 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer text-xs" onClick={() => { setValue('hsnCode', h.code); setHsnSuggestions([]); }}>
                             <span className="font-bold text-indigo-400">{h.code}</span> — <span className="text-gray-400">{h.desc}</span>
                           </div>
                         ))}
@@ -397,12 +397,12 @@ function BatchModal({ material, onClose, onSuccess }) {
   return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/70 backdrop-blur-sm" onClick={onClose}>
       <div className="relative w-full max-w-2xl card shadow-2xl" onClick={e => e.stopPropagation()}>
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-700">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-700">
           <div>
-            <h2 className="font-bold text-gray-100">Add Batch — {material.name}</h2>
+            <h2 className="font-bold text-gray-900 dark:text-gray-100">Add Batch — {material.name}</h2>
             <p className="text-xs text-gray-400 mt-0.5">{material.sku} · Current Stock: <span className="text-emerald-400 font-semibold">{totalStock} {material.unit}</span></p>
           </div>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-200 text-2xl w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-700 transition-colors">&times;</button>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 text-2xl w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">&times;</button>
         </div>
 
         <form onSubmit={handleSubmit(onSubmit)} className="p-6 space-y-4">
@@ -484,16 +484,16 @@ function QRModal({ material, onClose }) {
   return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/70 backdrop-blur-sm" onClick={onClose}>
       <div className="relative w-full max-w-sm card shadow-2xl" onClick={e => e.stopPropagation()}>
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-700">
-          <h2 className="font-bold text-gray-100">QR Label</h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-200 text-2xl w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-700">&times;</button>
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+          <h2 className="font-bold text-gray-900 dark:text-gray-100">QR Label</h2>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 text-2xl w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700">&times;</button>
         </div>
         <div className="p-6 flex flex-col items-center gap-4">
           <div className="bg-white p-4 rounded-xl">
             <QRCode value={qrData} size={200} />
           </div>
           <div className="text-center">
-            <p className="font-bold text-gray-100 text-base">{material.name}</p>
+            <p className="font-bold text-gray-900 dark:text-gray-100 text-base">{material.name}</p>
             <p className="text-xs text-gray-400 mt-1 space-y-0.5">
               <span className="block">Code: {material.sku}</span>
               <span className="block">HSN: {material.hsnCode || '-'} · Unit: {material.unit}</span>
@@ -518,15 +518,15 @@ function LowStockModal({ materials, onClose }) {
   return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/70 backdrop-blur-sm" onClick={onClose}>
       <div className="relative w-full max-w-xl card shadow-2xl max-h-[80vh] flex flex-col" onClick={e => e.stopPropagation()}>
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-700 flex-shrink-0">
-          <h2 className="font-bold text-gray-100">⚠️ Low Stock Alerts</h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-200 text-2xl w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-700">&times;</button>
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex-shrink-0">
+          <h2 className="font-bold text-gray-900 dark:text-gray-100">⚠️ Low Stock Alerts</h2>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 text-2xl w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700">&times;</button>
         </div>
         <div className="p-6 overflow-y-auto">
           {outOfStock.length === 0 && lowStock.length === 0 ? (
             <div className="text-center py-8">
               <div className="text-4xl mb-3">✅</div>
-              <p className="text-gray-300 font-semibold">All stock levels are healthy</p>
+              <p className="text-gray-700 dark:text-gray-300 font-semibold">All stock levels are healthy</p>
             </div>
           ) : (
             <>
@@ -534,9 +534,9 @@ function LowStockModal({ materials, onClose }) {
                 <div className="mb-4">
                   <p className="text-xs font-bold text-red-400 uppercase tracking-wider mb-2">🚫 Out of Stock ({outOfStock.length})</p>
                   {outOfStock.map(m => (
-                    <div key={m._id} className="flex items-center gap-3 py-2 border-b border-gray-700/50 text-sm">
+                    <div key={m._id} className="flex items-center gap-3 py-2 border-b border-gray-200 dark:border-gray-700/50 text-sm">
                       <span className="w-2 h-2 rounded-full bg-red-500 flex-shrink-0" />
-                      <span className="font-semibold text-gray-200">{m.name}</span>
+                      <span className="font-semibold text-gray-800 dark:text-gray-200">{m.name}</span>
                       <span className="text-gray-400 text-xs">({m.sku})</span>
                       <span className="ml-auto text-xs bg-red-500/20 text-red-400 px-2 py-0.5 rounded-full font-bold">OUT</span>
                     </div>
@@ -547,9 +547,9 @@ function LowStockModal({ materials, onClose }) {
                 <div>
                   <p className="text-xs font-bold text-amber-400 uppercase tracking-wider mb-2">⚠️ Low Stock ({lowStock.length})</p>
                   {lowStock.map(m => (
-                    <div key={m._id} className="flex items-center gap-3 py-2 border-b border-gray-700/50 text-sm">
+                    <div key={m._id} className="flex items-center gap-3 py-2 border-b border-gray-200 dark:border-gray-700/50 text-sm">
                       <span className="w-2 h-2 rounded-full bg-amber-500 flex-shrink-0" />
-                      <span className="font-semibold text-gray-200">{m.name}</span>
+                      <span className="font-semibold text-gray-800 dark:text-gray-200">{m.name}</span>
                       <span className="text-gray-400 text-xs">{getStock(m)} / min {m.minStockLevel} {m.unit}</span>
                       <span className="ml-auto text-xs bg-amber-500/20 text-amber-400 px-2 py-0.5 rounded-full font-bold">LOW</span>
                     </div>
@@ -576,8 +576,8 @@ function DetailRow({ material }) {
 
   return (
     <tr>
-      <td colSpan={10} className="p-0 border-b border-gray-700/50">
-        <div className="grid grid-cols-3 gap-5 p-5 bg-gray-800/50">
+      <td colSpan={10} className="p-0 border-b border-gray-200 dark:border-gray-700/50">
+        <div className="grid grid-cols-3 gap-5 p-5 bg-gray-50 dark:bg-gray-800/50">
           {/* Basic Info */}
           <div>
             <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-2">📋 Basic Info</p>
@@ -588,9 +588,9 @@ function DetailRow({ material }) {
               ['Inventory Value', `₹${value.toLocaleString('en-IN')}`],
               ['Created', formatDate(material.createdAt)],
             ].map(([l, v]) => (
-              <div key={l} className="flex justify-between py-1.5 border-b border-gray-700/30 text-xs">
+              <div key={l} className="flex justify-between py-1.5 border-b border-gray-200 dark:border-gray-700/30 text-xs">
                 <span className="text-gray-400">{l}</span>
-                <span className="font-medium text-gray-200">{v}</span>
+                <span className="font-medium text-gray-700 dark:text-gray-200">{v}</span>
               </div>
             ))}
           </div>
@@ -622,9 +622,9 @@ function DetailRow({ material }) {
                 : <span className="text-red-400 font-bold">✗ FAIL</span>
               ],
             ].map(([l, v]) => (
-              <div key={l} className="flex justify-between py-1.5 border-b border-gray-700/30 text-xs">
+              <div key={l} className="flex justify-between py-1.5 border-b border-gray-200 dark:border-gray-700/30 text-xs">
                 <span className="text-gray-400">{l}</span>
-                <span className="font-medium text-gray-200">{v}</span>
+                <span className="font-medium text-gray-700 dark:text-gray-200">{v}</span>
               </div>
             ))}
             {material.qcNotes && (
@@ -729,7 +729,7 @@ export default function RawMaterials() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-bold text-gray-100">Raw Material Inventory</h1>
+          <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">Raw Material Inventory</h1>
           <p className="text-sm text-gray-400 mt-0.5">ISO 9001:2015 — Batch & QC Tracking</p>
         </div>
         <div className="flex gap-2">
@@ -748,8 +748,8 @@ export default function RawMaterials() {
 
       {/* Table Card */}
       <div className="card overflow-hidden">
-        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-700">
-          <h2 className="font-semibold text-gray-100 text-sm">Materials Master</h2>
+        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200 dark:border-gray-700">
+          <h2 className="font-semibold text-gray-900 dark:text-gray-100 text-sm">Materials Master</h2>
           <div className="relative">
             <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">🔍</span>
             <input
@@ -763,10 +763,10 @@ export default function RawMaterials() {
 
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
-            <thead className="bg-gray-800/50">
+            <thead className="bg-gray-50 dark:bg-gray-800/50">
               <tr>
                 {[['sku', 'Code'], ['name', 'Name'], ['category', 'Category'], ['hsnCode', 'HSN'], ['unit', 'Unit'], ['costPrice', 'Price'], ['gstRate', 'GST'], ['stock', 'Stock'], ['status', 'Status']].map(([key, label]) => (
-                  <th key={key} onClick={() => handleSort(key)} className="px-4 py-3 text-left text-[11px] font-semibold text-gray-400 uppercase tracking-wider cursor-pointer hover:text-gray-200 transition-colors whitespace-nowrap">
+                  <th key={key} onClick={() => handleSort(key)} className="px-4 py-3 text-left text-[11px] font-semibold text-gray-400 uppercase tracking-wider cursor-pointer hover:text-gray-700 dark:hover:text-gray-200 transition-colors whitespace-nowrap">
                     {label}<SortIcon col={key} />
                   </th>
                 ))}
@@ -790,17 +790,17 @@ export default function RawMaterials() {
 
                 return (
                   <React.Fragment key={m._id}>
-                    <tr className="hover:bg-gray-700/20 transition-colors group">
+                    <tr className="hover:bg-gray-100 dark:hover:bg-gray-700/20 transition-colors group">
                       <td className="px-4 py-3">
                         <button onClick={() => setExpandedId(isExpanded ? null : m._id)} className="font-bold text-indigo-400 hover:underline">{m.sku}</button>
                       </td>
                       <td className="px-4 py-3">
-                        <button onClick={() => setExpandedId(isExpanded ? null : m._id)} className="font-semibold text-gray-200 hover:text-indigo-400 transition-colors text-left">{m.name}</button>
+                        <button onClick={() => setExpandedId(isExpanded ? null : m._id)} className="font-semibold text-gray-800 dark:text-gray-200 hover:text-indigo-400 transition-colors text-left">{m.name}</button>
                       </td>
-                      <td className="px-4 py-3"><span className="text-xs px-2 py-1 bg-gray-700/60 text-gray-300 rounded-full">{m.category}</span></td>
+                      <td className="px-4 py-3"><span className="text-xs px-2 py-1 bg-gray-100 dark:bg-gray-700/60 text-gray-600 dark:text-gray-300 rounded-full">{m.category}</span></td>
                       <td className="px-4 py-3 text-gray-400 text-xs">{m.hsnCode || '-'}</td>
-                      <td className="px-4 py-3 text-gray-300">{m.unit}</td>
-                      <td className="px-4 py-3 text-gray-300">₹{(m.costPrice || 0).toLocaleString('en-IN')}</td>
+                      <td className="px-4 py-3 text-gray-700 dark:text-gray-300">{m.unit}</td>
+                      <td className="px-4 py-3 text-gray-700 dark:text-gray-300">₹{(m.costPrice || 0).toLocaleString('en-IN')}</td>
                       <td className="px-4 py-3 text-gray-400">{m.gstRate}%</td>
                       <td className={`px-4 py-3 font-bold ${lowStock ? 'text-red-400' : 'text-emerald-400'}`}>{stock.toLocaleString('en-IN')}</td>
                       <td className="px-4 py-3"><span className={`text-xs px-2 py-1 rounded-full font-semibold ${status.color}`}>{status.label}</span></td>

@@ -162,18 +162,29 @@ export default function Settings() {
             {[
               { key: 'inApp', label: 'In-App Notifications', desc: 'Show notifications inside the platform' },
               { key: 'whatsapp', label: 'WhatsApp Notifications', desc: 'Receive alerts on WhatsApp' },
-              { key: 'email', label: 'Email Notifications', desc: 'Receive email updates (coming soon)' },
-            ].map((pref) => (
-              <div key={pref.key} className="flex items-center justify-between py-3 border-b border-gray-100 dark:border-[#1b2e4a]">
-                <div>
-                  <p className="font-medium text-gray-900 dark:text-white">{pref.label}</p>
-                  <p className="text-sm text-gray-500">{pref.desc}</p>
+              { key: 'email', label: 'Email Notifications', desc: 'Receive email updates for tasks and approvals' },
+            ].map((pref) => {
+              const enabled = user?.settings?.notifications?.[pref.key] ?? true;
+              return (
+                <div key={pref.key} className="flex items-center justify-between py-3 border-b border-gray-100 dark:border-[#1b2e4a]">
+                  <div>
+                    <p className="font-medium text-gray-900 dark:text-white">{pref.label}</p>
+                    <p className="text-sm text-gray-500">{pref.desc}</p>
+                  </div>
+                  <button
+                    className={`relative w-11 h-6 rounded-full transition-colors ${enabled ? 'bg-brand-600' : 'bg-gray-300 dark:bg-gray-600'}`}
+                    type="button"
+                    onClick={() => {
+                      api.patch('/users/me/profile', { [`settings.notifications.${pref.key}`]: !enabled })
+                        .then((res) => setUser(res.data.user))
+                        .catch(() => toast.error('Failed to update'));
+                    }}
+                  >
+                    <span className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${enabled ? 'translate-x-5' : 'translate-x-0.5'}`} />
+                  </button>
                 </div>
-                <button className="relative w-11 h-6 rounded-full bg-brand-600 transition-colors" type="button">
-                  <span className="absolute top-0.5 right-0.5 w-5 h-5 bg-white rounded-full shadow" />
-                </button>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}
