@@ -5,7 +5,7 @@ const WorkflowTemplate = require('../models/WorkflowTemplate');
 const workflowEngine = require('../services/workflowEngine.service');
 const dependencyService = require('../services/dependency.service');
 const { createNotification } = require('../services/notification.service');
-const { TASK_STATUS, SOCKET_EVENTS, ROLES } = require('../utils/constants');
+const { TASK_STATUS, SOCKET_EVENTS, ROLES, ROLE_HIERARCHY } = require('../utils/constants');
 const MANAGER_ROLES = ['super_admin', 'chairman', 'founder', 'admin', 'manager', 'team_lead'];
 const logger = require('../utils/logger');
 
@@ -436,16 +436,15 @@ const completeTask = async (req, res) => {
     // ── Approval authority check ──────────────────────────────────────────────
     const callerLevel   = ROLE_HIERARCHY[req.user.role] || 1;
     const isAssigner    = task.assignedBy?._id?.toString() === userId.toString();
-    const isRootTask    = !task.parentTask;                   // no parent = main task
+    const isRootTask    = !task.parentTask;
+    const managerLevel  = ROLE_HIERARCHY['manager'];
+    const isSameDeptManager = callerLevel >= managerLevel && req.user.department &&
+      req.user.department === task.department;
 
-    // Rule: only the person who assigned the task can approve it.
-    // Exception: any admin (level ≥ 4) can approve a root/main task.
-    if (!isAssigner && !(callerLevel >= ADMIN_LEVEL && isRootTask)) {
+    if (!isAssigner && !isSameDeptManager && !(callerLevel >= ADMIN_LEVEL && isRootTask)) {
       return res.status(403).json({
         success: false,
-        message: isRootTask
-          ? 'Only admin-level users can approve the main task.'
-          : 'Only the manager who assigned this task can approve it.',
+        message: 'Only the assigned manager, a department manager, or an admin can approve this task.',
       });
     }
 
@@ -525,13 +524,14 @@ const rejectTask = async (req, res) => {
     const callerLevel = ROLE_HIERARCHY[req.user.role] || 1;
     const isAssigner  = task.assignedBy?._id?.toString() === userId.toString();
     const isRootTask  = !task.parentTask;
+    const managerLevel2 = ROLE_HIERARCHY['manager'];
+    const isSameDeptManager2 = callerLevel >= managerLevel2 && req.user.department &&
+      req.user.department === task.department;
 
-    if (!isAssigner && !(callerLevel >= ADMIN_LEVEL && isRootTask)) {
+    if (!isAssigner && !isSameDeptManager2 && !(callerLevel >= ADMIN_LEVEL && isRootTask)) {
       return res.status(403).json({
         success: false,
-        message: isRootTask
-          ? 'Only admin-level users can reject the main task.'
-          : 'Only the manager who assigned this task can request changes.',
+        message: 'Only the assigned manager, a department manager, or an admin can request changes on this task.',
       });
     }
 

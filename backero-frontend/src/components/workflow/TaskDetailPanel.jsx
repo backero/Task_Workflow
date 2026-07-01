@@ -94,12 +94,13 @@ export default function TaskDetailPanel({ onAddSubtask }) {
     || data.assignedTo?._id?.toString() === user?._id?.toString();
   const canAct = isAssignee || isManager;
 
-  // Approval authority: only the person who assigned the task can approve/reject it.
-  // For root/main tasks (no parent): any admin-level user can approve.
   const isRootTask   = !taskDetail?.parentTask;
   const isAssigner   = taskDetail?.assignedBy?._id?.toString() === user?._id?.toString();
   const userIsAdmin  = ADMIN_ROLES.includes(user?.role);
-  const isApprover   = isAssigner || (isRootTask && userIsAdmin);
+  const userLevel    = ROLE_LEVEL[user?.role] || 0;
+  const isSameDeptManager = userLevel >= ROLE_LEVEL['manager'] && user?.department &&
+    user.department === (taskDetail?.department || data?.department);
+  const isApprover   = isAssigner || isSameDeptManager || (isRootTask && userIsAdmin);
 
   // ── Action handlers ──────────────────────────────────────────────────────────
 

@@ -179,8 +179,9 @@ function canUserApprove(approval, currentUser) {
   const approverLevel = ROLE_LEVEL[currentUser.role] || 0;
   const submitterLevel = ROLE_LEVEL[approval.requestedBy?.role] || 0;
   if (approverLevel < ROLE_LEVEL['manager']) return false;
-  // If submitter is a manager or above → only admin+ can approve
-  if (submitterLevel >= ROLE_LEVEL['manager']) return approverLevel >= ROLE_LEVEL['admin'];
+  const isAssigner = approval.taskId?.assignedBy?._id?.toString() === currentUser._id?.toString();
+  // If submitter is a manager or above → assigning manager or admin+ can approve
+  if (submitterLevel >= ROLE_LEVEL['manager']) return isAssigner || approverLevel >= ROLE_LEVEL['admin'];
   // Member/team_lead submitted → any manager can see the button (backend enforces assigner check)
   return true;
 }
@@ -188,9 +189,9 @@ function canUserApprove(approval, currentUser) {
 // Label shown on card: who is authorized to approve
 function approverLabel(approval) {
   const submitterLevel = ROLE_LEVEL[approval.requestedBy?.role] || 0;
-  if (submitterLevel >= ROLE_LEVEL['manager']) return { text: 'Requires Admin Approval', color: 'text-red-600 bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800' };
   const ab = approval.taskId?.assignedBy;
   const name = ab ? `${ab.firstName} ${ab.lastName}` : '—';
+  if (submitterLevel >= ROLE_LEVEL['manager'] && !ab) return { text: 'Requires Admin Approval', color: 'text-red-600 bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800' };
   return { text: `Approver: ${name}`, color: 'text-blue-700 bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800' };
 }
 
