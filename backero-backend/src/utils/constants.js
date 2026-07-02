@@ -26,6 +26,7 @@ const TASK_STATUS = {
   CHANGES_REQUESTED: 'Changes Requested',
   APPROVAL_PENDING: 'Approval Pending',
   COMPLETED: 'Completed',
+  ACHIEVED: 'Achieved',
   REOPENED: 'Reopened',
   CANCELLED: 'Cancelled',
 };
@@ -67,6 +68,7 @@ const LEAD_STATUS = {
   CONTACTED: 'Contacted',
   INTERESTED: 'Interested',
   FOLLOWUP: 'Follow-up',
+  SAMPLE: 'Sample',
   PROPOSAL: 'Proposal Sent',
   NEGOTIATION: 'Negotiation',
   QUERY_PENDING: 'Query Pending',

@@ -28,7 +28,7 @@ const leadSchema = new mongoose.Schema({
   // Lead info
   source: { type: String, enum: Object.values(LEAD_SOURCES), default: LEAD_SOURCES.MANUAL },
   sourceDetails: { type: String },
-  status: { type: String, enum: Object.values(LEAD_STATUS), default: LEAD_STATUS.NEW, index: true },
+  status: { type: String, default: LEAD_STATUS.NEW, index: true },
   pipeline: { type: String, default: 'default' },
   priority: { type: String, enum: ['low', 'medium', 'high', 'critical'], default: 'medium' },
 
