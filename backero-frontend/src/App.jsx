@@ -30,7 +30,6 @@ import CalendarView from './pages/tasks/CalendarView';
 // CRM pages
 import LeadPipeline from './pages/crm/LeadPipeline';
 import LeadDetails from './pages/crm/LeadDetails';
-import FollowUpCalendar from './pages/crm/FollowUpCalendar';
 import TechnicalQueries from './pages/crm/TechnicalQueries';
 
 // Inventory pages
@@ -139,7 +138,6 @@ export default function App() {
           <Route path="/crm/pipeline" element={<PermissionRoute module="crm"><LeadPipeline /></PermissionRoute>} />
           <Route path="/crm/leads" element={<PermissionRoute module="crm"><LeadPipeline /></PermissionRoute>} />
           <Route path="/crm/leads/:id" element={<PermissionRoute module="crm"><LeadDetails /></PermissionRoute>} />
-          <Route path="/crm/calendar" element={<PermissionRoute module="crm"><FollowUpCalendar /></PermissionRoute>} />
           <Route path="/crm/queries" element={<TechnicalQueries />} />
 
           {/* Inventory */}
