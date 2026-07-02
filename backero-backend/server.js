@@ -142,6 +142,7 @@ app.get('/health', (req, res) => {
     env: process.env.NODE_ENV,
     jwt_secret: process.env.JWT_SECRET ? 'set' : 'MISSING',
     jwt_refresh: process.env.JWT_REFRESH_SECRET ? 'set' : 'MISSING',
+    version: 'v2-sample-fix',
   });
 });
 
