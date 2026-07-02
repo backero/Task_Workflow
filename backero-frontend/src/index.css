@@ -204,6 +204,7 @@
   .badge-orange { background: rgba(234,88,12,0.1);   color: #ea580c; }
   .badge-teal   { background: rgba(13,148,136,0.1);  color: #0d9488; }
   .badge-rose   { background: rgba(225,29,72,0.1);   color: #e11d48; }
+  .badge-amber  { background: rgba(245,158,11,0.15); color: #d97706; }
 
   :not(.dark) .badge-blue   { color: #2563eb; }
   :not(.dark) .badge-green  { color: #059669; }
@@ -212,6 +213,7 @@
   :not(.dark) .badge-purple { color: #7c3aed; }
   :not(.dark) .badge-teal   { color: #0f766e; }
   :not(.dark) .badge-rose   { color: #e11d48; }
+  :not(.dark) .badge-amber  { color: #b45309; }
 
   /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
      SIDEBAR  (slate-800, orange active)

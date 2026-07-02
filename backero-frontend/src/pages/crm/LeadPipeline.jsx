@@ -1,4 +1,4 @@
-﻿import React, { useState } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
@@ -34,6 +34,10 @@ const STAGE_BADGE = Object.fromEntries(Object.entries(STAGE_META).map(([k, v]) =
 
 const FOLLOWUP_TYPES = ['call', 'whatsapp', 'meeting', 'email', 'demo', 'other'];
 const FOLLOWUP_ICONS = { call: '📞', whatsapp: '💬', meeting: '🤝', email: '✉️', demo: '🖥️', other: '📝' };
+
+// Display name overrides (internal value stays the same for MongoDB)
+const STAGE_DISPLAY = { 'In Progress': 'Production' };
+const stageLabel = (s) => STAGE_DISPLAY[s] || s;
 
 const SOURCES = ['Website Form', 'WhatsApp Chatbot', 'Google Sheets', 'Meta Ads', 'Manual Entry', 'Import', 'Referral'];
 const PRIORITIES = ['low', 'medium', 'high', 'critical'];
@@ -162,6 +166,14 @@ function LeadSlideOver({ leadId, onClose, onUpdated }) {
   const [submittingQueries, setSubmittingQueries] = useState(false);
   const { register, handleSubmit, reset, formState: { errors } } = useForm();
 
+  // Sample stage state
+  const [sampleForm, setSampleForm] = useState({ product: '', quantity: '', sentDate: '', courier: '', chargeAmount: '', chargeBy: 'client', paymentStatus: 'pending', advanceAmount: '', paymentMode: 'upi' });
+  const [activityText, setActivityText] = useState('');
+  const [activityType, setActivityType] = useState('team'); // 'team' | 'client'
+  const [imageUrl, setImageUrl] = useState('');
+  const [showSampleModal, setShowSampleModal] = useState(false);
+  const [samplePrepDays, setSamplePrepDays] = useState('');
+
   const deleteMutation = useMutation({
     mutationFn: () => api.delete(`/crm/leads/${leadId}`),
     onSuccess: () => {
@@ -230,6 +242,41 @@ function LeadSlideOver({ leadId, onClose, onUpdated }) {
     },
     onError: () => toast.error('Failed to log follow-up'),
   });
+
+  // Sample mutations
+  const sampleMutation = useMutation({
+    mutationFn: (data) => api.put(`/crm/leads/${leadId}/sample`, data),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['crm', 'lead', leadId] }); toast.success('Sample details saved'); },
+    onError: () => toast.error('Failed to save sample details'),
+  });
+  const activityMutation = useMutation({
+    mutationFn: ({ text, type }) => api.post(`/crm/leads/${leadId}/sample/${type === 'team' ? 'team-update' : 'client-note'}`, { text }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['crm', 'lead', leadId] }); toast.success('Logged'); setActivityText(''); },
+    onError: () => toast.error('Failed to log'),
+  });
+  const addImageMutation = useMutation({
+    mutationFn: (data) => api.post(`/crm/leads/${leadId}/sample/image`, data),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['crm', 'lead', leadId] }); toast.success('Image added'); setImageUrl(''); },
+    onError: () => toast.error('Failed to add image'),
+  });
+
+  // Sync sample form when lead loads
+  useEffect(() => {
+    if (!lead?.sampleDetails) return;
+    const sd = lead.sampleDetails;
+    setSampleForm({
+      product: sd.product || '',
+      quantity: sd.quantity != null ? String(sd.quantity) : '',
+      sentDate: sd.sentDate ? sd.sentDate.slice(0, 10) : '',
+      courier: sd.courier || '',
+      chargeAmount: sd.chargeAmount != null ? String(sd.chargeAmount) : '',
+      chargeBy: sd.chargeBy || 'client',
+      paymentStatus: sd.paymentStatus || 'pending',
+      advanceAmount: sd.advanceAmount != null ? String(sd.advanceAmount) : '',
+      paymentMode: sd.paymentMode || 'upi',
+    });
+  }, [lead?._id, lead?.sampleDetails?.paymentStatus, lead?.sampleDetails?.product]);
+
 
   const submitAllQueries = async () => {
     const valid = queryItems.filter(q => q.title.trim() && q.description.trim() && q.assignedTo);
@@ -343,10 +390,13 @@ function LeadSlideOver({ leadId, onClose, onUpdated }) {
                     onClick={() => {
                       const BLOCKED_FROM_FOLLOWUP = ['In Progress', 'Ready to Dispatch', 'Dispatched', 'Payment Pending'];
                       if (lead?.status === 'Follow-up' && BLOCKED_FROM_FOLLOWUP.includes(stage)) {
-                        toast.error('Follow-up → Sample → In Progress order-la tha shift aganum');
+                        toast.error('Follow-up → Sample → Production order-la tha shift aganum');
                         return;
                       }
-                      if (stage === 'In Progress' && lead?.status !== 'In Progress') {
+                      if (stage === 'Sample' && lead?.status !== 'Sample') {
+                        setShowSampleModal(true);
+                        setSamplePrepDays('');
+                      } else if (stage === 'In Progress' && lead?.status !== 'In Progress') {
                         setShowLeadTimeModal(true);
                         setLeadTimeDays('');
                       } else if (lead?.status === 'New Lead' && stage !== 'New Lead') {
@@ -365,7 +415,7 @@ function LeadSlideOver({ leadId, onClose, onUpdated }) {
                     )}
                   >
                     {lead.status === stage && <span className="mr-1">✓</span>}
-                    {stage}
+                    {stageLabel(stage)}
                   </button>
                 ))}
               </div>
@@ -504,51 +554,211 @@ function LeadSlideOver({ leadId, onClose, onUpdated }) {
                 );
               })()}
 
-              {/* Sample guide card */}
+              {/* ── Full Sample Panel ── */}
               {lead.status === 'Sample' && (
-                <div className="rounded-xl border-2 border-fuchsia-200 dark:border-fuchsia-800 bg-fuchsia-50 dark:bg-fuchsia-900/20 p-4 space-y-3">
-                  <p className="text-xs font-bold text-fuchsia-700 dark:text-fuchsia-300 uppercase tracking-wider flex items-center gap-1.5">
-                    🧪 Sample Stage — Track Sample Details
-                  </p>
-                  <p className="text-sm text-fuchsia-800 dark:text-fuchsia-200">
-                    Client has requested samples. Log the details below and update as you progress.
-                  </p>
-                </div>
-              )}
+                <div className="mt-3 border-t border-fuchsia-100 dark:border-fuchsia-900/50 pt-4 space-y-4">
 
-              {/* Sample note log */}
-              {lead.status === 'Sample' && (
-                <div className="mt-3 border-t border-fuchsia-100 dark:border-fuchsia-900 pt-3 space-y-2">
-                  <p className="text-xs font-semibold text-gray-500 dark:text-gray-400">📝 Log sample update</p>
-                  {lead.followUps?.length > 0 && [...lead.followUps].reverse()[0]?.notes && (
-                    <div className="bg-gray-50 dark:bg-[#0f1a2e] rounded-lg p-2.5">
-                      <p className="text-xs text-gray-400 mb-0.5">Last note</p>
-                      <p className="text-sm text-gray-700 dark:text-gray-300">{[...lead.followUps].reverse()[0].notes}</p>
+                  {/* Deadline badge if prep days set */}
+                  {lead.sampleDetails?.startedAt && lead.sampleDetails?.preparationDays && (() => {
+                    const started = new Date(lead.sampleDetails.startedAt);
+                    const deadline = new Date(started);
+                    deadline.setDate(deadline.getDate() + lead.sampleDetails.preparationDays);
+                    const daysLeft = Math.ceil((deadline - new Date()) / 86400000);
+                    const overdue = daysLeft < 0;
+                    return (
+                      <div className={`rounded-xl px-3.5 py-2.5 flex items-center gap-2 border ${overdue ? 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800' : 'bg-fuchsia-50 dark:bg-fuchsia-900/20 border-fuchsia-200 dark:border-fuchsia-800'}`}>
+                        <span className="text-base">{overdue ? '⚠️' : '⏳'}</span>
+                        <div>
+                          <p className={`text-xs font-semibold ${overdue ? 'text-red-700 dark:text-red-300' : 'text-fuchsia-700 dark:text-fuchsia-300'}`}>
+                            {overdue ? `Overdue by ${Math.abs(daysLeft)} day${Math.abs(daysLeft) !== 1 ? 's' : ''}` : `${daysLeft} day${daysLeft !== 1 ? 's' : ''} left for sample prep`}
+                          </p>
+                          <p className="text-xs text-gray-500">Deadline: {format(deadline, 'dd MMM yyyy')}</p>
+                        </div>
+                      </div>
+                    );
+                  })()}
+
+                  {/* Sample Details */}
+                  <div className="rounded-xl border border-fuchsia-200 dark:border-fuchsia-800/60 bg-fuchsia-50/60 dark:bg-fuchsia-900/10 p-3.5 space-y-3">
+                    <p className="text-xs font-bold text-fuchsia-700 dark:text-fuchsia-300 uppercase tracking-wider">📦 Sample Details</p>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="text-xs text-gray-500 dark:text-gray-400 mb-1 block">Product</label>
+                        <input value={sampleForm.product} onChange={e => setSampleForm(p => ({...p, product: e.target.value}))} className="input text-sm w-full" placeholder="Product name" />
+                      </div>
+                      <div>
+                        <label className="text-xs text-gray-500 dark:text-gray-400 mb-1 block">Quantity</label>
+                        <input type="number" value={sampleForm.quantity} onChange={e => setSampleForm(p => ({...p, quantity: e.target.value}))} className="input text-sm w-full" placeholder="Qty" />
+                      </div>
+                      <div>
+                        <label className="text-xs text-gray-500 dark:text-gray-400 mb-1 block">Sent Date</label>
+                        <input type="date" value={sampleForm.sentDate} onChange={e => setSampleForm(p => ({...p, sentDate: e.target.value}))} className="input text-sm w-full" />
+                      </div>
+                      <div>
+                        <label className="text-xs text-gray-500 dark:text-gray-400 mb-1 block">Courier / Mode</label>
+                        <input value={sampleForm.courier} onChange={e => setSampleForm(p => ({...p, courier: e.target.value}))} className="input text-sm w-full" placeholder="e.g. Blue Dart" />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Charges & Payment */}
+                  <div className="rounded-xl border border-amber-200 dark:border-amber-800/60 bg-amber-50/50 dark:bg-amber-900/10 p-3.5 space-y-3">
+                    <p className="text-xs font-bold text-amber-700 dark:text-amber-300 uppercase tracking-wider">💰 Charges & Payment</p>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="text-xs text-gray-500 dark:text-gray-400 mb-1 block">Sample Charge (₹)</label>
+                        <input type="number" value={sampleForm.chargeAmount} onChange={e => setSampleForm(p => ({...p, chargeAmount: e.target.value}))} className="input text-sm w-full" placeholder="0" />
+                      </div>
+                      <div>
+                        <label className="text-xs text-gray-500 dark:text-gray-400 mb-1 block">Paid by</label>
+                        <select value={sampleForm.chargeBy} onChange={e => setSampleForm(p => ({...p, chargeBy: e.target.value}))} className="input text-sm w-full">
+                          <option value="client">Client</option>
+                          <option value="company">Company</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="text-xs text-gray-500 dark:text-gray-400 mb-1 block">Payment Status</label>
+                        <select value={sampleForm.paymentStatus} onChange={e => setSampleForm(p => ({...p, paymentStatus: e.target.value}))} className="input text-sm w-full">
+                          <option value="pending">Pending</option>
+                          <option value="advance_received">Advance Received</option>
+                          <option value="full_paid">Full Paid</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="text-xs text-gray-500 dark:text-gray-400 mb-1 block">Advance Received (₹)</label>
+                        <input type="number" value={sampleForm.advanceAmount} onChange={e => setSampleForm(p => ({...p, advanceAmount: e.target.value}))} className="input text-sm w-full" placeholder="0" disabled={sampleForm.paymentStatus === 'pending'} />
+                      </div>
+                      <div className="col-span-2">
+                        <label className="text-xs text-gray-500 dark:text-gray-400 mb-1 block">Payment Mode</label>
+                        <select value={sampleForm.paymentMode} onChange={e => setSampleForm(p => ({...p, paymentMode: e.target.value}))} className="input text-sm w-full" disabled={sampleForm.paymentStatus === 'pending'}>
+                          <option value="cash">Cash</option>
+                          <option value="upi">UPI</option>
+                          <option value="bank_transfer">Bank Transfer</option>
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Save button */}
+                  <button
+                    onClick={() => sampleMutation.mutate(sampleForm)}
+                    disabled={sampleMutation.isPending}
+                    className="w-full py-2.5 rounded-xl text-sm font-bold text-white disabled:opacity-50 transition-all active:scale-95"
+                    style={{ background: 'linear-gradient(135deg,#d946ef,#a21caf)' }}
+                  >
+                    {sampleMutation.isPending ? 'Saving…' : '💾 Save Sample Details'}
+                  </button>
+
+                  {/* Finance entry confirmation */}
+                  {lead.sampleDetails?.financeTransactionId && (
+                    <div className="rounded-xl bg-emerald-50 dark:bg-emerald-900/20 px-3.5 py-2.5 flex items-center gap-2 border border-emerald-200 dark:border-emerald-800/50">
+                      <span className="text-emerald-600 dark:text-emerald-400 text-base">✓</span>
+                      <div>
+                        <p className="text-xs font-semibold text-emerald-700 dark:text-emerald-300">Finance Entry Created</p>
+                        <p className="text-xs text-emerald-600 dark:text-emerald-400">₹{(lead.sampleDetails.advanceAmount || 0).toLocaleString('en-IN')} recorded in Finance module</p>
+                      </div>
                     </div>
                   )}
-                  <textarea
-                    value={followUpNote}
-                    onChange={e => setFollowUpNote(e.target.value)}
-                    rows={2}
-                    className="input resize-none text-sm w-full"
-                    placeholder="e.g. Sent 2 samples to client, awaiting feedback by Friday..."
-                  />
-                  <button
-                    onClick={() => {
-                      if (!followUpNote.trim()) return;
-                      followUpMutation.mutate({
-                        scheduledAt: new Date().toISOString(),
-                        type: 'other',
-                        notes: followUpNote.trim(),
-                        outcome: followUpNote.trim(),
-                        nextAction: '',
-                      }, { onSuccess: () => setFollowUpNote('') });
-                    }}
-                    disabled={!followUpNote.trim() || followUpMutation.isPending}
-                    className="btn-secondary w-full justify-center text-sm disabled:opacity-50"
-                  >
-                    {followUpMutation.isPending ? 'Saving…' : 'Save Note'}
-                  </button>
+
+                  {/* Product Images */}
+                  <div className="rounded-xl border border-gray-200 dark:border-[#1b2e4a] bg-gray-50/50 dark:bg-[#0f1a2e]/50 p-3.5 space-y-2">
+                    <p className="text-xs font-bold text-gray-600 dark:text-gray-300 uppercase tracking-wider">🖼️ Product Images</p>
+                    {lead.sampleDetails?.images?.length > 0 && (
+                      <div className="flex gap-2 flex-wrap">
+                        {lead.sampleDetails.images.map((img, i) => (
+                          <a key={i} href={img.url} target="_blank" rel="noreferrer"
+                            className="w-16 h-16 rounded-lg overflow-hidden border border-gray-200 dark:border-[#1b2e4a] bg-gray-100 dark:bg-[#132035] flex items-center justify-center hover:opacity-80 transition-opacity"
+                          >
+                            <img src={img.url} alt={img.name || `img${i+1}`} className="w-full h-full object-cover"
+                              onError={e => { e.target.style.display='none'; e.target.parentNode.innerHTML='<span class="text-2xl">🖼️</span>'; }}
+                            />
+                          </a>
+                        ))}
+                      </div>
+                    )}
+                    <div className="flex gap-2">
+                      <input value={imageUrl} onChange={e => setImageUrl(e.target.value)} className="input text-sm flex-1" placeholder="Paste image URL…" />
+                      <button
+                        onClick={() => { if (imageUrl.trim()) addImageMutation.mutate({ url: imageUrl.trim(), name: 'Product image' }); }}
+                        disabled={!imageUrl.trim() || addImageMutation.isPending}
+                        className="px-3 py-2 rounded-xl bg-gray-200 dark:bg-[#1b2e4a] text-sm font-semibold text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-[#243657] disabled:opacity-50 transition-colors flex-shrink-0"
+                      >
+                        + Add
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Activity Log — merged Team Updates + Client Says */}
+                  <div className="rounded-xl border border-indigo-200 dark:border-indigo-800/50 bg-indigo-50/30 dark:bg-indigo-900/10 p-3.5 space-y-2">
+                    <p className="text-xs font-bold text-indigo-700 dark:text-indigo-300 uppercase tracking-wider">📋 Activity Log</p>
+                    {(() => {
+                      const teamEntries = (lead.sampleDetails?.teamUpdates || []).map(u => ({ ...u, source: 'team' }));
+                      const clientEntries = (lead.sampleDetails?.clientNotes || []).map(n => ({ ...n, source: 'client' }));
+                      const all = [...teamEntries, ...clientEntries].sort((a, b) => new Date(b.postedAt) - new Date(a.postedAt));
+                      if (!all.length) return <p className="text-xs text-gray-400 italic">No activity yet</p>;
+                      return (
+                        <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
+                          {all.map((entry, i) => (
+                            <div key={i} className="bg-white dark:bg-[#0f1a2e] rounded-lg px-3 py-2 text-xs flex gap-2">
+                              <span className={`mt-0.5 flex-shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded-full ${entry.source === 'team' ? 'bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300' : 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300'}`}>
+                                {entry.source === 'team' ? 'Team' : 'Client'}
+                              </span>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-gray-800 dark:text-gray-200">{entry.text}</p>
+                                <p className="text-gray-400 mt-0.5">
+                                  {entry.postedBy?.firstName ? `${entry.postedBy.firstName} · ` : ''}
+                                  {entry.postedAt ? format(new Date(entry.postedAt), 'dd MMM, h:mm a') : ''}
+                                </p>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      );
+                    })()}
+                    {/* Type toggle + input */}
+                    <div className="flex gap-1 mb-1">
+                      <button onClick={() => setActivityType('team')} className={`text-[11px] px-2.5 py-1 rounded-full font-semibold transition-colors ${activityType === 'team' ? 'bg-blue-600 text-white' : 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300'}`}>📝 Team Update</button>
+                      <button onClick={() => setActivityType('client')} className={`text-[11px] px-2.5 py-1 rounded-full font-semibold transition-colors ${activityType === 'client' ? 'bg-emerald-600 text-white' : 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300'}`}>💬 Client Note</button>
+                    </div>
+                    <div className="flex gap-2">
+                      <input
+                        value={activityText}
+                        onChange={e => setActivityText(e.target.value)}
+                        className="input text-sm flex-1"
+                        placeholder={activityType === 'team' ? 'e.g. Sample packed and ready…' : 'e.g. Client wants different size…'}
+                        onKeyDown={e => { if (e.key === 'Enter' && activityText.trim()) activityMutation.mutate({ text: activityText.trim(), type: activityType }); }}
+                      />
+                      <button
+                        onClick={() => { if (activityText.trim()) activityMutation.mutate({ text: activityText.trim(), type: activityType }); }}
+                        disabled={!activityText.trim() || activityMutation.isPending}
+                        className={`px-3 py-2 rounded-xl text-sm font-semibold disabled:opacity-50 transition-colors flex-shrink-0 ${activityType === 'team' ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 hover:bg-blue-200' : 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-200'}`}
+                      >
+                        Log
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Outcome */}
+                  <div className="rounded-xl border-2 border-fuchsia-200 dark:border-fuchsia-800 p-3.5 space-y-2">
+                    <p className="text-xs font-bold text-fuchsia-700 dark:text-fuchsia-300 uppercase tracking-wider">✅ Client Outcome</p>
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        onClick={() => { setShowLeadTimeModal(true); setLeadTimeDays(''); }}
+                        disabled={statusMutation.isPending}
+                        className="flex items-center justify-center gap-1 px-2 py-2.5 rounded-xl bg-emerald-100 dark:bg-emerald-900/30 text-xs font-bold text-emerald-700 dark:text-emerald-300 hover:bg-emerald-200 disabled:opacity-50 transition-colors border-2 border-emerald-200 dark:border-emerald-700"
+                      >
+                        ✓ Approved → Production
+                      </button>
+                      <button
+                        onClick={() => statusMutation.mutate('Follow-up')}
+                        disabled={statusMutation.isPending}
+                        className="flex items-center justify-center gap-1 px-2 py-2.5 rounded-xl bg-red-100 dark:bg-red-900/30 text-xs font-bold text-red-700 dark:text-red-300 hover:bg-red-200 disabled:opacity-50 transition-colors border-2 border-red-200 dark:border-red-700"
+                      >
+                        ✗ Rejected → Follow-up
+                      </button>
+                    </div>
+                  </div>
+
                 </div>
               )}
 
@@ -845,6 +1055,71 @@ function LeadSlideOver({ leadId, onClose, onUpdated }) {
         )}
       </motion.div>
 
+      {/* Sample Prep Modal (→ Sample) */}
+      {showSampleModal && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-gray-900/60 backdrop-blur-sm" onClick={() => setShowSampleModal(false)} />
+          <div className="relative bg-white dark:bg-[#070c17] rounded-2xl shadow-2xl w-full max-w-md border border-gray-200 dark:border-[#1b2e4a]">
+            <div className="p-5 border-b border-gray-200 dark:border-[#1b2e4a] flex items-center justify-between">
+              <div>
+                <h3 className="font-bold text-gray-900 dark:text-white">🧪 Moving to Sample Stage</h3>
+                <p className="text-sm text-gray-500 mt-0.5">How many days do you need to prepare the sample?</p>
+              </div>
+              <button onClick={() => setShowSampleModal(false)} className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-[#17263d]">
+                <XMarkIcon className="w-5 h-5 text-gray-500" />
+              </button>
+            </div>
+            <div className="p-5 space-y-4">
+              <div>
+                <label className="label">Sample Prep Time (days) *</label>
+                <input
+                  type="number"
+                  min="1"
+                  value={samplePrepDays}
+                  onChange={e => setSamplePrepDays(e.target.value)}
+                  className="input"
+                  placeholder="e.g. 3"
+                  autoFocus
+                />
+                {samplePrepDays && Number(samplePrepDays) > 0 && (
+                  <p className="text-xs text-gray-400 mt-1">
+                    Sample ready by: {format(new Date(Date.now() + Number(samplePrepDays) * 86400000), 'dd MMM yyyy')}
+                  </p>
+                )}
+              </div>
+              <div className="flex gap-3">
+                <button type="button" onClick={() => setShowSampleModal(false)} className="btn-secondary flex-1 justify-center">
+                  Cancel
+                </button>
+                <button
+                  onClick={async () => {
+                    if (!samplePrepDays || Number(samplePrepDays) < 1) { toast.error('Enter valid prep days'); return; }
+                    const days = Number(samplePrepDays);
+                    const startedAt = new Date().toISOString();
+                    // Step 1: move to Sample stage
+                    statusMutation.mutate({ status: 'Sample' }, {
+                      onSuccess: async () => {
+                        try {
+                          // Step 2: save prep days + startedAt via dedicated endpoint
+                          await api.put(`/crm/leads/${leadId}/sample`, { preparationDays: days, startedAt });
+                          qc.invalidateQueries({ queryKey: ['crm', 'lead', leadId] });
+                        } catch { /* prep save failed silently — status still moved */ }
+                        setShowSampleModal(false);
+                      }
+                    });
+                  }}
+                  disabled={statusMutation.isPending}
+                  className="btn-primary flex-1 justify-center disabled:opacity-50"
+                  style={{ background: 'linear-gradient(135deg,#d946ef,#a21caf)' }}
+                >
+                  {statusMutation.isPending ? 'Moving…' : 'Confirm'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Lead Time Modal (→ In Progress) */}
       {showLeadTimeModal && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
@@ -852,7 +1127,7 @@ function LeadSlideOver({ leadId, onClose, onUpdated }) {
           <div className="relative bg-white dark:bg-[#070c17] rounded-2xl shadow-2xl w-full max-w-md border border-gray-200 dark:border-[#1b2e4a]">
             <div className="p-5 border-b border-gray-200 dark:border-[#1b2e4a] flex items-center justify-between">
               <div>
-                <h3 className="font-bold text-gray-900 dark:text-white">🚚 Moving to In Progress</h3>
+                <h3 className="font-bold text-gray-900 dark:text-white">🏭 Moving to Production</h3>
                 <p className="text-sm text-gray-500 mt-0.5">How many days to dispatch this order?</p>
               </div>
               <button onClick={() => setShowLeadTimeModal(false)} className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-[#17263d]">
@@ -907,7 +1182,7 @@ function LeadSlideOver({ leadId, onClose, onUpdated }) {
           <div className="relative bg-white dark:bg-[#070c17] rounded-2xl shadow-2xl w-full max-w-md border border-gray-200 dark:border-[#1b2e4a]">
             <div className="p-5 border-b border-gray-200 dark:border-[#1b2e4a] flex items-center justify-between">
               <div>
-                <h3 className="font-bold text-gray-900 dark:text-white">Move to "{pendingStage}"</h3>
+                <h3 className="font-bold text-gray-900 dark:text-white">Move to "{stageLabel(pendingStage)}"</h3>
                 <p className="text-sm text-gray-500 mt-0.5">Why are you shifting this lead?</p>
               </div>
               <button onClick={() => setPendingStage(null)} className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-[#17263d]">
@@ -940,7 +1215,7 @@ function LeadSlideOver({ leadId, onClose, onUpdated }) {
                   disabled={statusMutation.isPending}
                   className="btn-primary flex-1 justify-center disabled:opacity-50"
                 >
-                  {statusMutation.isPending ? 'Moving…' : `Move to ${pendingStage}`}
+                  {statusMutation.isPending ? 'Moving…' : `Move to ${stageLabel(pendingStage)}`}
                 </button>
               </div>
             </div>
@@ -1281,7 +1556,7 @@ export default function LeadPipeline() {
                   {/* Full gradient header */}
                   <div className="flex-shrink-0 px-4 pt-4 pb-3" style={{ background: meta.grad }}>
                     <div className="flex items-center justify-between gap-2">
-                      <h3 className="text-[13px] font-bold text-white tracking-tight truncate flex-1">{stage}</h3>
+                      <h3 className="text-[13px] font-bold text-white tracking-tight truncate flex-1">{stageLabel(stage)}</h3>
                       <span className="text-[11px] font-bold text-white/90 bg-white/20 rounded-full px-2.5 py-0.5 flex-shrink-0">
                         {count}
                       </span>

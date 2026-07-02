@@ -48,8 +48,8 @@ function InProgressTimer({ startDate }) {
 
 // ── Constants ──────────────────────────────────────────────────────────────────
 const PRIORITY_COLORS = { critical: 'badge-red', urgent: 'badge-red', high: 'badge-orange', medium: 'badge-yellow', low: 'badge-gray' };
-const STATUS_COLORS   = { 'Completed': 'badge-green', 'In Progress': 'badge-yellow', 'Assigned': 'badge-blue', 'Approval Pending': 'badge-purple', 'Changes Requested': 'badge-red', 'Pending': 'badge-gray' };
-const STATUS_BAR_COLOR = { 'Completed': '#22c55e', 'In Progress': '#f97316', 'Assigned': '#3b82f6', 'Approval Pending': '#9333ea', 'Changes Requested': '#ef4444', 'Pending': '#94a3b8' };
+const STATUS_COLORS   = { 'Completed': 'badge-green', 'Achieved': 'badge-amber', 'In Progress': 'badge-yellow', 'Assigned': 'badge-blue', 'Approval Pending': 'badge-purple', 'Changes Requested': 'badge-red', 'Pending': 'badge-gray' };
+const STATUS_BAR_COLOR = { 'Completed': '#22c55e', 'Achieved': '#f59e0b', 'In Progress': '#f97316', 'Assigned': '#3b82f6', 'Approval Pending': '#9333ea', 'Changes Requested': '#ef4444', 'Pending': '#94a3b8' };
 
 const AVATAR_GRADS = [
   'linear-gradient(135deg,#3b82f6 0%,#1d4ed8 100%)',

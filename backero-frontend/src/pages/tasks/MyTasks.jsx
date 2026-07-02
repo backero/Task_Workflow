@@ -18,7 +18,7 @@ import TaskTimer from '../../components/tasks/TaskTimer';
 const STATUS_COLORS = {
   'Pending': 'badge-gray', 'Assigned': 'badge-blue', 'In Progress': 'badge-yellow',
   'Under Review': 'badge-purple', 'Approval Pending': 'badge-purple',
-  'Changes Requested': 'badge-red', 'Completed': 'badge-green', 'Reopened': 'badge-orange',
+  'Changes Requested': 'badge-red', 'Completed': 'badge-green', 'Achieved': 'badge-amber', 'Reopened': 'badge-orange',
 };
 const PRIORITY_BORDER = { critical: 'border-l-red-500', high: 'border-l-orange-400', medium: 'border-l-yellow-400', low: 'border-l-gray-300', urgent: 'border-l-red-400' };
 const PRIORITY_TEXT   = { critical: 'text-red-600', high: 'text-orange-500', medium: 'text-yellow-600', low: 'text-gray-400', urgent: 'text-red-500' };
@@ -682,6 +682,7 @@ export default function MyTasks() {
     ...(filter === 'active'    ? { status: 'Assigned,In Progress,Changes Requested,Reopened' } : {}),
     ...(filter === 'pending'   ? { status: 'Approval Pending' } : {}),
     ...(filter === 'completed' ? { status: 'Completed' } : {}),
+    ...(filter === 'achieved'  ? { status: 'Achieved' } : {}),
     ...(filter === 'overdue'   ? { isOverdue: 'true' } : {}),
   };
 
@@ -698,6 +699,7 @@ export default function MyTasks() {
     { key: 'pending',   label: 'Pending Approval' },
     { key: 'overdue',   label: 'Overdue' },
     { key: 'completed', label: 'Completed' },
+    { key: 'achieved',  label: '🏆 Achieved' },
     { key: 'all',       label: 'All' },
   ];
 

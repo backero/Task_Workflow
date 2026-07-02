@@ -11,6 +11,7 @@ const STATUS_STYLES = {
   'Changes Requested':'bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300 border-orange-300 dark:border-orange-700',
   'Approval Pending': 'bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300 border-indigo-300 dark:border-indigo-700',
   'Completed':        'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 border-green-300 dark:border-green-700',
+  'Achieved':         'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 border-amber-300 dark:border-amber-700',
   'Reopened':         'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 border-red-300 dark:border-red-700',
   'Cancelled':        'bg-gray-100 dark:bg-[#1b2e4a] text-gray-500 dark:text-[#6a89b5] border-gray-300 dark:border-[#1b2e4a]',
 };
@@ -23,6 +24,7 @@ const STATUS_DOT = {
   'Changes Requested':'bg-orange-500',
   'Approval Pending': 'bg-indigo-500',
   'Completed':        'bg-green-500',
+  'Achieved':         'bg-amber-500',
   'Reopened':         'bg-red-500',
   'Cancelled':        'bg-gray-400',
 };
@@ -57,6 +59,7 @@ const DEPT_HEADER = {
 
 const PROGRESS_COLOR = {
   'Completed':         'bg-green-500',
+  'Achieved':          'bg-amber-500',
   'Cancelled':         'bg-gray-400',
   'Reopened':          'bg-red-400',
   'In Progress':       'bg-yellow-500',
@@ -81,7 +84,7 @@ const TaskNode = memo(({ data, selected }) => {
   } = data;
 
   const isRoot = depth === 0;
-  const isCompleted = status === 'Completed';
+  const isCompleted = status === 'Completed' || status === 'Achieved';
   const isCancelled = status === 'Cancelled';
   const deptColor = DEPT_HEADER[department] || 'bg-slate-600';
 

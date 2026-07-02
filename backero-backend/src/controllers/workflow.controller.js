@@ -606,6 +606,55 @@ const reopenTask = async (req, res) => {
   }
 };
 
+// ── Mark as Achieved (manager / admin only, task must be Completed) ───────────
+
+const achieveTask = async (req, res) => {
+  try {
+    const { taskId } = req.params;
+    const orgId  = req.user.organizationId;
+    const userId = req.user._id;
+
+    const callerLevel = ROLE_HIERARCHY[req.user.role] || 1;
+    if (callerLevel < ROLE_HIERARCHY['manager']) {
+      return res.status(403).json({ success: false, message: 'Only managers and admins can mark a task as Achieved.' });
+    }
+
+    const task = await Task.findOne({ _id: taskId, organizationId: orgId });
+    if (!task) return res.status(404).json({ success: false, message: 'Task not found' });
+
+    if (task.status !== TASK_STATUS.COMPLETED) {
+      return res.status(400).json({ success: false, message: 'Only Completed tasks can be marked as Achieved.' });
+    }
+
+    task.status = TASK_STATUS.ACHIEVED;
+    task.updatedBy = userId;
+    task.activity.push({ action: 'Marked as Achieved', performedBy: userId });
+    await task.save();
+
+    if (task.assignedTo) {
+      await createNotification({
+        organizationId: orgId,
+        recipient: task.assignedTo,
+        title: '🏆 Task Achieved!',
+        message: `"${task.title}" has been marked as Achieved. Great work!`,
+        type: 'task',
+        priority: 'medium',
+        actionUrl: `/tasks/${task._id}`,
+        reference: { model: 'Task', id: task._id },
+        channels: { inApp: true, whatsapp: false },
+        createdBy: userId,
+      }, req.app.get('io'));
+    }
+
+    req.app.get('io')?.to(`org:${orgId}`).emit(SOCKET_EVENTS.TASK_UPDATED, { taskId, updates: { status: TASK_STATUS.ACHIEVED } });
+
+    res.json({ success: true, data: task });
+  } catch (err) {
+    logger.error('achieveTask:', err);
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
 // ── Progress update ───────────────────────────────────────────────────────────
 
 const updateProgress = async (req, res) => {
@@ -743,7 +792,7 @@ module.exports = {
   addSubtask, startTask, addUpdate,
   updateNodePositions,
   addDependency, removeDependency, getTaskDependencies,
-  checkCompletion, requestCompletion, completeTask, rejectTask, reopenTask,
+  checkCompletion, requestCompletion, completeTask, rejectTask, reopenTask, achieveTask,
   updateProgress,
   getTemplates, saveTemplate, applyTemplate, deleteTemplate,
 };

@@ -165,7 +165,7 @@ taskSchema.index({ organizationId: 1, department: 1, platform: 1 });
 
 // Auto-set isOverdue on save
 taskSchema.pre('save', function (next) {
-  if (this.dueDate && this.status !== 'Completed' && this.status !== 'Cancelled') {
+  if (this.dueDate && !['Completed', 'Achieved', 'Cancelled'].includes(this.status)) {
     this.isOverdue = new Date() > this.dueDate;
   }
   next();
@@ -174,7 +174,7 @@ taskSchema.pre('save', function (next) {
 // Always compute isOverdue live in API responses so stale DB value never misleads clients
 taskSchema.set('toJSON', {
   transform: (doc, ret) => {
-    if (doc.dueDate && !['Completed', 'Cancelled'].includes(doc.status)) {
+    if (doc.dueDate && !['Completed', 'Achieved', 'Cancelled'].includes(doc.status)) {
       ret.isOverdue = new Date() > doc.dueDate;
     }
     delete ret.__v;

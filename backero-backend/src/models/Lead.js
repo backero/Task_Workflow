@@ -1,6 +1,12 @@
 const mongoose = require('mongoose');
 const { LEAD_STATUS, LEAD_SOURCES } = require('../utils/constants');
 
+const sampleLogSchema = new mongoose.Schema({
+  text: { type: String, required: true },
+  postedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+  postedAt: { type: Date, default: Date.now },
+}, { _id: true });
+
 const followUpSchema = new mongoose.Schema({
   scheduledAt: { type: Date, required: true },
   completedAt: { type: Date },
@@ -68,6 +74,25 @@ const leadSchema = new mongoose.Schema({
   // Lead time (dispatch deadline)
   leadTime: { type: Number },        // days to dispatch from inProgressAt
   inProgressAt: { type: Date },      // when status moved to In Progress
+
+  // Sample stage details
+  sampleDetails: {
+    product: { type: String },
+    quantity: { type: Number },
+    sentDate: { type: Date },
+    courier: { type: String },
+    chargeAmount: { type: Number, default: 0 },
+    chargeBy: { type: String, enum: ['client', 'company'], default: 'client' },
+    paymentStatus: { type: String, enum: ['pending', 'advance_received', 'full_paid'], default: 'pending' },
+    advanceAmount: { type: Number, default: 0 },
+    paymentMode: { type: String, enum: ['cash', 'upi', 'bank_transfer'], default: 'upi' },
+    images: [{ url: String, name: String, addedAt: { type: Date, default: Date.now } }],
+    teamUpdates: [sampleLogSchema],
+    clientNotes: [sampleLogSchema],
+    preparationDays: { type: Number },
+    startedAt: { type: Date },
+    financeTransactionId: { type: mongoose.Schema.Types.ObjectId, ref: 'Transaction' },
+  },
 
   // Google Sheets sync
   sheetRowId: { type: String },

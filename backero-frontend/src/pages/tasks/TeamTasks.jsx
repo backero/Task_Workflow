@@ -11,7 +11,7 @@ import TaskForm from './TaskForm';
 
 const STATUS_COLORS = {
   'Pending': 'badge-gray', 'Assigned': 'badge-blue', 'In Progress': 'badge-yellow',
-  'Approval Pending': 'badge-purple', 'Changes Requested': 'badge-red', 'Completed': 'badge-green',
+  'Approval Pending': 'badge-purple', 'Changes Requested': 'badge-red', 'Completed': 'badge-green', 'Achieved': 'badge-amber',
 };
 const PRIORITY_COLORS = { critical: 'text-red-600', urgent: 'text-red-500', high: 'text-orange-600', medium: 'text-yellow-600', low: 'text-gray-400' };
 

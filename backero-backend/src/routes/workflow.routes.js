@@ -36,5 +36,6 @@ router.post('/:taskId/request-completion', ctrl.requestCompletion);
 router.post('/:taskId/complete',        authorizeManagerOrAbove, ctrl.completeTask);
 router.post('/:taskId/reject',          authorizeManagerOrAbove, ctrl.rejectTask);
 router.post('/:taskId/reopen',          authorizeManagerOrAbove, ctrl.reopenTask);
+router.post('/:taskId/achieve',         authorizeManagerOrAbove, ctrl.achieveTask);
 
 module.exports = router;

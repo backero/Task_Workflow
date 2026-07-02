@@ -19,7 +19,7 @@ import { formatDistanceToNow, format } from 'date-fns';
 import { clsx } from 'clsx';
 
 const PRIORITY_COLORS = { critical: 'badge-red', urgent: 'badge-red', high: 'badge-orange', medium: 'badge-yellow', low: 'badge-gray' };
-const STATUS_COLORS   = { 'Completed': 'badge-green', 'In Progress': 'badge-yellow', 'Assigned': 'badge-blue', 'Approval Pending': 'badge-purple', 'Changes Requested': 'badge-red', 'Pending': 'badge-gray' };
+const STATUS_COLORS   = { 'Completed': 'badge-green', 'Achieved': 'badge-amber', 'In Progress': 'badge-yellow', 'Assigned': 'badge-blue', 'Approval Pending': 'badge-purple', 'Changes Requested': 'badge-red', 'Pending': 'badge-gray' };
 const DEPT_COLORS     = ['#3b82f6', '#22c55e', '#f97316', '#9333ea', '#06b6d4', '#ec4899', '#f59e0b', '#6366f1'];
 
 const fmt = (n) => (n || 0).toLocaleString('en-IN');

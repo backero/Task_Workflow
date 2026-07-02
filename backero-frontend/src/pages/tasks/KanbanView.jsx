@@ -19,6 +19,7 @@ const COLUMNS = [
   { key: 'In Progress',      label: 'In Progress',       color: 'bg-yellow-50 dark:bg-yellow-900/20',   dot: 'bg-yellow-500' },
   { key: 'Approval Pending', label: 'Under Review',      color: 'bg-orange-50 dark:bg-orange-900/20',   dot: 'bg-orange-500' },
   { key: 'Completed',        label: 'Completed',         color: 'bg-green-50 dark:bg-green-900/20',     dot: 'bg-green-500'  },
+  { key: 'Achieved',         label: '🏆 Achieved',        color: 'bg-amber-50 dark:bg-amber-900/20',     dot: 'bg-amber-500'  },
 ];
 
 const PRIORITY_BORDER = {

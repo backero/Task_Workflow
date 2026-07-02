@@ -126,7 +126,9 @@ exports.getLead = asyncHandler(async (req, res) => {
     .populate('assignedTo', 'firstName lastName avatar phone')
     .populate('assignedBy', 'firstName lastName')
     .populate('convertedToTask', 'title status')
-    .populate('followUps.performedBy', 'firstName lastName');
+    .populate('followUps.performedBy', 'firstName lastName')
+    .populate('sampleDetails.teamUpdates.postedBy', 'firstName lastName')
+    .populate('sampleDetails.clientNotes.postedBy', 'firstName lastName');
 
   if (!lead) return sendError(res, 'Lead not found.', 404);
   sendSuccess(res, { lead });
@@ -157,6 +159,105 @@ exports.updateLead = asyncHandler(async (req, res) => {
   }).catch(() => {});
 
   sendSuccess(res, { lead }, 'Lead updated');
+});
+
+// PUT /api/crm/leads/:id/sample
+exports.updateSampleDetails = asyncHandler(async (req, res) => {
+  const lead = await Lead.findOne({ _id: req.params.id, organizationId: req.user.organizationId });
+  if (!lead) return sendError(res, 'Lead not found.', 404);
+
+  const { product, quantity, sentDate, courier, chargeAmount, chargeBy, paymentStatus, advanceAmount, paymentMode, preparationDays, startedAt } = req.body;
+
+  const $set = { updatedBy: req.user._id };
+  if (product !== undefined)         $set['sampleDetails.product']         = product;
+  if (quantity !== undefined)        $set['sampleDetails.quantity']        = Number(quantity) || 0;
+  if (sentDate !== undefined)        $set['sampleDetails.sentDate']        = sentDate || null;
+  if (courier !== undefined)         $set['sampleDetails.courier']         = courier;
+  if (chargeAmount !== undefined)    $set['sampleDetails.chargeAmount']    = Number(chargeAmount) || 0;
+  if (chargeBy !== undefined)        $set['sampleDetails.chargeBy']        = chargeBy;
+  if (paymentStatus !== undefined)   $set['sampleDetails.paymentStatus']   = paymentStatus;
+  if (advanceAmount !== undefined)   $set['sampleDetails.advanceAmount']   = Number(advanceAmount) || 0;
+  if (paymentMode !== undefined)     $set['sampleDetails.paymentMode']     = paymentMode;
+  if (preparationDays !== undefined) $set['sampleDetails.preparationDays'] = Number(preparationDays) || 0;
+  if (startedAt !== undefined)       $set['sampleDetails.startedAt']       = startedAt || new Date();
+
+  const updatedLead = await Lead.findOneAndUpdate(
+    { _id: req.params.id, organizationId: req.user.organizationId },
+    { $set },
+    { new: true, runValidators: false }
+  );
+
+  // Auto-create Finance Transaction when payment is first recorded
+  const paymentRecorded = ['advance_received', 'full_paid'].includes(paymentStatus);
+  const advance = Number(advanceAmount) || 0;
+  if (paymentRecorded && advance > 0 && !lead.sampleDetails?.financeTransactionId) {
+    const Transaction = require('../models/Transaction');
+    const txn = await Transaction.create({
+      organizationId: req.user.organizationId,
+      type: 'income',
+      category: 'CRM Sales',
+      subCategory: 'Sample Payment',
+      amount: advance,
+      currency: 'INR',
+      description: `Sample payment from ${lead.name}${lead.company ? ` (${lead.company})` : ''}`,
+      date: new Date(),
+      paymentMethod: paymentMode || 'upi',
+      reference: `SAMPLE-${lead._id}`,
+      createdBy: req.user._id,
+    });
+    await Lead.findOneAndUpdate(
+      { _id: req.params.id },
+      { $set: { 'sampleDetails.financeTransactionId': txn._id } },
+      { runValidators: false }
+    );
+  }
+
+  sendSuccess(res, { lead: updatedLead }, 'Sample details saved');
+});
+
+// POST /api/crm/leads/:id/sample/team-update
+exports.addSampleTeamUpdate = asyncHandler(async (req, res) => {
+  const { text } = req.body;
+  if (!text?.trim()) return sendError(res, 'Text is required', 400);
+
+  const lead = await Lead.findOneAndUpdate(
+    { _id: req.params.id, organizationId: req.user.organizationId },
+    { $push: { 'sampleDetails.teamUpdates': { text: text.trim(), postedBy: req.user._id, postedAt: new Date() } } },
+    { new: true, runValidators: false }
+  ).populate('sampleDetails.teamUpdates.postedBy', 'firstName lastName');
+  if (!lead) return sendError(res, 'Lead not found.', 404);
+
+  sendSuccess(res, { lead }, 'Team update logged');
+});
+
+// POST /api/crm/leads/:id/sample/client-note
+exports.addSampleClientNote = asyncHandler(async (req, res) => {
+  const { text } = req.body;
+  if (!text?.trim()) return sendError(res, 'Text is required', 400);
+
+  const lead = await Lead.findOneAndUpdate(
+    { _id: req.params.id, organizationId: req.user.organizationId },
+    { $push: { 'sampleDetails.clientNotes': { text: text.trim(), postedBy: req.user._id, postedAt: new Date() } } },
+    { new: true, runValidators: false }
+  ).populate('sampleDetails.clientNotes.postedBy', 'firstName lastName');
+  if (!lead) return sendError(res, 'Lead not found.', 404);
+
+  sendSuccess(res, { lead }, 'Client note added');
+});
+
+// POST /api/crm/leads/:id/sample/image
+exports.addSampleImage = asyncHandler(async (req, res) => {
+  const { url, name } = req.body;
+  if (!url?.trim()) return sendError(res, 'Image URL is required', 400);
+
+  const lead = await Lead.findOneAndUpdate(
+    { _id: req.params.id, organizationId: req.user.organizationId },
+    { $push: { 'sampleDetails.images': { url: url.trim(), name: name?.trim() || 'Product image', addedAt: new Date() } } },
+    { new: true, runValidators: false }
+  );
+  if (!lead) return sendError(res, 'Lead not found.', 404);
+
+  sendSuccess(res, { lead }, 'Image added');
 });
 
 // POST /api/crm/leads/:id/followup

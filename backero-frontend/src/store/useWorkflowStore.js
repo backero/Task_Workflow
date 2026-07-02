@@ -94,6 +94,12 @@ export const useWorkflowStore = create((set, get) => ({
     return data;
   },
 
+  achieveTask: async (taskId) => {
+    const { data } = await api.post(`/workflow/${taskId}/achieve`);
+    await get().refreshGraph();
+    return data;
+  },
+
   checkCompletion: async (taskId) => {
     const { data } = await api.get(`/workflow/${taskId}/completion-check`);
     return data.data;

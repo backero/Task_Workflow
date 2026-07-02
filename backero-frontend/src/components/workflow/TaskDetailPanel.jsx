@@ -16,6 +16,7 @@ const STATUS_COLORS = {
   'Changes Requested': 'text-orange-700 bg-orange-100 border-orange-300',
   'Approval Pending':  'text-indigo-700 bg-indigo-100 border-indigo-300',
   'Completed':         'text-green-700 bg-green-100 border-green-300',
+  'Achieved':          'text-amber-700 bg-amber-100 border-amber-300',
   'Reopened':          'text-red-700 bg-red-100 border-red-300',
   'Cancelled':         'text-gray-600 bg-gray-100 dark:bg-[#1b2e4a] dark:text-[#6a89b5] border-gray-300 dark:border-[#1b2e4a]',
 };
@@ -31,7 +32,7 @@ const ROLE_LEVEL    = { super_admin: 7, chairman: 6, founder: 5, admin: 4, manag
 
 export default function TaskDetailPanel({ onAddSubtask }) {
   const { selectedNode, closeDetailPanel, startTask, addUpdate, requestCompletion,
-          completeTask, rejectTask, reopenTask, updateProgress: storeUpdateProgress, checkCompletion, deleteTask } = useWorkflowStore();
+          completeTask, rejectTask, reopenTask, achieveTask, updateProgress: storeUpdateProgress, checkCompletion, deleteTask } = useWorkflowStore();
   const { user } = useAuthStore();
 
   const [activeTab, setActiveTab] = useState('info');
@@ -158,6 +159,11 @@ export default function TaskDetailPanel({ onAddSubtask }) {
     await reopenTask(taskId, actionNotes || 'Task reopened');
     toast.success('Task reopened');
     setActionNotes('');
+  });
+
+  const handleAchieve = () => withLoading(async () => {
+    await achieveTask(taskId);
+    toast.success('🏆 Task marked as Achieved!');
   });
 
   const handleDelete = async () => {
@@ -584,8 +590,19 @@ export default function TaskDetailPanel({ onAddSubtask }) {
                   </ActionButton>
                 )}
 
+                {/* ── ACHIEVE: manager / admin on Completed tasks ── */}
+                {data.status === 'Completed' && userLevel >= ROLE_LEVEL['manager'] && (
+                  <button
+                    onClick={handleAchieve}
+                    disabled={loading}
+                    className="w-full py-2.5 rounded-xl text-xs font-semibold bg-amber-50 border border-amber-300 text-amber-700 hover:bg-amber-100 transition-colors flex items-center justify-center gap-1.5 disabled:opacity-50"
+                  >
+                    🏆 Mark as Achieved
+                  </button>
+                )}
+
                 {/* ── ADD SUBTASK ── */}
-                {!['Completed', 'Cancelled'].includes(data.status) && (
+                {!['Completed', 'Achieved', 'Cancelled'].includes(data.status) && (
                   <button
                     onClick={() => { onAddSubtask(taskId, data.title); closeDetailPanel(); }}
                     className="w-full py-2.5 border-2 border-dashed border-indigo-300 rounded-xl text-xs font-semibold text-indigo-600 hover:bg-indigo-50 transition-colors"
