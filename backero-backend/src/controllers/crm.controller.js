@@ -146,7 +146,7 @@ exports.updateLead = asyncHandler(async (req, res) => {
   if (updates.status === LEAD_STATUS.WON && previousStatus !== LEAD_STATUS.WON) lead.convertedAt = new Date();
   if (updates.status === LEAD_STATUS.LOST && previousStatus !== LEAD_STATUS.LOST) lead.lostAt = new Date();
 
-  await lead.save();
+  await lead.save({ validateBeforeSave: false });
 
   // Write-back to Google Sheets (async, non-blocking)
   Organization.findById(req.user.organizationId).select('googleSheets').then((org) => {
