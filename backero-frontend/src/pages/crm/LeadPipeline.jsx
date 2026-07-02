@@ -18,11 +18,12 @@ import { useForm } from 'react-hook-form';
 import GoogleSheetsPanel from '../../components/crm/GoogleSheetsPanel';
 import ErrorBoundary from '../../components/common/ErrorBoundary';
 
-const PIPELINE_STAGES = ['New Lead', 'Follow-up', 'In Progress', 'Ready to Dispatch', 'Dispatched', 'Payment Pending', 'Lost'];
+const PIPELINE_STAGES = ['New Lead', 'Follow-up', 'Sample', 'In Progress', 'Ready to Dispatch', 'Dispatched', 'Payment Pending', 'Lost'];
 
 const STAGE_META = {
   'New Lead':          { grad: 'linear-gradient(135deg,#475569 0%,#1e293b 100%)', accent: '#94a3b8', badge: 'bg-slate-100 text-slate-600 dark:bg-[#132035] dark:text-slate-300'       },
   'Follow-up':         { grad: 'linear-gradient(135deg,#f59e0b 0%,#b45309 100%)', accent: '#f59e0b', badge: 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300'   },
+  'Sample':            { grad: 'linear-gradient(135deg,#d946ef 0%,#a21caf 100%)', accent: '#e879f9', badge: 'bg-fuchsia-100 text-fuchsia-700 dark:bg-fuchsia-900/40 dark:text-fuchsia-300' },
   'In Progress':       { grad: 'linear-gradient(135deg,#3b82f6 0%,#1d4ed8 100%)', accent: '#60a5fa', badge: 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300'       },
   'Ready to Dispatch': { grad: 'linear-gradient(135deg,#8b5cf6 0%,#5b21b6 100%)', accent: '#a78bfa', badge: 'bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300' },
   'Dispatched':        { grad: 'linear-gradient(135deg,#14b8a6 0%,#0f766e 100%)', accent: '#2dd4bf', badge: 'bg-teal-100 text-teal-700 dark:bg-teal-900/40 dark:text-teal-300'       },
@@ -340,6 +341,11 @@ function LeadSlideOver({ leadId, onClose, onUpdated }) {
                   <button
                     key={stage}
                     onClick={() => {
+                      const BLOCKED_FROM_FOLLOWUP = ['In Progress', 'Ready to Dispatch', 'Dispatched', 'Payment Pending'];
+                      if (lead?.status === 'Follow-up' && BLOCKED_FROM_FOLLOWUP.includes(stage)) {
+                        toast.error('Follow-up → Sample → In Progress order-la tha shift aganum');
+                        return;
+                      }
                       if (stage === 'In Progress' && lead?.status !== 'In Progress') {
                         setShowLeadTimeModal(true);
                         setLeadTimeDays('');
@@ -497,6 +503,54 @@ function LeadSlideOver({ leadId, onClose, onUpdated }) {
                   </div>
                 );
               })()}
+
+              {/* Sample guide card */}
+              {lead.status === 'Sample' && (
+                <div className="rounded-xl border-2 border-fuchsia-200 dark:border-fuchsia-800 bg-fuchsia-50 dark:bg-fuchsia-900/20 p-4 space-y-3">
+                  <p className="text-xs font-bold text-fuchsia-700 dark:text-fuchsia-300 uppercase tracking-wider flex items-center gap-1.5">
+                    🧪 Sample Stage — Track Sample Details
+                  </p>
+                  <p className="text-sm text-fuchsia-800 dark:text-fuchsia-200">
+                    Client has requested samples. Log the details below and update as you progress.
+                  </p>
+                </div>
+              )}
+
+              {/* Sample note log */}
+              {lead.status === 'Sample' && (
+                <div className="mt-3 border-t border-fuchsia-100 dark:border-fuchsia-900 pt-3 space-y-2">
+                  <p className="text-xs font-semibold text-gray-500 dark:text-gray-400">📝 Log sample update</p>
+                  {lead.followUps?.length > 0 && [...lead.followUps].reverse()[0]?.notes && (
+                    <div className="bg-gray-50 dark:bg-[#0f1a2e] rounded-lg p-2.5">
+                      <p className="text-xs text-gray-400 mb-0.5">Last note</p>
+                      <p className="text-sm text-gray-700 dark:text-gray-300">{[...lead.followUps].reverse()[0].notes}</p>
+                    </div>
+                  )}
+                  <textarea
+                    value={followUpNote}
+                    onChange={e => setFollowUpNote(e.target.value)}
+                    rows={2}
+                    className="input resize-none text-sm w-full"
+                    placeholder="e.g. Sent 2 samples to client, awaiting feedback by Friday..."
+                  />
+                  <button
+                    onClick={() => {
+                      if (!followUpNote.trim()) return;
+                      followUpMutation.mutate({
+                        scheduledAt: new Date().toISOString(),
+                        type: 'other',
+                        notes: followUpNote.trim(),
+                        outcome: followUpNote.trim(),
+                        nextAction: '',
+                      }, { onSuccess: () => setFollowUpNote('') });
+                    }}
+                    disabled={!followUpNote.trim() || followUpMutation.isPending}
+                    className="btn-secondary w-full justify-center text-sm disabled:opacity-50"
+                  >
+                    {followUpMutation.isPending ? 'Saving…' : 'Save Note'}
+                  </button>
+                </div>
+              )}
 
               {/* Follow-up internal note box */}
               {lead.status === 'Follow-up' && (
