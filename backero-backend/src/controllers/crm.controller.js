@@ -134,19 +134,20 @@ exports.getLead = asyncHandler(async (req, res) => {
 
 // PUT /api/crm/leads/:id
 exports.updateLead = asyncHandler(async (req, res) => {
-  const lead = await Lead.findOne({ _id: req.params.id, organizationId: req.user.organizationId });
-  if (!lead) return sendError(res, 'Lead not found.', 404);
+  const existing = await Lead.findOne({ _id: req.params.id, organizationId: req.user.organizationId });
+  if (!existing) return sendError(res, 'Lead not found.', 404);
 
   const updates = req.body;
-  const previousStatus = lead.status;
+  const setFields = { ...updates, updatedBy: req.user._id };
 
-  Object.assign(lead, updates);
-  lead.updatedBy = req.user._id;
+  if (updates.status === LEAD_STATUS.WON && existing.status !== LEAD_STATUS.WON) setFields.convertedAt = new Date();
+  if (updates.status === LEAD_STATUS.LOST && existing.status !== LEAD_STATUS.LOST) setFields.lostAt = new Date();
 
-  if (updates.status === LEAD_STATUS.WON && previousStatus !== LEAD_STATUS.WON) lead.convertedAt = new Date();
-  if (updates.status === LEAD_STATUS.LOST && previousStatus !== LEAD_STATUS.LOST) lead.lostAt = new Date();
-
-  await lead.save({ validateBeforeSave: false });
+  const lead = await Lead.findOneAndUpdate(
+    { _id: req.params.id, organizationId: req.user.organizationId },
+    { $set: setFields },
+    { new: true, runValidators: false }
+  );
 
   // Write-back to Google Sheets (async, non-blocking)
   Organization.findById(req.user.organizationId).select('googleSheets').then((org) => {
