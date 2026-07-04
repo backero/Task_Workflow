@@ -143,8 +143,10 @@ export default function ManagerDashboard() {
   const { data, isLoading } = useQuery({
     queryKey: ['dashboard', 'manager'],
     queryFn: () => api.get('/dashboard/manager').then((r) => r.data.dashboard),
-    staleTime: 5 * 60 * 1000,
-    refetchInterval: 5 * 60 * 1000,
+    staleTime: 0,
+    refetchInterval: 30 * 1000,
+    refetchOnWindowFocus: true,
+    refetchOnMount: true,
   });
 
   if (isLoading) {
@@ -199,8 +201,8 @@ export default function ManagerDashboard() {
                   </span>
                 )}
               </Link>
-              <Link to="/tasks/team" className="flex items-center gap-2 px-4 py-2 bg-white text-blue-700 text-sm font-bold rounded-xl hover:bg-blue-50 transition-colors shadow-sm">
-                Team Tasks <ArrowRightIcon className="w-3.5 h-3.5" />
+              <Link to="/workflow" className="flex items-center gap-2 px-4 py-2 bg-white text-blue-700 text-sm font-bold rounded-xl hover:bg-blue-50 transition-colors shadow-sm">
+                Workflow Board <ArrowRightIcon className="w-3.5 h-3.5" />
               </Link>
             </div>
           </div>
@@ -226,9 +228,9 @@ export default function ManagerDashboard() {
       {/* ── KPI cards ── */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 stagger">
         <KPICard icon={ClipboardDocumentListIcon} color="blue" label="Total Tasks" value={d.totalTasks || 0}
-          sub={`${d.completedThisMonth || 0} completed this month`} to="/tasks/team" />
+          sub={`${d.completedThisMonth || 0} completed this month`} to="/workflow" />
         <KPICard icon={ExclamationTriangleIcon} color="red" label="Overdue" value={d.overdueCount || 0}
-          sub="Need immediate action" alert={d.overdueCount || 0} to="/tasks/team" />
+          sub="Need immediate action" alert={d.overdueCount || 0} to="/workflow" />
         <KPICard icon={ClockIcon} color="purple" label="Pending Approvals" value={approvals.length}
           sub="Waiting for your review" alert={approvals.length} to="/tasks/approvals" />
         <KPICard icon={UserGroupIcon} color="green" label="Team Members" value={d.teamSize || 0}
@@ -266,7 +268,7 @@ export default function ManagerDashboard() {
         <div className="card p-5">
           <SectionHead title="Due in Next 3 Days"
             sub={`${dueSoon.length} task${dueSoon.length !== 1 ? 's' : ''} coming up`}
-            to="/tasks/team" toLabel="All Tasks" />
+            to="/workflow" toLabel="View Board" />
           {dueSoon.length === 0 ? (
             <Empty icon={CheckCircleIcon} text="No tasks due in the next 3 days" />
           ) : (
@@ -489,7 +491,7 @@ export default function ManagerDashboard() {
             <h3 className="font-bold text-primary text-[15px]">Active Team Tasks</h3>
             <p className="text-xs text-muted mt-0.5">Sorted by due date</p>
           </div>
-          <Link to="/tasks/team" className="flex items-center gap-1 text-xs font-semibold text-blue-600 dark:text-blue-400 hover:text-blue-700 transition-colors">
+          <Link to="/workflow" className="flex items-center gap-1 text-xs font-semibold text-blue-600 dark:text-blue-400 hover:text-blue-700 transition-colors">
             Full Board <ArrowRightIcon className="w-3 h-3" />
           </Link>
         </div>
@@ -532,7 +534,7 @@ export default function ManagerDashboard() {
                       className="p-1.5 rounded-xl hover:bg-blue-50 dark:hover:bg-blue-900/20 text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
                       <BoltIcon className="w-4 h-4" />
                     </button>
-                    <Link to="/tasks/kanban" onClick={e => e.stopPropagation()}
+                    <Link to="/workflow" onClick={e => e.stopPropagation()}
                       className="p-1.5 rounded-xl hover:bg-indigo-50 dark:hover:bg-indigo-900/20 text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">
                       <ViewColumnsIcon className="w-4 h-4" />
                     </Link>

@@ -110,6 +110,39 @@ router.post('/invoices', asyncHandler(async (req, res) => {
   sendSuccess(res, { invoice }, 'Invoice created', 201);
 }));
 
+router.get('/invoices/stats', asyncHandler(async (req, res) => {
+  const orgId = req.user.organizationId;
+  const now = new Date();
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+
+  const [outstanding, paidThisMonth, overdue, draftCount, totalCount] = await Promise.all([
+    Invoice.aggregate([
+      { $match: { organizationId: orgId, status: { $in: ['sent', 'partially_paid'] } } },
+      { $group: { _id: null, amount: { $sum: '$balanceAmount' }, count: { $sum: 1 } } },
+    ]),
+    Invoice.aggregate([
+      { $match: { organizationId: orgId, status: 'paid', paidDate: { $gte: monthStart } } },
+      { $group: { _id: null, amount: { $sum: '$totalAmount' }, count: { $sum: 1 } } },
+    ]),
+    Invoice.aggregate([
+      { $match: { organizationId: orgId, status: 'overdue' } },
+      { $group: { _id: null, amount: { $sum: '$balanceAmount' }, count: { $sum: 1 } } },
+    ]),
+    Invoice.countDocuments({ organizationId: orgId, status: 'draft' }),
+    Invoice.countDocuments({ organizationId: orgId }),
+  ]);
+
+  sendSuccess(res, {
+    stats: {
+      outstanding: { amount: outstanding[0]?.amount || 0, count: outstanding[0]?.count || 0 },
+      paidThisMonth: { amount: paidThisMonth[0]?.amount || 0, count: paidThisMonth[0]?.count || 0 },
+      overdue: { amount: overdue[0]?.amount || 0, count: overdue[0]?.count || 0 },
+      draftCount,
+      totalCount,
+    },
+  });
+}));
+
 router.get('/invoices/:id', asyncHandler(async (req, res) => {
   const invoice = await Invoice.findOne({ _id: req.params.id, organizationId: req.user.organizationId });
   if (!invoice) return sendError(res, 'Invoice not found.', 404);

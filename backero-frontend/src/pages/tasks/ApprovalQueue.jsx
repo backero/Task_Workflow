@@ -234,13 +234,21 @@ export default function ApprovalQueue() {
 
   const approveMutation = useMutation({
     mutationFn: ({ id, notes }) => api.post(`/approvals/${id}/approve`, { reviewNotes: notes }),
-    onSuccess: () => { toast.success('Task approved!'); qc.invalidateQueries({ queryKey: ['approvals'] }); },
+    onSuccess: () => {
+      toast.success('Task approved!');
+      qc.invalidateQueries({ queryKey: ['approvals'] });
+      qc.invalidateQueries({ queryKey: ['dashboard'] });
+    },
     onError: (err) => toast.error(err.response?.data?.message || 'Failed'),
   });
 
   const rejectMutation = useMutation({
     mutationFn: ({ id, notes }) => api.post(`/approvals/${id}/reject`, { reviewNotes: notes }),
-    onSuccess: () => { toast.success('Task returned with feedback'); qc.invalidateQueries({ queryKey: ['approvals'] }); },
+    onSuccess: () => {
+      toast.success('Task returned with feedback');
+      qc.invalidateQueries({ queryKey: ['approvals'] });
+      qc.invalidateQueries({ queryKey: ['dashboard'] });
+    },
     onError: (err) => toast.error(err.response?.data?.message || 'Failed'),
   });
 

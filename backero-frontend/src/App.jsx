@@ -39,11 +39,6 @@ import InventoryAlerts from './pages/inventory/InventoryAlerts';
 import RawMaterials from './pages/inventory/RawMaterials';
 import ProductCatalog from './pages/inventory/ProductCatalog';
 
-// Production pages
-import ProductionOrders from './pages/production/ProductionOrders';
-import QualityControl from './pages/production/QualityControl';
-import BatchHistory from './pages/production/BatchHistory';
-
 // Finance pages
 import Ledger from './pages/finance/Ledger';
 import Invoices from './pages/finance/Invoices';
@@ -148,10 +143,6 @@ export default function App() {
           <Route path="/inventory/alerts" element={<PermissionRoute module="inventory"><InventoryAlerts /></PermissionRoute>} />
 
           {/* Production */}
-          <Route path="/production/orders" element={<PermissionRoute module="production"><ProductionOrders /></PermissionRoute>} />
-          <Route path="/production/quality" element={<PermissionRoute module="production"><QualityControl /></PermissionRoute>} />
-          <Route path="/production/batches" element={<PermissionRoute module="production"><BatchHistory /></PermissionRoute>} />
-
           {/* Finance */}
           <Route path="/finance/ledger" element={<PermissionRoute module="finance"><Ledger /></PermissionRoute>} />
           <Route path="/finance/invoices" element={<PermissionRoute module="finance"><Invoices /></PermissionRoute>} />

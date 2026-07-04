@@ -7,7 +7,7 @@ import {
   MapPinIcon, CurrencyRupeeIcon, UserIcon, ClockIcon, CheckCircleIcon,
   ArrowRightIcon, TableCellsIcon, CalendarDaysIcon, ChatBubbleLeftIcon,
   QuestionMarkCircleIcon, ArrowTopRightOnSquareIcon, TrashIcon,
-  ChartBarIcon, SparklesIcon, ArrowTrendingUpIcon, FunnelIcon,
+  ChartBarIcon, SparklesIcon, ArrowTrendingUpIcon, FunnelIcon, DocumentTextIcon,
 } from '@heroicons/react/24/outline';
 import api from '../../api/axios';
 import { useAuthStore } from '../../store/useAuthStore';
@@ -39,6 +39,8 @@ const FOLLOWUP_ICONS = { call: '📞', whatsapp: '💬', meeting: '🤝', email:
 const STAGE_DISPLAY = { 'In Progress': 'Production' };
 const stageLabel = (s) => STAGE_DISPLAY[s] || s;
 
+const LOST_REASONS = ['Price too high', 'Chose competitor', 'No budget', 'No response / Ghosted', 'Timeline mismatch', 'Product not suitable', 'Changed requirements', 'Other'];
+
 const SOURCES = ['Website Form', 'WhatsApp Chatbot', 'Google Sheets', 'Meta Ads', 'Manual Entry', 'Import', 'Referral'];
 const PRIORITIES = ['low', 'medium', 'high', 'critical'];
 
@@ -50,12 +52,14 @@ const PRIORITY_CFG = {
   low:      { dot: 'bg-gray-300',   pill: 'bg-gray-50 text-gray-500 dark:bg-[#132035]/50 dark:text-gray-400' },
 };
 
-function LeadCard({ lead, stage, onClick }) {
+function LeadCard({ lead, stage, onClick, onAddLog }) {
   const hasPending = lead.pendingQueries > 0;
   const hasAnswered = lead.answeredQueries > 0;
   const meta = STAGE_META[stage] || STAGE_META['New Lead'];
   const p = PRIORITY_CFG[lead.priority] || PRIORITY_CFG.low;
   const initials = (lead.name || '?').split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
+  const isOverdueFollowUp = lead.nextFollowUpAt && new Date(lead.nextFollowUpAt) < new Date()
+    && (!lead.lastContactedAt || new Date(lead.lastContactedAt) < new Date(lead.nextFollowUpAt));
 
   return (
     <div
@@ -66,6 +70,8 @@ function LeadCard({ lead, stage, onClick }) {
         'shadow-sm hover:shadow-xl dark:shadow-slate-900/50 dark:hover:shadow-slate-900/80',
         'transition-all duration-200 hover:-translate-y-1 active:translate-y-0',
         hasPending && 'ring-1 ring-amber-400/50 dark:ring-amber-500/40',
+        isOverdueFollowUp && 'ring-1 ring-red-400/60 dark:ring-red-500/50',
+        lead.isStale && !isOverdueFollowUp && 'ring-1 ring-orange-400/50 dark:ring-orange-500/40',
       )}
     >
       <div className="p-3.5">
@@ -100,6 +106,24 @@ function LeadCard({ lead, stage, onClick }) {
             </span>
           )}
         </div>
+
+        {/* Stale / Overdue follow-up badges */}
+        {(lead.isStale || isOverdueFollowUp) && (
+          <div className="flex gap-1.5 mt-2">
+            {lead.isStale && (
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-orange-100 dark:bg-orange-900/40 text-orange-700 dark:text-orange-300 border border-orange-200 dark:border-orange-700/50 flex items-center gap-0.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-orange-500 animate-pulse flex-shrink-0" />
+                Stale
+              </span>
+            )}
+            {isOverdueFollowUp && (
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300 border border-red-200 dark:border-red-700/50 flex items-center gap-0.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse flex-shrink-0" />
+                Follow-up overdue
+              </span>
+            )}
+          </div>
+        )}
 
         {/* Follow-up + assignee row */}
         {(lead.nextFollowUpAt && isValid(new Date(lead.nextFollowUpAt)) || lead.assignedTo) && (
@@ -173,6 +197,21 @@ function LeadSlideOver({ leadId, onClose, onUpdated }) {
   const [imageUrl, setImageUrl] = useState('');
   const [showSampleModal, setShowSampleModal] = useState(false);
   const [samplePrepDays, setSamplePrepDays] = useState('');
+  const [showLostModal, setShowLostModal] = useState(false);
+  const [lostReason, setLostReason] = useState('');
+  const [lostNotes, setLostNotes] = useState('');
+  const [showDealValueModal, setShowDealValueModal] = useState(false);
+  const [dealValueInput, setDealValueInput] = useState('');
+
+  // Communication log
+  const [showCommForm, setShowCommForm] = useState(false);
+  const [commType, setCommType] = useState('call');
+  const [commTitle, setCommTitle] = useState('');
+  const [commContent, setCommContent] = useState('');
+  const [commDate, setCommDate] = useState('');
+  const [commImages, setCommImages] = useState([]);
+  const [commPreviews, setCommPreviews] = useState([]);
+  const [lightboxImg, setLightboxImg] = useState(null);
 
   const deleteMutation = useMutation({
     mutationFn: () => api.delete(`/crm/leads/${leadId}`),
@@ -258,6 +297,18 @@ function LeadSlideOver({ leadId, onClose, onUpdated }) {
     mutationFn: (data) => api.post(`/crm/leads/${leadId}/sample/image`, data),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['crm', 'lead', leadId] }); toast.success('Image added'); setImageUrl(''); },
     onError: () => toast.error('Failed to add image'),
+  });
+
+  const commLogMutation = useMutation({
+    mutationFn: (fd) => api.post(`/crm/leads/${leadId}/comm-log`, fd, { headers: { 'Content-Type': 'multipart/form-data' } }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['crm', 'lead', leadId] });
+      toast.success('Log saved');
+      setShowCommForm(false);
+      setCommType('call'); setCommTitle(''); setCommContent(''); setCommDate('');
+      setCommImages([]); setCommPreviews([]);
+    },
+    onError: () => toast.error('Failed to save log'),
   });
 
   // Sync sample form when lead loads
@@ -350,6 +401,15 @@ function LeadSlideOver({ leadId, onClose, onUpdated }) {
                 <ArrowTopRightOnSquareIcon className="w-3.5 h-3.5" />
                 Details
               </button>
+              {(lead?.status === 'Payment Pending' || lead?.status === 'Dispatched') && (
+                <button
+                  onClick={() => { onClose(); navigate(`/finance/invoices?fromLead=${leadId}`); }}
+                  className="flex items-center gap-1.5 text-xs font-semibold text-emerald-600 dark:text-emerald-400 px-2.5 py-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-900/20 hover:bg-emerald-100 dark:hover:bg-emerald-900/30 transition-colors"
+                >
+                  <DocumentTextIcon className="w-3.5 h-3.5" />
+                  Invoice
+                </button>
+              )}
               {isAdmin && (
                 <button
                   onClick={() => {
@@ -388,23 +448,49 @@ function LeadSlideOver({ leadId, onClose, onUpdated }) {
                   <button
                     key={stage}
                     onClick={() => {
+                      if (lead.status === stage) return;
+                      const currentIdx = PIPELINE_STAGES.indexOf(lead.status);
+                      const nextIdx = PIPELINE_STAGES.indexOf(stage);
+                      if (nextIdx > currentIdx && !lead.communicationLogs?.length) {
+                        toast.error('Log what was discussed before moving to the next stage');
+                        setShowCommForm(true);
+                        return;
+                      }
                       const BLOCKED_FROM_FOLLOWUP = ['In Progress', 'Ready to Dispatch', 'Dispatched', 'Payment Pending'];
-                      if (lead?.status === 'Follow-up' && BLOCKED_FROM_FOLLOWUP.includes(stage)) {
+                      if (lead.status === 'Follow-up' && BLOCKED_FROM_FOLLOWUP.includes(stage)) {
                         toast.error('Follow-up → Sample → Production order-la tha shift aganum');
                         return;
                       }
-                      if (stage === 'Sample' && lead?.status !== 'Sample') {
+                      if (stage === 'Sample') {
+                        if (!lead.productInterest?.length) { toast.error('Add product interest before moving to Sample (Edit the lead first)'); return; }
+                        if (!lead.estimatedValue || lead.estimatedValue <= 0) { toast.error('Add estimated value before moving to Sample (Edit the lead first)'); return; }
                         setShowSampleModal(true);
                         setSamplePrepDays('');
-                      } else if (stage === 'In Progress' && lead?.status !== 'In Progress') {
+                        return;
+                      }
+                      if (stage === 'In Progress') {
+                        if (!lead.sampleDetails?.sentDate) { toast.error('Fill in the sample Sent Date before moving to Production'); return; }
                         setShowLeadTimeModal(true);
                         setLeadTimeDays('');
-                      } else if (lead?.status === 'New Lead' && stage !== 'New Lead') {
+                        return;
+                      }
+                      if (stage === 'Payment Pending') {
+                        setDealValueInput(lead.dealValue ? String(lead.dealValue) : '');
+                        setShowDealValueModal(true);
+                        return;
+                      }
+                      if (stage === 'Lost') {
+                        setLostReason(LOST_REASONS[0]);
+                        setLostNotes('');
+                        setShowLostModal(true);
+                        return;
+                      }
+                      if (lead.status === 'New Lead' && stage !== 'New Lead') {
                         setPendingStage(stage);
                         setStageShiftReason('');
-                      } else {
-                        statusMutation.mutate(stage);
+                        return;
                       }
+                      statusMutation.mutate(stage);
                     }}
                     disabled={statusMutation.isPending}
                     className={clsx(
@@ -906,6 +992,117 @@ function LeadSlideOver({ leadId, onClose, onUpdated }) {
               </div>
             )}
 
+            {/* ── Communication History ── */}
+            <div className="px-5 py-4 border-t border-gray-100 dark:border-[#1b2e4a]">
+              <div className="flex items-center justify-between mb-3">
+                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider flex items-center gap-1.5">
+                  <ChatBubbleLeftIcon className="w-3.5 h-3.5" />
+                  What was discussed
+                  {lead.communicationLogs?.length > 0 && <span className="text-blue-500">({lead.communicationLogs.length})</span>}
+                </p>
+                <button
+                  onClick={() => { setShowCommForm(v => !v); setCommType('call'); setCommTitle(''); setCommContent(''); setCommDate(''); setCommImages([]); setCommPreviews([]); }}
+                  className="text-xs px-2 py-0.5 rounded-lg bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 font-semibold hover:bg-blue-100 transition-colors"
+                >
+                  {showCommForm ? 'Cancel' : '+ Add Log'}
+                </button>
+              </div>
+
+              {/* Inline form */}
+              {showCommForm && (
+                <div className="space-y-2.5 mb-4 bg-gray-50 dark:bg-[#0f1a2e] rounded-xl p-3">
+                  <div className="flex gap-2">
+                    <select value={commType} onChange={e => setCommType(e.target.value)} className="input text-xs flex-shrink-0 w-36">
+                      <option value="call">📞 Call</option>
+                      <option value="whatsapp">💬 WhatsApp</option>
+                      <option value="meeting">🤝 Meeting</option>
+                      <option value="email">✉️ Email</option>
+                      <option value="other">📝 Other</option>
+                    </select>
+                    <input type="datetime-local" value={commDate} onChange={e => setCommDate(e.target.value)} className="input text-xs flex-1" />
+                  </div>
+                  <input value={commTitle} onChange={e => setCommTitle(e.target.value)} className="input text-xs w-full" placeholder="Title (optional)" />
+                  <textarea
+                    value={commContent}
+                    onChange={e => setCommContent(e.target.value)}
+                    rows={4}
+                    className="input text-xs w-full resize-none font-mono leading-relaxed"
+                    placeholder={"Paste WhatsApp chat or type call notes…\n[10:32] Client: We need 500 units of lip balm\n[10:34] Us: Sure, let me check and revert…"}
+                    autoFocus
+                  />
+                  {/* Image attach */}
+                  <label className="flex items-center gap-2 cursor-pointer text-xs text-blue-500 hover:text-blue-600 font-medium">
+                    <input type="file" accept="image/*" multiple className="hidden" onChange={e => {
+                      const files = Array.from(e.target.files);
+                      setCommImages(prev => [...prev, ...files]);
+                      files.forEach(f => { const r = new FileReader(); r.onload = ev => setCommPreviews(prev => [...prev, { url: ev.target.result, name: f.name }]); r.readAsDataURL(f); });
+                    }} />
+                    📎 Attach screenshot / photo
+                  </label>
+                  {commPreviews.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5">
+                      {commPreviews.map((img, i) => (
+                        <div key={i} className="relative group">
+                          <img src={img.url} alt={img.name} onClick={() => setLightboxImg(img.url)} className="w-12 h-12 object-cover rounded-lg border border-gray-200 dark:border-[#1b2e4a] cursor-pointer" />
+                          <button type="button" onClick={() => { setCommPreviews(p => p.filter((_, idx) => idx !== i)); setCommImages(p => p.filter((_, idx) => idx !== i)); }} className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-red-500 text-white text-[9px] flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">×</button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  <button
+                    onClick={() => {
+                      if (!commContent.trim() && !commImages.length) { toast.error('Add content or photo'); return; }
+                      const fd = new FormData();
+                      fd.append('type', commType); fd.append('title', commTitle); fd.append('content', commContent);
+                      if (commDate) fd.append('happenedAt', new Date(commDate).toISOString());
+                      commImages.forEach(f => fd.append('images', f));
+                      commLogMutation.mutate(fd);
+                    }}
+                    disabled={commLogMutation.isPending}
+                    className="btn-primary w-full justify-center text-sm disabled:opacity-50"
+                  >
+                    {commLogMutation.isPending ? 'Saving…' : 'Save Log'}
+                  </button>
+                </div>
+              )}
+
+              {/* Existing logs */}
+              {lead.communicationLogs?.length > 0 ? (
+                <div className="space-y-2.5">
+                  {[...lead.communicationLogs].sort((a, b) => new Date(b.happenedAt) - new Date(a.happenedAt)).map((log, i) => {
+                    const TYPE_ICON = { call: '📞', whatsapp: '💬', meeting: '🤝', email: '✉️', other: '📝' };
+                    return (
+                      <div key={log._id || i} className="rounded-xl border border-gray-100 dark:border-[#1b2e4a] p-3">
+                        <div className="flex items-center gap-2 mb-1.5">
+                          <span className="text-xs font-semibold text-gray-600 dark:text-gray-300">{TYPE_ICON[log.type]} {log.type === 'whatsapp' ? 'WhatsApp' : log.type.charAt(0).toUpperCase() + log.type.slice(1)}</span>
+                          <span className="text-xs text-gray-400">{format(new Date(log.happenedAt), 'dd MMM, h:mm a')}</span>
+                        </div>
+                        {log.title && <p className="text-xs font-semibold text-gray-700 dark:text-gray-200 mb-1">{log.title}</p>}
+                        {log.content && <p className="text-xs text-gray-600 dark:text-gray-400 whitespace-pre-wrap bg-gray-50 dark:bg-[#0a1220] rounded-lg p-2 font-mono leading-relaxed">{log.content.length > 200 ? log.content.slice(0, 200) + '…' : log.content}</p>}
+                        {log.images?.length > 0 && (
+                          <div className="flex flex-wrap gap-1.5 mt-2">
+                            {log.images.map((img, j) => (
+                              <img key={j} src={img.url} alt={img.name} onClick={() => setLightboxImg(img.url)} className="w-12 h-12 object-cover rounded-lg border border-gray-200 dark:border-[#1b2e4a] cursor-pointer hover:opacity-80 transition-opacity" />
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : !showCommForm && (
+                <p className="text-xs text-gray-400 text-center py-3">No logs yet — add what was discussed in calls or chats</p>
+              )}
+            </div>
+
+            {/* Lightbox */}
+            {lightboxImg && (
+              <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/80" onClick={() => setLightboxImg(null)}>
+                <img src={lightboxImg} alt="attachment" className="max-w-full max-h-full rounded-xl shadow-2xl" onClick={e => e.stopPropagation()} />
+                <button onClick={() => setLightboxImg(null)} className="absolute top-4 right-4 p-2 rounded-full bg-white/10 text-white"><XMarkIcon className="w-6 h-6" /></button>
+              </div>
+            )}
+
             {/* ── Technical Queries ── */}
             <div className="px-5 py-4 border-t border-gray-100 dark:border-[#1b2e4a]">
               <div className="flex items-center justify-between mb-3">
@@ -1222,6 +1419,105 @@ function LeadSlideOver({ leadId, onClose, onUpdated }) {
           </div>
         </div>
       )}
+
+      {/* Lost Reason Modal */}
+      {showLostModal && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-gray-900/60 backdrop-blur-sm" onClick={() => setShowLostModal(false)} />
+          <div className="relative bg-white dark:bg-[#070c17] rounded-2xl shadow-2xl w-full max-w-md border border-gray-200 dark:border-[#1b2e4a]">
+            <div className="p-5 border-b border-gray-200 dark:border-[#1b2e4a] flex items-center justify-between">
+              <div>
+                <h3 className="font-bold text-gray-900 dark:text-white">Mark as Lost</h3>
+                <p className="text-sm text-gray-500 mt-0.5">Why is this lead being closed?</p>
+              </div>
+              <button onClick={() => setShowLostModal(false)} className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-[#17263d]">
+                <XMarkIcon className="w-5 h-5 text-gray-500" />
+              </button>
+            </div>
+            <div className="p-5 space-y-4">
+              <div>
+                <label className="label">Reason *</label>
+                <select value={lostReason} onChange={e => setLostReason(e.target.value)} className="input">
+                  {LOST_REASONS.map(r => <option key={r} value={r}>{r}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="label">Additional notes (optional)</label>
+                <textarea value={lostNotes} onChange={e => setLostNotes(e.target.value)} rows={2} className="input resize-none" placeholder="e.g. Customer chose a local vendor…" />
+              </div>
+              <div className="flex gap-3">
+                <button type="button" onClick={() => setShowLostModal(false)} className="btn-secondary flex-1 justify-center">Cancel</button>
+                <button
+                  onClick={() => {
+                    statusMutation.mutate(
+                      { status: 'Lost', lostReason, ...(lostNotes.trim() ? { notes: lostNotes.trim() } : {}) },
+                      { onSuccess: () => setShowLostModal(false) }
+                    );
+                  }}
+                  disabled={statusMutation.isPending}
+                  className="flex-1 justify-center flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold text-white bg-rose-600 hover:bg-rose-700 disabled:opacity-50 transition-all"
+                >
+                  {statusMutation.isPending ? 'Moving…' : 'Confirm Lost'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Deal Value Modal (→ Payment Pending) */}
+      {showDealValueModal && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-gray-900/60 backdrop-blur-sm" onClick={() => setShowDealValueModal(false)} />
+          <div className="relative bg-white dark:bg-[#070c17] rounded-2xl shadow-2xl w-full max-w-md border border-gray-200 dark:border-[#1b2e4a]">
+            <div className="p-5 border-b border-gray-200 dark:border-[#1b2e4a] flex items-center justify-between">
+              <div>
+                <h3 className="font-bold text-gray-900 dark:text-white">Confirm Deal Value</h3>
+                <p className="text-sm text-gray-500 mt-0.5">Enter the final confirmed deal amount</p>
+              </div>
+              <button onClick={() => setShowDealValueModal(false)} className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-[#17263d]">
+                <XMarkIcon className="w-5 h-5 text-gray-500" />
+              </button>
+            </div>
+            <div className="p-5 space-y-4">
+              <div>
+                <label className="label">Deal Value (₹) *</label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 font-medium text-sm">₹</span>
+                  <input
+                    type="number"
+                    min="1"
+                    value={dealValueInput}
+                    onChange={e => setDealValueInput(e.target.value)}
+                    className="input pl-7"
+                    placeholder="e.g. 50000"
+                    autoFocus
+                  />
+                </div>
+                {dealValueInput && Number(dealValueInput) > 0 && (
+                  <p className="text-xs text-gray-400 mt-1">₹{Number(dealValueInput).toLocaleString('en-IN')}</p>
+                )}
+              </div>
+              <div className="flex gap-3">
+                <button type="button" onClick={() => setShowDealValueModal(false)} className="btn-secondary flex-1 justify-center">Cancel</button>
+                <button
+                  onClick={() => {
+                    if (!dealValueInput || Number(dealValueInput) <= 0) { toast.error('Enter a valid deal value'); return; }
+                    statusMutation.mutate(
+                      { status: 'Payment Pending', dealValue: Number(dealValueInput) },
+                      { onSuccess: () => setShowDealValueModal(false) }
+                    );
+                  }}
+                  disabled={statusMutation.isPending}
+                  className="btn-primary flex-1 justify-center disabled:opacity-50"
+                >
+                  {statusMutation.isPending ? 'Moving…' : 'Confirm'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }
@@ -1448,14 +1744,173 @@ function StageLeadsModal({ stage, onClose, onSelectLead }) {
   );
 }
 
+// ── Team Analytics View ───────────────────────────────────────────────────────
+function TeamAnalyticsView() {
+  const { data: stats, isLoading } = useQuery({
+    queryKey: ['crm', 'analytics', 'rep'],
+    queryFn: () => api.get('/crm/leads/analytics/rep').then(r => r.data.stats),
+  });
+
+  if (isLoading) return (
+    <div className="flex justify-center py-16">
+      <div className="w-8 h-8 border-2 border-brand-500 border-t-transparent rounded-full animate-spin" />
+    </div>
+  );
+
+  const rows = stats || [];
+
+  return (
+    <div className="space-y-4">
+      <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Team Performance — {rows.length} reps</p>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        {rows.map((rep) => {
+          const name = rep.user ? `${rep.user.firstName} ${rep.user.lastName}` : 'Unassigned';
+          const initials = name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
+          const conversion = rep.total > 0 ? Math.round((rep.won / rep.total) * 100) : 0;
+          const active = rep.total - rep.won - rep.lost;
+          return (
+            <div key={rep._id} className="bg-white dark:bg-[#0f1a2e] rounded-2xl border border-gray-100 dark:border-[#1b2e4a] p-5 shadow-sm space-y-4">
+              {/* Header */}
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center text-white text-sm font-black shadow-md flex-shrink-0" style={{ background: 'linear-gradient(135deg,#112270,#1a3a8a)' }}>
+                  {initials}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="font-bold text-gray-900 dark:text-white truncate">{name}</p>
+                  <p className="text-xs text-gray-400">{rep.total} total leads</p>
+                </div>
+                <span className={clsx('text-sm font-black px-2.5 py-1 rounded-full', conversion >= 30 ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : conversion >= 15 ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400' : 'bg-gray-100 text-gray-600 dark:bg-[#132035] dark:text-gray-400')}>
+                  {conversion}%
+                </span>
+              </div>
+              {/* Conversion bar */}
+              <div>
+                <div className="flex justify-between text-[10px] text-gray-400 mb-1">
+                  <span>Conversion rate</span>
+                  <span>{rep.won} won / {rep.total} total</span>
+                </div>
+                <div className="h-2 bg-gray-100 dark:bg-[#132035] rounded-full overflow-hidden">
+                  <div className="h-full bg-green-500 rounded-full transition-all" style={{ width: `${Math.min(conversion, 100)}%` }} />
+                </div>
+              </div>
+              {/* Stats grid */}
+              <div className="grid grid-cols-4 gap-2 text-center">
+                {[
+                  { label: 'Active', value: active, color: 'text-blue-600 dark:text-blue-400' },
+                  { label: 'Won', value: rep.won, color: 'text-green-600 dark:text-green-400' },
+                  { label: 'Lost', value: rep.lost, color: 'text-red-500 dark:text-red-400' },
+                  { label: 'Stale', value: rep.stale, color: rep.stale > 0 ? 'text-orange-500 dark:text-orange-400' : 'text-gray-400' },
+                ].map(s => (
+                  <div key={s.label} className="bg-gray-50 dark:bg-[#132035]/60 rounded-xl p-2">
+                    <p className={clsx('text-lg font-black leading-none', s.color)}>{s.value}</p>
+                    <p className="text-[9px] text-gray-400 mt-0.5 font-semibold uppercase tracking-wide">{s.label}</p>
+                  </div>
+                ))}
+              </div>
+              {/* Alerts */}
+              {(rep.overdueFollowUp > 0 || rep.stale > 0) && (
+                <div className="flex gap-2 flex-wrap">
+                  {rep.overdueFollowUp > 0 && (
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 border border-red-100 dark:border-red-800/40 flex items-center gap-1">
+                      <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
+                      {rep.overdueFollowUp} overdue follow-up{rep.overdueFollowUp > 1 ? 's' : ''}
+                    </span>
+                  )}
+                  {rep.stale > 0 && (
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-orange-50 dark:bg-orange-900/20 text-orange-600 dark:text-orange-400 border border-orange-100 dark:border-orange-800/40 flex items-center gap-1">
+                      <span className="w-1.5 h-1.5 rounded-full bg-orange-400 animate-pulse" />
+                      {rep.stale} stale
+                    </span>
+                  )}
+                </div>
+              )}
+              {/* Pipeline value */}
+              {rep.totalValue > 0 && (
+                <div className="pt-3 border-t border-gray-100 dark:border-[#1b2e4a] flex justify-between text-xs">
+                  <span className="text-gray-400">Pipeline value</span>
+                  <span className="font-bold text-emerald-600 dark:text-emerald-400">₹{rep.totalValue.toLocaleString('en-IN')}</span>
+                </div>
+              )}
+            </div>
+          );
+        })}
+        {rows.length === 0 && (
+          <div className="col-span-3 text-center py-16 text-gray-400">
+            <p className="text-sm">No leads assigned to any rep yet</p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── Pipeline Velocity View ────────────────────────────────────────────────────
+function VelocityView() {
+  const { data: velocity, isLoading } = useQuery({
+    queryKey: ['crm', 'analytics', 'velocity'],
+    queryFn: () => api.get('/crm/leads/analytics/velocity').then(r => r.data.velocity),
+  });
+
+  if (isLoading) return (
+    <div className="flex justify-center py-16">
+      <div className="w-8 h-8 border-2 border-brand-500 border-t-transparent rounded-full animate-spin" />
+    </div>
+  );
+
+  const rows = velocity || [];
+  const maxDays = Math.max(...rows.map(r => r.avgDays), 1);
+
+  const stageColor = (stage) => {
+    const m = STAGE_META[stage];
+    return m ? m.grad : 'linear-gradient(135deg,#94a3b8,#64748b)';
+  };
+
+  return (
+    <div className="space-y-4 max-w-2xl">
+      <div>
+        <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Pipeline Velocity — Avg days per stage</p>
+        <p className="text-xs text-gray-400 mt-0.5">Based on {rows.reduce((a, r) => a + r.count, 0)} stage transitions tracked</p>
+      </div>
+      {rows.length === 0 ? (
+        <div className="text-center py-16 text-gray-400">
+          <p className="text-sm">No stage history data yet.</p>
+          <p className="text-xs mt-1">Stage transitions will be tracked from now on.</p>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {rows.map(r => (
+            <div key={r._id} className="bg-white dark:bg-[#0f1a2e] rounded-xl border border-gray-100 dark:border-[#1b2e4a] p-4">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm font-semibold text-gray-800 dark:text-gray-200">{r._id}</span>
+                <div className="flex items-center gap-3 text-xs text-gray-400">
+                  <span className="font-bold text-gray-700 dark:text-gray-300">{r.avgDays.toFixed(1)} days avg</span>
+                  <span>{r.count} leads</span>
+                </div>
+              </div>
+              <div className="h-3 bg-gray-100 dark:bg-[#132035] rounded-full overflow-hidden">
+                <div
+                  className="h-full rounded-full transition-all duration-500"
+                  style={{ width: `${(r.avgDays / maxDays) * 100}%`, background: stageColor(r._id) }}
+                />
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Main Pipeline Page ────────────────────────────────────────────────────────
 export default function LeadPipeline() {
   const [showForm, setShowForm] = useState(false);
   const [selectedLeadId, setSelectedLeadId] = useState(null);
   const [stageModal, setStageModal] = useState(null);
+  const [activeView, setActiveView] = useState('pipeline');
   const { isManagerOrAbove } = useAuthStore();
   const qc = useQueryClient();
   const navigate = useNavigate();
+
 
   const { data, isLoading } = useQuery({
     queryKey: ['crm', 'pipeline'],
@@ -1536,12 +1991,42 @@ export default function LeadPipeline() {
         ))}
       </div>
 
+      {/* ── View Tabs ── */}
+      {isManagerOrAbove && (
+        <div className="flex items-center gap-1 p-1 bg-gray-100 dark:bg-[#0f1a2e] rounded-xl border border-gray-200 dark:border-[#1b2e4a] w-fit">
+          {[
+            { id: 'pipeline', label: 'Pipeline' },
+            { id: 'team', label: 'Team Analytics' },
+            { id: 'velocity', label: 'Velocity' },
+          ].map(tab => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveView(tab.id)}
+              className={clsx(
+                'px-4 py-1.5 rounded-lg text-sm font-semibold transition-all duration-150',
+                activeView === tab.id
+                  ? 'bg-white dark:bg-[#132035] text-gray-900 dark:text-white shadow-sm'
+                  : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
+              )}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* ── Team Analytics ── */}
+      {activeView === 'team' && isManagerOrAbove && <TeamAnalyticsView />}
+
+      {/* ── Pipeline Velocity ── */}
+      {activeView === 'velocity' && isManagerOrAbove && <VelocityView />}
+
       {/* ── Kanban Board ── */}
-      {isLoading ? (
+      {activeView === 'pipeline' && isLoading ? (
         <div className="flex justify-center py-16">
           <div className="w-8 h-8 border-2 border-brand-500 border-t-transparent rounded-full animate-spin" />
         </div>
-      ) : (
+      ) : activeView === 'pipeline' && (
         <div className="flex gap-3 overflow-x-auto pb-6">
           {PIPELINE_STAGES.map((stage) => {
             const stagePipeline = pipeline.find((p) => p._id === stage);
@@ -1631,6 +2116,7 @@ export default function LeadPipeline() {
           }}
         />
       )}
+
     </div>
   );
 }

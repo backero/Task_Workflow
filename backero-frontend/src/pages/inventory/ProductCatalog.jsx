@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useForm, useFieldArray } from 'react-hook-form';
@@ -9,6 +9,7 @@ import api from '../../api/axios';
 // ── Constants ──────────────────────────────────────────────────────────────
 
 const CATEGORIES = ['Hair Care','Skin Care','Face Care','Body Care','Oral Care',"Men's Care",'Baby Care','Sun Care','Makeup','Fragrance','Wellness','Professional','Other'];
+const CAT_PREFIX = { 'Hair Care':'HC','Skin Care':'SK','Face Care':'FC','Body Care':'BC','Oral Care':'OC',"Men's Care":'MC','Baby Care':'BY','Sun Care':'SC','Makeup':'MK','Fragrance':'FR','Wellness':'WL','Professional':'PR','Other':'OT' };
 const PRODUCT_TYPES = ['Shampoo','Conditioner','Hair Oil','Serum','Cream','Lotion','Face Wash','Mask','Scrub','Toner','Moisturizer','Cleanser','Soap','Body Wash','Sunscreen','Lip Balm','Deodorant','Perfume','Toothpaste','Hair Spray','Other'];
 const STATUSES = ['Active','Inactive','Draft','Archived'];
 const STATUS_COLORS = { Active:'bg-emerald-500/15 text-emerald-400', Inactive:'bg-gray-500/15 text-gray-400', Draft:'bg-blue-500/15 text-blue-400', Archived:'bg-red-500/15 text-red-400 line-through' };
@@ -20,6 +21,9 @@ const DETAIL_TABS = [
   { id:'costing',     label:'Costing',        icon:'💰' },
   { id:'marketplace', label:'Marketplace',    icon:'🛒' },
   { id:'qr',          label:'QR Code',        icon:'🔲' },
+  { id:'procedure',   label:'Procedure',      icon:'📝' },
+  { id:'documents',   label:'Documents',      icon:'📄' },
+  { id:'history',     label:'History',        icon:'🕐' },
 ];
 
 // ── Defaults ───────────────────────────────────────────────────────────────
@@ -127,6 +131,9 @@ function initDraft(p) {
       packaging: JSON.parse(JSON.stringify(p.marketplace?.packaging || DEF_MARKETPLACE.packaging)),
     },
     variants: JSON.parse(JSON.stringify(p.variants||[])),
+    procedure: { text: '', attachments: [], ...(p.procedure||{}) },
+    rndDoc: { text: '', attachments: [], lastUpdated: null, ...(p.rndDoc||{}) },
+    researchGuide: { text: '', lastUpdated: null, ...(p.researchGuide||{}) },
   };
 }
 
@@ -158,7 +165,7 @@ const MODAL_TABS = [
 function ProductModal({ onClose, onSuccess, initial }) {
   const [activeTab, setActiveTab] = useState('basic');
   const [loading, setLoading] = useState(false);
-  const { register, handleSubmit, control } = useForm({
+  const { register, handleSubmit, control, watch, setValue } = useForm({
     defaultValues: {
       sku: initial?.sku||'', name: initial?.name||'', category: initial?.category||'',
       subCategory: initial?.subCategory||'', productType: initial?.productType||'',
@@ -166,6 +173,7 @@ function ProductModal({ onClose, onSuccess, initial }) {
       shelfLife: initial?.shelfLife||'', status: initial?.status||'Active',
       description: initial?.description||'', certifications: initial?.certifications||'',
       storageConditions: initial?.storageConditions||'', barcode: initial?.barcode||'',
+      imageUrl: initial?.images?.[0]||'',
       costPrice: initial?.costPrice||'', sellingPrice: initial?.sellingPrice||'',
       mrp: initial?.mrp||'', minStockLevel: initial?.minStockLevel||0,
       variants: initial?.variants?.length ? initial.variants : [{ name:'', size:'', unit:'ml', moq:'', moqUnit:'pcs', sellingPrice:'', mrp:'' }],
@@ -173,10 +181,25 @@ function ProductModal({ onClose, onSuccess, initial }) {
   });
   const { fields: variantFields, append: appendVariant, remove: removeVariant } = useFieldArray({ control, name:'variants' });
 
+  const watchedName = watch('name');
+  const watchedCategory = watch('category');
+  const watchedImageUrl = watch('imageUrl');
+
+  useEffect(() => {
+    if (initial) return;
+    if (!watchedName || watchedName.length < 2) return;
+    const catCode = CAT_PREFIX[watchedCategory] || 'OT';
+    const words = watchedName.trim().split(/\s+/).filter(Boolean);
+    const initials = words.map(w => (w[0]||'').toUpperCase()).join('').slice(0, 4) || 'XX';
+    const num = String(words.reduce((s, w) => s + (w.charCodeAt(0)||65), 0) % 900 + 100);
+    setValue('sku', `${catCode}-${initials}-${num}`, { shouldValidate: false });
+  }, [watchedName, watchedCategory]);
+
   const onSubmit = async (data) => {
     setLoading(true);
     try {
-      const payload = { ...data, isRawMaterial: false, isFinishedGood: true, isSellable: true };
+      const { imageUrl, ...rest } = data;
+      const payload = { ...rest, isRawMaterial: false, isFinishedGood: true, isSellable: true, images: imageUrl ? [imageUrl] : (initial?.images || []) };
       if (initial?._id) { await api.put(`/inventory/products/${initial._id}`, payload); toast.success('Product updated'); }
       else { await api.post('/inventory/products', payload); toast.success('Product added'); }
       onSuccess();
@@ -204,7 +227,7 @@ function ProductModal({ onClose, onSuccess, initial }) {
             {activeTab === 'basic' && (
               <div className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
-                  {!initial && <div><label className="label">SKU <span className="text-red-400">*</span></label><input {...register('sku',{required:true})} className="input" placeholder="FG-HC-001" /></div>}
+                  {!initial && <div><label className="label">SKU <span className="text-red-400">*</span><span className="ml-2 text-[10px] text-indigo-400 font-normal">auto-generated</span></label><input {...register('sku',{required:true})} className="input font-mono" placeholder="Auto-fills from name…" /></div>}
                   <div className={initial ? 'col-span-2' : ''}><label className="label">Product Name <span className="text-red-400">*</span></label><input {...register('name',{required:true})} className="input" /></div>
                 </div>
                 <div className="grid grid-cols-3 gap-4">
@@ -222,6 +245,15 @@ function ProductModal({ onClose, onSuccess, initial }) {
                   <div><label className="label">Shelf Life (months)</label><input {...register('shelfLife')} type="number" min="0" className="input" /></div>
                 </div>
                 <div><label className="label">Description</label><textarea {...register('description')} className="input resize-none" rows={2} /></div>
+                <div>
+                  <label className="label">Product Image URL</label>
+                  <input {...register('imageUrl')} className="input" placeholder="https://example.com/product.jpg" />
+                  {watchedImageUrl && (
+                    <div className="mt-2 rounded-xl overflow-hidden bg-gray-700/20 h-36 flex items-center justify-center">
+                      <img src={watchedImageUrl} alt="Preview" className="max-h-full max-w-full object-contain" onError={e => { e.currentTarget.style.display='none'; }} />
+                    </div>
+                  )}
+                </div>
               </div>
             )}
             {activeTab === 'pricing' && (
@@ -310,6 +342,12 @@ function ProductDetailModal({ product, onClose, onSuccess }) {
   const [activeTab, setActiveTab] = useState('overview');
   const [draft, setDraft] = useState(() => initDraft(product));
   const [saving, setSaving] = useState(false);
+  const [recording, setRecording] = useState(false);
+  const [recTime, setRecTime] = useState('00:00');
+  const [rmOpen, setRmOpen] = useState(null);
+  const mediaRecorderRef = useRef(null);
+  const audioChunksRef = useRef([]);
+  const recTimerRef = useRef(null);
 
   const { data: rawMats = [] } = useQuery({
     queryKey: ['raw-materials-bom'],
@@ -317,6 +355,13 @@ function ProductDetailModal({ product, onClose, onSuccess }) {
       .then(r => r.data.data.products || r.data.data || []),
     staleTime: 60000,
   });
+
+  const filteredMats = useMemo(() => {
+    if (rmOpen === null) return [];
+    const q = (draft.formulation.rows[rmOpen]?.name || '').toLowerCase().trim();
+    if (!q) return rawMats.slice(0, 10);
+    return rawMats.filter(m => m.name?.toLowerCase().includes(q) || m.sku?.toLowerCase().includes(q) || m.code?.toLowerCase().includes(q)).slice(0, 15);
+  }, [rmOpen, draft.formulation.rows, rawMats]);
 
   const costs = useMemo(() => calcBaseCost(draft), [draft]);
   const formStats = useMemo(() => calcFormCosts(draft.formulation), [draft.formulation]);
@@ -337,7 +382,14 @@ function ProductDetailModal({ product, onClose, onSuccess }) {
   async function handleSave() {
     setSaving(true);
     try {
-      await api.put(`/inventory/products/${draft._id}`, draft);
+      const now = new Date().toISOString();
+      const payload = JSON.parse(JSON.stringify(draft));
+      if (payload.rnd) payload.rnd.lastUpdated = now;
+      if (payload.productionOverhead) payload.productionOverhead.lastUpdated = now;
+      if (payload.standardAssumptions) payload.standardAssumptions.lastUpdated = now;
+      if (payload.rndDoc?.text) payload.rndDoc.lastUpdated = now;
+      if (payload.researchGuide?.text) payload.researchGuide.lastUpdated = now;
+      await api.put(`/inventory/products/${draft._id}`, payload);
       toast.success('Saved');
       onSuccess();
     } catch { toast.error('Save failed'); }
@@ -367,10 +419,29 @@ function ProductDetailModal({ product, onClose, onSuccess }) {
     setDraft(prev => {
       const next = JSON.parse(JSON.stringify(prev));
       const r = next.formulation.rows[i];
-      r.name = mat.name; r.code = mat.sku||''; r.unit = mat.unit||next.formulation.refUnit;
-      r.unitPrice = mat.costPrice||0; r.category = mat.category||''; r.hsnCode = mat.hsnCode||''; r.gstRate = mat.gstRate||0; r.supplier = mat.supplier||'';
+      r.name = mat.name; r.code = mat.sku||mat.code||''; r.unit = mat.unit||next.formulation.refUnit;
+      r.unitPrice = mat.costPrice||mat.unitPrice||0; r.category = mat.category||''; r.hsnCode = mat.hsnCode||''; r.gstRate = mat.gstRate||0; r.supplier = mat.supplier||'';
       return next;
     });
+  }
+  function selectRawMat(i, mat) {
+    setDraft(prev => {
+      const next = JSON.parse(JSON.stringify(prev));
+      const r = next.formulation.rows[i];
+      r.name = mat.name; r.code = mat.sku||mat.code||''; r.unit = mat.unit||next.formulation.refUnit;
+      r.unitPrice = mat.costPrice||mat.unitPrice||0; r.category = mat.category||''; r.hsnCode = mat.hsnCode||''; r.gstRate = mat.gstRate||0; r.supplier = mat.supplier||'';
+      return next;
+    });
+    setRmOpen(null);
+  }
+  function autoGenMatCode(i, name) {
+    const words = (name||'').trim().split(/\s+/).filter(Boolean);
+    const initials = words.map(w => (w[0]||'').toUpperCase()).join('').slice(0, 4) || 'RM';
+    const num = String(words.reduce((s, w) => s + (w.charCodeAt(0)||65), 0) % 900 + 100);
+    const code = `RM-${initials}-${num}`;
+    setFormRow(i, 'code', code);
+    setRmOpen(null);
+    toast.success(`Code generated: ${code}`);
   }
 
   function setPkgItem(pkgPath, i, field, val) {
@@ -388,31 +459,116 @@ function ProductDetailModal({ product, onClose, onSuccess }) {
     setDraft(prev => { const next = JSON.parse(JSON.stringify(prev)); const list = pkgPath.split('.').reduce((o,k)=>o[k], next); list.splice(i,1); return next; });
   }
 
+  // ── Procedure handlers ───────────────────────────────────────────────────
+  function addProcAttachment(type, name, data) {
+    setDraft(prev => {
+      const next = JSON.parse(JSON.stringify(prev));
+      if (!next.procedure) next.procedure = { text: '', attachments: [] };
+      next.procedure.attachments.push({ type, name, data, createdAt: new Date().toISOString() });
+      return next;
+    });
+  }
+  function removeProcAttachment(i) {
+    if (!confirm('Remove this attachment?')) return;
+    setDraft(prev => { const next = JSON.parse(JSON.stringify(prev)); next.procedure.attachments.splice(i, 1); return next; });
+  }
+  function handleProcFile(e) {
+    const f = e.target.files[0]; if (!f) return;
+    const r = new FileReader();
+    r.onload = ev => addProcAttachment('document', f.name, ev.target.result);
+    r.readAsDataURL(f); e.target.value = '';
+  }
+  function handleProcVideo(e) {
+    const f = e.target.files[0]; if (!f) return;
+    const r = new FileReader();
+    r.onload = ev => addProcAttachment('video', f.name, ev.target.result);
+    r.readAsDataURL(f); e.target.value = '';
+  }
+  async function toggleAudio() {
+    if (recording) { mediaRecorderRef.current?.stop(); return; }
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const rec = new MediaRecorder(stream);
+      audioChunksRef.current = [];
+      rec.ondataavailable = e => { if (e.data.size > 0) audioChunksRef.current.push(e.data); };
+      rec.onstop = () => {
+        const blob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+        const url = URL.createObjectURL(blob);
+        addProcAttachment('audio', `Recording ${new Date().toLocaleString()}`, url);
+        clearInterval(recTimerRef.current); setRecTime('00:00'); setRecording(false);
+        stream.getTracks().forEach(t => t.stop());
+      };
+      rec.start(); mediaRecorderRef.current = rec; setRecording(true);
+      let s = 0;
+      recTimerRef.current = setInterval(() => {
+        s++;
+        setRecTime(String(Math.floor(s/60)).padStart(2,'0') + ':' + String(s%60).padStart(2,'0'));
+      }, 1000);
+    } catch { toast.error('Microphone access denied'); }
+  }
+
+  // ── R&D Doc handlers ─────────────────────────────────────────────────────
+  function handleRNDDocFile(e) {
+    const f = e.target.files[0]; if (!f) return;
+    const r = new FileReader();
+    r.onload = ev => {
+      setDraft(prev => {
+        const next = JSON.parse(JSON.stringify(prev));
+        if (!next.rndDoc) next.rndDoc = { text: '', attachments: [], lastUpdated: null };
+        next.rndDoc.attachments.push({ type: 'document', name: f.name, data: ev.target.result, createdAt: new Date().toISOString() });
+        return next;
+      });
+      toast.success('R&D document attached: ' + f.name);
+    };
+    r.readAsDataURL(f); e.target.value = '';
+  }
+  function removeRNDAttachment(i) {
+    if (!confirm('Remove this R&D document?')) return;
+    setDraft(prev => { const next = JSON.parse(JSON.stringify(prev)); next.rndDoc.attachments.splice(i, 1); return next; });
+  }
+
   return createPortal(
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 bg-gray-900/70 backdrop-blur-sm" onClick={onClose}>
-      <div className="relative w-full max-w-5xl card shadow-2xl flex flex-col" style={{maxHeight:'95vh'}} onClick={e => e.stopPropagation()}>
-        {/* Header */}
-        <div className="flex items-center justify-between px-6 py-3 border-b border-gray-700 flex-shrink-0">
-          <div>
-            <h2 className="font-bold text-gray-900 dark:text-gray-100">{draft.name}</h2>
-            <p className="text-xs text-gray-400">{draft.sku} · {draft.category}{draft.productType ? ` · ${draft.productType}` : ''}</p>
+    <div className="fixed inset-0 z-50 overflow-y-auto bg-gray-900/70 backdrop-blur-sm" onClick={onClose}>
+      <div className="flex min-h-full items-center justify-center p-4">
+      <div className="relative w-full max-w-5xl card shadow-2xl" onClick={e => e.stopPropagation()}>
+        {/* Sticky header + tabs + cost bar */}
+        <div className="sticky top-0 z-10 rounded-t-2xl" style={{background:'var(--s-card)'}}>
+          {/* Header */}
+          <div className="flex items-center justify-between px-6 py-3 border-b border-gray-700">
+            <div>
+              <h2 className="font-bold text-gray-900 dark:text-gray-100">{draft.name}</h2>
+              <p className="text-xs text-gray-400">{draft.sku} · {draft.category}{draft.productType ? ` · ${draft.productType}` : ''}</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <button onClick={handleSave} disabled={saving} className="btn btn-primary text-xs">{saving ? 'Saving…' : '💾 Save All'}</button>
+              <button onClick={onClose} className="text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 text-2xl w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700">&times;</button>
+            </div>
           </div>
-          <div className="flex items-center gap-2">
-            <button onClick={handleSave} disabled={saving} className="btn btn-primary text-xs">{saving ? 'Saving…' : '💾 Save All'}</button>
-            <button onClick={onClose} className="text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 text-2xl w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700">&times;</button>
+          {/* Tabs */}
+          <div className="flex border-b border-gray-700 px-4 overflow-x-auto">
+            {DETAIL_TABS.map(t => (
+              <button key={t.id} onClick={() => setActiveTab(t.id)}
+                className={`flex items-center gap-1.5 px-4 py-3 text-xs font-semibold border-b-2 transition-colors -mb-px whitespace-nowrap ${activeTab === t.id ? 'border-indigo-500 text-indigo-400' : 'border-transparent text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'}`}>
+                {t.icon} {t.label}
+              </button>
+            ))}
           </div>
+          {/* Cost Summary Bar */}
+          {(costs.total > 0 || formStats.totalAmount > 0) && (
+            <div className="flex items-center gap-3 px-5 py-2 bg-indigo-500/5 border-b border-indigo-500/15 text-xs flex-wrap">
+              <span className="text-gray-400 font-semibold">📊 Cost:</span>
+              <span className="text-gray-500">Form Cost: <span className="text-indigo-300 font-bold">{fmt(formStats.totalAmount)}</span></span>
+              <span className="text-gray-600">·</span>
+              <span className="text-gray-500">Ref Wt: <span className="text-gray-200 font-semibold">{draft.formulation.refWeight} {draft.formulation.refUnit}</span></span>
+              <span className="text-gray-600">·</span>
+              <span className="text-gray-500">Cost/Unit: <span className="text-indigo-300 font-bold">{fmt(formStats.costPerUnit, 4)}</span></span>
+              <span className="text-gray-600">·</span>
+              <span className="text-gray-500">Total (with OH+Pkg): <span className="text-emerald-400 font-bold">{fmt(costs.total, 4)}</span></span>
+            </div>
+          )}
         </div>
-        {/* Tabs */}
-        <div className="flex border-b border-gray-700 px-4 flex-shrink-0 overflow-x-auto">
-          {DETAIL_TABS.map(t => (
-            <button key={t.id} onClick={() => setActiveTab(t.id)}
-              className={`flex items-center gap-1.5 px-4 py-3 text-xs font-semibold border-b-2 transition-colors -mb-px whitespace-nowrap ${activeTab === t.id ? 'border-indigo-500 text-indigo-400' : 'border-transparent text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'}`}>
-              {t.icon} {t.label}
-            </button>
-          ))}
-        </div>
-        {/* Content */}
-        <div className="flex-1 overflow-y-auto p-5 min-h-0">
+        {/* Scrollable content */}
+        <div className="p-5 max-h-[65vh] overflow-y-auto">
 
           {/* OVERVIEW */}
           {activeTab === 'overview' && (
@@ -459,7 +615,6 @@ function ProductDetailModal({ product, onClose, onSuccess }) {
                   <span className="text-gray-500 dark:text-gray-400">Batch total: <span className="text-gray-800 dark:text-gray-200 font-semibold">{fmt(formStats.totalAmount)}</span></span>
                 </div>
               </div>
-              <datalist id="rm-list">{rawMats.map(m => <option key={m._id} value={m.name} />)}</datalist>
               <div className="overflow-x-auto rounded-lg border border-gray-700">
                 <table className="w-full text-xs">
                   <thead className="bg-gray-800/60">
@@ -476,7 +631,35 @@ function ProductDetailModal({ product, onClose, onSuccess }) {
                         <tr key={i} className="hover:bg-gray-100 dark:hover:bg-gray-700/20">
                           <td className="px-2 py-1.5 text-gray-500 text-center">{i+1}</td>
                           <td className="px-1 py-1.5"><input value={r.code||''} onChange={e=>setFormRow(i,'code',e.target.value)} className="input text-xs py-1 w-20" placeholder="Code" /></td>
-                          <td className="px-1 py-1.5"><input list="rm-list" value={r.name||''} onChange={e=>setFormRow(i,'name',e.target.value)} onBlur={e=>handleMatInput(i,e.target.value)} className="input text-xs py-1 w-40" placeholder="Type material…" /></td>
+                          <td className="px-1 py-1.5">
+                            <div className="relative">
+                              <input
+                                value={r.name||''}
+                                onChange={e => { setFormRow(i,'name',e.target.value); setRmOpen(i); }}
+                                onFocus={() => setRmOpen(i)}
+                                onBlur={() => setTimeout(() => setRmOpen(null), 200)}
+                                className="input text-xs py-1 w-44"
+                                placeholder="Type material…"
+                                autoComplete="off"
+                              />
+                              {rmOpen === i && (
+                                <div className="absolute z-50 top-full left-0 mt-0.5 w-72 bg-gray-800 border border-gray-600 rounded-lg shadow-xl overflow-y-auto" style={{maxHeight:'200px'}}>
+                                  {filteredMats.length === 0 ? (
+                                    <div className="px-3 py-2.5 text-xs text-gray-400">
+                                      No raw material found.
+                                      {r.name && <button onMouseDown={()=>autoGenMatCode(i,r.name)} className="ml-1 text-indigo-400 hover:text-indigo-300 underline">Auto-generate code</button>}
+                                    </div>
+                                  ) : filteredMats.map(mat => (
+                                    <button key={mat._id} onMouseDown={() => selectRawMat(i, mat)}
+                                      className="w-full text-left px-3 py-2 text-xs hover:bg-gray-700 border-b border-gray-700/40 last:border-0">
+                                      <p className="font-semibold text-gray-100">{mat.name}</p>
+                                      <p className="text-gray-400 mt-0.5">{mat.sku||mat.code} · ₹{mat.costPrice||mat.unitPrice||0}/{mat.unit}{mat.category ? ` · ${mat.category}` : ''}</p>
+                                    </button>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          </td>
                           <td className="px-1 py-1.5"><input type="number" value={r.percentage||0} step="0.01" onChange={e=>setFormRow(i,'percentage',e.target.value)} className="input text-xs py-1 w-16" /></td>
                           <td className="px-2 py-1.5 text-indigo-300 font-semibold whitespace-nowrap">{f2(qty,3)}</td>
                           <td className="px-1 py-1.5"><input type="number" value={r.conversion||1} step="0.01" onChange={e=>setFormRow(i,'conversion',e.target.value)} className="input text-xs py-1 w-14" /></td>
@@ -736,7 +919,192 @@ function ProductDetailModal({ product, onClose, onSuccess }) {
             </div>
           )}
 
+          {/* PROCEDURE */}
+          {activeTab === 'procedure' && (
+            <div className="space-y-6">
+              {/* R&D Documentation */}
+              <div>
+                <div className="flex items-center justify-between mb-3">
+                  <p className="text-xs font-bold text-gray-700 dark:text-gray-300">📝 R&D Documentation</p>
+                  <label className="btn btn-ghost text-xs border border-gray-600 cursor-pointer">
+                    📎 Attach R&D Doc
+                    <input type="file" accept=".pdf,.doc,.docx,.xlsx,.jpg,.png" className="hidden" onChange={handleRNDDocFile} />
+                  </label>
+                </div>
+                <textarea
+                  value={draft.rndDoc?.text || ''}
+                  onChange={e => setField('rndDoc.text', e.target.value)}
+                  rows={4}
+                  placeholder="Enter R&D documentation, research notes, test results, formulation evolution, stability studies..."
+                  className="input w-full resize-y text-xs"
+                />
+                <div className="space-y-2 mt-2">
+                  {(draft.rndDoc?.attachments || []).map((att, i) => (
+                    <div key={i} className="flex items-center gap-3 p-2.5 bg-gray-700/20 rounded-lg text-xs">
+                      <span className="text-lg">📄</span>
+                      <div className="flex-1">
+                        <p className="font-semibold text-gray-800 dark:text-gray-200">{att.name}</p>
+                        <p className="text-gray-400">{att.type} · {att.createdAt ? new Date(att.createdAt).toLocaleDateString('en-IN', {day:'2-digit',month:'short',year:'numeric'}) : '—'}</p>
+                      </div>
+                      <button onClick={() => removeRNDAttachment(i)} className="text-red-400 hover:text-red-300 p-1">🗑️</button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Research Guide */}
+              <div>
+                <p className="text-xs font-bold text-gray-700 dark:text-gray-300 mb-3">🔬 Research Guide</p>
+                <textarea
+                  value={draft.researchGuide?.text || ''}
+                  onChange={e => setField('researchGuide.text', e.target.value)}
+                  rows={3}
+                  placeholder="Research guide and methodology references: literature sources, patent references, ingredient research papers, regulatory guidelines..."
+                  className="input w-full resize-y text-xs"
+                />
+              </div>
+
+              {/* Manufacturing Procedure */}
+              <div>
+                <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+                  <p className="text-xs font-bold text-gray-700 dark:text-gray-300">🏭 Manufacturing Procedure</p>
+                  <div className="flex gap-2 flex-wrap">
+                    <label className="btn btn-ghost text-xs border border-gray-600 cursor-pointer">
+                      📎 Attach File
+                      <input type="file" accept=".pdf,.doc,.docx" className="hidden" onChange={handleProcFile} />
+                    </label>
+                    <label className="btn btn-ghost text-xs border border-gray-600 cursor-pointer">
+                      🎬 Attach Video
+                      <input type="file" accept="video/*" className="hidden" onChange={handleProcVideo} />
+                    </label>
+                    <button
+                      className={`btn text-xs ${recording ? 'btn-danger' : 'btn-ghost border border-gray-600'}`}
+                      onClick={toggleAudio}
+                    >
+                      {recording ? `⏹ Stop (${recTime})` : '🎙️ Record Audio'}
+                    </button>
+                  </div>
+                </div>
+                <textarea
+                  value={draft.procedure?.text || ''}
+                  onChange={e => setField('procedure.text', e.target.value)}
+                  rows={7}
+                  placeholder="Enter the manufacturing procedure step by step..."
+                  className="input w-full resize-y text-xs"
+                />
+                <div className="space-y-2 mt-2">
+                  {(draft.procedure?.attachments || []).map((att, i) => {
+                    const icon = att.type === 'video' ? '🎬' : att.type === 'audio' ? '🎙️' : '📄';
+                    return (
+                      <div key={i} className="flex items-center gap-3 p-2.5 bg-gray-700/20 rounded-lg text-xs">
+                        <span className="text-lg">{icon}</span>
+                        <div className="flex-1">
+                          <p className="font-semibold text-gray-800 dark:text-gray-200">{att.name}</p>
+                          <p className="text-gray-400">{att.type} · {att.createdAt ? new Date(att.createdAt).toLocaleDateString('en-IN', {day:'2-digit',month:'short',year:'numeric'}) : '—'}</p>
+                        </div>
+                        <button onClick={() => removeProcAttachment(i)} className="text-red-400 hover:text-red-300 p-1">🗑️</button>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* DOCUMENTS */}
+          {activeTab === 'documents' && (
+            <div className="space-y-5">
+              <p className="text-xs font-bold text-gray-700 dark:text-gray-300">📄 Documents & Certificates</p>
+              <div className="grid grid-cols-2 gap-5">
+                {[
+                  ['COA (Certificate of Analysis)', '.pdf'],
+                  ['MSDS', '.pdf'],
+                  ['Product Registration', '.pdf'],
+                  ['Marketing Brochure', '.pdf,.jpg,.png'],
+                ].map(([label, accept]) => (
+                  <div key={label}>
+                    <label className="text-xs font-semibold text-gray-400 mb-1.5 block">{label}</label>
+                    <input type="file" accept={accept} className="input text-xs w-full" />
+                  </div>
+                ))}
+              </div>
+              <p className="text-xs text-gray-500 italic mt-2">Document uploads are stored for the current session. Use Save All to persist metadata.</p>
+            </div>
+          )}
+
+          {/* HISTORY */}
+          {activeTab === 'history' && (() => {
+            const historyEntries = [];
+            if (draft.createdAt) historyEntries.push({ date: draft.createdAt, action: 'Product created', detail: `SKU: ${draft.sku}` });
+            if (draft.updatedAt && draft.updatedAt !== draft.createdAt) historyEntries.push({ date: draft.updatedAt, action: 'Product updated', detail: 'Last modification' });
+            if (draft.rnd?.lastUpdated) historyEntries.push({ date: draft.rnd.lastUpdated, action: 'R&D costing updated', detail: `Lifecycle: ${draft.rnd.lifecycle || 1000} batches` });
+            if (draft.productionOverhead?.lastUpdated) historyEntries.push({ date: draft.productionOverhead.lastUpdated, action: 'Production Overhead updated', detail: 'Manufacturing costs' });
+            if (draft.standardAssumptions?.lastUpdated) historyEntries.push({ date: draft.standardAssumptions.lastUpdated, action: 'Standard Assumptions updated', detail: 'Indirect % adjusted' });
+            if (draft.rndDoc?.lastUpdated) historyEntries.push({ date: draft.rndDoc.lastUpdated, action: 'R&D documentation updated', detail: 'Research notes modified' });
+            if (draft.researchGuide?.lastUpdated) historyEntries.push({ date: draft.researchGuide.lastUpdated, action: 'Research guide updated', detail: 'Methodology references' });
+            (draft.procedure?.attachments || []).forEach(att => {
+              if (att.createdAt) historyEntries.push({ date: att.createdAt, action: 'Procedure attachment added', detail: att.name || 'Attachment' });
+            });
+            historyEntries.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+            const certs = [];
+            if (draft.certifications) {
+              draft.certifications.split(',').forEach(c => {
+                const name = c.trim();
+                if (name) certs.push({ name, type: 'Certification', source: 'Product Profile', date: draft.updatedAt || draft.createdAt || null });
+              });
+            }
+
+            return (
+              <div className="space-y-6">
+                <div>
+                  <p className="text-xs font-bold text-gray-700 dark:text-gray-300 mb-3">🏅 Certificate History</p>
+                  {certs.length === 0 ? (
+                    <p className="text-xs text-gray-500 p-3 bg-gray-700/20 rounded-lg">No certificates or compliance documents on record.</p>
+                  ) : (
+                    <div className="space-y-2">
+                      {certs.map((c, i) => {
+                        const dateStr = c.date ? new Date(c.date).toLocaleDateString('en-IN', {day:'2-digit',month:'short',year:'numeric'}) : '—';
+                        return (
+                          <div key={i} className="flex items-center gap-3 p-2.5 bg-gray-700/20 rounded-lg text-xs">
+                            <span className="text-lg">🏅</span>
+                            <div className="flex-1">
+                              <p className="font-semibold text-gray-800 dark:text-gray-200">{c.name}</p>
+                              <p className="text-gray-400">{c.type} · Source: {c.source} · Added: {dateStr}</p>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+                <div>
+                  <p className="text-xs font-bold text-gray-700 dark:text-gray-300 mb-3">🕐 Activity History</p>
+                  {historyEntries.length === 0 ? (
+                    <p className="text-xs text-gray-500 p-3 bg-gray-700/20 rounded-lg">No activity history recorded yet. Changes to R&D, overheads, and procedures are tracked after Save All.</p>
+                  ) : (
+                    <div className="space-y-2">
+                      {historyEntries.map((h, i) => {
+                        const dateStr = new Date(h.date).toLocaleDateString('en-IN', {day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'});
+                        return (
+                          <div key={i} className="flex items-center gap-3 p-2.5 bg-gray-700/20 rounded-lg text-xs">
+                            <span className="text-lg">🕐</span>
+                            <div className="flex-1">
+                              <p className="font-semibold text-gray-800 dark:text-gray-200">{h.action}</p>
+                              <p className="text-gray-400">{h.detail} · {dateStr}</p>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })()}
+
         </div>
+      </div>
       </div>
     </div>,
     document.body
@@ -763,6 +1131,11 @@ function DetailRow({ product, onOpenDetail }) {
             ))}
           </div>
           <div>
+            {product.images?.[0] && (
+              <div className="mb-3 rounded-xl overflow-hidden bg-gray-700/20 h-32">
+                <img src={product.images[0]} alt={product.name} className="w-full h-full object-cover" />
+              </div>
+            )}
             <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-2">🧴 Variants</p>
             {product.variants?.length ? product.variants.map((v,i) => (
               <div key={i} className="flex items-center justify-between px-2 py-1.5 bg-gray-700/30 rounded-lg text-xs mb-1">
@@ -784,7 +1157,13 @@ function DetailRow({ product, onOpenDetail }) {
 function ProductCard({ product, onEdit, onDetail, onQR, onDelete }) {
   return (
     <div className="card p-4 flex flex-col gap-3 hover:-translate-y-0.5 transition-transform">
-      <div className="w-full h-28 rounded-lg bg-gray-700/30 flex items-center justify-center text-4xl">🧴</div>
+      {product.images?.[0] ? (
+        <div className="w-full h-28 rounded-lg bg-gray-700/30 overflow-hidden">
+          <img src={product.images[0]} alt={product.name} className="w-full h-full object-cover" />
+        </div>
+      ) : (
+        <div className="w-full h-28 rounded-lg bg-gray-700/30 flex items-center justify-center text-4xl">🧴</div>
+      )}
       <div>
         <div className="flex items-start justify-between gap-1"><p className="text-xs text-gray-500 font-semibold">{product.sku}</p>{statusBadge(product.status||'Active')}</div>
         <p className="font-bold text-gray-900 dark:text-gray-100 text-sm mt-1 leading-tight">{product.name}</p>
@@ -938,7 +1317,16 @@ export default function ProductCatalog() {
                     <React.Fragment key={p._id}>
                       <tr className="hover:bg-gray-100 dark:hover:bg-gray-700/20 transition-colors">
                         <td className="px-4 py-3"><button onClick={()=>setExpandedId(isExpanded?null:p._id)} className="font-bold text-indigo-400 hover:underline">{p.sku}</button></td>
-                        <td className="px-4 py-3"><button onClick={()=>setExpandedId(isExpanded?null:p._id)} className="font-semibold text-gray-800 dark:text-gray-200 hover:text-indigo-400 transition-colors text-left">{p.name}</button></td>
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-2.5">
+                            {p.images?.[0] ? (
+                              <img src={p.images[0]} alt="" className="w-8 h-8 rounded-md object-cover flex-shrink-0 border border-gray-700/30" />
+                            ) : (
+                              <div className="w-8 h-8 rounded-md bg-gray-700/20 flex items-center justify-center text-sm flex-shrink-0">🧴</div>
+                            )}
+                            <button onClick={()=>setExpandedId(isExpanded?null:p._id)} className="font-semibold text-gray-800 dark:text-gray-200 hover:text-indigo-400 transition-colors text-left">{p.name}</button>
+                          </div>
+                        </td>
                         <td className="px-4 py-3"><span className="text-xs px-2 py-1 bg-gray-100 dark:bg-gray-700/60 text-gray-600 dark:text-gray-300 rounded-full">{p.category}</span></td>
                         <td className="px-4 py-3 text-gray-500 dark:text-gray-400 text-xs">{p.productType||'-'}</td>
                         <td className="px-4 py-3 text-gray-700 dark:text-gray-300">{p.mrp?`₹${p.mrp}`:p.sellingPrice?`₹${p.sellingPrice}`:'—'}</td>

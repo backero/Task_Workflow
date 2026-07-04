@@ -96,8 +96,10 @@ export default function FounderDashboard() {
   const { data, isLoading } = useQuery({
     queryKey: ['dashboard', 'founder'],
     queryFn: () => api.get('/dashboard/founder').then((r) => r.data.dashboard),
-    staleTime: 5 * 60 * 1000,
-    refetchInterval: 5 * 60 * 1000,
+    staleTime: 0,
+    refetchInterval: 30 * 1000,
+    refetchOnWindowFocus: true,
+    refetchOnMount: true,
   });
 
   if (isLoading) {
@@ -174,20 +176,20 @@ export default function FounderDashboard() {
           icon={ClipboardDocumentListIcon} color="blue"
           label="Total Tasks" value={company.totalTasks || 0}
           sub={`${pct(company.completionRate)} completion rate`}
-          to="/tasks/kanban"
+          to="/workflow"
         />
         <StatCard
           icon={CheckCircleIcon} color="green"
           label="Completed Tasks" value={company.completedTasks || 0}
           sub={`${company.inProgressTasks || 0} in progress`}
-          to="/tasks/team"
+          to="/workflow"
         />
         <StatCard
           icon={ExclamationTriangleIcon} color="red"
           label="Overdue Tasks" value={company.overdueTaskCount || 0}
           sub="Need immediate attention"
           badge={company.overdueTaskCount || 0}
-          to="/tasks/team"
+          to="/workflow"
         />
         <StatCard
           icon={ClockIcon} color="purple"
@@ -436,7 +438,7 @@ export default function FounderDashboard() {
                       className="p-1.5 rounded-lg hover:bg-brand-50 text-gray-400 hover:text-brand-600 transition-colors">
                       <BoltIcon className="w-4 h-4" />
                     </button>
-                    <Link to="/tasks/kanban" title="Open Kanban Board"
+                    <Link to="/workflow" title="Open Workflow Board"
                       className="p-1.5 rounded-lg hover:bg-indigo-50 text-gray-400 hover:text-indigo-600 transition-colors">
                       <ViewColumnsIcon className="w-4 h-4" />
                     </Link>
@@ -493,7 +495,7 @@ export default function FounderDashboard() {
 
         {/* Recent Tasks */}
         <div className="card p-5">
-          <SectionHeader title="Recent Tasks" sub="Latest tasks across all departments" to="/tasks/team" toLabel="Team Tasks" />
+          <SectionHeader title="Recent Tasks" sub="Latest tasks across all departments" to="/workflow" toLabel="View Board" />
           {recentTasks.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-8 text-gray-400">
               <ClipboardDocumentListIcon className="w-10 h-10 mb-2 opacity-30" />
@@ -526,7 +528,7 @@ export default function FounderDashboard() {
                       className="p-1.5 rounded-lg hover:bg-brand-50 text-gray-400 hover:text-brand-600 transition-colors">
                       <BoltIcon className="w-4 h-4" />
                     </button>
-                    <Link to="/tasks/kanban" title="Open Kanban Board"
+                    <Link to="/workflow" title="Open Workflow Board"
                       className="p-1.5 rounded-lg hover:bg-indigo-50 text-gray-400 hover:text-indigo-600 transition-colors">
                       <ViewColumnsIcon className="w-4 h-4" />
                     </Link>

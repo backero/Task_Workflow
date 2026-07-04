@@ -43,8 +43,8 @@ function NavItem({ item, collapsed }) {
                 className={({ isActive }) =>
                   clsx('block py-1.5 px-2.5 rounded-md text-xs font-medium transition-all duration-150',
                     isActive
-                      ? 'text-blue-300 bg-blue-500/10'
-                      : 'text-slate-500 hover:text-slate-300 hover:bg-white/5')
+                      ? 'text-emerald-300 bg-emerald-500/10'
+                      : 'text-white/35 hover:text-white/75 hover:bg-white/5')
                 }
               >
                 {child.label}
@@ -73,7 +73,7 @@ export default function Sidebar({ collapsed, onToggle }) {
   const { user } = useAuthStore();
   const {
     can, isAdmin,
-    canCRM, canInventory, canProduction, canFinance,
+    canCRM, canInventory, canFinance,
     canManagement, canApprovals,
   } = usePermissions();
 
@@ -104,13 +104,6 @@ export default function Sidebar({ collapsed, onToggle }) {
       { label: 'Products', to: '/inventory/products' },
       { label: 'Raw Materials', to: '/inventory/rawmaterials' },
       { label: 'Product Catalog', to: '/inventory/catalog' },
-    ]});
-  }
-  if (canProduction) {
-    opsItems.push({ label: 'Production', icon: BoltIcon, children: [
-      { label: 'Production Orders', to: '/production/orders' },
-      { label: 'Quality Control', to: '/production/quality' },
-      { label: 'Batch History', to: '/production/batches' },
     ]});
   }
   if (canFinance) {

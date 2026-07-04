@@ -485,6 +485,29 @@ const sendInProgressLeadUpdate = async (phone, { name, lastUpdate }) => {
   return sendMessage(phone, msg);
 };
 
+const sendOverdueFollowUpRepAlert = async (phone, { leadName, leadPhone, daysOverdue, leadId }) => {
+  const msg =
+    `⚠️ *Follow-up Overdue — Backero CRM*\n\n` +
+    `You have a follow-up that is *${daysOverdue} day${daysOverdue !== 1 ? 's' : ''} overdue*.\n\n` +
+    `👤 *Lead:* ${leadName}\n` +
+    `📞 *Phone:* ${leadPhone}\n\n` +
+    `Please contact them immediately and log the interaction in the CRM.\n\n` +
+    `_— Backero Automation_`;
+  return sendMessage(phone, msg);
+};
+
+const sendStaleLeadManagerAlert = async (phone, { leadName, repName, daysStale, reminderCount, leadId }) => {
+  const msg =
+    `🚨 *Stale Lead Escalation — Backero CRM*\n\n` +
+    `A lead has not been followed up despite *${reminderCount} reminder${reminderCount !== 1 ? 's' : ''}*.\n\n` +
+    `👤 *Lead:* ${leadName}\n` +
+    `👷 *Assigned to:* ${repName}\n` +
+    `📅 *Days since last contact:* ${daysStale}\n\n` +
+    `Please check in with your team member and ensure this lead is attended to.\n\n` +
+    `_— Backero Automation_`;
+  return sendMessage(phone, msg);
+};
+
 module.exports = {
   initWhatsApp,
   reinitWhatsApp,
@@ -500,6 +523,8 @@ module.exports = {
   sendTasksDueTodayGroup,
   sendNewLeadAlert,
   sendInProgressLeadUpdate,
+  sendOverdueFollowUpRepAlert,
+  sendStaleLeadManagerAlert,
   sendDailyReport,
   sendDailyReportWithPDF,
   getStatus,

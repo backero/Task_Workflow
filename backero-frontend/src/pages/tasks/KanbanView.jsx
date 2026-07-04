@@ -73,6 +73,7 @@ function TaskDetailModal({ taskId, onClose }) {
     qc.invalidateQueries({ queryKey: ['task-detail', taskId] });
     qc.invalidateQueries({ queryKey: ['tasks'] });
     qc.invalidateQueries({ queryKey: ['task-approvals', taskId] });
+    qc.invalidateQueries({ queryKey: ['dashboard'] });
   };
 
   const startMutation = useMutation({

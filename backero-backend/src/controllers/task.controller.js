@@ -739,7 +739,7 @@ exports.getAnalytics = asyncHandler(async (req, res) => {
     Task.aggregate([{ $match: filter }, { $group: { _id: '$status', count: { $sum: 1 } } }]),
     Task.aggregate([{ $match: filter }, { $group: { _id: '$priority', count: { $sum: 1 } } }]),
     Task.aggregate([{ $match: filter }, { $group: { _id: '$department', count: { $sum: 1 }, completed: { $sum: { $cond: [{ $eq: ['$status', 'Completed'] }, 1, 0] } } } }]),
-    Task.countDocuments({ ...filter, isOverdue: true }),
+    Task.countDocuments({ ...filter, dueDate: { $lt: new Date() }, status: { $nin: ['Completed', 'Achieved', 'Cancelled'] } }),
     Task.aggregate([
       { $match: filter },
       { $group: { _id: null, total: { $sum: 1 }, completed: { $sum: { $cond: [{ $eq: ['$status', 'Completed'] }, 1, 0] } } } },

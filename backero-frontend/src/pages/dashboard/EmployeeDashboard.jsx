@@ -52,8 +52,10 @@ export default function EmployeeDashboard() {
   const { data, isLoading } = useQuery({
     queryKey: ['dashboard', 'employee'],
     queryFn: () => api.get('/dashboard/employee').then((r) => r.data.dashboard),
-    staleTime: 5 * 60 * 1000,
-    refetchInterval: 5 * 60 * 1000,
+    staleTime: 0,
+    refetchInterval: 30 * 1000,
+    refetchOnWindowFocus: true,
+    refetchOnMount: true,
   });
 
   if (isLoading) {
@@ -97,7 +99,7 @@ export default function EmployeeDashboard() {
           </p>
         </div>
         <div className="flex gap-2">
-          <Link to="/tasks/my" className="btn-primary">My Tasks</Link>
+          <Link to="/workflow" className="btn-primary">Workflow Board</Link>
         </div>
       </div>
 
@@ -107,13 +109,13 @@ export default function EmployeeDashboard() {
           icon={ClipboardDocumentListIcon} color="blue"
           label="Active Tasks" value={myTasks.length}
           sub="Not yet completed"
-          to="/tasks/my"
+          to="/workflow"
         />
         <StatCard
           icon={ExclamationTriangleIcon} color="red"
           label="Overdue" value={d.overdueTasks || 0}
           sub="Need immediate attention"
-          to="/tasks/my"
+          to="/workflow"
         />
         <StatCard
           icon={CheckCircleIcon} color="green"
@@ -124,7 +126,7 @@ export default function EmployeeDashboard() {
           icon={ClockIcon} color="purple"
           label="Pending Approval" value={d.pendingApprovals || 0}
           sub="Awaiting manager review"
-          to="/tasks/my"
+          to="/workflow"
         />
         {myQueries.length > 0 && (
           <StatCard
@@ -151,7 +153,7 @@ export default function EmployeeDashboard() {
               {overdueTasks.map((t) => t.title).join(', ')}
             </p>
           </div>
-          <Link to="/tasks/my" className="btn-primary text-xs px-3 py-1.5 flex-shrink-0 bg-red-600 hover:bg-red-700">
+          <Link to="/workflow" className="btn-primary text-xs px-3 py-1.5 flex-shrink-0 bg-red-600 hover:bg-red-700">
             View Now
           </Link>
         </motion.div>
@@ -167,7 +169,7 @@ export default function EmployeeDashboard() {
               <h3 className="font-bold text-gray-900 dark:text-white">My Active Tasks</h3>
               <p className="text-xs text-gray-500 mt-0.5">{myTasks.length} task{myTasks.length !== 1 ? 's' : ''} in progress</p>
             </div>
-            <Link to="/tasks/my" className="flex items-center gap-1 text-xs text-brand-600 hover:text-brand-700 font-medium">
+            <Link to="/workflow" className="flex items-center gap-1 text-xs text-brand-600 hover:text-brand-700 font-medium">
               View all <ArrowRightIcon className="w-3 h-3" />
             </Link>
           </div>

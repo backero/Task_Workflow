@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { ExclamationTriangleIcon, MagnifyingGlassIcon, QrCodeIcon, TrashIcon } from '@heroicons/react/24/outline';
@@ -60,10 +60,12 @@ function ProductFormModal({ onClose, onSuccess, initial }) {
       storageConditions: initial?.storageConditions || '',
       barcode:           initial?.barcode || '',
       shelfLife:         initial?.shelfLife || '',
+      imageUrl:          initial?.images?.[0] || '',
     },
   });
 
   const watchedUnit = watch('unit');
+  const watchedImageUrl = watch('imageUrl');
   const isWeightUnit = ['g','kg','ml','litre','L'].includes(watchedUnit);
   const calcPerUnit = purchaseAmt && purchaseQty && Number(purchaseQty) > 0
     ? Number(purchaseAmt) / Number(purchaseQty) : null;
@@ -71,7 +73,8 @@ function ProductFormModal({ onClose, onSuccess, initial }) {
   const onSubmit = async (data) => {
     setLoading(true);
     try {
-      const payload = { ...data, isRawMaterial: false, isFinishedGood: true, isSellable: true };
+      const { imageUrl, ...rest } = data;
+      const payload = { ...rest, isRawMaterial: false, isFinishedGood: true, isSellable: true, images: imageUrl ? [imageUrl] : (initial?.images || []) };
       if (initial?._id) {
         await api.put(`/inventory/products/${initial._id}`, payload);
         toast.success('Product updated');
@@ -169,6 +172,15 @@ function ProductFormModal({ onClose, onSuccess, initial }) {
                 <div>
                   <label className="label">Description</label>
                   <textarea {...register('description')} className="input resize-none" rows={2} placeholder="Key claims, benefits..." />
+                </div>
+                <div>
+                  <label className="label">Product Image URL</label>
+                  <input {...register('imageUrl')} className="input" placeholder="https://example.com/product.jpg" />
+                  {watchedImageUrl && (
+                    <div className="mt-2 rounded-xl overflow-hidden bg-gray-700/20 h-32 flex items-center justify-center">
+                      <img src={watchedImageUrl} alt="Preview" className="max-h-full max-w-full object-contain" onError={e => { e.currentTarget.style.display = 'none'; }} />
+                    </div>
+                  )}
                 </div>
               </>
             )}
@@ -399,8 +411,17 @@ function ProductTable({ products, canWrite, canDelete, onStock, onEdit, onQr, on
             return (
               <tr key={product._id} className="hover:bg-gray-50 dark:hover:bg-[#17263d]/50 transition-colors">
                 <td className="py-3 px-4">
-                  <p className="font-medium text-gray-900 dark:text-white">{product.name}</p>
-                  <p className="text-xs text-gray-400">{product.productType || product.subCategory || '—'}</p>
+                  <div className="flex items-center gap-3">
+                    {product.images?.[0] ? (
+                      <img src={product.images[0]} alt="" className="w-10 h-10 rounded-lg object-cover flex-shrink-0 border border-gray-200 dark:border-gray-700/60" />
+                    ) : (
+                      <div className="w-10 h-10 rounded-lg bg-gray-100 dark:bg-gray-700/40 flex items-center justify-center text-lg flex-shrink-0">🧴</div>
+                    )}
+                    <div>
+                      <p className="font-medium text-gray-900 dark:text-white">{product.name}</p>
+                      <p className="text-xs text-gray-400">{product.productType || product.subCategory || '—'}</p>
+                    </div>
+                  </div>
                 </td>
                 <td className="py-3 px-4 font-mono text-xs text-gray-500">{product.sku}</td>
                 <td className="py-3 px-4">
@@ -467,6 +488,7 @@ export default function Products() {
   const [deleting, setDeleting] = useState(false);
   const [search, setSearch] = useState('');
   const [lowStockOnly, setLowStockOnly] = useState(false);
+  const [filterCat, setFilterCat] = useState('');
   const { isManagerOrAbove, hasInventoryWrite } = useAuthStore();
   const qc = useQueryClient();
 
@@ -484,8 +506,25 @@ export default function Products() {
     refetchInterval: 5 * 60 * 1000,
   });
 
-  const products = (data?.data?.products || data?.data || []).filter(p => !p.isRawMaterial);
-  const lowStockCount = products.filter(p => p.currentStock <= p.minStockLevel).length;
+  const allProducts = (data?.data?.products || data?.data || []).filter(p => !p.isRawMaterial);
+
+  const products = useMemo(() => {
+    let list = allProducts;
+    if (filterCat) list = list.filter(p => p.category === filterCat);
+    return list;
+  }, [allProducts, filterCat]);
+
+  const categories = useMemo(() => [...new Set(allProducts.map(p => p.category).filter(Boolean))].sort(), [allProducts]);
+
+  const stats = useMemo(() => ({
+    total:    allProducts.length,
+    inStock:  allProducts.filter(p => p.currentStock > (p.minStockLevel || 0)).length,
+    lowStock: allProducts.filter(p => p.currentStock > 0 && p.currentStock <= (p.minStockLevel || 0)).length,
+    outStock: allProducts.filter(p => p.currentStock === 0).length,
+    value:    allProducts.reduce((s, p) => s + ((p.currentStock || 0) * (p.costPrice || 0)), 0),
+  }), [allProducts]);
+
+  const lowStockCount = stats.lowStock + stats.outStock;
 
   const invalidate = () => qc.invalidateQueries({ queryKey: ['inventory'] });
 
@@ -526,8 +565,32 @@ export default function Products() {
         )}
       </div>
 
+      {/* Stat cards */}
+      <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
+        <div className="card p-4 flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-blue-500/15 flex items-center justify-center text-xl flex-shrink-0">📦</div>
+          <div><p className="text-xs text-gray-400 font-medium">Total</p><p className="text-xl font-bold text-gray-900 dark:text-white">{stats.total}</p></div>
+        </div>
+        <div className="card p-4 flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-emerald-500/15 flex items-center justify-center text-xl flex-shrink-0">✅</div>
+          <div><p className="text-xs text-gray-400 font-medium">In Stock</p><p className="text-xl font-bold text-emerald-600">{stats.inStock}</p></div>
+        </div>
+        <div className="card p-4 flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-orange-500/15 flex items-center justify-center text-xl flex-shrink-0">⚠️</div>
+          <div><p className="text-xs text-gray-400 font-medium">Low Stock</p><p className="text-xl font-bold text-orange-500">{stats.lowStock}</p></div>
+        </div>
+        <div className="card p-4 flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-red-500/15 flex items-center justify-center text-xl flex-shrink-0">🔴</div>
+          <div><p className="text-xs text-gray-400 font-medium">Out of Stock</p><p className="text-xl font-bold text-red-500">{stats.outStock}</p></div>
+        </div>
+        <div className="card p-4 flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-indigo-500/15 flex items-center justify-center text-xl flex-shrink-0">₹</div>
+          <div><p className="text-xs text-gray-400 font-medium">Inventory Value</p><p className="text-lg font-bold text-indigo-500">₹{stats.value.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</p></div>
+        </div>
+      </div>
+
       {/* Filters */}
-      <div className="flex gap-3">
+      <div className="flex gap-3 flex-wrap">
         <div className="relative flex-1 max-w-sm">
           <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
           <input
@@ -538,6 +601,10 @@ export default function Products() {
             className="input pl-9"
           />
         </div>
+        <select value={filterCat} onChange={e => setFilterCat(e.target.value)} className="input w-44 text-sm">
+          <option value="">All Categories</option>
+          {categories.map(c => <option key={c} value={c}>{c}</option>)}
+        </select>
         <button
           onClick={() => setLowStockOnly(p => !p)}
           className={clsx('btn-secondary gap-2', lowStockOnly && 'bg-red-50 text-red-600 border-red-200')}

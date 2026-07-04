@@ -65,13 +65,15 @@ exports.createLead = asyncHandler(async (req, res) => {
   const existing = await Lead.findOne({ organizationId: req.user.organizationId, phone });
   if (existing) return sendError(res, `Lead with phone ${phone} already exists.`, 409);
 
+  const initialStage = status || LEAD_STATUS.NEW;
   const lead = await Lead.create({
     organizationId: req.user.organizationId,
-    name, email, phone, whatsapp, company, source, status: status || LEAD_STATUS.NEW, priority, productInterest, estimatedValue,
+    name, email, phone, whatsapp, company, source, status: initialStage, priority, productInterest, estimatedValue,
     assignedTo, notes, campaign, city, state, designation,
     assignedBy: assignedTo ? req.user._id : undefined,
     assignedAt: assignedTo ? new Date() : undefined,
     createdBy: req.user._id,
+    stageHistory: [{ stage: initialStage, enteredAt: new Date(), movedBy: req.user._id }],
   });
 
   if (assignedTo) {
@@ -126,13 +128,32 @@ exports.getLead = asyncHandler(async (req, res) => {
     .populate('assignedTo', 'firstName lastName avatar phone')
     .populate('assignedBy', 'firstName lastName')
     .populate('convertedToTask', 'title status')
+    .populate('createdBy', 'firstName lastName')
     .populate('followUps.performedBy', 'firstName lastName')
     .populate('sampleDetails.teamUpdates.postedBy', 'firstName lastName')
-    .populate('sampleDetails.clientNotes.postedBy', 'firstName lastName');
+    .populate('sampleDetails.clientNotes.postedBy', 'firstName lastName')
+    .populate('stageHistory.movedBy', 'firstName lastName');
 
   if (!lead) return sendError(res, 'Lead not found.', 404);
   sendSuccess(res, { lead });
 });
+
+function validateStageTransition(existing, newStatus, body) {
+  if (newStatus === 'Sample') {
+    if (!existing.productInterest?.length) return 'Add product interest before moving to Sample stage';
+    if (!existing.estimatedValue || existing.estimatedValue <= 0) return 'Add estimated value before moving to Sample stage';
+  }
+  if (newStatus === 'In Progress') {
+    if (!existing.sampleDetails?.sentDate) return 'Fill in the sample Sent Date before moving to Production';
+  }
+  if (newStatus === 'Payment Pending') {
+    if (!body.dealValue || Number(body.dealValue) <= 0) return 'Enter confirmed deal value to mark as Payment Pending';
+  }
+  if (newStatus === 'Lost') {
+    if (!body.lostReason?.trim()) return 'Select a reason for marking this lead as Lost';
+  }
+  return null;
+}
 
 // PUT /api/crm/leads/:id
 exports.updateLead = asyncHandler(async (req, res) => {
@@ -140,10 +161,30 @@ exports.updateLead = asyncHandler(async (req, res) => {
   if (!existing) return sendError(res, 'Lead not found.', 404);
 
   const updates = req.body;
+
+  if (updates.status && updates.status !== existing.status) {
+    const gateError = validateStageTransition(existing, updates.status, updates);
+    if (gateError) return sendError(res, gateError, 422);
+  }
   const setFields = { ...updates, updatedBy: req.user._id };
 
   if (updates.status === LEAD_STATUS.WON && existing.status !== LEAD_STATUS.WON) setFields.convertedAt = new Date();
   if (updates.status === LEAD_STATUS.LOST && existing.status !== LEAD_STATUS.LOST) setFields.lostAt = new Date();
+
+  // Stage history tracking
+  if (updates.status && updates.status !== existing.status) {
+    const now = new Date();
+    const prev = (existing.stageHistory || []).map(h => ({
+      stage: h.stage, enteredAt: h.enteredAt, exitedAt: h.exitedAt, movedBy: h.movedBy,
+    }));
+    if (!prev.length) {
+      prev.push({ stage: existing.status, enteredAt: existing.createdAt, exitedAt: now, movedBy: req.user._id });
+    } else {
+      prev[prev.length - 1].exitedAt = now;
+    }
+    prev.push({ stage: updates.status, enteredAt: now, movedBy: req.user._id });
+    setFields.stageHistory = prev;
+  }
 
   const lead = await Lead.findOneAndUpdate(
     { _id: req.params.id, organizationId: req.user.organizationId },
@@ -435,6 +476,8 @@ exports.getPipeline = asyncHandler(async (req, res) => {
             _id: '$_id', name: '$name', phone: '$phone', priority: '$priority',
             estimatedValue: '$estimatedValue', assignedTo: '$assignedTo',
             nextFollowUpAt: '$nextFollowUpAt',
+            isStale: '$isStale',
+            lastContactedAt: '$lastContactedAt',
             pendingQueries: '$pendingQueries',
             answeredQueries: '$answeredQueries',
             answeredQueryList: '$answeredQueryList',
@@ -472,6 +515,73 @@ exports.getAnalytics = asyncHandler(async (req, res) => {
       upcomingFollowUps,
     },
   });
+});
+
+// GET /api/crm/leads/analytics/rep
+exports.getRepAnalytics = asyncHandler(async (req, res) => {
+  const orgId = req.user.organizationId;
+  const now = new Date();
+
+  const stats = await Lead.aggregate([
+    { $match: { organizationId: orgId, assignedTo: { $ne: null } } },
+    {
+      $group: {
+        _id: '$assignedTo',
+        total: { $sum: 1 },
+        won: { $sum: { $cond: [{ $eq: ['$status', 'Payment Pending'] }, 1, 0] } },
+        lost: { $sum: { $cond: [{ $eq: ['$status', 'Lost'] }, 1, 0] } },
+        stale: { $sum: { $cond: [{ $eq: ['$isStale', true] }, 1, 0] } },
+        overdueFollowUp: {
+          $sum: {
+            $cond: [
+              { $and: [
+                { $lt: ['$nextFollowUpAt', now] },
+                { $gt: ['$nextFollowUpAt', null] },
+                { $not: [{ $in: ['$status', ['Payment Pending', 'Lost']] }] },
+              ]}, 1, 0,
+            ],
+          },
+        },
+        totalValue: { $sum: { $ifNull: ['$estimatedValue', 0] } },
+        wonValue: { $sum: { $cond: [{ $eq: ['$status', 'Payment Pending'] }, { $ifNull: ['$dealValue', '$estimatedValue', 0] }, 0] } },
+      },
+    },
+    {
+      $lookup: { from: 'users', localField: '_id', foreignField: '_id', as: 'user' },
+    },
+    { $unwind: { path: '$user', preserveNullAndEmptyArrays: true } },
+    { $sort: { total: -1 } },
+  ]);
+
+  sendSuccess(res, { stats });
+});
+
+// GET /api/crm/leads/analytics/velocity
+exports.getPipelineVelocity = asyncHandler(async (req, res) => {
+  const orgId = req.user.organizationId;
+
+  const result = await Lead.aggregate([
+    { $match: { organizationId: orgId, 'stageHistory.0': { $exists: true } } },
+    { $unwind: '$stageHistory' },
+    { $match: { 'stageHistory.exitedAt': { $exists: true, $ne: null } } },
+    {
+      $group: {
+        _id: '$stageHistory.stage',
+        avgDays: {
+          $avg: {
+            $divide: [
+              { $subtract: ['$stageHistory.exitedAt', '$stageHistory.enteredAt'] },
+              86400000,
+            ],
+          },
+        },
+        count: { $sum: 1 },
+      },
+    },
+    { $sort: { avgDays: -1 } },
+  ]);
+
+  sendSuccess(res, { velocity: result });
 });
 
 exports.deleteLead = asyncHandler(async (req, res) => {
@@ -620,3 +730,40 @@ exports.answerQuery = asyncHandler(async (req, res) => {
 
   sendSuccess(res, { query }, 'Query answered');
 });
+
+// POST /api/crm/leads/:id/comm-log  (multipart/form-data — images optional)
+exports.addCommLog = asyncHandler(async (req, res) => {
+  const lead = await Lead.findOne({ _id: req.params.id, organizationId: req.user.organizationId });
+  if (!lead) return sendError(res, 'Lead not found.', 404);
+
+  const { type = 'call', title = '', content = '', happenedAt } = req.body;
+  const { uploadBuffer } = require('../utils/cloudinary');
+
+  // Upload images to Cloudinary if any files attached
+  const images = [];
+  if (req.files?.length) {
+    for (const file of req.files) {
+      const result = await uploadBuffer(file.buffer, { folder: `backero/comm-logs/${req.params.id}` });
+      images.push({ url: result.secure_url, publicId: result.public_id, name: file.originalname });
+    }
+  }
+
+  const logEntry = {
+    type,
+    title: title.trim(),
+    content: content.trim(),
+    happenedAt: happenedAt ? new Date(happenedAt) : new Date(),
+    images,
+    addedBy: req.user._id,
+    createdAt: new Date(),
+  };
+
+  lead.communicationLogs.push(logEntry);
+  await lead.save({ validateBeforeSave: false });
+
+  const populated = await Lead.findById(lead._id)
+    .populate('communicationLogs.addedBy', 'firstName lastName');
+
+  sendSuccess(res, { log: populated.communicationLogs.at(-1) }, 'Communication log added');
+});
+

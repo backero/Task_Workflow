@@ -23,6 +23,14 @@ exports.getFounderDashboard = asyncHandler(async (req, res) => {
 
   const safe = (p) => p.catch(() => null);
 
+  // Same exclusions as the task list API: no archived, no hub drafts, no pending cross-manager assignments
+  const taskBase = {
+    organizationId: orgId,
+    isArchived: { $ne: true },
+    pendingHubApproval: { $ne: true },
+    'pendingManagerAssignment.status': { $ne: 'pending' },
+  };
+
   const [
     taskStats,
     overdueTaskCount,
@@ -45,10 +53,10 @@ exports.getFounderDashboard = asyncHandler(async (req, res) => {
     pendingQueriesCount,
   ] = await Promise.all([
     safe(Task.aggregate([
-      { $match: { organizationId: orgId } },
+      { $match: taskBase },
       { $group: { _id: '$status', count: { $sum: 1 } } },
     ])),
-    safe(Task.countDocuments({ organizationId: orgId, isOverdue: true })),
+    safe(Task.countDocuments({ ...taskBase, $or: [{ parentTask: null }, { parentTask: { $exists: false } }], dueDate: { $lt: new Date() }, status: { $nin: ['Completed', 'Achieved', 'Cancelled'] } })),
     safe(TaskApproval.find({ organizationId: orgId, status: 'pending' })
       .populate('taskId', 'title department priority')
       .populate('requestedBy', 'firstName lastName')
@@ -78,13 +86,13 @@ exports.getFounderDashboard = asyncHandler(async (req, res) => {
       { $group: { _id: null, total: { $sum: '$amount' } } },
     ])),
     safe(Task.aggregate([
-      { $match: { organizationId: orgId } },
-      { $group: { _id: '$department', total: { $sum: 1 }, completed: { $sum: { $cond: [{ $eq: ['$status', 'Completed'] }, 1, 0] } }, overdue: { $sum: { $cond: ['$isOverdue', 1, 0] } }, inProgress: { $sum: { $cond: [{ $eq: ['$status', 'In Progress'] }, 1, 0] } } } },
+      { $match: taskBase },
+      { $group: { _id: '$department', total: { $sum: 1 }, completed: { $sum: { $cond: [{ $eq: ['$status', 'Completed'] }, 1, 0] } }, overdue: { $sum: { $cond: [{ $and: [{ $not: [{ $in: ['$status', ['Completed', 'Achieved', 'Cancelled']] }] }, { $lt: ['$dueDate', new Date()] }] }, 1, 0] } }, inProgress: { $sum: { $cond: [{ $eq: ['$status', 'In Progress'] }, 1, 0] } } } },
       { $addFields: { completionRate: { $cond: [{ $eq: ['$total', 0] }, 0, { $multiply: [{ $divide: ['$completed', '$total'] }, 100] }] } } },
       { $sort: { total: -1 } },
     ])),
     safe(Task.aggregate([
-      { $match: { organizationId: orgId } },
+      { $match: taskBase },
       { $group: { _id: '$assignedTo', total: { $sum: 1 }, completed: { $sum: { $cond: [{ $eq: ['$status', 'Completed'] }, 1, 0] } } } },
       { $sort: { completed: -1 } },
       { $limit: 6 },
@@ -101,7 +109,7 @@ exports.getFounderDashboard = asyncHandler(async (req, res) => {
       { $group: { _id: { year: { $year: '$date' }, month: { $month: '$date' } }, total: { $sum: '$amount' } } },
       { $sort: { '_id.year': 1, '_id.month': 1 } },
     ])),
-    safe(Task.find({ organizationId: orgId })
+    safe(Task.find(taskBase)
       .populate('assignedTo', 'firstName lastName')
       .sort({ createdAt: -1 })
       .limit(8)
@@ -191,18 +199,15 @@ exports.getEmployeeDashboard = asyncHandler(async (req, res) => {
   const orgId = req.user.organizationId;
   const userId = req.user._id;
 
+  const empBase = { organizationId: orgId, assignedTo: userId, isArchived: { $ne: true }, pendingHubApproval: { $ne: true } };
+
   const [myTasks, overdueTasks, completedThisMonth, myLeads, unreadNotifications, pendingApprovals, myQueries] = await Promise.all([
-    Task.find({ organizationId: orgId, assignedTo: userId, status: { $nin: ['Completed', 'Cancelled'] } })
+    Task.find({ ...empBase, status: { $nin: ['Completed', 'Cancelled'] } })
       .sort({ priority: -1, dueDate: 1 })
       .limit(10)
       .populate('assignedBy', 'firstName lastName'),
-    Task.countDocuments({ organizationId: orgId, assignedTo: userId, isOverdue: true }),
-    Task.countDocuments({
-      organizationId: orgId,
-      assignedTo: userId,
-      status: 'Completed',
-      completedAt: { $gte: new Date(new Date().getFullYear(), new Date().getMonth(), 1) },
-    }),
+    Task.countDocuments({ ...empBase, $or: [{ parentTask: null }, { parentTask: { $exists: false } }], dueDate: { $lt: new Date() }, status: { $nin: ['Completed', 'Achieved', 'Cancelled'] } }),
+    Task.countDocuments({ ...empBase, status: 'Completed', completedAt: { $gte: new Date(new Date().getFullYear(), new Date().getMonth(), 1) } }),
     Lead.find({ organizationId: orgId, assignedTo: userId, status: { $nin: ['Payment Pending', 'Lost'] } })
       .sort({ nextFollowUpAt: 1 })
       .limit(5),
@@ -230,7 +235,12 @@ exports.getManagerDashboard = asyncHandler(async (req, res) => {
   threeDaysEnd.setHours(23, 59, 59, 999);
   const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
 
-  const filter = { organizationId: orgId };
+  const filter = {
+    organizationId: orgId,
+    isArchived: { $ne: true },
+    pendingHubApproval: { $ne: true },
+    'pendingManagerAssignment.status': { $ne: 'pending' },
+  };
   if (req.user.department) filter.department = req.user.department;
 
   const safe = (p) => p.catch(() => null);
@@ -254,7 +264,7 @@ exports.getManagerDashboard = asyncHandler(async (req, res) => {
       .sort({ dueDate: 1, priority: -1 })
       .limit(20)
       .select('title status priority department assignedTo dueDate isOverdue progress')),
-    safe(Task.countDocuments({ ...filter, isOverdue: true })),
+    safe(Task.countDocuments({ ...filter, $or: [{ parentTask: null }, { parentTask: { $exists: false } }], dueDate: { $lt: new Date() }, status: { $nin: ['Completed', 'Achieved', 'Cancelled'] } })),
     safe(Task.find({ ...filter, status: { $nin: ['Completed', 'Cancelled'] }, dueDate: { $gte: today, $lte: threeDaysEnd } })
       .populate('assignedTo', 'firstName lastName')
       .sort({ dueDate: 1 })
@@ -268,7 +278,7 @@ exports.getManagerDashboard = asyncHandler(async (req, res) => {
       .limit(10)),
     safe(Task.aggregate([
       { $match: filter },
-      { $group: { _id: '$assignedTo', total: { $sum: 1 }, completed: { $sum: { $cond: [{ $eq: ['$status', 'Completed'] }, 1, 0] } }, overdue: { $sum: { $cond: ['$isOverdue', 1, 0] } }, inProgress: { $sum: { $cond: [{ $eq: ['$status', 'In Progress'] }, 1, 0] } } } },
+      { $group: { _id: '$assignedTo', total: { $sum: 1 }, completed: { $sum: { $cond: [{ $eq: ['$status', 'Completed'] }, 1, 0] } }, overdue: { $sum: { $cond: [{ $and: [{ $not: [{ $in: ['$status', ['Completed', 'Achieved', 'Cancelled']] }] }, { $lt: ['$dueDate', new Date()] }] }, 1, 0] } }, inProgress: { $sum: { $cond: [{ $eq: ['$status', 'In Progress'] }, 1, 0] } } } },
       { $addFields: { completionRate: { $cond: [{ $eq: ['$total', 0] }, 0, { $multiply: [{ $divide: ['$completed', '$total'] }, 100] }] } } },
       { $sort: { completed: -1 } },
       { $lookup: { from: 'users', localField: '_id', foreignField: '_id', as: 'user' } },

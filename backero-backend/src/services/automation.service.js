@@ -9,7 +9,7 @@ const MarketplaceDaily = require('../models/MarketplaceDaily');
 const MarketplacePlan = require('../models/MarketplacePlan');
 const MarketplacePlanProgress = require('../models/MarketplacePlanProgress');
 const { createNotification, bulkCreateNotifications } = require('./notification.service');
-const { sendTaskOverdueEmployee, sendTaskOverdueManager, sendTaskOverdueGroup, sendTasksDueTodayGroup, sendDailyReport, sendDailyReportWithPDF, sendInProgressLeadUpdate } = require('./whatsapp.service');
+const { sendTaskOverdueEmployee, sendTaskOverdueManager, sendTaskOverdueGroup, sendTasksDueTodayGroup, sendDailyReport, sendDailyReportWithPDF, sendInProgressLeadUpdate, sendOverdueFollowUpRepAlert, sendStaleLeadManagerAlert } = require('./whatsapp.service');
 const Department = require('../models/Department');
 const { generateDailyReportPDF } = require('./reportPdf.service');
 const { autoSyncAllOrgs } = require('./googleSheets.service');
@@ -59,6 +59,12 @@ const startAutomationEngine = (socketIo) => {
   // Every day at 8 AM IST: send follow-up reminders
   cron.schedule('30 2 * * *', () => {  // 8 AM IST = 2:30 AM UTC
     runFollowUpReminders().catch(logger.error);
+    runOverdueFollowUpCheck().catch(logger.error);
+  });
+
+  // Every day at 2 PM IST: midday overdue follow-up check
+  cron.schedule('30 8 * * *', () => {  // 2 PM IST = 8:30 AM UTC
+    runOverdueFollowUpCheck().catch(logger.error);
   });
 
   // Low stock check every 6 hours
@@ -297,7 +303,8 @@ const runStaleLedCheck = async () => {
       { lastContactedAt: null, createdAt: { $lt: twoDaysAgo } },
     ],
     isStale: false,
-  });
+  }).populate('assignedTo', 'firstName lastName phone whatsapp')
+    .populate('assignedBy', 'firstName lastName phone whatsapp');
 
   for (const lead of staleLeads) {
     lead.isStale = true;
@@ -305,11 +312,15 @@ const runStaleLedCheck = async () => {
     lead.lastReminderSent = new Date();
     await lead.save();
 
+    const repName = lead.assignedTo ? `${lead.assignedTo.firstName} ${lead.assignedTo.lastName}` : 'Team member';
+    const daysStale = Math.floor((Date.now() - (lead.lastContactedAt || lead.createdAt)) / 86400000);
+
+    // In-app + WhatsApp reminder to rep
     await createNotification({
       organizationId: lead.organizationId,
-      recipient: lead.assignedTo,
-      title: 'Lead Needs Follow-up',
-      message: `Lead "${lead.name}" (${lead.phone}) hasn't been contacted in 48 hours.`,
+      recipient: lead.assignedTo._id,
+      title: '⚠️ Lead Needs Follow-up',
+      message: `Lead "${lead.name}" (${lead.phone}) hasn't been contacted in ${daysStale} day${daysStale !== 1 ? 's' : ''}.`,
       type: 'crm',
       priority: 'medium',
       actionUrl: `/crm/leads/${lead._id}`,
@@ -317,29 +328,127 @@ const runStaleLedCheck = async () => {
       channels: { inApp: true, whatsapp: true },
     }, io);
 
-    // Escalate if ignored 3+ times
-    if (lead.followUpReminders >= 3 && lead.priority === 'high') {
-      const managers = await User.find({
-        organizationId: lead.organizationId,
-        role: { $in: [ROLES.MANAGER, ROLES.ADMIN, ROLES.FOUNDER] },
-      });
-      for (const mgr of managers) {
+    // From 2nd reminder: WhatsApp to manager
+    if (lead.followUpReminders >= 2) {
+      const managerSources = [];
+      if (lead.assignedBy) managerSources.push(lead.assignedBy);
+      else {
+        const orgManagers = await User.find({
+          organizationId: lead.organizationId,
+          role: { $in: [ROLES.MANAGER, ROLES.ADMIN, ROLES.FOUNDER] },
+          isActive: true,
+        }).select('firstName lastName phone whatsapp _id').limit(3);
+        managerSources.push(...orgManagers);
+      }
+
+      for (const mgr of managerSources) {
         await createNotification({
           organizationId: lead.organizationId,
           recipient: mgr._id,
-          title: '⚠️ High-Value Lead Ignored',
-          message: `High-value lead "${lead.name}" has not been followed up after ${lead.followUpReminders} reminders.`,
+          title: '🚨 Stale Lead — Action Required',
+          message: `Lead "${lead.name}" assigned to ${repName} has not been followed up. Reminder #${lead.followUpReminders}.`,
+          type: 'escalation',
+          priority: lead.followUpReminders >= 3 ? 'critical' : 'high',
+          actionUrl: `/crm/leads/${lead._id}`,
+          reference: { model: 'Lead', id: lead._id },
+          channels: { inApp: true, whatsapp: true },
+        }, io);
+
+        const mgrPhone = mgr.whatsapp || mgr.phone;
+        if (mgrPhone) {
+          await sendStaleLeadManagerAlert(mgrPhone, {
+            leadName: lead.name, repName, daysStale, reminderCount: lead.followUpReminders,
+          }).catch(() => {});
+        }
+      }
+    }
+  }
+
+  logger.info(`Stale lead check: ${staleLeads.length} stale leads processed`);
+};
+
+const runOverdueFollowUpCheck = async () => {
+  logger.info('[OverdueFollowUp] Checking overdue scheduled follow-ups...');
+  const now = new Date();
+  const oneDayAgo = new Date(now - 24 * 60 * 60 * 1000);
+
+  const candidates = await Lead.find({
+    status: { $nin: ['Payment Pending', 'Lost'] },
+    assignedTo: { $ne: null },
+    nextFollowUpAt: { $lt: now },
+    $or: [{ lastReminderSent: null }, { lastReminderSent: { $lt: oneDayAgo } }],
+  }).populate('assignedTo', 'firstName lastName phone whatsapp')
+    .populate('assignedBy', 'firstName lastName phone whatsapp');
+
+  // Filter: overdue only if not contacted after the scheduled follow-up date
+  const overdueLeads = candidates.filter(lead =>
+    !lead.lastContactedAt || lead.lastContactedAt < lead.nextFollowUpAt
+  );
+
+  let alerted = 0;
+  for (const lead of overdueLeads) {
+    const daysOverdue = Math.floor((now - lead.nextFollowUpAt) / 86400000) || 1;
+    const repName = lead.assignedTo ? `${lead.assignedTo.firstName} ${lead.assignedTo.lastName}` : 'Team member';
+
+    lead.followUpReminders = (lead.followUpReminders || 0) + 1;
+    lead.lastReminderSent = new Date();
+    await lead.save();
+
+    // In-app + WhatsApp to rep
+    await createNotification({
+      organizationId: lead.organizationId,
+      recipient: lead.assignedTo._id,
+      title: '📞 Follow-up Overdue',
+      message: `Scheduled follow-up with "${lead.name}" is ${daysOverdue} day${daysOverdue !== 1 ? 's' : ''} overdue.`,
+      type: 'crm',
+      priority: daysOverdue >= 2 ? 'high' : 'medium',
+      actionUrl: `/crm/leads/${lead._id}`,
+      reference: { model: 'Lead', id: lead._id },
+      channels: { inApp: true, whatsapp: true },
+    }, io);
+
+    const repPhone = lead.assignedTo.whatsapp || lead.assignedTo.phone;
+    if (repPhone) {
+      await sendOverdueFollowUpRepAlert(repPhone, {
+        leadName: lead.name, leadPhone: lead.phone, daysOverdue,
+      }).catch(() => {});
+    }
+
+    // Escalate to manager if overdue > 1 day
+    if (daysOverdue >= 2) {
+      const mgr = lead.assignedBy;
+      const mgrList = mgr ? [mgr] : await User.find({
+        organizationId: lead.organizationId,
+        role: { $in: [ROLES.MANAGER, ROLES.ADMIN, ROLES.FOUNDER] },
+        isActive: true,
+      }).select('firstName lastName phone whatsapp _id').limit(2);
+
+      for (const m of (Array.isArray(mgrList) ? mgrList : [mgrList])) {
+        await createNotification({
+          organizationId: lead.organizationId,
+          recipient: m._id,
+          title: '⚠️ Follow-up Escalation',
+          message: `"${lead.name}" follow-up assigned to ${repName} is ${daysOverdue} days overdue.`,
           type: 'escalation',
           priority: 'high',
           actionUrl: `/crm/leads/${lead._id}`,
           reference: { model: 'Lead', id: lead._id },
           channels: { inApp: true, whatsapp: true },
         }, io);
+
+        const mgrPhone = m.whatsapp || m.phone;
+        if (mgrPhone) {
+          await sendStaleLeadManagerAlert(mgrPhone, {
+            leadName: lead.name, repName, daysStale: daysOverdue, reminderCount: lead.followUpReminders,
+          }).catch(() => {});
+        }
       }
     }
+
+    alerted++;
   }
 
-  logger.info(`Stale lead check: ${staleLeads.length} stale leads processed`);
+  logger.info(`[OverdueFollowUp] ${alerted} overdue follow-ups alerted`);
 };
 
 const runLowStockCheck = async () => {
@@ -513,7 +622,7 @@ const runDailyReport = async (targetPhones = null) => {
       platformProgress,
     ] = await Promise.all([
       safe(Task.countDocuments({ organizationId: org._id, status: 'Completed', completedAt: { $gte: today } })),
-      safe(Task.countDocuments({ organizationId: org._id, isOverdue: true })),
+      safe(Task.countDocuments({ organizationId: org._id, dueDate: { $lt: new Date() }, status: { $nin: ['Completed', 'Achieved', 'Cancelled'] } })),
       safe(Task.countDocuments({ organizationId: org._id, status: 'Approval Pending' })),
       safe(Task.countDocuments({ organizationId: org._id, status: 'In Progress' })),
       safe(Task.countDocuments({ organizationId: org._id, status: { $nin: ['Completed', 'Cancelled'] } })),
@@ -546,7 +655,7 @@ const runDailyReport = async (targetPhones = null) => {
           total:        { $sum: 1 },
           completed:    { $sum: { $cond: [{ $eq: ['$status', 'Completed'] }, 1, 0] } },
           inProgress:   { $sum: { $cond: [{ $eq: ['$status', 'In Progress'] }, 1, 0] } },
-          overdue:      { $sum: { $cond: ['$isOverdue', 1, 0] } },
+          overdue:      { $sum: { $cond: [{ $and: [{ $not: [{ $in: ['$status', ['Completed', 'Achieved', 'Cancelled']] }] }, { $lt: ['$dueDate', new Date()] }] }, 1, 0] } },
           pending:      { $sum: { $cond: [{ $in: ['$status', ['Pending', 'Assigned']] }, 1, 0] } },
           subtaskCount: { $sum: { $size: { $ifNull: ['$subTasks', []] } } },
           nearestDue:   { $min: '$dueDate' },
@@ -677,4 +786,4 @@ const runWeeklyReport = async () => {
   // Weekly report generation - summarized for each org
 };
 
-module.exports = { startAutomationEngine, runOverdueTaskCheck, runLowStockCheck, runDailyReport };
+module.exports = { startAutomationEngine, runOverdueTaskCheck, runLowStockCheck, runDailyReport, runOverdueFollowUpCheck, runStaleLedCheck };

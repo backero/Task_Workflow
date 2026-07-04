@@ -99,6 +99,14 @@ const leadSchema = new mongoose.Schema({
   sheetId: { type: String },
   lastSyncedAt: { type: Date },
 
+  // Stage history (velocity tracking)
+  stageHistory: [{
+    stage: { type: String },
+    enteredAt: { type: Date, default: Date.now },
+    exitedAt: { type: Date },
+    movedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+  }],
+
   // Automation flags
   followUpReminders: { type: Number, default: 0 },
   lastReminderSent: { type: Date },
@@ -108,6 +116,17 @@ const leadSchema = new mongoose.Schema({
   convertedToTask: { type: mongoose.Schema.Types.ObjectId, ref: 'Task' },
   isConverted: { type: Boolean, default: false },
   trackingToken: { type: String, unique: true, sparse: true, index: true },
+
+  // Communication history (calls, WhatsApp chats, meeting notes)
+  communicationLogs: [{
+    type:        { type: String, enum: ['call', 'whatsapp', 'meeting', 'email', 'other'], default: 'call' },
+    title:       { type: String },
+    content:     { type: String },
+    happenedAt:  { type: Date, default: Date.now },
+    images:      [{ url: String, publicId: String, name: String }],
+    addedBy:     { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    createdAt:   { type: Date, default: Date.now },
+  }],
 
   tags: [{ type: String }],
   createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
