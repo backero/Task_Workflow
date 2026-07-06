@@ -1300,7 +1300,7 @@ export default function ProductCatalog() {
             <table className="w-full text-sm">
               <thead className="bg-gray-50 dark:bg-gray-800/50">
                 <tr>
-                  {[['sku','SKU'],['name','Product Name'],['category','Category'],['productType','Type'],['sellingPrice','Price'],['currentStock','Stock'],['status','Status']].map(([key,label]) => (
+                  {[['sku','SKU'],['name','Product Name'],['category','Category'],['productType','Type'],['costPerUnit','Cost/Unit'],['status','Status']].map(([key,label]) => (
                     <th key={key} onClick={()=>handleSort(key)} className="px-4 py-3 text-left text-[11px] font-semibold text-gray-400 uppercase tracking-wider cursor-pointer hover:text-gray-700 dark:hover:text-gray-200 transition-colors whitespace-nowrap">
                       {label}<SortIcon col={key} />
                     </th>
@@ -1309,8 +1309,8 @@ export default function ProductCatalog() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-700/50">
-                {isLoading ? <tr><td colSpan={8} className="text-center py-12 text-gray-400">Loading…</td></tr>
-                : products.length===0 ? <tr><td colSpan={8} className="text-center py-12"><div className="text-3xl mb-2 opacity-40">📦</div><p className="text-gray-400 font-medium">No products found</p><p className="text-gray-500 text-xs mt-1">Add your first product</p></td></tr>
+                {isLoading ? <tr><td colSpan={7} className="text-center py-12 text-gray-400">Loading…</td></tr>
+                : products.length===0 ? <tr><td colSpan={7} className="text-center py-12"><div className="text-3xl mb-2 opacity-40">📦</div><p className="text-gray-400 font-medium">No products found</p><p className="text-gray-500 text-xs mt-1">Add your first product</p></td></tr>
                 : products.map(p => {
                   const isExpanded = expandedId === p._id;
                   return (
@@ -1329,8 +1329,7 @@ export default function ProductCatalog() {
                         </td>
                         <td className="px-4 py-3"><span className="text-xs px-2 py-1 bg-gray-100 dark:bg-gray-700/60 text-gray-600 dark:text-gray-300 rounded-full">{p.category}</span></td>
                         <td className="px-4 py-3 text-gray-500 dark:text-gray-400 text-xs">{p.productType||'-'}</td>
-                        <td className="px-4 py-3 text-gray-700 dark:text-gray-300">{p.mrp?`₹${p.mrp}`:p.sellingPrice?`₹${p.sellingPrice}`:'—'}</td>
-                        <td className="px-4 py-3 text-emerald-400 font-semibold">{p.currentStock||0} {p.unit}</td>
+                        <td className="px-4 py-3 text-gray-700 dark:text-gray-300 font-medium">{(() => { const c = calcBaseCost(p).total; return c >= 0.1 ? fmt(c) : '—'; })()}</td>
                         <td className="px-4 py-3">{statusBadge(p.status||'Active')}</td>
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-1">

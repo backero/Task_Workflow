@@ -1,0 +1,1317 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Raw Material Inventory — BioTech / Cosmetic ERP</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+  :root {
+    --primary: #10b981; --primary-light: #059669;
+    --accent: #10b981; --accent-text: #fff;
+    --success: #34d399; --danger: #f87171; --warning: #fbbf24; --info: #60a5fa;
+    --bg: #0f172a; --card-bg: #1e293b; --surface: #0f172a; --surface-hover: #334155;
+    --text: #f1f5f9; --text-secondary: #94a3b8; --text-muted: #64748b;
+    --border: #334155; --border-light: #1e293b;
+    --shadow: 0 1px 3px rgba(0,0,0,0.3), 0 4px 12px rgba(0,0,0,0.2);
+    --shadow-lg: 0 10px 40px rgba(0,0,0,0.5); --radius: 16px; --radius-sm: 10px;
+    --font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: var(--font); background: var(--bg); color: var(--text); font-size: 13.5px; line-height: 1.5; color-scheme: dark; }
+
+  .header { background: var(--card-bg); padding: 14px 32px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; border-bottom: 1px solid var(--border); box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
+  .brand { display: flex; align-items: center; gap: 12px; }
+  .brand-icon { width: 36px; height: 36px; background: var(--accent); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 18px; }
+  .brand-text h1 { font-size: 16px; font-weight: 700; letter-spacing: -0.3px; }
+  .brand-text span { font-size: 11px; color: var(--text-secondary); font-weight: 500; }
+  .header-actions { display: flex; gap: 10px; align-items: center; }
+
+  .btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; border-radius: 50px; border: none; font-size: 13px; cursor: pointer; transition: all 0.2s; font-weight: 600; font-family: var(--font); }
+  .btn-primary { background: var(--primary); color: white; }
+  .btn-primary:hover { background: var(--primary-light); transform: translateY(-1px); box-shadow: 0 4px 12px rgba(15,23,42,0.15); }
+  .btn-accent { background: var(--accent); color: var(--accent-text); }
+  .btn-accent:hover { filter: brightness(0.95); transform: translateY(-1px); }
+  .btn-outline { background: transparent; border: 1.5px solid var(--border); color: var(--text-secondary); font-weight: 500; }
+  .btn-outline:hover { background: var(--surface); border-color: var(--text-muted); color: var(--text); }
+  .btn-danger { background: var(--danger); color: white; }
+  .btn-sm { padding: 5px 12px; font-size: 11.5px; }
+  .btn-xs { padding: 3px 8px; font-size: 11px; border-radius: 6px; }
+  .btn-ghost { background: transparent; color: var(--text-secondary); border: none; padding: 6px 10px; }
+  .btn-ghost:hover { background: var(--surface); color: var(--text); }
+
+  .main { padding: 24px 32px; max-width: 1440px; margin: 0 auto; }
+
+  .dashboard-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 16px; margin-bottom: 24px; }
+  .metric-card { background: var(--card-bg); border-radius: var(--radius); padding: 22px 24px; box-shadow: var(--shadow); display: flex; justify-content: space-between; align-items: flex-start; border: 1px solid var(--border-light); transition: transform 0.2s, box-shadow 0.2s; }
+  .metric-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-lg); }
+  .metric-card .left { display: flex; flex-direction: column; gap: 6px; }
+  .metric-card .label { font-size: 12px; color: var(--text-secondary); font-weight: 500; }
+  .metric-card .value { font-size: 26px; font-weight: 700; letter-spacing: -0.5px; color: var(--text); }
+  .metric-card .change { font-size: 12px; font-weight: 600; display: flex; align-items: center; gap: 4px; }
+  .metric-card .change.up { color: var(--success); }
+  .metric-card .change.down { color: var(--danger); }
+  .metric-card .icon-box { width: 44px; height: 44px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 20px; flex-shrink: 0; }
+  .metric-card .icon-box.green { background: rgba(52,211,153,0.15); }
+  .metric-card .icon-box.blue { background: rgba(96,165,250,0.15); }
+  .metric-card .icon-box.orange { background: rgba(251,191,36,0.15); }
+  .metric-card .icon-box.red { background: rgba(248,113,113,0.15); }
+  .metric-card .icon-box.purple { background: rgba(167,139,250,0.15); }
+  .metric-card.clickable { cursor: pointer; }
+
+  .card { background: var(--card-bg); border-radius: var(--radius); box-shadow: var(--shadow); border: 1px solid var(--border-light); margin-bottom: 20px; overflow: hidden; }
+  .card-header { padding: 18px 24px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); flex-wrap: wrap; gap: 12px; }
+  .card-header h2 { font-size: 15px; font-weight: 700; color: var(--text); letter-spacing: -0.2px; }
+
+  .search-pill { position: relative; }
+  .search-pill input { padding: 9px 14px 9px 38px; border: 1.5px solid var(--border); border-radius: 50px; font-size: 13px; min-width: 320px; background: var(--surface); font-family: var(--font); transition: all 0.2s; }
+  .search-pill input:focus { outline: none; border-color: var(--text-muted); background: var(--card-bg); box-shadow: 0 0 0 3px rgba(15,23,42,0.06); }
+  .search-pill .search-icon { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--text-muted); font-size: 14px; }
+
+  .card-body { padding: 20px 24px; }
+
+  .table-wrap { overflow-x: auto; border-radius: var(--radius-sm); border: 1px solid var(--border-light); }
+  table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 13px; }
+  thead { background: var(--surface); }
+  th, td { padding: 12px 16px; text-align: left; vertical-align: middle; }
+  th { font-weight: 600; color: var(--text-secondary); font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; white-space: nowrap; cursor: pointer; user-select: none; border-bottom: 1px solid var(--border); }
+  th:first-child { border-radius: var(--radius-sm) 0 0 0; }
+  th:last-child { border-radius: 0 var(--radius-sm) 0 0; }
+  th .sort-icon { margin-left: 4px; font-size: 9px; opacity: 0.3; }
+  th.sorted .sort-icon { opacity: 1; color: var(--primary); }
+  tbody tr { transition: background 0.15s; }
+  tbody tr:hover { background: var(--surface-hover); }
+  td { border-bottom: 1px solid var(--border-light); }
+  .code-cell { color: var(--primary); font-weight: 700; cursor: pointer; }
+  .code-cell:hover { text-decoration: underline; }
+  .name-cell { font-weight: 600; cursor: pointer; }
+  .name-cell:hover { text-decoration: underline; color: var(--primary); }
+  .tag { display: inline-flex; align-items: center; padding: 3px 10px; border-radius: 50px; font-size: 11px; font-weight: 600; }
+  .tag-gray { background: rgba(148,163,184,0.15); color: #94a3b8; }
+  .tag-success { background: rgba(52,211,153,0.15); color: #34d399; }
+  .tag-danger { background: rgba(248,113,113,0.15); color: #f87171; }
+  .tag-warning { background: rgba(251,191,36,0.15); color: #fbbf24; }
+  .stock-danger { color: var(--danger); font-weight: 700; }
+  .stock-low { color: var(--danger); font-weight: 700; }
+  .stock-ok { color: var(--success); }
+  .stock-medium { color: var(--warning); }
+  .actions { display: flex; gap: 4px; }
+  .actions button { background: none; border: none; cursor: pointer; padding: 6px; border-radius: 8px; font-size: 14px; transition: all 0.15s; display: flex; align-items: center; justify-content: center; width: 32px; height: 32px; }
+  .actions button:hover { background: var(--surface-hover); transform: scale(1.1); }
+  .actions .batch-btn { color: var(--warning); }
+  .actions .qr-btn { color: var(--info); }
+  .actions .edit-btn { color: var(--text-secondary); }
+  .actions .delete-btn { color: var(--danger); }
+
+  .detail-row td { padding: 0; border-bottom: 1px solid var(--border); }
+  .detail-panel { background: var(--surface); padding: 20px 24px; display: none; }
+  .detail-panel.show { display: block; }
+  .detail-grid { display: grid; grid-template-columns: 1.2fr 1fr 1fr; gap: 20px; }
+  .detail-left, .detail-center, .detail-right { display: flex; flex-direction: column; gap: 12px; }
+  .detail-section h4 { font-size: 12px; color: var(--text-secondary); font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
+  .detail-item { display: flex; justify-content: space-between; font-size: 13px; padding: 6px 0; border-bottom: 1px solid var(--border-light); }
+  .detail-item .label { color: var(--text-secondary); }
+  .detail-item .value { font-weight: 600; color: var(--text); }
+  .detail-img { width: 100px; height: 100px; border-radius: 10px; object-fit: cover; border: 1px solid var(--border); }
+  .detail-img-placeholder { width: 100px; height: 100px; border-radius: 10px; background: var(--card-bg); border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; color: var(--text-muted); font-size: 24px; }
+  .detail-batch { display: grid; grid-template-columns: 1.5fr 1fr 1fr 1.3fr 1.3fr; gap: 10px; padding: 8px 12px; background: var(--card-bg); border-radius: 8px; border: 1px solid var(--border-light); font-size: 12px; margin-bottom: 6px; align-items: center; }
+  .detail-batch .b-num { color: var(--primary); font-weight: 600; word-break: break-word; }
+  .detail-batch .b-qty { font-weight: 700; }
+  .detail-batch .b-price { color: var(--success); font-weight: 600; }
+  .detail-batch .b-date { color: var(--text-secondary); }
+  .detail-batch .b-exp.near { color: var(--warning); font-weight: 600; }
+  .detail-batch .b-exp.expired { color: var(--danger); font-weight: 700; }
+  .detail-qc-badge { display: inline-flex; padding: 3px 10px; border-radius: 50px; font-size: 11px; font-weight: 600; }
+  .detail-qc-badge.pass { background: rgba(52,211,153,0.15); color: #34d399; }
+  .detail-qc-badge.fail { background: rgba(248,113,113,0.15); color: #f87171; }
+  .detail-notes { background: var(--card-bg); padding: 10px 14px; border-radius: 8px; border: 1px solid var(--border-light); font-size: 12px; color: var(--text-secondary); line-height: 1.5; }
+
+  .form-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+  .form-group { display: flex; flex-direction: column; gap: 5px; }
+  .form-group.full { grid-column: 1 / -1; }
+  .form-group.half { grid-column: span 2; }
+  label { font-size: 12px; font-weight: 600; color: var(--text); }
+  label .req { color: var(--danger); }
+  input, select, textarea { padding: 10px 14px; border: 1.5px solid var(--border); border-radius: var(--radius-sm); font-size: 13px; font-family: var(--font); background: var(--surface); color: var(--text); transition: all 0.2s; }
+  input:focus, select:focus, textarea:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(16,185,129,0.12); }
+  input::placeholder, textarea::placeholder { color: var(--text-muted); }
+  textarea { resize: vertical; min-height: 60px; }
+  .checkbox-group { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text-secondary); }
+  .checkbox-group input[type="checkbox"] { width: 16px; height: 16px; accent-color: var(--primary); }
+
+  .image-preview { width: 100px; height: 100px; border: 2px dashed var(--border); border-radius: var(--radius-sm); display: flex; align-items: center; justify-content: center; overflow: hidden; cursor: pointer; background: var(--surface); transition: all 0.2s; }
+  .image-preview img { width: 100%; height: 100%; object-fit: cover; }
+  .image-preview .placeholder { color: var(--text-muted); font-size: 11px; text-align: center; padding: 8px; }
+  .image-preview:hover { border-color: var(--primary); background: #f8fafc; }
+
+  .voice-recorder { display: flex; align-items: center; gap: 10px; padding: 10px; background: var(--surface); border-radius: var(--radius-sm); border: 1.5px solid var(--border); }
+  .voice-recorder .mic-btn { width: 36px; height: 36px; border-radius: 50%; border: none; background: var(--danger); color: white; font-size: 15px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: transform 0.2s; }
+  .voice-recorder .mic-btn.recording { animation: pulse 1.2s infinite; }
+  .voice-transcript { background: var(--card-bg); padding: 10px; border-radius: var(--radius-sm); border: 1.5px solid var(--border); min-height: 50px; font-size: 12px; color: var(--text); margin-top: 6px; font-family: var(--font); }
+
+  .iso-section { background: var(--surface); border: 1.5px solid var(--border); border-radius: var(--radius-sm); padding: 16px; margin-top: 14px; }
+  .iso-section h4 { font-size: 13px; color: var(--primary); margin-bottom: 12px; font-weight: 700; display: flex; align-items: center; gap: 6px; }
+
+  .edit-batch-section { background: var(--surface); border: 1.5px solid var(--border); border-radius: var(--radius-sm); padding: 16px; margin-top: 16px; display: none; }
+  .edit-batch-section.show { display: block; }
+  .edit-batch-section h4 { font-size: 13px; color: var(--primary); margin-bottom: 12px; font-weight: 700; display: flex; align-items: center; gap: 6px; }
+  .edit-stock-display { background: var(--card-bg); padding: 12px 16px; border-radius: 10px; border: 1.5px solid var(--border-light); display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
+  .edit-stock-display .stock-label { font-size: 12px; color: var(--text-secondary); font-weight: 500; }
+  .edit-stock-display .stock-value { font-size: 22px; font-weight: 700; color: var(--primary); }
+  .edit-batch-list { margin-bottom: 16px; }
+  .edit-batch-item { display: grid; grid-template-columns: 1.5fr 1fr 1fr 1.3fr 1.3fr; gap: 10px; padding: 8px 12px; background: var(--card-bg); border-radius: 8px; border: 1px solid var(--border-light); font-size: 12px; margin-bottom: 6px; align-items: center; }
+  .edit-batch-item .b-num { color: var(--primary); font-weight: 600; word-break: break-word; }
+  .edit-batch-item .b-qty { font-weight: 700; }
+  .edit-batch-item .b-price { color: var(--success); font-weight: 600; }
+  .edit-batch-item .b-date { color: var(--text-secondary); }
+  .edit-batch-item .b-exp.near { color: var(--warning); font-weight: 600; }
+  .edit-batch-item .b-exp.expired { color: var(--danger); font-weight: 700; }
+  .add-batch-inline { background: var(--card-bg); padding: 14px; border-radius: 10px; border: 1.5px solid var(--border-light); margin-top: 10px; }
+  .add-batch-inline h5 { font-size: 12px; color: var(--text-secondary); font-weight: 600; margin-bottom: 10px; }
+
+  .modal-overlay { position: fixed; inset: 0; background: rgba(15,23,42,0.45); display: none; align-items: center; justify-content: center; z-index: 1000; padding: 20px; overflow-y: auto; backdrop-filter: blur(4px); }
+  .modal-overlay.show { display: flex; }
+  .modal { background: var(--card-bg); border-radius: var(--radius); width: 100%; max-width: 800px; max-height: 92vh; overflow-y: auto; box-shadow: var(--shadow-lg); border: 1px solid var(--border); }
+  .modal-header { padding: 20px 24px; border-bottom: 1px solid var(--border-light); display: flex; justify-content: space-between; align-items: center; background: var(--surface); }
+  .modal-header h2 { font-size: 16px; font-weight: 700; }
+  .modal-close { background: none; border: none; font-size: 22px; cursor: pointer; color: var(--text-muted); width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; transition: background 0.2s; }
+  .modal-close:hover { background: var(--surface-hover); color: var(--text); }
+  .modal-body { padding: 24px; }
+  .modal-footer { padding: 16px 24px; border-top: 1px solid var(--border-light); display: flex; justify-content: flex-end; gap: 10px; background: var(--surface); }
+  .modal-sm { max-width: 420px; }
+  .modal-lg { max-width: 700px; }
+
+  .qr-modal-body { display: flex; flex-direction: column; align-items: center; gap: 14px; padding: 28px; }
+  .qr-modal-body canvas { border: 1.5px solid var(--border); padding: 14px; background: white; border-radius: 12px; box-shadow: var(--shadow); }
+  .qr-label { text-align: center; }
+  .qr-label .qr-name { font-weight: 700; font-size: 16px; color: var(--text); }
+  .qr-label .qr-detail { color: var(--text-secondary); font-size: 12px; margin-top: 6px; line-height: 1.6; }
+
+  .alert-item { padding: 10px 12px; border-bottom: 1px solid var(--border-light); display: flex; align-items: center; gap: 10px; font-size: 12px; }
+  .alert-item:last-child { border-bottom: none; }
+  .alert-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .alert-dot.danger { background: var(--danger); }
+  .alert-dot.warning { background: var(--warning); }
+  .alert-badge { background: var(--danger); color: white; font-size: 10px; padding: 1px 6px; border-radius: 8px; }
+
+  .scan-overlay { position: fixed; inset: 0; background: rgba(15,23,42,0.85); display: none; align-items: center; justify-content: center; z-index: 3000; flex-direction: column; gap: 18px; }
+  .scan-overlay.show { display: flex; }
+  .scan-overlay .scan-spinner { width: 44px; height: 44px; border: 3px solid rgba(255,255,255,0.2); border-top-color: white; border-radius: 50%; animation: spin 0.9s linear infinite; }
+  .scan-overlay .scan-text { color: white; font-size: 15px; font-weight: 500; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  @keyframes pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.08); } }
+
+  .toast-container { position: fixed; top: 20px; right: 20px; z-index: 2000; display: flex; flex-direction: column; gap: 8px; }
+  .toast { background: var(--card-bg); color: var(--text); border: 1px solid var(--border); padding: 12px 18px; border-radius: 12px; box-shadow: var(--shadow-lg); font-size: 13px; font-weight: 500; animation: slideIn 0.3s ease; display: flex; align-items: center; gap: 10px; }
+  .toast.success { background: rgba(52,211,153,0.2); border-color: rgba(52,211,153,0.4); color: #34d399; }
+  .toast.error { background: rgba(248,113,113,0.2); border-color: rgba(248,113,113,0.4); color: #f87171; }
+  .toast.warning { background: rgba(251,191,36,0.2); border-color: rgba(251,191,36,0.4); color: #fbbf24; }
+  @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+
+  .hidden { display: none !important; }
+  .empty { text-align: center; padding: 40px; color: var(--text-secondary); font-size: 13px; }
+  .empty .icon { font-size: 40px; margin-bottom: 10px; opacity: 0.4; }
+  .empty h4 { font-size: 14px; color: var(--text); font-weight: 600; margin-bottom: 4px; }
+
+  .existing-notice { background: rgba(251,191,36,0.1); border: 1.5px solid rgba(251,191,36,0.3); border-radius: var(--radius-sm); padding: 12px 16px; margin-bottom: 14px; font-size: 13px; display: none; }
+  .existing-notice.show { display: block; }
+  .existing-notice strong { color: var(--primary); }
+  .existing-notice .notice-actions { display: flex; gap: 8px; margin-top: 10px; }
+
+  .ocr-banner { background: rgba(52,211,153,0.1); border: 1.5px solid rgba(52,211,153,0.3); border-radius: var(--radius-sm); padding: 12px 16px; margin-bottom: 16px; font-size: 13px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; }
+  .ocr-banner strong { color: #34d399; }
+  .ocr-banner span { color: #34d399; font-size: 12px; }
+
+  .hsn-dropdown { position: relative; }
+  .hsn-suggestions { position: absolute; top: 100%; left: 0; right: 0; background: var(--card-bg); border: 1.5px solid var(--border); border-radius: 0 0 var(--radius-sm) var(--radius-sm); max-height: 200px; overflow-y: auto; z-index: 100; box-shadow: var(--shadow); display: none; }
+  .hsn-suggestions.show { display: block; }
+  .hsn-suggestion { padding: 10px 14px; cursor: pointer; font-size: 12px; border-bottom: 1px solid var(--border-light); transition: background 0.1s; }
+  .hsn-suggestion:hover { background: var(--surface); }
+  .hsn-suggestion .code { font-weight: 700; color: var(--primary); }
+  .hsn-suggestion .desc { color: var(--text-secondary); font-size: 11px; }
+
+  .category-input { position: relative; }
+  .category-suggestions { position: absolute; top: 100%; left: 0; right: 0; background: var(--card-bg); border: 1.5px solid var(--border); border-radius: 0 0 var(--radius-sm) var(--radius-sm); max-height: 200px; overflow-y: auto; z-index: 100; box-shadow: var(--shadow); display: none; }
+  .category-suggestions.show { display: block; }
+  .category-suggestion { padding: 10px 14px; cursor: pointer; font-size: 12px; border-bottom: 1px solid var(--border-light); transition: background 0.1s; }
+  .category-suggestion:hover { background: var(--surface); }
+  .category-suggestion .name { font-weight: 600; color: var(--text); }
+
+  @media (max-width: 1200px) { .dashboard-grid { grid-template-columns: repeat(3, 1fr); } .form-grid { grid-template-columns: repeat(2, 1fr); } .detail-grid { grid-template-columns: 1fr 1fr; } }
+  @media (max-width: 768px) { .dashboard-grid { grid-template-columns: repeat(2, 1fr); } .form-grid { grid-template-columns: 1fr; } .detail-grid { grid-template-columns: 1fr; } .header { flex-direction: column; gap: 10px; padding: 12px 16px; } .search-pill input { min-width: 200px; } .main { padding: 16px; } }
+  @media print { .header, .btn, .modal-close, .actions { display: none !important; } .card { box-shadow: none; border: 1px solid var(--border); } }
+  #mainHeader { display: var(--hide-header, flex); }
+</style>
+</head>
+<body>
+<script>if(window.self!==window.top){document.documentElement.style.setProperty('--hide-header','none');}</script>
+<div class="header" id="mainHeader">
+  <div class="brand">
+    <div class="brand-icon">🧪</div>
+    <div class="brand-text">
+      <h1>Raw Material Inventory</h1>
+      <span>BioTech / Cosmetic ERP — ISO 9001:2015</span>
+    </div>
+  </div>
+  <div class="header-actions">
+    <button class="btn btn-outline" onclick="exportCSV()">📥 Export CSV</button>
+    <button class="btn btn-outline" onclick="document.getElementById('bulkImportFile').click()">📤 Bulk Import</button>
+    <input type="file" id="bulkImportFile" style="display:none" accept=".csv,.pdf" onchange="bulkImport(event)">
+    <button class="btn btn-accent" onclick="openAddModal()">➕ Add Material</button>
+  </div>
+</div>
+
+<div class="main">
+  <div class="dashboard-grid">
+    <div class="metric-card">
+      <div class="left"><div class="label">Total Materials</div><div class="value" id="dashTotal">0</div><div class="change up">📦 Active SKUs</div></div>
+      <div class="icon-box purple">📦</div>
+    </div>
+    <div class="metric-card">
+      <div class="left"><div class="label">Total Inventory Value</div><div class="value" id="dashValue">₹0</div><div class="change up">↗ +0.0%</div></div>
+      <div class="icon-box green">₹</div>
+    </div>
+    <div class="metric-card">
+      <div class="left"><div class="label">Avg Cost Change (MoM)</div><div class="value" id="dashCostChange">+0.0%</div><div class="change up">↗ +0.0%</div></div>
+      <div class="icon-box blue">📊</div>
+    </div>
+    <div class="metric-card clickable" onclick="openLowStockModal()" title="Click to view low stock materials">
+      <div class="left"><div class="label">Low Stock Alerts</div><div class="value" id="dashLow">0</div><div class="change down">⚠️ Items below min</div></div>
+      <div class="icon-box red">⚠️</div>
+    </div>
+    <div class="metric-card">
+      <div class="left"><div class="label">Expiring Soon</div><div class="value" id="dashExpiring">0</div><div class="change up">📅 Within 30 days</div></div>
+      <div class="icon-box orange">📅</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header" style="flex-wrap:wrap;gap:12px">
+      <h2>📦 Materials Master</h2>
+      <div style="display:flex;align-items:center;gap:10px;margin-left:auto">
+        <button class="btn btn-outline btn-sm" onclick="exportCSV()">📥 Export CSV</button>
+        <button class="btn btn-outline btn-sm" onclick="document.getElementById('bulkImportFile').click()">📤 Bulk Import</button>
+        <input type="file" id="bulkImportFile" style="display:none" accept=".csv,.pdf" onchange="bulkImport(event)">
+        <button class="btn btn-accent btn-sm" onclick="openAddModal()">➕ Add Material</button>
+      </div>
+      <div class="search-pill" style="width:100%">
+        <span class="search-icon">🔍</span>
+        <input type="text" id="globalSearch" placeholder="Search name, SKU, supplier, HSN..." oninput="renderTable()" style="min-width:unset;width:100%">
+      </div>
+    </div>
+    <div class="card-body" id="table-body">
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th onclick="sortBy('code')">Code <span class="sort-icon" id="sort-code">⇅</span></th>
+              <th onclick="sortBy('name')">Name <span class="sort-icon" id="sort-name">⇅</span></th>
+              <th onclick="sortBy('category')">Category <span class="sort-icon" id="sort-category">⇅</span></th>
+              <th onclick="sortBy('hsnCode')">HSN <span class="sort-icon" id="sort-hsnCode">⇅</span></th>
+              <th onclick="sortBy('unit')">Unit <span class="sort-icon" id="sort-unit">⇅</span></th>
+              <th onclick="sortBy('unitPrice')">Price <span class="sort-icon" id="sort-unitPrice">⇅</span></th>
+              <th onclick="sortBy('gstRate')">GST <span class="sort-icon" id="sort-gstRate">⇅</span></th>
+              <th onclick="sortBy('stock')">Stock <span class="sort-icon" id="sort-stock">⇅</span></th>
+              <th onclick="sortBy('status')">Status <span class="sort-icon" id="sort-status">⇅</span></th>
+              <th style="width:140px">Actions</th>
+            </tr>
+          </thead>
+          <tbody id="materialsTable"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ADD / EDIT MATERIAL MODAL -->
+<div class="modal-overlay" id="addModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 id="addModalTitle">➕ Add New Raw Material</h2>
+      <button class="modal-close" onclick="closeModal('addModal')">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div class="existing-notice" id="existingNotice"></div>
+      <div class="ocr-banner">
+        <div><strong>📄 Auto-populate from Bill / Label</strong> <span>Upload a photo of the product label or invoice to auto-fill fields</span></div>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-sm btn-success" onclick="scanOCRFromBill()">🖼️ Scan Image</button>
+          <button class="btn btn-sm btn-outline" onclick="document.getElementById('billImage').click()">📁 Upload</button>
+          <input type="file" id="billImage" accept="image/*" style="display:none" onchange="processBillImage(event)">
+        </div>
+      </div>
+      <form id="materialForm" onsubmit="saveMaterial(event)">
+        <input type="hidden" id="editId">
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Material Code</label>
+            <input type="text" id="materialCode" readonly style="background:var(--surface);font-weight:700;color:var(--primary)">
+          </div>
+          <div class="form-group">
+            <label>Product Name <span class="req">*</span></label>
+            <input type="text" id="productName" required oninput="checkExistingMaterial();suggestHSN()">
+          </div>
+          <div class="form-group">
+            <label>HSN Code</label>
+            <div class="hsn-dropdown">
+              <input type="text" id="hsnCode" placeholder="Auto-identified or enter manually">
+              <div class="hsn-suggestions" id="hsnSuggestions"></div>
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Category <span class="req">*</span></label>
+            <div class="category-input">
+              <input type="text" id="category" required placeholder="Type or select category (e.g. Fragrance, Hydrosol)" oninput="suggestCategory()" onblur="setTimeout(()=>document.getElementById('categorySuggestions').classList.remove('show'),200)">
+              <div class="category-suggestions" id="categorySuggestions"></div>
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Supplier Name</label>
+            <input type="text" id="supplier" placeholder="e.g., ABC Chemicals Pvt Ltd">
+          </div>
+          <div class="form-group">
+            <label>Storage Location / Place <span class="req">*</span></label>
+            <input type="text" id="location" required placeholder="e.g., Warehouse A, Rack 12, Shelf B">
+          </div>
+          <div class="form-group">
+            <label>Unit <span class="req">*</span></label>
+            <select id="unit" required>
+              <option value="">Select</option>
+              <option value="kg">Kilogram (kg)</option>
+              <option value="liter">Liter (L)</option>
+              <option value="gram">Gram (g)</option>
+              <option value="ml">Milliliter (ml)</option>
+              <option value="piece">Piece</option>
+              <option value="box">Box</option>
+              <option value="drum">Drum</option>
+              <option value="bag">Bag</option>
+              <option value="meter">Meter</option>
+              <option value="bottle">Bottle</option>
+              <option value="can">Can</option>
+              <option value="jar">Jar</option>
+              <option value="tube">Tube</option>
+              <option value="sachet">Sachet</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Unit Price (₹) <span class="req">*</span></label>
+            <input type="number" id="unitPrice" step="0.01" min="0" required>
+          </div>
+          <div class="form-group">
+            <label>GST Rate (%) <span class="req">*</span></label>
+            <select id="gstRate" required>
+              <option value="0">0%</option>
+              <option value="5">5%</option>
+              <option value="12" selected>12%</option>
+              <option value="18">18%</option>
+              <option value="28">28%</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Initial Stock</label>
+            <input type="number" id="initialStock" step="0.01" min="0" value="0">
+          </div>
+          <div class="form-group">
+            <label>Initial Expiry</label>
+            <input type="date" id="initialExpiry">
+          </div>
+          <div class="form-group">
+            <label>Initial Batch #</label>
+            <input type="text" id="initialBatchNumber" placeholder="e.g., LOT-2026-001">
+          </div>
+          <div class="form-group full">
+            <div style="display:flex;gap:20px;flex-wrap:wrap">
+              <div class="checkbox-group">
+                <input type="checkbox" id="enableMinStock" checked onchange="toggleMinStock()">
+                <label for="enableMinStock">Enable Min Stock</label>
+              </div>
+              <div class="checkbox-group">
+                <input type="checkbox" id="enableLowStockAlert" checked>
+                <label for="enableLowStockAlert">Enable Low Stock Alert</label>
+              </div>
+            </div>
+          </div>
+          <div class="form-group" id="minStockGroup">
+            <label>Min Stock Level</label>
+            <input type="number" id="minStockLevel" step="0.01" min="0" value="10">
+          </div>
+          <div class="form-group">
+            <label>Product Image</label>
+            <div class="image-preview" onclick="document.getElementById('productImage').click()">
+              <img id="imagePreviewImg" class="hidden">
+              <div class="placeholder" id="imagePlaceholder">📷 Click to upload</div>
+            </div>
+            <input type="file" id="productImage" accept="image/*" style="display:none" onchange="previewImage(event)">
+          </div>
+          <div class="form-group half">
+            <label>Voice Input</label>
+            <div class="voice-recorder">
+              <button type="button" class="mic-btn" id="micBtn" onclick="toggleVoice()">🎤</button>
+              <div id="voiceStatus" style="font-size:12px;color:var(--text-secondary)">Click to record</div>
+            </div>
+            <div class="voice-transcript" id="voiceTranscript" contenteditable="true">(Voice transcript...)</div>
+          </div>
+        </div>
+        <div class="iso-section">
+          <h4>🛡️ ISO 9001:2015 Quality Control</h4>
+          <div class="form-grid" style="margin-top:10px">
+            <div class="form-group">
+              <label>QC Checked By</label>
+              <input type="text" id="qcChecker" placeholder="Inspector name">
+            </div>
+            <div class="form-group">
+              <label>QC Number</label>
+              <input type="text" id="qcNumber" placeholder="QC-2026-001">
+            </div>
+            <div class="form-group">
+              <label>Reference Check #</label>
+              <input type="text" id="refCheckNumber" placeholder="REF-2026-001">
+            </div>
+            <div class="form-group full">
+              <div class="checkbox-group">
+                <input type="checkbox" id="qcPassed">
+                <label for="qcPassed">QC Passed / Approved</label>
+              </div>
+            </div>
+            <div class="form-group full">
+              <label>QC Notes</label>
+              <textarea id="qcNotes" placeholder="Quality observations..."></textarea>
+            </div>
+          </div>
+        </div>
+        <div class="edit-batch-section" id="editBatchSection">
+          <h4>🧪 Batch Management</h4>
+          <div class="edit-stock-display">
+            <div class="stock-label">Current Total Stock</div>
+            <div class="stock-value" id="editStockDisplay">0</div>
+          </div>
+          <div class="edit-batch-list" id="editBatchList"></div>
+          <div class="add-batch-inline">
+            <h5>➕ Add New Batch</h5>
+            <div class="form-grid" style="grid-template-columns: repeat(2,1fr);gap:10px">
+              <div class="form-group">
+                <label>Quantity <span class="req">*</span></label>
+                <input type="number" id="editBatchQty" step="0.01" min="0.01" placeholder="Qty">
+              </div>
+              <div class="form-group">
+                <label>Batch / Lot #</label>
+                <input type="text" id="editBatchNumber" placeholder="LOT-2026-002">
+              </div>
+              <div class="form-group">
+                <label>Expiry Date</label>
+                <input type="date" id="editBatchExpiry">
+              </div>
+              <div class="form-group">
+                <label>Received Date</label>
+                <input type="date" id="editBatchReceived">
+              </div>
+            </div>
+            <div class="form-grid" style="grid-template-columns: repeat(2,1fr);gap:10px;margin-top:10px">
+              <div class="form-group">
+                <label>Unit Price for this Batch (₹) <span style="color:var(--text-muted);font-size:11px;font-weight:400"> — May differ from current price</span></label>
+                <input type="number" id="editBatchPrice" step="0.01" min="0" placeholder="Leave blank to use current price">
+              </div>
+              <div class="form-group">
+                <label>Notes (Supplier, Invoice Ref)</label>
+                <input type="text" id="editBatchNotes" placeholder="Supplier: ABC Ltd, Invoice: INV-2026-123">
+              </div>
+            </div>
+            <div style="margin-top:10px">
+              <button type="button" class="btn btn-sm btn-primary" onclick="addBatchInline()">➕ Add Batch</button>
+              <button type="button" class="btn btn-sm btn-outline" onclick="clearEditBatchFields()">Clear</button>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer" style="margin:20px -24px -24px -24px;border-top:1px solid var(--border-light);padding:16px 24px;background:var(--surface)">
+          <button type="button" class="btn btn-outline" onclick="closeModal('addModal')">Cancel</button>
+          <button type="submit" class="btn btn-primary">💾 Save Material</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- QR PRINT MODAL -->
+<div class="modal-overlay" id="qrModal">
+  <div class="modal modal-sm">
+    <div class="modal-header">
+      <h2>🔲 Print QR Label</h2>
+      <button class="modal-close" onclick="closeModal('qrModal')">&times;</button>
+    </div>
+    <div class="qr-modal-body" id="qrModalBody"></div>
+    <div class="modal-footer">
+      <button class="btn btn-primary" onclick="printCurrentQR()">🖨️ Print Label</button>
+      <button class="btn btn-outline" onclick="closeModal('qrModal')">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- BATCH ADD MODAL -->
+<div class="modal-overlay" id="batchModal">
+  <div class="modal modal-lg">
+    <div class="modal-header">
+      <h2>🧪 Add Batch to Material</h2>
+      <button class="modal-close" onclick="closeModal('batchModal')">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div style="display:flex;gap:14px;align-items:flex-start;margin-bottom:16px">
+        <div id="batchModalImage" style="width:64px;height:64px;border-radius:12px;border:1px solid var(--border);overflow:hidden"></div>
+        <div>
+          <strong id="batchModalName" style="font-size:15px"></strong>
+          <span style="color:var(--text-secondary);font-size:12px;margin-left:10px">(<span id="batchModalCode"></span> | HSN: <span id="batchModalHsn"></span>)</span>
+          <div style="font-size:12px;color:var(--text-secondary);margin-top:4px">Current Total: <strong id="batchModalStock"></strong> | Location: <strong id="batchModalLoc"></strong> | Supplier: <strong id="batchModalSupplier"></strong></div>
+        </div>
+      </div>
+      <div class="form-grid" style="margin-bottom:14px">
+        <div class="form-group">
+          <label>Quantity to Add <span class="req">*</span></label>
+          <input type="number" id="batchModalQty" step="0.01" min="0.01">
+        </div>
+        <div class="form-group">
+          <label>Unit Price for this Batch (₹)</label>
+          <input type="number" id="batchModalPrice" step="0.01" min="0" placeholder="Leave blank for current price">
+        </div>
+        <div class="form-group">
+          <label>Batch / Lot Number</label>
+          <input type="text" id="batchModalNumber" placeholder="LOT-2026-002">
+        </div>
+        <div class="form-group">
+          <label>Expiry Date</label>
+          <input type="date" id="batchModalExpiry">
+        </div>
+        <div class="form-group">
+          <label>Received Date</label>
+          <input type="date" id="batchModalReceived">
+        </div>
+        <div class="form-group full">
+          <label>Notes (Supplier, Invoice Ref)</label>
+          <input type="text" id="batchModalNotes" placeholder="Supplier: ABC Ltd, Invoice: INV-2026-123">
+        </div>
+      </div>
+      <h4 style="font-size:12px;margin-bottom:10px;color:var(--primary);font-weight:700">Existing Batches</h4>
+      <div id="batchModalList"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-primary" onclick="saveBatchFromModal()">➕ Add Batch</button>
+      <button class="btn btn-outline" onclick="closeModal('batchModal')">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- LOW STOCK MODAL -->
+<div class="modal-overlay" id="lowStockModal">
+  <div class="modal modal-lg">
+    <div class="modal-header">
+      <h2>⚠️ Low Stock Alerts</h2>
+      <button class="modal-close" onclick="closeModal('lowStockModal')">&times;</button>
+    </div>
+    <div class="modal-body" id="lowStockModalBody">
+      <div class="empty"><div class="icon">📦</div><h4>All stock levels are healthy</h4></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('lowStockModal')">Close</button>
+    </div>
+  </div>
+</div>
+
+<div class="scan-overlay" id="scanOverlay">
+  <div class="scan-spinner"></div>
+  <div class="scan-text" id="scanText">Scanning...</div>
+</div>
+
+<div class="toast-container" id="toastContainer"></div>
+
+<script>// ========== DATA ==========
+const DB_KEY = 'rawMaterialDB_v8';
+let materials = [];
+let nextId = 1;
+let sortKey = 'code';
+let sortDir = 1;
+let expandedId = null;
+let batchTargetId = null;
+let currentQRMaterial = null;
+let existingMatch = null;
+let tesseractWorker = null;
+let recognition = null;
+
+const hsnDataset = [
+  {code:'3301',desc:'Essential oils (Lavender, Rose, Peppermint, etc.)'},
+  {code:'3302',desc:'Odoriferous substances used for perfume / cosmetics'},
+  {code:'3303',desc:'Perfumes and toilet waters'},
+  {code:'3304',desc:'Beauty / make-up preparations & skin care'},
+  {code:'3305',desc:'Hair preparations (shampoo, conditioner, dye)'},
+  {code:'3306',desc:'Oral hygiene products (toothpaste, mouthwash)'},
+  {code:'3307',desc:'Pre-shave, shaving, after-shave, deodorants'},
+  {code:'3401',desc:'Soap; organic surface-active products'},
+  {code:'3402',desc:'Organic surface-active agents (surfactants)'},
+  {code:'3403',desc:'Lubricating preparations, cutting oils'},
+  {code:'3404',desc:'Artificial waxes and prepared waxes'},
+  {code:'3405',desc:'Polishes and creams, for leather, wood, etc.'},
+  {code:'3501',desc:'Casein, caseinates, other casein derivatives'},
+  {code:'3502',desc:'Albumins, albuminates, derivatives'},
+  {code:'3503',desc:'Gelatin and derivatives, isinglass, glues'},
+  {code:'3504',desc:'Peptones, other protein substances'},
+  {code:'3505',desc:'Dextrins, glues based on starches'},
+  {code:'3506',desc:'Prepared glues and adhesives'},
+  {code:'3806',desc:'Rosin and resin acids, derivatives'},
+  {code:'3808',desc:'Insecticides, rodenticides, fungicides, etc.'},
+  {code:'3814',desc:'Organic composite solvents and thinners'},
+  {code:'3822',desc:'Diagnostic / lab reagents on any backing'},
+  {code:'3824',desc:'Chemical products and preparations, N.E.S.'},
+  {code:'2901',desc:'Acyclic hydrocarbons (methane, propane, butane)'},
+  {code:'2902',desc:'Cyclic hydrocarbons (benzene, toluene, xylene)'},
+  {code:'2903',desc:'Halogenated derivatives of hydrocarbons'},
+  {code:'2905',desc:'Acyclic alcohols and derivatives'},
+  {code:'2906',desc:'Cyclic alcohols and derivatives'},
+  {code:'2915',desc:'Saturated acyclic monocarboxylic acids'},
+  {code:'2916',desc:'Unsaturated acyclic / cyclic monocarboxylic acids'},
+  {code:'2922',desc:'Oxygen-function amino-compounds'},
+  {code:'2933',desc:'Heterocyclic compounds with nitrogen'},
+  {code:'2936',desc:'Vitamins and derivatives (unmixed)'},
+  {code:'2937',desc:'Hormones and derivatives (steroids, peptides)'},
+  {code:'2941',desc:'Antibiotics'},
+  {code:'3003',desc:'Medicaments (not antibiotics, not vaccines)'},
+  {code:'3004',desc:'Medicaments in measured doses / retail forms'},
+  {code:'3006',desc:'Pharmaceutical goods (surgical sutures, bandages)'},
+  {code:'1516',desc:'Animal / vegetable fats and oils, hydrogenated'},
+  {code:'1520',desc:'Glycerol, crude; glycerol waters'},
+  {code:'1521',desc:'Vegetable waxes, beeswax, other insect waxes'},
+  {code:'2101',desc:'Extracts, essences, concentrates of coffee, tea'},
+  {code:'2103',desc:'Sauces and preparations; mixed condiments'},
+  {code:'2106',desc:'Food preparations not elsewhere specified'},
+  {code:'2207',desc:'Ethyl alcohol (undenatured, >=80% alcohol)'},
+  {code:'2208',desc:'Undenatured ethyl alcohol (<80%) + spirits'},
+  {code:'1211',desc:'Plants and parts for perfumery, pharmacy, insecticides'},
+  {code:'1301',desc:'Lac; natural gums, resins, gum-resins and oleoresins'},
+  {code:'1302',desc:'Vegetable saps and extracts; pectates, agar-agar'},
+  {code:'1401',desc:'Vegetable materials (bamboo, rattan, etc.)'},
+  {code:'3101',desc:'Animal / vegetable fertilizers (guano, manure)'},
+  {code:'3201',desc:'Tanning extracts of vegetable origin'},
+  {code:'3202',desc:'Synthetic organic tanning substances'},
+  {code:'3203',desc:'Coloring matter of vegetable or animal origin'},
+  {code:'3204',desc:'Synthetic organic coloring matter'},
+  {code:'3206',desc:'Other coloring matter, pigments, preparations'},
+  {code:'3212',desc:'Pigments for ceramic, glass, enamel, etc.'},
+];
+
+const cosmeticCategories = ['Fragrance','Hydrosol','Essential Oil','Carrier Oil','Active Ingredients','Preservatives','Surfactants','Emulsifiers','Thickeners','Humectants','Butters','Vitamins','Peptides','Proteins','Wax Esters','Silicones','Botanical Extracts','Antioxidants','Sunscreen Agents','Exfoliants','pH Adjusters','Chelating Agents','Solubilizers','Colorants','Film Formers','Penetration Enhancers','Packaging Materials','Lab Equipment','Inorganic Pigments','Natural Colorants','Synthetic Dyes','Ceramic Pigments','Flavoring Extracts','Food Additives','Other'];
+
+function suggestHSN() {
+  const name = document.getElementById('productName').value.trim().toLowerCase();
+  const suggestions = document.getElementById('hsnSuggestions');
+  suggestions.innerHTML = '';
+  if (!name) { suggestions.classList.remove('show'); return; }
+  const matches = hsnDataset.filter(h => h.desc.toLowerCase().includes(name) || h.code.includes(name)).slice(0, 8);
+  if (matches.length) {
+    matches.forEach(m => {
+      const div = document.createElement('div'); div.className = 'hsn-suggestion';
+      div.innerHTML = '<span class="code">'+m.code+'</span> — <span class="desc">'+m.desc+'</span>';
+      div.onclick = () => { document.getElementById('hsnCode').value = m.code; suggestions.classList.remove('show'); };
+      suggestions.appendChild(div);
+    });
+    suggestions.classList.add('show');
+  } else { suggestions.classList.remove('show'); }
+}
+
+function suggestCategory() {
+  const val = document.getElementById('category').value.toLowerCase();
+  const suggestions = document.getElementById('categorySuggestions');
+  suggestions.innerHTML = '';
+  if (!val) { suggestions.classList.remove('show'); return; }
+  const matches = cosmeticCategories.filter(c => c.toLowerCase().includes(val));
+  if (matches.length) {
+    matches.forEach(c => {
+      const div = document.createElement('div'); div.className = 'category-suggestion';
+      div.innerHTML = '<span class="name">'+c+'</span>';
+      div.onclick = () => { document.getElementById('category').value = c; suggestions.classList.remove('show'); };
+      suggestions.appendChild(div);
+    });
+    suggestions.classList.add('show');
+  } else { suggestions.classList.remove('show'); }
+}
+
+// ========== INIT & DEMO DATA ==========
+function loadDB() {
+  try {
+    const raw = localStorage.getItem(DB_KEY);
+    if (raw) { const data = JSON.parse(raw); materials = data.materials || []; nextId = data.nextId || 1; }
+  } catch (e) { showToast('Failed to load data', 'error'); }
+  if (!materials.length) addDemoData();
+  renderAll();
+}
+
+function saveDB() { localStorage.setItem(DB_KEY, JSON.stringify({materials, nextId})); renderAll(); }
+
+function addDemoData() {
+  const demo = [
+    {name:'Lavender Essential Oil',hsnCode:'3301',category:'Essential Oil',supplier:'Kerala Oils Ltd',location:'Warehouse A, Cold Storage 1',unit:'liter',unitPrice:850,gstRate:12,enableMinStock:true,minStockLevel:5,image:null,qcChecker:'A. Sharma',qcNumber:'QC-2026-001',refCheckNumber:'REF-001',qcPassed:true,qcNotes:'Color and aroma within spec. GC-MS verified.',batches:[{batchId:'BATCH-001',quantity:12,price:850,batchNumber:'LOT-2025-LV-01',expiryDate:'2027-03-15',receivedDate:'2025-01-10',notes:'Kerala Oils Ltd, Invoice: INV-2561'}]},
+    {name:'Rose Hydrosol',hsnCode:'3301',category:'Hydrosol',supplier:'Floral Extracts India',location:'Warehouse A, Shelf B4',unit:'liter',unitPrice:320,gstRate:12,enableMinStock:true,minStockLevel:10,image:null,qcChecker:'R. Patel',qcNumber:'QC-2026-002',refCheckNumber:'REF-002',qcPassed:true,qcNotes:'pH 4.8, microbial test pass.',batches:[{batchId:'BATCH-002',quantity:25,price:320,batchNumber:'RH-2025-03',expiryDate:'2026-08-20',receivedDate:'2025-03-05',notes:'Floral Extracts India, Invoice: FE-882'}]},
+    {name:'Hyaluronic Acid (1% Solution)',hsnCode:'2937',category:'Active Ingredients',supplier:'Bloomage Biotech',location:'Warehouse B, Lab Fridge 2',unit:'kg',unitPrice:4500,gstRate:18,enableMinStock:true,minStockLevel:2,image:null,qcChecker:'Dr. Mehta',qcNumber:'QC-2026-003',refCheckNumber:'REF-003',qcPassed:true,qcNotes:'Molecular weight confirmed at 1.5 MDa. COA attached.',batches:[{batchId:'BATCH-003',quantity:5,price:4500,batchNumber:'BB-HA-2025-001',expiryDate:'2027-01-30',receivedDate:'2025-02-12',notes:'Bloomage Biotech, Invoice: BB-3301'}]},
+    {name:'Shea Butter (Refined)',hsnCode:'3301',category:'Butters',supplier:'Ghana Naturals',location:'Warehouse C, Ambient Storage',unit:'kg',unitPrice:650,gstRate:12,enableMinStock:true,minStockLevel:8,image:null,qcChecker:'P. Kumar',qcNumber:'QC-2026-004',refCheckNumber:'REF-004',qcPassed:true,qcNotes:'Melting point 38-42°C, odor neutral, free fatty acid <0.5%.',batches:[{batchId:'BATCH-004',quantity:20,price:650,batchNumber:'SB-GN-2024-88',expiryDate:'2026-06-10',receivedDate:'2024-11-20',notes:'Ghana Naturals, Invoice: GN-4412'},{batchId:'BATCH-005',quantity:15,price:670,batchNumber:'SB-GN-2025-01',expiryDate:'2026-12-15',receivedDate:'2025-01-18',notes:'Ghana Naturals, Invoice: GN-4450'}]},
+    {name:'Sodium Lauryl Sulfate (SLS)',hsnCode:'3402',category:'Surfactants',supplier:'Galaxy Surfactants',location:'Warehouse D, Chemical Bay 3',unit:'kg',unitPrice:180,gstRate:18,enableMinStock:true,minStockLevel:15,image:null,qcChecker:'S. Reddy',qcNumber:'QC-2026-005',refCheckNumber:'REF-005',qcPassed:true,qcNotes:'Active matter 96%, pH 7.2, color clear.',batches:[{batchId:'BATCH-006',quantity:50,price:180,batchNumber:'SLS-GS-2025-112',expiryDate:'2027-02-28',receivedDate:'2025-04-10',notes:'Galaxy Surfactants, Invoice: GS-9901'}]},
+    {name:'Vitamin E Acetate',hsnCode:'2936',category:'Vitamins',supplier:'DSM India',location:'Warehouse B, Lab Fridge 1',unit:'kg',unitPrice:2200,gstRate:18,enableMinStock:true,minStockLevel:3,image:null,qcChecker:'Dr. Rao',qcNumber:'QC-2026-006',refCheckNumber:'REF-006',qcPassed:true,qcNotes:'Purity 99.2% by HPLC. Tocopherol content verified.',batches:[{batchId:'BATCH-007',quantity:3,price:2200,batchNumber:'VE-DSM-2025-44',expiryDate:'2026-09-30',receivedDate:'2025-03-22',notes:'DSM India, Invoice: DSM-2025-1144'}]},
+    {name:'Phenoxyethanol (Preservative)',hsnCode:'3824',category:'Preservatives',supplier:'Lonza India',location:'Warehouse D, Chemical Bay 1',unit:'kg',unitPrice:1200,gstRate:18,enableMinStock:true,minStockLevel:2,image:null,qcChecker:'M. Gupta',qcNumber:'QC-2026-007',refCheckNumber:'REF-007',qcPassed:true,qcNotes:'Assay 99.8%, melting point 88-91°C, COA matches.',batches:[{batchId:'BATCH-008',quantity:2,price:1200,batchNumber:'PH-LZ-2025-09',expiryDate:'2026-11-15',receivedDate:'2025-05-01',notes:'Lonza India, Invoice: LZ-5582'}]},
+  ];
+  demo.forEach((d) => {
+    materials.push({
+      id: nextId++, code: generateCode(), name: d.name, hsnCode: d.hsnCode, category: d.category, supplier: d.supplier, location: d.location, unit: d.unit, unitPrice: d.unitPrice, gstRate: d.gstRate, enableMinStock: d.enableMinStock, minStockLevel: d.minStockLevel, image: d.image, qcChecker: d.qcChecker, qcNumber: d.qcNumber, refCheckNumber: d.refCheckNumber, qcPassed: d.qcPassed, qcNotes: d.qcNotes, batches: d.batches, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString()
+    });
+  });
+  saveDB();
+  showToast('Demo data loaded: 7 materials', 'success');
+}
+
+// ========== HELPERS ==========
+function generateCode() { return 'RM-' + String(nextId).padStart(4, '0'); }
+function generateBatchId() { return 'BATCH-' + Math.random().toString(36).substr(2, 9).toUpperCase(); }
+function getStock(m) { return (m.batches || []).reduce((sum, b) => sum + (parseFloat(b.quantity) || 0), 0); }
+function getValue(m) { return getStock(m) * (parseFloat(m.unitPrice) || 0); }
+function getStatus(m) {
+  const stock = getStock(m); const min = parseFloat(m.minStockLevel) || 0;
+  if (stock <= 0) return { label: 'Out', class: 'tag-danger' };
+  if (m.enableMinStock && stock <= min) return { label: 'Low', class: 'tag-warning' };
+  if (stock <= min * 2) return { label: 'Medium', class: 'tag-warning' };
+  return { label: 'OK', class: 'tag-success' };
+}
+function isExpiringSoon(m) {
+  const today = new Date(); const in30 = new Date(); in30.setDate(today.getDate() + 30);
+  return (m.batches || []).some(b => { if (!b.expiryDate) return false; const e = new Date(b.expiryDate); return e <= in30 && e >= today; });
+}
+function isExpired(m) {
+  const today = new Date();
+  return (m.batches || []).some(b => { if (!b.expiryDate) return false; return new Date(b.expiryDate) < today; });
+}
+
+// ========== RENDERING ==========
+function renderAll() { renderDashboard(); renderTable(); }
+
+function renderDashboard() {
+  const total = materials.length;
+  const totalValue = materials.reduce((sum, m) => sum + getValue(m), 0);
+  const lowStock = materials.filter(m => m.enableMinStock && getStock(m) <= (parseFloat(m.minStockLevel) || 0)).length;
+  const expiring = materials.filter(m => isExpiringSoon(m) && !isExpired(m)).length;
+  const avgCost = total > 0 ? materials.reduce((sum, m) => sum + (parseFloat(m.unitPrice) || 0), 0) / total : 0;
+  const prevAvg = parseFloat(localStorage.getItem('prevAvgCost')) || avgCost;
+  const costChange = prevAvg > 0 ? ((avgCost - prevAvg) / prevAvg * 100) : 0;
+  localStorage.setItem('prevAvgCost', avgCost.toFixed(2));
+
+  document.getElementById('dashTotal').textContent = total;
+  document.getElementById('dashValue').textContent = '₹' + totalValue.toLocaleString('en-IN', {maximumFractionDigits:0});
+  document.getElementById('dashLow').textContent = lowStock;
+  document.getElementById('dashExpiring').textContent = expiring;
+  const costEl = document.getElementById('dashCostChange');
+  costEl.textContent = (costChange >= 0 ? '+' : '') + costChange.toFixed(1) + '%';
+  costEl.style.color = costChange >= 0 ? 'var(--success)' : 'var(--danger)';
+  const costChangeEl = costEl.parentElement.querySelector('.change');
+  if (costChangeEl) {
+    costChangeEl.textContent = (costChange >= 0 ? '↗ +' : '↘ ') + Math.abs(costChange).toFixed(1) + '% vs last month';
+    costChangeEl.className = 'change ' + (costChange >= 0 ? 'up' : 'down');
+  }
+}
+
+function renderTable() {
+  const search = document.getElementById('globalSearch').value.toLowerCase();
+  let filtered = materials.filter(m => {
+    if (!search) return true;
+    const s = search;
+    return (m.name || '').toLowerCase().includes(s) || (m.code || '').toLowerCase().includes(s) || (m.category || '').toLowerCase().includes(s) || (m.hsnCode || '').toLowerCase().includes(s) || (m.supplier || '').toLowerCase().includes(s) || (m.location || '').toLowerCase().includes(s);
+  });
+
+  filtered.sort((a, b) => {
+    let va, vb;
+    if (sortKey === 'stock') { va = getStock(a); vb = getStock(b); }
+    else if (sortKey === 'status') { va = getStatus(a).label; vb = getStatus(b).label; }
+    else { va = a[sortKey] || ''; vb = b[sortKey] || ''; }
+    if (typeof va === 'string') va = va.toLowerCase();
+    if (typeof vb === 'string') vb = vb.toLowerCase();
+    if (va < vb) return -sortDir; if (va > vb) return sortDir; return 0;
+  });
+
+  document.querySelectorAll('th .sort-icon').forEach(el => { el.textContent = '⇅'; el.parentElement.classList.remove('sorted'); });
+  const activeIcon = document.getElementById('sort-' + sortKey);
+  if (activeIcon) { activeIcon.textContent = sortDir === 1 ? '▲' : '▼'; activeIcon.parentElement.classList.add('sorted'); }
+
+  const tbody = document.getElementById('materialsTable'); tbody.innerHTML = '';
+  if (!filtered.length) { tbody.innerHTML = '<tr><td colspan="10" class="empty"><div class="icon">📦</div><h4>No materials found</h4><p>Try adjusting your search or add a new material.</p></td></tr>'; return; }
+
+  filtered.forEach(m => {
+    const stock = getStock(m); const status = getStatus(m); const value = getValue(m);
+    const stockClass = stock <= 0 ? 'stock-danger' : (m.enableMinStock && stock <= (parseFloat(m.minStockLevel) || 0)) ? 'stock-low' : stock <= (parseFloat(m.minStockLevel) || 0) * 2 ? 'stock-medium' : 'stock-ok';
+    const tr = document.createElement('tr');
+    tr.innerHTML = '<td class="code-cell" onclick="toggleExpand('+m.id+')">'+m.code+'</td>' +
+      '<td class="name-cell" onclick="toggleExpand('+m.id+')">'+m.name+'</td>' +
+      '<td><span class="tag tag-gray">'+m.category+'</span></td>' +
+      '<td>'+(m.hsnCode || '-')+'</td>' +
+      '<td>'+m.unit+'</td>' +
+      '<td>₹'+(parseFloat(m.unitPrice)||0).toLocaleString('en-IN')+'</td>' +
+      '<td>'+m.gstRate+'%</td>' +
+      '<td class="'+stockClass+'">'+stock.toLocaleString('en-IN')+'</td>' +
+      '<td><span class="tag '+status.class+'">'+status.label+'</span></td>' +
+      '<td class="actions">' +
+        '<button class="batch-btn" title="Add Batch" onclick="openBatchModal('+m.id+')">🧪</button>' +
+        '<button class="qr-btn" title="Print QR" onclick="openQRModal('+m.id+')">🔲</button>' +
+        '<button class="edit-btn" title="Edit" onclick="editMaterial('+m.id+')">✏️</button>' +
+        '<button class="delete-btn" title="Delete" onclick="deleteMaterial('+m.id+')">🗑️</button>' +
+      '</td>';
+    tbody.appendChild(tr);
+
+    const detailTr = document.createElement('tr'); detailTr.className = 'detail-row'; detailTr.id = 'detail-row-'+m.id;
+    const detailPanel = document.createElement('div'); detailPanel.className = 'detail-panel'; detailPanel.id = 'detail-panel-'+m.id;
+
+    let batchesHtml = '<div class="detail-section"><h4>🧪 Batches</h4>';
+    if (m.batches && m.batches.length) {
+      m.batches.forEach(b => {
+        const today = new Date(); const exp = b.expiryDate ? new Date(b.expiryDate) : null;
+        let expClass = '', expText = 'No expiry';
+        if (exp) { const days = Math.ceil((exp - today) / (1000*60*60*24)); if (days < 0) { expClass = 'expired'; expText = 'Expired (' + Math.abs(days) + 'd ago)'; } else if (days <= 30) { expClass = 'near'; expText = 'Expiring in ' + days + 'd'; } else { expText = 'Exp: ' + exp.toLocaleDateString('en-IN'); } }
+        batchesHtml += '<div class="detail-batch"><span class="b-num">'+b.batchNumber+'</span><span class="b-qty">'+b.quantity+' '+m.unit+'</span><span class="b-price">@ ₹'+(b.price || m.unitPrice)+'</span><span class="b-date">Rcvd: '+(b.receivedDate ? new Date(b.receivedDate).toLocaleDateString('en-IN') : '-')+'</span><span class="b-exp '+expClass+'">'+expText+'</span></div>';
+      });
+    } else { batchesHtml += '<div style="color:var(--text-secondary);font-size:12px;padding:8px 0">No batches recorded</div>'; }
+    batchesHtml += '</div>';
+
+    const qcBadge = m.qcPassed ? '<span class="detail-qc-badge pass">✓ PASS</span>' : '<span class="detail-qc-badge fail">✗ FAIL</span>';
+    const qcHtml = '<div class="detail-section"><h4>🛡️ Quality Control (ISO 9001:2015)</h4>' +
+      '<div class="detail-item"><span class="label">QC Checked By</span><span class="value">'+(m.qcChecker || '-')+'</span></div>' +
+      '<div class="detail-item"><span class="label">QC Number</span><span class="value">'+(m.qcNumber || '-')+'</span></div>' +
+      '<div class="detail-item"><span class="label">Reference Check</span><span class="value">'+(m.refCheckNumber || '-')+'</span></div>' +
+      '<div class="detail-item"><span class="label">QC Result</span><span class="value">'+qcBadge+'</span></div>' +
+      '<div class="detail-item"><span class="label">Notes</span></div>' +
+      '<div class="detail-notes">'+(m.qcNotes || 'No notes recorded')+'</div>' +
+      '</div>';
+
+    const imgHtml = m.image ? '<img class="detail-img" src="'+m.image+'" alt="Product">' : '<div class="detail-img-placeholder">📷</div>';
+
+    detailPanel.innerHTML = '<div class="detail-grid">' +
+      '<div class="detail-left">' +
+        '<div class="detail-section"><h4>📋 Basic Info</h4>' +
+          '<div class="detail-item"><span class="label">Supplier</span><span class="value">'+(m.supplier || '-')+'</span></div>' +
+          '<div class="detail-item"><span class="label">Location</span><span class="value">'+(m.location || '-')+'</span></div>' +
+          '<div class="detail-item"><span class="label">Min Stock</span><span class="value">'+(m.enableMinStock ? (m.minStockLevel || 0) + ' ' + m.unit : 'Disabled')+'</span></div>' +
+          '<div class="detail-item"><span class="label">Inventory Value</span><span class="value">₹' + value.toLocaleString('en-IN') + '</span></div>' +
+          '<div class="detail-item"><span class="label">Created</span><span class="value">' + new Date(m.createdAt).toLocaleDateString('en-IN') + '</span></div>' +
+        '</div>' +
+        '<div class="detail-section"><h4>🖼️ Product Image</h4>' + imgHtml + '</div>' +
+      '</div>' +
+      '<div class="detail-center">' + batchesHtml + '</div>' +
+      '<div class="detail-right">' + qcHtml + '</div>' +
+    '</div>';
+
+    const detailTd = document.createElement('td'); detailTd.setAttribute('colspan', '10'); detailTd.appendChild(detailPanel);
+    detailTr.appendChild(detailTd);
+    tbody.appendChild(detailTr);
+    if (expandedId === m.id) detailPanel.classList.add('show');
+  });
+}
+
+function toggleExpand(id) {
+  const panel = document.getElementById('detail-panel-'+id);
+  if (!panel) return;
+  const wasExpanded = expandedId === id;
+  if (expandedId && expandedId !== id) { const prev = document.getElementById('detail-panel-'+expandedId); if (prev) prev.classList.remove('show'); }
+  if (wasExpanded) { panel.classList.remove('show'); expandedId = null; }
+  else { panel.classList.add('show'); expandedId = id; }
+}
+
+function sortBy(key) { if (sortKey === key) sortDir *= -1; else { sortKey = key; sortDir = 1; } renderTable(); }
+
+// ========== MODAL HELPERS ==========
+function openModal(id) { document.getElementById(id).classList.add('show'); }
+function closeModal(id) { document.getElementById(id).classList.remove('show'); if (id === 'addModal') { document.getElementById('materialForm').reset(); document.getElementById('editId').value = ''; clearImagePreview(); clearExistingNotice(); clearEditBatchFields(); document.getElementById('editBatchSection').classList.remove('show'); } }
+function showToast(msg, type) { const c = document.getElementById('toastContainer'); const t = document.createElement('div'); t.className = 'toast ' + type; t.innerHTML = type === 'success' ? '✓ ' + msg : type === 'error' ? '✗ ' + msg : '⚠ ' + msg; c.appendChild(t); setTimeout(() => t.remove(), 4000); }
+
+// ========== ADD / EDIT MATERIAL ==========
+function openAddModal() {
+  document.getElementById('addModalTitle').textContent = '➕ Add New Raw Material';
+  document.getElementById('editId').value = '';
+  document.getElementById('materialCode').value = generateCode();
+  document.getElementById('materialForm').reset();
+  clearImagePreview(); clearExistingNotice(); clearEditBatchFields(); toggleMinStock();
+  document.getElementById('voiceTranscript').textContent = '(Voice transcript...)';
+  document.getElementById('editBatchSection').classList.remove('show');
+  openModal('addModal');
+}
+
+function editMaterial(id) {
+  const m = materials.find(x => x.id === id); if (!m) return;
+  document.getElementById('addModalTitle').textContent = '✏️ Edit Material — ' + m.name;
+  document.getElementById('editId').value = m.id;
+  document.getElementById('materialCode').value = m.code;
+  document.getElementById('productName').value = m.name;
+  document.getElementById('hsnCode').value = m.hsnCode || '';
+  document.getElementById('category').value = m.category || '';
+  document.getElementById('supplier').value = m.supplier || '';
+  document.getElementById('location').value = m.location || '';
+  document.getElementById('unit').value = m.unit || '';
+  document.getElementById('unitPrice').value = m.unitPrice || '';
+  document.getElementById('gstRate').value = m.gstRate || 12;
+  document.getElementById('initialStock').value = '0';
+  document.getElementById('enableMinStock').checked = m.enableMinStock;
+  document.getElementById('minStockLevel').value = m.minStockLevel || 0;
+  document.getElementById('enableLowStockAlert').checked = true;
+  document.getElementById('qcChecker').value = m.qcChecker || '';
+  document.getElementById('qcNumber').value = m.qcNumber || '';
+  document.getElementById('refCheckNumber').value = m.refCheckNumber || '';
+  document.getElementById('qcPassed').checked = m.qcPassed || false;
+  document.getElementById('qcNotes').value = m.qcNotes || '';
+  toggleMinStock();
+  if (m.image) { document.getElementById('imagePreviewImg').src = m.image; document.getElementById('imagePreviewImg').classList.remove('hidden'); document.getElementById('imagePlaceholder').classList.add('hidden'); } else clearImagePreview();
+  openModal('addModal');
+}
+
+function saveMaterial(e) {
+  e.preventDefault();
+  const id = document.getElementById('editId').value;
+  const name = document.getElementById('productName').value.trim();
+  const hsn = document.getElementById('hsnCode').value.trim();
+  const category = document.getElementById('category').value.trim();
+  const supplier = document.getElementById('supplier').value.trim();
+  const location = document.getElementById('location').value.trim();
+  const unit = document.getElementById('unit').value;
+  const price = parseFloat(document.getElementById('unitPrice').value) || 0;
+  const gst = parseInt(document.getElementById('gstRate').value) || 0;
+  const initialStock = parseFloat(document.getElementById('initialStock').value) || 0;
+  const minStock = parseFloat(document.getElementById('minStockLevel').value) || 0;
+  const enableMin = document.getElementById('enableMinStock').checked;
+  const expiry = document.getElementById('initialExpiry').value;
+  const batchNum = document.getElementById('initialBatchNumber').value.trim();
+  const image = document.getElementById('imagePreviewImg').src;
+  const hasImage = !document.getElementById('imagePreviewImg').classList.contains('hidden');
+
+  if (!name || !category || !unit || price <= 0) { showToast('Please fill all required fields', 'error'); return; }
+
+  if (id) {
+    const m = materials.find(x => x.id === parseInt(id)); if (!m) return;
+    m.name = name; m.hsnCode = hsn; m.category = category; m.supplier = supplier; m.location = location; m.unit = unit; m.unitPrice = price; m.gstRate = gst; m.enableMinStock = enableMin; m.minStockLevel = minStock; m.qcChecker = document.getElementById('qcChecker').value; m.qcNumber = document.getElementById('qcNumber').value; m.refCheckNumber = document.getElementById('refCheckNumber').value; m.qcPassed = document.getElementById('qcPassed').checked; m.qcNotes = document.getElementById('qcNotes').value; m.updatedAt = new Date().toISOString(); if (hasImage) m.image = image;
+    showToast('Material updated: ' + name, 'success');
+  } else {
+    const existing = materials.find(m => m.name.toLowerCase() === name.toLowerCase());
+    if (existing) { showToast('Material already exists: ' + existing.code + '. Click Edit to modify.', 'warning'); return; }
+    const code = generateCode(); nextId++;
+    const batches = [];
+    if (initialStock > 0) { batches.push({ batchId: generateBatchId(), quantity: initialStock, price: price, batchNumber: batchNum || 'LOT-' + code, expiryDate: expiry || null, receivedDate: new Date().toISOString().split('T')[0], notes: 'Initial stock' }); }
+    materials.push({ id: nextId - 1, code, name, hsnCode: hsn, category, supplier, location, unit, unitPrice: price, gstRate: gst, enableMinStock: enableMin, minStockLevel: minStock, image: hasImage ? image : null, qcChecker: document.getElementById('qcChecker').value, qcNumber: document.getElementById('qcNumber').value, refCheckNumber: document.getElementById('refCheckNumber').value, qcPassed: document.getElementById('qcPassed').checked, qcNotes: document.getElementById('qcNotes').value, batches, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() });
+    showToast('Material added: ' + name + ' (' + code + ')', 'success');
+  }
+  saveDB(); closeModal('addModal');
+}
+
+function deleteMaterial(id) { const m = materials.find(x => x.id === id); if (!m || !confirm('Delete ' + m.name + '?')) return; materials = materials.filter(x => x.id !== id); saveDB(); showToast('Deleted: ' + m.name, 'warning'); }
+
+// ========== EXISTING MATERIAL CHECK ==========
+function checkExistingMaterial() {
+  const name = document.getElementById('productName').value.trim().toLowerCase();
+  if (!name) { clearExistingNotice(); return; }
+  existingMatch = materials.find(m => m.name.toLowerCase() === name);
+  if (existingMatch) {
+    document.getElementById('addModalTitle').textContent = '➕ Add Batch to ' + existingMatch.name;
+    document.getElementById('editId').value = existingMatch.id;
+    document.getElementById('materialCode').value = existingMatch.code;
+    document.getElementById('hsnCode').value = existingMatch.hsnCode || '';
+    document.getElementById('category').value = existingMatch.category || '';
+    document.getElementById('supplier').value = existingMatch.supplier || '';
+    document.getElementById('location').value = existingMatch.location || '';
+    document.getElementById('unit').value = existingMatch.unit || '';
+    document.getElementById('unitPrice').value = existingMatch.unitPrice || '';
+    document.getElementById('gstRate').value = existingMatch.gstRate || 12;
+    document.getElementById('enableMinStock').checked = existingMatch.enableMinStock;
+    document.getElementById('minStockLevel').value = existingMatch.minStockLevel || 0;
+    document.getElementById('qcChecker').value = existingMatch.qcChecker || '';
+    document.getElementById('qcNumber').value = existingMatch.qcNumber || '';
+    document.getElementById('refCheckNumber').value = existingMatch.refCheckNumber || '';
+    document.getElementById('qcPassed').checked = existingMatch.qcPassed || false;
+    document.getElementById('qcNotes').value = existingMatch.qcNotes || '';
+    toggleMinStock();
+    if (existingMatch.image) { document.getElementById('imagePreviewImg').src = existingMatch.image; document.getElementById('imagePreviewImg').classList.remove('hidden'); document.getElementById('imagePlaceholder').classList.add('hidden'); } else clearImagePreview();
+    document.getElementById('editBatchSection').classList.add('show');
+    renderEditBatchList(existingMatch);
+    const notice = document.getElementById('existingNotice');
+    notice.innerHTML = '<div style="display:flex;align-items:center;gap:10px"><span style="font-size:18px">✅</span><div><strong>Existing material found:</strong> Auto-populated fields. Add a new batch below or edit fields as needed.</div></div>';
+    notice.classList.add('show');
+    notice.style.background = '#ecfdf5';
+    notice.style.borderColor = '#a7f3d0';
+  } else {
+    document.getElementById('addModalTitle').textContent = '➕ Add New Raw Material';
+    clearExistingNotice();
+    document.getElementById('editId').value = '';
+    document.getElementById('materialCode').value = generateCode();
+    document.getElementById('editBatchSection').classList.remove('show');
+  }
+}
+
+function clearExistingNotice() {
+  const notice = document.getElementById('existingNotice');
+  notice.classList.remove('show');
+  notice.style.background = '#fffbeb';
+  notice.style.borderColor = 'var(--warning)';
+  existingMatch = null;
+}
+
+// ========== INLINE BATCH MANAGEMENT (EDIT MODAL) ==========
+function renderEditBatchList(m) {
+  const stock = getStock(m);
+  document.getElementById('editStockDisplay').textContent = stock.toLocaleString('en-IN') + ' ' + m.unit;
+  const list = document.getElementById('editBatchList');
+  if (!m.batches || !m.batches.length) { list.innerHTML = '<div style="color:var(--text-secondary);font-size:12px;padding:8px 0">No batches recorded yet</div>'; return; }
+  list.innerHTML = m.batches.map(b => {
+    const today = new Date(); const exp = b.expiryDate ? new Date(b.expiryDate) : null;
+    let expClass = '', expText = 'No expiry';
+    if (exp) { const days = Math.ceil((exp - today) / (1000*60*60*24)); if (days < 0) { expClass = 'expired'; expText = 'Expired (' + Math.abs(days) + 'd ago)'; } else if (days <= 30) { expClass = 'near'; expText = 'Expiring in ' + days + 'd'; } else { expText = 'Exp: ' + exp.toLocaleDateString('en-IN'); } }
+    return '<div class="edit-batch-item"><span class="b-num">'+b.batchNumber+'</span><span class="b-qty">'+b.quantity+' '+m.unit+'</span><span class="b-price">@ ₹'+(b.price || m.unitPrice)+'</span><span class="b-date">Rcvd: '+(b.receivedDate ? new Date(b.receivedDate).toLocaleDateString('en-IN') : '-')+'</span><span class="b-exp '+expClass+'">'+expText+'</span></div>';
+  }).join('');
+}
+
+function addBatchInline() {
+  const id = document.getElementById('editId').value;
+  if (!id) { showToast('Save material first before adding batches', 'error'); return; }
+  const m = materials.find(x => x.id === parseInt(id)); if (!m) return;
+  const qty = parseFloat(document.getElementById('editBatchQty').value);
+  if (!qty || qty <= 0) { showToast('Enter valid quantity', 'error'); return; }
+  const batchPrice = parseFloat(document.getElementById('editBatchPrice').value) || parseFloat(m.unitPrice) || 0;
+  const batchNum = document.getElementById('editBatchNumber').value.trim() || 'LOT-' + m.code + '-' + (m.batches.length + 1);
+  const expiry = document.getElementById('editBatchExpiry').value;
+  const received = document.getElementById('editBatchReceived').value;
+  const notes = document.getElementById('editBatchNotes').value;
+  m.batches.push({ batchId: generateBatchId(), quantity: qty, batchNumber: batchNum, price: batchPrice, expiryDate: expiry || null, receivedDate: received || new Date().toISOString().split('T')[0], notes: notes || '' });
+  const totalStock = getStock(m);
+  if (totalStock > 0) {
+    const weightedSum = m.batches.reduce((sum, b) => sum + (parseFloat(b.quantity) || 0) * (parseFloat(b.price) || parseFloat(m.unitPrice) || 0), 0);
+    m.unitPrice = parseFloat((weightedSum / totalStock).toFixed(2));
+  }
+  m.updatedAt = new Date().toISOString(); saveDB();
+  document.getElementById('unitPrice').value = m.unitPrice;
+  showToast('Batch added: +' + qty + ' ' + m.unit + ' at ₹' + batchPrice.toLocaleString('en-IN') + ' (Avg: ₹' + m.unitPrice.toLocaleString('en-IN') + ')', 'success');
+  renderEditBatchList(m); renderTable(); clearEditBatchFields();
+}
+
+function clearEditBatchFields() {
+  document.getElementById('editBatchQty').value = '';
+  document.getElementById('editBatchNumber').value = '';
+  document.getElementById('editBatchExpiry').value = '';
+  document.getElementById('editBatchReceived').value = '';
+  document.getElementById('editBatchPrice').value = '';
+  document.getElementById('editBatchNotes').value = '';
+}
+
+// ========== BATCH MODAL ==========
+function openBatchModal(id) {
+  const m = materials.find(x => x.id === id); if (!m) return;
+  batchTargetId = id;
+  document.getElementById('batchModalName').textContent = m.name;
+  document.getElementById('batchModalCode').textContent = m.code;
+  document.getElementById('batchModalHsn').textContent = m.hsnCode || '-';
+  document.getElementById('batchModalStock').textContent = getStock(m) + ' ' + m.unit;
+  document.getElementById('batchModalLoc').textContent = m.location || '-';
+  document.getElementById('batchModalSupplier').textContent = m.supplier || '-';
+  const imgDiv = document.getElementById('batchModalImage');
+  if (m.image) { imgDiv.innerHTML = '<img src="'+m.image+'" style="width:100%;height:100%;object-fit:cover">'; } else { imgDiv.innerHTML = '<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:var(--surface);color:var(--text-muted);font-size:24px">📦</div>'; }
+  renderBatchModalList(m);
+  openModal('batchModal');
+}
+
+function renderBatchModalList(m) {
+  const list = document.getElementById('batchModalList');
+  if (!m.batches || !m.batches.length) { list.innerHTML = '<div style="color:var(--text-secondary);font-size:12px">No batches yet</div>'; return; }
+  list.innerHTML = m.batches.map(b => {
+    const exp = b.expiryDate ? new Date(b.expiryDate) : null;
+    let expClass = '', expText = 'No expiry';
+    if (exp) { const days = Math.ceil((exp - new Date()) / (1000*60*60*24)); if (days < 0) { expClass = 'expired'; expText = 'Expired (' + Math.abs(days) + 'd ago)'; } else if (days <= 30) { expClass = 'near'; expText = 'Expiring in ' + days + 'd'; } else { expText = 'Exp: ' + exp.toLocaleDateString('en-IN'); } }
+    return '<div style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:var(--card-bg);border-radius:8px;border:1px solid var(--border-light);font-size:12px;margin-bottom:6px"><span style="color:var(--primary);font-weight:600;min-width:100px">'+b.batchNumber+'</span><span style="font-weight:700;min-width:80px">'+b.quantity+' '+m.unit+'</span><span style="color:var(--success);font-weight:600;min-width:80px">@ ₹'+(b.price || m.unitPrice)+'</span><span style="color:var(--text-secondary);min-width:100px;font-size:11px">Rcvd: '+(b.receivedDate ? new Date(b.receivedDate).toLocaleDateString('en-IN') : '-')+'</span><span style="min-width:110px;font-size:11px;'+expClass+'">'+expText+'</span></div>';
+  }).join('');
+}
+
+function saveBatchFromModal() {
+  const m = materials.find(x => x.id === batchTargetId); if (!m) return;
+  const qty = parseFloat(document.getElementById('batchModalQty').value);
+  if (!qty || qty <= 0) { showToast('Enter valid quantity', 'error'); return; }
+  const batchPrice = parseFloat(document.getElementById('batchModalPrice').value) || parseFloat(m.unitPrice) || 0;
+  const batchNum = document.getElementById('batchModalNumber').value.trim() || 'LOT-' + m.code + '-' + (m.batches.length + 1);
+  const expiry = document.getElementById('batchModalExpiry').value;
+  const received = document.getElementById('batchModalReceived').value;
+  const notes = document.getElementById('batchModalNotes').value;
+  m.batches.push({ batchId: generateBatchId(), quantity: qty, batchNumber: batchNum, price: batchPrice, expiryDate: expiry || null, receivedDate: received || new Date().toISOString().split('T')[0], notes: notes || '' });
+  const totalStock = getStock(m);
+  if (totalStock > 0) {
+    const weightedSum = m.batches.reduce((sum, b) => sum + (parseFloat(b.quantity) || 0) * (parseFloat(b.price) || parseFloat(m.unitPrice) || 0), 0);
+    m.unitPrice = parseFloat((weightedSum / totalStock).toFixed(2));
+  }
+  m.updatedAt = new Date().toISOString(); saveDB();
+  showToast('Batch added: +' + qty + ' ' + m.unit + ' at ₹' + batchPrice.toLocaleString('en-IN') + ' (Avg: ₹' + m.unitPrice.toLocaleString('en-IN') + ')', 'success');
+  renderBatchModalList(m); renderTable();
+  document.getElementById('batchModalQty').value = '';
+  document.getElementById('batchModalPrice').value = '';
+  document.getElementById('batchModalNumber').value = '';
+  document.getElementById('batchModalExpiry').value = '';
+  document.getElementById('batchModalReceived').value = '';
+  document.getElementById('batchModalNotes').value = '';
+}
+
+// ========== QR CODE ==========
+function openQRModal(id) {
+  const m = materials.find(x => x.id === id); if (!m) return; currentQRMaterial = m;
+  const qrData = JSON.stringify({ code: m.code, name: m.name, hsn: m.hsnCode || '', unit: m.unit, price: m.unitPrice, gst: m.gstRate, location: m.location || '', supplier: m.supplier || '' });
+  const qrBody = document.getElementById('qrModalBody');
+  qrBody.innerHTML = '<div id="qrCanvas"></div><div class="qr-label"><div class="qr-name">'+m.name+'</div><div class="qr-detail">Code: '+m.code+'<br>HSN: '+(m.hsnCode || '-')+'<br>Unit: '+m.unit+'<br>Price: ₹'+m.unitPrice+'<br>GST: '+m.gstRate+'%<br>Location: '+(m.location || '-')+'</div></div>';
+  setTimeout(() => new QRCode(document.getElementById('qrCanvas'), { text: qrData, width: 220, height: 220, colorDark: '#0f172a', colorLight: '#ffffff', correctLevel: QRCode.CorrectLevel.M }), 50);
+  openModal('qrModal');
+}
+function printCurrentQR() { window.print(); }
+
+// ========== LOW STOCK MODAL ==========
+function openLowStockModal() {
+  const low = materials.filter(m => m.enableMinStock && getStock(m) <= (parseFloat(m.minStockLevel) || 0));
+  const out = materials.filter(m => getStock(m) <= 0);
+  const body = document.getElementById('lowStockModalBody');
+  if (!low.length && !out.length) { body.innerHTML = '<div class="empty"><div class="icon">✅</div><h4>All stock levels are healthy</h4><p>No materials are below minimum stock levels.</p></div>'; }
+  else {
+    let html = '<div style="margin-bottom:20px">';
+    if (out.length) { html += '<h4 style="font-size:13px;margin-bottom:10px;color:var(--danger)">🚫 Out of Stock (' + out.length + ')</h4>'; out.forEach(m => { html += '<div class="alert-item"><div class="alert-dot danger"></div><div><strong>' + m.name + '</strong> (' + m.code + ') <span style="color:var(--text-secondary)">— Location: ' + (m.location || '-') + ' | Supplier: ' + (m.supplier || '-') + '</span></div><span class="alert-badge">OUT</span></div>'; }); }
+    if (low.length) { html += '<h4 style="font-size:13px;margin:16px 0 10px;color:var(--warning)">⚠️ Low Stock (' + low.length + ')</h4>'; low.forEach(m => { html += '<div class="alert-item"><div class="alert-dot warning"></div><div><strong>' + m.name + '</strong> (' + m.code + ') <span style="color:var(--text-secondary)">— Stock: ' + getStock(m) + ' ' + m.unit + ' / Min: ' + m.minStockLevel + ' ' + m.unit + ' | Location: ' + (m.location || '-') + '</span></div><span class="alert-badge">LOW</span></div>'; }); }
+    html += '</div>'; body.innerHTML = html;
+  }
+  openModal('lowStockModal');
+}
+
+// ========== IMAGE PREVIEW ==========
+function previewImage(e) { const f = e.target.files[0]; if (!f) return; const r = new FileReader(); r.onload = (ev) => { document.getElementById('imagePreviewImg').src = ev.target.result; document.getElementById('imagePreviewImg').classList.remove('hidden'); document.getElementById('imagePlaceholder').classList.add('hidden'); }; r.readAsDataURL(f); }
+function clearImagePreview() { document.getElementById('imagePreviewImg').classList.add('hidden'); document.getElementById('imagePlaceholder').classList.remove('hidden'); document.getElementById('productImage').value = ''; }
+function toggleMinStock() { const on = document.getElementById('enableMinStock').checked; document.getElementById('minStockGroup').style.opacity = on ? '1' : '0.5'; document.getElementById('minStockLevel').disabled = !on; }
+
+// ========== OCR / BILL SCANNING ==========
+async function initTesseract() { if (!tesseractWorker) { try { tesseractWorker = await Tesseract.createWorker('eng'); } catch (e) { showToast('Tesseract not loaded', 'error'); } } }
+function scanOCRFromBill() { document.getElementById('billImage').click(); }
+
+async function processBillImage(e) {
+  const f = e.target.files[0]; if (!f) return;
+  document.getElementById('scanOverlay').classList.add('show'); document.getElementById('scanText').textContent = 'Reading image...';
+  await initTesseract(); if (!tesseractWorker) { document.getElementById('scanOverlay').classList.remove('show'); showToast('OCR engine not ready', 'error'); return; }
+  try {
+    const { data: { text } } = await tesseractWorker.recognize(f);
+    document.getElementById('scanOverlay').classList.remove('show');
+    parseBillText(text);
+    showToast('Bill scanned successfully', 'success');
+  } catch (err) { document.getElementById('scanOverlay').classList.remove('show'); showToast('OCR failed: ' + err.message, 'error'); }
+}
+
+function parseBillText(text) {
+  const fullText = text.toLowerCase();
+  const find = (patterns) => { for (const p of patterns) { const m = text.match(p); if (m) return m[1].trim(); } return null; };
+  const name = find([/product\s*name\s*[:\-]\s*(.+)/i, /item\s*[:\-]\s*(.+)/i, /description\s*[:\-]\s*(.+)/i, /name\s*[:\-]\s*(.+)/i, /^\s*([^\d\n]{3,60})\s*$/m]) || '';
+  const hsn = find([/hsn\s*[:\-]?\s*(\d{4,8})/i, /hsn\s*code\s*[:\-]?\s*(\d{4,8})/i, /(\d{4,8})/]) || '';
+  const price = find([/unit\s*price\s*[:\-]?\s*[$₹]?\s*([\d,.]+)/i, /price\s*[:\-]?\s*[$₹]?\s*([\d,.]+)/i, /rate\s*[:\-]?\s*[$₹]?\s*([\d,.]+)/i, /amount\s*[:\-]?\s*[$₹]?\s*([\d,.]+)/i, /[$₹]\s*([\d,.]+)/]) || '';
+  const gst = find([/gst\s*[:\-]?\s*(\d+)%?/i, /tax\s*[:\-]?\s*(\d+)%?/i, /(\d+)%\s*gst/i]) || '';
+  const batch = find([/batch\s*[:\-]?\s*(.+)/i, /lot\s*[:\-]?\s*(.+)/i, /batch\s*no\s*[:\-]?\s*(.+)/i, /lot\s*no\s*[:\-]?\s*(.+)/i]) || '';
+  const expiry = find([/exp\s*[:\-]?\s*(\d{1,2}[\/-]\d{1,2}[\/-]\d{2,4})/i, /expiry\s*[:\-]?\s*(\d{1,2}[\/-]\d{1,2}[\/-]\d{2,4})/i, /best\s*before\s*[:\-]?\s*(\d{1,2}[\/-]\d{1,2}[\/-]\d{2,4})/i]) || '';
+  const qty = find([/qty\s*[:\-]?\s*(\d+)/i, /quantity\s*[:\-]?\s*(\d+)/i, /(\d+)\s*(kg|g|l|ml|pieces?|pcs?|units?)/i]) || '';
+  const supplier = find([/supplier\s*[:\-]\s*(.+)/i, /vendor\s*[:\-]\s*(.+)/i, /sold\s*by\s*[:\-]\s*(.+)/i, /from\s*[:\-]\s*(.+)/i, /seller\s*[:\-]\s*(.+)/i, /manufacturer\s*[:\-]\s*(.+)/i]) || '';
+
+  if (name) document.getElementById('productName').value = name;
+  if (hsn) document.getElementById('hsnCode').value = hsn;
+  if (price) document.getElementById('unitPrice').value = price.replace(/,/g, '');
+  if (gst) document.getElementById('gstRate').value = gst.replace(/%/g, '');
+  if (batch) document.getElementById('initialBatchNumber').value = batch;
+  if (expiry) { const parts = expiry.split(/[\/-]/); if (parts.length === 3) { let [d, m, y] = parts; if (y.length === 2) y = '20' + y; document.getElementById('initialExpiry').value = y + '-' + m.padStart(2, '0') + '-' + d.padStart(2, '0'); } }
+  if (qty) document.getElementById('initialStock').value = qty;
+  if (supplier) document.getElementById('supplier').value = supplier;
+
+  const cats = ['fragrance','hydrosol','essential oil','carrier oil','active ingredients','preservatives','surfactants','emulsifiers','thickeners','humectants','butters','vitamins','peptides','proteins','silicones','botanical extracts','antioxidants','sunscreen agents','exfoliants','ph adjusters','chelating agents','solubilizers','colorants','film formers','penetration enhancers','packaging materials','lab equipment','inorganic pigments','natural colorants','synthetic dyes','ceramic pigments','flavoring extracts','food additives'];
+  for (const c of cats) { if (fullText.includes(c)) { document.getElementById('category').value = c.charAt(0).toUpperCase() + c.slice(1); break; } }
+  checkExistingMaterial();
+}
+
+// ========== VOICE INPUT ==========
+function toggleVoice() {
+  if (!('webkitSpeechRecognition' in window)) { showToast('Voice input not supported in this browser', 'error'); return; }
+  const btn = document.getElementById('micBtn'); const status = document.getElementById('voiceStatus'); const transcript = document.getElementById('voiceTranscript');
+  if (recognition && recognition.recognizing) { recognition.stop(); return; }
+  recognition = new webkitSpeechRecognition(); recognition.continuous = true; recognition.interimResults = true; recognition.lang = 'en-IN';
+  recognition.recognizing = true; btn.classList.add('recording'); status.textContent = 'Recording...';
+  recognition.onresult = (e) => { let t = ''; for (let i = e.resultIndex; i < e.results.length; i++) { t += e.results[i][0].transcript; } transcript.textContent = t; };
+  recognition.onend = () => { btn.classList.remove('recording'); status.textContent = 'Click to record'; recognition.recognizing = false; };
+  recognition.onerror = () => { btn.classList.remove('recording'); status.textContent = 'Error. Try again.'; recognition.recognizing = false; };
+  recognition.start();
+}
+
+// ========== CSV EXPORT ==========
+function exportCSV() {
+  if (!materials.length) { showToast('No materials to export', 'error'); return; }
+  const headers = ['ID','Code','Name','Category','HSN Code','Supplier','Location','Unit','Unit Price','GST Rate','Stock','Min Stock Level','Min Stock Enabled','Low Stock Alert','QC Checker','QC Number','Ref Check Number','QC Passed','QC Notes','Batch Count','Batch Details','Created At','Updated At'];
+  const rows = materials.map(m => {
+    const stock = getStock(m); const batchDetails = (m.batches || []).map(b => b.batchNumber + ' (' + b.quantity + ' ' + m.unit + ', exp: ' + (b.expiryDate || 'N/A') + ')').join('; ');
+    return [m.id, m.code, m.name, m.category, m.hsnCode || '', m.supplier || '', m.location || '', m.unit, m.unitPrice, m.gstRate, stock, m.minStockLevel || 0, m.enableMinStock ? 'Yes' : 'No', 'Yes', m.qcChecker || '', m.qcNumber || '', m.refCheckNumber || '', m.qcPassed ? 'Yes' : 'No', m.qcNotes || '', (m.batches || []).length, batchDetails, m.createdAt, m.updatedAt].map(v => '"' + String(v).replace(/"/g, '""') + '"').join(',');
+  });
+  const csv = [headers.join(','), ...rows].join('\n');
+  const blob = new Blob(['\uFEFF' + csv], {type: 'text/csv;charset=utf-8;'});
+  const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = 'raw-materials-' + new Date().toISOString().split('T')[0] + '.csv'; a.click(); URL.revokeObjectURL(url);
+  showToast('CSV exported: ' + materials.length + ' materials', 'success');
+}
+
+// ========== BULK IMPORT ==========
+function bulkImport(e) {
+  const f = e.target.files[0]; if (!f) return; const name = f.name.toLowerCase();
+  if (name.endsWith('.csv')) { importCSV(f); } else if (name.endsWith('.pdf')) { importPDF(f); } else { showToast('Please upload a CSV or PDF file', 'error'); }
+  e.target.value = '';
+}
+
+function importCSV(file) {
+  const r = new FileReader(); r.onload = (ev) => {
+    const text = ev.target.result; const lines = text.split('\n').map(l => l.trim()).filter(l => l);
+    if (!lines.length) { showToast('Empty CSV file', 'error'); return; }
+    const headers = parseCSVLine(lines[0]);
+    const nameIdx = headers.indexOf('Name'); const catIdx = headers.indexOf('Category'); const hsnIdx = headers.indexOf('HSN Code'); const supplierIdx = headers.indexOf('Supplier'); const locIdx = headers.indexOf('Location'); const unitIdx = headers.indexOf('Unit'); const priceIdx = headers.indexOf('Unit Price'); const gstIdx = headers.indexOf('GST Rate'); const stockIdx = headers.indexOf('Stock'); const minIdx = headers.indexOf('Min Stock Level'); const minEnableIdx = headers.indexOf('Min Stock Enabled'); const qcCheckerIdx = headers.indexOf('QC Checker'); const qcNumIdx = headers.indexOf('QC Number'); const refIdx = headers.indexOf('Ref Check Number'); const qcPassIdx = headers.indexOf('QC Passed'); const qcNotesIdx = headers.indexOf('QC Notes');
+    let added = 0, updated = 0;
+    for (let i = 1; i < lines.length; i++) {
+      const vals = parseCSVLine(lines[i]); if (!vals.length) continue;
+      const name = vals[nameIdx] || vals[0]; if (!name) continue;
+      const existing = materials.find(m => m.name.toLowerCase() === name.toLowerCase());
+      const price = parseFloat(vals[priceIdx]) || 0; const gst = parseInt(vals[gstIdx]) || 12; const stock = parseFloat(vals[stockIdx]) || 0;
+      const minStock = parseFloat(vals[minIdx]) || 0; const enableMin = (vals[minEnableIdx] || '').toLowerCase() === 'yes';
+      if (existing) {
+        existing.category = vals[catIdx] || existing.category; existing.hsnCode = vals[hsnIdx] || existing.hsnCode; existing.supplier = supplierIdx >= 0 ? vals[supplierIdx] : existing.supplier; existing.location = locIdx >= 0 ? vals[locIdx] : existing.location; existing.unit = vals[unitIdx] || existing.unit; existing.unitPrice = price || existing.unitPrice; existing.gstRate = gst || existing.gstRate; existing.minStockLevel = minStock; existing.enableMinStock = enableMin; existing.qcChecker = qcCheckerIdx >= 0 ? vals[qcCheckerIdx] : existing.qcChecker; existing.qcNumber = qcNumIdx >= 0 ? vals[qcNumIdx] : existing.qcNumber; existing.refCheckNumber = refIdx >= 0 ? vals[refIdx] : existing.refCheckNumber; existing.qcPassed = (vals[qcPassIdx] || '').toLowerCase() === 'yes'; existing.qcNotes = qcNotesIdx >= 0 ? vals[qcNotesIdx] : existing.qcNotes; existing.updatedAt = new Date().toISOString();
+        if (stock > 0) existing.batches.push({ batchId: generateBatchId(), quantity: stock, price: existing.unitPrice, batchNumber: 'IMPORT-' + existing.code, expiryDate: null, receivedDate: new Date().toISOString().split('T')[0], notes: 'Bulk import' });
+        updated++;
+      } else {
+        const code = generateCode(); nextId++;
+        const batches = stock > 0 ? [{ batchId: generateBatchId(), quantity: stock, price: price || 0, batchNumber: 'IMPORT-' + code, expiryDate: null, receivedDate: new Date().toISOString().split('T')[0], notes: 'Bulk import' }] : [];
+        materials.push({ id: nextId - 1, code, name, category: vals[catIdx] || 'Uncategorized', hsnCode: vals[hsnIdx] || '', supplier: supplierIdx >= 0 ? vals[supplierIdx] : '', location: locIdx >= 0 ? vals[locIdx] : '', unit: vals[unitIdx] || 'piece', unitPrice: price, gstRate: gst, enableMinStock: enableMin, minStockLevel: minStock, image: null, qcChecker: qcCheckerIdx >= 0 ? vals[qcCheckerIdx] : '', qcNumber: qcNumIdx >= 0 ? vals[qcNumIdx] : '', refCheckNumber: refIdx >= 0 ? vals[refIdx] : '', qcPassed: (vals[qcPassIdx] || '').toLowerCase() === 'yes', qcNotes: qcNotesIdx >= 0 ? vals[qcNotesIdx] : '', batches, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() });
+        added++;
+      }
+    }
+    saveDB(); showToast('Import complete: ' + added + ' added, ' + updated + ' updated', 'success');
+  }; r.readAsText(file);
+}
+
+function parseCSVLine(line) {
+  const result = []; let current = ''; let inQuotes = false;
+  for (let i = 0; i < line.length; i++) {
+    const char = line[i]; const next = line[i + 1];
+    if (char === '"') { if (inQuotes && next === '"') { current += '"'; i++; } else { inQuotes = !inQuotes; } }
+    else if (char === ',' && !inQuotes) { result.push(current.trim()); current = ''; }
+    else { current += char; }
+  }
+  result.push(current.trim()); return result.map(v => v.replace(/^"|"$/g, '').trim());
+}
+
+async function importPDF(file) {
+  document.getElementById('scanOverlay').classList.add('show'); document.getElementById('scanText').textContent = 'Processing PDF...';
+  const r = new FileReader(); r.onload = async (ev) => {
+    try {
+      const pdf = await pdfjsLib.getDocument({ data: ev.target.result }).promise;
+      let fullText = '';
+      for (let i = 1; i <= pdf.numPages; i++) { const page = await pdf.getPage(i); const text = await page.getTextContent(); fullText += text.items.map(t => t.str).join(' ') + '\n'; }
+      document.getElementById('scanOverlay').classList.remove('show');
+      parseBillText(fullText); showToast('PDF text extracted. Review and save.', 'success'); openModal('addModal');
+    } catch (err) { document.getElementById('scanOverlay').classList.remove('show'); showToast('PDF processing failed: ' + err.message, 'error'); }
+  }; r.readAsArrayBuffer(file);
+}
+
+// ========== KEYBOARD SHORTCUTS ==========
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') { ['addModal','qrModal','batchModal','lowStockModal'].forEach(id => closeModal(id)); } if (e.ctrlKey && e.key === 'n') { e.preventDefault(); openAddModal(); } if (e.ctrlKey && e.key === 'e') { e.preventDefault(); exportCSV(); } });
+
+// ========== INIT ==========
+loadDB();
+</script>
+</body>
+</html>

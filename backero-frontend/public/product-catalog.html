@@ -1,0 +1,3035 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Product Catalog — Finished Goods Inventory</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+  :root {
+    --primary: #10b981; --primary-light: #059669;
+    --accent: #10b981; --accent-text: #fff;
+    --success: #34d399; --danger: #f87171; --warning: #fbbf24; --info: #60a5fa; --purple: #a78bfa;
+    --bg: #0f172a; --card-bg: #1e293b; --surface: #0f172a; --surface-hover: #334155;
+    --text: #f1f5f9; --text-secondary: #94a3b8; --text-muted: #64748b;
+    --border: #334155; --border-light: #1e293b;
+    --shadow: 0 1px 3px rgba(0,0,0,0.3), 0 4px 12px rgba(0,0,0,0.2);
+    --shadow-lg: 0 10px 40px rgba(0,0,0,0.5);
+    --radius: 16px; --radius-sm: 10px;
+    --font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: var(--font); background: var(--bg); color: var(--text); font-size: 13.5px; line-height: 1.5; color-scheme: dark; }
+
+  .header { background: var(--card-bg); padding: 14px 32px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; border-bottom: 1px solid var(--border); box-shadow: 0 1px 3px rgba(0,0,0,0.3); }
+  .brand { display: flex; align-items: center; gap: 12px; }
+  .brand-icon { width: 36px; height: 36px; background: var(--accent); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 18px; }
+  .brand-text h1 { font-size: 16px; font-weight: 700; letter-spacing: -0.3px; color: var(--text); }
+  .brand-text span { font-size: 11px; color: var(--text-secondary); font-weight: 500; }
+  .header-actions { display: flex; gap: 10px; align-items: center; }
+
+  .btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; border-radius: 50px; border: none; font-size: 13px; cursor: pointer; transition: all 0.2s; font-weight: 600; font-family: var(--font); }
+  .btn-primary { background: var(--primary); color: #fff; }
+  .btn-primary:hover { background: var(--primary-light); transform: translateY(-1px); box-shadow: 0 4px 12px rgba(16,185,129,0.3); }
+  .btn-accent { background: var(--accent); color: var(--accent-text); }
+  .btn-accent:hover { filter: brightness(0.9); transform: translateY(-1px); }
+  .btn-outline { background: transparent; border: 1.5px solid var(--border); color: var(--text-secondary); font-weight: 500; }
+  .btn-outline:hover { background: var(--surface-hover); border-color: var(--text-muted); color: var(--text); }
+  .btn-sm { padding: 5px 12px; font-size: 11.5px; }
+  .btn-xs { padding: 3px 8px; font-size: 11px; border-radius: 6px; }
+  .btn-ghost { background: transparent; color: var(--text-secondary); border: none; padding: 6px 10px; }
+  .btn-ghost:hover { background: var(--surface-hover); color: var(--text); }
+  .btn-danger { background: var(--danger); color: #fff; }
+  .btn-info { background: var(--info); color: #fff; }
+  .btn-success { background: var(--success); color: #0f172a; }
+  .btn-warning { background: var(--warning); color: #0f172a; }
+
+  .main { padding: 24px 32px; max-width: 1440px; margin: 0 auto; }
+
+  .dashboard-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 24px; }
+  .metric-card { background: var(--card-bg); border-radius: var(--radius); padding: 22px 24px; box-shadow: var(--shadow); display: flex; justify-content: space-between; align-items: flex-start; border: 1px solid var(--border); transition: transform 0.2s, box-shadow 0.2s; }
+  .metric-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-lg); }
+  .metric-card .left { display: flex; flex-direction: column; gap: 6px; }
+  .metric-card .label { font-size: 12px; color: var(--text-secondary); font-weight: 500; }
+  .metric-card .value { font-size: 26px; font-weight: 700; letter-spacing: -0.5px; color: var(--text); }
+  .metric-card .change { font-size: 12px; font-weight: 600; display: flex; align-items: center; gap: 4px; }
+  .metric-card .change.up { color: var(--success); }
+  .metric-card .change.down { color: var(--danger); }
+  .metric-card .icon-box { width: 44px; height: 44px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 20px; flex-shrink: 0; }
+  .metric-card .icon-box.green { background: rgba(52,211,153,0.15); }
+  .metric-card .icon-box.blue { background: rgba(96,165,250,0.15); }
+  .metric-card .icon-box.orange { background: rgba(251,191,36,0.15); }
+  .metric-card .icon-box.purple { background: rgba(167,139,250,0.15); }
+
+  .card { background: var(--card-bg); border-radius: var(--radius); box-shadow: var(--shadow); border: 1px solid var(--border); margin-bottom: 20px; overflow: hidden; }
+  .card-header { padding: 18px 24px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); flex-wrap: wrap; gap: 12px; }
+  .card-header h2 { font-size: 15px; font-weight: 700; color: var(--text); letter-spacing: -0.2px; }
+
+  .search-bar { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+  .search-pill { position: relative; }
+  .search-pill input { padding: 9px 14px 9px 38px; border: 1.5px solid var(--border); border-radius: 50px; font-size: 13px; min-width: 320px; background: var(--surface); color: var(--text); font-family: var(--font); transition: all 0.2s; }
+  .search-pill input:focus { outline: none; border-color: var(--primary); background: var(--card-bg); box-shadow: 0 0 0 3px rgba(16,185,129,0.12); }
+  .search-pill input::placeholder { color: var(--text-muted); }
+  .search-pill .search-icon { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--text-muted); font-size: 14px; }
+  .filter-select { padding: 9px 14px; border: 1.5px solid var(--border); border-radius: 50px; font-size: 13px; font-family: var(--font); background: var(--surface); color: var(--text); min-width: 140px; }
+  .filter-select:focus { outline: none; border-color: var(--primary); }
+
+  .view-toggle { display: flex; gap: 4px; background: var(--surface); padding: 4px; border-radius: 10px; border: 1px solid var(--border); }
+  .view-toggle button { padding: 6px 12px; border-radius: 8px; border: none; font-size: 12px; cursor: pointer; background: transparent; color: var(--text-secondary); font-weight: 600; }
+  .view-toggle button.active { background: var(--card-bg); color: var(--primary); box-shadow: 0 1px 3px rgba(0,0,0,0.3); }
+
+  .card-body { padding: 20px 24px; }
+
+  .table-wrap { overflow-x: auto; border-radius: var(--radius-sm); border: 1px solid var(--border); }
+  table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 13px; }
+  thead { background: var(--surface); }
+  th, td { padding: 12px 16px; text-align: left; vertical-align: middle; }
+  th { font-weight: 600; color: var(--text-secondary); font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; white-space: nowrap; cursor: pointer; user-select: none; border-bottom: 1px solid var(--border); }
+  th:first-child { border-radius: var(--radius-sm) 0 0 0; }
+  th:last-child { border-radius: 0 var(--radius-sm) 0 0; }
+  tbody tr { transition: background 0.15s; }
+  tbody tr:hover { background: var(--surface-hover); cursor: pointer; }
+  td { border-bottom: 1px solid var(--border); }
+  .code-cell { color: var(--primary); font-weight: 700; cursor: pointer; }
+  .name-cell { font-weight: 600; cursor: pointer; }
+  .name-cell:hover { text-decoration: underline; color: var(--primary); }
+  .tag { display: inline-flex; align-items: center; padding: 3px 10px; border-radius: 50px; font-size: 11px; font-weight: 600; }
+  .tag-success { background: rgba(52,211,153,0.15); color: #34d399; }
+  .tag-danger { background: rgba(248,113,113,0.15); color: #f87171; }
+  .tag-warning { background: rgba(251,191,36,0.15); color: #fbbf24; }
+  .tag-info { background: rgba(96,165,250,0.15); color: #60a5fa; }
+  .tag-gray { background: rgba(148,163,184,0.15); color: #94a3b8; }
+  .tag-purple { background: rgba(167,139,250,0.15); color: #a78bfa; }
+  .tag-archived { background: rgba(100,116,139,0.2); color: #64748b; text-decoration: line-through; }
+  .actions { display: flex; gap: 4px; }
+  .actions button { background: none; border: none; cursor: pointer; padding: 6px; border-radius: 8px; font-size: 14px; transition: all 0.15s; display: flex; align-items: center; justify-content: center; width: 32px; height: 32px; }
+  .actions button:hover { background: var(--surface-hover); transform: scale(1.1); }
+  .actions .edit-btn { color: var(--text-secondary); }
+  .actions .delete-btn { color: var(--danger); }
+  .actions .bom-btn { color: var(--info); }
+  .actions .qr-btn { color: var(--purple); }
+
+  .product-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px; }
+  .product-card { background: var(--card-bg); border-radius: var(--radius); border: 1px solid var(--border); padding: 16px; box-shadow: var(--shadow); cursor: pointer; transition: all 0.2s; display: flex; flex-direction: column; gap: 10px; text-decoration: none; color: var(--text); }
+  .product-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-lg); border-color: var(--primary); }
+  .product-card .img-box { width: 100%; height: 140px; border-radius: 10px; background: var(--surface); display: flex; align-items: center; justify-content: center; font-size: 36px; color: var(--text-muted); overflow: hidden; }
+  .product-card .img-box img { width: 100%; height: 100%; object-fit: cover; }
+  .product-card .top-row { display: flex; justify-content: space-between; align-items: flex-start; }
+  .product-card .sku { font-size: 11px; color: var(--text-muted); font-weight: 600; }
+  .product-card .title { font-size: 14px; font-weight: 700; color: var(--text); line-height: 1.3; }
+  .product-card .meta { font-size: 12px; color: var(--text-secondary); }
+  .product-card .price-row { display: flex; justify-content: space-between; align-items: center; margin-top: 4px; }
+  .product-card .price { font-size: 15px; font-weight: 700; color: var(--primary); }
+  .product-card .moq { font-size: 11px; color: var(--text-muted); }
+  .product-card .card-actions { display: flex; gap: 6px; margin-top: 6px; }
+  .product-card .card-actions button { flex: 1; padding: 6px 10px; font-size: 11px; border-radius: 8px; border: none; cursor: pointer; font-weight: 600; font-family: var(--font); }
+  .product-card .card-actions .btn-bom { background: var(--surface); color: var(--info); border: 1px solid var(--border); }
+  .product-card .card-actions .btn-bom:hover { background: var(--info); color: #fff; }
+  .product-card .card-actions .btn-price { background: var(--surface); color: var(--success); border: 1px solid var(--border); }
+  .product-card .card-actions .btn-price:hover { background: var(--success); color: #0f172a; }
+
+  .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.65); display: none; align-items: center; justify-content: center; z-index: 1000; padding: 20px; overflow-y: auto; backdrop-filter: blur(6px); }
+  .modal-overlay.show { display: flex; }
+  .modal { background: var(--card-bg); border-radius: var(--radius); width: 100%; max-width: 900px; max-height: 92vh; overflow-y: auto; box-shadow: var(--shadow-lg); border: 1px solid var(--border); }
+  .modal-header { padding: 20px 24px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; background: var(--surface); }
+  .modal-header h2 { font-size: 16px; font-weight: 700; color: var(--text); }
+  .modal-close { background: none; border: none; font-size: 22px; cursor: pointer; color: var(--text-muted); width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; transition: background 0.2s; }
+  .modal-close:hover { background: var(--surface-hover); color: var(--text); }
+  .modal-body { padding: 24px; }
+  .modal-footer { padding: 16px 24px; border-top: 1px solid var(--border); display: flex; justify-content: flex-end; gap: 10px; background: var(--surface); }
+  .modal-xl { max-width: 1100px; }
+  .modal-lg { max-width: 800px; }
+  .modal-sm { max-width: 420px; }
+
+  .tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--border); padding: 0 24px; background: var(--card-bg); flex-wrap: wrap; }
+  .tab { padding: 12px 18px; font-size: 13px; font-weight: 600; color: var(--text-secondary); cursor: pointer; border: none; border-bottom: 2.5px solid transparent; background: none; transition: all 0.2s; font-family: var(--font); }
+  .tab:hover { color: var(--primary); }
+  .tab.active { color: var(--primary); border-bottom-color: var(--primary); }
+  .tab-content { display: none; }
+  .tab-content.active { display: block; }
+
+  .form-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+  .form-group { display: flex; flex-direction: column; gap: 5px; }
+  .form-group.full { grid-column: 1 / -1; }
+  .form-group.half { grid-column: span 2; }
+  label { font-size: 12px; font-weight: 600; color: var(--text-secondary); }
+  label .req { color: var(--danger); }
+  input, select, textarea { padding: 10px 14px; border: 1.5px solid var(--border); border-radius: var(--radius-sm); font-size: 13px; font-family: var(--font); background: var(--surface); color: var(--text); transition: all 0.2s; }
+  input:focus, select:focus, textarea:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(16,185,129,0.12); }
+  input::placeholder, textarea::placeholder { color: var(--text-muted); }
+  textarea { resize: vertical; min-height: 60px; }
+  .checkbox-group { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text-secondary); }
+  .checkbox-group input[type="checkbox"] { width: 16px; height: 16px; accent-color: var(--primary); }
+
+  .image-preview { width: 100px; height: 100px; border: 2px dashed var(--border); border-radius: var(--radius-sm); display: flex; align-items: center; justify-content: center; overflow: hidden; cursor: pointer; background: var(--surface); transition: all 0.2s; }
+  .image-preview img { width: 100%; height: 100%; object-fit: cover; }
+  .image-preview .placeholder { color: var(--text-muted); font-size: 11px; text-align: center; padding: 8px; }
+  .image-preview:hover { border-color: var(--primary); background: rgba(16,185,129,0.05); }
+
+  .detail-grid { display: grid; grid-template-columns: 1.2fr 1fr 1fr; gap: 20px; }
+  .detail-left, .detail-center, .detail-right { display: flex; flex-direction: column; gap: 12px; }
+  .detail-section h4 { font-size: 12px; color: var(--text-secondary); font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
+  .detail-item { display: flex; justify-content: space-between; font-size: 13px; padding: 6px 0; border-bottom: 1px solid var(--border); }
+  .detail-item .label { color: var(--text-secondary); }
+  .detail-item .value { font-weight: 600; color: var(--text); }
+  .detail-img { width: 100px; height: 100px; border-radius: 10px; object-fit: cover; border: 1px solid var(--border); }
+  .detail-img-placeholder { width: 100px; height: 100px; border-radius: 10px; background: var(--surface); border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; color: var(--text-muted); font-size: 24px; }
+  .detail-notes { background: var(--surface); padding: 10px 14px; border-radius: 8px; border: 1px solid var(--border); font-size: 12px; color: var(--text-secondary); line-height: 1.5; }
+
+  .bom-link-card { background: var(--surface); border: 1.5px dashed var(--border); border-radius: var(--radius-sm); padding: 24px; text-align: center; cursor: pointer; transition: all 0.2s; }
+  .bom-link-card:hover { border-color: var(--info); background: rgba(96,165,250,0.05); }
+  .bom-link-card .icon { font-size: 32px; margin-bottom: 8px; }
+  .bom-link-card .title { font-size: 14px; font-weight: 700; color: var(--primary); }
+  .bom-link-card .desc { font-size: 12px; color: var(--text-secondary); margin-top: 4px; }
+
+  .qr-panel { display: flex; flex-direction: column; align-items: center; gap: 14px; padding: 20px; background: var(--surface); border-radius: var(--radius-sm); border: 1px solid var(--border); }
+  .qr-panel canvas { border: 1.5px solid var(--border); padding: 10px; background: white; border-radius: 10px; }
+  .qr-label { text-align: center; font-size: 12px; color: var(--text-secondary); }
+
+  .cost-badge { display: inline-flex; align-items: center; padding: 3px 10px; border-radius: 50px; font-size: 11px; font-weight: 700; background: rgba(96,165,250,0.15); color: #60a5fa; }
+  .cost-badge.warn { background: rgba(251,191,36,0.15); color: #fbbf24; }
+  .cost-badge.danger { background: rgba(248,113,113,0.15); color: #f87171; }
+
+  .variant-table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 12px; margin-top: 8px; }
+  .variant-table th, .variant-table td { padding: 8px 10px; border-bottom: 1px solid var(--border); }
+  .variant-table th { background: var(--surface); font-size: 10px; text-transform: uppercase; color: var(--text-secondary); }
+  .variant-table input { padding: 5px 8px; font-size: 12px; border-radius: 6px; border: 1px solid var(--border); width: 100%; background: var(--card-bg); color: var(--text); }
+  .variant-table .row-actions { display: flex; gap: 4px; }
+  .variant-table .row-actions button { padding: 4px 8px; font-size: 11px; border-radius: 6px; border: none; cursor: pointer; }
+  .variant-table .ref-weight-row { background: rgba(16,185,129,0.08) !important; }
+  .variant-table .ref-weight-row:hover { background: rgba(16,185,129,0.15) !important; }
+  .variant-table .ref-weight-cell { font-weight: 700; color: var(--primary); }
+  .star-badge { display: inline-flex; align-items: center; gap: 3px; padding: 2px 8px; background: rgba(251,191,36,0.15); color: #fbbf24; border-radius: 50px; font-size: 11px; font-weight: 700; }
+
+  .margin-row { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
+  .margin-item { display: flex; flex-direction: column; gap: 4px; }
+  .margin-item label { font-size: 11px; color: var(--text-secondary); }
+  .margin-item input { width: 80px; padding: 6px 10px; font-size: 12px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); color: var(--text); }
+
+  .toast-container { position: fixed; top: 20px; right: 20px; z-index: 2000; display: flex; flex-direction: column; gap: 8px; }
+  .toast { background: var(--card-bg); color: var(--text); border: 1px solid var(--border); padding: 12px 18px; border-radius: 12px; box-shadow: var(--shadow-lg); font-size: 13px; font-weight: 500; animation: slideIn 0.3s ease; display: flex; align-items: center; gap: 10px; }
+  .toast.success { background: rgba(52,211,153,0.2); border-color: rgba(52,211,153,0.4); color: #34d399; }
+  .toast.error { background: rgba(248,113,113,0.2); border-color: rgba(248,113,113,0.4); color: #f87171; }
+  .toast.warning { background: rgba(251,191,36,0.2); border-color: rgba(251,191,36,0.4); color: #fbbf24; }
+  @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+
+  .hidden { display: none !important; }
+  .empty { text-align: center; padding: 40px; color: var(--text-secondary); font-size: 13px; }
+  .empty .icon { font-size: 40px; margin-bottom: 10px; opacity: 0.4; }
+  .empty h4 { font-size: 14px; color: var(--text); font-weight: 600; margin-bottom: 4px; }
+
+  .variant-chip { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 6px; font-size: 11px; font-weight: 600; background: var(--surface-hover); color: var(--text-secondary); margin-right: 4px; margin-bottom: 4px; cursor: pointer; }
+  .variant-chip:hover { background: var(--border); color: var(--text); }
+
+  .formulation-row select { padding: 5px 8px; font-size: 12px; border-radius: 6px; border: 1px solid var(--border); width: 100%; background: var(--surface); color: var(--text); }
+  .formulation-row .pct-input { width: 60px; text-align: center; }
+  .formulation-row .qty-input { width: 80px; text-align: right; }
+  .formulation-row .unit-input { width: 60px; }
+  .formulation-row .phase-input { width: 80px; }
+  .formulation-row .notes-input { width: 100%; min-width: 120px; }
+  .formulation-row .price-input { width: 80px; text-align: right; }
+  .formulation-row .amount-cell { font-weight: 600; color: var(--primary); text-align: right; }
+  .formulation-details-row { display: none; background: var(--surface); }
+  .formulation-details-row.show { display: table-row; }
+  .formulation-details-row td { padding: 0; border-bottom: 1px solid var(--border); }
+  .formulation-details-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; padding: 12px 16px; font-size: 12px; }
+  .formulation-detail-item { display: flex; flex-direction: column; gap: 2px; }
+  .formulation-detail-item .label { font-size: 10px; color: var(--text-secondary); font-weight: 600; text-transform: uppercase; letter-spacing: 0.3px; }
+  .formulation-detail-item .value { font-weight: 600; color: var(--text); }
+  .formulation-toggle-btn { background: none; border: none; cursor: pointer; padding: 2px 6px; border-radius: 4px; font-size: 12px; color: var(--text-muted); transition: all 0.15s; }
+  .formulation-toggle-btn:hover { background: var(--surface-hover); color: var(--primary); }
+  .formulation-summary-panel { background: linear-gradient(135deg, #059669, #10b981); color: white; padding: 16px 20px; border-radius: var(--radius-sm); margin-top: 16px; display: none; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px; }
+  .formulation-summary-panel.show { display: flex; }
+  .formulation-summary-panel .label { font-size: 11px; color: rgba(255,255,255,0.8); font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px; }
+  .formulation-summary-panel .value { font-size: 20px; font-weight: 700; }
+  .formulation-summary-panel .small { font-size: 14px; }
+  .detail-qc-badge { display: inline-flex; padding: 3px 10px; border-radius: 50px; font-size: 11px; font-weight: 600; }
+  .detail-qc-badge.pass { background: rgba(52,211,153,0.15); color: #34d399; }
+  .detail-qc-badge.fail { background: rgba(248,113,113,0.15); color: #f87171; }
+
+  @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+
+  .proc-attachment { display: flex; align-items: center; gap: 10px; padding: 10px 14px; background: var(--surface); border-radius: 10px; border: 1px solid var(--border); font-size: 13px; }
+  .proc-attachment .icon { font-size: 20px; }
+  .proc-attachment .meta { flex: 1; }
+  .proc-attachment .meta .name { font-weight: 600; color: var(--text); }
+  .proc-attachment .meta .size { font-size: 11px; color: var(--text-muted); }
+  .proc-attachment button { background: none; border: none; cursor: pointer; color: var(--danger); font-size: 16px; padding: 4px; }
+
+  .audio-player { display: flex; align-items: center; gap: 10px; padding: 10px 14px; background: var(--surface); border-radius: 10px; border: 1px solid var(--border); }
+  .audio-player audio { flex: 1; height: 32px; }
+
+  .pricing-highlight { background: var(--surface); padding: 14px 18px; border-radius: var(--radius-sm); border: 1.5px solid var(--border); margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; }
+  .pricing-highlight .label { font-size: 12px; color: var(--text-secondary); font-weight: 500; }
+  .pricing-highlight .value { font-size: 18px; font-weight: 700; color: var(--primary); }
+
+  .assumption-card { background: var(--surface); padding: 14px 16px; border-radius: 12px; border: 1.5px solid var(--border); display: flex; flex-direction: column; gap: 6px; }
+  .assumption-card .label { font-size: 11px; color: var(--text-secondary); font-weight: 600; }
+  .assumption-card .value { font-size: 20px; font-weight: 700; color: var(--primary); }
+  .pct-display { display: inline-block; font-size: 12px; font-weight: 700; color: var(--primary); margin-top: 4px; }
+  input[type=range] { -webkit-appearance: none; width: 100%; height: 6px; border-radius: 3px; background: var(--surface-hover); outline: none; margin: 8px 0; }
+  input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 16px; height: 16px; border-radius: 50%; background: var(--primary); cursor: pointer; border: 2px solid var(--card-bg); box-shadow: 0 1px 4px rgba(0,0,0,0.4); }
+  input[type=range]::-moz-range-thumb { width: 16px; height: 16px; border-radius: 50%; background: var(--primary); cursor: pointer; border: 2px solid var(--card-bg); }
+  .industry-warning { display: flex; align-items: center; gap: 8px; padding: 10px 14px; background: rgba(251,191,36,0.1); border-radius: 10px; font-size: 12px; color: #fbbf24; font-weight: 500; border: 1px solid rgba(251,191,36,0.2); }
+  .industry-warning .icon { font-size: 16px; }
+  .assumption-image-upload { border: 2px dashed var(--border); border-radius: 12px; padding: 20px; text-align: center; cursor: pointer; background: var(--surface); transition: all 0.2s; }
+  .assumption-image-upload:hover { border-color: var(--primary); background: rgba(16,185,129,0.05); }
+  .assumption-image-preview { width: 100%; max-width: 300px; height: 180px; border-radius: 10px; object-fit: cover; border: 1px solid var(--border); }
+
+  .cost-input-row { display: flex; align-items: center; gap: 12px; padding: 12px 16px; background: var(--surface); border-radius: 10px; border: 1.5px solid var(--border); margin-bottom: 10px; }
+  .cost-input-row .label { font-size: 12px; color: var(--text-secondary); font-weight: 600; flex: 1; }
+  .cost-input-row .value { font-size: 16px; font-weight: 700; color: var(--primary); }
+  .cost-input-row .value.readonly { color: var(--text-secondary); font-size: 14px; }
+  .gst-toggle { display: flex; align-items: center; gap: 10px; padding: 8px 14px; background: var(--surface); border-radius: 10px; border: 1px solid var(--border); cursor: pointer; width: fit-content; }
+  .gst-toggle input { width: 40px; height: 22px; accent-color: var(--primary); }
+  .gst-display { font-size: 14px; font-weight: 700; color: var(--success); margin-top: 4px; }
+  .costing-section-title { font-size: 13px; font-weight: 700; color: var(--primary); margin-bottom: 10px; letter-spacing: -0.2px; }
+
+  .platform-card { background: var(--surface); padding: 16px; border-radius: 12px; border: 1.5px solid var(--border); margin-bottom: 12px; }
+  .platform-card .title { font-size: 13px; font-weight: 700; color: var(--primary); margin-bottom: 10px; display: flex; align-items: center; gap: 8px; }
+  .platform-card .fee-row { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid var(--border); font-size: 12px; }
+  .platform-card .fee-row .label { color: var(--text-secondary); }
+  .platform-card .fee-row .value { font-weight: 600; color: var(--text); }
+  .marketplace-input-row { display: flex; align-items: center; gap: 12px; padding: 10px 14px; background: var(--surface); border-radius: 10px; border: 1px solid var(--border); margin-bottom: 8px; }
+  .marketplace-input-row .label { font-size: 12px; color: var(--text-secondary); font-weight: 600; flex: 1; }
+  .marketplace-input-row .value { font-size: 14px; font-weight: 700; color: var(--primary); }
+  .marketplace-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
+
+  .margin-row.b2b2c { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border); }
+  .section-divider { border: none; border-top: 1px solid var(--border); margin: 24px 0; }
+  .section-title { font-size: 13px; font-weight: 700; color: var(--primary); margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+
+  @media (max-width: 1200px) { .dashboard-grid { grid-template-columns: repeat(3, 1fr); } .form-grid { grid-template-columns: repeat(2, 1fr); } .detail-grid { grid-template-columns: 1fr 1fr; } .marketplace-grid { grid-template-columns: 1fr; } }
+  @media (max-width: 768px) { .dashboard-grid { grid-template-columns: repeat(2, 1fr); } .form-grid { grid-template-columns: 1fr; } .detail-grid { grid-template-columns: 1fr; } .header { flex-direction: column; gap: 10px; padding: 12px 16px; } .search-pill input { min-width: 200px; } .main { padding: 16px; } }
+  @media print { .header, .btn, .modal-close, .actions { display: none !important; } .card { box-shadow: none; border: 1px solid var(--border); } }
+  #mainHeader { display: var(--hide-header, flex); }
+</style>
+</head>
+<body>
+<script>if(window.self!==window.top){document.documentElement.style.setProperty('--hide-header','none');}</script>
+
+<div class="header" id="mainHeader">
+  <div class="brand">
+    <div class="brand-icon">📦</div>
+    <div class="brand-text">
+      <h1>Product Catalog</h1>
+      <span>Finished Goods — B2B Cosmetic Manufacturing</span>
+    </div>
+  </div>
+  <div class="header-actions">
+    <button class="btn btn-outline" onclick="exportCSV()">📥 Export CSV</button>
+    <button class="btn btn-outline" onclick="importCSV()">📤 Import CSV</button>
+    <button class="btn btn-accent" onclick="openAddModal()">➕ Add Product</button>
+  </div>
+</div>
+
+<div class="main">
+  <div class="dashboard-grid">
+    <div class="metric-card">
+      <div class="left"><div class="label">Total Products</div><div class="value" id="dashTotal">0</div><div class="change up">📦 SKUs</div></div>
+      <div class="icon-box purple">📦</div>
+    </div>
+    <div class="metric-card">
+      <div class="left"><div class="label">Active</div><div class="value" id="dashActive">0</div><div class="change up">✅ In production</div></div>
+      <div class="icon-box green">✅</div>
+    </div>
+    <div class="metric-card">
+      <div class="left"><div class="label">Categories</div><div class="value" id="dashCategories">0</div><div class="change up">🏷️ Unique</div></div>
+      <div class="icon-box orange">🏷️</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header" style="flex-wrap:wrap;gap:12px">
+      <h2>🧴 Products</h2>
+      <div style="display:flex;align-items:center;gap:10px;margin-left:auto">
+        <button class="btn btn-outline btn-sm" onclick="exportCSV()">📥 Export CSV</button>
+        <button class="btn btn-accent btn-sm" onclick="openAddModal()">➕ Add Product</button>
+      </div>
+      <div class="search-bar" style="width:100%">
+        <div class="search-pill">
+          <span class="search-icon">🔍</span>
+          <input type="text" id="globalSearch" placeholder="Search name, SKU, category, HSN..." oninput="renderProducts()">
+        </div>
+        <select class="filter-select" id="filterCategory" onchange="renderProducts()">
+          <option value="">All Categories</option>
+        </select>
+        <select class="filter-select" id="filterStatus" onchange="renderProducts()">
+          <option value="">All Status</option>
+          <option value="Active">Active</option>
+          <option value="Inactive">Inactive</option>
+          <option value="Draft">Draft</option>
+          <option value="Archived">Archived</option>
+        </select>
+        <div class="view-toggle">
+          <button class="active" onclick="setView('list', this)" title="List View">☰</button>
+          <button onclick="setView('grid', this)" title="Grid View">⊞</button>
+        </div>
+      </div>
+    </div>
+    <div class="card-body" id="productsBody">
+      <div class="table-wrap" id="listView">
+        <table>
+          <thead>
+            <tr>
+              <th onclick="sortBy('code')">SKU <span id="sort-code">⇅</span></th>
+              <th onclick="sortBy('name')">Product Name <span id="sort-name">⇅</span></th>
+              <th onclick="sortBy('category')">Category <span id="sort-category">⇅</span></th>
+              <th onclick="sortBy('type')">Type <span id="sort-type">⇅</span></th>
+              <th onclick="sortBy('costPerUnit')">Cost/Unit <span id="sort-costPerUnit">⇅</span></th>
+              <th onclick="sortBy('status')">Status <span id="sort-status">⇅</span></th>
+              <th style="width:160px">Actions</th>
+            </tr>
+          </thead>
+          <tbody id="productsTable"></tbody>
+        </table>
+      </div>
+      <div class="product-grid hidden" id="gridView"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ADD / EDIT PRODUCT MODAL -->
+<div class="modal-overlay" id="productModal">
+  <div class="modal modal-xl">
+    <div class="modal-header">
+      <h2 id="productModalTitle">➕ Add New Product</h2>
+      <button class="modal-close" onclick="closeModal('productModal')">&times;</button>
+    </div>
+    <div class="modal-body">
+      <form id="productForm" onsubmit="saveProduct(event)">
+        <input type="hidden" id="editProductId">
+        <div class="form-grid">
+          <div class="form-group">
+            <label>SKU / Product Code <span class="req">*</span></label>
+            <input type="text" id="pCode" required placeholder="e.g., FG-2026-001">
+          </div>
+          <div class="form-group">
+            <label>Product Name <span class="req">*</span></label>
+            <input type="text" id="pName" required placeholder="e.g., Turmeric Shampoo">
+          </div>
+          <div class="form-group">
+            <label>Category <span class="req">*</span></label>
+            <select id="pCategory" required>
+              <option value="">Select</option>
+              <option value="Hair Care">Hair Care</option>
+              <option value="Skin Care">Skin Care</option>
+              <option value="Face Care">Face Care</option>
+              <option value="Body Care">Body Care</option>
+              <option value="Oral Care">Oral Care</option>
+              <option value="Men's Care">Men's Care</option>
+              <option value="Baby Care">Baby Care</option>
+              <option value="Sun Care">Sun Care</option>
+              <option value="Makeup">Makeup</option>
+              <option value="Fragrance">Fragrance</option>
+              <option value="Wellness">Wellness</option>
+              <option value="Professional">Professional</option>
+              <option value="Other">Other</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Sub-Category</label>
+            <input type="text" id="pSubCategory" placeholder="e.g., Shampoo, Serum, Cream">
+          </div>
+          <div class="form-group">
+            <label>Product Type</label>
+            <select id="pType">
+              <option value="">Select</option>
+              <option value="Shampoo">Shampoo</option>
+              <option value="Conditioner">Conditioner</option>
+              <option value="Hair Oil">Hair Oil</option>
+              <option value="Serum">Serum</option>
+              <option value="Cream">Cream</option>
+              <option value="Lotion">Lotion</option>
+              <option value="Face Wash">Face Wash</option>
+              <option value="Mask">Mask</option>
+              <option value="Scrub">Scrub</option>
+              <option value="Toner">Toner</option>
+              <option value="Moisturizer">Moisturizer</option>
+              <option value="Cleanser">Cleanser</option>
+              <option value="Soap">Soap</option>
+              <option value="Body Wash">Body Wash</option>
+              <option value="Sunscreen">Sunscreen</option>
+              <option value="Lip Balm">Lip Balm</option>
+              <option value="Deodorant">Deodorant</option>
+              <option value="Perfume">Perfume</option>
+              <option value="Other">Other</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Base Unit <span class="req">*</span></label>
+            <select id="pUnit" required>
+              <option value="ml">ml</option>
+              <option value="g">g</option>
+              <option value="L">L</option>
+              <option value="kg">kg</option>
+              <option value="piece">piece</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Reference Weight / Volume</label>
+            <input type="number" id="pWeight" step="0.1" min="0" placeholder="e.g., 200 (for per-unit cost reference)">
+          </div>
+          <div class="form-group">
+            <label>GST Rate (%)</label>
+            <select id="pGST">
+              <option value="0">0%</option>
+              <option value="5">5%</option>
+              <option value="12" selected>12%</option>
+              <option value="18">18%</option>
+              <option value="28">28%</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>HSN Code</label>
+            <input type="text" id="pHSN" placeholder="e.g., 3304">
+          </div>
+          <div class="form-group">
+            <label>Shelf Life (months)</label>
+            <input type="number" id="pShelfLife" step="1" min="0" placeholder="e.g., 36">
+          </div>
+          <div class="form-group">
+            <label>Status <span class="req">*</span></label>
+            <select id="pStatus" required>
+              <option value="Active" selected>Active</option>
+              <option value="Inactive">Inactive</option>
+              <option value="Draft">Draft</option>
+              <option value="Archived">Archived</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Discontinued Date</label>
+            <input type="date" id="pDiscontinuedDate">
+          </div>
+          <div class="form-group half">
+            <label>Description</label>
+            <textarea id="pDescription" placeholder="Product description, key claims, benefits..."></textarea>
+          </div>
+          <div class="form-group">
+            <label>Storage Conditions</label>
+            <input type="text" id="pStorage" placeholder="e.g., Store in cool, dry place">
+          </div>
+          <div class="form-group">
+            <label>Certifications</label>
+            <input type="text" id="pCertifications" placeholder="e.g., Organic, Cruelty-Free, GMP">
+          </div>
+          <div class="form-group">
+            <label>Barcode</label>
+            <input type="text" id="pBarcode" placeholder="e.g., 8901234567890">
+          </div>
+          <div class="form-group">
+            <label>Product Image</label>
+            <div class="image-preview" onclick="document.getElementById('pImage').click()">
+              <img id="pImagePreview" class="hidden">
+              <div class="placeholder" id="pImagePlaceholder">📷 Click to upload</div>
+            </div>
+            <input type="file" id="pImage" accept="image/*" style="display:none" onchange="previewImage(event)">
+          </div>
+        </div>
+        <div class="modal-footer" style="margin:20px -24px -24px -24px">
+          <button type="button" class="btn btn-outline" onclick="closeModal('productModal')">Cancel</button>
+          <button type="submit" class="btn btn-primary">💾 Save Product</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- PRODUCT DETAIL MODAL -->
+<div class="modal-overlay" id="detailModal">
+  <div class="modal modal-xl">
+    <div class="modal-header">
+      <h2 id="detailModalTitle">📋 Product Details</h2>
+      <button class="modal-close" onclick="closeModal('detailModal')">&times;</button>
+    </div>
+    <div class="modal-body" style="padding:0">
+      <div class="tabs" id="detailTabs">
+        <button class="tab active" onclick="switchDetailTab('overview', this)">Overview</button>
+        <button class="tab" onclick="switchDetailTab('formulation', this)">Formulation</button>
+        <button class="tab" onclick="switchDetailTab('overheads', this)">R&D and Overheads</button>
+        <button class="tab" onclick="switchDetailTab('costing', this)">Costing</button>
+        <button class="tab" onclick="switchDetailTab('marketplace', this)">Marketplace</button>
+        <button class="tab" onclick="switchDetailTab('qr', this)">QR Code</button>
+        <button class="tab" onclick="switchDetailTab('procedure', this)">Procedure</button>
+        <button class="tab" onclick="switchDetailTab('documents', this)">Documents</button>
+        <button class="tab" onclick="switchDetailTab('history', this)">History</button>
+      </div>
+
+      <!-- Overview -->
+      <div class="tab-content active" id="detail-overview" style="padding:24px">
+        <div class="detail-grid" id="detailOverview"></div>
+      </div>
+
+      <!-- Formulation -->
+      <div class="tab-content" id="detail-formulation" style="padding:24px">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; flex-wrap:wrap; gap:10px">
+          <div class="detail-section" style="margin-bottom:0"><h4>🧪 Product Formulation</h4></div>
+          <div style="display:flex; gap:10px; align-items:center">
+            <div class="form-group" style="margin-bottom:0; flex-direction:row; align-items:center; gap:8px">
+              <label style="white-space:nowrap; margin-bottom:0">Ref. Weight:</label>
+              <input type="number" id="formRefWeight" value="100" step="0.1" min="0.1" style="width:100px; padding:8px 12px" onchange="recalcFormulation()">
+              <select id="formRefUnit" style="width:80px; padding:8px 10px" onchange="recalcFormulation()">
+                <option value="g">g</option>
+                <option value="ml" selected>ml</option>
+                <option value="kg">kg</option>
+                <option value="L">L</option>
+              </select>
+            </div>
+            <button class="btn btn-accent btn-sm" onclick="addFormulationRow()">➕ Add Ingredient</button>
+          </div>
+        </div>
+
+        <div class="dashboard-grid" style="grid-template-columns: repeat(4, 1fr); margin-bottom:20px">
+          <div class="metric-card">
+            <div class="left"><div class="label">Total Ingredients</div><div class="value" id="formDashIngredients">0</div></div>
+            <div class="icon-box blue">🧪</div>
+          </div>
+          <div class="metric-card">
+            <div class="left"><div class="label">Total Percentage</div><div class="value" id="formDashPct">0%</div></div>
+            <div class="icon-box green">📊</div>
+          </div>
+          <div class="metric-card">
+            <div class="left"><div class="label">Total Quantity</div><div class="value" id="formDashQty">0</div></div>
+            <div class="icon-box orange">⚖️</div>
+          </div>
+          <div class="metric-card">
+            <div class="left"><div class="label">Reference Weight</div><div class="value" id="formDashRef">100 ml</div></div>
+            <div class="icon-box purple">📐</div>
+          </div>
+        </div>
+
+        <div class="card" style="margin-bottom:0">
+          <div class="card-body" style="padding:12px">
+            <div class="table-wrap">
+              <table class="variant-table" id="formulationTable">
+                <thead>
+                  <tr>
+                    <th style="width:30px"></th>
+                    <th>#</th>
+                    <th>Code</th>
+                    <th style="min-width:160px">Material Name</th>
+                    <th>%</th>
+                    <th>Qty</th>
+                    <th>Conv. Factor</th>
+                    <th>Unit</th>
+                    <th>Phase</th>
+                    <th>Notes</th>
+                    <th>Unit Price</th>
+                    <th>Amount (₹)</th>
+                    <th style="width:60px">Del</th>
+                  </tr>
+                </thead>
+                <tbody id="formulationBody"></tbody>
+                <tfoot>
+                  <tr style="background:var(--surface); font-weight:700">
+                    <td></td>
+                    <td colspan="3" style="text-align:right">Total</td>
+                    <td id="formTotalPct">0%</td>
+                    <td id="formTotalQty">0</td>
+                    <td colspan="4"></td>
+                    <td id="formTotalPrice" style="text-align:right">—</td>
+                    <td id="formTotalAmount" style="text-align:right">₹0.00</td>
+                    <td></td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          </div>
+        </div>
+        <div id="formulationAlert" style="display:none; padding:10px 14px; border-radius:8px; font-size:12px; font-weight:600; margin-bottom:10px; margin-top:10px"></div>
+        <div class="formulation-summary-panel" id="formulationSummaryPanel">
+          <div>
+            <div class="label">Total Formulation Cost</div>
+            <div class="value" id="formSummaryTotalCost">₹0.00</div>
+          </div>
+          <div>
+            <div class="label">Reference Weight</div>
+            <div class="value small" id="formSummaryRefWeight">100 ml</div>
+          </div>
+          <div>
+            <div class="label">Cost Per Unit</div>
+            <div class="value" id="formSummaryPerUnit">₹0.00</div>
+          </div>
+        </div>
+        <datalist id="rawMaterialDatalist"></datalist>
+      </div>
+
+      <!-- Overheads & Assumptions (Combined) -->
+      <div class="tab-content" id="detail-overheads" style="padding:24px">
+        <!-- R&D Costing -->
+        <div class="section-title">🔬 R&D Costing</div>
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; flex-wrap:wrap; gap:10px">
+          <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap">
+            <div class="form-group" style="margin-bottom:0; flex-direction:row; align-items:center; gap:8px">
+              <label style="white-space:nowrap; margin-bottom:0">Lifecycle (batches):</label>
+              <input type="number" id="rndLifecycle" value="1000" step="1" min="1" style="width:100px; padding:8px 12px" onchange="recalcOverheads(); updateRNDDate();">
+            </div>
+            <div id="rndLastUpdatedBadge" style="display:inline-flex; align-items:center; padding:4px 12px; border-radius:50px; font-size:11px; font-weight:600; background:#dbeafe; color:#1d4ed8;">
+              🕐 Last updated: <span id="rndLastUpdatedDate">—</span>
+            </div>
+            <input type="date" id="rndLastUpdatedInput" style="width:140px; padding:6px 10px; font-size:11px; border:1.5px solid var(--border); border-radius:8px;" onchange="setRNDManualDate()" title="Edit last updated date">
+          </div>
+        </div>
+        <div class="form-grid" style="grid-template-columns: repeat(3, 1fr); margin-bottom:16px">
+          <div class="form-group">
+            <label>R&D Testing Cost (₹)</label>
+            <input type="number" id="rndTesting" value="0" step="0.01" min="0" onchange="recalcOverheads()">
+          </div>
+          <div class="form-group">
+            <label>Chemical Consumables (₹)</label>
+            <input type="number" id="rndConsumables" value="0" step="0.01" min="0" onchange="recalcOverheads()">
+          </div>
+          <div class="form-group">
+            <label>Sample Cost (₹)</label>
+            <input type="number" id="rndSamples" value="0" step="0.01" min="0" onchange="recalcOverheads()">
+          </div>
+          <div class="form-group">
+            <label>R&D Overhead (₹)</label>
+            <input type="number" id="rndOverhead" value="0" step="0.01" min="0" onchange="recalcOverheads()">
+          </div>
+          <div class="form-group">
+            <label>Other R&D Overhead (₹)</label>
+            <input type="number" id="rndOtherOverhead" value="0" step="0.01" min="0" onchange="recalcOverheads()">
+          </div>
+          <div class="form-group">
+            <label>Lab QC for R&D (₹)</label>
+            <input type="number" id="rndQC" value="0" step="0.01" min="0" onchange="recalcOverheads()">
+          </div>
+        </div>
+        <div class="pricing-highlight" style="margin-bottom:24px">
+          <div>
+            <div class="label">Total R&D Cost</div>
+            <div class="value" id="rndTotalCost">₹0.00</div>
+          </div>
+          <div>
+            <div class="label">Lifecycle Batches</div>
+            <div class="value" id="rndLifecycleDisplay">1,000</div>
+          </div>
+          <div>
+            <div class="label">R&D Cost Per Unit</div>
+            <div class="value" id="rndPerUnitCost">₹0.00</div>
+          </div>
+        </div>
+
+        <hr class="section-divider">
+
+        <!-- Production Overhead -->
+        <div class="section-title">🏭 Production Overhead</div>
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; flex-wrap:wrap; gap:10px">
+          <div id="overheadLastUpdatedBadge" style="display:inline-flex; align-items:center; padding:4px 12px; border-radius:50px; font-size:11px; font-weight:600; background:#dbeafe; color:#1d4ed8;">
+            🕐 Last updated: <span id="overheadLastUpdatedDate">—</span>
+          </div>
+          <input type="date" id="overheadLastUpdatedInput" style="width:140px; padding:6px 10px; font-size:11px; border:1.5px solid var(--border); border-radius:8px;" onchange="setOverheadManualDate()" title="Edit last updated date">
+        </div>
+        <div class="form-grid" style="grid-template-columns: repeat(2, 1fr); margin-bottom:16px">
+          <div class="form-group">
+            <label>Electricity (₹)</label>
+            <input type="number" id="overheadElectricity" value="0" step="0.01" min="0" onchange="recalcOverheads()">
+          </div>
+          <div class="form-group">
+            <label>Production Labor (₹)</label>
+            <input type="number" id="overheadLabor" value="0" step="0.01" min="0" onchange="recalcOverheads()">
+          </div>
+          <div class="form-group">
+            <label>Lab Testing Cost (₹)</label>
+            <input type="number" id="overheadLabTesting" value="0" step="0.01" min="0" onchange="recalcOverheads()">
+          </div>
+          <div class="form-group">
+            <label>Other Production Overhead (₹)</label>
+            <input type="number" id="overheadOther" value="0" step="0.01" min="0" onchange="recalcOverheads()">
+          </div>
+        </div>
+        <div class="pricing-highlight" style="margin-bottom:0">
+          <div>
+            <div class="label">Total Production Overhead</div>
+            <div class="value" id="overheadTotalCost">₹0.00</div>
+          </div>
+          <div>
+            <div class="label">Per Unit</div>
+            <div class="value" id="overheadPerUnit">₹0.00</div>
+          </div>
+          <div>
+            <div class="label">Reference Weight</div>
+            <div class="value" id="overheadRefWeight">—</div>
+          </div>
+        </div>
+
+      <!-- Standard Assumptions -->
+        <div class="section-title">📝 Standard Assumptions (Industry STD%)</div>
+        <div class="form-grid" style="grid-template-columns: repeat(3, 1fr); margin-bottom:16px">
+          <div class="form-group">
+            <label>Equipment (Mold/Tools) <span class="pct-label">%</span></label>
+            <div class="assumption-card">
+              <input type="range" id="assEquipment" min="0" max="20" step="0.5" value="3" oninput="recalcOverheads(); document.getElementById('assEquipmentVal').textContent=this.value+'%';" style="margin:0">
+              <span id="assEquipmentVal" class="pct-display">3%</span><span style="font-size:11px;color:var(--text-muted);margin-left:6px">— 3-5% recommended</span>
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Consumables (Small/MSME) <span class="pct-label">%</span></label>
+            <div class="assumption-card">
+              <input type="range" id="assConsumables" min="0" max="10" step="0.5" value="1" oninput="recalcOverheads(); document.getElementById('assConsumablesVal').textContent=this.value+'%';" style="margin:0">
+              <span id="assConsumablesVal" class="pct-display">1%</span><span style="font-size:11px;color:var(--text-muted);margin-left:6px">— 1-2% recommended</span>
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Storage (Warehouse) <span class="pct-label">%</span></label>
+            <div class="assumption-card">
+              <input type="range" id="assStorage" min="0" max="10" step="0.5" value="2" oninput="recalcOverheads(); document.getElementById('assStorageVal').textContent=this.value+'%';" style="margin:0">
+              <span id="assStorageVal" class="pct-display">2%</span><span style="font-size:11px;color:var(--text-muted);margin-left:6px">— 2-4% recommended</span>
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Housekeeping (Sanitization) <span class="pct-label">%</span></label>
+            <div class="assumption-card">
+              <input type="range" id="assHousekeeping" min="0" max="10" step="0.5" value="1" oninput="recalcOverheads(); document.getElementById('assHousekeepingVal').textContent=this.value+'%';" style="margin:0">
+              <span id="assHousekeepingVal" class="pct-display">1%</span><span style="font-size:11px;color:var(--text-muted);margin-left:6px">— 1-2% recommended</span>
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Admin (Admin STD) <span class="pct-label">%</span></label>
+            <div class="assumption-card">
+              <input type="range" id="assAdmin" min="0" max="20" step="0.5" value="5" oninput="recalcOverheads(); document.getElementById('assAdminVal').textContent=this.value+'%';" style="margin:0">
+              <span id="assAdminVal" class="pct-display">5%</span><span style="font-size:11px;color:var(--text-muted);margin-left:6px">— 5-8% recommended</span>
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Wastage (Production) <span class="pct-label">%</span></label>
+            <div class="assumption-card">
+              <input type="range" id="assWastage" min="0" max="10" step="0.5" value="2" oninput="recalcOverheads(); document.getElementById('assWastageVal').textContent=this.value+'%';" style="margin:0">
+              <span id="assWastageVal" class="pct-display">2%</span><span style="font-size:11px;color:var(--text-muted);margin-left:6px">— 2-5% recommended</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="pricing-highlight" style="margin-bottom:24px">
+          <div>
+            <div class="label">Total Indirect % on Material Cost</div>
+            <div class="value" id="assTotalIndirect">14%</div>
+          </div>
+          <div>
+            <div class="label">Total Amount / Unit (at ref cost)</div>
+            <div class="value" id="assTotalAmount">₹0.00</div>
+          </div>
+          <div>
+            <div class="label">Reference Weight</div>
+            <div class="value" id="assRefWeight">—</div>
+          </div>
+        </div>
+        <div class="industry-warning" style="margin-bottom:24px">
+          <span class="icon">⚠️</span>
+          <span>Industry range for total indirect: 15% - 30%. Adjust sliders if your total is outside this range.</span>
+        </div>
+
+        <div class="detail-section" style="margin-bottom:12px"><h4>📷 Reference Image / Basis</h4></div>
+        <div class="assumption-image-upload" onclick="document.getElementById('assImageInput').click()">
+          <img id="assImagePreview" class="assumption-image-preview hidden" style="display:none">
+          <div id="assImagePlaceholder" class="placeholder">📷 Click to upload reference image / basis document</div>
+        </div>
+        <input type="file" id="assImageInput" accept="image/*" style="display:none" onchange="previewAssumptionImage(event)">
+
+        <hr class="section-divider">
+
+        <!-- Grand Total Summary -->
+        <div class="section-title">📊 Total Overhead &amp; R&amp;D Cost Summary</div>
+        <div class="pricing-highlight" style="margin-bottom:16px; background:var(--primary); color:white; border:none">
+          <div>
+            <div class="label" style="color:rgba(255,255,255,0.8)">R&amp;D Cost Per Unit</div>
+            <div class="value" style="color:white" id="overheadsRNDPerUnit">₹0.00</div>
+          </div>
+          <div>
+            <div class="label" style="color:rgba(255,255,255,0.8)">Production Overhead Per Unit</div>
+            <div class="value" style="color:white" id="overheadsProdPerUnit">₹0.00</div>
+          </div>
+          <div>
+            <div class="label" style="color:rgba(255,255,255,0.8)">Standard Assumptions Per Unit</div>
+            <div class="value" style="color:white" id="overheadsStdPerUnit">₹0.00</div>
+          </div>
+          <div>
+            <div class="label" style="color:rgba(255,255,255,0.8)">Total Overhead &amp; R&amp;D Per Unit</div>
+            <div class="value" style="color:var(--accent); font-size:22px" id="overheadsTotalPerUnit">₹0.00</div>
+          </div>
+        </div>
+        <div class="pricing-highlight" style="margin-bottom:0">
+          <div>
+            <div class="label">Total Cost for Product (at ref weight)</div>
+            <div class="value" id="overheadsTotalForProduct">₹0.00</div>
+          </div>
+          <div>
+            <div class="label">Reference Weight</div>
+            <div class="value" id="overheadsRefWeightTotal">—</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Costing (includes Packaging & Labeling) -->
+      <div class="tab-content" id="detail-costing" style="padding:24px">
+        <!-- Cost Inputs -->
+        <div class="costing-section-title">📥 Cost Inputs</div>
+        <div class="cost-input-row">
+          <span class="label">🧪 Ingredients Cost Per Unit (from Formulation)</span>
+          <span class="value" id="costingFormulationPerUnit">₹0.00</span>
+        </div>
+        <div class="cost-input-row" style="background:var(--primary); color:white; border-color:var(--primary)">
+          <span class="label" style="color:rgba(255,255,255,0.9); font-size:13px">📊 Total Input Cost Per Unit (Formulation + R&D + Overheads)</span>
+          <span class="value" id="costingTotalInputPerUnit" style="color:var(--accent); font-size:18px">₹0.00</span>
+        </div>
+
+        <hr class="section-divider">
+
+        <!-- Packaging & Labeling (inside Costing) -->
+        <div class="costing-section-title">📦 Packaging & Labeling</div>
+        <div class="card" style="margin-bottom:16px">
+          <div class="card-body" style="padding:12px">
+            <div class="table-wrap">
+              <table class="variant-table" id="packagingTable">
+                <thead>
+                  <tr>
+                    <th>#</th>
+                    <th>Item</th>
+                    <th>Qty / Unit</th>
+                    <th>Rate (₹)</th>
+                    <th>Amount (₹)</th>
+                    <th style="width:80px">Optional</th>
+                    <th style="width:60px">Del</th>
+                  </tr>
+                </thead>
+                <tbody id="packagingBody"></tbody>
+                <tfoot>
+                  <tr style="background:var(--surface); font-weight:700">
+                    <td colspan="4" style="text-align:right">Total Packaging Cost</td>
+                    <td colspan="3" id="packagingTotal" style="font-weight:700">₹0.00</td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+            <button class="btn btn-outline btn-sm" onclick="addPackagingItem()" style="margin-top:10px">➕ Add Packaging Item</button>
+          </div>
+        </div>
+
+        <div class="costing-section-title">⚙️ Packaging Charges (Machinery / Overhead)</div>
+        <div class="form-grid" style="grid-template-columns: repeat(2, 1fr); margin-bottom:16px">
+          <div class="form-group">
+            <label>Packaging Machine / Tunnel (₹)</label>
+            <input type="number" id="packagingChargesMachine" value="0" step="0.01" min="0" onchange="recalcPackagingCharges()">
+          </div>
+          <div class="form-group">
+            <label>Shrink Wrap / Sealing (₹)</label>
+            <input type="number" id="packagingChargesShrinkWrap" value="0" step="0.01" min="0" onchange="recalcPackagingCharges()">
+          </div>
+          <div class="form-group">
+            <label>Other Packaging Overhead (₹)</label>
+            <input type="number" id="packagingChargesOther" value="0" step="0.01" min="0" onchange="recalcPackagingCharges()">
+          </div>
+          <div class="form-group">
+            <label>Total Packaging Charges</label>
+            <div class="pricing-highlight" style="margin-bottom:0; padding:10px 14px">
+              <div class="value" id="packagingChargesTotal">₹0.00</div>
+              <div class="label">Per Unit</div>
+              <div class="value" id="packagingChargesPerUnit">₹0.00</div>
+            </div>
+          </div>
+        </div>
+
+        <hr class="section-divider">
+
+        <!-- Unit Cost Summary -->
+        <div class="costing-section-title">📊 Unit Cost Summary</div>
+        <div class="pricing-highlight" style="margin-bottom:24px; background:var(--primary); color:white; border:none">
+          <div>
+            <div class="label" style="color:rgba(255,255,255,0.8)">Total Ingredients</div>
+            <div class="value" style="color:white" id="costSummaryIngredients">₹0.00</div>
+          </div>
+          <div>
+            <div class="label" style="color:rgba(255,255,255,0.8)">Total Packaging</div>
+            <div class="value" style="color:white" id="costSummaryPackaging">₹0.00</div>
+          </div>
+          <div>
+            <div class="label" style="color:rgba(255,255,255,0.8)">Total Overhead</div>
+            <div class="value" style="color:white" id="costSummaryOverhead">₹0.00</div>
+          </div>
+          <div>
+            <div class="label" style="color:rgba(255,255,255,0.8)">R&D Per Unit</div>
+            <div class="value" style="color:white" id="costSummaryRND">₹0.00</div>
+          </div>
+          <div>
+            <div class="label" style="color:rgba(255,255,255,0.8)">Grand Total / Unit</div>
+            <div class="value" style="color:white; font-size:22px" id="costSummaryGrand">₹0.00</div>
+          </div>
+        </div>
+
+        <!-- Margin Settings -->
+        <div style="margin-bottom:16px">
+          <div style="font-size:13px; font-weight:700; margin-bottom:10px; color:var(--primary)">Margin Settings (%)</div>
+          <div class="margin-row">
+            <div class="margin-item">
+              <label>Ex-Factory</label>
+              <input type="number" id="marginExFactory" value="10" step="0.1" min="0" onchange="recalcPricing()">
+            </div>
+            <div class="margin-item">
+              <label>Dealer</label>
+              <input type="number" id="marginDealer" value="15" step="0.1" min="0" onchange="recalcPricing()">
+            </div>
+            <div class="margin-item">
+              <label>Distributor</label>
+              <input type="number" id="marginDistributor" value="20" step="0.1" min="0" onchange="recalcPricing()">
+            </div>
+            <div class="margin-item">
+              <label>Retailer</label>
+              <input type="number" id="marginRetailer" value="25" step="0.1" min="0" onchange="recalcPricing()">
+            </div>
+            <div class="margin-item">
+              <label>Selling</label>
+              <input type="number" id="marginSelling" value="35" step="0.1" min="0" onchange="recalcPricing()">
+            </div>
+          </div>
+          <div class="margin-row b2b2c">
+            <div class="margin-item">
+              <label>B2B Margin (%)</label>
+              <input type="number" id="marginB2B" value="20" step="0.1" min="0" onchange="recalcPricing()">
+            </div>
+            <div class="margin-item">
+              <label>B2C Margin (%)</label>
+              <input type="number" id="marginB2C" value="40" step="0.1" min="0" onchange="recalcPricing()">
+            </div>
+          </div>
+        </div>
+
+        <!-- GST Toggle for Costing -->
+        <div style="display:flex; align-items:center; gap:12px; margin-bottom:16px; flex-wrap:wrap">
+          <div class="gst-toggle" onclick="toggleGSTDisplay()">
+            <label style="margin-bottom:0; cursor:pointer">Show GST Inclusive Prices</label>
+            <input type="checkbox" id="gstToggle" style="width:40px; height:20px; cursor:pointer" onchange="toggleGSTDisplay()">
+          </div>
+          <div id="gstRateDisplay" style="font-size:12px; color:var(--text-secondary)">GST Rate: 18%</div>
+        </div>
+
+        <!-- Variant Pricing Table -->
+        <div class="card" style="margin-bottom:0">
+          <div class="card-header" style="padding:12px 16px">
+            <h2 style="font-size:13px">Variant Pricing (Auto-calculated from Costing)</h2>
+            <button class="btn btn-accent btn-sm" onclick="addVariantRow()">➕ Add Variant</button>
+          </div>
+          <div class="card-body" style="padding:12px">
+            <div class="table-wrap">
+              <table class="variant-table" id="variantPricingTable">
+                <thead>
+                  <tr>
+                    <th>Variant</th>
+                    <th>Size</th>
+                    <th>Unit</th>
+                    <th>MOQ</th>
+                    <th>MOQ Unit</th>
+                    <th>Prod. Cost</th>
+                    <th>Ex-Factory</th>
+                    <th>Dealer</th>
+                    <th>Dist.</th>
+                    <th>Retail</th>
+                    <th>Selling</th>
+                    <th>B2B</th>
+                    <th>B2C</th>
+                    <th style="width:60px">Del</th>
+                  </tr>
+                </thead>
+                <tbody id="variantPricingBody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- GST Price Display (appears when GST toggle is on) -->
+        <div id="gstPricePanel" style="display:none; margin-top:20px; padding:16px; background:var(--surface); border-radius:12px; border:1.5px solid var(--border-light)">
+          <div class="costing-section-title">💰 GST Inclusive Prices (Selected Variant)</div>
+          <div class="form-grid" style="grid-template-columns: repeat(3, 1fr)">
+            <div class="cost-input-row" style="margin-bottom:0">
+              <span class="label">Ex-Factory (with GST)</span>
+              <span class="value" id="gstExFactory">₹0.00</span>
+            </div>
+            <div class="cost-input-row" style="margin-bottom:0">
+              <span class="label">Selling Price (with GST)</span>
+              <span class="value" id="gstSelling">₹0.00</span>
+            </div>
+            <div class="cost-input-row" style="margin-bottom:0">
+              <span class="label">B2C Price (with GST)</span>
+              <span class="value" id="gstB2C">₹0.00</span>
+            </div>
+          </div>
+          <div style="margin-top:10px; font-size:11px; color:var(--text-muted)">All calculations are done without GST. GST is added only for display purposes at the selected rate.</div>
+        </div>
+      </div>
+
+      <!-- Marketplace -->
+      <div class="tab-content" id="detail-marketplace" style="padding:24px">
+        <div class="detail-section" style="margin-bottom:12px"><h4>🛒 Marketplace Costing</h4></div>
+        <div style="margin-bottom:20px; font-size:12px; color:var(--text-secondary); line-height:1.6">
+          Inputs are auto-imported from Overheads & Assumptions. You can also override the marketplace-specific packaging below.
+        </div>
+
+        <div class="costing-section-title">📥 Imported Costs</div>
+        <div class="cost-input-row">
+          <span class="label">Ingredients Cost Per Unit</span>
+          <span class="value" id="mpIngredientsCost">₹0.00</span>
+        </div>
+        <div class="cost-input-row">
+          <span class="label">Standard Assumptions Indirect Amount</span>
+          <span class="value" id="mpAssumptionsCost">₹0.00</span>
+        </div>
+        <div class="cost-input-row">
+          <span class="label">Production Overhead Per Unit</span>
+          <span class="value" id="mpOverheadCost">₹0.00</span>
+        </div>
+        <div class="cost-input-row">
+          <span class="label">R&D Cost Per Unit</span>
+          <span class="value" id="mpRNDCost">₹0.00</span>
+        </div>
+
+        <div class="detail-section" style="margin-bottom:12px; margin-top:20px"><h4>📦 Marketplace Packaging & Labeling</h4></div>
+        <div class="card" style="margin-bottom:24px">
+          <div class="card-body" style="padding:12px">
+            <div class="table-wrap">
+              <table class="variant-table" id="mpPackagingTable">
+                <thead>
+                  <tr>
+                    <th>#</th>
+                    <th>Item</th>
+                    <th>Qty / Unit</th>
+                    <th>Rate (₹)</th>
+                    <th>Amount (₹)</th>
+                    <th style="width:80px">Optional</th>
+                    <th style="width:60px">Del</th>
+                  </tr>
+                </thead>
+                <tbody id="mpPackagingBody"></tbody>
+                <tfoot>
+                  <tr style="background:var(--surface); font-weight:700">
+                    <td colspan="4" style="text-align:right">Total MP Packaging Cost</td>
+                    <td colspan="3" id="mpPackagingTotal" style="font-weight:700">₹0.00</td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+            <button class="btn btn-outline btn-sm" onclick="addMPPackagingItem()" style="margin-top:10px">➕ Add Marketplace Packaging Item</button>
+          </div>
+        </div>
+
+        <div class="pricing-highlight" style="margin-bottom:24px">
+          <div>
+            <div class="label">Total Base Cost / Unit</div>
+            <div class="value" id="mpBaseCost">₹0.00</div>
+          </div>
+          <div>
+            <div class="label">Reference Weight</div>
+            <div class="value" id="mpRefWeight">—</div>
+          </div>
+        </div>
+
+        <div class="detail-section" style="margin-bottom:12px"><h4>🏪 Platform Margin & Fee Settings</h4></div>
+        <div class="marketplace-grid">
+          <div class="platform-card">
+            <div class="title">🛍️ Flipkart</div>
+            <div class="fee-row"><span class="label">Commission (%)</span><input type="number" id="mpFlipkartCommission" value="15" step="0.1" min="0" style="width:60px" onchange="recalcMarketplace()"></div>
+            <div class="fee-row"><span class="label">Fixed Fee (₹)</span><input type="number" id="mpFlipkartFixed" value="30" step="0.01" min="0" style="width:60px" onchange="recalcMarketplace()"></div>
+            <div class="fee-row"><span class="label">Shipping (₹)</span><input type="number" id="mpFlipkartShipping" value="50" step="0.01" min="0" style="width:60px" onchange="recalcMarketplace()"></div>
+            <div class="fee-row"><span class="label">Collection Fee (%)</span><input type="number" id="mpFlipkartCollection" value="2" step="0.1" min="0" style="width:60px" onchange="recalcMarketplace()"></div>
+            <div class="fee-row" style="border-top:2px solid var(--border); margin-top:8px; padding-top:10px"><span class="label">Min Selling Price</span><span class="value" id="mpFlipkartMinPrice">₹0.00</span></div>
+            <div class="fee-row"><span class="label">Seller Receives</span><span class="value" id="mpFlipkartReceives">₹0.00</span></div>
+            <div class="fee-row"><span class="label">Net Margin</span><span class="value" id="mpFlipkartMargin">₹0.00</span></div>
+          </div>
+          <div class="platform-card">
+            <div class="title">📦 Amazon</div>
+            <div class="fee-row"><span class="label">Referral Fee (%)</span><input type="number" id="mpAmazonCommission" value="15" step="0.1" min="0" style="width:60px" onchange="recalcMarketplace()"></div>
+            <div class="fee-row"><span class="label">Closing Fee (₹)</span><input type="number" id="mpAmazonFixed" value="40" step="0.01" min="0" style="width:60px" onchange="recalcMarketplace()"></div>
+            <div class="fee-row"><span class="label">Shipping (₹)</span><input type="number" id="mpAmazonShipping" value="50" step="0.01" min="0" style="width:60px" onchange="recalcMarketplace()"></div>
+            <div class="fee-row"><span class="label">FBA / Storage (%)</span><input type="number" id="mpAmazonFBA" value="3" step="0.1" min="0" style="width:60px" onchange="recalcMarketplace()"></div>
+            <div class="fee-row" style="border-top:2px solid var(--border); margin-top:8px; padding-top:10px"><span class="label">Min Selling Price</span><span class="value" id="mpAmazonMinPrice">₹0.00</span></div>
+            <div class="fee-row"><span class="label">Seller Receives</span><span class="value" id="mpAmazonReceives">₹0.00</span></div>
+            <div class="fee-row"><span class="label">Net Margin</span><span class="value" id="mpAmazonMargin">₹0.00</span></div>
+          </div>
+          <div class="platform-card">
+            <div class="title">🛒 Meesho</div>
+            <div class="fee-row"><span class="label">Commission (%)</span><input type="number" id="mpMeeshoCommission" value="0" step="0.1" min="0" style="width:60px" onchange="recalcMarketplace()"></div>
+            <div class="fee-row"><span class="label">Shipping Charge (₹)</span><input type="number" id="mpMeeshoShipping" value="70" step="0.01" min="0" style="width:60px" onchange="recalcMarketplace()"></div>
+            <div class="fee-row"><span class="label">Collection Fee (%)</span><input type="number" id="mpMeeshoCollection" value="0" step="0.1" min="0" style="width:60px" onchange="recalcMarketplace()"></div>
+            <div class="fee-row"><span class="label">Penalty / RTO (%)</span><input type="number" id="mpMeeshoPenalty" value="2" step="0.1" min="0" style="width:60px" onchange="recalcMarketplace()"></div>
+            <div class="fee-row" style="border-top:2px solid var(--border); margin-top:8px; padding-top:10px"><span class="label">Min Selling Price</span><span class="value" id="mpMeeshoMinPrice">₹0.00</span></div>
+            <div class="fee-row"><span class="label">Seller Receives</span><span class="value" id="mpMeeshoReceives">₹0.00</span></div>
+            <div class="fee-row"><span class="label">Net Margin</span><span class="value" id="mpMeeshoMargin">₹0.00</span></div>
+          </div>
+          <div class="platform-card">
+            <div class="title">🛍️ Snapdeal</div>
+            <div class="fee-row"><span class="label">Commission (%)</span><input type="number" id="mpSnapdealCommission" value="12" step="0.1" min="0" style="width:60px" onchange="recalcMarketplace()"></div>
+            <div class="fee-row"><span class="label">Fixed Fee (₹)</span><input type="number" id="mpSnapdealFixed" value="20" step="0.01" min="0" style="width:60px" onchange="recalcMarketplace()"></div>
+            <div class="fee-row"><span class="label">Shipping (₹)</span><input type="number" id="mpSnapdealShipping" value="50" step="0.01" min="0" style="width:60px" onchange="recalcMarketplace()"></div>
+            <div class="fee-row"><span class="label">Collection Fee (%)</span><input type="number" id="mpSnapdealCollection" value="1.5" step="0.1" min="0" style="width:60px" onchange="recalcMarketplace()"></div>
+            <div class="fee-row" style="border-top:2px solid var(--border); margin-top:8px; padding-top:10px"><span class="label">Min Selling Price</span><span class="value" id="mpSnapdealMinPrice">₹0.00</span></div>
+            <div class="fee-row"><span class="label">Seller Receives</span><span class="value" id="mpSnapdealReceives">₹0.00</span></div>
+            <div class="fee-row"><span class="label">Net Margin</span><span class="value" id="mpSnapdealMargin">₹0.00</span></div>
+          </div>
+        </div>
+
+        <div style="margin-top:20px">
+          <div style="font-size:13px; font-weight:700; margin-bottom:10px; color:var(--primary)">Marketplace Margin Settings (%)</div>
+          <div class="margin-row">
+            <div class="margin-item">
+              <label>Flipkart Margin</label>
+              <input type="number" id="marginFlipkart" value="25" step="0.1" min="0" onchange="recalcMarketplace()">
+            </div>
+            <div class="margin-item">
+              <label>Amazon Margin</label>
+              <input type="number" id="marginAmazon" value="25" step="0.1" min="0" onchange="recalcMarketplace()">
+            </div>
+            <div class="margin-item">
+              <label>Meesho Margin</label>
+              <input type="number" id="marginMeesho" value="30" step="0.1" min="0" onchange="recalcMarketplace()">
+            </div>
+            <div class="margin-item">
+              <label>Snapdeal Margin</label>
+              <input type="number" id="marginSnapdeal" value="25" step="0.1" min="0" onchange="recalcMarketplace()">
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- QR Code -->
+      <div class="tab-content" id="detail-qr" style="padding:24px">
+        <div class="detail-section"><h4>🔲 Product QR Code</h4></div>
+        <div class="qr-panel" id="qrPanel">
+          <div id="qrCanvas"></div>
+          <div class="qr-label" id="qrLabel">Scan to view product details</div>
+          <button class="btn btn-primary" onclick="printQR()">🖨️ Print Label</button>
+        </div>
+      </div>
+
+      <!-- Procedure -->
+      <div class="tab-content" id="detail-procedure" style="padding:24px">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; flex-wrap:wrap; gap:10px">
+          <div class="detail-section" style="margin-bottom:0"><h4>📝 R&D Documentation</h4></div>
+          <div style="display:flex; gap:8px">
+            <button class="btn btn-outline btn-sm" onclick="document.getElementById('rndDocFile').click()">📎 Attach R&D Doc</button>
+          </div>
+        </div>
+        <div class="form-group" style="margin-bottom:16px">
+          <textarea id="rndDocText" placeholder="Enter R&D documentation, research notes, test results, formulation evolution, stability studies, and any research documentation done for this product..." style="min-height:120px; font-family:var(--font); font-size:13px; line-height:1.6" onblur="saveRNDDoc()"></textarea>
+        </div>
+        <div id="rndDocAttachments" style="display:flex; flex-direction:column; gap:8px; margin-bottom:20px"></div>
+        <input type="file" id="rndDocFile" accept=".pdf,.doc,.docx,.xlsx,.jpg,.png" style="display:none" onchange="attachRNDDocFile(event)">
+
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; flex-wrap:wrap; gap:10px">
+          <div class="detail-section" style="margin-bottom:0"><h4>🔬 Research Guide</h4></div>
+        </div>
+        <div class="form-group" style="margin-bottom:20px">
+          <textarea id="researchGuideText" placeholder="Research guide and methodology references: literature sources, patent references, ingredient research papers, regulatory guidelines followed, safety assessments, and any research frameworks or protocols used..." style="min-height:100px; font-family:var(--font); font-size:13px; line-height:1.6" onblur="saveResearchGuide()"></textarea>
+        </div>
+
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; flex-wrap:wrap; gap:10px">
+          <div class="detail-section" style="margin-bottom:0"><h4>🏭 Manufacturing Procedure</h4></div>
+          <div style="display:flex; gap:8px">
+            <button class="btn btn-outline btn-sm" onclick="document.getElementById('procFile').click()">📎 Attach File</button>
+            <button class="btn btn-outline btn-sm" onclick="document.getElementById('procVideo').click()">🎬 Attach Video</button>
+            <button class="btn btn-outline btn-sm" id="audioRecordBtn" onclick="toggleAudioRecord()">🎙️ Record Audio</button>
+          </div>
+        </div>
+        <input type="file" id="procFile" accept=".pdf,.doc,.docx" style="display:none" onchange="attachProcFile(event)">
+        <input type="file" id="procVideo" accept="video/*" style="display:none" onchange="attachProcVideo(event)">
+        <div class="form-group" style="margin-bottom:16px">
+          <textarea id="procText" placeholder="Enter the manufacturing procedure step by step..." style="min-height:200px; font-family:var(--font); font-size:13px; line-height:1.6" onblur="saveProcedure()"></textarea>
+        </div>
+        <div id="procAttachments" style="display:flex; flex-direction:column; gap:8px"></div>
+        <div id="audioRecorder" style="display:none; margin-top:12px; padding:12px; background:var(--surface); border-radius:10px; border:1px solid var(--border-light)">
+          <div style="display:flex; align-items:center; gap:10px">
+            <div id="recIndicator" style="width:12px; height:12px; border-radius:50%; background:var(--danger); animation: blink 1s infinite"></div>
+            <span style="font-size:13px; font-weight:600">Recording...</span>
+            <span id="recTimer" style="font-size:12px; color:var(--text-muted); margin-left:auto">00:00</span>
+            <button class="btn btn-danger btn-sm" onclick="stopAudioRecord()">⏹ Stop</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Documents -->
+      <div class="tab-content" id="detail-documents" style="padding:24px">
+        <div class="detail-section"><h4>📄 Documents & Certificates</h4></div>
+        <div class="form-grid" style="grid-template-columns: repeat(2, 1fr)">
+          <div class="form-group">
+            <label>COA (Certificate of Analysis)</label>
+            <input type="file" id="dDocCOA" accept=".pdf">
+          </div>
+          <div class="form-group">
+            <label>MSDS</label>
+            <input type="file" id="dDocMSDS" accept=".pdf">
+          </div>
+          <div class="form-group">
+            <label>Product Registration</label>
+            <input type="file" id="dDocReg" accept=".pdf">
+          </div>
+          <div class="form-group">
+            <label>Marketing Brochure</label>
+            <input type="file" id="dDocBrochure" accept=".pdf,.jpg,.png">
+          </div>
+        </div>
+      </div>
+
+      <!-- History -->
+      <div class="tab-content" id="detail-history" style="padding:24px">
+        <div class="detail-section"><h4>📜 Certificate History</h4></div>
+        <div id="certificateHistoryList" style="margin-bottom:20px"></div>
+        <div class="detail-section"><h4>🕐 Activity History</h4></div>
+        <div id="historyList"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast-container" id="toastContainer"></div>
+
+<script>
+// ========== DATA ==========
+const DB_KEY = 'productCatalogDB_v2';
+let products = [];
+let nextProductId = 1;
+let sortKey = 'code';
+let sortDir = 1;
+let currentView = 'list';
+let currentDetailProduct = null;
+let currentQR = null;
+
+function makeVariant(name, size, unit, moq, moqUnit) {
+  return {
+    id: Date.now() + Math.random(),
+    name: name || '', size: size || 0, unit: unit || 'ml',
+    moq: moq || 100, moqUnit: moqUnit || 'pcs',
+    productionCost: 0, exFactoryPrice: 0, dealerPrice: 0,
+    distributorPrice: 0, retailerPrice: 0, sellingPrice: 0,
+    b2bPrice: 0, b2cPrice: 0
+  };
+}
+
+const demoProducts = [
+  {
+    code:'FG-HC-001', name:'Turmeric Shampoo', category:'Hair Care', subCategory:'Shampoo', type:'Shampoo',
+    unit:'ml', weight:200, gstRate:18, hsnCode:'3305', shelfLife:36, status:'Active', discontinuedDate:'',
+    description:'Herbal turmeric shampoo with neem and amla extracts. Sulfate-free formula.',
+    storage:'Cool, dry place', certifications:'Organic, Cruelty-Free', barcode:'8901234567890', image:null, history:[],
+    variants: [
+      makeVariant('100ml', 100, 'ml', 500, 'pcs'),
+      makeVariant('200ml', 200, 'ml', 200, 'pcs'),
+      makeVariant('500ml', 500, 'ml', 100, 'pcs'),
+      makeVariant('5L', 5000, 'ml', 2, 'pcs')
+    ]
+  },
+  {
+    code:'FG-HC-002', name:'Turmeric Conditioner', category:'Hair Care', subCategory:'Conditioner', type:'Conditioner',
+    unit:'ml', weight:200, gstRate:18, hsnCode:'3305', shelfLife:36, status:'Active', discontinuedDate:'',
+    description:'Nourishing conditioner with turmeric and argan oil.',
+    storage:'Cool, dry place', certifications:'Organic', barcode:'8901234567891', image:null, history:[],
+    variants: [
+      makeVariant('100ml', 100, 'ml', 500, 'pcs'),
+      makeVariant('200ml', 200, 'ml', 200, 'pcs'),
+      makeVariant('500ml', 500, 'ml', 100, 'pcs')
+    ]
+  },
+  {
+    code:'FG-HC-003', name:'Hair Growth Serum', category:'Hair Care', subCategory:'Serum', type:'Serum',
+    unit:'ml', weight:50, gstRate:18, hsnCode:'3305', shelfLife:24, status:'Active', discontinuedDate:'',
+    description:'Intensive hair growth serum with biotin and caffeine.',
+    storage:'Cool, dry place', certifications:'Cruelty-Free', barcode:'8901234567892', image:null, history:[],
+    variants: [
+      makeVariant('30ml', 30, 'ml', 300, 'pcs'),
+      makeVariant('50ml', 50, 'ml', 200, 'pcs'),
+      makeVariant('100ml', 100, 'ml', 100, 'pcs')
+    ]
+  },
+  {
+    code:'FG-SC-001', name:'Vitamin C Face Serum', category:'Skin Care', subCategory:'Serum', type:'Serum',
+    unit:'ml', weight:30, gstRate:18, hsnCode:'3304', shelfLife:24, status:'Active', discontinuedDate:'',
+    description:'Brightening Vitamin C serum with hyaluronic acid.',
+    storage:'Cool, dark place', certifications:'Dermatologically Tested', barcode:'8901234567893', image:null, history:[],
+    variants: [
+      makeVariant('15ml', 15, 'ml', 400, 'pcs'),
+      makeVariant('30ml', 30, 'ml', 200, 'pcs'),
+      makeVariant('50ml', 50, 'ml', 100, 'pcs')
+    ]
+  },
+  {
+    code:'FG-SC-002', name:'Anti-Aging Night Cream', category:'Skin Care', subCategory:'Cream', type:'Cream',
+    unit:'g', weight:50, gstRate:18, hsnCode:'3304', shelfLife:36, status:'Active', discontinuedDate:'',
+    description:'Retinol-based night cream with peptides.',
+    storage:'Cool, dark place', certifications:'Dermatologically Tested', barcode:'8901234567894', image:null, history:[],
+    variants: [
+      makeVariant('25g', 25, 'g', 600, 'pcs'),
+      makeVariant('50g', 50, 'g', 300, 'pcs'),
+      makeVariant('100g', 100, 'g', 150, 'pcs'),
+      makeVariant('1kg', 1000, 'g', 5, 'pcs')
+    ]
+  },
+  {
+    code:'FG-SC-003', name:'Salicylic Acid Face Wash', category:'Skin Care', subCategory:'Face Wash', type:'Face Wash',
+    unit:'ml', weight:100, gstRate:18, hsnCode:'3304', shelfLife:36, status:'Active', discontinuedDate:'',
+    description:'Acne-control face wash with 2% salicylic acid.',
+    storage:'Cool, dry place', certifications:'Dermatologically Tested', barcode:'8901234567895', image:null, history:[],
+    variants: [
+      makeVariant('50ml', 50, 'ml', 500, 'pcs'),
+      makeVariant('100ml', 100, 'ml', 300, 'pcs'),
+      makeVariant('200ml', 200, 'ml', 150, 'pcs')
+    ]
+  },
+  {
+    code:'FG-BC-001', name:'Charcoal Body Wash', category:'Body Care', subCategory:'Body Wash', type:'Body Wash',
+    unit:'ml', weight:250, gstRate:18, hsnCode:'3307', shelfLife:36, status:'Active', discontinuedDate:'',
+    description:'Deep cleansing charcoal body wash with tea tree.',
+    storage:'Cool, dry place', certifications:'Natural', barcode:'8901234567896', image:null, history:[],
+    variants: [
+      makeVariant('100ml', 100, 'ml', 400, 'pcs'),
+      makeVariant('250ml', 250, 'ml', 200, 'pcs'),
+      makeVariant('1L', 1000, 'ml', 50, 'pcs')
+    ]
+  },
+  {
+    code:'FG-BC-002', name:'Shea Butter Body Lotion', category:'Body Care', subCategory:'Lotion', type:'Lotion',
+    unit:'ml', weight:200, gstRate:18, hsnCode:'3304', shelfLife:36, status:'Active', discontinuedDate:'',
+    description:'Intense moisturizing body lotion with shea butter.',
+    storage:'Cool, dry place', certifications:'Natural, Cruelty-Free', barcode:'8901234567897', image:null, history:[],
+    variants: [
+      makeVariant('100ml', 100, 'ml', 400, 'pcs'),
+      makeVariant('200ml', 200, 'ml', 200, 'pcs'),
+      makeVariant('500ml', 500, 'ml', 100, 'pcs')
+    ]
+  },
+  {
+    code:'FG-FC-001', name:'Rose Water Toner', category:'Face Care', subCategory:'Toner', type:'Toner',
+    unit:'ml', weight:100, gstRate:18, hsnCode:'3304', shelfLife:24, status:'Active', discontinuedDate:'',
+    description:'Pure rose water toner with glycerin.',
+    storage:'Cool, dark place', certifications:'Natural', barcode:'8901234567898', image:null, history:[],
+    variants: [
+      makeVariant('50ml', 50, 'ml', 500, 'pcs'),
+      makeVariant('100ml', 100, 'ml', 300, 'pcs'),
+      makeVariant('250ml', 250, 'ml', 100, 'pcs')
+    ]
+  },
+  {
+    code:'FG-FC-002', name:'Clay Face Mask', category:'Face Care', subCategory:'Mask', type:'Mask',
+    unit:'g', weight:50, gstRate:18, hsnCode:'3304', shelfLife:36, status:'Active', discontinuedDate:'',
+    description:'Bentonite clay mask with activated charcoal.',
+    storage:'Cool, dry place', certifications:'Natural', barcode:'8901234567899', image:null, history:[],
+    variants: [
+      makeVariant('25g', 25, 'g', 600, 'pcs'),
+      makeVariant('50g', 50, 'g', 300, 'pcs'),
+      makeVariant('100g', 100, 'g', 150, 'pcs'),
+      makeVariant('500g', 500, 'g', 30, 'pcs')
+    ]
+  },
+  {
+    code:'FG-SU-001', name:'SPF 50 Sunscreen', category:'Sun Care', subCategory:'Sunscreen', type:'Sunscreen',
+    unit:'ml', weight:50, gstRate:18, hsnCode:'3304', shelfLife:24, status:'Draft', discontinuedDate:'',
+    description:'Broad spectrum SPF 50 PA++++ sunscreen.',
+    storage:'Cool, dry place', certifications:'Dermatologically Tested', barcode:'', image:null, history:[],
+    variants: [
+      makeVariant('30ml', 30, 'ml', 300, 'pcs'),
+      makeVariant('50ml', 50, 'ml', 200, 'pcs')
+    ]
+  },
+  {
+    code:'FG-OC-001', name:'Herbal Toothpaste', category:'Oral Care', subCategory:'Toothpaste', type:'Toothpaste',
+    unit:'g', weight:100, gstRate:18, hsnCode:'3306', shelfLife:24, status:'Active', discontinuedDate:'',
+    description:'Fluoride-free herbal toothpaste with neem and clove.',
+    storage:'Cool, dry place', certifications:'Natural', barcode:'8901234567900', image:null, history:[],
+    variants: [
+      makeVariant('50g', 50, 'g', 500, 'pcs'),
+      makeVariant('100g', 100, 'g', 300, 'pcs'),
+      makeVariant('200g', 200, 'g', 150, 'pcs')
+    ]
+  },
+  {
+    code:'FG-MC-001', name:'Beard Oil', category:"Men's Care", subCategory:'Beard Oil', type:'Hair Oil',
+    unit:'ml', weight:30, gstRate:18, hsnCode:'3305', shelfLife:24, status:'Active', discontinuedDate:'',
+    description:'Nourishing beard oil with argan and jojoba.',
+    storage:'Cool, dry place', certifications:'Cruelty-Free', barcode:'8901234567901', image:null, history:[],
+    variants: [
+      makeVariant('15ml', 15, 'ml', 400, 'pcs'),
+      makeVariant('30ml', 30, 'ml', 200, 'pcs'),
+      makeVariant('60ml', 60, 'ml', 100, 'pcs')
+    ]
+  },
+  {
+    code:'FG-BA-001', name:'Baby Lotion', category:'Baby Care', subCategory:'Lotion', type:'Lotion',
+    unit:'ml', weight:100, gstRate:12, hsnCode:'3304', shelfLife:24, status:'Active', discontinuedDate:'',
+    description:'Gentle baby lotion with chamomile and aloe.',
+    storage:'Cool, dry place', certifications:'Pediatrician Approved', barcode:'8901234567902', image:null, history:[],
+    variants: [
+      makeVariant('50ml', 50, 'ml', 400, 'pcs'),
+      makeVariant('100ml', 100, 'ml', 200, 'pcs'),
+      makeVariant('200ml', 200, 'ml', 100, 'pcs')
+    ]
+  },
+  {
+    code:'FG-FR-001', name:'Lavender EDP', category:'Fragrance', subCategory:'Perfume', type:'Perfume',
+    unit:'ml', weight:50, gstRate:18, hsnCode:'3303', shelfLife:60, status:'Active', discontinuedDate:'',
+    description:'Premium lavender eau de parfum.',
+    storage:'Cool, dark place', certifications:'IFRA Compliant', barcode:'8901234567903', image:null, history:[],
+    variants: [
+      makeVariant('15ml', 15, 'ml', 200, 'pcs'),
+      makeVariant('30ml', 30, 'ml', 100, 'pcs'),
+      makeVariant('50ml', 50, 'ml', 50, 'pcs'),
+      makeVariant('100ml', 100, 'ml', 25, 'pcs')
+    ]
+  },
+];
+
+function loadDB() {
+  try {
+    const raw = localStorage.getItem(DB_KEY);
+    if (raw) { 
+      const data = JSON.parse(raw); 
+      products = data.products || []; 
+      nextProductId = data.nextProductId || 1; 
+    }
+  } catch (e) { showToast('Failed to load data', 'error'); }
+  if (!products.length) {
+    products = demoProducts.map((p, i) => ({ ...p, id: i + 1, createdAt: '2024-01-01', updatedAt: '2024-01-01' }));
+    nextProductId = products.length + 1;
+  }
+  // Migrate old data structures
+  products.forEach(p => {
+    if (!p.standardAssumptions) {
+      p.standardAssumptions = { equipmentPct: 3, consumablesPct: 1, storagePct: 2, housekeepingPct: 1, adminPct: 5, wastagePct: 2, image: null, lastUpdated: null };
+    }
+    if (!p.productionOverhead) {
+      p.productionOverhead = { electricity: 0, labor: 0, labTesting: 0, other: 0, lastUpdated: null };
+    }
+    if (!p.packaging) {
+      p.packaging = { items: getDefaultPackagingItems(), charges: { machine: 0, shrinkWrap: 0, other: 0 }, lastUpdated: null };
+    }
+    if (!p.marketplace) {
+      p.marketplace = {
+        packaging: [
+          { name: 'Primary Box', qty: 1, rate: 0, amount: 0, optional: false },
+          { name: 'Label', qty: 1, rate: 0, amount: 0, optional: true },
+          { name: 'Bubble Wrap', qty: 1, rate: 0, amount: 0, optional: true },
+          { name: 'Shipping Label', qty: 1, rate: 0, amount: 0, optional: false }
+        ],
+        fees: {
+          flipkart: { commission: 15, fixed: 30, shipping: 50, collection: 2 },
+          amazon: { commission: 15, fixed: 40, shipping: 50, fba: 3 },
+          meesho: { commission: 0, shipping: 70, collection: 0, penalty: 2 },
+          snapdeal: { commission: 12, fixed: 20, shipping: 50, collection: 1.5 }
+        },
+        margins: { flipkart: 25, amazon: 25, meesho: 30, snapdeal: 25 },
+        lastUpdated: null
+      };
+    }
+    if (!p.costing || !p.costing.margins) {
+      p.costing = { margins: { exFactory: 10, dealer: 15, distributor: 20, retailer: 25, selling: 35, b2b: 20, b2c: 40 }, lastUpdated: null };
+    }
+    if (!p.rnd) {
+      p.rnd = { testing: 0, consumables: 0, samples: 0, overhead: 0, otherOverhead: 0, qc: 0, lifecycle: 1000, lastUpdated: null };
+    }
+    if (!p.formulation) {
+      p.formulation = { refWeight: 100, refUnit: 'ml', rows: [] };
+    }
+  });
+  populateFilters();
+  renderAll();
+}
+
+function saveDB() { localStorage.setItem(DB_KEY, JSON.stringify({products, nextProductId})); renderAll(); }
+
+function populateFilters() {
+  const cats = [...new Set(products.map(p => p.category).filter(Boolean))].sort();
+  const catSel = document.getElementById('filterCategory');
+  catSel.innerHTML = '<option value="">All Categories</option>';
+  cats.forEach(c => { const o = document.createElement('option'); o.value = c; o.textContent = c; catSel.appendChild(o); });
+}
+
+// ========== HELPERS ==========
+function fmt(n) { return '₹' + (parseFloat(n) || 0).toLocaleString('en-IN', {minimumFractionDigits:2, maximumFractionDigits:2}); }
+function fmtN(n, d) { return (parseFloat(n) || 0).toLocaleString('en-IN', {minimumFractionDigits:d || 0, maximumFractionDigits:d || 0}); }
+function pct(n) { return (parseFloat(n) || 0).toFixed(1) + '%'; }
+
+function showToast(msg, type) {
+  const c = document.getElementById('toastContainer');
+  const t = document.createElement('div'); t.className = 'toast ' + type;
+  t.innerHTML = (type === 'success' ? '✓ ' : type === 'error' ? '✗ ' : '⚠ ') + msg;
+  c.appendChild(t); setTimeout(() => t.remove(), 4000);
+}
+
+function statusTag(status) {
+  const map = { 'Active': 'tag-success', 'Inactive': 'tag-gray', 'Draft': 'tag-info', 'Archived': 'tag-archived' };
+  return '<span class="tag ' + (map[status] || 'tag-gray') + '">' + status + '</span>';
+}
+
+function openModal(id) { document.getElementById(id).classList.add('show'); }
+function closeModal(id) { document.getElementById(id).classList.remove('show'); if (id === 'productModal') { document.getElementById('productForm').reset(); document.getElementById('editProductId').value = ''; document.getElementById('pImagePreview').classList.add('hidden'); document.getElementById('pImagePlaceholder').classList.remove('hidden'); } }
+
+// ========== RENDER ==========
+function renderAll() {
+  renderDashboard();
+  renderProducts();
+}
+
+function renderDashboard() {
+  const total = products.length;
+  const active = products.filter(p => p.status === 'Active').length;
+  const cats = new Set(products.map(p => p.category).filter(Boolean)).size;
+  document.getElementById('dashTotal').textContent = total;
+  document.getElementById('dashActive').textContent = active;
+  document.getElementById('dashCategories').textContent = cats;
+}
+
+function renderProducts() {
+  const search = document.getElementById('globalSearch').value.toLowerCase();
+  const catFilter = document.getElementById('filterCategory').value;
+  const statusFilter = document.getElementById('filterStatus').value;
+
+  let filtered = products.filter(p => {
+    if (p.status === 'Archived' && statusFilter !== 'Archived') return false;
+    if (!search) return true;
+    const s = search;
+    return (p.name || '').toLowerCase().includes(s) || (p.code || '').toLowerCase().includes(s) || (p.category || '').toLowerCase().includes(s) || (p.hsnCode || '').toLowerCase().includes(s) || (p.barcode || '').toLowerCase().includes(s);
+  });
+  if (catFilter) filtered = filtered.filter(p => p.category === catFilter);
+  if (statusFilter) filtered = filtered.filter(p => p.status === statusFilter);
+
+  filtered.sort((a, b) => {
+    let va = a[sortKey] || ''; let vb = b[sortKey] || '';
+    if (typeof va === 'string') va = va.toLowerCase(); if (typeof vb === 'string') vb = vb.toLowerCase();
+    if (va < vb) return -sortDir; if (va > vb) return sortDir; return 0;
+  });
+
+  document.getElementById('listView').classList.toggle('hidden', currentView !== 'list');
+  document.getElementById('gridView').classList.toggle('hidden', currentView !== 'grid');
+
+  const tbody = document.getElementById('productsTable'); tbody.innerHTML = '';
+  if (!filtered.length) { tbody.innerHTML = '<tr><td colspan="7" class="empty"><div class="icon">📦</div><h4>No products found</h4></td></tr>'; }
+  else filtered.forEach(p => {
+    const formCost = getFormulationCostPerUnit(p);
+    const costDisplay = formCost > 0 ? fmtN(formCost, 4) + ' /' + (p.unit || 'unit') : '<span style="color:var(--text-muted)">—</span>';
+    const tr = document.createElement('tr');
+    tr.style.opacity = p.status === 'Archived' ? '0.6' : '1';
+    tr.innerHTML = '<td class="code-cell" onclick="openProductDetail(' + p.id + ')">' + p.code + '</td>' +
+      '<td class="name-cell" onclick="openProductDetail(' + p.id + ')">' + p.name + '</td>' +
+      '<td><span class="tag tag-gray">' + (p.category || '-') + '</span></td>' +
+      '<td>' + (p.type || '-') + '</td>' +
+      '<td>' + costDisplay + '</td>' +
+      '<td>' + statusTag(p.status) + '</td>' +
+      '<td class="actions">' +
+        '<button class="bom-btn" title="BOM Costing" onclick="event.stopPropagation(); openBOM(' + p.id + ')">🧮</button>' +
+        '<button class="qr-btn" title="QR Code" onclick="event.stopPropagation(); openQR(' + p.id + ')">🔲</button>' +
+        '<button class="edit-btn" title="Edit" onclick="event.stopPropagation(); editProduct(' + p.id + ')">✏️</button>' +
+        '<button class="delete-btn" title="Delete" onclick="event.stopPropagation(); deleteProduct(' + p.id + ')">🗑️</button>' +
+      '</td>';
+    tbody.appendChild(tr);
+  });
+
+  const grid = document.getElementById('gridView'); grid.innerHTML = '';
+  if (!filtered.length) { grid.innerHTML = '<div class="empty" style="grid-column:1/-1"><div class="icon">📦</div><h4>No products found</h4></div>'; }
+  else filtered.forEach(p => {
+    const formCost = getFormulationCostPerUnit(p);
+    const costDisplay = formCost > 0 ? fmtN(formCost, 4) + '/' + (p.unit || 'unit') : '—';
+    const div = document.createElement('div'); div.className = 'product-card'; div.style.opacity = p.status === 'Archived' ? '0.6' : '1';
+    div.innerHTML = '<div class="img-box">' + (p.image ? '<img src="' + p.image + '">' : '🧴') + '</div>' +
+      '<div class="top-row"><span class="sku">' + p.code + '</span>' + statusTag(p.status) + '</div>' +
+      '<div class="title">' + p.name + '</div>' +
+      '<div class="meta">' + (p.category || '-') + ' · ' + (p.type || '-') + '</div>' +
+      '<div class="price-row"><span class="price">' + costDisplay + '</span><span class="moq">BOM/unit</span></div>' +
+      '<div class="card-actions">' +
+        '<button class="btn-bom" onclick="event.stopPropagation(); openBOM(' + p.id + ')">🧮 BOM</button>' +
+        '<button class="btn-price" onclick="event.stopPropagation(); openPricing(' + p.id + ')">💰 Price</button>' +
+      '</div>';
+    div.onclick = () => openProductDetail(p.id);
+    grid.appendChild(div);
+  });
+}
+
+function setView(view, btn) {
+  currentView = view;
+  document.querySelectorAll('.view-toggle button').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderProducts();
+}
+
+function sortBy(key) { if (sortKey === key) sortDir *= -1; else { sortKey = key; sortDir = 1; } renderProducts(); }
+
+// ========== PRODUCT CRUD ==========
+function openAddModal() {
+  document.getElementById('productModalTitle').textContent = '➕ Add New Product';
+  document.getElementById('editProductId').value = '';
+  document.getElementById('productForm').reset();
+  document.getElementById('pImagePreview').classList.add('hidden');
+  document.getElementById('pImagePlaceholder').classList.remove('hidden');
+  openModal('productModal');
+}
+
+function editProduct(id) {
+  const p = products.find(x => x.id === id); if (!p) return;
+  document.getElementById('productModalTitle').textContent = '✏️ Edit Product — ' + p.name;
+  document.getElementById('editProductId').value = p.id;
+  document.getElementById('pCode').value = p.code;
+  document.getElementById('pName').value = p.name;
+  document.getElementById('pCategory').value = p.category || '';
+  document.getElementById('pSubCategory').value = p.subCategory || '';
+  document.getElementById('pType').value = p.type || '';
+  document.getElementById('pUnit').value = p.unit || 'ml';
+  document.getElementById('pWeight').value = p.weight || '';
+  document.getElementById('pGST').value = p.gstRate || 12;
+  document.getElementById('pHSN').value = p.hsnCode || '';
+  document.getElementById('pShelfLife').value = p.shelfLife || '';
+  document.getElementById('pStatus').value = p.status || 'Active';
+  document.getElementById('pDiscontinuedDate').value = p.discontinuedDate || '';
+  document.getElementById('pDescription').value = p.description || '';
+  document.getElementById('pStorage').value = p.storage || '';
+  document.getElementById('pCertifications').value = p.certifications || '';
+  document.getElementById('pBarcode').value = p.barcode || '';
+  if (p.image) { document.getElementById('pImagePreview').src = p.image; document.getElementById('pImagePreview').classList.remove('hidden'); document.getElementById('pImagePlaceholder').classList.add('hidden'); }
+  else { document.getElementById('pImagePreview').classList.add('hidden'); document.getElementById('pImagePlaceholder').classList.remove('hidden'); }
+  openModal('productModal');
+}
+
+function saveProduct(e) {
+  e.preventDefault();
+  const id = document.getElementById('editProductId').value;
+  const p = {
+    code: document.getElementById('pCode').value.trim(),
+    name: document.getElementById('pName').value.trim(),
+    category: document.getElementById('pCategory').value,
+    subCategory: document.getElementById('pSubCategory').value.trim(),
+    type: document.getElementById('pType').value,
+    unit: document.getElementById('pUnit').value,
+    weight: parseFloat(document.getElementById('pWeight').value) || 0,
+    gstRate: parseInt(document.getElementById('pGST').value) || 0,
+    hsnCode: document.getElementById('pHSN').value.trim(),
+    shelfLife: parseInt(document.getElementById('pShelfLife').value) || 0,
+    status: document.getElementById('pStatus').value,
+    discontinuedDate: document.getElementById('pDiscontinuedDate').value,
+    description: document.getElementById('pDescription').value.trim(),
+    storage: document.getElementById('pStorage').value.trim(),
+    certifications: document.getElementById('pCertifications').value.trim(),
+    barcode: document.getElementById('pBarcode').value.trim(),
+    image: document.getElementById('pImagePreview').classList.contains('hidden') ? null : document.getElementById('pImagePreview').src,
+  };
+  if (!p.code || !p.name || !p.category) { showToast('Please fill all required fields', 'error'); return; }
+
+  if (id) {
+    const idx = products.findIndex(x => x.id === parseInt(id));
+    if (idx >= 0) { 
+      const existing = products[idx];
+      products[idx] = { ...existing, ...p, updatedAt: new Date().toISOString() }; 
+      showToast('Product updated: ' + p.name, 'success'); 
+    }
+  } else {
+    if (products.find(x => x.code === p.code)) { showToast('SKU already exists: ' + p.code, 'error'); return; }
+    const newProd = { 
+      ...p, id: nextProductId++, 
+      createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), 
+      history: [], variants: [],
+      formulation: { refWeight: p.weight || 100, refUnit: p.unit || 'ml', rows: [] },
+      standardAssumptions: { equipmentPct: 3, consumablesPct: 1, storagePct: 2, housekeepingPct: 1, adminPct: 5, wastagePct: 2, image: null, lastUpdated: null },
+      rnd: { testing: 0, consumables: 0, samples: 0, overhead: 0, otherOverhead: 0, qc: 0, lifecycle: 1000, lastUpdated: null },
+      productionOverhead: { electricity: 0, labor: 0, labTesting: 0, other: 0, lastUpdated: null },
+      packaging: { items: getDefaultPackagingItems(), charges: { machine: 0, shrinkWrap: 0, other: 0 }, lastUpdated: null },
+      costing: { margins: { exFactory: 10, dealer: 15, distributor: 20, retailer: 25, selling: 35, b2b: 20, b2c: 40 }, lastUpdated: null },
+      marketplace: {
+        packaging: [
+          { name: 'Primary Box', qty: 1, rate: 0, amount: 0, optional: false },
+          { name: 'Label', qty: 1, rate: 0, amount: 0, optional: true },
+          { name: 'Bubble Wrap', qty: 1, rate: 0, amount: 0, optional: true },
+          { name: 'Shipping Label', qty: 1, rate: 0, amount: 0, optional: false }
+        ],
+        fees: {
+          flipkart: { commission: 15, fixed: 30, shipping: 50, collection: 2 },
+          amazon: { commission: 15, fixed: 40, shipping: 50, fba: 3 },
+          meesho: { commission: 0, shipping: 70, collection: 0, penalty: 2 },
+          snapdeal: { commission: 12, fixed: 20, shipping: 50, collection: 1.5 }
+        },
+        margins: { flipkart: 25, amazon: 25, meesho: 30, snapdeal: 25 },
+        lastUpdated: null
+      }
+    };
+    if (newProd.weight > 0) {
+      newProd.variants.unshift(makeVariant(newProd.weight + (newProd.unit || 'ml'), newProd.weight, newProd.unit || 'ml', 100, 'pcs'));
+    }
+    products.push(newProd);
+    showToast('Product added: ' + p.name, 'success');
+  }
+  saveDB(); populateFilters(); closeModal('productModal');
+}
+
+function deleteProduct(id) {
+  const p = products.find(x => x.id === id); if (!p || !confirm('Delete ' + p.name + '?')) return;
+  products = products.filter(x => x.id !== id); saveDB(); populateFilters(); showToast('Deleted: ' + p.name, 'warning');
+}
+
+function previewImage(e) {
+  const f = e.target.files[0]; if (!f) return;
+  const r = new FileReader(); r.onload = (ev) => { document.getElementById('pImagePreview').src = ev.target.result; document.getElementById('pImagePreview').classList.remove('hidden'); document.getElementById('pImagePlaceholder').classList.add('hidden'); };
+  r.readAsDataURL(f);
+}
+
+// ========== PRODUCT DETAIL ==========
+function openProductDetail(id) {
+  const p = products.find(x => x.id === id); if (!p) return;
+  currentDetailProduct = p;
+  document.getElementById('detailModalTitle').textContent = '📋 ' + p.name + ' (' + p.code + ')';
+  
+  const formCost = getFormulationCostPerUnit(p);
+  const costDisplay = formCost > 0 ? fmtN(formCost, 4) + ' / ' + (p.unit || 'unit') : '—';
+  
+  const img = p.image ? '<img class="detail-img" src="' + p.image + '">' : '<div class="detail-img-placeholder">🧴</div>';
+  document.getElementById('detailOverview').innerHTML = '<div class="detail-left">' +
+    '<div class="detail-section"><h4>🖼️ Product Image</h4>' + img + '</div>' +
+    '<div class="detail-section"><h4>📋 Basic Info</h4>' +
+      '<div class="detail-item"><span class="label">SKU</span><span class="value">' + p.code + '</span></div>' +
+      '<div class="detail-item"><span class="label">Category</span><span class="value">' + (p.category || '-') + '</span></div>' +
+      '<div class="detail-item"><span class="label">Sub-Category</span><span class="value">' + (p.subCategory || '-') + '</span></div>' +
+      '<div class="detail-item"><span class="label">Type</span><span class="value">' + (p.type || '-') + '</span></div>' +
+    '</div>' +
+  '</div>' +
+  '<div class="detail-center">' +
+    '<div class="detail-section"><h4>📐 Specifications</h4>' +
+      '<div class="detail-item"><span class="label">Base Unit</span><span class="value">' + (p.unit || '-') + '</span></div>' +
+      '<div class="detail-item"><span class="label">Reference Weight</span><span class="value">' + (p.weight ? p.weight + ' ' + p.unit : '-') + '</span></div>' +
+      '<div class="detail-item"><span class="label">Shelf Life</span><span class="value">' + (p.shelfLife ? p.shelfLife + ' months' : '-') + '</span></div>' +
+      '<div class="detail-item"><span class="label">HSN</span><span class="value">' + (p.hsnCode || '-') + '</span></div>' +
+      '<div class="detail-item"><span class="label">GST</span><span class="value">' + p.gstRate + '%</span></div>' +
+      '<div class="detail-item"><span class="label">Barcode</span><span class="value">' + (p.barcode || '-') + '</span></div>' +
+    '</div>' +
+  '</div>' +
+  '<div class="detail-right">' +
+    '<div class="detail-section"><h4>💰 Cost Per Unit</h4>' +
+      '<div class="detail-item"><span class="label">Formulation Cost</span><span class="value" style="font-size:18px;color:var(--info)">' + costDisplay + '</span></div>' +
+    '</div>' +
+    '<div class="detail-section"><h4>📅 Dates</h4>' +
+      '<div class="detail-item"><span class="label">Discontinued</span><span class="value">' + (p.discontinuedDate || '-') + '</span></div>' +
+      '<div class="detail-item"><span class="label">Status</span><span class="value">' + statusTag(p.status) + '</span></div>' +
+    '</div>' +
+    '<div class="detail-section"><h4>🏅 Certifications</h4><div class="detail-notes">' + (p.certifications || 'None') + '</div></div>' +
+  '</div>';
+
+  renderFormulation();
+  renderOverheads();
+  renderCosting();
+  renderMarketplace();
+  generateQR(p);
+  renderRNDDoc();
+  renderResearchGuide();
+  renderCertificateHistory();
+  renderHistory();
+
+  document.querySelectorAll('#detailTabs .tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('#detailModal .tab-content').forEach(c => c.classList.remove('active'));
+  document.querySelector('#detailTabs .tab').classList.add('active');
+  document.getElementById('detail-overview').classList.add('active');
+
+  openModal('detailModal');
+}
+
+function switchDetailTab(tabId, btn) {
+  document.querySelectorAll('#detailTabs .tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('#detailModal .tab-content').forEach(c => c.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('detail-' + tabId).classList.add('active');
+  if (tabId === 'qr' && currentDetailProduct) generateQR(currentDetailProduct);
+  if (tabId === 'formulation') { loadRawMaterials(); renderFormulation(); }
+  if (tabId === 'overheads') renderOverheads();
+  if (tabId === 'costing') renderCosting();
+  if (tabId === 'marketplace') renderMarketplace();
+  if (tabId === 'procedure') { renderProcedure(); renderRNDDoc(); renderResearchGuide(); }
+}
+
+function renderHistory() {
+  const p = currentDetailProduct; if (!p) return;
+  const hList = document.getElementById('historyList');
+  const historyEntries = [];
+  if (p.createdAt) historyEntries.push({date: p.createdAt, action: 'Product created', detail: 'SKU: ' + p.code});
+  if (p.updatedAt && p.updatedAt !== p.createdAt) historyEntries.push({date: p.updatedAt, action: 'Product updated', detail: 'Last modification'});
+  if (p.rnd && p.rnd.lastUpdated) historyEntries.push({date: p.rnd.lastUpdated, action: 'R&D costing updated', detail: 'Lifecycle: ' + (p.rnd.lifecycle || 1000) + ' batches'});
+  if (p.productionOverhead && p.productionOverhead.lastUpdated) historyEntries.push({date: p.productionOverhead.lastUpdated, action: 'Production Overhead updated', detail: 'Manufacturing costs'});
+  if (p.standardAssumptions && p.standardAssumptions.lastUpdated) historyEntries.push({date: p.standardAssumptions.lastUpdated, action: 'Standard Assumptions updated', detail: 'Indirect % adjusted'});
+  if (p.procedure && p.procedure.attachments && p.procedure.attachments.length) {
+    p.procedure.attachments.forEach(att => {
+      if (att.createdAt) historyEntries.push({date: att.createdAt, action: 'Procedure attachment added', detail: att.name || 'Attachment'});
+    });
+  }
+  if (p.rndDoc && p.rndDoc.lastUpdated) historyEntries.push({date: p.rndDoc.lastUpdated, action: 'R&D documentation updated', detail: 'Research notes modified'});
+  if (p.researchGuide && p.researchGuide.lastUpdated) historyEntries.push({date: p.researchGuide.lastUpdated, action: 'Research guide updated', detail: 'Methodology references'});
+  historyEntries.sort((a, b) => new Date(b.date) - new Date(a.date));
+  if (!historyEntries.length) {
+    hList.innerHTML = '<div style="color:var(--text-secondary);font-size:13px; padding:10px 14px; background:var(--surface); border-radius:8px;">No activity history recorded yet. Changes to R&D, overhead, procedures, and documents will be tracked automatically.</div>';
+  } else {
+    hList.innerHTML = '<div style="display:flex; flex-direction:column; gap:8px">' + historyEntries.map(h => {
+      const dateStr = new Date(h.date).toLocaleDateString('en-IN', {day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit'});
+      return '<div class="proc-attachment"><span class="icon">🕐</span><div class="meta"><div class="name">' + h.action + '</div><div class="size">' + h.detail + ' · ' + dateStr + '</div></div></div>';
+    }).join('') + '</div>';
+  }
+}
+
+// ========== FORMULATION ==========
+let rawMaterialsList = [];
+let mediaRecorder = null;
+let audioChunks = [];
+let recTimerInterval = null;
+let recSeconds = 0;
+
+function loadRawMaterials() {
+  try {
+    const raw = localStorage.getItem('rawMaterialDB_v8');
+    if (raw) {
+      const data = JSON.parse(raw);
+      rawMaterialsList = (data.materials || []).map(m => ({
+        id: m.id || m.materialId || '',
+        code: m.code || '',
+        name: m.materialName || m.name || '',
+        unit: m.unit || 'g',
+        hsnCode: m.hsnCode || '',
+        category: m.category || '',
+        supplier: m.supplier || '',
+        location: m.location || '',
+        unitPrice: parseFloat(m.unitPrice) || 0,
+        gstRate: parseInt(m.gstRate) || 0,
+        enableMinStock: m.enableMinStock || false,
+        minStockLevel: parseFloat(m.minStockLevel) || 0,
+        image: m.image || null,
+        qcChecker: m.qcChecker || '',
+        qcNumber: m.qcNumber || '',
+        refCheckNumber: m.refCheckNumber || '',
+        qcPassed: m.qcPassed || false,
+        qcNotes: m.qcNotes || '',
+        batches: m.batches || []
+      }));
+    }
+  } catch (e) {}
+  if (!rawMaterialsList.length) {
+    rawMaterialsList = [
+      {id:'RM-001', code:'RM-0001', name:'Distilled Water', unit:'ml', hsnCode:'2201', category:'Other', supplier:'Local', location:'Warehouse A', unitPrice:5, gstRate:5, enableMinStock:true, minStockLevel:50, image:null, qcChecker:'A. Sharma', qcNumber:'QC-2026-001', refCheckNumber:'REF-001', qcPassed:true, qcNotes:'Potable grade verified.', batches:[]},
+      {id:'RM-002', code:'RM-0002', name:'Sodium Cocoyl Isethionate (SCI)', unit:'g', hsnCode:'3402', category:'Surfactants', supplier:'Galaxy Surfactants', location:'Warehouse D', unitPrice:280, gstRate:18, enableMinStock:true, minStockLevel:10, image:null, qcChecker:'S. Reddy', qcNumber:'QC-2026-005', refCheckNumber:'REF-005', qcPassed:true, qcNotes:'Active matter 85%.', batches:[]},
+      {id:'RM-003', code:'RM-0003', name:'Coco Amido Propyl Betaine (CAPB)', unit:'g', hsnCode:'3402', category:'Surfactants', supplier:'Galaxy Surfactants', location:'Warehouse D', unitPrice:180, gstRate:18, enableMinStock:true, minStockLevel:10, image:null, qcChecker:'S. Reddy', qcNumber:'QC-2026-005', refCheckNumber:'REF-005', qcPassed:true, qcNotes:'Active matter 30%.', batches:[]},
+      {id:'RM-004', code:'RM-0004', name:'Coco Glucoside', unit:'g', hsnCode:'3402', category:'Surfactants', supplier:'BASF India', location:'Warehouse D', unitPrice:350, gstRate:18, enableMinStock:true, minStockLevel:5, image:null, qcChecker:'S. Reddy', qcNumber:'QC-2026-005', refCheckNumber:'REF-005', qcPassed:true, qcNotes:'Plant-derived, RSPO certified.', batches:[]},
+      {id:'RM-005', code:'RM-0005', name:'Lauryl Glucoside', unit:'g', hsnCode:'3402', category:'Surfactants', supplier:'BASF India', location:'Warehouse D', unitPrice:320, gstRate:18, enableMinStock:true, minStockLevel:5, image:null, qcChecker:'S. Reddy', qcNumber:'QC-2026-005', refCheckNumber:'REF-005', qcPassed:true, qcNotes:'Plant-derived.', batches:[]},
+      {id:'RM-006', code:'RM-0006', name:'Capryl/Caprylyl Glucoside', unit:'g', hsnCode:'3402', category:'Surfactants', supplier:'BASF India', location:'Warehouse D', unitPrice:420, gstRate:18, enableMinStock:true, minStockLevel:5, image:null, qcChecker:'S. Reddy', qcNumber:'QC-2026-005', refCheckNumber:'REF-005', qcPassed:true, qcNotes:'Mild surfactant.', batches:[]},
+      {id:'RM-007', code:'RM-0007', name:'Glycerine 98%', unit:'g', hsnCode:'1520', category:'Humectants', supplier:'VVF India', location:'Warehouse C', unitPrice:85, gstRate:18, enableMinStock:true, minStockLevel:20, image:null, qcChecker:'R. Patel', qcNumber:'QC-2026-002', refCheckNumber:'REF-002', qcPassed:true, qcNotes:'USP grade, purity 98.5%.', batches:[]},
+      {id:'RM-008', code:'RM-0008', name:'Polyquaternium 7', unit:'g', hsnCode:'3824', category:'Film Formers', supplier:'Solvay India', location:'Warehouse D', unitPrice:450, gstRate:18, enableMinStock:true, minStockLevel:2, image:null, qcChecker:'Dr. Mehta', qcNumber:'QC-2026-003', refCheckNumber:'REF-003', qcPassed:true, qcNotes:'Conditioning agent.', batches:[]},
+      {id:'RM-009', code:'RM-0009', name:'Sodium Benzoate', unit:'g', hsnCode:'2916', category:'Preservatives', supplier:'Lonza India', location:'Warehouse D', unitPrice:220, gstRate:18, enableMinStock:true, minStockLevel:5, image:null, qcChecker:'M. Gupta', qcNumber:'QC-2026-007', refCheckNumber:'REF-007', qcPassed:true, qcNotes:'Food grade preservative.', batches:[]},
+      {id:'RM-010', code:'RM-0010', name:'Potassium Sorbate', unit:'g', hsnCode:'2916', category:'Preservatives', supplier:'Lonza India', location:'Warehouse D', unitPrice:280, gstRate:18, enableMinStock:true, minStockLevel:5, image:null, qcChecker:'M. Gupta', qcNumber:'QC-2026-007', refCheckNumber:'REF-007', qcPassed:true, qcNotes:'Food grade preservative.', batches:[]},
+      {id:'RM-011', code:'RM-0011', name:'Turmeric Extract', unit:'g', hsnCode:'1302', category:'Botanical Extracts', supplier:'Kerala Oils Ltd', location:'Warehouse B', unitPrice:850, gstRate:12, enableMinStock:true, minStockLevel:3, image:null, qcChecker:'A. Sharma', qcNumber:'QC-2026-001', refCheckNumber:'REF-001', qcPassed:true, qcNotes:'Curcumin 95%.', batches:[]},
+      {id:'RM-012', code:'RM-0012', name:'Amla Extract', unit:'g', hsnCode:'1302', category:'Botanical Extracts', supplier:'Kerala Oils Ltd', location:'Warehouse B', unitPrice:750, gstRate:12, enableMinStock:true, minStockLevel:3, image:null, qcChecker:'A. Sharma', qcNumber:'QC-2026-001', refCheckNumber:'REF-001', qcPassed:true, qcNotes:'Standardized extract.', batches:[]},
+      {id:'RM-013', code:'RM-0013', name:'Neem Extract', unit:'g', hsnCode:'1302', category:'Botanical Extracts', supplier:'Kerala Oils Ltd', location:'Warehouse B', unitPrice:650, gstRate:12, enableMinStock:true, minStockLevel:3, image:null, qcChecker:'A. Sharma', qcNumber:'QC-2026-001', refCheckNumber:'REF-001', qcPassed:true, qcNotes:'Azadirachtin content verified.', batches:[]},
+      {id:'RM-014', code:'RM-0014', name:'Argan Oil', unit:'g', hsnCode:'1516', category:'Carrier Oil', supplier:'Morocco Naturals', location:'Warehouse A', unitPrice:1200, gstRate:12, enableMinStock:true, minStockLevel:2, image:null, qcChecker:'R. Patel', qcNumber:'QC-2026-002', refCheckNumber:'REF-002', qcPassed:true, qcNotes:'Cold pressed, organic.', batches:[]},
+      {id:'RM-015', code:'RM-0015', name:'Shea Butter', unit:'g', hsnCode:'1516', category:'Butters', supplier:'Ghana Naturals', location:'Warehouse C', unitPrice:650, gstRate:12, enableMinStock:true, minStockLevel:8, image:null, qcChecker:'P. Kumar', qcNumber:'QC-2026-004', refCheckNumber:'REF-004', qcPassed:true, qcNotes:'Melting point 38-42°C.', batches:[]},
+      {id:'RM-016', code:'RM-0016', name:'Coconut Oil', unit:'g', hsnCode:'1513', category:'Carrier Oil', supplier:'Kerala Oils Ltd', location:'Warehouse A', unitPrice:180, gstRate:12, enableMinStock:true, minStockLevel:15, image:null, qcChecker:'A. Sharma', qcNumber:'QC-2026-001', refCheckNumber:'REF-001', qcPassed:true, qcNotes:'Virgin cold pressed.', batches:[]},
+      {id:'RM-017', code:'RM-0017', name:'Vitamin E', unit:'g', hsnCode:'2936', category:'Vitamins', supplier:'DSM India', location:'Warehouse B', unitPrice:2200, gstRate:18, enableMinStock:true, minStockLevel:3, image:null, qcChecker:'Dr. Rao', qcNumber:'QC-2026-006', refCheckNumber:'REF-006', qcPassed:true, qcNotes:'Purity 99.2% by HPLC.', batches:[]},
+      {id:'RM-018', code:'RM-0018', name:'Hyaluronic Acid', unit:'g', hsnCode:'2937', category:'Active Ingredients', supplier:'Bloomage Biotech', location:'Warehouse B', unitPrice:4500, gstRate:18, enableMinStock:true, minStockLevel:2, image:null, qcChecker:'Dr. Mehta', qcNumber:'QC-2026-003', refCheckNumber:'REF-003', qcPassed:true, qcNotes:'MW 1.5 MDa confirmed.', batches:[]},
+      {id:'RM-019', code:'RM-0019', name:'Niacinamide', unit:'g', hsnCode:'2936', category:'Active Ingredients', supplier:'DSM India', location:'Warehouse B', unitPrice:1200, gstRate:18, enableMinStock:true, minStockLevel:3, image:null, qcChecker:'Dr. Rao', qcNumber:'QC-2026-006', refCheckNumber:'REF-006', qcPassed:true, qcNotes:'USP grade, purity 99%.', batches:[]},
+      {id:'RM-020', code:'RM-0020', name:'Salicylic Acid', unit:'g', hsnCode:'2918', category:'Active Ingredients', supplier:'BASF India', location:'Warehouse D', unitPrice:350, gstRate:18, enableMinStock:true, minStockLevel:3, image:null, qcChecker:'Dr. Mehta', qcNumber:'QC-2026-003', refCheckNumber:'REF-003', qcPassed:true, qcNotes:'USP grade, purity 99%.', batches:[]},
+      {id:'RM-021', code:'RM-0021', name:'Activated Charcoal', unit:'g', hsnCode:'3802', category:'Exfoliants', supplier:'Cabot India', location:'Warehouse C', unitPrice:450, gstRate:18, enableMinStock:true, minStockLevel:5, image:null, qcChecker:'P. Kumar', qcNumber:'QC-2026-004', refCheckNumber:'REF-004', qcPassed:true, qcNotes:'Coconut shell derived, 200 mesh.', batches:[]},
+      {id:'RM-022', code:'RM-0022', name:'Bentonite Clay', unit:'g', hsnCode:'2508', category:'Exfoliants', supplier:'Ashapura', location:'Warehouse C', unitPrice:120, gstRate:12, enableMinStock:true, minStockLevel:10, image:null, qcChecker:'P. Kumar', qcNumber:'QC-2026-004', refCheckNumber:'REF-004', qcPassed:true, qcNotes:'Cosmetic grade, heavy metal tested.', batches:[]},
+      {id:'RM-023', code:'RM-0023', name:'Rose Hydrosol', unit:'ml', hsnCode:'3301', category:'Hydrosol', supplier:'Floral Extracts India', location:'Warehouse A', unitPrice:320, gstRate:12, enableMinStock:true, minStockLevel:10, image:null, qcChecker:'R. Patel', qcNumber:'QC-2026-002', refCheckNumber:'REF-002', qcPassed:true, qcNotes:'pH 4.8, microbial test pass.', batches:[]},
+      {id:'RM-024', code:'RM-0024', name:'Lavender Essential Oil', unit:'ml', hsnCode:'3301', category:'Essential Oil', supplier:'Kerala Oils Ltd', location:'Warehouse A, Cold Storage 1', unitPrice:850, gstRate:12, enableMinStock:true, minStockLevel:5, image:null, qcChecker:'A. Sharma', qcNumber:'QC-2026-001', refCheckNumber:'REF-001', qcPassed:true, qcNotes:'Color and aroma within spec. GC-MS verified.', batches:[]},
+      {id:'RM-025', code:'RM-0025', name:'Tea Tree Oil', unit:'ml', hsnCode:'3301', category:'Essential Oil', supplier:'Kerala Oils Ltd', location:'Warehouse A, Cold Storage 1', unitPrice:950, gstRate:12, enableMinStock:true, minStockLevel:5, image:null, qcChecker:'A. Sharma', qcNumber:'QC-2026-001', refCheckNumber:'REF-001', qcPassed:true, qcNotes:'Terpinen-4-ol > 35%.', batches:[]},
+      {id:'RM-026', code:'RM-0026', name:'Zinc Oxide', unit:'g', hsnCode:'2817', category:'Sunscreen Agents', supplier:'Tata Chemicals', location:'Warehouse C', unitPrice:180, gstRate:18, enableMinStock:true, minStockLevel:5, image:null, qcChecker:'P. Kumar', qcNumber:'QC-2026-004', refCheckNumber:'REF-004', qcPassed:true, qcNotes:'Nano-grade, cosmetic use.', batches:[]},
+      {id:'RM-027', code:'RM-0027', name:'Titanium Dioxide', unit:'g', hsnCode:'3206', category:'Sunscreen Agents', supplier:'Tata Chemicals', location:'Warehouse C', unitPrice:220, gstRate:18, enableMinStock:true, minStockLevel:5, image:null, qcChecker:'P. Kumar', qcNumber:'QC-2026-004', refCheckNumber:'REF-004', qcPassed:true, qcNotes:'Nano-grade, cosmetic use.', batches:[]},
+    ];
+  }
+  const dl = document.getElementById('rawMaterialDatalist');
+  if (dl) {
+    dl.innerHTML = rawMaterialsList.map(m => '<option value="' + m.name + '" data-id="' + m.id + '" data-unit="' + m.unit + '">' + m.id + ' - ' + m.name + '</option>').join('');
+  }
+}
+
+function getFormulationCostPerUnit(p) {
+  if (!p || !p.formulation) return 0;
+  const rows = p.formulation.rows || [];
+  const refWeight = parseFloat(p.formulation.refWeight) || 100;
+  let totalAmount = 0;
+  rows.forEach(r => {
+    const conv = parseFloat(r.conversion) || 1;
+    const qty = ((parseFloat(r.percentage) || 0) / 100) * refWeight * conv;
+    let unitPrice = parseFloat(r.unitPrice) || 0;
+    if (!unitPrice && r.code) {
+      const mat = rawMaterialsList.find(m => m.id === r.code || m.name === r.name);
+      if (mat && mat.unitPrice) unitPrice = parseFloat(mat.unitPrice) || 0;
+    }
+    totalAmount += qty * unitPrice;
+  });
+  return refWeight > 0 ? totalAmount / refWeight : 0;
+}
+
+function getFormulationTotalAmount(p) {
+  if (!p || !p.formulation) return 0;
+  const rows = p.formulation.rows || [];
+  const refWeight = parseFloat(p.formulation.refWeight) || 100;
+  let totalAmount = 0;
+  rows.forEach(r => {
+    const conv = parseFloat(r.conversion) || 1;
+    const qty = ((parseFloat(r.percentage) || 0) / 100) * refWeight * conv;
+    let unitPrice = parseFloat(r.unitPrice) || 0;
+    if (!unitPrice && r.code) {
+      const mat = rawMaterialsList.find(m => m.id === r.code || m.name === r.name);
+      if (mat && mat.unitPrice) unitPrice = parseFloat(mat.unitPrice) || 0;
+    }
+    totalAmount += qty * unitPrice;
+  });
+  return totalAmount;
+}
+
+function renderFormulation() {
+  const p = currentDetailProduct; if (!p) return;
+  if (!p.formulation) p.formulation = { refWeight: 100, refUnit: 'ml', rows: [] };
+  document.getElementById('formRefWeight').value = p.formulation.refWeight || 100;
+  document.getElementById('formRefUnit').value = p.formulation.refUnit || 'ml';
+  const tbody = document.getElementById('formulationBody'); tbody.innerHTML = '';
+  const rows = p.formulation.rows || [];
+  let totalPct = 0, totalQty = 0, totalAmount = 0;
+  rows.forEach((r, i) => {
+    const conv = parseFloat(r.conversion) || 1;
+    const qty = ((parseFloat(r.percentage) || 0) / 100) * (parseFloat(p.formulation.refWeight) || 100) * conv;
+    totalPct += parseFloat(r.percentage) || 0;
+    totalQty += qty;
+    let unitPrice = parseFloat(r.unitPrice) || 0;
+    if (!unitPrice && r.code) {
+      const mat = rawMaterialsList.find(m => m.id === r.code || m.name === r.name);
+      if (mat && mat.unitPrice) unitPrice = parseFloat(mat.unitPrice) || 0;
+    }
+    const amount = qty * unitPrice;
+    totalAmount += amount;
+    const tr = document.createElement('tr'); tr.className = 'formulation-row';
+    tr.innerHTML = '<td><button type="button" class="formulation-toggle-btn" onclick="toggleFormRowDetails(' + i + ')" id="formToggle-' + i + '">▶</button></td>' +
+      '<td>' + (i + 1) + '</td>' +
+      '<td><input type="text" class="unit-input" style="width:90px" value="' + (r.code || '') + '" placeholder="Code" onchange="updateFormRow(' + i + ',\'code\',this.value)"></td>' +
+      '<td><input type="text" list="rawMaterialDatalist" style="width:100%; min-width:140px" value="' + (r.name || '') + '" placeholder="Type material name..." oninput="handleMaterialInput(' + i + ',this.value)" onchange="updateFormRow(' + i + ',\'name\',this.value)"></td>' +
+      '<td><input type="number" class="pct-input" value="' + (r.percentage || 0) + '" step="0.01" min="0" max="100" onchange="updateFormRow(' + i + ',\'percentage\',this.value)"></td>' +
+      '<td><input type="number" class="qty-input" value="' + qty.toFixed(2) + '" step="0.01" readonly style="background:var(--surface)"></td>' +
+      '<td><input type="number" style="width:70px" value="' + (r.conversion || 1) + '" step="0.01" min="0" onchange="updateFormRow(' + i + ',\'conversion\',this.value)"></td>' +
+      '<td><input type="text" class="unit-input" value="' + (r.unit || p.formulation.refUnit || 'ml') + '" onchange="updateFormRow(' + i + ',\'unit\',this.value)"></td>' +
+      '<td><input type="text" class="phase-input" value="' + (r.phase || '') + '" placeholder="A/B/C" onchange="updateFormRow(' + i + ',\'phase\',this.value)"></td>' +
+      '<td><input type="text" class="notes-input" value="' + (r.notes || '') + '" placeholder="Notes" onchange="updateFormRow(' + i + ',\'notes\',this.value)"></td>' +
+      '<td style="text-align:right; font-size:12px; color:var(--text-secondary); white-space:nowrap;">' + (unitPrice ? '₹' + unitPrice.toLocaleString('en-IN', {minimumFractionDigits:2, maximumFractionDigits:2}) : '—') + '</td>' +
+      '<td class="amount-cell" style="white-space:nowrap;">₹' + amount.toLocaleString('en-IN', {minimumFractionDigits:2, maximumFractionDigits:2}) + '</td>' +
+      '<td class="row-actions"><button class="btn-danger" onclick="removeFormRow(' + i + ')">✕</button></td>';
+    tbody.appendChild(tr);
+    const trDetails = document.createElement('tr'); trDetails.className = 'formulation-details-row'; trDetails.id = 'formDetails-' + i;
+    const qcBadge = r.qcPassed ? '<span class="detail-qc-badge pass">✓ PASS</span>' : (r.qcChecker ? '<span class="detail-qc-badge fail">✗ FAIL / Pending</span>' : '—');
+    trDetails.innerHTML = '<td colspan="13">' +
+      '<div class="formulation-details-grid">' +
+        '<div class="formulation-detail-item"><span class="label">Category</span><span class="value">' + (r.category || '—') + '</span></div>' +
+        '<div class="formulation-detail-item"><span class="label">HSN Code</span><span class="value">' + (r.hsnCode || '—') + '</span></div>' +
+        '<div class="formulation-detail-item"><span class="label">Supplier</span><span class="value">' + (r.supplier || '—') + '</span></div>' +
+        '<div class="formulation-detail-item"><span class="label">Location</span><span class="value">' + (r.location || '—') + '</span></div>' +
+        '<div class="formulation-detail-item"><span class="label">Unit Price</span><span class="value">₹' + (parseFloat(r.unitPrice) || 0).toLocaleString('en-IN', {minimumFractionDigits:2}) + '</span></div>' +
+        '<div class="formulation-detail-item"><span class="label">GST Rate</span><span class="value">' + (r.gstRate || 0) + '%</span></div>' +
+        '<div class="formulation-detail-item"><span class="label">Min Stock Level</span><span class="value">' + (r.enableMinStock ? (r.minStockLevel || 0) + ' ' + (r.unit || '') : 'Disabled') + '</span></div>' +
+        '<div class="formulation-detail-item"><span class="label">QC Checker</span><span class="value">' + (r.qcChecker || '—') + '</span></div>' +
+        '<div class="formulation-detail-item"><span class="label">QC Number</span><span class="value">' + (r.qcNumber || '—') + '</span></div>' +
+        '<div class="formulation-detail-item"><span class="label">Ref Check #</span><span class="value">' + (r.refCheckNumber || '—') + '</span></div>' +
+        '<div class="formulation-detail-item"><span class="label">QC Result</span><span class="value">' + qcBadge + '</span></div>' +
+        '<div class="formulation-detail-item"><span class="label">QC Notes</span><span class="value">' + (r.qcNotes || '—') + '</span></div>' +
+      '</div>' +
+    '</td>';
+    tbody.appendChild(trDetails);
+  });
+  document.getElementById('formTotalPct').textContent = totalPct.toFixed(2) + '%';
+  document.getElementById('formTotalQty').textContent = totalQty.toFixed(2);
+  document.getElementById('formTotalPrice').textContent = '—';
+  document.getElementById('formTotalAmount').textContent = '₹' + totalAmount.toLocaleString('en-IN', {minimumFractionDigits:2, maximumFractionDigits:2});
+  document.getElementById('formDashIngredients').textContent = rows.length;
+  document.getElementById('formDashPct').textContent = totalPct.toFixed(2) + '%';
+  document.getElementById('formDashQty').textContent = totalQty.toFixed(2);
+  document.getElementById('formDashRef').textContent = (p.formulation.refWeight || 100) + ' ' + (p.formulation.refUnit || 'ml');
+  const refWeight = parseFloat(p.formulation.refWeight) || 100;
+  const perUnit = refWeight > 0 ? totalAmount / refWeight : 0;
+  document.getElementById('formSummaryTotalCost').textContent = '₹' + totalAmount.toLocaleString('en-IN', {minimumFractionDigits:2, maximumFractionDigits:2});
+  document.getElementById('formSummaryRefWeight').textContent = refWeight + ' ' + (p.formulation.refUnit || 'ml');
+  document.getElementById('formSummaryPerUnit').textContent = '₹' + perUnit.toLocaleString('en-IN', {minimumFractionDigits:4, maximumFractionDigits:4});
+  const panel = document.getElementById('formulationSummaryPanel');
+  if (rows.length > 0) { panel.classList.add('show'); } else { panel.classList.remove('show'); }
+  const alert = document.getElementById('formulationAlert');
+  if (totalPct > 100) { alert.style.display = 'block'; alert.style.background = '#fee2e2'; alert.style.color = '#b91c1c'; alert.textContent = '⚠ Total percentage exceeds 100%'; }
+  else if (totalPct < 100) { alert.style.display = 'block'; alert.style.background = '#fef3c7'; alert.style.color = '#b45309'; alert.textContent = 'ℹ Total percentage is ' + totalPct.toFixed(2) + '% (should be 100%)'; }
+  else { alert.style.display = 'none'; }
+}
+
+function handleMaterialInput(idx, value) {
+  const p = currentDetailProduct; if (!p || !p.formulation || !p.formulation.rows) return;
+  const row = p.formulation.rows[idx];
+  const mat = rawMaterialsList.find(m => m.name === value);
+  if (mat) {
+    row.code = mat.id || '';
+    row.name = mat.name;
+    row.unit = mat.unit || row.unit || p.formulation.refUnit || 'ml';
+    row.hsnCode = mat.hsnCode || '';
+    row.category = mat.category || '';
+    row.supplier = mat.supplier || '';
+    row.location = mat.location || '';
+    row.unitPrice = mat.unitPrice || 0;
+    row.gstRate = mat.gstRate || 0;
+    row.enableMinStock = mat.enableMinStock || false;
+    row.minStockLevel = mat.minStockLevel || 0;
+    row.qcChecker = mat.qcChecker || '';
+    row.qcNumber = mat.qcNumber || '';
+    row.refCheckNumber = mat.refCheckNumber || '';
+    row.qcPassed = mat.qcPassed || false;
+    row.qcNotes = mat.qcNotes || '';
+    row.image = mat.image || null;
+    row.batches = mat.batches || [];
+    renderFormulation();
+    saveDB();
+  } else if (value && value.trim().length > 1) {
+    row.name = value.trim();
+    showSaveToRMPrompt(value.trim(), idx);
+  }
+}
+
+function showSaveToRMPrompt(name, idx) {
+  const existing = document.getElementById('saveToRMToast');
+  if (existing) existing.remove();
+  const toast = document.createElement('div');
+  toast.id = 'saveToRMToast';
+  toast.style.cssText = 'position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#1e293b;border:1px solid #334155;color:#f1f5f9;padding:14px 20px;border-radius:14px;box-shadow:0 8px 32px rgba(0,0,0,0.5);font-size:13px;font-family:Inter,sans-serif;display:flex;align-items:center;gap:12px;z-index:9999;animation:slideIn 0.3s ease;';
+  toast.innerHTML = '<span>⚗️ <strong style="color:#10b981">' + name + '</strong> not in Raw Materials. Save it?</span>'
+    + '<button onclick="saveNewMaterialFromFormulation(\'' + name.replace(/'/g, "\\'") + '\',' + idx + ')" style="background:#10b981;color:#fff;border:none;padding:6px 14px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;">Save</button>'
+    + '<button onclick="document.getElementById(\'saveToRMToast\').remove()" style="background:transparent;color:#94a3b8;border:1px solid #334155;padding:6px 10px;border-radius:8px;font-size:12px;cursor:pointer;">Skip</button>';
+  document.body.appendChild(toast);
+  setTimeout(() => { if (document.getElementById('saveToRMToast')) document.getElementById('saveToRMToast').remove(); }, 8000);
+}
+
+function saveNewMaterialFromFormulation(name, idx) {
+  const rmRaw = localStorage.getItem('rawMaterialDB_v8');
+  const rmData = rmRaw ? JSON.parse(rmRaw) : { materials: [], nextId: 1 };
+  if (!rmData.materials) rmData.materials = [];
+  if (rmData.materials.find(m => m.name === name)) {
+    document.getElementById('saveToRMToast')?.remove();
+    loadRawMaterials();
+    return;
+  }
+  const p = currentDetailProduct;
+  const row = p?.formulation?.rows?.[idx] || {};
+  const newId = rmData.nextId || (rmData.materials.length + 1);
+  const newMat = {
+    id: 'RM-' + String(newId).padStart(3, '0'),
+    name: name,
+    category: row.category || '',
+    unit: row.unit || 'ml',
+    unitPrice: row.unitPrice || 0,
+    gstRate: row.gstRate || 0,
+    hsnCode: row.hsnCode || '',
+    supplier: row.supplier || '',
+    location: '',
+    stock: 0,
+    minStock: 0,
+    enableMinStock: false,
+    batches: [],
+    notes: 'Added from Product Catalog formulation',
+    createdAt: new Date().toISOString(),
+  };
+  rmData.materials.push(newMat);
+  rmData.nextId = newId + 1;
+  localStorage.setItem('rawMaterialDB_v8', JSON.stringify(rmData));
+  document.getElementById('saveToRMToast')?.remove();
+  loadRawMaterials();
+  showToast('✅ ' + name + ' saved to Raw Materials!', 'success');
+}
+
+function toggleFormRowDetails(idx) {
+  const row = document.getElementById('formDetails-' + idx);
+  const btn = document.getElementById('formToggle-' + idx);
+  if (!row || !btn) return;
+  if (row.classList.contains('show')) {
+    row.classList.remove('show');
+    btn.textContent = '▶';
+  } else {
+    row.classList.add('show');
+    btn.textContent = '▼';
+  }
+}
+
+function addFormulationRow() {
+  const p = currentDetailProduct; if (!p) return;
+  if (!p.formulation) p.formulation = { refWeight: 100, refUnit: 'ml', rows: [] };
+  p.formulation.rows.push({
+    code: '', name: '', percentage: 0, conversion: 1,
+    unit: p.formulation.refUnit || 'ml', phase: '', notes: '',
+    hsnCode: '', category: '', supplier: '', location: '',
+    unitPrice: 0, gstRate: 0, enableMinStock: false, minStockLevel: 0,
+    qcChecker: '', qcNumber: '', refCheckNumber: '', qcPassed: false, qcNotes: '',
+    image: null, batches: []
+  });
+  renderFormulation();
+}
+
+function updateFormRow(idx, field, value) {
+  const p = currentDetailProduct; if (!p || !p.formulation || !p.formulation.rows) return;
+  if (field === 'percentage' || field === 'conversion') p.formulation.rows[idx][field] = parseFloat(value) || (field === 'conversion' ? 1 : 0);
+  else p.formulation.rows[idx][field] = value;
+  if (field === 'percentage' || field === 'conversion') renderFormulation();
+  else saveDB();
+}
+
+function removeFormRow(idx) {
+  const p = currentDetailProduct; if (!p || !p.formulation || !p.formulation.rows) return;
+  if (!confirm('Remove this ingredient?')) return;
+  p.formulation.rows.splice(idx, 1);
+  renderFormulation();
+  saveDB();
+}
+
+function recalcFormulation() {
+  const p = currentDetailProduct; if (!p) return;
+  if (!p.formulation) p.formulation = { refWeight: 100, refUnit: 'ml', rows: [] };
+  p.formulation.refWeight = parseFloat(document.getElementById('formRefWeight').value) || 100;
+  p.formulation.refUnit = document.getElementById('formRefUnit').value || 'ml';
+  renderFormulation();
+  saveDB();
+}
+
+// ========== OVERHEADS & ASSUMPTIONS (Combined) ==========
+function renderOverheads() {
+  const p = currentDetailProduct; if (!p) return;
+  if (!p.standardAssumptions) p.standardAssumptions = { equipmentPct: 3, consumablesPct: 1, storagePct: 2, housekeepingPct: 1, adminPct: 5, wastagePct: 2, image: null, lastUpdated: null };
+  if (!p.rnd) p.rnd = { testing: 0, consumables: 0, samples: 0, overhead: 0, otherOverhead: 0, qc: 0, lifecycle: 1000, lastUpdated: null };
+  if (!p.productionOverhead) p.productionOverhead = { electricity: 0, labor: 0, labTesting: 0, other: 0, lastUpdated: null };
+  
+  // Standard Assumptions
+  document.getElementById('assEquipment').value = p.standardAssumptions.equipmentPct || 3;
+  document.getElementById('assEquipmentVal').textContent = (p.standardAssumptions.equipmentPct || 3) + '%';
+  document.getElementById('assConsumables').value = p.standardAssumptions.consumablesPct || 1;
+  document.getElementById('assConsumablesVal').textContent = (p.standardAssumptions.consumablesPct || 1) + '%';
+  document.getElementById('assStorage').value = p.standardAssumptions.storagePct || 2;
+  document.getElementById('assStorageVal').textContent = (p.standardAssumptions.storagePct || 2) + '%';
+  document.getElementById('assHousekeeping').value = p.standardAssumptions.housekeepingPct || 1;
+  document.getElementById('assHousekeepingVal').textContent = (p.standardAssumptions.housekeepingPct || 1) + '%';
+  document.getElementById('assAdmin').value = p.standardAssumptions.adminPct || 5;
+  document.getElementById('assAdminVal').textContent = (p.standardAssumptions.adminPct || 5) + '%';
+  document.getElementById('assWastage').value = p.standardAssumptions.wastagePct || 2;
+  document.getElementById('assWastageVal').textContent = (p.standardAssumptions.wastagePct || 2) + '%';
+  
+  if (p.standardAssumptions.image) {
+    document.getElementById('assImagePreview').src = p.standardAssumptions.image;
+    document.getElementById('assImagePreview').classList.remove('hidden');
+    document.getElementById('assImagePreview').style.display = 'block';
+    document.getElementById('assImagePlaceholder').classList.add('hidden');
+  } else {
+    document.getElementById('assImagePreview').classList.add('hidden');
+    document.getElementById('assImagePreview').style.display = 'none';
+    document.getElementById('assImagePlaceholder').classList.remove('hidden');
+  }
+  
+  // R&D
+  document.getElementById('rndTesting').value = p.rnd.testing || 0;
+  document.getElementById('rndConsumables').value = p.rnd.consumables || 0;
+  document.getElementById('rndSamples').value = p.rnd.samples || 0;
+  document.getElementById('rndOverhead').value = p.rnd.overhead || 0;
+  document.getElementById('rndOtherOverhead').value = p.rnd.otherOverhead || 0;
+  document.getElementById('rndQC').value = p.rnd.qc || 0;
+  document.getElementById('rndLifecycle').value = p.rnd.lifecycle || 1000;
+  document.getElementById('rndLastUpdatedDate').textContent = p.rnd.lastUpdated ? new Date(p.rnd.lastUpdated).toLocaleDateString('en-IN', {day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit'}) : '—';
+  document.getElementById('rndLastUpdatedInput').value = p.rnd.lastUpdated ? new Date(p.rnd.lastUpdated).toISOString().split('T')[0] : '';
+  
+  // Production Overhead
+  document.getElementById('overheadElectricity').value = p.productionOverhead.electricity || 0;
+  document.getElementById('overheadLabor').value = p.productionOverhead.labor || 0;
+  document.getElementById('overheadLabTesting').value = p.productionOverhead.labTesting || 0;
+  document.getElementById('overheadOther').value = p.productionOverhead.other || 0;
+  document.getElementById('overheadLastUpdatedDate').textContent = p.productionOverhead.lastUpdated ? new Date(p.productionOverhead.lastUpdated).toLocaleDateString('en-IN', {day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit'}) : '—';
+  document.getElementById('overheadLastUpdatedInput').value = p.productionOverhead.lastUpdated ? new Date(p.productionOverhead.lastUpdated).toISOString().split('T')[0] : '';
+  
+  recalcOverheads();
+}
+
+function recalcOverheads() {
+  const p = currentDetailProduct; if (!p) return;
+  if (!p.standardAssumptions) p.standardAssumptions = { equipmentPct: 3, consumablesPct: 1, storagePct: 2, housekeepingPct: 1, adminPct: 5, wastagePct: 2, image: null, lastUpdated: null };
+  if (!p.rnd) p.rnd = { testing: 0, consumables: 0, samples: 0, overhead: 0, otherOverhead: 0, qc: 0, lifecycle: 1000, lastUpdated: null };
+  if (!p.productionOverhead) p.productionOverhead = { electricity: 0, labor: 0, labTesting: 0, other: 0, lastUpdated: null };
+  
+  p.standardAssumptions.equipmentPct = parseFloat(document.getElementById('assEquipment').value) || 0;
+  p.standardAssumptions.consumablesPct = parseFloat(document.getElementById('assConsumables').value) || 0;
+  p.standardAssumptions.storagePct = parseFloat(document.getElementById('assStorage').value) || 0;
+  p.standardAssumptions.housekeepingPct = parseFloat(document.getElementById('assHousekeeping').value) || 0;
+  p.standardAssumptions.adminPct = parseFloat(document.getElementById('assAdmin').value) || 0;
+  p.standardAssumptions.wastagePct = parseFloat(document.getElementById('assWastage').value) || 0;
+  p.standardAssumptions.lastUpdated = new Date().toISOString();
+  
+  p.rnd.testing = parseFloat(document.getElementById('rndTesting').value) || 0;
+  p.rnd.consumables = parseFloat(document.getElementById('rndConsumables').value) || 0;
+  p.rnd.samples = parseFloat(document.getElementById('rndSamples').value) || 0;
+  p.rnd.overhead = parseFloat(document.getElementById('rndOverhead').value) || 0;
+  p.rnd.otherOverhead = parseFloat(document.getElementById('rndOtherOverhead').value) || 0;
+  p.rnd.qc = parseFloat(document.getElementById('rndQC').value) || 0;
+  p.rnd.lifecycle = parseInt(document.getElementById('rndLifecycle').value) || 1000;
+  
+  p.productionOverhead.electricity = parseFloat(document.getElementById('overheadElectricity').value) || 0;
+  p.productionOverhead.labor = parseFloat(document.getElementById('overheadLabor').value) || 0;
+  p.productionOverhead.labTesting = parseFloat(document.getElementById('overheadLabTesting').value) || 0;
+  p.productionOverhead.other = parseFloat(document.getElementById('overheadOther').value) || 0;
+  
+  // Calculate outputs
+  const totalIndirect = p.standardAssumptions.equipmentPct + p.standardAssumptions.consumablesPct + p.standardAssumptions.storagePct + p.standardAssumptions.housekeepingPct + p.standardAssumptions.adminPct + p.standardAssumptions.wastagePct;
+  const formCost = getFormulationTotalAmount(p);
+  const saAmount = formCost * (totalIndirect / 100);
+  
+  const rndTotal = p.rnd.testing + p.rnd.consumables + p.rnd.samples + p.rnd.overhead + p.rnd.otherOverhead + p.rnd.qc;
+  const rndPerUnit = p.rnd.lifecycle > 0 ? rndTotal / p.rnd.lifecycle : 0;
+  
+  const overheadTotal = p.productionOverhead.electricity + p.productionOverhead.labor + p.productionOverhead.labTesting + p.productionOverhead.other;
+  const refWeight = (p.formulation && p.formulation.refWeight) || p.weight || 1;
+  const overheadPerUnit = refWeight > 0 ? overheadTotal / refWeight : 0;
+  
+  // Update Standard Assumptions display
+  document.getElementById('assTotalIndirect').textContent = totalIndirect.toFixed(1) + '%';
+  document.getElementById('assTotalAmount').textContent = '₹' + saAmount.toLocaleString('en-IN', {minimumFractionDigits:2, maximumFractionDigits:2});
+  document.getElementById('assRefWeight').textContent = (refWeight ? refWeight + ' ' + (p.formulation && p.formulation.refUnit ? p.formulation.refUnit : p.unit || '') : '—');
+  
+  // Update R&D display
+  document.getElementById('rndTotalCost').textContent = '₹' + rndTotal.toLocaleString('en-IN', {minimumFractionDigits:2, maximumFractionDigits:2});
+  document.getElementById('rndLifecycleDisplay').textContent = p.rnd.lifecycle.toLocaleString('en-IN');
+  document.getElementById('rndPerUnitCost').textContent = '₹' + rndPerUnit.toFixed(4);
+  
+  // Update Production Overhead display
+  document.getElementById('overheadTotalCost').textContent = '₹' + overheadTotal.toLocaleString('en-IN', {minimumFractionDigits:2, maximumFractionDigits:2});
+  document.getElementById('overheadPerUnit').textContent = '₹' + overheadPerUnit.toFixed(4);
+  document.getElementById('overheadRefWeight').textContent = (refWeight ? refWeight + ' ' + (p.formulation && p.formulation.refUnit ? p.formulation.refUnit : p.unit || '') : '—');
+  
+  // Update Grand Total Summary
+  const totalOverheadPerUnit = rndPerUnit + overheadPerUnit + saAmount;
+  const totalForProduct = totalOverheadPerUnit * refWeight;
+  document.getElementById('overheadsRNDPerUnit').textContent = '₹' + rndPerUnit.toLocaleString('en-IN', {minimumFractionDigits:4, maximumFractionDigits:4});
+  document.getElementById('overheadsProdPerUnit').textContent = '₹' + overheadPerUnit.toLocaleString('en-IN', {minimumFractionDigits:4, maximumFractionDigits:4});
+  document.getElementById('overheadsStdPerUnit').textContent = '₹' + saAmount.toLocaleString('en-IN', {minimumFractionDigits:4, maximumFractionDigits:4});
+  document.getElementById('overheadsTotalPerUnit').textContent = '₹' + totalOverheadPerUnit.toLocaleString('en-IN', {minimumFractionDigits:4, maximumFractionDigits:4});
+  document.getElementById('overheadsTotalForProduct').textContent = '₹' + totalForProduct.toLocaleString('en-IN', {minimumFractionDigits:2, maximumFractionDigits:2});
+  document.getElementById('overheadsRefWeightTotal').textContent = (refWeight ? refWeight + ' ' + (p.formulation && p.formulation.refUnit ? p.formulation.refUnit : p.unit || '') : '—');
+  
+  saveDB();
+}
+
+function previewAssumptionImage(e) {
+  const f = e.target.files[0]; if (!f) return;
+  const p = currentDetailProduct; if (!p) return;
+  const r = new FileReader();
+  r.onload = (ev) => {
+    if (!p.standardAssumptions) p.standardAssumptions = { equipmentPct: 3, consumablesPct: 1, storagePct: 2, housekeepingPct: 1, adminPct: 5, wastagePct: 2, image: null, lastUpdated: null };
+    p.standardAssumptions.image = ev.target.result;
+    document.getElementById('assImagePreview').src = ev.target.result;
+    document.getElementById('assImagePreview').classList.remove('hidden');
+    document.getElementById('assImagePreview').style.display = 'block';
+    document.getElementById('assImagePlaceholder').classList.add('hidden');
+    saveDB();
+  };
+  r.readAsDataURL(f);
+  e.target.value = '';
+}
+
+function updateRNDDate() {
+  const p = currentDetailProduct; if (!p) return;
+  if (!p.rnd) p.rnd = { testing: 0, consumables: 0, samples: 0, overhead: 0, otherOverhead: 0, qc: 0, lifecycle: 1000, lastUpdated: null };
+  p.rnd.lastUpdated = new Date().toISOString();
+  document.getElementById('rndLastUpdatedDate').textContent = new Date().toLocaleDateString('en-IN', {day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit'});
+  saveDB();
+}
+
+function setRNDManualDate() {
+  const p = currentDetailProduct; if (!p) return;
+  if (!p.rnd) p.rnd = { testing: 0, consumables: 0, samples: 0, overhead: 0, otherOverhead: 0, qc: 0, lifecycle: 1000, lastUpdated: null };
+  const dateVal = document.getElementById('rndLastUpdatedInput').value;
+  if (dateVal) {
+    p.rnd.lastUpdated = new Date(dateVal).toISOString();
+    document.getElementById('rndLastUpdatedDate').textContent = new Date(dateVal).toLocaleDateString('en-IN', {day:'2-digit', month:'short', year:'numeric'});
+    saveDB();
+  }
+}
+
+function setOverheadManualDate() {
+  const p = currentDetailProduct; if (!p) return;
+  if (!p.productionOverhead) p.productionOverhead = { electricity: 0, labor: 0, labTesting: 0, other: 0, lastUpdated: null };
+  const dateVal = document.getElementById('overheadLastUpdatedInput').value;
+  if (dateVal) {
+    p.productionOverhead.lastUpdated = new Date(dateVal).toISOString();
+    document.getElementById('overheadLastUpdatedDate').textContent = new Date(dateVal).toLocaleDateString('en-IN', {day:'2-digit', month:'short', year:'numeric'});
+    saveDB();
+  }
+}
+
+// ========== PACKAGING (inside Costing) ==========
+function getDefaultPackagingItems() {
+  return [
+    { name: 'Individual Carton / Bottle', qty: 1, rate: 0, amount: 0, optional: false },
+    { name: 'Label', qty: 1, rate: 0, amount: 0, optional: true },
+    { name: 'Primary Box', qty: 1, rate: 0, amount: 0, optional: true },
+    { name: 'Batch Packing Box', qty: 0.1, rate: 0, amount: 0, optional: true },
+    { name: 'Shipment Packaging', qty: 0.05, rate: 0, amount: 0, optional: true },
+    { name: 'Bubble Wrap / Cushioning', qty: 0.05, rate: 0, amount: 0, optional: true }
+  ];
+}
+
+function renderPackaging() {
+  const p = currentDetailProduct; if (!p) return;
+  if (!p.packaging) p.packaging = { items: getDefaultPackagingItems(), charges: { machine: 0, shrinkWrap: 0, other: 0 }, lastUpdated: null };
+  
+  const tbody = document.getElementById('packagingBody'); tbody.innerHTML = '';
+  const items = p.packaging.items || [];
+  let totalPackaging = 0;
+  items.forEach((item, i) => {
+    const amount = (parseFloat(item.qty) || 0) * (parseFloat(item.rate) || 0);
+    item.amount = amount;
+    totalPackaging += amount;
+    const tr = document.createElement('tr'); tr.style.opacity = item.optional && amount === 0 ? '0.5' : '1';
+    tr.innerHTML = '<td>' + (i + 1) + '</td><td><input type="text" value="' + (item.name || '') + '" style="width:100%; min-width:120px; padding:5px 8px" onchange="updatePackagingItem(' + i + ',\'name\',this.value)"></td><td><input type="number" value="' + (item.qty || 0) + '" step="0.01" min="0" style="width:80px; padding:5px 8px" onchange="updatePackagingItem(' + i + ',\'qty\',this.value)"></td><td><input type="number" value="' + (item.rate || 0) + '" step="0.01" min="0" style="width:80px; padding:5px 8px" onchange="updatePackagingItem(' + i + ',\'rate\',this.value)"></td><td>' + amount.toFixed(2) + '</td><td style="text-align:center"><input type="checkbox" ' + (item.optional ? 'checked' : '') + ' onchange="updatePackagingItem(' + i + ',\'optional\',this.checked)"></td><td class="row-actions"><button class="btn-danger" onclick="removePackagingItem(' + i + ')">✕</button></td>';
+    tbody.appendChild(tr);
+  });
+  document.getElementById('packagingTotal').textContent = '₹' + totalPackaging.toLocaleString('en-IN', {minimumFractionDigits:2, maximumFractionDigits:2});
+  
+  document.getElementById('packagingChargesMachine').value = p.packaging.charges.machine || 0;
+  document.getElementById('packagingChargesShrinkWrap').value = p.packaging.charges.shrinkWrap || 0;
+  document.getElementById('packagingChargesOther').value = p.packaging.charges.other || 0;
+  recalcPackagingCharges();
+}
+
+function addPackagingItem() {
+  const p = currentDetailProduct; if (!p) return;
+  if (!p.packaging) p.packaging = { items: [], charges: { machine: 0, shrinkWrap: 0, other: 0 }, lastUpdated: null };
+  if (!p.packaging.items) p.packaging.items = [];
+  p.packaging.items.push({ name: 'New Item', qty: 1, rate: 0, amount: 0, optional: false });
+  renderPackaging(); saveDB();
+}
+
+function updatePackagingItem(idx, field, value) {
+  const p = currentDetailProduct; if (!p || !p.packaging || !p.packaging.items) return;
+  if (field === 'qty' || field === 'rate') p.packaging.items[idx][field] = parseFloat(value) || 0;
+  else if (field === 'optional') p.packaging.items[idx][field] = value;
+  else p.packaging.items[idx][field] = value;
+  renderPackaging(); saveDB();
+}
+
+function removePackagingItem(idx) {
+  const p = currentDetailProduct; if (!p || !p.packaging || !p.packaging.items) return;
+  if (!confirm('Remove this packaging item?')) return;
+  p.packaging.items.splice(idx, 1);
+  renderPackaging(); saveDB();
+}
+
+function recalcPackagingCharges() {
+  const p = currentDetailProduct; if (!p) return;
+  if (!p.packaging) p.packaging = { items: getDefaultPackagingItems(), charges: { machine: 0, shrinkWrap: 0, other: 0 }, lastUpdated: null };
+  p.packaging.charges.machine = parseFloat(document.getElementById('packagingChargesMachine').value) || 0;
+  p.packaging.charges.shrinkWrap = parseFloat(document.getElementById('packagingChargesShrinkWrap').value) || 0;
+  p.packaging.charges.other = parseFloat(document.getElementById('packagingChargesOther').value) || 0;
+  const total = p.packaging.charges.machine + p.packaging.charges.shrinkWrap + p.packaging.charges.other;
+  const refWeight = (p.formulation && p.formulation.refWeight) || p.weight || 1;
+  const perUnit = refWeight > 0 ? total / refWeight : 0;
+  document.getElementById('packagingChargesTotal').textContent = '₹' + total.toLocaleString('en-IN', {minimumFractionDigits:2, maximumFractionDigits:2});
+  document.getElementById('packagingChargesPerUnit').textContent = '₹' + perUnit.toFixed(4);
+  p.packaging.lastUpdated = new Date().toISOString();
+  saveDB();
+}
+
+function getPackagingTotal(p) {
+  if (!p || !p.packaging || !p.packaging.items) return 0;
+  const itemsTotal = p.packaging.items.reduce((sum, item) => sum + (parseFloat(item.qty) || 0) * (parseFloat(item.rate) || 0), 0);
+  const charges = p.packaging.charges || { machine: 0, shrinkWrap: 0, other: 0 };
+  const chargesTotal = (parseFloat(charges.machine) || 0) + (parseFloat(charges.shrinkWrap) || 0) + (parseFloat(charges.other) || 0);
+  const refWeight = (p.formulation && p.formulation.refWeight) || p.weight || 1;
+  const chargesPerUnit = refWeight > 0 ? chargesTotal / refWeight : 0;
+  return itemsTotal + chargesPerUnit;
+}
+
+// ========== COSTING ==========
+function renderCosting() {
+  const p = currentDetailProduct; if (!p) return;
+  if (!p.costing) p.costing = { margins: { exFactory: 10, dealer: 15, distributor: 20, retailer: 25, selling: 35, b2b: 20, b2c: 40 }, lastUpdated: null };
+  
+  const formCostPerUnit = getFormulationCostPerUnit(p);
+  const overheadTotal = (p.productionOverhead && (p.productionOverhead.electricity + p.productionOverhead.labor + p.productionOverhead.labTesting + p.productionOverhead.other)) || 0;
+  const refWeight = (p.formulation && p.formulation.refWeight) || p.weight || 1;
+  const overheadPerUnit = refWeight > 0 ? overheadTotal / refWeight : 0;
+  const rndPerUnit = (p.rnd && p.rnd.lifecycle > 0) ? (p.rnd.testing + p.rnd.consumables + p.rnd.samples + p.rnd.overhead + p.rnd.otherOverhead + p.rnd.qc) / p.rnd.lifecycle : 0;
+  const saPct = p.standardAssumptions ? (p.standardAssumptions.equipmentPct + p.standardAssumptions.consumablesPct + p.standardAssumptions.storagePct + p.standardAssumptions.housekeepingPct + p.standardAssumptions.adminPct + p.standardAssumptions.wastagePct) : 14;
+  const saAmount = (getFormulationTotalAmount(p) * saPct / 100) / refWeight;
+  const packagingTotal = getPackagingTotal(p);
+  
+  document.getElementById('costingFormulationPerUnit').textContent = '₹' + formCostPerUnit.toLocaleString('en-IN', {minimumFractionDigits:4, maximumFractionDigits:4});
+  const totalInputCost = formCostPerUnit + saAmount + overheadPerUnit + rndPerUnit;
+  document.getElementById('costingTotalInputPerUnit').textContent = '₹' + totalInputCost.toLocaleString('en-IN', {minimumFractionDigits:4, maximumFractionDigits:4});
+  
+  // Render packaging inside costing
+  renderPackaging();
+  
+  // Unit Cost Summary
+  const grandTotal = totalInputCost + packagingTotal;
+  document.getElementById('costSummaryIngredients').textContent = '₹' + formCostPerUnit.toLocaleString('en-IN', {minimumFractionDigits:2, maximumFractionDigits:2});
+  document.getElementById('costSummaryPackaging').textContent = '₹' + packagingTotal.toLocaleString('en-IN', {minimumFractionDigits:2, maximumFractionDigits:2});
+  document.getElementById('costSummaryOverhead').textContent = '₹' + (overheadPerUnit + saAmount).toLocaleString('en-IN', {minimumFractionDigits:2, maximumFractionDigits:2});
+  document.getElementById('costSummaryRND').textContent = '₹' + rndPerUnit.toLocaleString('en-IN', {minimumFractionDigits:2, maximumFractionDigits:2});
+  document.getElementById('costSummaryGrand').textContent = '₹' + grandTotal.toLocaleString('en-IN', {minimumFractionDigits:2, maximumFractionDigits:2});
+  
+  // Margins
+  document.getElementById('marginExFactory').value = p.costing.margins.exFactory || 10;
+  document.getElementById('marginDealer').value = p.costing.margins.dealer || 15;
+  document.getElementById('marginDistributor').value = p.costing.margins.distributor || 20;
+  document.getElementById('marginRetailer').value = p.costing.margins.retailer || 25;
+  document.getElementById('marginSelling').value = p.costing.margins.selling || 35;
+  document.getElementById('marginB2B').value = p.costing.margins.b2b || 20;
+  document.getElementById('marginB2C').value = p.costing.margins.b2c || 40;
+  
+  document.getElementById('gstRateDisplay').textContent = 'GST Rate: ' + (p.gstRate || 0) + '%';
+  
+  renderVariantPricing();
+}
+
+function recalcPricing() {
+  const p = currentDetailProduct; if (!p) return;
+  if (!p.costing) p.costing = { margins: { exFactory: 10, dealer: 15, distributor: 20, retailer: 25, selling: 35, b2b: 20, b2c: 40 }, lastUpdated: null };
+  p.costing.margins.exFactory = parseFloat(document.getElementById('marginExFactory').value) || 0;
+  p.costing.margins.dealer = parseFloat(document.getElementById('marginDealer').value) || 0;
+  p.costing.margins.distributor = parseFloat(document.getElementById('marginDistributor').value) || 0;
+  p.costing.margins.retailer = parseFloat(document.getElementById('marginRetailer').value) || 0;
+  p.costing.margins.selling = parseFloat(document.getElementById('marginSelling').value) || 0;
+  p.costing.margins.b2b = parseFloat(document.getElementById('marginB2B').value) || 0;
+  p.costing.margins.b2c = parseFloat(document.getElementById('marginB2C').value) || 0;
+  p.costing.lastUpdated = new Date().toISOString();
+  saveDB();
+  renderVariantPricing();
+}
+
+function renderVariantPricing() {
+  const p = currentDetailProduct; if (!p) return;
+  const formCostPerUnit = getFormulationCostPerUnit(p);
+  const overheadTotal = (p.productionOverhead && (p.productionOverhead.electricity + p.productionOverhead.labor + p.productionOverhead.labTesting + p.productionOverhead.other)) || 0;
+  const refWeight = (p.formulation && p.formulation.refWeight) || p.weight || 1;
+  const overheadPerUnit = refWeight > 0 ? overheadTotal / refWeight : 0;
+  const rndPerUnit = (p.rnd && p.rnd.lifecycle > 0) ? (p.rnd.testing + p.rnd.consumables + p.rnd.samples + p.rnd.overhead + p.rnd.otherOverhead + p.rnd.qc) / p.rnd.lifecycle : 0;
+  const saPct = p.standardAssumptions ? (p.standardAssumptions.equipmentPct + p.standardAssumptions.consumablesPct + p.standardAssumptions.storagePct + p.standardAssumptions.housekeepingPct + p.standardAssumptions.adminPct + p.standardAssumptions.wastagePct) : 14;
+  const saAmount = (getFormulationTotalAmount(p) * saPct / 100) / refWeight;
+  const packagingTotal = getPackagingTotal(p);
+  const baseCostPerUnit = formCostPerUnit + saAmount + overheadPerUnit + rndPerUnit + packagingTotal;
+  
+  const margins = p.costing ? p.costing.margins : { exFactory: 10, dealer: 15, distributor: 20, retailer: 25, selling: 35, b2b: 20, b2c: 40 };
+  const tbody = document.getElementById('variantPricingBody'); tbody.innerHTML = '';
+  const variants = p.variants || [];
+  
+  if (!variants.length) { tbody.innerHTML = '<tr><td colspan="14" class="empty" style="padding:20px">No variants. Click "Add Variant" to create size variants.</td></tr>'; return; }
+  
+  const gstRate = (p.gstRate || 0) / 100;
+  const showGST = document.getElementById('gstToggle').checked;
+  
+  variants.forEach((v, i) => {
+    const sizeRatio = refWeight > 0 && parseFloat(v.size) > 0 ? parseFloat(v.size) / refWeight : 1;
+    const productionCost = baseCostPerUnit * sizeRatio;
+    const exFactory = productionCost * (1 + (parseFloat(margins.exFactory) || 0) / 100);
+    const dealer = exFactory * (1 + (parseFloat(margins.dealer) || 0) / 100);
+    const dist = dealer * (1 + (parseFloat(margins.distributor) || 0) / 100);
+    const retail = dist * (1 + (parseFloat(margins.retailer) || 0) / 100);
+    const selling = retail * (1 + (parseFloat(margins.selling) || 0) / 100);
+    const b2b = productionCost * (1 + (parseFloat(margins.b2b) || 0) / 100);
+    const b2c = productionCost * (1 + (parseFloat(margins.b2c) || 0) / 100);
+    
+    v.productionCost = productionCost; v.exFactoryPrice = exFactory; v.dealerPrice = dealer;
+    v.distributorPrice = dist; v.retailerPrice = retail; v.sellingPrice = selling;
+    v.b2bPrice = b2b; v.b2cPrice = b2c;
+    
+    const isRefWeight = Math.abs(parseFloat(v.size) - refWeight) < 0.001;
+    const tr = document.createElement('tr');
+    if (isRefWeight) tr.className = 'ref-weight-row';
+    
+    const nameDisplay = isRefWeight ? v.name + ' <span class="star-badge">⭐ Ref</span>' : v.name;
+    
+    tr.innerHTML = '<td class="' + (isRefWeight ? 'ref-weight-cell' : '') + '">' + nameDisplay + '</td>' +
+      '<td><input type="number" value="' + v.size + '" onchange="updateVariant(' + i + ',\'size\',this.value)"></td>' +
+      '<td><input type="text" value="' + v.unit + '" onchange="updateVariant(' + i + ',\'unit\',this.value)"></td>' +
+      '<td><input type="number" value="' + v.moq + '" onchange="updateVariant(' + i + ',\'moq\',this.value)"></td>' +
+      '<td><input type="text" value="' + v.moqUnit + '" onchange="updateVariant(' + i + ',\'moqUnit\',this.value)"></td>' +
+      '<td>' + fmtN(productionCost, 2) + '</td>' +
+      '<td>' + fmtN(exFactory, 2) + '</td>' +
+      '<td>' + fmtN(dealer, 2) + '</td>' +
+      '<td>' + fmtN(dist, 2) + '</td>' +
+      '<td>' + fmtN(retail, 2) + '</td>' +
+      '<td>' + fmtN(selling, 2) + '</td>' +
+      '<td>' + fmtN(b2b, 2) + '</td>' +
+      '<td>' + fmtN(b2c, 2) + '</td>' +
+      '<td class="row-actions"><button class="btn-danger" onclick="removeVariant(' + i + ')">✕</button></td>';
+    tbody.appendChild(tr);
+  });
+  
+  if (showGST) {
+    const firstVariant = variants[0];
+    if (firstVariant) {
+      document.getElementById('gstExFactory').textContent = '₹' + (firstVariant.exFactoryPrice * (1 + gstRate)).toLocaleString('en-IN', {minimumFractionDigits:2, maximumFractionDigits:2});
+      document.getElementById('gstSelling').textContent = '₹' + (firstVariant.sellingPrice * (1 + gstRate)).toLocaleString('en-IN', {minimumFractionDigits:2, maximumFractionDigits:2});
+      document.getElementById('gstB2C').textContent = '₹' + (firstVariant.b2cPrice * (1 + gstRate)).toLocaleString('en-IN', {minimumFractionDigits:2, maximumFractionDigits:2});
+    }
+  }
+}
+
+function toggleGSTDisplay() {
+  const show = document.getElementById('gstToggle').checked;
+  document.getElementById('gstPricePanel').style.display = show ? 'block' : 'none';
+  renderVariantPricing();
+}
+
+function addVariantRow() {
+  const p = currentDetailProduct; if (!p) return;
+  if (!p.variants) p.variants = [];
+  p.variants.push(makeVariant('New Variant', 100, p.unit || 'ml', 100, 'pcs'));
+  renderVariantPricing(); saveDB();
+}
+
+function updateVariant(idx, field, value) {
+  const p = currentDetailProduct; if (!p || !p.variants) return;
+  p.variants[idx][field] = field === 'name' || field === 'unit' || field === 'moqUnit' ? value : parseFloat(value) || 0;
+  renderVariantPricing(); saveDB();
+}
+
+function removeVariant(idx) {
+  const p = currentDetailProduct; if (!p || !p.variants) return;
+  if (!confirm('Remove this variant?')) return;
+  p.variants.splice(idx, 1);
+  renderVariantPricing(); saveDB();
+}
+
+// ========== MARKETPLACE ==========
+function renderMarketplace() {
+  const p = currentDetailProduct; if (!p) return;
+  if (!p.marketplace) {
+    p.marketplace = {
+      packaging: [
+        { name: 'Primary Box', qty: 1, rate: 0, amount: 0, optional: false },
+        { name: 'Label', qty: 1, rate: 0, amount: 0, optional: true },
+        { name: 'Bubble Wrap', qty: 1, rate: 0, amount: 0, optional: true },
+        { name: 'Shipping Label', qty: 1, rate: 0, amount: 0, optional: false }
+      ],
+      fees: {
+        flipkart: { commission: 15, fixed: 30, shipping: 50, collection: 2 },
+        amazon: { commission: 15, fixed: 40, shipping: 50, fba: 3 },
+        meesho: { commission: 0, shipping: 70, collection: 0, penalty: 2 },
+        snapdeal: { commission: 12, fixed: 20, shipping: 50, collection: 1.5 }
+      },
+      margins: { flipkart: 25, amazon: 25, meesho: 30, snapdeal: 25 },
+      lastUpdated: null
+    };
+  }
+  
+  const formCost = getFormulationCostPerUnit(p);
+  const overheadTotal = (p.productionOverhead && (p.productionOverhead.electricity + p.productionOverhead.labor + p.productionOverhead.labTesting + p.productionOverhead.other)) || 0;
+  const refWeight = (p.formulation && p.formulation.refWeight) || p.weight || 1;
+  const overheadPerUnit = refWeight > 0 ? overheadTotal / refWeight : 0;
+  const rndPerUnit = (p.rnd && p.rnd.lifecycle > 0) ? (p.rnd.testing + p.rnd.consumables + p.rnd.samples + p.rnd.overhead + p.rnd.otherOverhead + p.rnd.qc) / p.rnd.lifecycle : 0;
+  const saPct = p.standardAssumptions ? (p.standardAssumptions.equipmentPct + p.standardAssumptions.consumablesPct + p.standardAssumptions.storagePct + p.standardAssumptions.housekeepingPct + p.standardAssumptions.adminPct + p.standardAssumptions.wastagePct) : 14;
+  const saAmount = (getFormulationTotalAmount(p) * saPct / 100) / refWeight;
+  
+  document.getElementById('mpIngredientsCost').textContent = '₹' + formCost.toLocaleString('en-IN', {minimumFractionDigits:4, maximumFractionDigits:4});
+  document.getElementById('mpAssumptionsCost').textContent = '₹' + saAmount.toLocaleString('en-IN', {minimumFractionDigits:4, maximumFractionDigits:4});
+  document.getElementById('mpOverheadCost').textContent = '₹' + overheadPerUnit.toLocaleString('en-IN', {minimumFractionDigits:4, maximumFractionDigits:4});
+  document.getElementById('mpRNDCost').textContent = '₹' + rndPerUnit.toLocaleString('en-IN', {minimumFractionDigits:4, maximumFractionDigits:4});
+  document.getElementById('mpRefWeight').textContent = refWeight + ' ' + (p.formulation && p.formulation.refUnit ? p.formulation.refUnit : p.unit || '');
+  
+  const tbody = document.getElementById('mpPackagingBody'); tbody.innerHTML = '';
+  const mpItems = p.marketplace.packaging || [];
+  let mpPackagingTotal = 0;
+  mpItems.forEach((item, i) => {
+    const amount = (parseFloat(item.qty) || 0) * (parseFloat(item.rate) || 0);
+    item.amount = amount;
+    mpPackagingTotal += amount;
+    const tr = document.createElement('tr'); tr.style.opacity = item.optional && amount === 0 ? '0.5' : '1';
+    tr.innerHTML = '<td>' + (i + 1) + '</td><td><input type="text" value="' + (item.name || '') + '" style="width:100%; min-width:120px; padding:5px 8px" onchange="updateMPPackagingItem(' + i + ',\'name\',this.value)"></td><td><input type="number" value="' + (item.qty || 0) + '" step="0.01" min="0" style="width:80px; padding:5px 8px" onchange="updateMPPackagingItem(' + i + ',\'qty\',this.value)"></td><td><input type="number" value="' + (item.rate || 0) + '" step="0.01" min="0" style="width:80px; padding:5px 8px" onchange="updateMPPackagingItem(' + i + ',\'rate\',this.value)"></td><td>' + amount.toFixed(2) + '</td><td style="text-align:center"><input type="checkbox" ' + (item.optional ? 'checked' : '') + ' onchange="updateMPPackagingItem(' + i + ',\'optional\',this.checked)"></td><td class="row-actions"><button class="btn-danger" onclick="removeMPPackagingItem(' + i + ')">✕</button></td>';
+    tbody.appendChild(tr);
+  });
+  document.getElementById('mpPackagingTotal').textContent = '₹' + mpPackagingTotal.toLocaleString('en-IN', {minimumFractionDigits:2, maximumFractionDigits:2});
+  
+  const baseCost = formCost + saAmount + overheadPerUnit + rndPerUnit + mpPackagingTotal;
+  document.getElementById('mpBaseCost').textContent = '₹' + baseCost.toLocaleString('en-IN', {minimumFractionDigits:2, maximumFractionDigits:2});
+  
+  document.getElementById('mpFlipkartCommission').value = p.marketplace.fees.flipkart.commission || 15;
+  document.getElementById('mpFlipkartFixed').value = p.marketplace.fees.flipkart.fixed || 30;
+  document.getElementById('mpFlipkartShipping').value = p.marketplace.fees.flipkart.shipping || 50;
+  document.getElementById('mpFlipkartCollection').value = p.marketplace.fees.flipkart.collection || 2;
+  
+  document.getElementById('mpAmazonCommission').value = p.marketplace.fees.amazon.commission || 15;
+  document.getElementById('mpAmazonFixed').value = p.marketplace.fees.amazon.fixed || 40;
+  document.getElementById('mpAmazonShipping').value = p.marketplace.fees.amazon.shipping || 50;
+  document.getElementById('mpAmazonFBA').value = p.marketplace.fees.amazon.fba || 3;
+  
+  document.getElementById('mpMeeshoCommission').value = p.marketplace.fees.meesho.commission || 0;
+  document.getElementById('mpMeeshoShipping').value = p.marketplace.fees.meesho.shipping || 70;
+  document.getElementById('mpMeeshoCollection').value = p.marketplace.fees.meesho.collection || 0;
+  document.getElementById('mpMeeshoPenalty').value = p.marketplace.fees.meesho.penalty || 2;
+  
+  document.getElementById('mpSnapdealCommission').value = p.marketplace.fees.snapdeal.commission || 12;
+  document.getElementById('mpSnapdealFixed').value = p.marketplace.fees.snapdeal.fixed || 20;
+  document.getElementById('mpSnapdealShipping').value = p.marketplace.fees.snapdeal.shipping || 50;
+  document.getElementById('mpSnapdealCollection').value = p.marketplace.fees.snapdeal.collection || 1.5;
+  
+  document.getElementById('marginFlipkart').value = p.marketplace.margins.flipkart || 25;
+  document.getElementById('marginAmazon').value = p.marketplace.margins.amazon || 25;
+  document.getElementById('marginMeesho').value = p.marketplace.margins.meesho || 30;
+  document.getElementById('marginSnapdeal').value = p.marketplace.margins.snapdeal || 25;
+  
+  recalcMarketplace();
+}
+
+function addMPPackagingItem() {
+  const p = currentDetailProduct; if (!p) return;
+  if (!p.marketplace) p.marketplace = { packaging: [], fees: {}, margins: {}, lastUpdated: null };
+  if (!p.marketplace.packaging) p.marketplace.packaging = [];
+  p.marketplace.packaging.push({ name: 'New Item', qty: 1, rate: 0, amount: 0, optional: false });
+  renderMarketplace(); saveDB();
+}
+
+function updateMPPackagingItem(idx, field, value) {
+  const p = currentDetailProduct; if (!p || !p.marketplace || !p.marketplace.packaging) return;
+  if (field === 'qty' || field === 'rate') p.marketplace.packaging[idx][field] = parseFloat(value) || 0;
+  else if (field === 'optional') p.marketplace.packaging[idx][field] = value;
+  else p.marketplace.packaging[idx][field] = value;
+  renderMarketplace(); saveDB();
+}
+
+function removeMPPackagingItem(idx) {
+  const p = currentDetailProduct; if (!p || !p.marketplace || !p.marketplace.packaging) return;
+  if (!confirm('Remove this marketplace packaging item?')) return;
+  p.marketplace.packaging.splice(idx, 1);
+  renderMarketplace(); saveDB();
+}
+
+function recalcMarketplace() {
+  const p = currentDetailProduct; if (!p) return;
+  if (!p.marketplace) p.marketplace = { packaging: [], fees: {}, margins: {}, lastUpdated: null };
+  
+  p.marketplace.fees.flipkart = {
+    commission: parseFloat(document.getElementById('mpFlipkartCommission').value) || 0,
+    fixed: parseFloat(document.getElementById('mpFlipkartFixed').value) || 0,
+    shipping: parseFloat(document.getElementById('mpFlipkartShipping').value) || 0,
+    collection: parseFloat(document.getElementById('mpFlipkartCollection').value) || 0
+  };
+  p.marketplace.fees.amazon = {
+    commission: parseFloat(document.getElementById('mpAmazonCommission').value) || 0,
+    fixed: parseFloat(document.getElementById('mpAmazonFixed').value) || 0,
+    shipping: parseFloat(document.getElementById('mpAmazonShipping').value) || 0,
+    fba: parseFloat(document.getElementById('mpAmazonFBA').value) || 0
+  };
+  p.marketplace.fees.meesho = {
+    commission: parseFloat(document.getElementById('mpMeeshoCommission').value) || 0,
+    shipping: parseFloat(document.getElementById('mpMeeshoShipping').value) || 0,
+    collection: parseFloat(document.getElementById('mpMeeshoCollection').value) || 0,
+    penalty: parseFloat(document.getElementById('mpMeeshoPenalty').value) || 0
+  };
+  p.marketplace.fees.snapdeal = {
+    commission: parseFloat(document.getElementById('mpSnapdealCommission').value) || 0,
+    fixed: parseFloat(document.getElementById('mpSnapdealFixed').value) || 0,
+    shipping: parseFloat(document.getElementById('mpSnapdealShipping').value) || 0,
+    collection: parseFloat(document.getElementById('mpSnapdealCollection').value) || 0
+  };
+  
+  p.marketplace.margins.flipkart = parseFloat(document.getElementById('marginFlipkart').value) || 0;
+  p.marketplace.margins.amazon = parseFloat(document.getElementById('marginAmazon').value) || 0;
+  p.marketplace.margins.meesho = parseFloat(document.getElementById('marginMeesho').value) || 0;
+  p.marketplace.margins.snapdeal = parseFloat(document.getElementById('marginSnapdeal').value) || 0;
+  
+  const formCost = getFormulationCostPerUnit(p);
+  const overheadTotal = (p.productionOverhead && (p.productionOverhead.electricity + p.productionOverhead.labor + p.productionOverhead.labTesting + p.productionOverhead.other)) || 0;
+  const refWeight = (p.formulation && p.formulation.refWeight) || p.weight || 1;
+  const overheadPerUnit = refWeight > 0 ? overheadTotal / refWeight : 0;
+  const rndPerUnit = (p.rnd && p.rnd.lifecycle > 0) ? (p.rnd.testing + p.rnd.consumables + p.rnd.samples + p.rnd.overhead + p.rnd.otherOverhead + p.rnd.qc) / p.rnd.lifecycle : 0;
+  const saPct = p.standardAssumptions ? (p.standardAssumptions.equipmentPct + p.standardAssumptions.consumablesPct + p.standardAssumptions.storagePct + p.standardAssumptions.housekeepingPct + p.standardAssumptions.adminPct + p.standardAssumptions.wastagePct) : 14;
+  const saAmount = (getFormulationTotalAmount(p) * saPct / 100) / refWeight;
+  const mpPackagingTotal = (p.marketplace.packaging || []).reduce((sum, item) => sum + (parseFloat(item.qty) || 0) * (parseFloat(item.rate) || 0), 0);
+  const baseCost = formCost + saAmount + overheadPerUnit + rndPerUnit + mpPackagingTotal;
+  
+  function calcPlatform(base, fees, margin) {
+    const commissionPct = (fees.commission || 0) / 100;
+    const collectionPct = (fees.collection || 0) / 100;
+    const fbaPct = (fees.fba || 0) / 100;
+    const penaltyPct = (fees.penalty || 0) / 100;
+    const fixed = (fees.fixed || 0);
+    const shipping = (fees.shipping || 0);
+    const marginPct = (margin || 0) / 100;
+    const totalDeductions = commissionPct + collectionPct + fbaPct + penaltyPct;
+    const minSelling = (base + fixed + shipping) / (1 - totalDeductions - marginPct);
+    const sellerReceives = minSelling * (1 - totalDeductions) - fixed - shipping;
+    const netMargin = sellerReceives - base;
+    return { minSelling, sellerReceives, netMargin };
+  }
+  
+  const flipkart = calcPlatform(baseCost, p.marketplace.fees.flipkart, p.marketplace.margins.flipkart);
+  document.getElementById('mpFlipkartMinPrice').textContent = '₹' + flipkart.minSelling.toLocaleString('en-IN', {minimumFractionDigits:2, maximumFractionDigits:2});
+  document.getElementById('mpFlipkartReceives').textContent = '₹' + flipkart.sellerReceives.toLocaleString('en-IN', {minimumFractionDigits:2, maximumFractionDigits:2});
+  document.getElementById('mpFlipkartMargin').textContent = '₹' + flipkart.netMargin.toLocaleString('en-IN', {minimumFractionDigits:2, maximumFractionDigits:2});
+  
+  const amazon = calcPlatform(baseCost, p.marketplace.fees.amazon, p.marketplace.margins.amazon);
+  document.getElementById('mpAmazonMinPrice').textContent = '₹' + amazon.minSelling.toLocaleString('en-IN', {minimumFractionDigits:2, maximumFractionDigits:2});
+  document.getElementById('mpAmazonReceives').textContent = '₹' + amazon.sellerReceives.toLocaleString('en-IN', {minimumFractionDigits:2, maximumFractionDigits:2});
+  document.getElementById('mpAmazonMargin').textContent = '₹' + amazon.netMargin.toLocaleString('en-IN', {minimumFractionDigits:2, maximumFractionDigits:2});
+  
+  const meesho = calcPlatform(baseCost, p.marketplace.fees.meesho, p.marketplace.margins.meesho);
+  document.getElementById('mpMeeshoMinPrice').textContent = '₹' + meesho.minSelling.toLocaleString('en-IN', {minimumFractionDigits:2, maximumFractionDigits:2});
+  document.getElementById('mpMeeshoReceives').textContent = '₹' + meesho.sellerReceives.toLocaleString('en-IN', {minimumFractionDigits:2, maximumFractionDigits:2});
+  document.getElementById('mpMeeshoMargin').textContent = '₹' + meesho.netMargin.toLocaleString('en-IN', {minimumFractionDigits:2, maximumFractionDigits:2});
+  
+  const snapdeal = calcPlatform(baseCost, p.marketplace.fees.snapdeal, p.marketplace.margins.snapdeal);
+  document.getElementById('mpSnapdealMinPrice').textContent = '₹' + snapdeal.minSelling.toLocaleString('en-IN', {minimumFractionDigits:2, maximumFractionDigits:2});
+  document.getElementById('mpSnapdealReceives').textContent = '₹' + snapdeal.sellerReceives.toLocaleString('en-IN', {minimumFractionDigits:2, maximumFractionDigits:2});
+  document.getElementById('mpSnapdealMargin').textContent = '₹' + snapdeal.netMargin.toLocaleString('en-IN', {minimumFractionDigits:2, maximumFractionDigits:2});
+  
+  p.marketplace.lastUpdated = new Date().toISOString();
+  saveDB();
+}
+
+// ========== QR ==========
+function generateQR(p) {
+  const container = document.getElementById('qrCanvas');
+  container.innerHTML = '';
+  const qrData = JSON.stringify({ code: p.code, name: p.name, category: p.category || '', unit: p.unit || '' });
+  currentQR = new QRCode(container, { text: qrData, width: 200, height: 200, colorDark: '#0f172a', colorLight: '#ffffff', correctLevel: QRCode.CorrectLevel.M });
+  document.getElementById('qrLabel').innerHTML = '<strong>' + p.name + '</strong><br>SKU: ' + p.code + '<br>' + (p.unit || '');
+}
+
+function printQR() { window.print(); }
+
+function openQR(id) {
+  const p = products.find(x => x.id === id); if (!p) return;
+  openProductDetail(id);
+  setTimeout(() => { 
+    document.querySelectorAll('#detailTabs .tab').forEach(t => t.classList.remove('active')); 
+    document.querySelectorAll('#detailModal .tab-content').forEach(c => c.classList.remove('active')); 
+    const tabs = document.querySelectorAll('#detailTabs .tab'); 
+    if (tabs[5]) tabs[5].classList.add('active'); 
+    document.getElementById('detail-qr').classList.add('active'); 
+    generateQR(p); 
+  }, 50);
+}
+
+function openBOMForCurrentProduct() {
+  if (!currentDetailProduct) return;
+  window.open('bom-cost-calculator.html?sku=' + encodeURIComponent(currentDetailProduct.code) + '&name=' + encodeURIComponent(currentDetailProduct.name), '_blank');
+}
+
+function openBOM(id) {
+  const p = products.find(x => x.id === id); if (!p) return;
+  window.open('bom-cost-calculator.html?sku=' + encodeURIComponent(p.code) + '&name=' + encodeURIComponent(p.name), '_blank');
+}
+
+function openPricing(id) {
+  const p = products.find(x => x.id === id); if (!p) return;
+  openProductDetail(id);
+  setTimeout(() => { 
+    document.querySelectorAll('#detailTabs .tab').forEach(t => t.classList.remove('active')); 
+    document.querySelectorAll('#detailModal .tab-content').forEach(c => c.classList.remove('active')); 
+    const tabs = document.querySelectorAll('#detailTabs .tab'); 
+    if (tabs[3]) tabs[3].classList.add('active'); 
+    document.getElementById('detail-costing').classList.add('active'); 
+    renderCosting(); 
+  }, 50);
+}
+
+// ========== PROCEDURE ==========
+function renderProcedure() {
+  const p = currentDetailProduct; if (!p) return;
+  if (!p.procedure) p.procedure = { text: '', attachments: [] };
+  document.getElementById('procText').value = p.procedure.text || '';
+  const container = document.getElementById('procAttachments'); container.innerHTML = '';
+  (p.procedure.attachments || []).forEach((att, i) => {
+    const div = document.createElement('div'); div.className = 'proc-attachment';
+    const icon = att.type === 'video' ? '🎬' : att.type === 'audio' ? '🎙️' : '📄';
+    const createdStr = att.createdAt ? new Date(att.createdAt).toLocaleDateString('en-IN', {day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit'}) : '—';
+    div.innerHTML = '<span class="icon">' + icon + '</span>' +
+      '<div class="meta"><div class="name">' + (att.name || 'Attachment') + '</div><div class="size">' + (att.type || 'file') + ' · Created: ' + createdStr + '</div></div>' +
+      '<button onclick="removeProcAttachment(' + i + ')" title="Remove">🗑️</button>';
+    container.appendChild(div);
+  });
+}
+
+function saveProcedure() {
+  const p = currentDetailProduct; if (!p) return;
+  if (!p.procedure) p.procedure = { text: '', attachments: [] };
+  p.procedure.text = document.getElementById('procText').value;
+  saveDB();
+}
+
+function attachProcFile(e) {
+  const f = e.target.files[0]; if (!f) return;
+  const p = currentDetailProduct; if (!p) return;
+  if (!p.procedure) p.procedure = { text: '', attachments: [] };
+  const r = new FileReader();
+  r.onload = (ev) => {
+    p.procedure.attachments.push({ type: 'document', name: f.name, data: ev.target.result, createdAt: new Date().toISOString() });
+    renderProcedure(); saveDB(); renderCertificateHistory(); renderHistory();
+    showToast('File attached: ' + f.name, 'success');
+  };
+  r.readAsDataURL(f);
+  e.target.value = '';
+}
+
+function attachProcVideo(e) {
+  const f = e.target.files[0]; if (!f) return;
+  const p = currentDetailProduct; if (!p) return;
+  if (!p.procedure) p.procedure = { text: '', attachments: [] };
+  const r = new FileReader();
+  r.onload = (ev) => {
+    p.procedure.attachments.push({ type: 'video', name: f.name, data: ev.target.result, createdAt: new Date().toISOString() });
+    renderProcedure(); saveDB(); renderCertificateHistory(); renderHistory();
+    showToast('Video attached: ' + f.name, 'success');
+  };
+  r.readAsDataURL(f);
+  e.target.value = '';
+}
+
+function removeProcAttachment(idx) {
+  const p = currentDetailProduct; if (!p || !p.procedure || !p.procedure.attachments) return;
+  if (!confirm('Remove this attachment?')) return;
+  p.procedure.attachments.splice(idx, 1);
+  renderProcedure(); saveDB(); renderCertificateHistory(); renderHistory();
+}
+
+async function toggleAudioRecord() {
+  if (mediaRecorder && mediaRecorder.state === 'recording') { stopAudioRecord(); return; }
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    mediaRecorder = new MediaRecorder(stream);
+    audioChunks = [];
+    mediaRecorder.ondataavailable = (e) => { if (e.data.size > 0) audioChunks.push(e.data); };
+    mediaRecorder.onstop = () => {
+      const blob = new Blob(audioChunks, { type: 'audio/webm' });
+      const url = URL.createObjectURL(blob);
+      const p = currentDetailProduct; if (!p) return;
+      if (!p.procedure) p.procedure = { text: '', attachments: [] };
+      p.procedure.attachments.push({ type: 'audio', name: 'Recording ' + new Date().toLocaleString(), data: url, createdAt: new Date().toISOString() });
+      renderProcedure(); saveDB(); renderCertificateHistory(); renderHistory();
+      showToast('Audio recording saved', 'success');
+      document.getElementById('audioRecorder').style.display = 'none';
+      document.getElementById('audioRecordBtn').textContent = '🎙️ Record Audio';
+      clearInterval(recTimerInterval); recSeconds = 0;
+      stream.getTracks().forEach(t => t.stop());
+    };
+    mediaRecorder.start();
+    document.getElementById('audioRecorder').style.display = 'block';
+    document.getElementById('audioRecordBtn').textContent = '⏹ Stop Recording';
+    recSeconds = 0;
+    recTimerInterval = setInterval(() => { recSeconds++; const m = Math.floor(recSeconds / 60).toString().padStart(2, '0'); const s = (recSeconds % 60).toString().padStart(2, '0'); document.getElementById('recTimer').textContent = m + ':' + s; }, 1000);
+  } catch (err) { showToast('Microphone access denied', 'error'); }
+}
+
+function stopAudioRecord() {
+  if (mediaRecorder && mediaRecorder.state === 'recording') mediaRecorder.stop();
+}
+
+// ========== R&D DOCUMENTATION ==========
+function saveRNDDoc() {
+  const p = currentDetailProduct; if (!p) return;
+  if (!p.rndDoc) p.rndDoc = { text: '', attachments: [], lastUpdated: null };
+  p.rndDoc.text = document.getElementById('rndDocText').value;
+  p.rndDoc.lastUpdated = new Date().toISOString();
+  saveDB();
+}
+
+function attachRNDDocFile(e) {
+  const f = e.target.files[0]; if (!f) return;
+  const p = currentDetailProduct; if (!p) return;
+  if (!p.rndDoc) p.rndDoc = { text: '', attachments: [], lastUpdated: null };
+  const r = new FileReader();
+  r.onload = (ev) => {
+    p.rndDoc.attachments.push({ type: 'document', name: f.name, data: ev.target.result, createdAt: new Date().toISOString() });
+    renderRNDDoc(); saveDB();
+    showToast('R&D document attached: ' + f.name, 'success');
+  };
+  r.readAsDataURL(f);
+  e.target.value = '';
+}
+
+function removeRNDDocAttachment(idx) {
+  const p = currentDetailProduct; if (!p || !p.rndDoc || !p.rndDoc.attachments) return;
+  if (!confirm('Remove this R&D document?')) return;
+  p.rndDoc.attachments.splice(idx, 1);
+  renderRNDDoc(); saveDB();
+}
+
+function renderRNDDoc() {
+  const p = currentDetailProduct; if (!p) return;
+  if (!p.rndDoc) p.rndDoc = { text: '', attachments: [], lastUpdated: null };
+  document.getElementById('rndDocText').value = p.rndDoc.text || '';
+  const container = document.getElementById('rndDocAttachments'); container.innerHTML = '';
+  (p.rndDoc.attachments || []).forEach((att, i) => {
+    const div = document.createElement('div'); div.className = 'proc-attachment';
+    const createdStr = att.createdAt ? new Date(att.createdAt).toLocaleDateString('en-IN', {day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit'}) : '—';
+    div.innerHTML = '<span class="icon">📄</span>' +
+      '<div class="meta"><div class="name">' + (att.name || 'Attachment') + '</div><div class="size">' + (att.type || 'file') + ' · Created: ' + createdStr + '</div></div>' +
+      '<button onclick="removeRNDDocAttachment(' + i + ')" title="Remove">🗑️</button>';
+    container.appendChild(div);
+  });
+}
+
+function saveResearchGuide() {
+  const p = currentDetailProduct; if (!p) return;
+  if (!p.researchGuide) p.researchGuide = { text: '', lastUpdated: null };
+  p.researchGuide.text = document.getElementById('researchGuideText').value;
+  p.researchGuide.lastUpdated = new Date().toISOString();
+  saveDB();
+}
+
+function renderResearchGuide() {
+  const p = currentDetailProduct; if (!p) return;
+  if (!p.researchGuide) p.researchGuide = { text: '', lastUpdated: null };
+  document.getElementById('researchGuideText').value = p.researchGuide.text || '';
+}
+
+function renderCertificateHistory() {
+  const p = currentDetailProduct; if (!p) return;
+  const container = document.getElementById('certificateHistoryList');
+  const certs = [];
+  if (p.certifications) {
+    p.certifications.split(',').forEach(c => {
+      const name = c.trim();
+      if (name) certs.push({ name: name, type: 'Certification', source: 'Product Profile', date: p.updatedAt || p.createdAt || '—' });
+    });
+  }
+  (p.docHistory || []).forEach(d => {
+    certs.push({ name: d.name || 'Document', type: d.docType || 'Document', source: d.source || 'Upload', date: d.createdAt || '—' });
+  });
+  if (!certs.length) {
+    container.innerHTML = '<div style="color:var(--text-secondary);font-size:13px; padding:10px 14px; background:var(--surface); border-radius:8px;">No certificates or compliance documents on record.</div>';
+  } else {
+    container.innerHTML = '<div style="display:flex; flex-direction:column; gap:8px">' + certs.map((c, i) => {
+      const dateStr = c.date && c.date !== '—' ? new Date(c.date).toLocaleDateString('en-IN', {day:'2-digit', month:'short', year:'numeric'}) : '—';
+      return '<div class="proc-attachment"><span class="icon">🏅</span><div class="meta"><div class="name">' + c.name + '</div><div class="size">' + c.type + ' · Source: ' + c.source + ' · Added: ' + dateStr + '</div></div></div>';
+    }).join('') + '</div>';
+  }
+}
+
+// ========== EXPORT CSV ==========
+function exportCSV() {
+  if (!products.length) { showToast('No products to export', 'error'); return; }
+  const headers = ['ID','SKU','Name','Category','SubCategory','Type','Unit','Weight','GST%','HSN','ShelfLife','Status','DiscontinuedDate','Barcode','Description','Storage','Certifications','VariantsJSON'];
+  const rows = products.map(p => {
+    const variantsJSON = JSON.stringify(p.variants || []).replace(/"/g, '""');
+    return [p.id, p.code, p.name, p.category, p.subCategory, p.type, p.unit, p.weight, p.gstRate, p.hsnCode, p.shelfLife, p.status, p.discontinuedDate, p.barcode, p.description, p.storage, p.certifications, variantsJSON].map(v => '"' + String(v).replace(/"/g, '""') + '"').join(',');
+  });
+  const csv = [headers.join(','), ...rows].join('\n');
+  const blob = new Blob(['\uFEFF' + csv], {type: 'text/csv;charset=utf-8;'});
+  const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = 'product-catalog-' + new Date().toISOString().split('T')[0] + '.csv'; a.click(); URL.revokeObjectURL(url);
+  showToast('CSV exported: ' + products.length + ' products', 'success');
+}
+
+function importCSV() {
+  const input = document.createElement('input'); input.type = 'file'; input.accept = '.csv'; input.onchange = (e) => {
+    const f = e.target.files[0]; if (!f) return;
+    const r = new FileReader(); r.onload = (ev) => {
+      const text = ev.target.result; const lines = text.split('\n').map(l => l.trim()).filter(l => l);
+      if (!lines.length) { showToast('Empty CSV', 'error'); return; }
+      const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, ''));
+      const nameIdx = headers.indexOf('Name'); const codeIdx = headers.indexOf('SKU');
+      let added = 0;
+      for (let i = 1; i < lines.length; i++) {
+        const vals = lines[i].split(',').map(v => v.trim().replace(/^"|"$/g, ''));
+        const name = vals[nameIdx]; const code = vals[codeIdx]; if (!name || !code) continue;
+        if (products.find(p => p.code === code)) continue;
+        let variants = [];
+        try { variants = JSON.parse(vals[headers.indexOf('VariantsJSON')] || '[]'); } catch(e) {}
+        products.push({ id: nextProductId++, code, name, category: vals[headers.indexOf('Category')] || 'Other', subCategory: vals[headers.indexOf('SubCategory')] || '', type: vals[headers.indexOf('Type')] || '', unit: vals[headers.indexOf('Unit')] || 'ml', weight: parseFloat(vals[headers.indexOf('Weight')]) || 0, gstRate: parseInt(vals[headers.indexOf('GST%')]) || 18, hsnCode: vals[headers.indexOf('HSN')] || '', shelfLife: parseInt(vals[headers.indexOf('ShelfLife')]) || 0, status: vals[headers.indexOf('Status')] || 'Active', discontinuedDate: vals[headers.indexOf('DiscontinuedDate')] || '', barcode: vals[headers.indexOf('Barcode')] || '', description: vals[headers.indexOf('Description')] || '', storage: vals[headers.indexOf('Storage')] || '', certifications: vals[headers.indexOf('Certifications')] || '', variants: Array.isArray(variants) ? variants : [], image: null, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), history: [] });
+        added++;
+      }
+      saveDB(); populateFilters(); showToast('Import complete: ' + added + ' added', 'success');
+    }; r.readAsText(f);
+  }; input.click();
+}
+
+// ========== KEYBOARD SHORTCUTS ==========
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') { ['productModal','detailModal'].forEach(id => closeModal(id)); } if (e.ctrlKey && e.key === 'n') { e.preventDefault(); openAddModal(); } });
+
+// ========== INIT ==========
+loadDB();
+</script>
+</body>
+</html>

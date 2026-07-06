@@ -18,7 +18,7 @@ import { useForm } from 'react-hook-form';
 import GoogleSheetsPanel from '../../components/crm/GoogleSheetsPanel';
 import ErrorBoundary from '../../components/common/ErrorBoundary';
 
-const PIPELINE_STAGES = ['New Lead', 'Follow-up', 'Sample', 'In Progress', 'Ready to Dispatch', 'Dispatched', 'Payment Pending', 'Lost'];
+const PIPELINE_STAGES = ['New Lead', 'Follow-up', 'Sample', 'In Progress', 'Ready to Dispatch', 'Payment Pending', 'Dispatched', 'Lost'];
 
 const STAGE_META = {
   'New Lead':          { grad: 'linear-gradient(135deg,#475569 0%,#1e293b 100%)', accent: '#94a3b8', badge: 'bg-slate-100 text-slate-600 dark:bg-[#132035] dark:text-slate-300'       },
@@ -197,6 +197,9 @@ function LeadSlideOver({ leadId, onClose, onUpdated }) {
   const [imageUrl, setImageUrl] = useState('');
   const [showSampleModal, setShowSampleModal] = useState(false);
   const [samplePrepDays, setSamplePrepDays] = useState('');
+  const [sampleProductInterest, setSampleProductInterest] = useState('');
+  const [sampleEstimatedValue, setSampleEstimatedValue] = useState('');
+  const [sampleDiscussed, setSampleDiscussed] = useState('');
   const [showLostModal, setShowLostModal] = useState(false);
   const [lostReason, setLostReason] = useState('');
   const [lostNotes, setLostNotes] = useState('');
@@ -211,6 +214,8 @@ function LeadSlideOver({ leadId, onClose, onUpdated }) {
   const [commDate, setCommDate] = useState('');
   const [commImages, setCommImages] = useState([]);
   const [commPreviews, setCommPreviews] = useState([]);
+  const [commAudios, setCommAudios] = useState([]);
+  const [commAudioNames, setCommAudioNames] = useState([]);
   const [lightboxImg, setLightboxImg] = useState(null);
 
   const deleteMutation = useMutation({
@@ -245,7 +250,7 @@ function LeadSlideOver({ leadId, onClose, onUpdated }) {
       if (onUpdated) onUpdated();
       toast.success('Stage updated');
     },
-    onError: () => toast.error('Failed to update stage'),
+    onError: (err) => toast.error(err?.response?.data?.message || 'Failed to update stage'),
   });
 
   const { data: usersData } = useQuery({
@@ -299,16 +304,25 @@ function LeadSlideOver({ leadId, onClose, onUpdated }) {
     onError: () => toast.error('Failed to add image'),
   });
 
+  const sampleInvoiceMutation = useMutation({
+    mutationFn: () => api.post(`/crm/leads/${leadId}/sample-invoice`),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['crm', 'lead', leadId] });
+      toast.success('Sample invoice created in Finance');
+    },
+    onError: (err) => toast.error(err?.response?.data?.message || 'Failed to create invoice'),
+  });
+
   const commLogMutation = useMutation({
-    mutationFn: (fd) => api.post(`/crm/leads/${leadId}/comm-log`, fd, { headers: { 'Content-Type': 'multipart/form-data' } }),
+    mutationFn: (fd) => api.post(`/crm/leads/${leadId}/comm-log`, fd),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['crm', 'lead', leadId] });
       toast.success('Log saved');
       setShowCommForm(false);
       setCommType('call'); setCommTitle(''); setCommContent(''); setCommDate('');
-      setCommImages([]); setCommPreviews([]);
+      setCommImages([]); setCommPreviews([]); setCommAudios([]); setCommAudioNames([]);
     },
-    onError: () => toast.error('Failed to save log'),
+    onError: (err) => toast.error(err?.response?.data?.message || err?.message || 'Failed to save log'),
   });
 
   // Sync sample form when lead loads
@@ -451,21 +465,17 @@ function LeadSlideOver({ leadId, onClose, onUpdated }) {
                       if (lead.status === stage) return;
                       const currentIdx = PIPELINE_STAGES.indexOf(lead.status);
                       const nextIdx = PIPELINE_STAGES.indexOf(stage);
-                      if (nextIdx > currentIdx && !lead.communicationLogs?.length) {
-                        toast.error('Log what was discussed before moving to the next stage');
-                        setShowCommForm(true);
-                        return;
-                      }
                       const BLOCKED_FROM_FOLLOWUP = ['In Progress', 'Ready to Dispatch', 'Dispatched', 'Payment Pending'];
                       if (lead.status === 'Follow-up' && BLOCKED_FROM_FOLLOWUP.includes(stage)) {
                         toast.error('Follow-up → Sample → Production order-la tha shift aganum');
                         return;
                       }
                       if (stage === 'Sample') {
-                        if (!lead.productInterest?.length) { toast.error('Add product interest before moving to Sample (Edit the lead first)'); return; }
-                        if (!lead.estimatedValue || lead.estimatedValue <= 0) { toast.error('Add estimated value before moving to Sample (Edit the lead first)'); return; }
                         setShowSampleModal(true);
                         setSamplePrepDays('');
+                        setSampleProductInterest(lead.productInterest?.join(', ') || '');
+                        setSampleEstimatedValue(lead.estimatedValue > 0 ? String(lead.estimatedValue) : '');
+                        setSampleDiscussed('');
                         return;
                       }
                       if (stage === 'In Progress') {
@@ -735,8 +745,29 @@ function LeadSlideOver({ leadId, onClose, onUpdated }) {
                     {sampleMutation.isPending ? 'Saving…' : '💾 Save Sample Details'}
                   </button>
 
-                  {/* Finance entry confirmation */}
-                  {lead.sampleDetails?.financeTransactionId && (
+                  {/* Create Sample Invoice */}
+                  {lead.sampleDetails?.sampleInvoiceId ? (
+                    <div className="rounded-xl bg-emerald-50 dark:bg-emerald-900/20 px-3.5 py-2.5 flex items-center gap-2 border border-emerald-200 dark:border-emerald-800/50">
+                      <span className="text-emerald-600 dark:text-emerald-400 text-base">🧾</span>
+                      <div>
+                        <p className="text-xs font-semibold text-emerald-700 dark:text-emerald-300">Sample Invoice Created</p>
+                        <p className="text-xs text-emerald-600 dark:text-emerald-400">₹{(lead.sampleDetails.chargeAmount || 0).toLocaleString('en-IN')} — visible in Finance → Invoices</p>
+                      </div>
+                    </div>
+                  ) : (lead.sampleDetails?.chargeAmount > 0 && lead.sampleDetails?.chargeBy === 'client') ? (
+                    <button
+                      type="button"
+                      onClick={() => sampleInvoiceMutation.mutate()}
+                      disabled={sampleInvoiceMutation.isPending}
+                      className="w-full py-2.5 rounded-xl text-sm font-bold text-white disabled:opacity-50 transition-all active:scale-95"
+                      style={{ background: 'linear-gradient(135deg,#10b981,#059669)' }}
+                    >
+                      {sampleInvoiceMutation.isPending ? 'Creating…' : '🧾 Create Sample Invoice'}
+                    </button>
+                  ) : null}
+
+                  {/* Legacy finance entry */}
+                  {lead.sampleDetails?.financeTransactionId && !lead.sampleDetails?.sampleInvoiceId && (
                     <div className="rounded-xl bg-emerald-50 dark:bg-emerald-900/20 px-3.5 py-2.5 flex items-center gap-2 border border-emerald-200 dark:border-emerald-800/50">
                       <span className="text-emerald-600 dark:text-emerald-400 text-base">✓</span>
                       <div>
@@ -1001,7 +1032,7 @@ function LeadSlideOver({ leadId, onClose, onUpdated }) {
                   {lead.communicationLogs?.length > 0 && <span className="text-blue-500">({lead.communicationLogs.length})</span>}
                 </p>
                 <button
-                  onClick={() => { setShowCommForm(v => !v); setCommType('call'); setCommTitle(''); setCommContent(''); setCommDate(''); setCommImages([]); setCommPreviews([]); }}
+                  onClick={() => { setShowCommForm(v => !v); setCommType('call'); setCommTitle(''); setCommContent(''); setCommDate(''); setCommImages([]); setCommPreviews([]); setCommAudios([]); setCommAudioNames([]); }}
                   className="text-xs px-2 py-0.5 rounded-lg bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 font-semibold hover:bg-blue-100 transition-colors"
                 >
                   {showCommForm ? 'Cancel' : '+ Add Log'}
@@ -1030,15 +1061,25 @@ function LeadSlideOver({ leadId, onClose, onUpdated }) {
                     placeholder={"Paste WhatsApp chat or type call notes…\n[10:32] Client: We need 500 units of lip balm\n[10:34] Us: Sure, let me check and revert…"}
                     autoFocus
                   />
-                  {/* Image attach */}
-                  <label className="flex items-center gap-2 cursor-pointer text-xs text-blue-500 hover:text-blue-600 font-medium">
-                    <input type="file" accept="image/*" multiple className="hidden" onChange={e => {
-                      const files = Array.from(e.target.files);
-                      setCommImages(prev => [...prev, ...files]);
-                      files.forEach(f => { const r = new FileReader(); r.onload = ev => setCommPreviews(prev => [...prev, { url: ev.target.result, name: f.name }]); r.readAsDataURL(f); });
-                    }} />
-                    📎 Attach screenshot / photo
-                  </label>
+                  {/* Attach row */}
+                  <div className="flex gap-3">
+                    <label className="flex items-center gap-1.5 cursor-pointer text-xs text-blue-500 hover:text-blue-600 font-medium">
+                      <input type="file" accept="image/*" multiple className="hidden" onChange={e => {
+                        const files = Array.from(e.target.files);
+                        setCommImages(prev => [...prev, ...files]);
+                        files.forEach(f => { const r = new FileReader(); r.onload = ev => setCommPreviews(prev => [...prev, { url: ev.target.result, name: f.name }]); r.readAsDataURL(f); });
+                      }} />
+                      📎 Photo
+                    </label>
+                    <label className="flex items-center gap-1.5 cursor-pointer text-xs text-purple-500 hover:text-purple-600 font-medium">
+                      <input type="file" accept="audio/*" multiple className="hidden" onChange={e => {
+                        const files = Array.from(e.target.files);
+                        setCommAudios(prev => [...prev, ...files]);
+                        setCommAudioNames(prev => [...prev, ...files.map(f => f.name)]);
+                      }} />
+                      🎙️ Audio
+                    </label>
+                  </div>
                   {commPreviews.length > 0 && (
                     <div className="flex flex-wrap gap-1.5">
                       {commPreviews.map((img, i) => (
@@ -1049,13 +1090,24 @@ function LeadSlideOver({ leadId, onClose, onUpdated }) {
                       ))}
                     </div>
                   )}
+                  {commAudioNames.length > 0 && (
+                    <div className="space-y-1">
+                      {commAudioNames.map((name, i) => (
+                        <div key={i} className="flex items-center gap-2 bg-purple-50 dark:bg-purple-900/20 rounded-lg px-2.5 py-1.5 text-xs text-purple-700 dark:text-purple-300">
+                          <span>🎙️ {name}</span>
+                          <button type="button" onClick={() => { setCommAudios(p => p.filter((_, idx) => idx !== i)); setCommAudioNames(p => p.filter((_, idx) => idx !== i)); }} className="ml-auto text-red-400 hover:text-red-600">×</button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                   <button
                     onClick={() => {
-                      if (!commContent.trim() && !commImages.length) { toast.error('Add content or photo'); return; }
+                      if (!commContent.trim() && !commImages.length && !commAudios.length) { toast.error('Add content, photo or audio'); return; }
                       const fd = new FormData();
                       fd.append('type', commType); fd.append('title', commTitle); fd.append('content', commContent);
                       if (commDate) fd.append('happenedAt', new Date(commDate).toISOString());
-                      commImages.forEach(f => fd.append('images', f));
+                      commImages.forEach(f => fd.append('files', f));
+                      commAudios.forEach(f => fd.append('files', f));
                       commLogMutation.mutate(fd);
                     }}
                     disabled={commLogMutation.isPending}
@@ -1083,6 +1135,16 @@ function LeadSlideOver({ leadId, onClose, onUpdated }) {
                           <div className="flex flex-wrap gap-1.5 mt-2">
                             {log.images.map((img, j) => (
                               <img key={j} src={img.url} alt={img.name} onClick={() => setLightboxImg(img.url)} className="w-12 h-12 object-cover rounded-lg border border-gray-200 dark:border-[#1b2e4a] cursor-pointer hover:opacity-80 transition-opacity" />
+                            ))}
+                          </div>
+                        )}
+                        {log.audioFiles?.length > 0 && (
+                          <div className="space-y-1.5 mt-2">
+                            {log.audioFiles.map((a, j) => (
+                              <div key={j} className="rounded-lg bg-purple-50 dark:bg-purple-900/20 px-2.5 py-2 border border-purple-100 dark:border-purple-800/40">
+                                <p className="text-[10px] text-purple-500 dark:text-purple-400 mb-1 font-medium">🎙️ {a.name}</p>
+                                <audio controls src={a.url} className="w-full h-8" style={{ height: '32px' }} />
+                              </div>
                             ))}
                           </div>
                         )}
@@ -1267,6 +1329,43 @@ function LeadSlideOver({ leadId, onClose, onUpdated }) {
               </button>
             </div>
             <div className="p-5 space-y-4">
+              {/* What was discussed */}
+              <div>
+                <label className="label">What was discussed *</label>
+                <textarea
+                  value={sampleDiscussed}
+                  onChange={e => setSampleDiscussed(e.target.value)}
+                  rows={3}
+                  className="input resize-none text-sm"
+                  placeholder="e.g. Customer confirmed interest in lip balm, wants to see a sample before ordering 500 units…"
+                  autoFocus
+                />
+              </div>
+              {/* Product Interest — show always so user can fill/edit inline */}
+              <div>
+                <label className="label">Product Interest *</label>
+                <input
+                  value={sampleProductInterest}
+                  onChange={e => setSampleProductInterest(e.target.value)}
+                  className="input"
+                  placeholder="e.g. Lip Balm, Face Cream (comma separated)"
+                />
+              </div>
+              {/* Estimated Value */}
+              <div>
+                <label className="label">Estimated Value (₹) *</label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 font-medium text-sm">₹</span>
+                  <input
+                    type="number"
+                    min="1"
+                    value={sampleEstimatedValue}
+                    onChange={e => setSampleEstimatedValue(e.target.value)}
+                    className="input pl-7"
+                    placeholder="e.g. 25000"
+                  />
+                </div>
+              </div>
               <div>
                 <label className="label">Sample Prep Time (days) *</label>
                 <input
@@ -1290,14 +1389,30 @@ function LeadSlideOver({ leadId, onClose, onUpdated }) {
                 </button>
                 <button
                   onClick={async () => {
+                    if (!sampleDiscussed.trim()) { toast.error('Enter what was discussed'); return; }
+                    const piList = sampleProductInterest.split(',').map(s => s.trim()).filter(Boolean);
+                    if (!piList.length) { toast.error('Enter at least one product interest'); return; }
+                    if (!sampleEstimatedValue || Number(sampleEstimatedValue) <= 0) { toast.error('Enter estimated value'); return; }
                     if (!samplePrepDays || Number(samplePrepDays) < 1) { toast.error('Enter valid prep days'); return; }
                     const days = Number(samplePrepDays);
                     const startedAt = new Date().toISOString();
-                    // Step 1: move to Sample stage
+                    // Save product interest + estimated value if changed
+                    const leadUpdates = {};
+                    if (JSON.stringify(lead.productInterest || []) !== JSON.stringify(piList)) leadUpdates.productInterest = piList;
+                    if (Number(sampleEstimatedValue) !== lead.estimatedValue) leadUpdates.estimatedValue = Number(sampleEstimatedValue);
+                    if (Object.keys(leadUpdates).length) {
+                      await api.put(`/crm/leads/${leadId}`, leadUpdates).catch(() => {});
+                    }
+                    // Save comm log
+                    const fd = new FormData();
+                    fd.append('type', 'call');
+                    fd.append('content', sampleDiscussed.trim());
+                    fd.append('happenedAt', new Date().toISOString());
+                    await api.post(`/crm/leads/${leadId}/comm-log`, fd).catch(() => {});
+                    // Move to Sample stage
                     statusMutation.mutate({ status: 'Sample' }, {
                       onSuccess: async () => {
                         try {
-                          // Step 2: save prep days + startedAt via dedicated endpoint
                           await api.put(`/crm/leads/${leadId}/sample`, { preparationDays: days, startedAt });
                           qc.invalidateQueries({ queryKey: ['crm', 'lead', leadId] });
                         } catch { /* prep save failed silently — status still moved */ }

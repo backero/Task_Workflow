@@ -36,8 +36,8 @@ import TechnicalQueries from './pages/crm/TechnicalQueries';
 import Products from './pages/inventory/Products';
 import StockMovements from './pages/inventory/StockMovements';
 import InventoryAlerts from './pages/inventory/InventoryAlerts';
-import RawMaterials from './pages/inventory/RawMaterials';
-import ProductCatalog from './pages/inventory/ProductCatalog';
+import RawMaterials from './pages/inventory/RawMaterialsHTML';
+import ProductCatalog from './pages/inventory/ProductCatalogHTML';
 
 // Finance pages
 import Ledger from './pages/finance/Ledger';
