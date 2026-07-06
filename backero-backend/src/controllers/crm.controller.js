@@ -3,7 +3,8 @@ const Task = require('../models/Task');
 const ActivityLog = require('../models/ActivityLog');
 const User = require('../models/User');
 const Organization = require('../models/Organization');
-const { asyncHandler, sendSuccess, sendError, paginate, paginateResponse } = require('../utils/helpers');
+const Invoice = require('../models/Invoice');
+const { asyncHandler, sendSuccess, sendError, paginate, paginateResponse, generateInvoiceNumber } = require('../utils/helpers');
 const { LEAD_STATUS, SOCKET_EVENTS, ROLE_HIERARCHY, ROLES } = require('../utils/constants');
 const { createNotification } = require('../services/notification.service');
 const { appendLeadToSheet, updateLeadInSheet } = require('../services/googleSheets.service');
@@ -739,12 +740,18 @@ exports.addCommLog = asyncHandler(async (req, res) => {
   const { type = 'call', title = '', content = '', happenedAt } = req.body;
   const { uploadBuffer } = require('../utils/cloudinary');
 
-  // Upload images to Cloudinary if any files attached
+  // Upload images and audio to Cloudinary
   const images = [];
+  const audioFiles = [];
   if (req.files?.length) {
     for (const file of req.files) {
-      const result = await uploadBuffer(file.buffer, { folder: `backero/comm-logs/${req.params.id}` });
-      images.push({ url: result.secure_url, publicId: result.public_id, name: file.originalname });
+      if (file.mimetype.startsWith('audio/')) {
+        const result = await uploadBuffer(file.buffer, { folder: `backero/comm-logs/${req.params.id}`, resourceType: 'video' });
+        audioFiles.push({ url: result.secure_url, publicId: result.public_id, name: file.originalname });
+      } else {
+        const result = await uploadBuffer(file.buffer, { folder: `backero/comm-logs/${req.params.id}` });
+        images.push({ url: result.secure_url, publicId: result.public_id, name: file.originalname });
+      }
     }
   }
 
@@ -754,6 +761,7 @@ exports.addCommLog = asyncHandler(async (req, res) => {
     content: content.trim(),
     happenedAt: happenedAt ? new Date(happenedAt) : new Date(),
     images,
+    audioFiles,
     addedBy: req.user._id,
     createdAt: new Date(),
   };
@@ -765,5 +773,52 @@ exports.addCommLog = asyncHandler(async (req, res) => {
     .populate('communicationLogs.addedBy', 'firstName lastName');
 
   sendSuccess(res, { log: populated.communicationLogs.at(-1) }, 'Communication log added');
+});
+
+exports.createSampleInvoice = asyncHandler(async (req, res) => {
+  const lead = await Lead.findOne({ _id: req.params.id, organizationId: req.user.organizationId });
+  if (!lead) return sendError(res, 'Lead not found.', 404);
+
+  const sd = lead.sampleDetails;
+  const chargeAmount = Number(sd?.chargeAmount) || 0;
+  if (chargeAmount <= 0) return sendError(res, 'Sample charge amount must be greater than 0.', 400);
+  if (sd?.sampleInvoiceId) return sendError(res, 'Invoice already created for this sample.', 400);
+
+  const productDesc = sd?.product ? `Sample - ${sd.product}` : 'Sample Product';
+  const qty = Number(sd?.quantity) || 1;
+  const unitPrice = chargeAmount;
+  const gstRate = 0;
+  const itemTotal = qty * unitPrice;
+
+  const invoiceStatus = sd?.paymentStatus === 'full_paid' ? 'paid' : sd?.paymentStatus === 'advance_received' ? 'partially_paid' : 'draft';
+
+  const invoice = await Invoice.create({
+    organizationId: req.user.organizationId,
+    invoiceNumber: generateInvoiceNumber(),
+    type: 'invoice',
+    status: invoiceStatus,
+    client: {
+      name: lead.name,
+      email: lead.email || '',
+      phone: lead.phone || '',
+      address: [lead.city, lead.state].filter(Boolean).join(', '),
+    },
+    lead: lead._id,
+    lineItems: [{ description: productDesc, quantity: qty, unit: 'pcs', unitPrice, gstRate, gstAmount: 0, discount: 0, total: itemTotal }],
+    subtotal: itemTotal,
+    totalGst: 0,
+    totalDiscount: 0,
+    totalAmount: itemTotal,
+    paidAmount: invoiceStatus === 'paid' ? itemTotal : (Number(sd?.advanceAmount) || 0),
+    balanceAmount: invoiceStatus === 'paid' ? 0 : itemTotal - (Number(sd?.advanceAmount) || 0),
+    issueDate: new Date(),
+    notes: `Sample invoice for lead: ${lead.name}`,
+    createdBy: req.user._id,
+  });
+
+  lead.sampleDetails.sampleInvoiceId = invoice._id;
+  await lead.save({ validateBeforeSave: false });
+
+  sendSuccess(res, { invoice }, 'Sample invoice created');
 });
 

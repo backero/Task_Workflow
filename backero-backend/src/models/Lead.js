@@ -92,6 +92,7 @@ const leadSchema = new mongoose.Schema({
     preparationDays: { type: Number },
     startedAt: { type: Date },
     financeTransactionId: { type: mongoose.Schema.Types.ObjectId, ref: 'Transaction' },
+    sampleInvoiceId: { type: mongoose.Schema.Types.ObjectId, ref: 'Invoice' },
   },
 
   // Google Sheets sync
@@ -124,6 +125,7 @@ const leadSchema = new mongoose.Schema({
     content:     { type: String },
     happenedAt:  { type: Date, default: Date.now },
     images:      [{ url: String, publicId: String, name: String }],
+    audioFiles:  [{ url: String, publicId: String, name: String }],
     addedBy:     { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
     createdAt:   { type: Date, default: Date.now },
   }],
