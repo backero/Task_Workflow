@@ -119,7 +119,7 @@ export default function Sidebar({ collapsed, onToggle }) {
   if (can('dept.marketing'))   deptItems.push({ label: 'Marketing',   to: '/departments/marketing',   icon: MegaphoneIcon });
   if (can('dept.marketplace')) deptItems.push({ label: 'Marketplace', to: '/departments/marketplace', icon: BuildingStorefrontIcon });
   if (can('dept.sales'))       deptItems.push({ label: 'Sales Dept',  to: '/departments/sales',       icon: ShoppingBagIcon });
-  if (can('dept.rnd'))         deptItems.push({ label: 'R&D',         to: '/departments/rnd',         icon: BeakerIcon });
+  if (can('dept.rnd'))         deptItems.push({ label: 'Production',  to: '/departments/rnd',         icon: CogIcon });
   if (can('dept.operations'))  deptItems.push({ label: 'Operations',  to: '/departments/operations',  icon: WrenchScrewdriverIcon });
   if (can('dept.hr'))          deptItems.push({ label: 'HR',          to: '/departments/hr',          icon: UserGroupIcon });
   if (deptItems.length > 0) groups.push({ label: 'Departments', items: deptItems });
