@@ -102,17 +102,16 @@ export default function FounderDashboard() {
     refetchOnMount: true,
   });
 
-  const [rmStats, setRmStats] = React.useState({ total: 0, low: 0, out: 0 });
-  React.useEffect(() => {
-    try {
-      const d = JSON.parse(localStorage.getItem('rawMaterialDB_v8'));
-      const mats = d?.materials || [];
-      const calcStock = m => (m.batches || []).reduce((s, b) => s + (Number(b.quantity) || 0), 0);
-      const low = mats.filter(m => { const q = calcStock(m); return q > 0 && m.enableMinStock && q <= (m.minStockLevel || 0); }).length;
-      const out = mats.filter(m => calcStock(m) <= 0).length;
-      setRmStats({ total: mats.length, low, out });
-    } catch {}
-  }, []);
+  const { data: rmStatsData } = useQuery({
+    queryKey: ['inventory', 'rm-stats'],
+    queryFn: () => api.get('/inventory/raw-materials/stats').then(r => r.data.data),
+    staleTime: 60 * 1000,
+  });
+  const rmStats = {
+    total: rmStatsData?.total || 0,
+    low: rmStatsData?.lowStockCount || 0,
+    out: rmStatsData?.outOfStockCount || 0,
+  };
 
   if (isLoading) {
     return (

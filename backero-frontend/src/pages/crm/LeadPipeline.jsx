@@ -279,17 +279,20 @@ function LeadSlideOver({ leadId, onClose, onUpdated }) {
     enabled: !!leadId,
   });
 
+  const { data: catalogData } = useQuery({
+    queryKey: ['catalog', 'products', 'all'],
+    queryFn: () => api.get('/catalog/products').then(r => r.data.products || []),
+    staleTime: 5 * 60 * 1000,
+  });
+  const activeCatalogProducts = (catalogData || []).filter(p => p.status !== 'Discontinued');
+
   const atSearchTerm = productAtQuery.includes('@') ? productAtQuery.slice(productAtQuery.lastIndexOf('@') + 1) : '';
   const [catalogResults, setCatalogResults] = useState([]);
   useEffect(() => {
     if (!showProductDrop) return;
-    try {
-      const raw = localStorage.getItem('productCatalogDB_v2');
-      const all = raw ? (JSON.parse(raw).products || []).filter(p => p.status !== 'Discontinued') : [];
-      const s = atSearchTerm.toLowerCase();
-      setCatalogResults(s ? all.filter(p => (p.name || '').toLowerCase().includes(s) || (p.code || '').toLowerCase().includes(s) || (p.category || '').toLowerCase().includes(s)).slice(0, 10) : all.slice(0, 10));
-    } catch { setCatalogResults([]); }
-  }, [showProductDrop, atSearchTerm]);
+    const s = atSearchTerm.toLowerCase();
+    setCatalogResults(s ? activeCatalogProducts.filter(p => (p.name || '').toLowerCase().includes(s) || (p.code || '').toLowerCase().includes(s) || (p.category || '').toLowerCase().includes(s)).slice(0, 10) : activeCatalogProducts.slice(0, 10));
+  }, [showProductDrop, atSearchTerm, activeCatalogProducts.length]);
 
   const sendUpdateMutation = useMutation({
     mutationFn: (message) => api.post(`/crm/leads/${leadId}/send-update`, { message }),
@@ -1541,11 +1544,7 @@ function LeadSlideOver({ leadId, onClose, onUpdated }) {
                               setSampleRichProducts(prev => prev.map((x, idx) => idx === i ? { ...x, name: val } : x));
                               if (val.includes('@')) {
                                 const term = val.slice(val.lastIndexOf('@') + 1).toLowerCase();
-                                try {
-                                  const raw = localStorage.getItem('productCatalogDB_v2');
-                                  const all = raw ? (JSON.parse(raw).products || []).filter(pr => pr.status !== 'Discontinued') : [];
-                                  setSampleCatalogResults(term ? all.filter(pr => (pr.name || '').toLowerCase().includes(term) || (pr.code || '').toLowerCase().includes(term)).slice(0, 8) : all.slice(0, 8));
-                                } catch { setSampleCatalogResults([]); }
+                                setSampleCatalogResults(term ? activeCatalogProducts.filter(pr => (pr.name || '').toLowerCase().includes(term) || (pr.code || '').toLowerCase().includes(term)).slice(0, 8) : activeCatalogProducts.slice(0, 8));
                                 setSampleCatalogOpen(i);
                               } else {
                                 setSampleCatalogOpen(-1);

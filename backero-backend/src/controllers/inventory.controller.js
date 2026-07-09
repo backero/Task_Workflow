@@ -260,11 +260,14 @@ exports.getRawMaterialStats = asyncHandler(async (req, res) => {
 
   const materials = await Product.find({ organizationId: orgId, isRawMaterial: true, isActive: true }).lean();
 
-  let totalValue = 0, lowStockCount = 0, expiringCount = 0;
+  let totalValue = 0, lowStockCount = 0, outOfStockCount = 0, expiringCount = 0;
   for (const m of materials) {
-    const stock = (m.batches || []).reduce((s, b) => s + (b.quantity || 0), 0);
+    const stock = (m.currentStock !== undefined && m.currentStock !== null)
+      ? Number(m.currentStock) || 0
+      : (m.batches || []).reduce((s, b) => s + (b.quantity || 0), 0);
     totalValue += stock * (m.costPrice || 0);
-    if (m.enableMinStock && stock <= (m.minStockLevel || 0)) lowStockCount++;
+    if (stock <= 0) outOfStockCount++;
+    else if (m.enableMinStock && stock <= (m.minStockLevel || 0)) lowStockCount++;
     const hasExpiring = (m.batches || []).some(b => {
       if (!b.expiryDate) return false;
       const e = new Date(b.expiryDate);
@@ -273,7 +276,7 @@ exports.getRawMaterialStats = asyncHandler(async (req, res) => {
     if (hasExpiring) expiringCount++;
   }
 
-  sendSuccess(res, { total: materials.length, totalValue, lowStockCount, expiringCount });
+  sendSuccess(res, { total: materials.length, totalValue, lowStockCount, outOfStockCount, expiringCount });
 });
 
 // GET /api/inventory/raw-materials
