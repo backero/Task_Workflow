@@ -5,9 +5,21 @@ const logger = require('../utils/logger');
 let io;
 
 const initSocket = (server) => {
+  const allowedSocketOrigins = [
+    'http://localhost:5173',
+    'http://localhost:5174',
+    'http://localhost:3000',
+    'https://task-workflow-liart.vercel.app',
+    ...(process.env.FRONTEND_URL ? [process.env.FRONTEND_URL] : []),
+  ];
+
   io = new Server(server, {
     cors: {
-      origin: [process.env.FRONTEND_URL || 'http://localhost:5173', 'http://localhost:3000'],
+      origin: (origin, callback) => {
+        if (!origin || allowedSocketOrigins.includes(origin)) return callback(null, true);
+        if (/^https:\/\/task-workflow[a-z0-9-]*\.vercel\.app$/.test(origin)) return callback(null, true);
+        callback(new Error(`Socket CORS: origin ${origin} not allowed`));
+      },
       credentials: true,
     },
     pingTimeout: 60000,
