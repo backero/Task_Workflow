@@ -1,30 +1,24 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-hot-toast';
-import { format } from 'date-fns';
+import api from '../../api/axios';
 
 const LS_KEY = 'rawMaterialDB_v8';
 const CATEGORIES = ['All', 'Active Ingredients', 'Butters', 'Chemicals', 'Essential Oil', 'Hydrosol', 'Preservatives', 'Raw Materials', 'Raw chemicals', 'Surfactants', 'Vitamins'];
 
-function load() {
-  try { const d = JSON.parse(localStorage.getItem(LS_KEY)); return d?.materials || []; }
-  catch { return []; }
-}
-function save(materials) {
-  try { localStorage.setItem(LS_KEY, JSON.stringify({ materials, updatedAt: new Date().toISOString() })); }
-  catch { toast.error('Save failed'); }
-}
 function totalStock(m) { return (m.batches || []).reduce((s, b) => s + (Number(b.quantity) || 0), 0); }
 function stockStatus(m) {
+  if (m._status) return m._status;
   const qty = totalStock(m);
   if (qty <= 0) return 'Out';
   if (m.enableMinStock && qty <= (m.minStockLevel || 0)) return 'Low';
   return 'In';
 }
 function statusColor(s) {
-  if (s === 'Out') return 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300';
-  if (s === 'Low') return 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300';
-  return 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300';
+  if (s === 'Out') return 'bg-red-100 text-red-700';
+  if (s === 'Low') return 'bg-amber-100 text-amber-700';
+  return 'bg-emerald-100 text-emerald-700';
 }
 
 const emptyMat = () => ({
@@ -38,93 +32,137 @@ const emptyBatch = () => ({
 });
 
 export default function RawMaterialsPage() {
-  const [materials, setMaterials] = useState(load);
-  const [search, setSearch] = useState('');
-  const [catFilter, setCatFilter] = useState('All');
+  const qc = useQueryClient();
+  const [search, setSearch]             = useState('');
+  const [catFilter, setCatFilter]       = useState('All');
   const [statusFilter, setStatusFilter] = useState('All');
-  const [selectedId, setSelectedId] = useState(null);
-  const [showForm, setShowForm] = useState(false);
-  const [editMat, setEditMat] = useState(null);
-  const [form, setForm] = useState(emptyMat());
-  const [batchForm, setBatchForm] = useState(null); // null or index (-1 = new)
-  const [batchData, setBatchData] = useState(emptyBatch());
+  const [selectedId, setSelectedId]     = useState(null);
+  const [showForm, setShowForm]         = useState(false);
+  const [editMat, setEditMat]           = useState(null);
+  const [form, setForm]                 = useState(emptyMat());
+  const [batchForm, setBatchForm]       = useState(null);
+  const [batchData, setBatchData]       = useState(emptyBatch());
   const [expandedBatches, setExpandedBatches] = useState(false);
+  const autoMigratedRef = useRef(false);
 
-  useEffect(() => { if (materials.length) save(materials); }, [materials]);
+  // ── Fetch list ──────────────────────────────────────────────────────────────
+  const { data, isLoading } = useQuery({
+    queryKey: ['rawmaterials', search, catFilter, statusFilter],
+    queryFn: () => api.get('/rawmaterials', {
+      params: {
+        search:   search   || undefined,
+        category: (catFilter   !== 'All') ? catFilter   : undefined,
+        status:   (statusFilter !== 'All') ? statusFilter : undefined,
+      },
+    }).then(r => r.data),
+    staleTime: 10000,
+  });
+  const materials = data?.materials || [];
 
-  const filtered = useMemo(() => {
-    let list = materials;
-    if (search) { const q = search.toLowerCase(); list = list.filter(m => m.name?.toLowerCase().includes(q) || m.code?.toLowerCase().includes(q) || m.supplier?.toLowerCase().includes(q)); }
-    if (catFilter !== 'All') list = list.filter(m => m.category === catFilter);
-    if (statusFilter !== 'All') list = list.filter(m => stockStatus(m) === statusFilter);
-    return list;
-  }, [materials, search, catFilter, statusFilter]);
+  // ── Auto-migrate from localStorage on first empty load ──────────────────────
+  useEffect(() => {
+    if (!isLoading && materials.length === 0 && !autoMigratedRef.current && !search && catFilter === 'All') {
+      autoMigratedRef.current = true;
+      try {
+        const raw = localStorage.getItem(LS_KEY);
+        if (!raw) return;
+        const { materials: lsItems = [] } = JSON.parse(raw);
+        if (!lsItems.length) return;
+        api.post('/rawmaterials/import', { materials: lsItems })
+          .then(res => {
+            qc.invalidateQueries({ queryKey: ['rawmaterials'] });
+            const { created = 0 } = res.data?.data || res.data || {};
+            if (created > 0) toast.success(`Synced ${created} raw materials to cloud`);
+          })
+          .catch(() => {});
+      } catch {}
+    }
+  }, [isLoading, materials.length]);
 
-  const selected = materials.find(m => m.id === selectedId) || null;
+  // ── Stats query ─────────────────────────────────────────────────────────────
+  const { data: statsData } = useQuery({
+    queryKey: ['rawmaterials', 'stats'],
+    queryFn: () => api.get('/rawmaterials/stats').then(r => r.data),
+    staleTime: 15000,
+  });
+  const stats = statsData?.data || statsData || { total: 0, inStock: 0, low: 0, out: 0 };
 
-  const stats = useMemo(() => ({
-    total: materials.length,
-    inStock: materials.filter(m => stockStatus(m) === 'In').length,
-    low: materials.filter(m => stockStatus(m) === 'Low').length,
-    out: materials.filter(m => stockStatus(m) === 'Out').length,
-  }), [materials]);
+  // ── Mutations ────────────────────────────────────────────────────────────────
+  const createMut = useMutation({
+    mutationFn: data => api.post('/rawmaterials', data),
+    onSuccess: () => { invalidate(); toast.success('Added'); closeForm(); },
+    onError: e => toast.error(e?.response?.data?.message || 'Failed to add'),
+  });
+  const updateMut = useMutation({
+    mutationFn: ({ id, data }) => api.put(`/rawmaterials/${id}`, data),
+    onSuccess: () => { invalidate(); toast.success('Updated'); closeForm(); },
+    onError: e => toast.error(e?.response?.data?.message || 'Failed to update'),
+  });
+  const deleteMut = useMutation({
+    mutationFn: id => api.delete(`/rawmaterials/${id}`),
+    onSuccess: () => { invalidate(); toast.success('Deleted'); setSelectedId(null); },
+    onError: () => toast.error('Failed to delete'),
+  });
+
+  function invalidate() {
+    qc.invalidateQueries({ queryKey: ['rawmaterials'] });
+  }
+
+  const selected = materials.find(m => (m._id || m.id) === selectedId) || null;
+
+  // ── local batch editing against selected ────────────────────────────────────
+  const [localBatches, setLocalBatches] = useState([]);
+  useEffect(() => { if (selected) setLocalBatches(selected.batches || []); }, [selectedId]);
 
   function openCreate() {
-    setForm({ ...emptyMat(), id: Date.now(), code: `RM-${String(materials.length + 1).padStart(4, '0')}`, createdAt: new Date().toISOString() });
+    const nextNum = String((data?.materials?.length || 0) + 1).padStart(4, '0');
+    setForm({ ...emptyMat(), code: `RM-${nextNum}` });
     setEditMat(null); setShowForm(true);
   }
-  function openEdit(m) { setForm({ ...m }); setEditMat(m); setShowForm(true); }
+  function openEdit(m) { setForm({ ...emptyMat(), ...m }); setEditMat(m); setShowForm(true); }
   function closeForm() { setShowForm(false); setEditMat(null); }
 
   function saveMat() {
     if (!form.code || !form.name) { toast.error('Code and name are required'); return; }
-    if (editMat) {
-      setMaterials(prev => prev.map(m => m.id === editMat.id ? { ...form, updatedAt: new Date().toISOString() } : m));
-      toast.success('Updated');
-    } else {
-      setMaterials(prev => [...prev, { ...form, updatedAt: new Date().toISOString() }]);
-      toast.success('Added');
-    }
-    closeForm();
+    if (editMat) updateMut.mutate({ id: editMat._id || editMat.id, data: { ...form, batches: localBatches } });
+    else createMut.mutate({ ...form });
   }
 
-  function deleteMat(id) {
+  function deleteMat(m) {
     if (!window.confirm('Delete this material?')) return;
-    setMaterials(prev => prev.filter(m => m.id !== id));
-    if (selectedId === id) setSelectedId(null);
-    toast.success('Deleted');
+    deleteMut.mutate(m._id || m.id);
+  }
+
+  function saveBatchesToServer(newBatches) {
+    if (!selected) return;
+    updateMut.mutate({ id: selected._id || selected.id, data: { ...selected, batches: newBatches } });
   }
 
   function openAddBatch() { setBatchData(emptyBatch()); setBatchForm(-1); }
-  function openEditBatch(i) { setBatchData({ ...selected.batches[i] }); setBatchForm(i); }
+  function openEditBatch(i) { setBatchData({ ...localBatches[i] }); setBatchForm(i); }
 
   function saveBatch() {
     if (!batchData.quantity) { toast.error('Quantity is required'); return; }
-    setMaterials(prev => prev.map(m => {
-      if (m.id !== selectedId) return m;
-      const batches = [...(m.batches || [])];
-      if (batchForm === -1) batches.push(batchData);
-      else batches[batchForm] = batchData;
-      return { ...m, batches, updatedAt: new Date().toISOString() };
-    }));
-    setBatchForm(null); toast.success('Batch saved');
+    const newBatches = [...localBatches];
+    if (batchForm === -1) newBatches.push({ ...batchData, batchId: batchData.batchId || `BATCH-${Date.now()}` });
+    else newBatches[batchForm] = batchData;
+    setLocalBatches(newBatches);
+    saveBatchesToServer(newBatches);
+    setBatchForm(null);
   }
 
   function deleteBatch(i) {
-    setMaterials(prev => prev.map(m => {
-      if (m.id !== selectedId) return m;
-      const batches = [...(m.batches || [])]; batches.splice(i, 1);
-      return { ...m, batches, updatedAt: new Date().toISOString() };
-    }));
-    toast.success('Batch removed');
+    const newBatches = [...localBatches];
+    newBatches.splice(i, 1);
+    setLocalBatches(newBatches);
+    saveBatchesToServer(newBatches);
   }
 
-  const setF = (k, v) => setForm(f => ({ ...f, [k]: v }));
-  const setBF = (k, v) => setBatchData(b => ({ ...b, [k]: v }));
-
+  // ── Export CSV ───────────────────────────────────────────────────────────────
   function exportCSV() {
+    const allMats = data?.materials || [];
     const headers = ['Code','Name','Category','HSN Code','Supplier','Location','Unit','Unit Price (₹)','GST Rate (%)','Min Stock Enabled','Min Stock Level','QC Passed','QC Checker','Total Stock','Status'];
-    const rows = materials.map(m => [
+    const rows = allMats.map(m => [
       m.code, m.name, m.category, m.hsnCode || '',
       m.supplier || '', m.location || '', m.unit,
       m.unitPrice || 0, m.gstRate || 0,
@@ -139,40 +177,44 @@ export default function RawMaterialsPage() {
     const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
-    a.href = url;
-    a.download = `raw-materials-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.href = url; a.download = `raw-materials-${new Date().toISOString().slice(0, 10)}.csv`;
     document.body.appendChild(a); a.click();
     document.body.removeChild(a); URL.revokeObjectURL(url);
-    toast.success(`Exported ${materials.length} materials`);
+    toast.success(`Exported ${allMats.length} materials`);
   }
 
+  const setF  = (k, v) => setForm(f => ({ ...f, [k]: v }));
+  const setBF = (k, v) => setBatchData(b => ({ ...b, [k]: v }));
+
+  // ── Render ───────────────────────────────────────────────────────────────────
   return (
     <div className="flex h-full" style={{ minHeight: 'calc(100vh - 64px)' }}>
 
-      {/* ── LEFT PANEL ─────────────────────────────────────────── */}
-      <div className={`flex flex-col border-r border-gray-200 dark:border-[#1b2e4a] bg-white dark:bg-[#070c17] ${selected ? 'w-[420px] flex-shrink-0' : 'flex-1'}`}>
+      {/* LEFT PANEL */}
+      <div className={`flex flex-col border-r border-gray-200 bg-white ${selected ? 'w-[420px] flex-shrink-0' : 'flex-1'}`}>
 
         {/* Stats */}
-        <div className="grid grid-cols-4 gap-2 p-3 border-b border-gray-200 dark:border-[#1b2e4a]">
+        <div className="grid grid-cols-4 gap-2 p-3 border-b border-gray-200">
           {[
-            { label: 'Total', value: stats.total, color: 'text-blue-600 dark:text-blue-400' },
-            { label: 'In Stock', value: stats.inStock, color: 'text-emerald-600 dark:text-emerald-400' },
-            { label: 'Low Stock', value: stats.low, color: 'text-amber-600 dark:text-amber-400' },
-            { label: 'Out', value: stats.out, color: 'text-red-600 dark:text-red-400' },
+            { label: 'Total',    value: stats.total,   color: 'text-blue-600' },
+            { label: 'In Stock', value: stats.inStock,  color: 'text-emerald-600' },
+            { label: 'Low Stock',value: stats.low,     color: 'text-amber-600' },
+            { label: 'Out',      value: stats.out,     color: 'text-red-600' },
           ].map(s => (
-            <div key={s.label} className="text-center py-1.5 rounded-lg bg-gray-50 dark:bg-[#0f1a2e]">
+            <div key={s.label} className="text-center py-1.5 rounded-lg bg-gray-50">
               <p className={`text-lg font-bold ${s.color}`}>{s.value}</p>
-              <p className="text-[10px] text-gray-500 dark:text-gray-400">{s.label}</p>
+              <p className="text-[10px] text-gray-500">{s.label}</p>
             </div>
           ))}
         </div>
 
         {/* Toolbar */}
-        <div className="px-3 py-2 border-b border-gray-200 dark:border-[#1b2e4a] space-y-2">
+        <div className="px-3 py-2 border-b border-gray-200 space-y-2">
           <div className="flex items-center justify-between">
-            <h2 className="font-bold text-gray-900 dark:text-white text-sm">Raw Materials</h2>
+            <h2 className="font-bold text-gray-900 text-sm">Raw Materials</h2>
             <div className="flex items-center gap-1.5">
-              <button onClick={exportCSV} title="Export CSV" className="text-xs px-2.5 py-1.5 rounded-lg border border-gray-200 dark:border-[#1b2e4a] text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-[#0f1a2e] font-semibold transition-colors flex items-center gap-1">
+              <button onClick={exportCSV} disabled={materials.length === 0} title="Export CSV"
+                className="text-xs px-2.5 py-1.5 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 font-semibold transition-colors disabled:opacity-40 flex items-center gap-1">
                 <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
                 Export
               </button>
@@ -191,31 +233,34 @@ export default function RawMaterialsPage() {
               <option value="Out">Out</option>
             </select>
           </div>
-          <p className="text-[10px] text-gray-400">{filtered.length} materials</p>
+          <p className="text-[10px] text-gray-400">{materials.length} materials</p>
         </div>
 
         {/* List */}
         <div className="flex-1 overflow-y-auto">
-          {filtered.length === 0 ? (
+          {isLoading ? (
+            <div className="text-center py-16 text-gray-400 text-sm">Loading…</div>
+          ) : materials.length === 0 ? (
             <div className="text-center py-16 text-gray-400">
               <p className="text-3xl mb-2">🧪</p>
               <p className="text-sm">No materials found</p>
             </div>
-          ) : filtered.map(m => {
+          ) : materials.map(m => {
             const qty = totalStock(m);
-            const st = stockStatus(m);
+            const st  = stockStatus(m);
+            const id  = m._id || m.id;
             return (
-              <button key={m.id} onClick={() => { setSelectedId(m.id); setExpandedBatches(false); }}
-                className={`w-full flex items-center gap-3 px-3 py-2.5 border-b border-gray-100 dark:border-[#1b2e4a] hover:bg-gray-50 dark:hover:bg-[#0f1a2e] text-left transition-colors ${selectedId === m.id ? 'bg-emerald-50 dark:bg-emerald-900/10 border-l-2 border-l-emerald-500' : ''}`}>
-                <div className="w-9 h-9 rounded-lg bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center text-sm flex-shrink-0 font-bold text-emerald-700 dark:text-emerald-300">
+              <button key={id} onClick={() => { setSelectedId(id); setExpandedBatches(false); }}
+                className={`w-full flex items-center gap-3 px-3 py-2.5 border-b border-gray-100 hover:bg-gray-50 text-left transition-colors ${selectedId === id ? 'bg-emerald-50 border-l-2 border-l-emerald-500' : ''}`}>
+                <div className="w-9 h-9 rounded-lg bg-emerald-100 flex items-center justify-center text-sm flex-shrink-0 font-bold text-emerald-700">
                   {m.name?.[0] || '?'}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-xs font-semibold text-gray-900 dark:text-white truncate">{m.name}</p>
+                  <p className="text-xs font-semibold text-gray-900 truncate">{m.name}</p>
                   <p className="text-[10px] text-gray-400">{m.code} · {m.category}</p>
                 </div>
                 <div className="text-right flex-shrink-0">
-                  <p className="text-xs font-semibold text-gray-700 dark:text-gray-200">{qty} {m.unit}</p>
+                  <p className="text-xs font-semibold text-gray-700">{qty} {m.unit}</p>
                   <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${statusColor(st)}`}>{st}</span>
                 </div>
               </button>
@@ -224,160 +269,153 @@ export default function RawMaterialsPage() {
         </div>
       </div>
 
-      {/* ── RIGHT DETAIL PANEL ─────────────────────────────────── */}
+      {/* RIGHT DETAIL PANEL */}
       {selected ? (
-        <div className="flex-1 overflow-y-auto bg-gray-50 dark:bg-[#0a1628] p-4 space-y-4">
-          {/* Header */}
+        <div className="flex-1 overflow-y-auto bg-gray-50 p-4 space-y-4">
           <div className="flex items-start justify-between">
             <div>
-              <h2 className="text-base font-bold text-gray-900 dark:text-white">{selected.name}</h2>
-              <p className="text-xs text-gray-500 dark:text-gray-400">{selected.code} · {selected.category} · HSN: {selected.hsnCode || '—'}</p>
+              <h2 className="text-base font-bold text-gray-900">{selected.name}</h2>
+              <p className="text-xs text-gray-500">{selected.code} · {selected.category} · HSN: {selected.hsnCode || '—'}</p>
             </div>
             <div className="flex gap-2">
-              <button onClick={() => openEdit(selected)} className="text-xs px-2.5 py-1.5 rounded-lg border border-gray-200 dark:border-[#1b2e4a] text-gray-600 dark:text-gray-300 hover:bg-white dark:hover:bg-[#0f1a2e] font-semibold transition-colors">✏️ Edit</button>
-              <button onClick={() => deleteMat(selected.id)} className="text-xs px-2.5 py-1.5 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 hover:bg-red-100 font-semibold transition-colors">🗑 Delete</button>
+              <button onClick={() => openEdit(selected)} className="text-xs px-2.5 py-1.5 rounded-lg border border-gray-200 text-gray-600 hover:bg-white font-semibold transition-colors">✏️ Edit</button>
+              <button onClick={() => deleteMat(selected)} className="text-xs px-2.5 py-1.5 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 font-semibold transition-colors">🗑 Delete</button>
               <button onClick={() => setSelectedId(null)} className="text-xs px-2 py-1.5 rounded-lg text-gray-400 hover:text-gray-600">✕</button>
             </div>
           </div>
 
-          {/* Info cards */}
           <div className="grid grid-cols-3 gap-3">
             {[
               { label: 'Total Stock', value: `${totalStock(selected)} ${selected.unit}`, color: 'emerald' },
-              { label: 'Unit Price', value: `₹${selected.unitPrice || 0}/${selected.unit}`, color: 'blue' },
-              { label: 'GST Rate', value: `${selected.gstRate || 0}%`, color: 'purple' },
+              { label: 'Unit Price',  value: `₹${selected.unitPrice || 0}/${selected.unit}`, color: 'blue' },
+              { label: 'GST Rate',    value: `${selected.gstRate || 0}%`, color: 'purple' },
             ].map(c => (
-              <div key={c.label} className={`rounded-xl p-3 bg-${c.color}-50 dark:bg-${c.color}-900/20 border border-${c.color}-100 dark:border-${c.color}-900/40`}>
-                <p className={`text-xs text-${c.color}-600 dark:text-${c.color}-400 font-medium`}>{c.label}</p>
-                <p className={`text-sm font-bold text-${c.color}-700 dark:text-${c.color}-300 mt-0.5`}>{c.value}</p>
+              <div key={c.label} className={`rounded-xl p-3 bg-${c.color}-50 border border-${c.color}-100`}>
+                <p className={`text-xs text-${c.color}-600 font-medium`}>{c.label}</p>
+                <p className={`text-sm font-bold text-${c.color}-700 mt-0.5`}>{c.value}</p>
               </div>
             ))}
           </div>
 
-          {/* Details */}
-          <div className="rounded-xl border border-gray-200 dark:border-[#1b2e4a] bg-white dark:bg-[#0f1a2e] p-3.5 grid grid-cols-2 gap-x-6 gap-y-2 text-xs">
+          <div className="rounded-xl border border-gray-200 bg-white p-3.5 grid grid-cols-2 gap-x-6 gap-y-2 text-xs">
             {[
-              ['Supplier', selected.supplier],
-              ['Location', selected.location],
+              ['Supplier', selected.supplier], ['Location', selected.location],
               ['Min Stock', selected.enableMinStock ? `${selected.minStockLevel} ${selected.unit}` : 'Disabled'],
               ['QC', selected.qcPassed ? '✅ Passed' : '❌ Not passed'],
-              ['QC Checker', selected.qcChecker],
-              ['QC Ref', selected.qcNumber],
+              ['QC Checker', selected.qcChecker], ['QC Ref', selected.qcNumber],
             ].map(([k, v]) => v ? (
               <div key={k}>
-                <p className="text-gray-400 dark:text-gray-500 font-medium">{k}</p>
-                <p className="text-gray-700 dark:text-gray-200 font-semibold">{v}</p>
+                <p className="text-gray-400 font-medium">{k}</p>
+                <p className="text-gray-700 font-semibold">{v}</p>
               </div>
             ) : null)}
             {selected.qcNotes && (
               <div className="col-span-2">
-                <p className="text-gray-400 dark:text-gray-500 font-medium">QC Notes</p>
-                <p className="text-gray-700 dark:text-gray-200">{selected.qcNotes}</p>
+                <p className="text-gray-400 font-medium">QC Notes</p>
+                <p className="text-gray-700">{selected.qcNotes}</p>
               </div>
             )}
           </div>
 
           {/* Batches */}
-          <div className="rounded-xl border border-gray-200 dark:border-[#1b2e4a] bg-white dark:bg-[#0f1a2e] overflow-hidden">
-            <div className="flex items-center justify-between px-3.5 py-2.5 border-b border-gray-200 dark:border-[#1b2e4a]">
-              <button onClick={() => setExpandedBatches(e => !e)} className="text-xs font-bold text-gray-700 dark:text-gray-200 flex items-center gap-1">
-                📦 Batches ({selected.batches?.length || 0}) {expandedBatches ? '▲' : '▼'}
+          <div className="rounded-xl border border-gray-200 bg-white overflow-hidden">
+            <div className="flex items-center justify-between px-3.5 py-2.5 border-b border-gray-200">
+              <button onClick={() => setExpandedBatches(e => !e)} className="text-xs font-bold text-gray-700 flex items-center gap-1">
+                📦 Batches ({localBatches.length}) {expandedBatches ? '▲' : '▼'}
               </button>
-              <button onClick={openAddBatch} className="text-xs px-2.5 py-1 rounded-lg bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-300 font-semibold hover:bg-emerald-100 transition-colors">+ Add Batch</button>
+              <button onClick={openAddBatch} className="text-xs px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-700 font-semibold hover:bg-emerald-100 transition-colors">+ Add Batch</button>
             </div>
 
-            {/* Batch form */}
             {batchForm !== null && (
-              <div className="p-3.5 border-b border-gray-200 dark:border-[#1b2e4a] bg-emerald-50/50 dark:bg-emerald-900/10 space-y-2">
-                <p className="text-xs font-bold text-emerald-700 dark:text-emerald-300">{batchForm === -1 ? 'Add Batch' : 'Edit Batch'}</p>
+              <div className="p-3.5 border-b border-gray-200 bg-emerald-50/50 space-y-2">
+                <p className="text-xs font-bold text-emerald-700">{batchForm === -1 ? 'Add Batch' : 'Edit Batch'}</p>
                 <div className="grid grid-cols-3 gap-2">
                   <div><label className="text-[10px] text-gray-500">Batch No.</label><input value={batchData.batchNumber} onChange={e => setBF('batchNumber', e.target.value)} className="input text-xs w-full mt-0.5" placeholder="LOT-2026-001" /></div>
-                  <div><label className="text-[10px] text-gray-500">Quantity *</label><input type="number" value={batchData.quantity} onChange={e => setBF('quantity', e.target.value)} className="input text-xs w-full mt-0.5" placeholder="0" /></div>
-                  <div><label className="text-[10px] text-gray-500">Price (₹)</label><input type="number" value={batchData.price} onChange={e => setBF('price', e.target.value)} className="input text-xs w-full mt-0.5" placeholder="0" /></div>
+                  <div><label className="text-[10px] text-gray-500">Quantity *</label><input type="number" value={batchData.quantity} onChange={e => setBF('quantity', e.target.value)} className="input text-xs w-full mt-0.5" /></div>
+                  <div><label className="text-[10px] text-gray-500">Price (₹)</label><input type="number" value={batchData.price} onChange={e => setBF('price', e.target.value)} className="input text-xs w-full mt-0.5" /></div>
                   <div><label className="text-[10px] text-gray-500">Received Date</label><input type="date" value={batchData.receivedDate} onChange={e => setBF('receivedDate', e.target.value)} className="input text-xs w-full mt-0.5" /></div>
                   <div><label className="text-[10px] text-gray-500">Expiry Date</label><input type="date" value={batchData.expiryDate} onChange={e => setBF('expiryDate', e.target.value)} className="input text-xs w-full mt-0.5" /></div>
-                  <div><label className="text-[10px] text-gray-500">Notes</label><input value={batchData.notes} onChange={e => setBF('notes', e.target.value)} className="input text-xs w-full mt-0.5" placeholder="Supplier invoice, etc." /></div>
+                  <div><label className="text-[10px] text-gray-500">Notes</label><input value={batchData.notes} onChange={e => setBF('notes', e.target.value)} className="input text-xs w-full mt-0.5" /></div>
                 </div>
                 <div className="flex gap-2">
                   <button onClick={saveBatch} className="text-xs px-3 py-1.5 rounded-lg bg-emerald-600 text-white font-semibold hover:bg-emerald-700">Save</button>
-                  <button onClick={() => setBatchForm(null)} className="text-xs px-3 py-1.5 rounded-lg border border-gray-200 dark:border-[#1b2e4a] text-gray-500">Cancel</button>
+                  <button onClick={() => setBatchForm(null)} className="text-xs px-3 py-1.5 rounded-lg border border-gray-200 text-gray-500">Cancel</button>
                 </div>
               </div>
             )}
 
-            {/* Batch list */}
-            {(expandedBatches || batchForm !== null) && (selected.batches || []).length > 0 && (
-              <div className="divide-y divide-gray-100 dark:divide-[#1b2e4a]">
-                {(selected.batches || []).map((b, i) => (
-                  <div key={b.batchId} className="px-3.5 py-2.5 flex items-center gap-3 text-xs">
+            {(expandedBatches || batchForm !== null) && localBatches.length > 0 && (
+              <div className="divide-y divide-gray-100">
+                {localBatches.map((b, i) => (
+                  <div key={b.batchId || i} className="px-3.5 py-2.5 flex items-center gap-3 text-xs">
                     <div className="flex-1 min-w-0">
-                      <p className="font-semibold text-gray-800 dark:text-gray-100">{b.batchNumber || b.batchId}</p>
-                      <p className="text-gray-500 dark:text-gray-400">
-                        Qty: <span className="font-bold text-emerald-600 dark:text-emerald-400">{b.quantity} {selected.unit}</span>
+                      <p className="font-semibold text-gray-800">{b.batchNumber || b.batchId}</p>
+                      <p className="text-gray-500">
+                        Qty: <span className="font-bold text-emerald-600">{b.quantity} {selected.unit}</span>
                         {b.price ? ` · ₹${b.price}` : ''}
                         {b.receivedDate ? ` · Rcvd: ${b.receivedDate}` : ''}
-                        {b.expiryDate ? ` · Exp: ${b.expiryDate}` : ''}
+                        {b.expiryDate   ? ` · Exp: ${b.expiryDate}`   : ''}
                       </p>
-                      {b.notes && <p className="text-gray-400 dark:text-gray-500 truncate">{b.notes}</p>}
+                      {b.notes && <p className="text-gray-400 truncate">{b.notes}</p>}
                     </div>
                     <div className="flex gap-1 flex-shrink-0">
                       <button onClick={() => openEditBatch(i)} className="p-1 text-gray-400 hover:text-blue-500">✏️</button>
-                      <button onClick={() => deleteBatch(i)} className="p-1 text-gray-400 hover:text-red-500">🗑</button>
+                      <button onClick={() => deleteBatch(i)}   className="p-1 text-gray-400 hover:text-red-500">🗑</button>
                     </div>
                   </div>
                 ))}
               </div>
             )}
-            {!expandedBatches && batchForm === null && (selected.batches || []).length > 0 && (
-              <button onClick={() => setExpandedBatches(true)} className="w-full text-center py-2 text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
-                Show {selected.batches.length} batch{selected.batches.length !== 1 ? 'es' : ''}
+            {!expandedBatches && batchForm === null && localBatches.length > 0 && (
+              <button onClick={() => setExpandedBatches(true)} className="w-full text-center py-2 text-xs text-gray-400 hover:text-gray-600">
+                Show {localBatches.length} batch{localBatches.length !== 1 ? 'es' : ''}
               </button>
             )}
-            {(selected.batches || []).length === 0 && batchForm === null && (
+            {localBatches.length === 0 && batchForm === null && (
               <p className="text-center py-4 text-xs text-gray-400">No batches yet — add one above</p>
             )}
           </div>
         </div>
       ) : (
-        <div className="flex-1 flex flex-col items-center justify-center text-gray-400 dark:text-gray-600">
+        <div className="flex-1 flex flex-col items-center justify-center text-gray-400">
           <p className="text-4xl mb-2">🧪</p>
           <p className="text-sm font-medium">Select a material to view details</p>
         </div>
       )}
 
-      {/* ── ADD/EDIT MODAL ─────────────────────────────────────── */}
+      {/* ADD/EDIT MODAL */}
       {showForm && createPortal(
         <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-          <div className="bg-white dark:bg-[#0f1a2e] rounded-2xl w-full max-w-lg max-h-[90vh] flex flex-col shadow-2xl border border-gray-200 dark:border-[#1b2e4a]">
-            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200 dark:border-[#1b2e4a]">
-              <h3 className="font-bold text-gray-900 dark:text-white">{editMat ? 'Edit Material' : 'Add Material'}</h3>
+          <div className="bg-white rounded-2xl w-full max-w-lg max-h-[90vh] flex flex-col shadow-2xl border border-gray-200">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200">
+              <h3 className="font-bold text-gray-900">{editMat ? 'Edit Material' : 'Add Material'}</h3>
               <button onClick={closeForm} className="text-gray-400 hover:text-gray-600 text-xl">✕</button>
             </div>
             <div className="flex-1 overflow-y-auto p-5 space-y-3">
               <div className="grid grid-cols-2 gap-3">
-                <div><label className="text-xs text-gray-500 mb-1 block">Code *</label><input value={form.code} onChange={e => setF('code', e.target.value)} className="input text-sm w-full" placeholder="RM-0001" /></div>
-                <div><label className="text-xs text-gray-500 mb-1 block">Name *</label><input value={form.name} onChange={e => setF('name', e.target.value)} className="input text-sm w-full" placeholder="Lavender Essential Oil" /></div>
+                <div><label className="text-xs text-gray-500 mb-1 block">Code *</label><input value={form.code} onChange={e => setF('code', e.target.value)} className="input text-sm w-full" /></div>
+                <div><label className="text-xs text-gray-500 mb-1 block">Name *</label><input value={form.name} onChange={e => setF('name', e.target.value)} className="input text-sm w-full" /></div>
                 <div><label className="text-xs text-gray-500 mb-1 block">Category</label>
                   <select value={form.category} onChange={e => setF('category', e.target.value)} className="input text-sm w-full">
                     {CATEGORIES.filter(c => c !== 'All').map(c => <option key={c}>{c}</option>)}
                   </select>
                 </div>
-                <div><label className="text-xs text-gray-500 mb-1 block">HSN Code</label><input value={form.hsnCode} onChange={e => setF('hsnCode', e.target.value)} className="input text-sm w-full" placeholder="3301" /></div>
+                <div><label className="text-xs text-gray-500 mb-1 block">HSN Code</label><input value={form.hsnCode} onChange={e => setF('hsnCode', e.target.value)} className="input text-sm w-full" /></div>
                 <div><label className="text-xs text-gray-500 mb-1 block">Unit</label>
                   <select value={form.unit} onChange={e => setF('unit', e.target.value)} className="input text-sm w-full">
                     {['kg', 'g', 'liter', 'ml', 'pcs', 'L'].map(u => <option key={u}>{u}</option>)}
                   </select>
                 </div>
-                <div><label className="text-xs text-gray-500 mb-1 block">Unit Price (₹)</label><input type="number" value={form.unitPrice} onChange={e => setF('unitPrice', e.target.value)} className="input text-sm w-full" placeholder="850" /></div>
+                <div><label className="text-xs text-gray-500 mb-1 block">Unit Price (₹)</label><input type="number" value={form.unitPrice} onChange={e => setF('unitPrice', e.target.value)} className="input text-sm w-full" /></div>
                 <div><label className="text-xs text-gray-500 mb-1 block">GST Rate (%)</label>
                   <select value={form.gstRate} onChange={e => setF('gstRate', Number(e.target.value))} className="input text-sm w-full">
-                    {[0, 5, 12, 18, 28].map(r => <option key={r}>{r}</option>)}
+                    {[0,5,12,18,28].map(r => <option key={r}>{r}</option>)}
                   </select>
                 </div>
-                <div><label className="text-xs text-gray-500 mb-1 block">Supplier</label><input value={form.supplier} onChange={e => setF('supplier', e.target.value)} className="input text-sm w-full" placeholder="Supplier name" /></div>
-                <div className="col-span-2"><label className="text-xs text-gray-500 mb-1 block">Location</label><input value={form.location} onChange={e => setF('location', e.target.value)} className="input text-sm w-full" placeholder="Warehouse A, Shelf 3" /></div>
+                <div><label className="text-xs text-gray-500 mb-1 block">Supplier</label><input value={form.supplier} onChange={e => setF('supplier', e.target.value)} className="input text-sm w-full" /></div>
+                <div className="col-span-2"><label className="text-xs text-gray-500 mb-1 block">Location</label><input value={form.location} onChange={e => setF('location', e.target.value)} className="input text-sm w-full" /></div>
                 <div className="col-span-2">
-                  <label className="flex items-center gap-2 cursor-pointer text-xs text-gray-600 dark:text-gray-300">
+                  <label className="flex items-center gap-2 cursor-pointer text-xs text-gray-600">
                     <input type="checkbox" checked={form.enableMinStock} onChange={e => setF('enableMinStock', e.target.checked)} className="rounded" />
                     Enable minimum stock alert
                   </label>
@@ -385,21 +423,22 @@ export default function RawMaterialsPage() {
                     <input type="number" value={form.minStockLevel} onChange={e => setF('minStockLevel', e.target.value)} className="input text-sm w-full mt-1.5" placeholder={`Min stock (${form.unit})`} />
                   )}
                 </div>
-                <div><label className="text-xs text-gray-500 mb-1 block">QC Checker</label><input value={form.qcChecker} onChange={e => setF('qcChecker', e.target.value)} className="input text-sm w-full" placeholder="Name" /></div>
+                <div><label className="text-xs text-gray-500 mb-1 block">QC Checker</label><input value={form.qcChecker} onChange={e => setF('qcChecker', e.target.value)} className="input text-sm w-full" /></div>
                 <div className="flex items-end pb-1">
-                  <label className="flex items-center gap-2 cursor-pointer text-xs text-gray-600 dark:text-gray-300">
+                  <label className="flex items-center gap-2 cursor-pointer text-xs text-gray-600">
                     <input type="checkbox" checked={form.qcPassed} onChange={e => setF('qcPassed', e.target.checked)} className="rounded" />
                     QC Passed
                   </label>
                 </div>
-                <div className="col-span-2"><label className="text-xs text-gray-500 mb-1 block">QC Notes</label><textarea value={form.qcNotes} onChange={e => setF('qcNotes', e.target.value)} className="input text-sm w-full" rows={2} placeholder="QC observations…" /></div>
+                <div className="col-span-2"><label className="text-xs text-gray-500 mb-1 block">QC Notes</label><textarea value={form.qcNotes} onChange={e => setF('qcNotes', e.target.value)} className="input text-sm w-full" rows={2} /></div>
               </div>
             </div>
-            <div className="flex gap-2 px-5 py-4 border-t border-gray-200 dark:border-[#1b2e4a]">
-              <button onClick={saveMat} className="flex-1 py-2.5 rounded-xl text-sm font-bold text-white bg-emerald-600 hover:bg-emerald-700 transition-colors">
-                {editMat ? '💾 Save Changes' : '✅ Add Material'}
+            <div className="flex gap-2 px-5 py-4 border-t border-gray-200">
+              <button onClick={saveMat} disabled={createMut.isPending || updateMut.isPending}
+                className="flex-1 py-2.5 rounded-xl text-sm font-bold text-white bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 transition-colors">
+                {(createMut.isPending || updateMut.isPending) ? 'Saving…' : editMat ? '💾 Save Changes' : '✅ Add Material'}
               </button>
-              <button onClick={closeForm} className="px-4 py-2.5 rounded-xl text-sm font-semibold border border-gray-200 dark:border-[#1b2e4a] text-gray-500 hover:bg-gray-50 dark:hover:bg-[#0f1a2e] transition-colors">Cancel</button>
+              <button onClick={closeForm} className="px-4 py-2.5 rounded-xl text-sm font-semibold border border-gray-200 text-gray-500 hover:bg-gray-50 transition-colors">Cancel</button>
             </div>
           </div>
         </div>

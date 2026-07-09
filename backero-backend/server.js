@@ -44,6 +44,8 @@ const whatsappRoutes  = require('./src/routes/whatsapp.routes');
 const workflowRoutes  = require('./src/routes/workflow.routes');
 const chatRoutes      = require('./src/routes/chat.routes');
 const publicRoutes    = require('./src/routes/public.routes');
+const catalogRoutes      = require('./src/routes/catalog.routes');
+const rawMaterialRoutes  = require('./src/routes/rawmaterial.routes');
 
 const app = express();
 const server = http.createServer(app);
@@ -180,6 +182,8 @@ app.use('/api/marketplace', marketplaceRoutes);
 app.use('/api/whatsapp',  whatsappRoutes);
 app.use('/api/workflow', workflowRoutes);
 app.use('/api/help',    chatRoutes);
+app.use('/api/catalog',       catalogRoutes);
+app.use('/api/rawmaterials', rawMaterialRoutes);
 
 // 404 handler
 app.use('*', (req, res) => {
