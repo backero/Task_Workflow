@@ -247,27 +247,22 @@ exports.createTask = asyncHandler(async (req, res) => {
       channels: { inApp: true, whatsapp: false },
     }, io);
 
-    // Fetch assignee and org settings once for both WA and email
-    const [assigneeUser, orgSettings] = await Promise.all([
-      User.findById(assignedTo).select('phone whatsapp email settings'),
-      Organization.findById(req.user.organizationId).select('settings.enableWhatsApp'),
-    ]);
+    // Fetch assignee for WA and email
+    const assigneeUser = await User.findById(assignedTo).select('phone whatsapp email settings');
 
     if (assigneeUser) {
-      // WhatsApp — only if org has it enabled
-      if (orgSettings?.settings?.enableWhatsApp) {
-        const phone = assigneeUser.whatsapp || assigneeUser.phone;
-        if (phone) {
-          sendTaskAssigned(phone, {
-            title,
-            assignedByName: `${req.user.firstName} ${req.user.lastName}`,
-            priority,
-            department,
-            dueDate,
-            description,
-            taskId: task._id,
-          }).catch(() => {});
-        }
+      // WhatsApp — send if user has a phone and hasn't opted out
+      const waPhone = assigneeUser.whatsapp || assigneeUser.phone;
+      if (waPhone && assigneeUser.settings?.notifications?.whatsapp !== false) {
+        sendTaskAssigned(waPhone, {
+          title,
+          assignedByName: `${req.user.firstName} ${req.user.lastName}`,
+          priority,
+          department,
+          dueDate,
+          description,
+          taskId: task._id,
+        }).catch(() => {});
       }
 
       // Email — only if user has email notifications on and email is real
@@ -367,6 +362,7 @@ exports.updateTask = asyncHandler(async (req, res) => {
     : updates;
 
   const previousStatus = task.status;
+  const previousAssignedTo = task.assignedTo?.toString();
 
   // Track activity
   const activityEntry = {
@@ -387,6 +383,40 @@ exports.updateTask = asyncHandler(async (req, res) => {
 
   io?.to(`task:${task._id}`).emit(SOCKET_EVENTS.TASK_UPDATED, { task: populatedTask });
   io?.to(`org:${req.user.organizationId}`).emit(SOCKET_EVENTS.TASK_UPDATED, { taskId: task._id, updates: safeUpdate });
+
+  // Notify new assignee when task is reassigned
+  const newAssignedTo = safeUpdate.assignedTo?.toString();
+  if (newAssignedTo && newAssignedTo !== previousAssignedTo) {
+    // In-app notification
+    await createNotification({
+      organizationId: req.user.organizationId,
+      recipient: newAssignedTo,
+      title: 'Task Assigned to You',
+      message: `"${task.title}" has been assigned to you by ${req.user.firstName} ${req.user.lastName}. Priority: ${task.priority || 'medium'}. Due: ${task.dueDate ? new Date(task.dueDate).toLocaleDateString('en-IN') : 'Not set'}`,
+      type: 'task',
+      priority: task.priority === 'critical' || task.priority === 'urgent' ? 'high' : 'medium',
+      actionUrl: `/tasks/${task._id}`,
+      reference: { model: 'Task', id: task._id },
+      channels: { inApp: true, whatsapp: false },
+    }, io);
+
+    // WhatsApp — send if user has a phone and hasn't opted out
+    const assigneeUser = await User.findById(newAssignedTo).select('phone whatsapp settings');
+    if (assigneeUser) {
+      const waPhone = assigneeUser.whatsapp || assigneeUser.phone;
+      if (waPhone && assigneeUser.settings?.notifications?.whatsapp !== false) {
+        sendTaskAssigned(waPhone, {
+          title: task.title,
+          assignedByName: `${req.user.firstName} ${req.user.lastName}`,
+          priority: task.priority,
+          department: task.department,
+          dueDate: task.dueDate,
+          description: task.description,
+          taskId: task._id,
+        }).catch(() => {});
+      }
+    }
+  }
 
   sendSuccess(res, { task: populatedTask }, 'Task updated successfully');
 });
