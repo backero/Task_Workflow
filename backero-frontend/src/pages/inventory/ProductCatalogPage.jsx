@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-hot-toast';
@@ -83,17 +83,40 @@ export default function ProductCatalogPage() {
   const [form, setForm] = useState(emptyForm());
   const [importing, setImporting] = useState(false);
 
-  const { data: listData, isLoading } = useQuery({
+  const { data: listData, isLoading, isError } = useQuery({
     queryKey: ['catalog', search, categoryFilter, statusFilter],
     queryFn: () => api.get('/catalog/products', { params: { search: search || undefined, category: categoryFilter || undefined, status: statusFilter || undefined } }).then(r => r.data),
     staleTime: 10000,
+    retry: 1,
   });
-  const products = listData?.products || [];
+
+  // Fallback to localStorage when backend unavailable
+  const lsAll = useMemo(() => {
+    if (!isError) return null;
+    try {
+      const raw = localStorage.getItem('productCatalogDB_v2');
+      if (!raw) return [];
+      const { products: items = [] } = JSON.parse(raw);
+      return items;
+    } catch { return []; }
+  }, [isError]);
+
+  const products = useMemo(() => {
+    if (lsAll) {
+      return lsAll.filter(p => {
+        if (search && !p.name?.toLowerCase().includes(search.toLowerCase()) && !p.code?.toLowerCase().includes(search.toLowerCase())) return false;
+        if (categoryFilter && p.category !== categoryFilter) return false;
+        if (statusFilter && p.status !== statusFilter) return false;
+        return true;
+      });
+    }
+    return listData?.products || [];
+  }, [listData, lsAll, search, categoryFilter, statusFilter]);
 
   // Auto-import from localStorage if backend catalog is empty
   const autoImportedRef = React.useRef(false);
   useEffect(() => {
-    if (!isLoading && products.length === 0 && !autoImportedRef.current && !search && !categoryFilter) {
+    if (!isLoading && !isError && products.length === 0 && !autoImportedRef.current && !search && !categoryFilter) {
       autoImportedRef.current = true;
       try {
         const raw = localStorage.getItem('productCatalogDB_v2');
@@ -108,7 +131,7 @@ export default function ProductCatalogPage() {
           .finally(() => setImporting(false));
       } catch {}
     }
-  }, [isLoading, products.length]);
+  }, [isLoading, isError, products.length]);
 
   const { data: detailData } = useQuery({
     queryKey: ['catalog-detail', selectedId],

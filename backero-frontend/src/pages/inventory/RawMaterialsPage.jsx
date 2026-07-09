@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-hot-toast';
@@ -46,7 +46,7 @@ export default function RawMaterialsPage() {
   const autoMigratedRef = useRef(false);
 
   // ── Fetch list ──────────────────────────────────────────────────────────────
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError } = useQuery({
     queryKey: ['rawmaterials', search, catFilter, statusFilter],
     queryFn: () => api.get('/rawmaterials', {
       params: {
@@ -56,12 +56,37 @@ export default function RawMaterialsPage() {
       },
     }).then(r => r.data),
     staleTime: 10000,
+    retry: 1,
   });
-  const materials = data?.materials || [];
+
+  // ── Fallback to localStorage when backend unavailable ───────────────────────
+  const lsAll = useMemo(() => {
+    if (!isError) return null;
+    try {
+      const raw = localStorage.getItem(LS_KEY);
+      if (!raw) return [];
+      const { materials: items = [] } = JSON.parse(raw);
+      return items.map(m => ({ ...m, _totalStock: totalStock(m), _status: stockStatus(m) }));
+    } catch { return []; }
+  }, [isError]);
+
+  const materials = useMemo(() => {
+    if (lsAll) {
+      return lsAll.filter(m => {
+        if (search && !m.name?.toLowerCase().includes(search.toLowerCase()) &&
+            !m.code?.toLowerCase().includes(search.toLowerCase()) &&
+            !m.supplier?.toLowerCase().includes(search.toLowerCase())) return false;
+        if (catFilter !== 'All' && m.category !== catFilter) return false;
+        if (statusFilter !== 'All' && stockStatus(m) !== statusFilter) return false;
+        return true;
+      });
+    }
+    return data?.materials || [];
+  }, [data, lsAll, search, catFilter, statusFilter]);
 
   // ── Auto-migrate from localStorage on first empty load ──────────────────────
   useEffect(() => {
-    if (!isLoading && materials.length === 0 && !autoMigratedRef.current && !search && catFilter === 'All') {
+    if (!isLoading && !isError && materials.length === 0 && !autoMigratedRef.current && !search && catFilter === 'All') {
       autoMigratedRef.current = true;
       try {
         const raw = localStorage.getItem(LS_KEY);
@@ -77,15 +102,22 @@ export default function RawMaterialsPage() {
           .catch(() => {});
       } catch {}
     }
-  }, [isLoading, materials.length]);
+  }, [isLoading, isError, materials.length]);
 
   // ── Stats query ─────────────────────────────────────────────────────────────
   const { data: statsData } = useQuery({
     queryKey: ['rawmaterials', 'stats'],
     queryFn: () => api.get('/rawmaterials/stats').then(r => r.data),
     staleTime: 15000,
+    enabled: !isError,
   });
-  const stats = statsData?.data || statsData || { total: 0, inStock: 0, low: 0, out: 0 };
+  const stats = useMemo(() => {
+    if (lsAll) {
+      const statuses = lsAll.map(m => stockStatus(m));
+      return { total: lsAll.length, inStock: statuses.filter(s => s === 'In').length, low: statuses.filter(s => s === 'Low').length, out: statuses.filter(s => s === 'Out').length };
+    }
+    return statsData?.data || statsData || { total: 0, inStock: 0, low: 0, out: 0 };
+  }, [lsAll, statsData]);
 
   // ── Mutations ────────────────────────────────────────────────────────────────
   const createMut = useMutation({
