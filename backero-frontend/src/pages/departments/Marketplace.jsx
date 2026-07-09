@@ -30,7 +30,7 @@ const DASH_KEY_PARSERS = {
   Meesho:   /^meesho_w(\d+)_([A-Za-z]+)_numbers$/,
   Myntra:   /^tm_w(\d+)_([A-Za-z]+)_numbers$/,
   Snapdeal: /^snapdeal_numbers_(\d+)_([A-Za-z]+)$/,
-  JioMart:  /^v32_w(\d+)_([A-Za-z]+)_numbers$/,
+  JioMart:  /^v32_(\d+)_([A-Za-z]+)_numbers$/,
 };
 
 const STATUS_COLORS = {
@@ -1069,7 +1069,7 @@ const PLATFORM_PLAN_CONFIG = {
   JioMart: {
     color: '#0077B6',
     budgetLabels: ['starter', 'growth', 'scale'],
-    emptyKpi: { orders: '', sla: '', storeRating: '', returnRate: '', revenue: '', cumPnl: '' },
+    emptyKpi: { orders: '', sla: '', storeRating: '', returnRate: '', revenue: '', promoRevenue: '', cumPnl: '' },
     getKpiFields: (week, budget) => [
       { key: 'orders',      label: 'Orders Received',    hint: 'Target varies by week',         placeholder: '0' },
       { key: 'sla',         label: 'Delivery SLA (%)',   hint: 'SAFE ≥98%',                     placeholder: '0.00' },
@@ -1470,6 +1470,12 @@ function PlanTab({ platform = 'Amazon' }) {
   // Save mutation (debounced via saveTimer)
   const saveMutation = useMutation({
     mutationFn: ({ week, data }) => api.put(`/marketplace/progress/${platform}/${week}`, data),
+    onError: (err) => {
+      toast.error(err?.response?.data?.message || 'Save failed — check your connection and try again');
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries(['mkt-progress', platform]);
+    },
   });
 
   const scheduleSync = useCallback((week, data) => {
@@ -2226,7 +2232,9 @@ function DashboardReport({ platform }) {
       if (!m) return;
       try { rows.push({ week: parseInt(m[1]), day: m[2], nums: JSON.parse(val) }); } catch {}
     });
-    return rows.sort((a, b) => a.week - b.week || DAY_ORDER.indexOf(a.day) - DAY_ORDER.indexOf(b.day));
+    return rows.sort((a, b) => a.week - b.week ||
+      DAY_ORDER.findIndex(d => d.toUpperCase() === a.day.toUpperCase()) -
+      DAY_ORDER.findIndex(d => d.toUpperCase() === b.day.toUpperCase()));
   }, [rawData, re]);
 
   const kpiFields = useMemo(() => cfg.getKpiFields(null, cfg.budgetLabels[1] || 'base'), [cfg]);
