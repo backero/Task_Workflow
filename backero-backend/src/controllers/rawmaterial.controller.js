@@ -1,6 +1,5 @@
 const RawMaterial = require('../models/RawMaterial');
-const asyncHandler = require('../utils/asyncHandler');
-const { sendSuccess } = require('../utils/response');
+const { asyncHandler, sendSuccess } = require('../utils/helpers');
 
 function totalStock(m) {
   return (m.batches || []).reduce((s, b) => s + (Number(b.quantity) || 0), 0);
@@ -44,7 +43,7 @@ exports.getStats = asyncHandler(async (req, res) => {
 exports.create = asyncHandler(async (req, res) => {
   const { _id, id, createdAt, updatedAt, _totalStock, _status, ...body } = req.body;
   const m = await RawMaterial.create({ ...body, organizationId: req.user.organizationId });
-  sendSuccess(res, { material: m }, 201);
+  sendSuccess(res, { material: m }, 'Created', 201);
 });
 
 exports.update = asyncHandler(async (req, res) => {
