@@ -1,8 +1,8 @@
 const router = require('express').Router();
 const ctrl   = require('../controllers/rawmaterial.controller');
-const { protect } = require('../middleware/auth.middleware');
+const { authenticate } = require('../middleware/auth.middleware');
 
-router.use(protect);
+router.use(authenticate);
 router.get('/',          ctrl.list);
 router.get('/stats',     ctrl.getStats);
 router.post('/',         ctrl.create);
