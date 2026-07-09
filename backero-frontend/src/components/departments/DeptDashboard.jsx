@@ -63,7 +63,7 @@ function ring(pct, color, size = 72) {
   );
 }
 
-export default function DeptDashboard({ dept, color, lightColor, textColor, borderColor, description, icon: Icon }) {
+export default function DeptDashboard({ dept, color, lightColor, textColor, borderColor, description, icon: Icon, quickLinks = [] }) {
   const navigate = useNavigate();
   const deptParam = encodeURIComponent(dept);
 
@@ -199,14 +199,26 @@ export default function DeptDashboard({ dept, color, lightColor, textColor, bord
                 <p className="text-sm text-white/70 mt-0.5">{description}</p>
               </div>
             </div>
-            <button
-              onClick={() => navigate('/workflow')}
-              className="flex items-center gap-2 px-4 py-2 bg-white/15 hover:bg-white/25 text-white text-sm font-semibold rounded-xl transition-colors border border-white/25 backdrop-blur-sm"
-            >
-              <BoltIcon className="w-4 h-4" />
-              Workflow
-              <ArrowRightIcon className="w-3.5 h-3.5" />
-            </button>
+            <div className="flex items-center gap-2 flex-wrap">
+              {quickLinks.map(link => (
+                <button
+                  key={link.to}
+                  onClick={() => navigate(link.to)}
+                  className="flex items-center gap-1.5 px-3 py-2 bg-white/15 hover:bg-white/25 text-white text-xs font-semibold rounded-xl transition-colors border border-white/25 backdrop-blur-sm"
+                >
+                  {link.icon && <link.icon className="w-3.5 h-3.5" />}
+                  {link.label}
+                </button>
+              ))}
+              <button
+                onClick={() => navigate('/workflow')}
+                className="flex items-center gap-2 px-4 py-2 bg-white/15 hover:bg-white/25 text-white text-sm font-semibold rounded-xl transition-colors border border-white/25 backdrop-blur-sm"
+              >
+                <BoltIcon className="w-4 h-4" />
+                Workflow
+                <ArrowRightIcon className="w-3.5 h-3.5" />
+              </button>
+            </div>
           </div>
         </div>
 

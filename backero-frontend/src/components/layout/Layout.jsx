@@ -1,17 +1,37 @@
 import React, { useState } from 'react';
-import { Outlet } from 'react-router-dom';
+import { Outlet, useLocation } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import Header from './Header';
 import MobileNav from './MobileNav';
 import HelpDrawer from '../help/HelpDrawer';
 import GlobalTimerWidget from '../tasks/GlobalTimerWidget';
 
+function getZone(pathname) {
+  if (pathname === '/' || pathname.startsWith('/dashboard')) return 'zone-dashboard';
+  if (pathname.startsWith('/crm'))                           return 'zone-crm';
+  if (pathname.startsWith('/finance'))                       return 'zone-finance';
+  if (pathname.startsWith('/inventory'))                     return 'zone-inventory';
+  if (pathname.startsWith('/departments/rnd'))               return 'zone-production';
+  if (pathname.startsWith('/departments/hr'))                return 'zone-hr';
+  if (pathname.startsWith('/departments/marketing'))         return 'zone-marketing';
+  if (pathname.startsWith('/departments/marketplace'))       return 'zone-marketplace';
+  if (pathname.startsWith('/departments/sales'))             return 'zone-sales';
+  if (pathname.startsWith('/departments/operations'))        return 'zone-operations';
+  if (pathname.startsWith('/departments'))                   return 'zone-production';
+  if (pathname.startsWith('/workflow') || pathname.startsWith('/tasks')) return 'zone-tasks';
+  if (pathname.startsWith('/management'))                    return 'zone-management';
+  if (pathname.startsWith('/settings'))                      return 'zone-settings';
+  return 'zone-dashboard';
+}
+
 export default function Layout() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+  const location = useLocation();
+  const zone = getZone(location.pathname);
 
   return (
-    <div className="flex h-screen overflow-hidden bg-page">
+    <div className={`flex h-screen overflow-hidden bg-page ${zone}`}>
       {/* Desktop Sidebar */}
       <aside className={`hidden lg:flex flex-col transition-all duration-300 ease-in-out flex-shrink-0 ${sidebarOpen ? 'w-64' : 'w-16'}`}>
         <Sidebar collapsed={!sidebarOpen} onToggle={() => setSidebarOpen((p) => !p)} />

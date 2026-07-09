@@ -1,6 +1,6 @@
 import React from 'react';
 import DeptDashboard from '../../components/departments/DeptDashboard';
-import { CogIcon } from '@heroicons/react/24/outline';
+import { CogIcon, CubeIcon, BeakerIcon } from '@heroicons/react/24/outline';
 
 export default function RnDDept() {
   return (
@@ -12,6 +12,10 @@ export default function RnDDept() {
       borderColor="#fb923c"
       description="Production Tasks & Work Updates"
       icon={CogIcon}
+      quickLinks={[
+        { label: 'Raw Materials',   to: '/inventory/rawmaterials', icon: BeakerIcon },
+        { label: 'Product Catalog', to: '/inventory/catalog',      icon: CubeIcon   },
+      ]}
     />
   );
 }

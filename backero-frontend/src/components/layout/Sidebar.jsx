@@ -43,8 +43,8 @@ function NavItem({ item, collapsed }) {
                 className={({ isActive }) =>
                   clsx('block py-1.5 px-2.5 rounded-md text-xs font-medium transition-all duration-150',
                     isActive
-                      ? 'text-emerald-300 bg-emerald-500/10'
-                      : 'text-white/35 hover:text-white/75 hover:bg-white/5')
+                      ? 'sidebar-child-active'
+                      : 'sidebar-child-inactive')
                 }
               >
                 {child.label}
@@ -119,7 +119,11 @@ export default function Sidebar({ collapsed, onToggle }) {
   if (can('dept.marketing'))   deptItems.push({ label: 'Marketing',   to: '/departments/marketing',   icon: MegaphoneIcon });
   if (can('dept.marketplace')) deptItems.push({ label: 'Marketplace', to: '/departments/marketplace', icon: BuildingStorefrontIcon });
   if (can('dept.sales'))       deptItems.push({ label: 'Sales Dept',  to: '/departments/sales',       icon: ShoppingBagIcon });
-  if (can('dept.rnd'))         deptItems.push({ label: 'Production',  to: '/departments/rnd',         icon: CogIcon });
+  if (can('dept.rnd'))         deptItems.push({ label: 'Production', icon: CogIcon, children: [
+    { label: 'Dashboard',       to: '/departments/rnd' },
+    { label: 'Raw Materials',   to: '/inventory/rawmaterials' },
+    { label: 'Product Catalog', to: '/inventory/catalog' },
+  ]});
   if (can('dept.operations'))  deptItems.push({ label: 'Operations',  to: '/departments/operations',  icon: WrenchScrewdriverIcon });
   if (can('dept.hr'))          deptItems.push({ label: 'HR',          to: '/departments/hr',          icon: UserGroupIcon });
   if (deptItems.length > 0) groups.push({ label: 'Departments', items: deptItems });
@@ -137,12 +141,12 @@ export default function Sidebar({ collapsed, onToggle }) {
 
   return (
     <div
-      className="flex flex-col h-full chrome-bg"
+      className="flex flex-col h-full chrome-bg relative overflow-hidden"
       style={{ borderRight: '1px solid var(--b-chrome)' }}
     >
       {/* Logo */}
       <div
-        className="flex items-center gap-3 px-4 h-14 flex-shrink-0"
+        className="flex items-center gap-3 px-4 h-14 flex-shrink-0 relative z-10"
         style={{ borderBottom: '1px solid var(--b-chrome)' }}
       >
         <div className="w-7 h-7 rounded-lg overflow-hidden flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(255,255,255,0.08)' }}>
@@ -179,7 +183,7 @@ export default function Sidebar({ collapsed, onToggle }) {
       )}
 
       {/* Navigation */}
-      <nav className="flex-1 overflow-y-auto py-4 px-2 space-y-5">
+      <nav className="flex-1 overflow-y-auto py-4 px-2 space-y-5 relative z-10">
         {groups.map((group) => (
           <div key={group.label}>
             {!collapsed && (
@@ -197,7 +201,7 @@ export default function Sidebar({ collapsed, onToggle }) {
       </nav>
 
       {/* Footer */}
-      <div className="px-2 pb-3 flex-shrink-0" style={{ borderTop: '1px solid var(--b-chrome)' }}>
+      <div className="px-2 pb-3 flex-shrink-0 relative z-10" style={{ borderTop: '1px solid var(--b-chrome)' }}>
         <div className="pt-3">
           <NavLink
             to="/settings"

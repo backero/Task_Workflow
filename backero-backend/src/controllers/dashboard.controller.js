@@ -1,6 +1,7 @@
 const Task = require('../models/Task');
 const Lead = require('../models/Lead');
 const Product = require('../models/Product');
+const CatalogProduct = require('../models/CatalogProduct');
 const ProductionOrder = require('../models/ProductionOrder');
 const Transaction = require('../models/Transaction');
 const Invoice = require('../models/Invoice');
@@ -38,6 +39,7 @@ exports.getFounderDashboard = asyncHandler(async (req, res) => {
     leadStats,
     lowStockCount,
     totalProducts,
+    catalogProductCount,
     inventoryValue,
     activeProductionOrders,
     todayTransactions,
@@ -68,6 +70,7 @@ exports.getFounderDashboard = asyncHandler(async (req, res) => {
     ])),
     safe(Product.countDocuments({ organizationId: orgId, isActive: true, $expr: { $lte: ['$currentStock', '$minStockLevel'] } })),
     safe(Product.countDocuments({ organizationId: orgId, isActive: true })),
+    safe(CatalogProduct.countDocuments({ organizationId: orgId })),
     safe(Product.aggregate([
       { $match: { organizationId: orgId, isActive: true } },
       { $group: { _id: null, totalValue: { $sum: { $multiply: ['$currentStock', '$costPrice'] } }, totalStock: { $sum: '$currentStock' } } },
@@ -166,6 +169,7 @@ exports.getFounderDashboard = asyncHandler(async (req, res) => {
       },
       inventory: {
         totalProducts: totalProducts || 0,
+        catalogProductCount: catalogProductCount || 0,
         lowStockCount: lowStockCount || 0,
         totalStockValue: inventoryValue?.[0]?.totalValue || 0,
         totalStockUnits: inventoryValue?.[0]?.totalStock || 0,

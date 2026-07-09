@@ -102,6 +102,18 @@ export default function FounderDashboard() {
     refetchOnMount: true,
   });
 
+  const [rmStats, setRmStats] = React.useState({ total: 0, low: 0, out: 0 });
+  React.useEffect(() => {
+    try {
+      const d = JSON.parse(localStorage.getItem('rawMaterialDB_v8'));
+      const mats = d?.materials || [];
+      const calcStock = m => (m.batches || []).reduce((s, b) => s + (Number(b.quantity) || 0), 0);
+      const low = mats.filter(m => { const q = calcStock(m); return q > 0 && m.enableMinStock && q <= (m.minStockLevel || 0); }).length;
+      const out = mats.filter(m => calcStock(m) <= 0).length;
+      setRmStats({ total: mats.length, low, out });
+    } catch {}
+  }, []);
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -216,10 +228,16 @@ export default function FounderDashboard() {
         />
         <StatCard
           icon={CubeIcon} color="yellow"
-          label="Total Products" value={d.inventory?.totalProducts || 0}
-          sub={d.inventory?.lowStockCount > 0 ? `${d.inventory.lowStockCount} below minimum stock` : 'All stock levels healthy'}
-          badge={d.inventory?.lowStockCount || 0}
-          to="/inventory/products"
+          label="Product Catalog" value={d.inventory?.catalogProductCount || 0}
+          sub="Finished goods catalog"
+          to="/inventory/catalog"
+        />
+        <StatCard
+          icon={BeakerIcon} color="emerald"
+          label="Raw Materials" value={rmStats.total}
+          sub={rmStats.out > 0 ? `${rmStats.out} out of stock${rmStats.low > 0 ? `, ${rmStats.low} low` : ''}` : rmStats.low > 0 ? `${rmStats.low} low stock` : 'All levels healthy'}
+          badge={rmStats.out + rmStats.low}
+          to="/inventory/rawmaterials"
         />
         <StatCard
           icon={BoltIcon} color="orange"
@@ -614,7 +632,8 @@ export default function FounderDashboard() {
           {[
             { label: 'Task Board',   sub: 'Kanban view',        icon: ClipboardDocumentListIcon, to: '/tasks/kanban',          color: 'blue'   },
             { label: 'CRM Pipeline', sub: 'Leads & follow-ups', icon: UsersIcon,                 to: '/crm/pipeline',          color: 'cyan'   },
-            { label: 'Inventory',    sub: 'Products & stock',   icon: CubeIcon,                  to: '/inventory/products',    color: 'yellow' },
+            { label: 'Product Catalog', sub: 'Finished goods',   icon: CubeIcon,                  to: '/inventory/catalog',     color: 'yellow' },
+            { label: 'Raw Materials',   sub: 'RM stock levels', icon: BeakerIcon,                to: '/inventory/rawmaterials', color: 'emerald'},
             { label: 'Production',   sub: 'Orders & batches',   icon: BoltIcon,                  to: '/production/orders',     color: 'orange' },
             { label: 'Finance',      sub: 'Ledger & invoices',  icon: BanknotesIcon,             to: '/finance/ledger',        color: 'green'  },
             { label: 'Team',         sub: 'Employees',          icon: UserGroupIcon,             to: '/management/team',       color: 'indigo' },
