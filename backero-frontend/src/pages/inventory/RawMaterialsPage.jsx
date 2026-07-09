@@ -7,7 +7,10 @@ import api from '../../api/axios';
 const LS_KEY = 'rawMaterialDB_v8';
 const CATEGORIES = ['All', 'Active Ingredients', 'Butters', 'Chemicals', 'Essential Oil', 'Hydrosol', 'Preservatives', 'Raw Materials', 'Raw chemicals', 'Surfactants', 'Vitamins'];
 
-function totalStock(m) { return (m.batches || []).reduce((s, b) => s + (Number(b.quantity) || 0), 0); }
+function totalStock(m) {
+  if (m.currentStock !== undefined && m.currentStock !== null) return Number(m.currentStock) || 0;
+  return (m.batches || []).reduce((s, b) => s + (Number(b.quantity) || 0), 0);
+}
 function stockStatus(m) {
   if (m._status) return m._status;
   const qty = totalStock(m);
@@ -49,7 +52,7 @@ export default function RawMaterialsPage() {
   // ── Fetch list ──────────────────────────────────────────────────────────────
   const { data, isLoading, isError } = useQuery({
     queryKey: ['rawmaterials', search, catFilter, statusFilter],
-    queryFn: () => api.get('/rawmaterials', {
+    queryFn: () => api.get('/inventory/raw-materials', {
       params: {
         search:   search   || undefined,
         category: (catFilter   !== 'All') ? catFilter   : undefined,
@@ -94,7 +97,7 @@ export default function RawMaterialsPage() {
         if (!raw) return;
         const { materials: lsItems = [] } = JSON.parse(raw);
         if (!lsItems.length) return;
-        api.post('/rawmaterials/import', { materials: lsItems })
+        api.post('/inventory/raw-materials/import', { materials: lsItems })
           .then(res => {
             qc.invalidateQueries({ queryKey: ['rawmaterials'] });
             const { created = 0 } = res.data?.data || res.data || {};
@@ -108,7 +111,7 @@ export default function RawMaterialsPage() {
   // ── Stats query ─────────────────────────────────────────────────────────────
   const { data: statsData } = useQuery({
     queryKey: ['rawmaterials', 'stats'],
-    queryFn: () => api.get('/rawmaterials/stats').then(r => r.data),
+    queryFn: () => api.get('/inventory/raw-materials/stats').then(r => r.data),
     staleTime: 15000,
     enabled: !isError,
   });
@@ -122,17 +125,17 @@ export default function RawMaterialsPage() {
 
   // ── Mutations ────────────────────────────────────────────────────────────────
   const createMut = useMutation({
-    mutationFn: data => api.post('/rawmaterials', data),
+    mutationFn: data => api.post('/inventory/raw-materials', data),
     onSuccess: () => { invalidate(); toast.success('Added'); closeForm(); },
     onError: e => toast.error(e?.response?.data?.message || 'Failed to add'),
   });
   const updateMut = useMutation({
-    mutationFn: ({ id, data }) => api.put(`/rawmaterials/${id}`, data),
+    mutationFn: ({ id, data }) => api.put(`/inventory/raw-materials/${id}`, data),
     onSuccess: () => { invalidate(); toast.success('Updated'); closeForm(); },
     onError: e => toast.error(e?.response?.data?.message || 'Failed to update'),
   });
   const deleteMut = useMutation({
-    mutationFn: id => api.delete(`/rawmaterials/${id}`),
+    mutationFn: id => api.delete(`/inventory/raw-materials/${id}`),
     onSuccess: () => { invalidate(); toast.success('Deleted'); setSelectedId(null); },
     onError: () => toast.error('Failed to delete'),
   });
@@ -152,7 +155,7 @@ export default function RawMaterialsPage() {
 
       // Try bulk import first; fall back to one-by-one if endpoint missing (404)
       try {
-        const res = await api.post('/rawmaterials/import', { materials: lsItems });
+        const res = await api.post('/inventory/raw-materials/import', { materials: lsItems });
         const { created = 0, skipped = 0 } = res.data?.data || res.data || {};
         qc.invalidateQueries({ queryKey: ['rawmaterials'] });
         toast.success(`Synced ${created} materials, skipped ${skipped} duplicates`);
@@ -166,7 +169,7 @@ export default function RawMaterialsPage() {
       for (const m of lsItems) {
         const { _id, id, createdAt, updatedAt, _totalStock, _status, ...body } = m;
         try {
-          await api.post('/rawmaterials', body);
+          await api.post('/inventory/raw-materials', body);
           created++;
         } catch (e) {
           // 409 or duplicate key = already exists
@@ -319,7 +322,7 @@ export default function RawMaterialsPage() {
       }
       if (!parsed.length) { toast.error('No valid rows found in CSV'); return; }
       try {
-        const res = await api.post('/rawmaterials/import', { materials: parsed });
+        const res = await api.post('/inventory/raw-materials/import', { materials: parsed });
         const { created = 0, skipped = 0 } = res.data?.data || res.data || {};
         qc.invalidateQueries({ queryKey: ['rawmaterials'] });
         toast.success(`Imported ${created} materials${skipped ? `, skipped ${skipped} duplicates` : ''}`);
