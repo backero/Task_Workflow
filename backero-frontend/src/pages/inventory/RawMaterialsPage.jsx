@@ -141,6 +141,23 @@ export default function RawMaterialsPage() {
     qc.invalidateQueries({ queryKey: ['rawmaterials'] });
   }
 
+  const [syncing, setSyncing] = useState(false);
+  async function syncFromLocalStorage() {
+    try {
+      const raw = localStorage.getItem(LS_KEY);
+      if (!raw) { toast.error('No raw material data in localStorage'); return; }
+      const { materials: lsItems = [] } = JSON.parse(raw);
+      if (!lsItems.length) { toast.error('No materials to sync'); return; }
+      setSyncing(true);
+      const res = await api.post('/rawmaterials/import', { materials: lsItems });
+      const { created = 0, skipped = 0 } = res.data?.data || res.data || {};
+      qc.invalidateQueries({ queryKey: ['rawmaterials'] });
+      toast.success(`Synced ${created} materials, skipped ${skipped} duplicates`);
+    } catch (e) {
+      toast.error(e?.response?.data?.message || 'Sync failed');
+    } finally { setSyncing(false); }
+  }
+
   const selected = materials.find(m => (m._id || m.id) === selectedId) || null;
 
   // ── local batch editing against selected ────────────────────────────────────
@@ -327,10 +344,14 @@ export default function RawMaterialsPage() {
             <h2 className="font-bold text-gray-900 text-sm">Raw Materials</h2>
             <div className="flex items-center gap-1.5">
               <input ref={importInputRef} type="file" accept=".csv" className="hidden" onChange={importCSV} />
-              <button onClick={() => importInputRef.current?.click()} title="Import CSV"
+              <button onClick={() => importInputRef.current?.click()} title="Import from CSV file"
                 className="text-xs px-2.5 py-1.5 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 font-semibold transition-colors flex items-center gap-1">
                 <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l4-4m0 0l4 4m-4-4v12" /></svg>
                 Import
+              </button>
+              <button onClick={syncFromLocalStorage} disabled={syncing} title="Sync all data from browser localStorage to cloud database"
+                className="text-xs px-2.5 py-1.5 rounded-lg bg-amber-50 text-amber-700 font-semibold hover:bg-amber-100 disabled:opacity-50 transition-colors">
+                {syncing ? 'Syncing…' : '☁️ Sync LS'}
               </button>
               <button onClick={exportCSV} disabled={materials.length === 0} title="Export CSV"
                 className="text-xs px-2.5 py-1.5 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 font-semibold transition-colors disabled:opacity-40 flex items-center gap-1">

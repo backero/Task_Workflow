@@ -116,7 +116,7 @@ export default function ProductCatalogPage() {
   // Auto-import from localStorage if backend catalog is empty
   const autoImportedRef = React.useRef(false);
   useEffect(() => {
-    if (!isLoading && !isError && products.length === 0 && !autoImportedRef.current && !search && !categoryFilter) {
+    if (!isLoading && !isError && products.length === 0 && !autoImportedRef.current && !search && !categoryFilter && !statusFilter) {
       autoImportedRef.current = true;
       try {
         const raw = localStorage.getItem('productCatalogDB_v2');
@@ -219,6 +219,63 @@ export default function ProductCatalogPage() {
     } finally { setImporting(false); }
   }
 
+  function importCSVFile() {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.csv';
+    input.style.display = 'none';
+    document.body.appendChild(input);
+    input.onchange = async (e) => {
+      document.body.removeChild(input);
+      const file = e.target.files[0];
+      if (!file) return;
+      const text = await file.text();
+      const lines = text.replace(/\r/g, '').split('\n').filter(l => l.trim());
+      if (lines.length < 2) { toast.error('Empty or invalid CSV'); return; }
+      const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, ''));
+      const isHTMLFmt = headers.includes('SKU');
+      const col = (name) => headers.indexOf(name);
+      const codeCol = isHTMLFmt ? col('SKU') : col('Code');
+      const nameCol = col('Name');
+      const catCol = col('Category');
+      const subCatCol = isHTMLFmt ? col('SubCategory') : col('Sub Category');
+      const typeCol = col('Type');
+      const unitCol = col('Unit');
+      const weightCol = col('Weight');
+      const gstCol = isHTMLFmt ? col('GST%') : col('GST Rate (%)');
+      const hsnCol = isHTMLFmt ? col('HSN') : col('HSN Code');
+      const shelfCol = isHTMLFmt ? col('ShelfLife') : col('Shelf Life');
+      const statusCol = col('Status');
+      const descCol = col('Description');
+      const storageCol = col('Storage');
+      const certCol = col('Certifications');
+      const barcodeCol = col('Barcode');
+      if (codeCol === -1 || nameCol === -1 || catCol === -1) {
+        toast.error('Invalid CSV: need Code/SKU, Name, Category columns'); return;
+      }
+      const getVal = (arr, idx) => idx >= 0 ? (arr[idx] || '').trim().replace(/^"|"$/g, '') : '';
+      const parsed = [];
+      for (let i = 1; i < lines.length; i++) {
+        const v = lines[i].split(',');
+        const code = getVal(v, codeCol), name = getVal(v, nameCol), category = getVal(v, catCol);
+        if (!code || !name || !category) continue;
+        let status = getVal(v, statusCol) || 'Active';
+        if (!['Active', 'Discontinued'].includes(status)) status = 'Active';
+        parsed.push({ code, name, category, subCategory: getVal(v, subCatCol), type: getVal(v, typeCol), unit: getVal(v, unitCol) || 'ml', weight: parseFloat(getVal(v, weightCol)) || 0, gstRate: parseInt(getVal(v, gstCol)) || 18, hsnCode: getVal(v, hsnCol), shelfLife: parseInt(getVal(v, shelfCol)) || 0, status, description: getVal(v, descCol), storage: getVal(v, storageCol), certifications: getVal(v, certCol), barcode: getVal(v, barcodeCol) });
+      }
+      if (!parsed.length) { toast.error('No valid rows found in CSV'); return; }
+      setImporting(true);
+      try {
+        const res = await api.post('/catalog/import', { products: parsed });
+        qc.invalidateQueries({ queryKey: ['catalog'] });
+        toast.success(`Imported ${res.data?.data?.created || 0}, skipped ${res.data?.data?.skipped || 0} duplicates`);
+      } catch (err) {
+        toast.error(err?.response?.data?.message || 'CSV import failed');
+      } finally { setImporting(false); }
+    };
+    input.click();
+  }
+
   const isPending = createMutation.isPending || updateMutation.isPending;
 
   const { data: statsData } = useQuery({
@@ -282,8 +339,11 @@ export default function ProductCatalogPage() {
                 <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
                 Export
               </button>
-              <button onClick={importFromLocalStorage} disabled={importing} className="text-xs px-2.5 py-1 rounded-lg bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-300 font-semibold hover:bg-amber-100 disabled:opacity-50 transition-colors">
-                {importing ? 'Importing…' : '📥 Import'}
+              <button onClick={importCSVFile} disabled={importing} title="Import from CSV file" className="text-xs px-2.5 py-1 rounded-lg bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300 font-semibold hover:bg-green-100 disabled:opacity-50 transition-colors">
+                {importing ? 'Importing…' : '📂 Import CSV'}
+              </button>
+              <button onClick={importFromLocalStorage} disabled={importing} title="Import from browser localStorage" className="text-xs px-2.5 py-1 rounded-lg bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-300 font-semibold hover:bg-amber-100 disabled:opacity-50 transition-colors">
+                {importing ? '…' : '📥 LS'}
               </button>
               <button onClick={openCreate} className="text-xs px-2.5 py-1 rounded-lg bg-blue-600 text-white font-semibold hover:bg-blue-700 transition-colors">+ Add</button>
             </div>
@@ -311,7 +371,7 @@ export default function ProductCatalogPage() {
             <div className="text-center py-16 text-gray-400">
               <p className="text-3xl mb-2">📦</p>
               <p className="text-sm">No products found</p>
-              <p className="text-xs mt-1">Use <strong>Import</strong> to pull from your existing catalog</p>
+              <p className="text-xs mt-1">Use <strong>Import CSV</strong> to upload a product catalog CSV file</p>
             </div>
           ) : (
             products.map(p => (
