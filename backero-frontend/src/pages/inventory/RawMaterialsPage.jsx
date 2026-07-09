@@ -44,6 +44,7 @@ export default function RawMaterialsPage() {
   const [batchData, setBatchData]       = useState(emptyBatch());
   const [expandedBatches, setExpandedBatches] = useState(false);
   const autoMigratedRef = useRef(false);
+  const importInputRef  = useRef(null);
 
   // ── Fetch list ──────────────────────────────────────────────────────────────
   const { data, isLoading, isError } = useQuery({
@@ -215,6 +216,86 @@ export default function RawMaterialsPage() {
     toast.success(`Exported ${allMats.length} materials`);
   }
 
+  // ── CSV row parser (handles quoted fields) ───────────────────────────────────
+  function parseCSVRow(line) {
+    const result = []; let cur = ''; let inQ = false;
+    for (let i = 0; i < line.length; i++) {
+      const c = line[i];
+      if (c === '"') { if (inQ && line[i + 1] === '"') { cur += '"'; i++; } else inQ = !inQ; }
+      else if (c === ',' && !inQ) { result.push(cur); cur = ''; }
+      else cur += c;
+    }
+    result.push(cur);
+    return result.map(s => s.trim());
+  }
+
+  // ── Import CSV ────────────────────────────────────────────────────────────────
+  async function importCSV(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = '';
+    const text = await file.text();
+    try {
+      const lines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+      if (lines.length < 2) { toast.error('CSV has no data rows'); return; }
+      const headers = parseCSVRow(lines[0].replace(/^﻿/, ''));
+      const fi = (pat) => headers.findIndex(h => pat.test(h));
+      const idx = {
+        code:          fi(/^code$/i),
+        name:          fi(/^name$/i),
+        category:      fi(/category/i),
+        hsnCode:       fi(/hsn/i),
+        supplier:      fi(/supplier/i),
+        location:      fi(/location/i),
+        unit:          fi(/^unit$/i),
+        unitPrice:     fi(/unit price/i),
+        gstRate:       fi(/gst rate/i),
+        enableMinStock:fi(/min stock enabled/i),
+        minStockLevel: fi(/min stock level/i),
+        qcPassed:      fi(/qc passed/i),
+        qcChecker:     fi(/qc checker/i),
+      };
+      const parsed = [];
+      for (let i = 1; i < lines.length; i++) {
+        const cols = parseCSVRow(lines[i]);
+        const g = (k) => (idx[k] >= 0 ? cols[idx[k]] || '' : '');
+        const code = g('code'); const name = g('name');
+        if (!code || !name) continue;
+        parsed.push({
+          code, name,
+          category:       g('category') || 'Raw Materials',
+          hsnCode:        g('hsnCode'),
+          supplier:       g('supplier'),
+          location:       g('location'),
+          unit:           g('unit') || 'kg',
+          unitPrice:      parseFloat(g('unitPrice')) || 0,
+          gstRate:        parseFloat(g('gstRate')) || 18,
+          enableMinStock: g('enableMinStock').toLowerCase() === 'yes',
+          minStockLevel:  parseFloat(g('minStockLevel')) || 0,
+          qcPassed:       g('qcPassed').toLowerCase() === 'yes',
+          qcChecker:      g('qcChecker'),
+          batches:        [],
+        });
+      }
+      if (!parsed.length) { toast.error('No valid rows found in CSV'); return; }
+      try {
+        const res = await api.post('/rawmaterials/import', { materials: parsed });
+        const { created = 0, skipped = 0 } = res.data?.data || res.data || {};
+        qc.invalidateQueries({ queryKey: ['rawmaterials'] });
+        toast.success(`Imported ${created} materials${skipped ? `, skipped ${skipped} duplicates` : ''}`);
+      } catch {
+        // Backend not available — save to localStorage so fallback shows data
+        const existing = JSON.parse(localStorage.getItem(LS_KEY) || '{"materials":[]}');
+        const existingCodes = new Set((existing.materials || []).map(m => m.code));
+        const newItems = parsed.filter(m => !existingCodes.has(m.code));
+        existing.materials = [...(existing.materials || []), ...newItems];
+        localStorage.setItem(LS_KEY, JSON.stringify(existing));
+        qc.invalidateQueries({ queryKey: ['rawmaterials'] });
+        toast.success(`Saved ${newItems.length} materials locally${newItems.length < parsed.length ? ` (${parsed.length - newItems.length} duplicates skipped)` : ''}`);
+      }
+    } catch { toast.error('Failed to parse CSV'); }
+  }
+
   const setF  = (k, v) => setForm(f => ({ ...f, [k]: v }));
   const setBF = (k, v) => setBatchData(b => ({ ...b, [k]: v }));
 
@@ -245,6 +326,12 @@ export default function RawMaterialsPage() {
           <div className="flex items-center justify-between">
             <h2 className="font-bold text-gray-900 text-sm">Raw Materials</h2>
             <div className="flex items-center gap-1.5">
+              <input ref={importInputRef} type="file" accept=".csv" className="hidden" onChange={importCSV} />
+              <button onClick={() => importInputRef.current?.click()} title="Import CSV"
+                className="text-xs px-2.5 py-1.5 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 font-semibold transition-colors flex items-center gap-1">
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l4-4m0 0l4 4m-4-4v12" /></svg>
+                Import
+              </button>
               <button onClick={exportCSV} disabled={materials.length === 0} title="Export CSV"
                 className="text-xs px-2.5 py-1.5 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 font-semibold transition-colors disabled:opacity-40 flex items-center gap-1">
                 <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
