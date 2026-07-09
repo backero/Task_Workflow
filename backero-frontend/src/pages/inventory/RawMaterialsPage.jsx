@@ -149,8 +149,31 @@ export default function RawMaterialsPage() {
       const { materials: lsItems = [] } = JSON.parse(raw);
       if (!lsItems.length) { toast.error('No materials to sync'); return; }
       setSyncing(true);
-      const res = await api.post('/rawmaterials/import', { materials: lsItems });
-      const { created = 0, skipped = 0 } = res.data?.data || res.data || {};
+
+      // Try bulk import first; fall back to one-by-one if endpoint missing (404)
+      try {
+        const res = await api.post('/rawmaterials/import', { materials: lsItems });
+        const { created = 0, skipped = 0 } = res.data?.data || res.data || {};
+        qc.invalidateQueries({ queryKey: ['rawmaterials'] });
+        toast.success(`Synced ${created} materials, skipped ${skipped} duplicates`);
+        return;
+      } catch (bulkErr) {
+        if (bulkErr?.response?.status !== 404) throw bulkErr;
+      }
+
+      // Fallback: create one by one (skips duplicates via backend unique index error)
+      let created = 0, skipped = 0;
+      for (const m of lsItems) {
+        const { _id, id, createdAt, updatedAt, _totalStock, _status, ...body } = m;
+        try {
+          await api.post('/rawmaterials', body);
+          created++;
+        } catch (e) {
+          // 409 or duplicate key = already exists
+          if (e?.response?.status === 409 || e?.response?.status === 400) skipped++;
+          else skipped++;
+        }
+      }
       qc.invalidateQueries({ queryKey: ['rawmaterials'] });
       toast.success(`Synced ${created} materials, skipped ${skipped} duplicates`);
     } catch (e) {

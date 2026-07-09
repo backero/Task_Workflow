@@ -136,7 +136,7 @@ exports.importProducts = asyncHandler(async (req, res) => {
       gstRate: raw.gstRate || 18,
       hsnCode: raw.hsnCode || '',
       shelfLife: raw.shelfLife || 0,
-      status: raw.status || 'Active',
+      status: ['Active', 'Discontinued'].includes(raw.status) ? raw.status : 'Active',
       description: raw.description || '',
       storage: raw.storage || '',
       certifications: raw.certifications || '',

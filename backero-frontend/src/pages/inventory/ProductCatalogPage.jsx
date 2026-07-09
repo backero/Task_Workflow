@@ -208,8 +208,13 @@ export default function ProductCatalogPage() {
       const raw = localStorage.getItem('productCatalogDB_v2');
       if (!raw) { toast.error('No catalog data found in localStorage'); return; }
       const data = JSON.parse(raw);
-      const products = data.products || [];
-      if (!products.length) { toast.error('No products to import'); return; }
+      const rawProducts = data.products || [];
+      if (!rawProducts.length) { toast.error('No products to import'); return; }
+      // Remap statuses: backend only accepts 'Active' | 'Discontinued'
+      const products = rawProducts.map(p => ({
+        ...p,
+        status: ['Active', 'Discontinued'].includes(p.status) ? p.status : 'Active',
+      }));
       setImporting(true);
       const res = await api.post('/catalog/import', { products });
       qc.invalidateQueries({ queryKey: ['catalog'] });
