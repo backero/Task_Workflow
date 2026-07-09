@@ -1,4 +1,5 @@
 const Lead = require('../models/Lead');
+const logger = require('../utils/logger');
 const Task = require('../models/Task');
 const ActivityLog = require('../models/ActivityLog');
 const User = require('../models/User');
@@ -8,7 +9,7 @@ const { asyncHandler, sendSuccess, sendError, paginate, paginateResponse, genera
 const { LEAD_STATUS, SOCKET_EVENTS, ROLE_HIERARCHY, ROLES } = require('../utils/constants');
 const { createNotification } = require('../services/notification.service');
 const { appendLeadToSheet, updateLeadInSheet } = require('../services/googleSheets.service');
-const { sendNewLeadAlert } = require('../services/whatsapp.service');
+const { sendNewLeadAlert, sendSampleDispatchedToClient, sendDispatchedFeedbackRequest } = require('../services/whatsapp.service');
 
 // GET /api/crm/leads
 exports.getLeads = asyncHandler(async (req, res) => {
@@ -133,7 +134,8 @@ exports.getLead = asyncHandler(async (req, res) => {
     .populate('followUps.performedBy', 'firstName lastName')
     .populate('sampleDetails.teamUpdates.postedBy', 'firstName lastName')
     .populate('sampleDetails.clientNotes.postedBy', 'firstName lastName')
-    .populate('stageHistory.movedBy', 'firstName lastName');
+    .populate('stageHistory.movedBy', 'firstName lastName')
+    .populate('communicationLogs.addedBy', 'firstName lastName');
 
   if (!lead) return sendError(res, 'Lead not found.', 404);
   sendSuccess(res, { lead });
@@ -200,6 +202,17 @@ exports.updateLead = asyncHandler(async (req, res) => {
     }
   }).catch(() => {});
 
+  // Dispatch feedback request to client (async, non-blocking)
+  if (updates.status === 'Dispatched' && existing.status !== 'Dispatched') {
+    const clientPhone = lead.whatsapp || lead.phone;
+    if (clientPhone) {
+      sendDispatchedFeedbackRequest(clientPhone, {
+        name: lead.name,
+        product: lead.sampleDetails?.product || (lead.productInterest?.[0] || ''),
+      }).catch(logger.error);
+    }
+  }
+
   sendSuccess(res, { lead }, 'Lead updated');
 });
 
@@ -208,20 +221,34 @@ exports.updateSampleDetails = asyncHandler(async (req, res) => {
   const lead = await Lead.findOne({ _id: req.params.id, organizationId: req.user.organizationId });
   if (!lead) return sendError(res, 'Lead not found.', 404);
 
-  const { product, quantity, sentDate, courier, chargeAmount, chargeBy, paymentStatus, advanceAmount, paymentMode, preparationDays, startedAt } = req.body;
+  const {
+    product, quantity, sentDate, courier, chargeAmount, chargeBy,
+    paymentStatus, advanceAmount, paymentMode, preparationDays, startedAt,
+    // Rich intake form fields
+    discussion, sampleProducts, shippingAddress, outerCartonRequired, outerCartonSize,
+    // Work tracking
+    workStarted, workStartedAt,
+  } = req.body;
 
   const $set = { updatedBy: req.user._id };
-  if (product !== undefined)         $set['sampleDetails.product']         = product;
-  if (quantity !== undefined)        $set['sampleDetails.quantity']        = Number(quantity) || 0;
-  if (sentDate !== undefined)        $set['sampleDetails.sentDate']        = sentDate || null;
-  if (courier !== undefined)         $set['sampleDetails.courier']         = courier;
-  if (chargeAmount !== undefined)    $set['sampleDetails.chargeAmount']    = Number(chargeAmount) || 0;
-  if (chargeBy !== undefined)        $set['sampleDetails.chargeBy']        = chargeBy;
-  if (paymentStatus !== undefined)   $set['sampleDetails.paymentStatus']   = paymentStatus;
-  if (advanceAmount !== undefined)   $set['sampleDetails.advanceAmount']   = Number(advanceAmount) || 0;
-  if (paymentMode !== undefined)     $set['sampleDetails.paymentMode']     = paymentMode;
-  if (preparationDays !== undefined) $set['sampleDetails.preparationDays'] = Number(preparationDays) || 0;
-  if (startedAt !== undefined)       $set['sampleDetails.startedAt']       = startedAt || new Date();
+  if (product !== undefined)              $set['sampleDetails.product']              = product;
+  if (quantity !== undefined)             $set['sampleDetails.quantity']             = Number(quantity) || 0;
+  if (sentDate !== undefined)             $set['sampleDetails.sentDate']             = sentDate || null;
+  if (courier !== undefined)              $set['sampleDetails.courier']              = courier;
+  if (chargeAmount !== undefined)         $set['sampleDetails.chargeAmount']         = Number(chargeAmount) || 0;
+  if (chargeBy !== undefined)             $set['sampleDetails.chargeBy']             = chargeBy;
+  if (paymentStatus !== undefined)        $set['sampleDetails.paymentStatus']        = paymentStatus;
+  if (advanceAmount !== undefined)        $set['sampleDetails.advanceAmount']        = Number(advanceAmount) || 0;
+  if (paymentMode !== undefined)          $set['sampleDetails.paymentMode']          = paymentMode;
+  if (preparationDays !== undefined)      $set['sampleDetails.preparationDays']      = Number(preparationDays) || 0;
+  if (startedAt !== undefined)            $set['sampleDetails.startedAt']            = startedAt || new Date();
+  if (discussion !== undefined)           $set['sampleDetails.discussion']           = discussion;
+  if (sampleProducts !== undefined)       $set['sampleDetails.sampleProducts']       = sampleProducts;
+  if (shippingAddress !== undefined)      $set['sampleDetails.shippingAddress']      = shippingAddress;
+  if (outerCartonRequired !== undefined)  $set['sampleDetails.outerCartonRequired']  = outerCartonRequired;
+  if (outerCartonSize !== undefined)      $set['sampleDetails.outerCartonSize']      = outerCartonSize;
+  if (workStarted !== undefined)          $set['sampleDetails.workStarted']          = workStarted;
+  if (workStartedAt !== undefined)        $set['sampleDetails.workStartedAt']        = workStartedAt || new Date();
 
   const updatedLead = await Lead.findOneAndUpdate(
     { _id: req.params.id, organizationId: req.user.organizationId },
@@ -230,7 +257,7 @@ exports.updateSampleDetails = asyncHandler(async (req, res) => {
   );
 
   // Auto-create Finance Transaction when payment is first recorded
-  const paymentRecorded = ['advance_received', 'full_paid'].includes(paymentStatus);
+  const paymentRecorded = paymentStatus === 'full_paid';
   const advance = Number(advanceAmount) || 0;
   if (paymentRecorded && advance > 0 && !lead.sampleDetails?.financeTransactionId) {
     const Transaction = require('../models/Transaction');
@@ -252,6 +279,20 @@ exports.updateSampleDetails = asyncHandler(async (req, res) => {
       { $set: { 'sampleDetails.financeTransactionId': txn._id } },
       { runValidators: false }
     );
+  }
+
+  // Notify client when sample is dispatched for the first time (sentDate newly set)
+  if (sentDate && !lead.sampleDetails?.sentDate) {
+    const clientPhone = lead.whatsapp || lead.phone;
+    if (clientPhone) {
+      sendSampleDispatchedToClient(clientPhone, {
+        name: lead.name,
+        product: lead.sampleDetails?.product || product || '',
+        quantity: lead.sampleDetails?.quantity || quantity || '',
+        courier: lead.sampleDetails?.courier || courier || '',
+        sentDate,
+      }).catch(logger.error);
+    }
   }
 
   sendSuccess(res, { lead: updatedLead }, 'Sample details saved');
@@ -740,14 +781,18 @@ exports.addCommLog = asyncHandler(async (req, res) => {
   const { type = 'call', title = '', content = '', happenedAt } = req.body;
   const { uploadBuffer } = require('../utils/cloudinary');
 
-  // Upload images and audio to Cloudinary
+  // Upload images, audio and video to Cloudinary
   const images = [];
   const audioFiles = [];
+  const videoFiles = [];
   if (req.files?.length) {
     for (const file of req.files) {
       if (file.mimetype.startsWith('audio/')) {
         const result = await uploadBuffer(file.buffer, { folder: `backero/comm-logs/${req.params.id}`, resourceType: 'video' });
         audioFiles.push({ url: result.secure_url, publicId: result.public_id, name: file.originalname });
+      } else if (file.mimetype.startsWith('video/')) {
+        const result = await uploadBuffer(file.buffer, { folder: `backero/comm-logs/${req.params.id}`, resourceType: 'video' });
+        videoFiles.push({ url: result.secure_url, publicId: result.public_id, name: file.originalname });
       } else {
         const result = await uploadBuffer(file.buffer, { folder: `backero/comm-logs/${req.params.id}` });
         images.push({ url: result.secure_url, publicId: result.public_id, name: file.originalname });
@@ -762,6 +807,7 @@ exports.addCommLog = asyncHandler(async (req, res) => {
     happenedAt: happenedAt ? new Date(happenedAt) : new Date(),
     images,
     audioFiles,
+    videoFiles,
     addedBy: req.user._id,
     createdAt: new Date(),
   };
@@ -773,6 +819,30 @@ exports.addCommLog = asyncHandler(async (req, res) => {
     .populate('communicationLogs.addedBy', 'firstName lastName');
 
   sendSuccess(res, { log: populated.communicationLogs.at(-1) }, 'Communication log added');
+});
+
+// PUT /api/crm/leads/:id/comm-log/:logId  (admin only)
+exports.editCommLog = asyncHandler(async (req, res) => {
+  const lead = await Lead.findOne({ _id: req.params.id, organizationId: req.user.organizationId });
+  if (!lead) return sendError(res, 'Lead not found.', 404);
+  const log = lead.communicationLogs.id(req.params.logId);
+  if (!log) return sendError(res, 'Log not found.', 404);
+  const { type, content } = req.body;
+  if (type) log.type = type;
+  if (content !== undefined) log.content = content;
+  await lead.save({ validateBeforeSave: false });
+  sendSuccess(res, { log }, 'Log updated');
+});
+
+// DELETE /api/crm/leads/:id/comm-log/:logId  (admin only)
+exports.deleteCommLog = asyncHandler(async (req, res) => {
+  const lead = await Lead.findOne({ _id: req.params.id, organizationId: req.user.organizationId });
+  if (!lead) return sendError(res, 'Lead not found.', 404);
+  const log = lead.communicationLogs.id(req.params.logId);
+  if (!log) return sendError(res, 'Log not found.', 404);
+  log.deleteOne();
+  await lead.save({ validateBeforeSave: false });
+  sendSuccess(res, {}, 'Log deleted');
 });
 
 exports.createSampleInvoice = asyncHandler(async (req, res) => {

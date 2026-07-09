@@ -197,9 +197,19 @@ function LeadSlideOver({ leadId, onClose, onUpdated }) {
   const [imageUrl, setImageUrl] = useState('');
   const [showSampleModal, setShowSampleModal] = useState(false);
   const [samplePrepDays, setSamplePrepDays] = useState('');
-  const [sampleProductInterest, setSampleProductInterest] = useState('');
+  const [sampleProducts, setSampleProducts] = useState([]);
   const [sampleEstimatedValue, setSampleEstimatedValue] = useState('');
   const [sampleDiscussed, setSampleDiscussed] = useState('');
+  const [productAtQuery, setProductAtQuery] = useState('');
+  const [showProductDrop, setShowProductDrop] = useState(false);
+  const [sampleRichProducts, setSampleRichProducts] = useState([]);
+  const [sampleOuterCarton, setSampleOuterCarton] = useState(false);
+  const [sampleCartonSize, setSampleCartonSize] = useState('');
+  const [sampleShippingAddress, setSampleShippingAddress] = useState('');
+  const [sampleCatalogOpen, setSampleCatalogOpen] = useState(-1);
+  const [sampleCatalogResults, setSampleCatalogResults] = useState([]);
+  const [paymentProofFile, setPaymentProofFile] = useState(null);
+  const [paymentProofUploading, setPaymentProofUploading] = useState(false);
   const [showLostModal, setShowLostModal] = useState(false);
   const [lostReason, setLostReason] = useState('');
   const [lostNotes, setLostNotes] = useState('');
@@ -216,7 +226,12 @@ function LeadSlideOver({ leadId, onClose, onUpdated }) {
   const [commPreviews, setCommPreviews] = useState([]);
   const [commAudios, setCommAudios] = useState([]);
   const [commAudioNames, setCommAudioNames] = useState([]);
+  const [commVideos, setCommVideos] = useState([]);
+  const [commVideoNames, setCommVideoNames] = useState([]);
   const [lightboxImg, setLightboxImg] = useState(null);
+  const [editingLogId, setEditingLogId] = useState(null);
+  const [editLogContent, setEditLogContent] = useState('');
+  const [editLogType, setEditLogType] = useState('call');
 
   const deleteMutation = useMutation({
     mutationFn: () => api.delete(`/crm/leads/${leadId}`),
@@ -263,6 +278,18 @@ function LeadSlideOver({ leadId, onClose, onUpdated }) {
     queryFn: () => api.get(`/crm/leads/${leadId}/queries`).then(r => r.data.queries),
     enabled: !!leadId,
   });
+
+  const atSearchTerm = productAtQuery.includes('@') ? productAtQuery.slice(productAtQuery.lastIndexOf('@') + 1) : '';
+  const [catalogResults, setCatalogResults] = useState([]);
+  useEffect(() => {
+    if (!showProductDrop) return;
+    try {
+      const raw = localStorage.getItem('productCatalogDB_v2');
+      const all = raw ? (JSON.parse(raw).products || []).filter(p => p.status !== 'Discontinued') : [];
+      const s = atSearchTerm.toLowerCase();
+      setCatalogResults(s ? all.filter(p => (p.name || '').toLowerCase().includes(s) || (p.code || '').toLowerCase().includes(s) || (p.category || '').toLowerCase().includes(s)).slice(0, 10) : all.slice(0, 10));
+    } catch { setCatalogResults([]); }
+  }, [showProductDrop, atSearchTerm]);
 
   const sendUpdateMutation = useMutation({
     mutationFn: (message) => api.post(`/crm/leads/${leadId}/send-update`, { message }),
@@ -320,9 +347,21 @@ function LeadSlideOver({ leadId, onClose, onUpdated }) {
       toast.success('Log saved');
       setShowCommForm(false);
       setCommType('call'); setCommTitle(''); setCommContent(''); setCommDate('');
-      setCommImages([]); setCommPreviews([]); setCommAudios([]); setCommAudioNames([]);
+      setCommImages([]); setCommPreviews([]); setCommAudios([]); setCommAudioNames([]); setCommVideos([]); setCommVideoNames([]); setFollowUpNote('');
     },
     onError: (err) => toast.error(err?.response?.data?.message || err?.message || 'Failed to save log'),
+  });
+
+  const editCommLogMutation = useMutation({
+    mutationFn: ({ logId, data }) => api.put(`/crm/leads/${leadId}/comm-log/${logId}`, data),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['crm', 'lead', leadId] }); toast.success('Log updated'); setEditingLogId(null); },
+    onError: (err) => toast.error(err?.response?.data?.message || 'Failed to update log'),
+  });
+
+  const deleteCommLogMutation = useMutation({
+    mutationFn: (logId) => api.delete(`/crm/leads/${leadId}/comm-log/${logId}`),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['crm', 'lead', leadId] }); toast.success('Log deleted'); },
+    onError: (err) => toast.error(err?.response?.data?.message || 'Failed to delete log'),
   });
 
   // Sync sample form when lead loads
@@ -473,9 +512,14 @@ function LeadSlideOver({ leadId, onClose, onUpdated }) {
                       if (stage === 'Sample') {
                         setShowSampleModal(true);
                         setSamplePrepDays('');
-                        setSampleProductInterest(lead.productInterest?.join(', ') || '');
-                        setSampleEstimatedValue(lead.estimatedValue > 0 ? String(lead.estimatedValue) : '');
+                        setSampleRichProducts([{ name: '', quantity: '', sampleSize: '', unit: 'ml', bottleReq: false, bottleDetails: '', labelReq: false, labelDetails: '', labReq: false, labDetails: '', individualPacking: '' }]);
+                        setSampleEstimatedValue(lead.sampleDetails?.chargeAmount > 0 ? String(lead.sampleDetails.chargeAmount) : '');
                         setSampleDiscussed('');
+                        setSampleOuterCarton(false);
+                        setSampleCartonSize('');
+                        setSampleShippingAddress('');
+                        setSampleCatalogOpen(-1);
+                        setSampleCatalogResults([]);
                         return;
                       }
                       if (stage === 'In Progress') {
@@ -674,18 +718,63 @@ function LeadSlideOver({ leadId, onClose, onUpdated }) {
                     );
                   })()}
 
-                  {/* Sample Details */}
+                  {/* Sample Details — rich display */}
                   <div className="rounded-xl border border-fuchsia-200 dark:border-fuchsia-800/60 bg-fuchsia-50/60 dark:bg-fuchsia-900/10 p-3.5 space-y-3">
                     <p className="text-xs font-bold text-fuchsia-700 dark:text-fuchsia-300 uppercase tracking-wider">📦 Sample Details</p>
-                    <div className="grid grid-cols-2 gap-2">
+
+                    {lead.sampleDetails?.discussion && (
                       <div>
-                        <label className="text-xs text-gray-500 dark:text-gray-400 mb-1 block">Product</label>
-                        <input value={sampleForm.product} onChange={e => setSampleForm(p => ({...p, product: e.target.value}))} className="input text-sm w-full" placeholder="Product name" />
+                        <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-0.5">Discussion</p>
+                        <p className="text-xs text-gray-700 dark:text-gray-200 whitespace-pre-wrap">{lead.sampleDetails.discussion}</p>
                       </div>
+                    )}
+
+                    {(lead.sampleDetails?.sampleProducts || []).length > 0 && (
+                      <div className="space-y-2">
+                        <p className="text-xs font-semibold text-gray-500 dark:text-gray-400">Products</p>
+                        {(lead.sampleDetails.sampleProducts).map((sp, i) => (
+                          <div key={i} className="rounded-lg bg-white dark:bg-gray-800 border border-fuchsia-100 dark:border-fuchsia-900/40 p-2.5 space-y-1">
+                            <p className="text-xs font-semibold text-gray-800 dark:text-gray-100">
+                              {i + 1}. {sp.name} — {sp.quantity} pcs × {sp.sampleSize}{sp.unit}
+                            </p>
+                            <div className="flex flex-wrap gap-1.5 text-xs">
+                              <span className={`px-1.5 py-0.5 rounded-full font-medium ${sp.bottleReq ? 'bg-fuchsia-100 text-fuchsia-700 dark:bg-fuchsia-900/40 dark:text-fuchsia-300' : 'bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400'}`}>
+                                🍾 Bottle: {sp.bottleReq ? 'Yes' : 'No'}
+                              </span>
+                              <span className={`px-1.5 py-0.5 rounded-full font-medium ${sp.labelReq ? 'bg-fuchsia-100 text-fuchsia-700 dark:bg-fuchsia-900/40 dark:text-fuchsia-300' : 'bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400'}`}>
+                                🏷️ Label: {sp.labelReq ? 'Yes' : 'No'}
+                              </span>
+                              <span className={`px-1.5 py-0.5 rounded-full font-medium ${sp.labReq ? 'bg-fuchsia-100 text-fuchsia-700 dark:bg-fuchsia-900/40 dark:text-fuchsia-300' : 'bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400'}`}>
+                                🔬 Lab: {sp.labReq ? 'Yes' : 'No'}
+                              </span>
+                            </div>
+                            {sp.bottleReq && sp.bottleDetails && <p className="text-xs text-gray-500">Bottle: {sp.bottleDetails}</p>}
+                            {sp.labelReq && sp.labelDetails && <p className="text-xs text-gray-500">Label: {sp.labelDetails}</p>}
+                            {sp.labReq && sp.labDetails && <p className="text-xs text-gray-500">Lab: {sp.labDetails}</p>}
+                            {sp.individualPacking && <p className="text-xs text-gray-500">Packing: {sp.individualPacking}</p>}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {lead.sampleDetails?.outerCartonRequired && (
                       <div>
-                        <label className="text-xs text-gray-500 dark:text-gray-400 mb-1 block">Quantity</label>
-                        <input type="number" value={sampleForm.quantity} onChange={e => setSampleForm(p => ({...p, quantity: e.target.value}))} className="input text-sm w-full" placeholder="Qty" />
+                        <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-0.5">Outer Carton</p>
+                        <p className="text-xs text-gray-700 dark:text-gray-200">
+                          Yes{lead.sampleDetails.outerCartonSize ? ` — ${lead.sampleDetails.outerCartonSize}` : ''}
+                        </p>
                       </div>
+                    )}
+
+                    {lead.sampleDetails?.shippingAddress && (
+                      <div>
+                        <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-0.5">Shipping Address</p>
+                        <p className="text-xs text-gray-700 dark:text-gray-200 whitespace-pre-wrap">{lead.sampleDetails.shippingAddress}</p>
+                      </div>
+                    )}
+
+                    {/* Dispatch tracking fields */}
+                    <div className="grid grid-cols-2 gap-2 pt-1 border-t border-fuchsia-100 dark:border-fuchsia-900/30">
                       <div>
                         <label className="text-xs text-gray-500 dark:text-gray-400 mb-1 block">Sent Date</label>
                         <input type="date" value={sampleForm.sentDate} onChange={e => setSampleForm(p => ({...p, sentDate: e.target.value}))} className="input text-sm w-full" />
@@ -716,15 +805,16 @@ function LeadSlideOver({ leadId, onClose, onUpdated }) {
                         <label className="text-xs text-gray-500 dark:text-gray-400 mb-1 block">Payment Status</label>
                         <select value={sampleForm.paymentStatus} onChange={e => setSampleForm(p => ({...p, paymentStatus: e.target.value}))} className="input text-sm w-full">
                           <option value="pending">Pending</option>
-                          <option value="advance_received">Advance Received</option>
                           <option value="full_paid">Full Paid</option>
                         </select>
                       </div>
-                      <div>
-                        <label className="text-xs text-gray-500 dark:text-gray-400 mb-1 block">Advance Received (₹)</label>
-                        <input type="number" value={sampleForm.advanceAmount} onChange={e => setSampleForm(p => ({...p, advanceAmount: e.target.value}))} className="input text-sm w-full" placeholder="0" disabled={sampleForm.paymentStatus === 'pending'} />
-                      </div>
-                      <div className="col-span-2">
+                      {sampleForm.paymentStatus === 'full_paid' && (
+                        <div>
+                          <label className="text-xs text-gray-500 dark:text-gray-400 mb-1 block">Amount Received (₹)</label>
+                          <input type="number" value={sampleForm.advanceAmount} onChange={e => setSampleForm(p => ({...p, advanceAmount: e.target.value}))} className="input text-sm w-full" placeholder="0" />
+                        </div>
+                      )}
+                      <div className={sampleForm.paymentStatus === 'full_paid' ? '' : 'col-span-2'}>
                         <label className="text-xs text-gray-500 dark:text-gray-400 mb-1 block">Payment Mode</label>
                         <select value={sampleForm.paymentMode} onChange={e => setSampleForm(p => ({...p, paymentMode: e.target.value}))} className="input text-sm w-full" disabled={sampleForm.paymentStatus === 'pending'}>
                           <option value="cash">Cash</option>
@@ -744,6 +834,62 @@ function LeadSlideOver({ leadId, onClose, onUpdated }) {
                   >
                     {sampleMutation.isPending ? 'Saving…' : '💾 Save Sample Details'}
                   </button>
+
+                  {/* Payment Received / Work Started */}
+                  {lead.sampleDetails?.workStarted ? (
+                    <div className="rounded-lg bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800/50 px-3 py-2 flex items-center gap-2">
+                      <span>✅</span>
+                      <div>
+                        <p className="text-xs font-bold text-emerald-700 dark:text-emerald-300">Work Started</p>
+                        {lead.sampleDetails.workStartedAt && (
+                          <p className="text-xs text-emerald-600 dark:text-emerald-400">{format(new Date(lead.sampleDetails.workStartedAt), 'dd MMM yyyy, hh:mm a')}</p>
+                        )}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="rounded-lg border border-emerald-200 dark:border-emerald-800/50 bg-emerald-50/50 dark:bg-emerald-900/10 p-2.5 space-y-2">
+                      <p className="text-xs font-semibold text-emerald-700 dark:text-emerald-300">💳 Payment Received?</p>
+                      <div className="flex items-center gap-2">
+                        <label className="flex-1 flex items-center gap-1.5 cursor-pointer rounded-lg border border-dashed border-emerald-300 dark:border-emerald-700 px-2.5 py-1.5 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-colors min-w-0">
+                          <span className="text-sm shrink-0">📎</span>
+                          <span className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                            {paymentProofFile ? paymentProofFile.name : 'Upload screenshot'}
+                          </span>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            className="hidden"
+                            onChange={e => { setPaymentProofFile(e.target.files?.[0] || null); e.target.value = ''; }}
+                          />
+                        </label>
+                        {paymentProofFile && (
+                          <button
+                            type="button"
+                            disabled={paymentProofUploading}
+                            onClick={async () => {
+                              setPaymentProofUploading(true);
+                              try {
+                                const fd = new FormData();
+                                fd.append('type', 'other');
+                                fd.append('content', 'Payment screenshot');
+                                fd.append('happenedAt', new Date().toISOString());
+                                fd.append('files', paymentProofFile);
+                                await api.post(`/crm/leads/${leadId}/comm-log`, fd).catch(() => {});
+                                sampleMutation.mutate(
+                                  { paymentStatus: 'full_paid', workStarted: true, workStartedAt: new Date().toISOString() },
+                                  { onSettled: () => { setPaymentProofFile(null); setPaymentProofUploading(false); } }
+                                );
+                              } catch { setPaymentProofUploading(false); }
+                            }}
+                            className="shrink-0 px-3 py-1.5 rounded-lg text-xs font-bold text-white disabled:opacity-50 transition-all active:scale-95"
+                            style={{ background: 'linear-gradient(135deg,#10b981,#059669)' }}
+                          >
+                            {paymentProofUploading ? 'Saving…' : 'Confirm'}
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  )}
 
                   {/* Create Sample Invoice */}
                   {lead.sampleDetails?.sampleInvoiceId ? (
@@ -879,16 +1025,17 @@ function LeadSlideOver({ leadId, onClose, onUpdated }) {
                 </div>
               )}
 
-              {/* Follow-up internal note box */}
+              {/* Follow-up log box with attachments */}
               {lead.status === 'Follow-up' && (
                 <div className="mt-3 border-t border-blue-100 dark:border-blue-900 pt-3 space-y-2">
                   <p className="text-xs font-semibold text-gray-500 dark:text-gray-400">📝 Log what was discussed</p>
-                  {lead.followUps?.length > 0 && [...lead.followUps].reverse()[0]?.notes && (
-                    <div className="bg-gray-50 dark:bg-[#0f1a2e] rounded-lg p-2.5">
-                      <p className="text-xs text-gray-400 mb-0.5">Last note</p>
-                      <p className="text-sm text-gray-700 dark:text-gray-300">{[...lead.followUps].reverse()[0].notes}</p>
-                    </div>
-                  )}
+                  <select value={commType} onChange={e => setCommType(e.target.value)} className="input text-xs w-full">
+                    <option value="call">📞 Call</option>
+                    <option value="whatsapp">💬 WhatsApp</option>
+                    <option value="meeting">🤝 Meeting</option>
+                    <option value="email">✉️ Email</option>
+                    <option value="other">📝 Other</option>
+                  </select>
                   <textarea
                     value={followUpNote}
                     onChange={e => setFollowUpNote(e.target.value)}
@@ -896,22 +1043,165 @@ function LeadSlideOver({ leadId, onClose, onUpdated }) {
                     className="input resize-none text-sm w-full"
                     placeholder="e.g. Customer said they need 2 more days to decide..."
                   />
+                  {/* Attach row */}
+                  <div className="flex gap-3 flex-wrap">
+                    <label className="flex items-center gap-1 cursor-pointer text-xs text-blue-500 hover:text-blue-600 font-medium">
+                      <input type="file" accept="image/*" multiple className="hidden" onChange={e => {
+                        const files = Array.from(e.target.files);
+                        setCommImages(prev => [...prev, ...files]);
+                        files.forEach(f => { const r = new FileReader(); r.onload = ev => setCommPreviews(prev => [...prev, { url: ev.target.result, name: f.name }]); r.readAsDataURL(f); });
+                      }} />
+                      📎 Photo
+                    </label>
+                    <label className="flex items-center gap-1 cursor-pointer text-xs text-purple-500 hover:text-purple-600 font-medium">
+                      <input type="file" accept="audio/*" multiple className="hidden" onChange={e => {
+                        const files = Array.from(e.target.files);
+                        setCommAudios(prev => [...prev, ...files]);
+                        setCommAudioNames(prev => [...prev, ...files.map(f => f.name)]);
+                      }} />
+                      🎙️ Audio
+                    </label>
+                    <label className="flex items-center gap-1 cursor-pointer text-xs text-rose-500 hover:text-rose-600 font-medium">
+                      <input type="file" accept="video/*" multiple className="hidden" onChange={e => {
+                        const files = Array.from(e.target.files);
+                        setCommVideos(prev => [...prev, ...files]);
+                        setCommVideoNames(prev => [...prev, ...files.map(f => f.name)]);
+                      }} />
+                      🎬 Video
+                    </label>
+                  </div>
+                  {/* Photo previews */}
+                  {commPreviews.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5">
+                      {commPreviews.map((img, i) => (
+                        <div key={i} className="relative group">
+                          <img src={img.url} alt={img.name} className="w-12 h-12 object-cover rounded-lg border border-gray-200 dark:border-[#1b2e4a]" />
+                          <button type="button" onClick={() => { setCommPreviews(p => p.filter((_, idx) => idx !== i)); setCommImages(p => p.filter((_, idx) => idx !== i)); }} className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-red-500 text-white text-[9px] flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">×</button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {/* Audio list */}
+                  {commAudioNames.length > 0 && (
+                    <div className="space-y-1">
+                      {commAudioNames.map((name, i) => (
+                        <div key={i} className="flex items-center gap-2 bg-purple-50 dark:bg-purple-900/20 rounded-lg px-2.5 py-1.5 text-xs text-purple-700 dark:text-purple-300">
+                          <span>🎙️ {name}</span>
+                          <button type="button" onClick={() => { setCommAudios(p => p.filter((_, idx) => idx !== i)); setCommAudioNames(p => p.filter((_, idx) => idx !== i)); }} className="ml-auto text-red-400 hover:text-red-600">×</button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {/* Video list */}
+                  {commVideoNames.length > 0 && (
+                    <div className="space-y-1">
+                      {commVideoNames.map((name, i) => (
+                        <div key={i} className="flex items-center gap-2 bg-rose-50 dark:bg-rose-900/20 rounded-lg px-2.5 py-1.5 text-xs text-rose-700 dark:text-rose-300">
+                          <span>🎬 {name}</span>
+                          <button type="button" onClick={() => { setCommVideos(p => p.filter((_, idx) => idx !== i)); setCommVideoNames(p => p.filter((_, idx) => idx !== i)); }} className="ml-auto text-red-400 hover:text-red-600">×</button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                   <button
                     onClick={() => {
-                      if (!followUpNote.trim()) return;
-                      followUpMutation.mutate({
-                        scheduledAt: new Date().toISOString(),
-                        type: 'call',
-                        notes: followUpNote.trim(),
-                        outcome: followUpNote.trim(),
-                        nextAction: '',
-                      }, { onSuccess: () => setFollowUpNote('') });
+                      if (!followUpNote.trim() && !commImages.length && !commAudios.length && !commVideos.length) {
+                        toast.error('Add a note, photo, audio or video'); return;
+                      }
+                      const fd = new FormData();
+                      fd.append('type', commType);
+                      fd.append('content', followUpNote.trim());
+                      commImages.forEach(f => fd.append('files', f));
+                      commAudios.forEach(f => fd.append('files', f));
+                      commVideos.forEach(f => fd.append('files', f));
+                      commLogMutation.mutate(fd);
                     }}
-                    disabled={!followUpNote.trim() || followUpMutation.isPending}
+                    disabled={commLogMutation.isPending}
                     className="btn-secondary w-full justify-center text-sm disabled:opacity-50"
                   >
-                    {followUpMutation.isPending ? 'Saving…' : 'Save Note'}
+                    {commLogMutation.isPending ? 'Saving…' : 'Save Log'}
                   </button>
+                  {/* Recent logs */}
+                  {lead.communicationLogs?.length > 0 && (
+                    <div className="space-y-2 pt-1 border-t border-blue-100 dark:border-blue-900">
+                      {[...lead.communicationLogs].sort((a, b) => new Date(b.happenedAt) - new Date(a.happenedAt)).map((log, i) => {
+                        const TYPE_ICON = { call: '📞', whatsapp: '💬', meeting: '🤝', email: '✉️', other: '📝' };
+                        const isEditing = editingLogId === log._id;
+                        return (
+                          <div key={log._id || i} className="rounded-xl border border-gray-100 dark:border-[#1b2e4a] p-2.5">
+                            {/* Header row */}
+                            <div className="flex items-center gap-2 mb-1.5">
+                              <span className="text-xs font-semibold text-gray-600 dark:text-gray-300">{TYPE_ICON[log.type] || '📝'} {log.type === 'whatsapp' ? 'WhatsApp' : (log.type || 'call').charAt(0).toUpperCase() + (log.type || 'call').slice(1)}</span>
+                              <span className="text-xs text-gray-400">{format(new Date(log.happenedAt), 'dd MMM, h:mm a')}</span>
+                              {log.addedBy && (
+                                <span className="ml-auto text-[10px] text-gray-400 dark:text-gray-500">by {log.addedBy.firstName} {log.addedBy.lastName}</span>
+                              )}
+                              {isAdmin && (
+                                <div className="flex items-center gap-1 ml-1">
+                                  <button
+                                    onClick={() => { setEditingLogId(log._id); setEditLogContent(log.content || ''); setEditLogType(log.type || 'call'); }}
+                                    className="text-[10px] px-1.5 py-0.5 rounded bg-blue-50 dark:bg-blue-900/20 text-blue-500 hover:bg-blue-100 transition-colors"
+                                  >Edit</button>
+                                  <button
+                                    onClick={() => { if (window.confirm('Delete this log?')) deleteCommLogMutation.mutate(log._id); }}
+                                    className="text-[10px] px-1.5 py-0.5 rounded bg-red-50 dark:bg-red-900/20 text-red-500 hover:bg-red-100 transition-colors"
+                                  >Delete</button>
+                                </div>
+                              )}
+                            </div>
+                            {/* Edit mode */}
+                            {isEditing ? (
+                              <div className="space-y-1.5">
+                                <select value={editLogType} onChange={e => setEditLogType(e.target.value)} className="input text-xs w-full">
+                                  <option value="call">📞 Call</option>
+                                  <option value="whatsapp">💬 WhatsApp</option>
+                                  <option value="meeting">🤝 Meeting</option>
+                                  <option value="email">✉️ Email</option>
+                                  <option value="other">📝 Other</option>
+                                </select>
+                                <textarea value={editLogContent} onChange={e => setEditLogContent(e.target.value)} rows={3} className="input text-xs w-full resize-none" />
+                                <div className="flex gap-2">
+                                  <button onClick={() => editCommLogMutation.mutate({ logId: log._id, data: { type: editLogType, content: editLogContent } })} disabled={editCommLogMutation.isPending} className="btn-primary text-xs px-3 py-1 disabled:opacity-50">{editCommLogMutation.isPending ? 'Saving…' : 'Save'}</button>
+                                  <button onClick={() => setEditingLogId(null)} className="btn-secondary text-xs px-3 py-1">Cancel</button>
+                                </div>
+                              </div>
+                            ) : (
+                              <>
+                                {log.content && <p className="text-xs text-gray-600 dark:text-gray-400 whitespace-pre-wrap">{log.content.length > 150 ? log.content.slice(0, 150) + '…' : log.content}</p>}
+                              </>
+                            )}
+                            {log.images?.length > 0 && (
+                              <div className="flex flex-wrap gap-1 mt-1.5">
+                                {log.images.map((img, j) => (
+                                  <img key={j} src={img.url} alt={img.name} onClick={() => setLightboxImg(img.url)} className="w-10 h-10 object-cover rounded-lg border border-gray-200 dark:border-[#1b2e4a] cursor-pointer hover:opacity-80" />
+                                ))}
+                              </div>
+                            )}
+                            {log.audioFiles?.length > 0 && (
+                              <div className="space-y-1 mt-1.5">
+                                {log.audioFiles.map((a, j) => (
+                                  <div key={j} className="rounded-lg bg-purple-50 dark:bg-purple-900/20 px-2 py-1.5 border border-purple-100 dark:border-purple-800/40">
+                                    <p className="text-[10px] text-purple-500 mb-0.5">🎙️ {a.name}</p>
+                                    <audio controls src={a.url} className="w-full" style={{ height: '28px' }} />
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                            {log.videoFiles?.length > 0 && (
+                              <div className="space-y-1.5 mt-1.5">
+                                {log.videoFiles.map((v, j) => (
+                                  <div key={j} className="rounded-lg bg-rose-50 dark:bg-rose-900/20 px-2 py-1.5 border border-rose-100 dark:border-rose-800/40">
+                                    <p className="text-[10px] text-rose-500 mb-0.5">🎬 {v.name}</p>
+                                    <video controls src={v.url} className="w-full rounded-lg max-h-40" />
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -1023,139 +1313,6 @@ function LeadSlideOver({ leadId, onClose, onUpdated }) {
               </div>
             )}
 
-            {/* ── Communication History ── */}
-            <div className="px-5 py-4 border-t border-gray-100 dark:border-[#1b2e4a]">
-              <div className="flex items-center justify-between mb-3">
-                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider flex items-center gap-1.5">
-                  <ChatBubbleLeftIcon className="w-3.5 h-3.5" />
-                  What was discussed
-                  {lead.communicationLogs?.length > 0 && <span className="text-blue-500">({lead.communicationLogs.length})</span>}
-                </p>
-                <button
-                  onClick={() => { setShowCommForm(v => !v); setCommType('call'); setCommTitle(''); setCommContent(''); setCommDate(''); setCommImages([]); setCommPreviews([]); setCommAudios([]); setCommAudioNames([]); }}
-                  className="text-xs px-2 py-0.5 rounded-lg bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 font-semibold hover:bg-blue-100 transition-colors"
-                >
-                  {showCommForm ? 'Cancel' : '+ Add Log'}
-                </button>
-              </div>
-
-              {/* Inline form */}
-              {showCommForm && (
-                <div className="space-y-2.5 mb-4 bg-gray-50 dark:bg-[#0f1a2e] rounded-xl p-3">
-                  <div className="flex gap-2">
-                    <select value={commType} onChange={e => setCommType(e.target.value)} className="input text-xs flex-shrink-0 w-36">
-                      <option value="call">📞 Call</option>
-                      <option value="whatsapp">💬 WhatsApp</option>
-                      <option value="meeting">🤝 Meeting</option>
-                      <option value="email">✉️ Email</option>
-                      <option value="other">📝 Other</option>
-                    </select>
-                    <input type="datetime-local" value={commDate} onChange={e => setCommDate(e.target.value)} className="input text-xs flex-1" />
-                  </div>
-                  <input value={commTitle} onChange={e => setCommTitle(e.target.value)} className="input text-xs w-full" placeholder="Title (optional)" />
-                  <textarea
-                    value={commContent}
-                    onChange={e => setCommContent(e.target.value)}
-                    rows={4}
-                    className="input text-xs w-full resize-none font-mono leading-relaxed"
-                    placeholder={"Paste WhatsApp chat or type call notes…\n[10:32] Client: We need 500 units of lip balm\n[10:34] Us: Sure, let me check and revert…"}
-                    autoFocus
-                  />
-                  {/* Attach row */}
-                  <div className="flex gap-3">
-                    <label className="flex items-center gap-1.5 cursor-pointer text-xs text-blue-500 hover:text-blue-600 font-medium">
-                      <input type="file" accept="image/*" multiple className="hidden" onChange={e => {
-                        const files = Array.from(e.target.files);
-                        setCommImages(prev => [...prev, ...files]);
-                        files.forEach(f => { const r = new FileReader(); r.onload = ev => setCommPreviews(prev => [...prev, { url: ev.target.result, name: f.name }]); r.readAsDataURL(f); });
-                      }} />
-                      📎 Photo
-                    </label>
-                    <label className="flex items-center gap-1.5 cursor-pointer text-xs text-purple-500 hover:text-purple-600 font-medium">
-                      <input type="file" accept="audio/*" multiple className="hidden" onChange={e => {
-                        const files = Array.from(e.target.files);
-                        setCommAudios(prev => [...prev, ...files]);
-                        setCommAudioNames(prev => [...prev, ...files.map(f => f.name)]);
-                      }} />
-                      🎙️ Audio
-                    </label>
-                  </div>
-                  {commPreviews.length > 0 && (
-                    <div className="flex flex-wrap gap-1.5">
-                      {commPreviews.map((img, i) => (
-                        <div key={i} className="relative group">
-                          <img src={img.url} alt={img.name} onClick={() => setLightboxImg(img.url)} className="w-12 h-12 object-cover rounded-lg border border-gray-200 dark:border-[#1b2e4a] cursor-pointer" />
-                          <button type="button" onClick={() => { setCommPreviews(p => p.filter((_, idx) => idx !== i)); setCommImages(p => p.filter((_, idx) => idx !== i)); }} className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-red-500 text-white text-[9px] flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">×</button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                  {commAudioNames.length > 0 && (
-                    <div className="space-y-1">
-                      {commAudioNames.map((name, i) => (
-                        <div key={i} className="flex items-center gap-2 bg-purple-50 dark:bg-purple-900/20 rounded-lg px-2.5 py-1.5 text-xs text-purple-700 dark:text-purple-300">
-                          <span>🎙️ {name}</span>
-                          <button type="button" onClick={() => { setCommAudios(p => p.filter((_, idx) => idx !== i)); setCommAudioNames(p => p.filter((_, idx) => idx !== i)); }} className="ml-auto text-red-400 hover:text-red-600">×</button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                  <button
-                    onClick={() => {
-                      if (!commContent.trim() && !commImages.length && !commAudios.length) { toast.error('Add content, photo or audio'); return; }
-                      const fd = new FormData();
-                      fd.append('type', commType); fd.append('title', commTitle); fd.append('content', commContent);
-                      if (commDate) fd.append('happenedAt', new Date(commDate).toISOString());
-                      commImages.forEach(f => fd.append('files', f));
-                      commAudios.forEach(f => fd.append('files', f));
-                      commLogMutation.mutate(fd);
-                    }}
-                    disabled={commLogMutation.isPending}
-                    className="btn-primary w-full justify-center text-sm disabled:opacity-50"
-                  >
-                    {commLogMutation.isPending ? 'Saving…' : 'Save Log'}
-                  </button>
-                </div>
-              )}
-
-              {/* Existing logs */}
-              {lead.communicationLogs?.length > 0 ? (
-                <div className="space-y-2.5">
-                  {[...lead.communicationLogs].sort((a, b) => new Date(b.happenedAt) - new Date(a.happenedAt)).map((log, i) => {
-                    const TYPE_ICON = { call: '📞', whatsapp: '💬', meeting: '🤝', email: '✉️', other: '📝' };
-                    return (
-                      <div key={log._id || i} className="rounded-xl border border-gray-100 dark:border-[#1b2e4a] p-3">
-                        <div className="flex items-center gap-2 mb-1.5">
-                          <span className="text-xs font-semibold text-gray-600 dark:text-gray-300">{TYPE_ICON[log.type]} {log.type === 'whatsapp' ? 'WhatsApp' : log.type.charAt(0).toUpperCase() + log.type.slice(1)}</span>
-                          <span className="text-xs text-gray-400">{format(new Date(log.happenedAt), 'dd MMM, h:mm a')}</span>
-                        </div>
-                        {log.title && <p className="text-xs font-semibold text-gray-700 dark:text-gray-200 mb-1">{log.title}</p>}
-                        {log.content && <p className="text-xs text-gray-600 dark:text-gray-400 whitespace-pre-wrap bg-gray-50 dark:bg-[#0a1220] rounded-lg p-2 font-mono leading-relaxed">{log.content.length > 200 ? log.content.slice(0, 200) + '…' : log.content}</p>}
-                        {log.images?.length > 0 && (
-                          <div className="flex flex-wrap gap-1.5 mt-2">
-                            {log.images.map((img, j) => (
-                              <img key={j} src={img.url} alt={img.name} onClick={() => setLightboxImg(img.url)} className="w-12 h-12 object-cover rounded-lg border border-gray-200 dark:border-[#1b2e4a] cursor-pointer hover:opacity-80 transition-opacity" />
-                            ))}
-                          </div>
-                        )}
-                        {log.audioFiles?.length > 0 && (
-                          <div className="space-y-1.5 mt-2">
-                            {log.audioFiles.map((a, j) => (
-                              <div key={j} className="rounded-lg bg-purple-50 dark:bg-purple-900/20 px-2.5 py-2 border border-purple-100 dark:border-purple-800/40">
-                                <p className="text-[10px] text-purple-500 dark:text-purple-400 mb-1 font-medium">🎙️ {a.name}</p>
-                                <audio controls src={a.url} className="w-full h-8" style={{ height: '32px' }} />
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              ) : !showCommForm && (
-                <p className="text-xs text-gray-400 text-center py-3">No logs yet — add what was discussed in calls or chats</p>
-              )}
-            </div>
 
             {/* Lightbox */}
             {lightboxImg && (
@@ -1314,120 +1471,316 @@ function LeadSlideOver({ leadId, onClose, onUpdated }) {
         )}
       </motion.div>
 
-      {/* Sample Prep Modal (→ Sample) */}
+      {/* Sample Request Modal (→ Sample) */}
       {showSampleModal && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-gray-900/60 backdrop-blur-sm" onClick={() => setShowSampleModal(false)} />
-          <div className="relative bg-white dark:bg-[#070c17] rounded-2xl shadow-2xl w-full max-w-md border border-gray-200 dark:border-[#1b2e4a]">
-            <div className="p-5 border-b border-gray-200 dark:border-[#1b2e4a] flex items-center justify-between">
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-3">
+          <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => setShowSampleModal(false)} />
+          <div className="relative bg-white dark:bg-[#070c17] rounded-2xl shadow-2xl w-full max-w-[620px] max-h-[92vh] flex flex-col border border-gray-200 dark:border-[#1b2e4a]">
+
+            {/* Header */}
+            <div className="px-[18px] py-3 border-b border-gray-200 dark:border-[#1b2e4a] bg-gradient-to-b from-fuchsia-50 to-white dark:from-fuchsia-900/10 dark:to-transparent flex items-start justify-between flex-shrink-0">
               <div>
-                <h3 className="font-bold text-gray-900 dark:text-white">🧪 Moving to Sample Stage</h3>
-                <p className="text-sm text-gray-500 mt-0.5">How many days do you need to prepare the sample?</p>
+                <h3 className="font-bold text-[15px] text-gray-900 dark:text-white flex items-center gap-2">
+                  <span className="inline-flex items-center justify-center w-6 h-6 bg-fuchsia-100 dark:bg-fuchsia-900/40 rounded-md text-[13px]">🧪</span>
+                  Moving to Sample Stage
+                </h3>
+                <p className="text-[11px] text-gray-400 mt-0.5">Fill the sample requirements below</p>
               </div>
-              <button onClick={() => setShowSampleModal(false)} className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-[#17263d]">
-                <XMarkIcon className="w-5 h-5 text-gray-500" />
+              <button onClick={() => setShowSampleModal(false)} className="p-1 rounded-md hover:bg-gray-100 dark:hover:bg-[#17263d] text-gray-400">
+                <XMarkIcon className="w-5 h-5" />
               </button>
             </div>
-            <div className="p-5 space-y-4">
-              {/* What was discussed */}
+
+            {/* Body */}
+            <div className="overflow-y-auto flex-1 px-[18px] py-3 space-y-4">
+
+              {/* Discussion */}
               <div>
-                <label className="label">What was discussed *</label>
+                <p className="text-[9px] font-bold text-fuchsia-700 dark:text-fuchsia-400 uppercase tracking-widest mb-1.5 flex items-center gap-1.5">
+                  <span className="inline-block w-[3px] h-[10px] bg-fuchsia-500 rounded-sm flex-shrink-0" />
+                  Discussion
+                </p>
                 <textarea
                   value={sampleDiscussed}
                   onChange={e => setSampleDiscussed(e.target.value)}
                   rows={3}
-                  className="input resize-none text-sm"
-                  placeholder="e.g. Customer confirmed interest in lip balm, wants to see a sample before ordering 500 units…"
+                  className="input resize-none text-sm w-full"
+                  placeholder="Key points, deadlines, special handling — anything not covered by structured fields..."
                   autoFocus
                 />
               </div>
-              {/* Product Interest — show always so user can fill/edit inline */}
+
+              {/* Products */}
               <div>
-                <label className="label">Product Interest *</label>
-                <input
-                  value={sampleProductInterest}
-                  onChange={e => setSampleProductInterest(e.target.value)}
-                  className="input"
-                  placeholder="e.g. Lip Balm, Face Cream (comma separated)"
-                />
+                <p className="text-[9px] font-bold text-fuchsia-700 dark:text-fuchsia-400 uppercase tracking-widest mb-1.5 flex items-center gap-1.5">
+                  <span className="inline-block w-[3px] h-[10px] bg-fuchsia-500 rounded-sm flex-shrink-0" />
+                  Products &amp; sample specs (per product)
+                </p>
+                <div className="space-y-2">
+                  {sampleRichProducts.map((p, i) => (
+                    <div key={i} className="bg-fuchsia-50 dark:bg-fuchsia-900/10 border-[1.5px] border-fuchsia-200 dark:border-fuchsia-800/40 rounded-xl p-2.5">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-[9px] font-bold text-white bg-fuchsia-500 px-2 py-0.5 rounded-full uppercase tracking-wide">Product {i + 1}</span>
+                        <button type="button" onClick={() => setSampleRichProducts(prev => {
+                          if (prev.length === 1) return [{ name: '', quantity: '', sampleSize: '', unit: 'ml', bottleReq: false, bottleDetails: '', labelReq: false, labelDetails: '', labReq: false, labDetails: '', individualPacking: '' }];
+                          return prev.filter((_, idx) => idx !== i);
+                        })} className="w-5 h-5 border border-gray-200 dark:border-[#1b2e4a] rounded-md text-gray-400 hover:border-red-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 text-xs flex items-center justify-center transition-colors">×</button>
+                      </div>
+
+                      {/* Name / Qty / Size / Unit */}
+                      <div className="grid grid-cols-[2fr_0.6fr_0.7fr_0.55fr] gap-2 mb-2">
+                        <div className="relative">
+                          <label className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide block mb-0.5">Name <span className="text-red-500">*</span></label>
+                          <input
+                            className="input text-[13px] py-1.5 px-2.5 w-full"
+                            type="text"
+                            placeholder="Type name or @ to search catalog"
+                            value={p.name}
+                            onChange={e => {
+                              const val = e.target.value;
+                              setSampleRichProducts(prev => prev.map((x, idx) => idx === i ? { ...x, name: val } : x));
+                              if (val.includes('@')) {
+                                const term = val.slice(val.lastIndexOf('@') + 1).toLowerCase();
+                                try {
+                                  const raw = localStorage.getItem('productCatalogDB_v2');
+                                  const all = raw ? (JSON.parse(raw).products || []).filter(pr => pr.status !== 'Discontinued') : [];
+                                  setSampleCatalogResults(term ? all.filter(pr => (pr.name || '').toLowerCase().includes(term) || (pr.code || '').toLowerCase().includes(term)).slice(0, 8) : all.slice(0, 8));
+                                } catch { setSampleCatalogResults([]); }
+                                setSampleCatalogOpen(i);
+                              } else {
+                                setSampleCatalogOpen(-1);
+                              }
+                            }}
+                            onKeyDown={e => { if (e.key === 'Escape') setSampleCatalogOpen(-1); }}
+                            autoComplete="off"
+                          />
+                          {sampleCatalogOpen === i && (
+                            <div className="absolute z-50 top-full left-0 right-0 mt-1 bg-white dark:bg-[#0f1a2e] border border-gray-200 dark:border-[#1b2e4a] rounded-xl shadow-xl max-h-44 overflow-y-auto">
+                              {sampleCatalogResults.length === 0 ? (
+                                <p className="text-xs text-gray-400 p-3 text-center">No products found</p>
+                              ) : sampleCatalogResults.map(pr => (
+                                <button key={pr.id} type="button"
+                                  onClick={() => {
+                                    setSampleRichProducts(prev => prev.map((x, idx) => idx === i ? { ...x, name: pr.name, unit: pr.unit || x.unit } : x));
+                                    setSampleCatalogOpen(-1);
+                                  }}
+                                  className="w-full flex items-center gap-2.5 px-3 py-2 hover:bg-fuchsia-50 dark:hover:bg-fuchsia-900/20 text-left transition-colors"
+                                >
+                                  {pr.image ? (
+                                    <img src={pr.image} alt={pr.name} className="w-7 h-7 rounded-md object-cover flex-shrink-0 border border-gray-100 dark:border-[#1b2e4a]" />
+                                  ) : (
+                                    <div className="w-7 h-7 rounded-md bg-fuchsia-100 dark:bg-fuchsia-900/30 flex items-center justify-center flex-shrink-0 text-xs">📦</div>
+                                  )}
+                                  <div className="min-w-0">
+                                    <p className="text-xs font-semibold text-gray-800 dark:text-gray-200 truncate">{pr.name}</p>
+                                    <p className="text-[10px] text-gray-400">{pr.code}{pr.unit ? ` · ${pr.unit}` : ''}</p>
+                                  </div>
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                        <div>
+                          <label className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide block mb-0.5">Qty <span className="text-red-500">*</span></label>
+                          <input className="input text-[13px] py-1.5 px-2.5 w-full" type="number" min="1" placeholder="3" value={p.quantity} onChange={e => setSampleRichProducts(prev => prev.map((x, idx) => idx === i ? { ...x, quantity: e.target.value } : x))} />
+                        </div>
+                        <div>
+                          <label className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide block mb-0.5">Size <span className="text-red-500">*</span></label>
+                          <input className="input text-[13px] py-1.5 px-2.5 w-full" type="number" min="1" placeholder="100" value={p.sampleSize} onChange={e => setSampleRichProducts(prev => prev.map((x, idx) => idx === i ? { ...x, sampleSize: e.target.value } : x))} />
+                        </div>
+                        <div>
+                          <label className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide block mb-0.5">Unit <span className="text-red-500">*</span></label>
+                          <select className="input text-[13px] py-1.5 px-2 w-full" value={p.unit} onChange={e => setSampleRichProducts(prev => prev.map((x, idx) => idx === i ? { ...x, unit: e.target.value } : x))}>
+                            <option value="ml">ml</option>
+                            <option value="g">g</option>
+                          </select>
+                        </div>
+                      </div>
+
+                      {/* Bottle toggle */}
+                      <div className={`flex items-center gap-2 mb-1${p.bottleReq ? ' flex-wrap' : ''}`}>
+                        <div className="flex gap-1 flex-shrink-0">
+                          <button type="button" onClick={() => setSampleRichProducts(prev => prev.map((x, idx) => idx === i ? { ...x, bottleReq: true } : x))} className={`px-2.5 py-1 rounded-md text-[11px] font-semibold border-[1.5px] transition-all ${p.bottleReq ? 'border-fuchsia-500 bg-fuchsia-100 dark:bg-fuchsia-900/30 text-fuchsia-700 dark:text-fuchsia-300' : 'border-gray-200 dark:border-[#1b2e4a] bg-white dark:bg-[#0f1a2e] text-gray-600 dark:text-gray-400'}`}>Yes</button>
+                          <button type="button" onClick={() => setSampleRichProducts(prev => prev.map((x, idx) => idx === i ? { ...x, bottleReq: false } : x))} className={`px-2.5 py-1 rounded-md text-[11px] font-semibold border-[1.5px] transition-all ${!p.bottleReq ? 'border-fuchsia-500 bg-fuchsia-100 dark:bg-fuchsia-900/30 text-fuchsia-700 dark:text-fuchsia-300' : 'border-gray-200 dark:border-[#1b2e4a] bg-white dark:bg-[#0f1a2e] text-gray-600 dark:text-gray-400'}`}>No</button>
+                        </div>
+                        <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide w-[60px] flex-shrink-0">Bottle <span className="text-red-500">*</span></span>
+                        {p.bottleReq && (
+                          <textarea value={p.bottleDetails} onChange={e => setSampleRichProducts(prev => prev.map((x, idx) => idx === i ? { ...x, bottleDetails: e.target.value } : x))} placeholder="Bottle details (optional)..." className="flex-1 min-h-[28px] py-1.5 px-2 text-[12px] border-[1.5px] border-gray-200 dark:border-[#1b2e4a] rounded-md bg-white dark:bg-[#0f1a2e] dark:text-gray-200 resize-none focus:outline-none focus:border-fuchsia-500" rows={1} />
+                        )}
+                      </div>
+
+                      {/* Label toggle */}
+                      <div className={`flex items-center gap-2 mb-1${p.labelReq ? ' flex-wrap' : ''}`}>
+                        <div className="flex gap-1 flex-shrink-0">
+                          <button type="button" onClick={() => setSampleRichProducts(prev => prev.map((x, idx) => idx === i ? { ...x, labelReq: true } : x))} className={`px-2.5 py-1 rounded-md text-[11px] font-semibold border-[1.5px] transition-all ${p.labelReq ? 'border-fuchsia-500 bg-fuchsia-100 dark:bg-fuchsia-900/30 text-fuchsia-700 dark:text-fuchsia-300' : 'border-gray-200 dark:border-[#1b2e4a] bg-white dark:bg-[#0f1a2e] text-gray-600 dark:text-gray-400'}`}>Yes</button>
+                          <button type="button" onClick={() => setSampleRichProducts(prev => prev.map((x, idx) => idx === i ? { ...x, labelReq: false } : x))} className={`px-2.5 py-1 rounded-md text-[11px] font-semibold border-[1.5px] transition-all ${!p.labelReq ? 'border-fuchsia-500 bg-fuchsia-100 dark:bg-fuchsia-900/30 text-fuchsia-700 dark:text-fuchsia-300' : 'border-gray-200 dark:border-[#1b2e4a] bg-white dark:bg-[#0f1a2e] text-gray-600 dark:text-gray-400'}`}>No</button>
+                        </div>
+                        <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide w-[60px] flex-shrink-0">Label <span className="text-red-500">*</span></span>
+                        {p.labelReq && (
+                          <textarea value={p.labelDetails} onChange={e => setSampleRichProducts(prev => prev.map((x, idx) => idx === i ? { ...x, labelDetails: e.target.value } : x))} placeholder="Label specs (optional)..." className="flex-1 min-h-[28px] py-1.5 px-2 text-[12px] border-[1.5px] border-gray-200 dark:border-[#1b2e4a] rounded-md bg-white dark:bg-[#0f1a2e] dark:text-gray-200 resize-none focus:outline-none focus:border-fuchsia-500" rows={1} />
+                        )}
+                      </div>
+
+                      {/* Lab test toggle */}
+                      <div className={`flex items-center gap-2 mb-2${p.labReq ? ' flex-wrap' : ''}`}>
+                        <div className="flex gap-1 flex-shrink-0">
+                          <button type="button" onClick={() => setSampleRichProducts(prev => prev.map((x, idx) => idx === i ? { ...x, labReq: true } : x))} className={`px-2.5 py-1 rounded-md text-[11px] font-semibold border-[1.5px] transition-all ${p.labReq ? 'border-fuchsia-500 bg-fuchsia-100 dark:bg-fuchsia-900/30 text-fuchsia-700 dark:text-fuchsia-300' : 'border-gray-200 dark:border-[#1b2e4a] bg-white dark:bg-[#0f1a2e] text-gray-600 dark:text-gray-400'}`}>Yes</button>
+                          <button type="button" onClick={() => setSampleRichProducts(prev => prev.map((x, idx) => idx === i ? { ...x, labReq: false } : x))} className={`px-2.5 py-1 rounded-md text-[11px] font-semibold border-[1.5px] transition-all ${!p.labReq ? 'border-fuchsia-500 bg-fuchsia-100 dark:bg-fuchsia-900/30 text-fuchsia-700 dark:text-fuchsia-300' : 'border-gray-200 dark:border-[#1b2e4a] bg-white dark:bg-[#0f1a2e] text-gray-600 dark:text-gray-400'}`}>No</button>
+                        </div>
+                        <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide w-[60px] flex-shrink-0">Lab test <span className="text-red-500">*</span></span>
+                        {p.labReq && (
+                          <textarea value={p.labDetails} onChange={e => setSampleRichProducts(prev => prev.map((x, idx) => idx === i ? { ...x, labDetails: e.target.value } : x))} placeholder="Lab testing requirements (optional)..." className="flex-1 min-h-[28px] py-1.5 px-2 text-[12px] border-[1.5px] border-gray-200 dark:border-[#1b2e4a] rounded-md bg-white dark:bg-[#0f1a2e] dark:text-gray-200 resize-none focus:outline-none focus:border-fuchsia-500" rows={1} />
+                        )}
+                      </div>
+
+                      {/* Individual packing */}
+                      <input className="input text-[12px] py-1.5 px-2.5 w-full" type="text" placeholder="Individual packing — e.g. Each in separate carton box" value={p.individualPacking} onChange={e => setSampleRichProducts(prev => prev.map((x, idx) => idx === i ? { ...x, individualPacking: e.target.value } : x))} />
+                    </div>
+                  ))}
+                </div>
+                <button type="button" onClick={() => setSampleRichProducts(prev => [...prev, { name: '', quantity: '', sampleSize: '', unit: 'ml', bottleReq: false, bottleDetails: '', labelReq: false, labelDetails: '', labReq: false, labDetails: '', individualPacking: '' }])} className="mt-2 w-full flex items-center justify-center gap-1.5 py-2 border-[1.5px] border-dashed border-fuchsia-400 text-fuchsia-600 dark:text-fuchsia-400 text-[11px] font-semibold rounded-lg hover:bg-fuchsia-50 dark:hover:bg-fuchsia-900/10 transition-colors">
+                  + Add another product
+                </button>
               </div>
-              {/* Estimated Value */}
+
+              {/* Outer carton box */}
               <div>
-                <label className="label">Estimated Value (₹) *</label>
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 font-medium text-sm">₹</span>
-                  <input
-                    type="number"
-                    min="1"
-                    value={sampleEstimatedValue}
-                    onChange={e => setSampleEstimatedValue(e.target.value)}
-                    className="input pl-7"
-                    placeholder="e.g. 25000"
-                  />
+                <p className="text-[9px] font-bold text-fuchsia-700 dark:text-fuchsia-400 uppercase tracking-widest mb-1.5 flex items-center gap-1.5">
+                  <span className="inline-block w-[3px] h-[10px] bg-fuchsia-500 rounded-sm flex-shrink-0" />
+                  Outer carton box
+                </p>
+                <div className="flex items-center gap-3 flex-wrap">
+                  <span className="text-[11px] font-semibold text-gray-700 dark:text-gray-300 min-w-[70px]">Required <span className="text-red-500">*</span></span>
+                  <div className="flex gap-1">
+                    <button type="button" onClick={() => setSampleOuterCarton(true)} className={`px-2.5 py-1 rounded-md text-[11px] font-semibold border-[1.5px] transition-all ${sampleOuterCarton ? 'border-fuchsia-500 bg-fuchsia-100 dark:bg-fuchsia-900/30 text-fuchsia-700 dark:text-fuchsia-300' : 'border-gray-200 dark:border-[#1b2e4a] bg-white dark:bg-[#0f1a2e] text-gray-600 dark:text-gray-400'}`}>Yes</button>
+                    <button type="button" onClick={() => { setSampleOuterCarton(false); setSampleCartonSize(''); }} className={`px-2.5 py-1 rounded-md text-[11px] font-semibold border-[1.5px] transition-all ${!sampleOuterCarton ? 'border-fuchsia-500 bg-fuchsia-100 dark:bg-fuchsia-900/30 text-fuchsia-700 dark:text-fuchsia-300' : 'border-gray-200 dark:border-[#1b2e4a] bg-white dark:bg-[#0f1a2e] text-gray-600 dark:text-gray-400'}`}>No</button>
+                  </div>
+                  {sampleOuterCarton && (
+                    <input className="input text-[13px] py-1.5 px-2.5 flex-1 min-w-[180px]" type="text" placeholder="Carton size (L × W × H cm) — e.g. 30 × 20 × 15" value={sampleCartonSize} onChange={e => setSampleCartonSize(e.target.value)} />
+                  )}
                 </div>
               </div>
+
+              {/* Shipping address */}
               <div>
-                <label className="label">Sample Prep Time (days) *</label>
-                <input
-                  type="number"
-                  min="1"
-                  value={samplePrepDays}
-                  onChange={e => setSamplePrepDays(e.target.value)}
-                  className="input"
-                  placeholder="e.g. 3"
-                  autoFocus
+                <p className="text-[9px] font-bold text-fuchsia-700 dark:text-fuchsia-400 uppercase tracking-widest mb-1.5 flex items-center gap-1.5">
+                  <span className="inline-block w-[3px] h-[10px] bg-fuchsia-500 rounded-sm flex-shrink-0" />
+                  Shipping address
+                </p>
+                <textarea
+                  value={sampleShippingAddress}
+                  onChange={e => setSampleShippingAddress(e.target.value)}
+                  rows={2}
+                  className="input resize-none text-sm w-full"
+                  placeholder="Full address, contact person, phone..."
                 />
-                {samplePrepDays && Number(samplePrepDays) > 0 && (
-                  <p className="text-xs text-gray-400 mt-1">
-                    Sample ready by: {format(new Date(Date.now() + Number(samplePrepDays) * 86400000), 'dd MMM yyyy')}
-                  </p>
-                )}
               </div>
-              <div className="flex gap-3">
-                <button type="button" onClick={() => setShowSampleModal(false)} className="btn-secondary flex-1 justify-center">
-                  Cancel
-                </button>
-                <button
-                  onClick={async () => {
-                    if (!sampleDiscussed.trim()) { toast.error('Enter what was discussed'); return; }
-                    const piList = sampleProductInterest.split(',').map(s => s.trim()).filter(Boolean);
-                    if (!piList.length) { toast.error('Enter at least one product interest'); return; }
-                    if (!sampleEstimatedValue || Number(sampleEstimatedValue) <= 0) { toast.error('Enter estimated value'); return; }
-                    if (!samplePrepDays || Number(samplePrepDays) < 1) { toast.error('Enter valid prep days'); return; }
-                    const days = Number(samplePrepDays);
-                    const startedAt = new Date().toISOString();
-                    // Save product interest + estimated value if changed
-                    const leadUpdates = {};
-                    if (JSON.stringify(lead.productInterest || []) !== JSON.stringify(piList)) leadUpdates.productInterest = piList;
-                    if (Number(sampleEstimatedValue) !== lead.estimatedValue) leadUpdates.estimatedValue = Number(sampleEstimatedValue);
-                    if (Object.keys(leadUpdates).length) {
-                      await api.put(`/crm/leads/${leadId}`, leadUpdates).catch(() => {});
-                    }
-                    // Save comm log
-                    const fd = new FormData();
-                    fd.append('type', 'call');
-                    fd.append('content', sampleDiscussed.trim());
-                    fd.append('happenedAt', new Date().toISOString());
-                    await api.post(`/crm/leads/${leadId}/comm-log`, fd).catch(() => {});
-                    // Move to Sample stage
-                    statusMutation.mutate({ status: 'Sample' }, {
-                      onSuccess: async () => {
-                        try {
-                          await api.put(`/crm/leads/${leadId}/sample`, { preparationDays: days, startedAt });
-                          qc.invalidateQueries({ queryKey: ['crm', 'lead', leadId] });
-                        } catch { /* prep save failed silently — status still moved */ }
-                        setShowSampleModal(false);
-                      }
-                    });
-                  }}
-                  disabled={statusMutation.isPending}
-                  className="btn-primary flex-1 justify-center disabled:opacity-50"
-                  style={{ background: 'linear-gradient(135deg,#d946ef,#a21caf)' }}
-                >
-                  {statusMutation.isPending ? 'Moving…' : 'Confirm'}
-                </button>
+
+              {/* Cost & timeline */}
+              <div>
+                <p className="text-[9px] font-bold text-fuchsia-700 dark:text-fuchsia-400 uppercase tracking-widest mb-1.5 flex items-center gap-1.5">
+                  <span className="inline-block w-[3px] h-[10px] bg-fuchsia-500 rounded-sm flex-shrink-0" />
+                  Cost &amp; timeline
+                </p>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide block mb-0.5">Sampling + R&amp;D cost (₹) <span className="text-red-500">*</span></label>
+                    <div className="relative">
+                      <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 font-semibold text-sm pointer-events-none">₹</span>
+                      <input className="input text-sm pl-6 w-full" type="number" min="0" placeholder="2700" value={sampleEstimatedValue} onChange={e => setSampleEstimatedValue(e.target.value)} />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide block mb-0.5">Lead time (days) <span className="text-red-500">*</span></label>
+                    <input className="input text-sm w-full" type="number" min="1" placeholder="e.g. 3" value={samplePrepDays} onChange={e => setSamplePrepDays(e.target.value)} />
+                    {samplePrepDays && Number(samplePrepDays) > 0 && (
+                      <p className="text-[10px] text-gray-400 mt-0.5">Ready by: {format(new Date(Date.now() + Number(samplePrepDays) * 86400000), 'dd MMM yyyy')}</p>
+                    )}
+                  </div>
+                </div>
               </div>
+
             </div>
+
+            {/* Footer */}
+            <div className="px-[18px] py-2.5 border-t border-gray-200 dark:border-[#1b2e4a] flex gap-3 flex-shrink-0 bg-gray-50/80 dark:bg-[#070c17]">
+              <button type="button" onClick={() => setShowSampleModal(false)} className="btn-secondary flex-1 justify-center">Cancel</button>
+              <button
+                type="button"
+                disabled={statusMutation.isPending}
+                className="btn-primary flex-1 justify-center disabled:opacity-50"
+                style={{ background: 'linear-gradient(135deg,#d946ef,#a21caf)', boxShadow: '0 3px 10px rgba(192,38,211,0.30)' }}
+                onClick={async () => {
+                  if (!sampleDiscussed.trim()) { toast.error('Enter what was discussed'); return; }
+                  const validProducts = sampleRichProducts.filter(p => p.name.trim() && p.quantity && p.sampleSize);
+                  if (!validProducts.length) { toast.error('Add at least one product with name, qty and size'); return; }
+                  if (!sampleShippingAddress.trim()) { toast.error('Enter shipping address'); return; }
+                  if (!sampleEstimatedValue || Number(sampleEstimatedValue) < 0) { toast.error('Enter sampling + R&D cost'); return; }
+                  if (!samplePrepDays || Number(samplePrepDays) < 1) { toast.error('Enter valid lead time'); return; }
+
+                  const piList = validProducts.map(p => `${p.name.trim()} (${p.quantity} × ${p.sampleSize}${p.unit})`);
+                  await api.put(`/crm/leads/${leadId}`, {
+                    productInterest: piList,
+                    ...(Number(sampleEstimatedValue) > 0 ? { estimatedValue: Number(sampleEstimatedValue) } : {}),
+                  }).catch(() => {});
+
+                  const productDetails = validProducts.map((p, i) =>
+                    `Product ${i + 1}: ${p.name.trim()} — ${p.quantity} pcs × ${p.sampleSize}${p.unit}\n` +
+                    `  Bottle: ${p.bottleReq ? `Yes${p.bottleDetails ? ' — ' + p.bottleDetails : ''}` : 'No'}\n` +
+                    `  Label: ${p.labelReq ? `Yes${p.labelDetails ? ' — ' + p.labelDetails : ''}` : 'No'}\n` +
+                    `  Lab test: ${p.labReq ? `Yes${p.labDetails ? ' — ' + p.labDetails : ''}` : 'No'}\n` +
+                    `  Packing: ${p.individualPacking || '—'}`
+                  ).join('\n\n');
+                  const fullContent = [
+                    `Discussion:\n${sampleDiscussed.trim()}`,
+                    `Products:\n${productDetails}`,
+                    sampleOuterCarton ? `Outer Carton: Yes${sampleCartonSize ? ' — ' + sampleCartonSize : ''}` : 'Outer Carton: No',
+                    `Shipping Address:\n${sampleShippingAddress.trim()}`,
+                    `Cost: ₹${sampleEstimatedValue} | Lead Time: ${samplePrepDays} day(s)`,
+                  ].join('\n\n---\n\n');
+                  const fd = new FormData();
+                  fd.append('type', 'call');
+                  fd.append('content', fullContent);
+                  fd.append('happenedAt', new Date().toISOString());
+                  await api.post(`/crm/leads/${leadId}/comm-log`, fd).catch(() => {});
+
+                  statusMutation.mutate({ status: 'Sample' }, {
+                    onSuccess: async () => {
+                      try {
+                        const payload = {
+                          preparationDays: Number(samplePrepDays),
+                          startedAt: new Date().toISOString(),
+                          discussion: sampleDiscussed.trim(),
+                          sampleProducts: validProducts.map(p => ({
+                            name: p.name.trim(),
+                            quantity: Number(p.quantity) || 0,
+                            sampleSize: Number(p.sampleSize) || 0,
+                            unit: p.unit || 'ml',
+                            bottleReq: p.bottleReq,
+                            bottleDetails: p.bottleDetails || '',
+                            labelReq: p.labelReq,
+                            labelDetails: p.labelDetails || '',
+                            labReq: p.labReq,
+                            labDetails: p.labDetails || '',
+                            individualPacking: p.individualPacking || '',
+                          })),
+                          shippingAddress: sampleShippingAddress.trim(),
+                          outerCartonRequired: sampleOuterCarton,
+                          outerCartonSize: sampleCartonSize.trim(),
+                        };
+                        if (Number(sampleEstimatedValue) > 0) payload.chargeAmount = Number(sampleEstimatedValue);
+                        await api.put(`/crm/leads/${leadId}/sample`, payload);
+                        qc.invalidateQueries({ queryKey: ['crm', 'lead', leadId] });
+                      } catch { /* silent */ }
+                      setShowSampleModal(false);
+                    }
+                  });
+                }}
+              >
+                {statusMutation.isPending ? 'Moving…' : 'Confirm Sample Request'}
+              </button>
+            </div>
+
           </div>
         </div>
       )}

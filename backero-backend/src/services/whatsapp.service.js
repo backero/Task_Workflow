@@ -485,6 +485,54 @@ const sendInProgressLeadUpdate = async (phone, { name, lastUpdate }) => {
   return sendMessage(phone, msg);
 };
 
+const sendActiveClientStageUpdate = async (phone, { name, stage, lastUpdate }) => {
+  const stageInfo = {
+    'Sample':            { emoji: '🔬', label: 'Sample Preparation',  detail: 'Your sample is currently being prepared by our team.' },
+    'In Progress':       { emoji: '⚙️', label: 'In Progress',         detail: 'Your order is actively in progress with our team.' },
+    'Ready to Dispatch': { emoji: '📦', label: 'Ready to Dispatch',   detail: 'Great news! Your order is ready and will be dispatched shortly.' },
+    'Payment Pending':   { emoji: '💳', label: 'Payment Pending',     detail: "Your order is ready. We're awaiting payment confirmation to proceed with dispatch." },
+  };
+  const info = stageInfo[stage] || { emoji: '📋', label: stage, detail: 'Your order is being processed.' };
+  const msg =
+    `Hello ${name} 👋\n\n` +
+    `${info.emoji} *Order Status: ${info.label}*\n\n` +
+    `${info.detail}\n\n` +
+    (lastUpdate ? `📋 *Latest Update:*\n${lastUpdate}\n\n` : '') +
+    `We'll keep you updated at every step. For any queries, feel free to reach out anytime.\n\n` +
+    `— Backero Team`;
+  return sendMessage(phone, msg);
+};
+
+const sendSampleDispatchedToClient = async (phone, { name, product, quantity, courier, sentDate }) => {
+  const dateStr = sentDate
+    ? new Date(sentDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
+    : 'today';
+  const msg =
+    `Hello ${name} 👋\n\n` +
+    `✅ *Your sample has been dispatched!*\n\n` +
+    (product  ? `📦 *Product:* ${product}\n`   : '') +
+    (quantity ? `🔢 *Quantity:* ${quantity}\n`  : '') +
+    (courier  ? `🚚 *Courier:* ${courier}\n`   : '') +
+    `📅 *Dispatched on:* ${dateStr}\n\n` +
+    `Please check your delivery and let us know if you have any questions.\n\n` +
+    `— Backero Team`;
+  return sendMessage(phone, msg);
+};
+
+const sendDispatchedFeedbackRequest = async (phone, { name, product }) => {
+  const msg =
+    `Hello ${name} 👋\n\n` +
+    `🎉 *Your order has been dispatched!*\n\n` +
+    (product ? `📦 *Product:* ${product}\n\n` : '\n') +
+    `We hope you're happy with your experience. We'd love to hear your feedback!\n\n` +
+    `⭐ *Please reply with:*\n` +
+    `• Your rating (1 to 5)\n` +
+    `• Any comments or suggestions\n\n` +
+    `Your feedback helps us serve you better. Thank you for choosing us! 🙏\n\n` +
+    `— Backero Team`;
+  return sendMessage(phone, msg);
+};
+
 const sendOverdueFollowUpRepAlert = async (phone, { leadName, leadPhone, daysOverdue, leadId }) => {
   const msg =
     `⚠️ *Follow-up Overdue — Backero CRM*\n\n` +
@@ -523,6 +571,9 @@ module.exports = {
   sendTasksDueTodayGroup,
   sendNewLeadAlert,
   sendInProgressLeadUpdate,
+  sendActiveClientStageUpdate,
+  sendSampleDispatchedToClient,
+  sendDispatchedFeedbackRequest,
   sendOverdueFollowUpRepAlert,
   sendStaleLeadManagerAlert,
   sendDailyReport,

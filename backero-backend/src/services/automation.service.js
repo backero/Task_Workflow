@@ -9,7 +9,7 @@ const MarketplaceDaily = require('../models/MarketplaceDaily');
 const MarketplacePlan = require('../models/MarketplacePlan');
 const MarketplacePlanProgress = require('../models/MarketplacePlanProgress');
 const { createNotification, bulkCreateNotifications } = require('./notification.service');
-const { sendTaskOverdueEmployee, sendTaskOverdueManager, sendTaskOverdueGroup, sendTasksDueTodayGroup, sendDailyReport, sendDailyReportWithPDF, sendInProgressLeadUpdate, sendOverdueFollowUpRepAlert, sendStaleLeadManagerAlert } = require('./whatsapp.service');
+const { sendTaskOverdueEmployee, sendTaskOverdueManager, sendTaskOverdueGroup, sendTasksDueTodayGroup, sendDailyReport, sendDailyReportWithPDF, sendInProgressLeadUpdate, sendActiveClientStageUpdate, sendOverdueFollowUpRepAlert, sendStaleLeadManagerAlert } = require('./whatsapp.service');
 const Department = require('../models/Department');
 const { generateDailyReportPDF } = require('./reportPdf.service');
 const { autoSyncAllOrgs } = require('./googleSheets.service');
@@ -77,9 +77,9 @@ const startAutomationEngine = (socketIo) => {
     runWeeklyReport().catch(logger.error);
   });
 
-  // Every day at 10 AM IST: send WhatsApp update to all In Progress leads
+  // Every day at 10 AM IST: send daily stage updates to all active leads (Sample, In Progress, Ready to Dispatch, Payment Pending)
   cron.schedule('30 4 * * *', () => {  // 10 AM IST = 4:30 AM UTC
-    runInProgressLeadMessages().catch(logger.error);
+    runActiveClientUpdates().catch(logger.error);
   });
 
   // Every day at 9 AM IST: send due-today task reminders to department groups
@@ -484,14 +484,16 @@ const runLowStockCheck = async () => {
   logger.info(`Low stock check: ${lowStockProducts.length} products below minimum`);
 };
 
-const runInProgressLeadMessages = async () => {
-  logger.info('[InProgress] Sending daily WhatsApp updates to In Progress leads...');
+const runActiveClientUpdates = async () => {
+  logger.info('[ClientUpdates] Sending daily stage updates to all active leads...');
 
   const todayStart = new Date();
   todayStart.setHours(0, 0, 0, 0);
 
+  const ACTIVE_STAGES = ['Sample', 'In Progress', 'Ready to Dispatch', 'Payment Pending'];
+
   const leads = await Lead.find({
-    status: 'In Progress',
+    status: { $in: ACTIVE_STAGES },
     $or: [{ whatsapp: { $exists: true, $ne: '' } }, { phone: { $exists: true, $ne: '' } }],
   });
 
@@ -500,21 +502,20 @@ const runInProgressLeadMessages = async () => {
     const phone = lead.whatsapp || lead.phone;
     if (!phone) continue;
 
-    // Skip if an update was already posted today (WhatsApp sent at post time)
+    // Skip if a manual update was already sent to this lead today
     if (lead.lastUpdateAt && lead.lastUpdateAt >= todayStart) {
       skipped++;
       continue;
     }
 
-    // Resend last update, or fall back to last follow-up note
     const lastUpdate = lead.lastUpdateText ||
       (lead.followUps?.length ? [...lead.followUps].reverse()[0]?.notes : null);
 
-    await sendInProgressLeadUpdate(phone, { name: lead.name, lastUpdate });
+    await sendActiveClientStageUpdate(phone, { name: lead.name, stage: lead.status, lastUpdate });
     sent++;
   }
 
-  logger.info(`[InProgress] Daily updates: ${sent} sent, ${skipped} skipped (already updated today)`);
+  logger.info(`[ClientUpdates] Daily updates: ${sent} sent, ${skipped} skipped (already updated today)`);
 };
 
 const runDueTodayTaskReminder = async () => {

@@ -6,7 +6,7 @@ const { authorizeAdminOrAbove, authorizeManagerOrAbove } = require('../middlewar
 const { asyncHandler, sendSuccess, sendError } = require('../utils/helpers');
 const multer = require('multer');
 const imageUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 }, fileFilter: (_, f, cb) => cb(null, f.mimetype.startsWith('image/')) });
-const commLogUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 25 * 1024 * 1024 }, fileFilter: (_, f, cb) => cb(null, f.mimetype.startsWith('image/') || f.mimetype.startsWith('audio/')) });
+const commLogUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 100 * 1024 * 1024 }, fileFilter: (_, f, cb) => cb(null, f.mimetype.startsWith('image/') || f.mimetype.startsWith('audio/') || f.mimetype.startsWith('video/')) });
 const Organization = require('../models/Organization');
 const { syncLeadsFromSheet, previewSheet, hasWriteCredentials } = require('../services/googleSheets.service');
 
@@ -103,6 +103,8 @@ router.post('/leads/:id/sample/team-update', authorizeManagerOrAbove, ctrl.addSa
 router.post('/leads/:id/sample/client-note', authorizeManagerOrAbove, ctrl.addSampleClientNote);
 router.post('/leads/:id/sample/image', authorizeManagerOrAbove, ctrl.addSampleImage);
 router.post('/leads/:id/comm-log', authorizeManagerOrAbove, commLogUpload.array('files', 10), ctrl.addCommLog);
+router.put('/leads/:id/comm-log/:logId', authorizeAdminOrAbove, ctrl.editCommLog);
+router.delete('/leads/:id/comm-log/:logId', authorizeAdminOrAbove, ctrl.deleteCommLog);
 router.post('/leads/:id/sample-invoice', authorizeManagerOrAbove, ctrl.createSampleInvoice);
 router.post('/leads/:id/followup', authorizeManagerOrAbove, ctrl.addFollowUp);
 router.post('/leads/:id/assign', authorizeManagerOrAbove, ctrl.assignLead);

@@ -77,13 +77,35 @@ const leadSchema = new mongoose.Schema({
 
   // Sample stage details
   sampleDetails: {
+    // Rich intake form data (set when moving to Sample stage)
+    discussion: { type: String },
+    sampleProducts: [{
+      name: { type: String },
+      quantity: { type: Number },
+      sampleSize: { type: Number },
+      unit: { type: String, default: 'ml' },
+      bottleReq: { type: Boolean, default: false },
+      bottleDetails: { type: String },
+      labelReq: { type: Boolean, default: false },
+      labelDetails: { type: String },
+      labReq: { type: Boolean, default: false },
+      labDetails: { type: String },
+      individualPacking: { type: String },
+    }],
+    shippingAddress: { type: String },
+    outerCartonRequired: { type: Boolean, default: false },
+    outerCartonSize: { type: String },
+    // Work tracking
+    workStarted: { type: Boolean, default: false },
+    workStartedAt: { type: Date },
+    // Legacy / dispatch tracking fields
     product: { type: String },
     quantity: { type: Number },
     sentDate: { type: Date },
     courier: { type: String },
     chargeAmount: { type: Number, default: 0 },
     chargeBy: { type: String, enum: ['client', 'company'], default: 'client' },
-    paymentStatus: { type: String, enum: ['pending', 'advance_received', 'full_paid'], default: 'pending' },
+    paymentStatus: { type: String, enum: ['pending', 'full_paid'], default: 'pending' },
     advanceAmount: { type: Number, default: 0 },
     paymentMode: { type: String, enum: ['cash', 'upi', 'bank_transfer'], default: 'upi' },
     images: [{ url: String, name: String, addedAt: { type: Date, default: Date.now } }],
@@ -126,6 +148,7 @@ const leadSchema = new mongoose.Schema({
     happenedAt:  { type: Date, default: Date.now },
     images:      [{ url: String, publicId: String, name: String }],
     audioFiles:  [{ url: String, publicId: String, name: String }],
+    videoFiles:  [{ url: String, publicId: String, name: String }],
     addedBy:     { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
     createdAt:   { type: Date, default: Date.now },
   }],
