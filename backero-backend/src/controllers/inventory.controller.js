@@ -293,7 +293,8 @@ exports.getRawMaterials = asyncHandler(async (req, res) => {
       { hsnCode: { $regex: esc, $options: 'i' } },
     ];
   }
-  const materials = await Product.find(filter).sort({ name: 1 }).lean();
+  const raw = await Product.find(filter).sort({ name: 1 }).lean();
+  const materials = raw.map(m => ({ ...m, code: m.sku }));
   sendSuccess(res, { materials });
 });
 

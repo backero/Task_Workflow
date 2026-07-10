@@ -39,11 +39,19 @@ const productSchema = new mongoose.Schema({
   batches: [{
     batchId:      { type: String },
     quantity:     { type: Number, default: 0 },
+    totalPrice:   { type: Number },
     price:        { type: Number },
     batchNumber:  { type: String },
     expiryDate:   { type: Date },
     receivedDate: { type: Date },
+    location:     { type: String },
+    supplier:     { type: String },
+    invoice:      { type: String },
     notes:        { type: String },
+    qcCheckedBy:  { type: String },
+    qcDate:       { type: String },
+    qcStatus:     { type: String, default: 'pass' },
+    qcNotes:      { type: String },
   }],
 
   // ISO 9001:2015 QC fields (raw materials)
