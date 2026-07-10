@@ -784,6 +784,24 @@ function FormulationTab({ product, form, setForm, onSave, isPending }) {
   });
   const rawMaterials = rmData || [];
 
+  // Auto-sync: when raw materials load, update costPerKg for all linked rows
+  useEffect(() => {
+    if (!rawMaterials.length) return;
+    setForm(f => {
+      const rows = (f.formulation?.rows || []);
+      if (!rows.some(r => r.rawMaterialId)) return f; // nothing linked, skip
+      const updated = rows.map(r => {
+        if (!r.rawMaterialId) return r;
+        const mat = rawMaterials.find(m => m._id === r.rawMaterialId || m._id?.toString() === r.rawMaterialId);
+        if (!mat) return r;
+        const liveCost = mat.costPrice || 0;
+        return liveCost !== Number(r.costPerKg) ? { ...r, costPerKg: liveCost } : r;
+      });
+      const changed = updated.some((r, i) => r !== rows[i]);
+      return changed ? { ...f, formulation: { ...f.formulation, rows: updated } } : f;
+    });
+  }, [rawMaterials]);
+
   function addRow() {
     setForm(f => ({ ...f, formulation: { ...f.formulation, rows: [...(f.formulation?.rows || []), { name: '', rawMaterialId: '', percentage: 0, quantity: 0, unit: 'g', costPerKg: 0 }] } }));
   }
