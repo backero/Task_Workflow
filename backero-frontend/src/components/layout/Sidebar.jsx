@@ -113,6 +113,12 @@ export default function Sidebar({ collapsed, onToggle }) {
       { label: 'Reports', to: '/finance/reports' },
     ]});
   }
+  if (canInventory) {
+    opsItems.push({ label: 'Production', icon: BeakerIcon, children: [
+      { label: 'Dashboard',    to: '/departments/rnd' },
+      { label: 'Record Usage', to: '/production/usage' },
+    ]});
+  }
   if (opsItems.length > 0) groups.push({ label: 'Operations', items: opsItems });
 
   const deptItems = [];

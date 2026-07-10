@@ -12,6 +12,7 @@ function getZone(pathname) {
   if (pathname.startsWith('/finance'))                       return 'zone-finance';
   if (pathname.startsWith('/inventory'))                     return 'zone-inventory';
   if (pathname.startsWith('/departments/rnd'))               return 'zone-production';
+  if (pathname.startsWith('/production'))                    return 'zone-production';
   if (pathname.startsWith('/departments/hr'))                return 'zone-hr';
   if (pathname.startsWith('/departments/marketing'))         return 'zone-marketing';
   if (pathname.startsWith('/departments/marketplace'))       return 'zone-marketplace';

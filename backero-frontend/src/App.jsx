@@ -57,6 +57,10 @@ import EmployeeMonitoring from './pages/management/EmployeeMonitoring';
 import TeamManagement from './pages/management/TeamManagement';
 import DepartmentAnalytics from './pages/management/DepartmentAnalytics';
 
+// Production
+import RecordUsage from './pages/production/RecordUsage';
+import RecordUsageForm from './pages/production/RecordUsageForm';
+
 // Settings
 import Settings from './pages/settings/Settings';
 import WhatsAppSetup from './pages/settings/WhatsAppSetup';
@@ -143,6 +147,9 @@ export default function App() {
           <Route path="/inventory/alerts" element={<PermissionRoute module="inventory"><InventoryAlerts /></PermissionRoute>} />
 
           {/* Production */}
+          <Route path="/production/usage" element={<RecordUsage />} />
+          <Route path="/production/usage/:id" element={<RecordUsageForm />} />
+
           {/* Finance */}
           <Route path="/finance/ledger" element={<PermissionRoute module="finance"><Ledger /></PermissionRoute>} />
           <Route path="/finance/invoices" element={<PermissionRoute module="finance"><Invoices /></PermissionRoute>} />
