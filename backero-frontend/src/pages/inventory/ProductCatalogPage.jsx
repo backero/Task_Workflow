@@ -1,13 +1,15 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-hot-toast';
 import { clsx } from 'clsx';
 import api from '../../api/axios';
 
-const CATEGORIES = ['Hair Care', 'Skin Care', 'Body Care', 'Lip Care', 'Nail Care', 'Fragrances', 'Men Care', 'Baby Care', 'Other'];
+const CATEGORIES = ['Hair Care', 'Skin Care', 'Face Care', 'Body Care', 'Oral Care', "Men's Care", 'Baby Care', 'Sun Care', 'Makeup', 'Fragrance', 'Wellness', 'Professional', 'Other'];
+const PRODUCT_TYPES = ['Shampoo', 'Conditioner', 'Hair Oil', 'Serum', 'Cream', 'Lotion', 'Face Wash', 'Mask', 'Scrub', 'Toner', 'Moisturizer', 'Cleanser', 'Soap', 'Body Wash', 'Sunscreen', 'Lip Balm', 'Deodorant', 'Perfume', 'Other'];
 const UNITS = ['ml', 'g', 'kg', 'L', 'pcs', 'oz'];
 const GST_RATES = [0, 5, 12, 18, 28];
+const STATUSES = ['Active', 'Inactive', 'Draft', 'Archived'];
 const TABS = ['Basic Info', 'Formulation', 'Variants', 'Costing', 'Packaging', 'Marketplace', 'R&D'];
 const PLATFORMS = ['flipkart', 'amazon', 'meesho', 'snapdeal'];
 const PLATFORM_ICONS = { flipkart: '🛒', amazon: '📦', meesho: '🏷️', snapdeal: '🔵' };
@@ -44,7 +46,6 @@ const emptyForm = () => ({
 
 function numF(v, d = 2) { return Number(v || 0).toFixed(d); }
 
-// ─── Formulation cost calculator ──────────────────────────────────────────────
 function calcFormCost(product) {
   if (!product?.formulation?.rows?.length) return 0;
   return product.formulation.rows.reduce((sum, r) => sum + ((r.costPerKg || 0) * (r.percentage || 0) / 100), 0);
@@ -70,18 +71,48 @@ function calcTotalCostPerUnit(product) {
   return formCost * (1 + overheadPct) + rndPerUnit + prodOverhead + pkgCost;
 }
 
+// ─── Metric Card ───────────────────────────────────────────────────────────────
+function MetricCard({ label, value, sub, icon, iconBg, onClick }) {
+  return (
+    <div onClick={onClick} className={`bg-white rounded-2xl p-5 border border-slate-100 shadow-sm flex justify-between items-start transition-all hover:-translate-y-0.5 hover:shadow-md ${onClick ? 'cursor-pointer' : ''}`}>
+      <div className="flex flex-col gap-1.5">
+        <p className="text-xs text-slate-500 font-medium">{label}</p>
+        <p className="text-2xl font-bold text-slate-900 tracking-tight">{value}</p>
+        {sub && <p className="text-[11px] text-slate-400">{sub}</p>}
+      </div>
+      <div className={`w-11 h-11 rounded-xl flex items-center justify-center text-xl ${iconBg}`}>{icon}</div>
+    </div>
+  );
+}
+
+// ─── Status Badge ──────────────────────────────────────────────────────────────
+function StatusBadge({ status }) {
+  const map = {
+    Active: 'bg-emerald-100 text-emerald-700',
+    Inactive: 'bg-slate-100 text-slate-500',
+    Draft: 'bg-amber-100 text-amber-700',
+    Archived: 'bg-red-100 text-red-600',
+    Discontinued: 'bg-gray-100 text-gray-500',
+  };
+  return <span className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full ${map[status] || map.Inactive}`}>{status}</span>;
+}
+
 // ─── Main Component ────────────────────────────────────────────────────────────
 export default function ProductCatalogPage() {
   const qc = useQueryClient();
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
-  const [statusFilter, setStatusFilter] = useState('Active');
+  const [statusFilter, setStatusFilter] = useState('');
+  const [view, setView] = useState('list');
+  const [sortKey, setSortKey] = useState('code');
+  const [sortDir, setSortDir] = useState(1);
   const [selectedId, setSelectedId] = useState(null);
   const [showForm, setShowForm] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
   const [activeTab, setActiveTab] = useState('Basic Info');
   const [form, setForm] = useState(emptyForm());
   const [importing, setImporting] = useState(false);
+  const [imagePreview, setImagePreview] = useState(null);
 
   const { data: listData, isLoading, isError } = useQuery({
     queryKey: ['catalog', search, categoryFilter, statusFilter],
@@ -90,7 +121,6 @@ export default function ProductCatalogPage() {
     retry: 1,
   });
 
-  // Fallback to localStorage when backend unavailable
   const lsAll = useMemo(() => {
     if (!isError) return null;
     try {
@@ -102,18 +132,22 @@ export default function ProductCatalogPage() {
   }, [isError]);
 
   const products = useMemo(() => {
-    if (lsAll) {
-      return lsAll.filter(p => {
-        if (search && !p.name?.toLowerCase().includes(search.toLowerCase()) && !p.code?.toLowerCase().includes(search.toLowerCase())) return false;
-        if (categoryFilter && p.category !== categoryFilter) return false;
-        if (statusFilter && p.status !== statusFilter) return false;
-        return true;
-      });
-    }
-    return listData?.products || [];
-  }, [listData, lsAll, search, categoryFilter, statusFilter]);
+    const list = lsAll ? lsAll.filter(p => {
+      if (search && !p.name?.toLowerCase().includes(search.toLowerCase()) && !p.code?.toLowerCase().includes(search.toLowerCase())) return false;
+      if (categoryFilter && p.category !== categoryFilter) return false;
+      if (statusFilter && p.status !== statusFilter) return false;
+      return true;
+    }) : (listData?.products || []);
+    return [...list].sort((a, b) => {
+      let va, vb;
+      if (sortKey === 'costPerUnit') { va = calcTotalCostPerUnit(a); vb = calcTotalCostPerUnit(b); }
+      else { va = a[sortKey] || ''; vb = b[sortKey] || ''; }
+      if (typeof va === 'string') va = va.toLowerCase();
+      if (typeof vb === 'string') vb = vb.toLowerCase();
+      return va < vb ? -sortDir : va > vb ? sortDir : 0;
+    });
+  }, [listData, lsAll, search, categoryFilter, statusFilter, sortKey, sortDir]);
 
-  // Auto-import from localStorage if backend catalog is empty
   const autoImportedRef = React.useRef(false);
   useEffect(() => {
     if (!isLoading && !isError && products.length === 0 && !autoImportedRef.current && !search && !categoryFilter && !statusFilter) {
@@ -169,16 +203,43 @@ export default function ProductCatalogPage() {
     onError: () => toast.error('Image upload failed'),
   });
 
-  function openCreate() { setForm(emptyForm()); setEditingProduct(null); setActiveTab('Basic Info'); setShowForm(true); }
-  function openEdit(p) { setForm({ ...emptyForm(), ...p, formulation: p.formulation || { refWeight: p.weight || 100, refUnit: p.unit || 'ml', rows: [] } }); setEditingProduct(p); setActiveTab('Basic Info'); setShowForm(true); }
-  function closeForm() { setShowForm(false); setEditingProduct(null); }
+  function openCreate() {
+    const nextNum = String((listData?.products?.length || 0) + 1).padStart(4, '0');
+    setForm({ ...emptyForm(), code: `FG-${nextNum}` });
+    setEditingProduct(null); setActiveTab('Basic Info'); setImagePreview(null); setShowForm(true);
+  }
+  function openEdit(p) {
+    setForm({ ...emptyForm(), ...p, formulation: p.formulation || { refWeight: p.weight || 100, refUnit: p.unit || 'ml', rows: [] } });
+    setEditingProduct(p); setActiveTab('Basic Info'); setImagePreview(p.image || null); setShowForm(true);
+  }
+  function closeForm() { setShowForm(false); setEditingProduct(null); setImagePreview(null); }
+
+  function openDetail(p) { setSelectedId(p._id); setActiveTab('Basic Info'); }
+  function closeDetail() { setSelectedId(null); }
 
   function setF(field, val) { setForm(f => ({ ...f, [field]: val })); }
 
+  function onImageChange(e) {
+    const f = e.target.files[0]; if (!f) return;
+    const r = new FileReader();
+    r.onload = ev => setImagePreview(ev.target.result);
+    r.readAsDataURL(f);
+  }
+
   function saveBasicInfo() {
     if (!form.code || !form.name || !form.category) { toast.error('Fill code, name and category'); return; }
-    if (editingProduct) { updateMutation.mutate({ id: editingProduct._id, data: form }); }
-    else { createMutation.mutate(form); }
+    const payload = { ...form, image: imagePreview };
+    if (editingProduct) { updateMutation.mutate({ id: editingProduct._id, data: payload }); }
+    else { createMutation.mutate(payload); }
+  }
+
+  function sort(key) {
+    if (sortKey === key) setSortDir(d => d * -1);
+    else { setSortKey(key); setSortDir(1); }
+  }
+  function SortIcon({ k }) {
+    if (sortKey !== k) return <span className="ml-1 opacity-30">⇅</span>;
+    return <span className="ml-1 text-slate-900">{sortDir === 1 ? '▲' : '▼'}</span>;
   }
 
   function exportCSV() {
@@ -189,20 +250,14 @@ export default function ProductCatalogPage() {
       p.shelfLife || '', p.status, p.description || '',
       p.storage || '', p.certifications || '', p.barcode || '',
     ]);
-    const csv = [headers, ...rows]
-      .map(r => r.map(v => `"${String(v ?? '').replace(/"/g, '""')}"`).join(','))
-      .join('\n');
+    const csv = [headers, ...rows].map(r => r.map(v => `"${String(v ?? '').replace(/"/g, '""')}"`).join(',')).join('\n');
     const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `product-catalog-${new Date().toISOString().slice(0, 10)}.csv`;
-    document.body.appendChild(a); a.click();
-    document.body.removeChild(a); URL.revokeObjectURL(url);
+    const a = document.createElement('a'); a.href = url; a.download = `product-catalog-${new Date().toISOString().slice(0,10)}.csv`;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
     toast.success(`Exported ${products.length} products`);
   }
 
-  // Import from localStorage
   async function importFromLocalStorage() {
     try {
       const raw = localStorage.getItem('productCatalogDB_v2');
@@ -210,73 +265,45 @@ export default function ProductCatalogPage() {
       const data = JSON.parse(raw);
       const rawProducts = data.products || [];
       if (!rawProducts.length) { toast.error('No products to import'); return; }
-      // Remap statuses: backend only accepts 'Active' | 'Discontinued'
-      const products = rawProducts.map(p => ({
-        ...p,
-        status: ['Active', 'Discontinued'].includes(p.status) ? p.status : 'Active',
-      }));
       setImporting(true);
-      const res = await api.post('/catalog/import', { products });
+      const res = await api.post('/catalog/import', { products: rawProducts });
       qc.invalidateQueries({ queryKey: ['catalog'] });
-      toast.success(`Imported ${res.data?.data?.created || 0} products, skipped ${res.data?.data?.skipped || 0} duplicates`);
-    } catch (e) {
-      toast.error(e?.response?.data?.message || 'Import failed');
-    } finally { setImporting(false); }
+      toast.success(`Imported ${res.data?.data?.created || 0}, skipped ${res.data?.data?.skipped || 0} duplicates`);
+    } catch (e) { toast.error(e?.response?.data?.message || 'Import failed'); }
+    finally { setImporting(false); }
   }
 
   function importCSVFile() {
     const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = '.csv';
-    input.style.display = 'none';
+    input.type = 'file'; input.accept = '.csv'; input.style.display = 'none';
     document.body.appendChild(input);
     input.onchange = async (e) => {
       document.body.removeChild(input);
-      const file = e.target.files[0];
-      if (!file) return;
+      const file = e.target.files[0]; if (!file) return;
       const text = await file.text();
       const lines = text.replace(/\r/g, '').split('\n').filter(l => l.trim());
       if (lines.length < 2) { toast.error('Empty or invalid CSV'); return; }
       const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, ''));
-      const isHTMLFmt = headers.includes('SKU');
       const col = (name) => headers.indexOf(name);
-      const codeCol = isHTMLFmt ? col('SKU') : col('Code');
-      const nameCol = col('Name');
-      const catCol = col('Category');
-      const subCatCol = isHTMLFmt ? col('SubCategory') : col('Sub Category');
-      const typeCol = col('Type');
-      const unitCol = col('Unit');
-      const weightCol = col('Weight');
-      const gstCol = isHTMLFmt ? col('GST%') : col('GST Rate (%)');
-      const hsnCol = isHTMLFmt ? col('HSN') : col('HSN Code');
-      const shelfCol = isHTMLFmt ? col('ShelfLife') : col('Shelf Life');
-      const statusCol = col('Status');
-      const descCol = col('Description');
-      const storageCol = col('Storage');
-      const certCol = col('Certifications');
-      const barcodeCol = col('Barcode');
-      if (codeCol === -1 || nameCol === -1 || catCol === -1) {
-        toast.error('Invalid CSV: need Code/SKU, Name, Category columns'); return;
-      }
+      const codeCol = col('Code') !== -1 ? col('Code') : col('SKU');
+      const nameCol = col('Name'); const catCol = col('Category');
+      if (codeCol === -1 || nameCol === -1 || catCol === -1) { toast.error('Invalid CSV: need Code/SKU, Name, Category'); return; }
       const getVal = (arr, idx) => idx >= 0 ? (arr[idx] || '').trim().replace(/^"|"$/g, '') : '';
       const parsed = [];
       for (let i = 1; i < lines.length; i++) {
         const v = lines[i].split(',');
         const code = getVal(v, codeCol), name = getVal(v, nameCol), category = getVal(v, catCol);
         if (!code || !name || !category) continue;
-        let status = getVal(v, statusCol) || 'Active';
-        if (!['Active', 'Discontinued'].includes(status)) status = 'Active';
-        parsed.push({ code, name, category, subCategory: getVal(v, subCatCol), type: getVal(v, typeCol), unit: getVal(v, unitCol) || 'ml', weight: parseFloat(getVal(v, weightCol)) || 0, gstRate: parseInt(getVal(v, gstCol)) || 18, hsnCode: getVal(v, hsnCol), shelfLife: parseInt(getVal(v, shelfCol)) || 0, status, description: getVal(v, descCol), storage: getVal(v, storageCol), certifications: getVal(v, certCol), barcode: getVal(v, barcodeCol) });
+        parsed.push({ code, name, category, subCategory: getVal(v, col('Sub Category')), type: getVal(v, col('Type')), unit: getVal(v, col('Unit')) || 'ml', weight: parseFloat(getVal(v, col('Weight'))) || 0, gstRate: parseInt(getVal(v, col('GST Rate (%)'))) || 18, hsnCode: getVal(v, col('HSN Code')), shelfLife: parseInt(getVal(v, col('Shelf Life'))) || 0, status: getVal(v, col('Status')) || 'Active', description: getVal(v, col('Description')), storage: getVal(v, col('Storage')), certifications: getVal(v, col('Certifications')), barcode: getVal(v, col('Barcode')) });
       }
-      if (!parsed.length) { toast.error('No valid rows found in CSV'); return; }
+      if (!parsed.length) { toast.error('No valid rows found'); return; }
       setImporting(true);
       try {
         const res = await api.post('/catalog/import', { products: parsed });
         qc.invalidateQueries({ queryKey: ['catalog'] });
         toast.success(`Imported ${res.data?.data?.created || 0}, skipped ${res.data?.data?.skipped || 0} duplicates`);
-      } catch (err) {
-        toast.error(err?.response?.data?.message || 'CSV import failed');
-      } finally { setImporting(false); }
+      } catch (err) { toast.error(err?.response?.data?.message || 'CSV import failed'); }
+      finally { setImporting(false); }
     };
     input.click();
   }
@@ -290,244 +317,317 @@ export default function ProductCatalogPage() {
   });
   const stats = statsData || { total: 0, active: 0, discontinued: 0, byCategory: [] };
 
-  // ── when selecting a product, sync form for tab editing ──────────────────────
   useEffect(() => {
     if (detail && !showForm) {
       setForm({ ...emptyForm(), ...detail });
     }
   }, [detail?._id]);
 
+  const inputCls = 'w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-100 bg-white transition-all';
+  const labelCls = 'block text-xs font-semibold text-slate-700 mb-1';
+  const thCls = 'px-4 py-3 text-left text-[11px] font-semibold text-slate-500 uppercase tracking-wide cursor-pointer select-none whitespace-nowrap hover:text-slate-700 transition-colors';
+
   return (
-    <div className="flex h-full" style={{ minHeight: 'calc(100vh - 64px)' }}>
+    <div className="min-h-screen bg-slate-50">
 
-      {/* ── LEFT: Product List ─────────────────────────────────────────────── */}
-      <div className={clsx('flex flex-col border-r border-gray-200 dark:border-[#1b2e4a] bg-white dark:bg-[#070c17]', selectedId ? 'w-80 flex-shrink-0' : 'flex-1')}>
-
-        {/* Stats Dashboard */}
-        {!selectedId && (
-          <div className="border-b border-gray-200 dark:border-[#1b2e4a]">
-            <div className="grid grid-cols-3 gap-px bg-gray-200 dark:bg-[#1b2e4a]">
-              {[
-                { label: 'Total', value: stats.total, color: 'text-blue-600 dark:text-blue-400', bg: 'bg-white dark:bg-[#070c17]' },
-                { label: 'Active', value: stats.active, color: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-white dark:bg-[#070c17]' },
-                { label: 'Discontinued', value: stats.discontinued, color: 'text-red-500 dark:text-red-400', bg: 'bg-white dark:bg-[#070c17]' },
-              ].map(s => (
-                <div key={s.label} className={`${s.bg} text-center py-3`}>
-                  <p className={`text-xl font-bold ${s.color}`}>{s.value}</p>
-                  <p className="text-[10px] text-gray-500 dark:text-gray-400">{s.label}</p>
-                </div>
-              ))}
-            </div>
-            {stats.byCategory?.length > 0 && (
-              <div className="px-4 py-2.5 flex flex-wrap gap-1.5">
-                {stats.byCategory.map(c => (
-                  <button key={c._id} onClick={() => setCategoryFilter(c._id === categoryFilter ? '' : c._id)}
-                    className={clsx('text-[10px] px-2 py-0.5 rounded-full font-medium border transition-colors',
-                      categoryFilter === c._id
-                        ? 'bg-blue-600 text-white border-blue-600'
-                        : 'border-gray-200 dark:border-[#1b2e4a] text-gray-500 dark:text-gray-400 hover:border-blue-400 hover:text-blue-600 dark:hover:text-blue-400'
-                    )}>
-                    {c._id} <span className="opacity-70">({c.count})</span>
-                  </button>
-                ))}
-              </div>
-            )}
+      {/* ── Header ── */}
+      <div className="bg-white border-b border-slate-200 px-8 py-3.5 flex items-center justify-between sticky top-0 z-10">
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-xl flex items-center justify-center text-lg bg-purple-100">📦</div>
+          <div>
+            <h1 className="text-base font-bold text-slate-900">Product Catalog</h1>
+            <p className="text-[11px] text-slate-500">Finished Goods — Formulation & Costing</p>
           </div>
-        )}
+        </div>
+        <div className="flex items-center gap-2">
+          <button onClick={importCSVFile} disabled={importing} className="text-sm px-4 py-2 rounded-full border border-slate-200 text-slate-600 hover:bg-slate-50 font-semibold transition-all disabled:opacity-50">📤 Bulk Import</button>
+          <button onClick={importFromLocalStorage} disabled={importing} className="text-sm px-4 py-2 rounded-full bg-amber-50 text-amber-700 border border-amber-200 font-semibold hover:bg-amber-100 disabled:opacity-50 transition-all">{importing ? 'Importing…' : '☁️ Sync LS'}</button>
+          <button onClick={exportCSV} disabled={products.length === 0} className="text-sm px-4 py-2 rounded-full border border-slate-200 text-slate-600 hover:bg-slate-50 font-semibold transition-all disabled:opacity-40">📥 Export CSV</button>
+          <button onClick={openCreate} className="text-sm px-4 py-2 rounded-full font-semibold text-slate-900 hover:brightness-95 transition-all" style={{ background: '#e5ff00' }}>➕ Add Product</button>
+        </div>
+      </div>
 
-        {/* Header */}
-        <div className="px-4 py-3 border-b border-gray-200 dark:border-[#1b2e4a] space-y-2">
-          <div className="flex items-center justify-between">
-            <h2 className="font-bold text-gray-900 dark:text-white text-sm">Product Catalog</h2>
-            <div className="flex gap-1.5">
-              <button onClick={exportCSV} disabled={products.length === 0} title="Export CSV" className="text-xs px-2.5 py-1 rounded-lg border border-gray-200 dark:border-[#1b2e4a] text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-[#0f1a2e] font-semibold transition-colors disabled:opacity-40 flex items-center gap-1">
-                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
-                Export
-              </button>
-              <button onClick={importCSVFile} disabled={importing} title="Import from CSV file" className="text-xs px-2.5 py-1 rounded-lg bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300 font-semibold hover:bg-green-100 disabled:opacity-50 transition-colors">
-                {importing ? 'Importing…' : '📂 Import CSV'}
-              </button>
-              <button onClick={importFromLocalStorage} disabled={importing} title="Import from browser localStorage" className="text-xs px-2.5 py-1 rounded-lg bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-300 font-semibold hover:bg-amber-100 disabled:opacity-50 transition-colors">
-                {importing ? '…' : '📥 LS'}
-              </button>
-              <button onClick={openCreate} className="text-xs px-2.5 py-1 rounded-lg bg-blue-600 text-white font-semibold hover:bg-blue-700 transition-colors">+ Add</button>
+      <div className="px-8 py-6 max-w-[1440px] mx-auto">
+
+        {/* ── 3 Metric Cards ── */}
+        <div className="grid grid-cols-3 gap-4 mb-6">
+          <MetricCard label="Total Products" value={stats.total} sub="📦 All SKUs" icon="📦" iconBg="bg-purple-100" />
+          <MetricCard label="Active Products" value={stats.active} sub="✅ Live in catalog" icon="✅" iconBg="bg-emerald-100" />
+          <MetricCard label="Categories" value={stats.byCategory?.length || 0} sub="🏷️ Product lines" icon="🏷️" iconBg="bg-orange-100" />
+        </div>
+
+        {/* ── Table Card ── */}
+        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+
+          {/* Card header */}
+          <div className="px-6 py-4 border-b border-slate-100 flex flex-wrap items-center gap-3">
+            <h2 className="text-sm font-bold text-slate-900">📦 Products Master</h2>
+            <div className="flex-1" />
+            <div className="relative">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">🔍</span>
+              <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search name, SKU, category..." className="pl-9 pr-4 py-2 border border-slate-200 rounded-full text-sm w-64 bg-slate-50 focus:outline-none focus:border-slate-400 focus:bg-white transition-all" />
             </div>
-          </div>
-          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search name, SKU…" className="input text-xs w-full" />
-          <div className="flex gap-2">
-            <select value={categoryFilter} onChange={e => setCategoryFilter(e.target.value)} className="input text-xs flex-1">
+            <select value={categoryFilter} onChange={e => setCategoryFilter(e.target.value)} className="text-sm px-3 py-2 border border-slate-200 rounded-lg bg-slate-50 focus:outline-none">
               <option value="">All Categories</option>
               {CATEGORIES.map(c => <option key={c}>{c}</option>)}
             </select>
-            <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className="input text-xs w-28">
-              <option value="">All</option>
-              <option value="Active">Active</option>
-              <option value="Discontinued">Discontinued</option>
+            <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className="text-sm px-3 py-2 border border-slate-200 rounded-lg bg-slate-50 focus:outline-none">
+              <option value="">All Status</option>
+              {STATUSES.map(s => <option key={s}>{s}</option>)}
             </select>
-          </div>
-          <p className="text-[10px] text-gray-400">{products.length} products</p>
-        </div>
-
-        {/* List */}
-        <div className="flex-1 overflow-y-auto">
-          {isLoading ? (
-            <div className="flex items-center justify-center py-12"><div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" /></div>
-          ) : products.length === 0 ? (
-            <div className="text-center py-16 text-gray-400">
-              <p className="text-3xl mb-2">📦</p>
-              <p className="text-sm">No products found</p>
-              <p className="text-xs mt-1">Use <strong>Import CSV</strong> to upload a product catalog CSV file</p>
+            {/* View toggle */}
+            <div className="flex border border-slate-200 rounded-lg overflow-hidden">
+              <button onClick={() => setView('list')} className={`w-9 h-9 flex items-center justify-center text-sm transition-colors ${view === 'list' ? 'bg-slate-900 text-white' : 'text-slate-500 hover:bg-slate-50'}`} title="List View">☰</button>
+              <button onClick={() => setView('grid')} className={`w-9 h-9 flex items-center justify-center text-sm transition-colors ${view === 'grid' ? 'bg-slate-900 text-white' : 'text-slate-500 hover:bg-slate-50'}`} title="Grid View">⊞</button>
             </div>
-          ) : (
-            products.map(p => (
-              <button
-                key={p._id}
-                onClick={() => { setSelectedId(p._id); setActiveTab('Basic Info'); }}
-                className={clsx(
-                  'w-full flex items-center gap-3 px-4 py-3 border-b border-gray-100 dark:border-[#1b2e4a] hover:bg-gray-50 dark:hover:bg-[#0f1a2e] text-left transition-colors',
-                  selectedId === p._id && 'bg-blue-50 dark:bg-blue-900/20 border-l-2 border-l-blue-500'
-                )}
-              >
-                {p.image ? (
-                  <img src={p.image} alt={p.name} className="w-10 h-10 rounded-lg object-cover flex-shrink-0 border border-gray-200 dark:border-[#1b2e4a]" />
-                ) : (
-                  <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-blue-100 to-purple-100 dark:from-blue-900/30 dark:to-purple-900/30 flex items-center justify-center flex-shrink-0 text-lg">🧴</div>
-                )}
-                <div className="min-w-0 flex-1">
-                  <p className="text-xs font-semibold text-gray-800 dark:text-gray-200 truncate">{p.name}</p>
-                  <p className="text-[10px] text-gray-400 truncate">{p.code} · {p.category}</p>
+          </div>
+
+          {/* ── List View ── */}
+          {view === 'list' && (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm border-collapse">
+                <thead className="bg-slate-50">
+                  <tr>
+                    {[['code','SKU'],['name','Product Name'],['category','Category'],['type','Type'],['costPerUnit','Cost/Unit'],['status','Status']].map(([k,label]) => (
+                      <th key={k} className={thCls} onClick={() => sort(k)}>{label}<SortIcon k={k} /></th>
+                    ))}
+                    <th className="px-4 py-3 text-left text-[11px] font-semibold text-slate-500 uppercase tracking-wide w-40">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {isLoading ? (
+                    <tr><td colSpan={7} className="text-center py-16 text-slate-400">Loading…</td></tr>
+                  ) : products.length === 0 ? (
+                    <tr><td colSpan={7} className="text-center py-16">
+                      <p className="text-4xl mb-2">📦</p>
+                      <p className="text-sm font-semibold text-slate-600">No products found</p>
+                      <p className="text-xs text-slate-400 mt-1">Add a product or import from CSV</p>
+                    </td></tr>
+                  ) : products.map(p => {
+                    const cost = calcTotalCostPerUnit(p);
+                    return (
+                      <tr key={p._id} className="border-b border-slate-50 hover:bg-slate-50/60 transition-colors">
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-2.5">
+                            {p.image ? (
+                              <img src={p.image} alt={p.name} className="w-8 h-8 rounded-lg object-cover border border-slate-200 flex-shrink-0" />
+                            ) : (
+                              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-purple-100 to-blue-100 flex items-center justify-center text-sm flex-shrink-0">🧴</div>
+                            )}
+                            <span className="font-bold text-slate-900 text-xs font-mono">{p.code}</span>
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 font-semibold text-slate-800 max-w-[200px] truncate cursor-pointer hover:text-slate-900 hover:underline" onClick={() => openDetail(p)}>{p.name}</td>
+                        <td className="px-4 py-3"><span className="text-[11px] font-semibold px-2.5 py-1 rounded-full bg-slate-100 text-slate-600">{p.category}</span></td>
+                        <td className="px-4 py-3 text-slate-500 text-xs">{p.type || '—'}</td>
+                        <td className="px-4 py-3 text-slate-700 font-semibold text-xs">{cost > 0 ? `₹${numF(cost)}` : '—'}</td>
+                        <td className="px-4 py-3"><StatusBadge status={p.status} /></td>
+                        <td className="px-4 py-3">
+                          <div className="flex gap-1">
+                            <button title="View Details" onClick={() => openDetail(p)} className="w-8 h-8 rounded-lg flex items-center justify-center text-blue-500 hover:bg-blue-50 transition-colors text-sm">👁️</button>
+                            <button title="Edit" onClick={() => openEdit(p)} className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:bg-slate-100 transition-colors text-sm">✏️</button>
+                            <button title="Delete" onClick={() => { if (window.confirm(`Delete "${p.name}"?`)) deleteMutation.mutate(p._id); }} className="w-8 h-8 rounded-lg flex items-center justify-center text-red-400 hover:bg-red-50 transition-colors text-sm">🗑️</button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {/* ── Grid View ── */}
+          {view === 'grid' && (
+            <div className="p-6">
+              {isLoading ? (
+                <div className="text-center py-16 text-slate-400">Loading…</div>
+              ) : products.length === 0 ? (
+                <div className="text-center py-16">
+                  <p className="text-4xl mb-2">📦</p>
+                  <p className="text-sm font-semibold text-slate-600">No products found</p>
                 </div>
-                <span className={clsx('text-[10px] px-1.5 py-0.5 rounded-full font-medium flex-shrink-0', p.status === 'Active' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'bg-gray-100 text-gray-500')}>{p.status}</span>
-              </button>
-            ))
+              ) : (
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+                  {products.map(p => {
+                    const cost = calcTotalCostPerUnit(p);
+                    return (
+                      <div key={p._id} className="bg-white border border-slate-100 rounded-2xl overflow-hidden hover:shadow-md hover:-translate-y-0.5 transition-all cursor-pointer group" onClick={() => openDetail(p)}>
+                        <div className="h-36 bg-gradient-to-br from-purple-50 to-blue-50 flex items-center justify-center overflow-hidden relative">
+                          {p.image ? (
+                            <img src={p.image} alt={p.name} className="w-full h-full object-cover" />
+                          ) : (
+                            <span className="text-4xl">🧴</span>
+                          )}
+                          <div className="absolute top-2 right-2"><StatusBadge status={p.status} /></div>
+                        </div>
+                        <div className="p-3">
+                          <p className="text-xs font-mono text-slate-400 mb-0.5">{p.code}</p>
+                          <p className="text-sm font-bold text-slate-900 truncate mb-1">{p.name}</p>
+                          <p className="text-[11px] text-slate-500 mb-2">{p.category}{p.type ? ` · ${p.type}` : ''}</p>
+                          {cost > 0 && <p className="text-xs font-bold text-emerald-600">₹{numF(cost)} / unit</p>}
+                          <div className="flex gap-1 mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button onClick={e => { e.stopPropagation(); openEdit(p); }} className="flex-1 text-xs py-1 rounded-lg bg-slate-100 text-slate-600 hover:bg-slate-200 transition-colors font-semibold">Edit</button>
+                            <button onClick={e => { e.stopPropagation(); if (window.confirm(`Delete "${p.name}"?`)) deleteMutation.mutate(p._id); }} className="w-7 flex items-center justify-center rounded-lg bg-red-50 text-red-400 hover:bg-red-100 transition-colors text-xs">🗑️</button>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
           )}
         </div>
       </div>
 
-      {/* ── RIGHT: Detail Panel ────────────────────────────────────────────── */}
-      {selectedId && detail && (
-        <div className="flex-1 flex flex-col bg-gray-50 dark:bg-[#050b14] overflow-hidden">
-          {/* Detail Header */}
-          <div className="px-6 py-4 bg-white dark:bg-[#070c17] border-b border-gray-200 dark:border-[#1b2e4a] flex items-center gap-4">
-            {/* Image */}
-            <div className="relative group flex-shrink-0">
-              {detail.image ? (
-                <img src={detail.image} alt={detail.name} className="w-16 h-16 rounded-xl object-cover border border-gray-200 dark:border-[#1b2e4a]" />
-              ) : (
-                <div className="w-16 h-16 rounded-xl bg-gradient-to-br from-blue-100 to-purple-100 dark:from-blue-900/30 dark:to-purple-900/30 flex items-center justify-center text-2xl">🧴</div>
-              )}
-              <label className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-xl opacity-0 group-hover:opacity-100 cursor-pointer transition-opacity">
-                <input type="file" accept="image/*" className="hidden" onChange={e => { if (e.target.files[0]) imgMutation.mutate({ id: detail._id, file: e.target.files[0] }); }} />
-                <span className="text-white text-xs">📷</span>
-              </label>
-            </div>
-            <div className="flex-1 min-w-0">
-              <h2 className="font-bold text-gray-900 dark:text-white truncate">{detail.name}</h2>
-              <p className="text-xs text-gray-400">{detail.code} · {detail.category} · {detail.unit}</p>
-            </div>
-            <div className="flex items-center gap-2 flex-shrink-0">
-              <button onClick={() => openEdit(detail)} className="text-xs px-3 py-1.5 rounded-lg bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 font-semibold hover:bg-blue-100 transition-colors">✏️ Edit</button>
-              <button onClick={() => { if (window.confirm('Delete ' + detail.name + '?')) deleteMutation.mutate(detail._id); }} className="text-xs px-3 py-1.5 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-500 font-semibold hover:bg-red-100 transition-colors">🗑️</button>
-              <button onClick={() => setSelectedId(null)} className="text-gray-400 hover:text-gray-600 p-1">✕</button>
-            </div>
-          </div>
-
-          {/* Tabs */}
-          <div className="flex gap-0 px-6 pt-3 bg-white dark:bg-[#070c17] border-b border-gray-200 dark:border-[#1b2e4a] overflow-x-auto">
-            {TABS.map(tab => (
-              <button key={tab} onClick={() => setActiveTab(tab)} className={clsx('px-3 py-2 text-xs font-semibold whitespace-nowrap border-b-2 transition-colors', activeTab === tab ? 'border-blue-500 text-blue-600 dark:text-blue-400' : 'border-transparent text-gray-400 hover:text-gray-600')}>
-                {tab}
-              </button>
-            ))}
-          </div>
-
-          {/* Tab Content */}
-          <div className="flex-1 overflow-y-auto p-6">
-            {activeTab === 'Basic Info' && <BasicInfoTab product={detail} />}
-            {activeTab === 'Formulation' && <FormulationTab product={detail} form={form} setForm={setForm} onSave={() => updateMutation.mutate({ id: detail._id, data: { formulation: form.formulation } })} isPending={isPending} />}
-            {activeTab === 'Variants' && <VariantsTab product={detail} form={form} setForm={setForm} onSave={() => updateMutation.mutate({ id: detail._id, data: { variants: form.variants } })} isPending={isPending} />}
-            {activeTab === 'Costing' && <CostingTab product={detail} form={form} setForm={setForm} onSave={() => updateMutation.mutate({ id: detail._id, data: { costing: form.costing, standardAssumptions: form.standardAssumptions, productionOverhead: form.productionOverhead } })} isPending={isPending} />}
-            {activeTab === 'Packaging' && <PackagingTab product={detail} form={form} setForm={setForm} onSave={() => updateMutation.mutate({ id: detail._id, data: { packaging: form.packaging } })} isPending={isPending} />}
-            {activeTab === 'Marketplace' && <MarketplaceTab product={detail} form={form} setForm={setForm} onSave={() => updateMutation.mutate({ id: detail._id, data: { marketplace: form.marketplace } })} isPending={isPending} />}
-            {activeTab === 'R&D' && <RndTab product={detail} form={form} setForm={setForm} onSave={() => updateMutation.mutate({ id: detail._id, data: { rnd: form.rnd } })} isPending={isPending} />}
-          </div>
-        </div>
-      )}
-
-      {!selectedId && !isLoading && products.length > 0 && (
-        <div className="flex-1 flex items-center justify-center text-gray-300 dark:text-gray-600">
-          <div className="text-center">
-            <p className="text-5xl mb-3">📦</p>
-            <p className="text-sm">Select a product to view details</p>
-          </div>
-        </div>
-      )}
-
-      {/* ── Add/Edit Form Modal ────────────────────────────────────────────── */}
+      {/* ════════════ ADD / EDIT PRODUCT MODAL ════════════ */}
       {showForm && createPortal(
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={closeForm} />
-          <div className="relative bg-white dark:bg-[#070c17] rounded-2xl shadow-2xl w-full max-w-2xl border border-gray-200 dark:border-[#1b2e4a] max-h-[90vh] flex flex-col">
-            <div className="p-5 border-b border-gray-200 dark:border-[#1b2e4a] flex items-center justify-between">
-              <h3 className="font-bold text-gray-900 dark:text-white">{editingProduct ? '✏️ Edit Product' : '+ New Product'}</h3>
-              <button onClick={closeForm} className="text-gray-400 hover:text-gray-600 p-1">✕</button>
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 overflow-y-auto">
+          <div className="bg-white rounded-2xl w-full max-w-3xl my-4 shadow-2xl border border-slate-200">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-slate-50 rounded-t-2xl">
+              <h2 className="text-base font-bold text-slate-900">{editingProduct ? `✏️ Edit — ${editingProduct.name}` : '➕ Add New Product'}</h2>
+              <button onClick={closeForm} className="w-9 h-9 rounded-xl flex items-center justify-center text-slate-400 hover:bg-slate-100 hover:text-slate-600 text-xl transition-all">✕</button>
             </div>
-            <div className="p-5 overflow-y-auto space-y-4">
-              <div className="grid grid-cols-2 gap-3">
-                <div><label className="label">SKU / Code *</label><input value={form.code} onChange={e => setF('code', e.target.value.toUpperCase())} className="input" placeholder="e.g. FG-HC-001" /></div>
-                <div><label className="label">Product Name *</label><input value={form.name} onChange={e => setF('name', e.target.value)} className="input" placeholder="e.g. Turmeric Shampoo" /></div>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div><label className="label">Category *</label>
-                  <select value={form.category} onChange={e => setF('category', e.target.value)} className="input">
+
+            <div className="px-6 py-5 overflow-y-auto max-h-[75vh] space-y-4">
+
+              {/* Row 1: Code, Name, Category */}
+              <div className="grid grid-cols-3 gap-4">
+                <div><label className={labelCls}>SKU / Code <span className="text-red-500">*</span></label><input value={form.code} onChange={e => setF('code', e.target.value.toUpperCase())} className={inputCls} placeholder="e.g. FG-HC-001" /></div>
+                <div><label className={labelCls}>Product Name <span className="text-red-500">*</span></label><input value={form.name} onChange={e => setF('name', e.target.value)} className={inputCls} placeholder="e.g. Turmeric Shampoo" /></div>
+                <div><label className={labelCls}>Category <span className="text-red-500">*</span></label>
+                  <select value={form.category} onChange={e => setF('category', e.target.value)} className={inputCls}>
                     <option value="">Select…</option>
                     {CATEGORIES.map(c => <option key={c}>{c}</option>)}
                   </select>
                 </div>
-                <div><label className="label">Sub Category</label><input value={form.subCategory} onChange={e => setF('subCategory', e.target.value)} className="input" placeholder="e.g. Shampoo" /></div>
               </div>
-              <div className="grid grid-cols-3 gap-3">
-                <div><label className="label">Unit</label>
-                  <select value={form.unit} onChange={e => setF('unit', e.target.value)} className="input">
+
+              {/* Row 2: Sub Category, Product Type, Status */}
+              <div className="grid grid-cols-3 gap-4">
+                <div><label className={labelCls}>Sub-Category</label><input value={form.subCategory} onChange={e => setF('subCategory', e.target.value)} className={inputCls} placeholder="e.g. Shampoo, Serum" /></div>
+                <div><label className={labelCls}>Product Type</label>
+                  <select value={form.type} onChange={e => setF('type', e.target.value)} className={inputCls}>
+                    <option value="">Select…</option>
+                    {PRODUCT_TYPES.map(t => <option key={t}>{t}</option>)}
+                  </select>
+                </div>
+                <div><label className={labelCls}>Status <span className="text-red-500">*</span></label>
+                  <select value={form.status} onChange={e => setF('status', e.target.value)} className={inputCls}>
+                    {STATUSES.map(s => <option key={s}>{s}</option>)}
+                  </select>
+                </div>
+              </div>
+
+              {/* Row 3: Unit, Ref Weight, GST */}
+              <div className="grid grid-cols-3 gap-4">
+                <div><label className={labelCls}>Base Unit <span className="text-red-500">*</span></label>
+                  <select value={form.unit} onChange={e => setF('unit', e.target.value)} className={inputCls}>
                     {UNITS.map(u => <option key={u}>{u}</option>)}
                   </select>
                 </div>
-                <div><label className="label">Ref. Weight</label><input type="number" value={form.weight} onChange={e => setF('weight', e.target.value)} className="input" placeholder="200" /></div>
-                <div><label className="label">GST %</label>
-                  <select value={form.gstRate} onChange={e => setF('gstRate', Number(e.target.value))} className="input">
+                <div><label className={labelCls}>Reference Weight / Volume</label><input type="number" value={form.weight} onChange={e => setF('weight', e.target.value)} className={inputCls} placeholder="e.g. 200" /></div>
+                <div><label className={labelCls}>GST Rate (%)</label>
+                  <select value={form.gstRate} onChange={e => setF('gstRate', Number(e.target.value))} className={inputCls}>
                     {GST_RATES.map(r => <option key={r} value={r}>{r}%</option>)}
                   </select>
                 </div>
               </div>
-              <div className="grid grid-cols-3 gap-3">
-                <div><label className="label">HSN Code</label><input value={form.hsnCode} onChange={e => setF('hsnCode', e.target.value)} className="input" placeholder="3305" /></div>
-                <div><label className="label">Shelf Life (months)</label><input type="number" value={form.shelfLife} onChange={e => setF('shelfLife', e.target.value)} className="input" placeholder="36" /></div>
-                <div><label className="label">Status</label>
-                  <select value={form.status} onChange={e => setF('status', e.target.value)} className="input">
-                    <option value="Active">Active</option>
-                    <option value="Discontinued">Discontinued</option>
-                  </select>
+
+              {/* Row 4: HSN, Shelf Life, Discontinued Date */}
+              <div className="grid grid-cols-3 gap-4">
+                <div><label className={labelCls}>HSN Code</label><input value={form.hsnCode} onChange={e => setF('hsnCode', e.target.value)} className={inputCls} placeholder="e.g. 3305" /></div>
+                <div><label className={labelCls}>Shelf Life (months)</label><input type="number" value={form.shelfLife} onChange={e => setF('shelfLife', e.target.value)} className={inputCls} placeholder="e.g. 36" /></div>
+                <div><label className={labelCls}>Discontinued Date</label><input type="date" value={form.discontinuedDate} onChange={e => setF('discontinuedDate', e.target.value)} className={inputCls} /></div>
+              </div>
+
+              {/* Row 5: Description + Image */}
+              <div className="grid grid-cols-3 gap-4 items-start">
+                <div className="col-span-2"><label className={labelCls}>Description</label><textarea value={form.description} onChange={e => setF('description', e.target.value)} rows={3} className={`${inputCls} resize-none`} placeholder="Product description, key claims, benefits..." /></div>
+                <div>
+                  <label className={labelCls}>Product Image</label>
+                  <div onClick={() => document.getElementById('pcProdImgInput').click()} className="w-24 h-24 border-2 border-dashed border-slate-200 rounded-xl flex items-center justify-center cursor-pointer overflow-hidden hover:border-slate-400 transition-colors bg-slate-50">
+                    {imagePreview ? <img src={imagePreview} alt="Product" className="w-full h-full object-cover" /> : <span className="text-slate-400 text-xs text-center px-2">📷 Click to upload</span>}
+                  </div>
+                  <input type="file" id="pcProdImgInput" accept="image/*" className="hidden" onChange={onImageChange} />
+                  {imagePreview && <button onClick={() => setImagePreview(null)} className="mt-1 text-[10px] text-red-400 hover:text-red-600">✕ Remove</button>}
                 </div>
               </div>
-              <div><label className="label">Description</label><textarea value={form.description} onChange={e => setF('description', e.target.value)} rows={2} className="input resize-none" placeholder="Product description…" /></div>
-              <div className="grid grid-cols-2 gap-3">
-                <div><label className="label">Storage Conditions</label><input value={form.storage} onChange={e => setF('storage', e.target.value)} className="input" placeholder="Cool, dry place" /></div>
-                <div><label className="label">Certifications</label><input value={form.certifications} onChange={e => setF('certifications', e.target.value)} className="input" placeholder="Organic, Cruelty-Free" /></div>
+
+              {/* Row 6: Storage, Certifications, Barcode */}
+              <div className="grid grid-cols-3 gap-4">
+                <div><label className={labelCls}>Storage Conditions</label><input value={form.storage} onChange={e => setF('storage', e.target.value)} className={inputCls} placeholder="Cool, dry place" /></div>
+                <div><label className={labelCls}>Certifications</label><input value={form.certifications} onChange={e => setF('certifications', e.target.value)} className={inputCls} placeholder="Organic, Cruelty-Free, GMP" /></div>
+                <div><label className={labelCls}>Barcode</label><input value={form.barcode} onChange={e => setF('barcode', e.target.value)} className={inputCls} placeholder="8901234567890" /></div>
               </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div><label className="label">Barcode</label><input value={form.barcode} onChange={e => setF('barcode', e.target.value)} className="input" placeholder="8901234567890" /></div>
-                <div><label className="label">Type</label><input value={form.type} onChange={e => setF('type', e.target.value)} className="input" placeholder="e.g. Shampoo" /></div>
-              </div>
+
             </div>
-            <div className="p-5 border-t border-gray-200 dark:border-[#1b2e4a] flex gap-3">
-              <button onClick={closeForm} className="btn-secondary flex-1 justify-center">Cancel</button>
-              <button onClick={saveBasicInfo} disabled={isPending} className="btn-primary flex-1 justify-center disabled:opacity-50">
-                {isPending ? 'Saving…' : editingProduct ? 'Update' : 'Create Product'}
+
+            <div className="flex gap-3 px-6 py-4 border-t border-slate-100 bg-slate-50 rounded-b-2xl">
+              <button onClick={closeForm} className="px-5 py-2.5 rounded-xl text-sm font-semibold border border-slate-200 text-slate-500 hover:bg-slate-100 transition-colors">Cancel</button>
+              <button onClick={saveBasicInfo} disabled={isPending} className="flex-1 py-2.5 rounded-xl text-sm font-bold text-slate-900 disabled:opacity-60 transition-all hover:brightness-95" style={{ background: '#e5ff00' }}>
+                {isPending ? 'Saving…' : editingProduct ? '💾 Save Changes' : '✅ Create Product'}
               </button>
             </div>
           </div>
-        </div>
-      , document.body)}
+        </div>,
+        document.body
+      )}
+
+      {/* ════════════ DETAIL MODAL ════════════ */}
+      {selectedId && detail && createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 overflow-y-auto">
+          <div className="bg-white rounded-2xl w-full max-w-5xl my-4 shadow-2xl border border-slate-200 flex flex-col max-h-[92vh]">
+
+            {/* Detail Header */}
+            <div className="flex items-center gap-4 px-6 py-4 border-b border-slate-100 bg-slate-50 rounded-t-2xl flex-shrink-0">
+              <div className="relative group flex-shrink-0">
+                {detail.image ? (
+                  <img src={detail.image} alt={detail.name} className="w-14 h-14 rounded-xl object-cover border border-slate-200" />
+                ) : (
+                  <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-purple-100 to-blue-100 flex items-center justify-center text-2xl">🧴</div>
+                )}
+                <label className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-xl opacity-0 group-hover:opacity-100 cursor-pointer transition-opacity">
+                  <input type="file" accept="image/*" className="hidden" onChange={e => { if (e.target.files[0]) imgMutation.mutate({ id: detail._id, file: e.target.files[0] }); }} />
+                  <span className="text-white text-xs">📷</span>
+                </label>
+              </div>
+              <div className="flex-1 min-w-0">
+                <h2 className="font-bold text-slate-900 truncate">{detail.name}</h2>
+                <p className="text-xs text-slate-400">{detail.code} · {detail.category}{detail.type ? ` · ${detail.type}` : ''} · {detail.unit}</p>
+              </div>
+              <div className="flex items-center gap-2 flex-shrink-0">
+                <StatusBadge status={detail.status} />
+                <button onClick={() => { closeDetail(); openEdit(detail); }} className="text-xs px-3 py-1.5 rounded-lg bg-slate-100 text-slate-600 font-semibold hover:bg-slate-200 transition-colors">✏️ Edit</button>
+                <button onClick={() => { if (window.confirm('Delete ' + detail.name + '?')) { deleteMutation.mutate(detail._id); closeDetail(); }}} className="text-xs px-3 py-1.5 rounded-lg bg-red-50 text-red-500 font-semibold hover:bg-red-100 transition-colors">🗑️</button>
+                <button onClick={closeDetail} className="text-slate-400 hover:text-slate-600 p-1 text-xl">✕</button>
+              </div>
+            </div>
+
+            {/* Tabs */}
+            <div className="flex gap-0 px-6 bg-white border-b border-slate-100 overflow-x-auto flex-shrink-0">
+              {TABS.map(tab => (
+                <button key={tab} onClick={() => setActiveTab(tab)} className={clsx('px-4 py-3 text-xs font-semibold whitespace-nowrap border-b-2 transition-colors', activeTab === tab ? 'border-slate-900 text-slate-900' : 'border-transparent text-slate-400 hover:text-slate-600')}>
+                  {tab}
+                </button>
+              ))}
+            </div>
+
+            {/* Tab Content */}
+            <div className="flex-1 overflow-y-auto p-6">
+              {activeTab === 'Basic Info' && <BasicInfoTab product={detail} />}
+              {activeTab === 'Formulation' && <FormulationTab product={detail} form={form} setForm={setForm} onSave={() => updateMutation.mutate({ id: detail._id, data: { formulation: form.formulation } })} isPending={isPending} />}
+              {activeTab === 'Variants' && <VariantsTab product={detail} form={form} setForm={setForm} onSave={() => updateMutation.mutate({ id: detail._id, data: { variants: form.variants } })} isPending={isPending} />}
+              {activeTab === 'Costing' && <CostingTab product={detail} form={form} setForm={setForm} onSave={() => updateMutation.mutate({ id: detail._id, data: { costing: form.costing, standardAssumptions: form.standardAssumptions, productionOverhead: form.productionOverhead } })} isPending={isPending} />}
+              {activeTab === 'Packaging' && <PackagingTab product={detail} form={form} setForm={setForm} onSave={() => updateMutation.mutate({ id: detail._id, data: { packaging: form.packaging } })} isPending={isPending} />}
+              {activeTab === 'Marketplace' && <MarketplaceTab product={detail} form={form} setForm={setForm} onSave={() => updateMutation.mutate({ id: detail._id, data: { marketplace: form.marketplace } })} isPending={isPending} />}
+              {activeTab === 'R&D' && <RndTab product={detail} form={form} setForm={setForm} onSave={() => updateMutation.mutate({ id: detail._id, data: { rnd: form.rnd } })} isPending={isPending} />}
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
     </div>
   );
 }
@@ -550,7 +650,7 @@ function BasicInfoTab({ product: p }) {
         <InfoRow label="GST Rate" value={`${p.gstRate}%`} />
         <InfoRow label="HSN Code" value={p.hsnCode} mono />
         <InfoRow label="Shelf Life" value={p.shelfLife ? `${p.shelfLife} months` : '—'} />
-        <InfoRow label="Status" value={p.status} badge={p.status === 'Active' ? 'green' : 'gray'} />
+        <InfoRow label="Status" value={p.status} badge={p.status === 'Active' ? 'green' : p.status === 'Draft' ? 'yellow' : 'gray'} />
         <InfoRow label="Storage" value={p.storage} />
         <InfoRow label="Certifications" value={p.certifications} />
         <InfoRow label="Barcode" value={p.barcode} mono />
@@ -560,6 +660,12 @@ function BasicInfoTab({ product: p }) {
         <div className="col-span-2">
           <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1">Description</p>
           <p className="text-sm text-gray-700 dark:text-gray-300">{p.description}</p>
+        </div>
+      )}
+      {p.image && (
+        <div className="col-span-2">
+          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Product Image</p>
+          <img src={p.image} alt={p.name} className="w-28 h-28 rounded-xl object-cover border border-slate-200" />
         </div>
       )}
     </div>
@@ -572,7 +678,7 @@ function InfoRow({ label, value, mono, badge }) {
     <div className="flex items-center gap-2">
       <span className="text-xs text-gray-400 w-28 flex-shrink-0">{label}</span>
       {badge ? (
-        <span className={clsx('text-xs px-2 py-0.5 rounded-full font-medium', badge === 'green' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : badge === 'blue' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' : 'bg-gray-100 text-gray-500')}>{value}</span>
+        <span className={clsx('text-xs px-2 py-0.5 rounded-full font-medium', badge === 'green' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : badge === 'yellow' ? 'bg-amber-100 text-amber-700' : badge === 'blue' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' : 'bg-gray-100 text-gray-500')}>{value}</span>
       ) : (
         <span className={clsx('text-xs text-gray-800 dark:text-gray-200', mono && 'font-mono')}>{value}</span>
       )}
@@ -720,7 +826,6 @@ function CostingTab({ product, form, setForm, onSave, isPending }) {
   return (
     <div className="space-y-5">
       <div className="grid grid-cols-2 gap-5">
-        {/* Standard Assumptions */}
         <div className="rounded-xl border border-gray-200 dark:border-[#1b2e4a] p-4">
           <p className="text-xs font-bold text-gray-600 dark:text-gray-300 mb-3">Standard Overhead %</p>
           {[['equipmentPct', 'Equipment'], ['consumablesPct', 'Consumables'], ['storagePct', 'Storage'], ['housekeepingPct', 'Housekeeping'], ['adminPct', 'Admin'], ['wastagePct', 'Wastage']].map(([f, label]) => (
@@ -731,7 +836,6 @@ function CostingTab({ product, form, setForm, onSave, isPending }) {
             </div>
           ))}
         </div>
-        {/* Production Overhead */}
         <div className="rounded-xl border border-gray-200 dark:border-[#1b2e4a] p-4">
           <p className="text-xs font-bold text-gray-600 dark:text-gray-300 mb-3">Production Overhead (₹ per batch)</p>
           {[['electricity', 'Electricity'], ['labor', 'Labor'], ['labTesting', 'Lab Testing'], ['other', 'Other']].map(([f, label]) => (
@@ -743,12 +847,10 @@ function CostingTab({ product, form, setForm, onSave, isPending }) {
         </div>
       </div>
 
-      {/* Cost summary */}
       <div className="rounded-xl bg-blue-50 dark:bg-blue-900/10 border border-blue-200 dark:border-blue-800/40 p-4">
         <p className="text-xs font-bold text-blue-700 dark:text-blue-300 mb-2">Estimated Cost / Unit: <span className="text-lg">₹{numF(costPerUnit)}</span></p>
       </div>
 
-      {/* Margins */}
       <div className="rounded-xl border border-gray-200 dark:border-[#1b2e4a] p-4">
         <p className="text-xs font-bold text-gray-600 dark:text-gray-300 mb-3">Selling Price at Margin</p>
         <div className="grid grid-cols-2 gap-3">

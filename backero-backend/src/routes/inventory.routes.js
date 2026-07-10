@@ -34,6 +34,7 @@ router.post('/raw-materials', authorizeInventoryWrite, ctrl.createRawMaterial);
 router.put('/raw-materials/:id', authorizeInventoryWrite, ctrl.updateRawMaterial);
 router.delete('/raw-materials/:id', authorizeManagerOrAbove, ctrl.deleteProduct);
 router.post('/raw-materials/:id/batches', authorizeInventoryWrite, ctrl.addRawMaterialBatch);
+router.put('/raw-materials/:id/batches/:batchId', authorizeInventoryWrite, ctrl.updateRawMaterialBatch);
 
 router.get('/products', ctrl.getProducts);
 router.get('/movements', ctrl.getMovements);

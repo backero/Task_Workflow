@@ -368,22 +368,32 @@ exports.updateRawMaterial = asyncHandler(async (req, res) => {
 
 // POST /api/inventory/raw-materials/:id/batches
 exports.addRawMaterialBatch = asyncHandler(async (req, res) => {
-  const { quantity, price, batchNumber, expiryDate, receivedDate, notes } = req.body;
+  const { quantity, totalPrice, price, batchNumber, expiryDate, receivedDate,
+    location, supplier, invoice, notes,
+    qcCheckedBy, qcDate, qcStatus, qcNotes } = req.body;
   const qty = parseFloat(quantity);
   if (!qty || qty <= 0) return sendError(res, 'Quantity must be positive.', 400);
 
   const product = await Product.findOne({ _id: req.params.id, organizationId: req.user.organizationId, isRawMaterial: true });
   if (!product) return sendError(res, 'Raw material not found.', 404);
 
-  const batchPrice = parseFloat(price) || product.costPrice || 0;
+  const batchPrice = parseFloat(price) || (totalPrice && qty ? parseFloat(totalPrice) / qty : 0) || product.costPrice || 0;
   product.batches.push({
     batchId: 'BATCH-' + Date.now(),
     quantity: qty,
+    totalPrice: parseFloat(totalPrice) || 0,
     price: batchPrice,
     batchNumber: batchNumber || ('LOT-' + product.sku + '-' + (product.batches.length + 1)),
     expiryDate: expiryDate || null,
     receivedDate: receivedDate ? new Date(receivedDate) : new Date(),
+    location: location || '',
+    supplier: supplier || '',
+    invoice: invoice || '',
     notes: notes || '',
+    qcCheckedBy: qcCheckedBy || '',
+    qcDate: qcDate || new Date().toISOString().split('T')[0],
+    qcStatus: qcStatus || 'pass',
+    qcNotes: qcNotes || '',
   });
 
   // Recompute total stock and weighted avg cost price
@@ -398,6 +408,45 @@ exports.addRawMaterialBatch = asyncHandler(async (req, res) => {
   await product.save();
 
   sendSuccess(res, { product }, 'Batch added');
+});
+
+// PUT /api/inventory/raw-materials/:id/batches/:batchId
+exports.updateRawMaterialBatch = asyncHandler(async (req, res) => {
+  const { quantity, totalPrice, price, batchNumber, expiryDate, receivedDate,
+    location, supplier, invoice, notes, qcCheckedBy, qcDate, qcStatus, qcNotes } = req.body;
+
+  const product = await Product.findOne({ _id: req.params.id, organizationId: req.user.organizationId, isRawMaterial: true });
+  if (!product) return sendError(res, 'Raw material not found.', 404);
+
+  const batch = product.batches.find(b => b._id.toString() === req.params.batchId || b.batchId === req.params.batchId);
+  if (!batch) return sendError(res, 'Batch not found.', 404);
+
+  if (quantity  !== undefined) batch.quantity    = parseFloat(quantity)  || 0;
+  if (totalPrice !== undefined) batch.totalPrice = parseFloat(totalPrice) || 0;
+  if (price     !== undefined) batch.price       = parseFloat(price)     || 0;
+  if (batchNumber  !== undefined) batch.batchNumber  = batchNumber;
+  if (expiryDate   !== undefined) batch.expiryDate   = expiryDate || null;
+  if (receivedDate !== undefined) batch.receivedDate = receivedDate || null;
+  if (location  !== undefined) batch.location  = location;
+  if (supplier  !== undefined) batch.supplier  = supplier;
+  if (invoice   !== undefined) batch.invoice   = invoice;
+  if (notes     !== undefined) batch.notes     = notes;
+  if (qcCheckedBy !== undefined) batch.qcCheckedBy = qcCheckedBy;
+  if (qcDate    !== undefined) batch.qcDate    = qcDate;
+  if (qcStatus  !== undefined) batch.qcStatus  = qcStatus;
+  if (qcNotes   !== undefined) batch.qcNotes   = qcNotes;
+
+  const totalQty = product.batches.reduce((s, b) => s + (b.quantity || 0), 0);
+  product.currentStock = totalQty;
+  if (totalQty > 0) {
+    const weightedSum = product.batches.reduce((s, b) => s + (b.quantity || 0) * (b.price || product.costPrice || 0), 0);
+    product.costPrice = parseFloat((weightedSum / totalQty).toFixed(2));
+  }
+  product.updatedBy = req.user._id;
+  product.markModified('batches');
+  await product.save();
+
+  sendSuccess(res, { product }, 'Batch updated');
 });
 
 exports.deleteProduct = asyncHandler(async (req, res) => {
