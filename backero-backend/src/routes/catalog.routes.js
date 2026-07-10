@@ -17,5 +17,6 @@ router.put('/products/:id',      authorizeManagerOrAbove, ctrl.updateProduct);
 router.delete('/products/:id',   authorizeAdminOrAbove,   ctrl.deleteProduct);
 router.post('/products/:id/image', authorizeManagerOrAbove, imgUpload.single('image'), ctrl.uploadImage);
 router.post('/import',           authorizeAdminOrAbove,   ctrl.importProducts);
+router.post('/resolve-ingredients', authorizeManagerOrAbove, ctrl.resolveIngredients);
 
 module.exports = router;

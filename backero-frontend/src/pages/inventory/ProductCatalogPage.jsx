@@ -686,25 +686,150 @@ function InfoRow({ label, value, mono, badge }) {
   );
 }
 
+// ─── Ingredient Autocomplete Cell ──────────────────────────────────────────────
+function IngredientCell({ row, index, rawMaterials, onUpdate }) {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState(row.name || '');
+  const [dropPos, setDropPos] = useState({ top: 0, left: 0, width: 0 });
+  const inputRef = useRef(null);
+  const wrapRef = useRef(null);
+
+  useEffect(() => {
+    const h = (e) => { if (wrapRef.current && !wrapRef.current.contains(e.target)) setOpen(false); };
+    document.addEventListener('mousedown', h);
+    return () => document.removeEventListener('mousedown', h);
+  }, []);
+
+  useEffect(() => { setQuery(row.name || ''); }, [row.name]);
+
+  const suggestions = useMemo(() => {
+    if (!query.trim()) return rawMaterials.slice(0, 8);
+    const q = query.toLowerCase();
+    return rawMaterials.filter(m => m.name.toLowerCase().includes(q)).slice(0, 8);
+  }, [query, rawMaterials]);
+
+  const isLinked = !!row.rawMaterialId;
+  const exactMatch = rawMaterials.some(m => m.name.toLowerCase() === query.toLowerCase());
+
+  function openDropdown() {
+    if (inputRef.current) {
+      const r = inputRef.current.getBoundingClientRect();
+      setDropPos({ top: r.bottom + window.scrollY + 2, left: r.left + window.scrollX, width: 224 });
+    }
+    setOpen(true);
+  }
+
+  function select(mat) {
+    onUpdate(index, { name: mat.name, rawMaterialId: mat._id, unit: mat.unit, costPerKg: mat.costPrice || 0 });
+    setQuery(mat.name);
+    setOpen(false);
+  }
+
+  function handleChange(e) {
+    setQuery(e.target.value);
+    onUpdate(index, { name: e.target.value, rawMaterialId: '' });
+    openDropdown();
+  }
+
+  const dropdown = open && query.trim() ? createPortal(
+    <div style={{ position: 'fixed', top: dropPos.top, left: dropPos.left, width: dropPos.width, zIndex: 9999 }}
+      className="bg-white dark:bg-[#0d1b2e] border border-gray-200 dark:border-[#1b2e4a] rounded-lg shadow-xl overflow-hidden">
+      {suggestions.map(m => (
+        <button key={m._id} onMouseDown={() => select(m)}
+          className="w-full text-left px-3 py-1.5 text-xs hover:bg-orange-50 dark:hover:bg-orange-500/10 flex items-center justify-between gap-2">
+          <span className="text-gray-800 dark:text-gray-200 truncate">{m.name}</span>
+          <span className="text-gray-400 shrink-0">{m.unit} · {m.currentStock ?? 0}</span>
+        </button>
+      ))}
+      {!exactMatch && (
+        <div className="px-3 py-1.5 text-xs text-orange-500 border-t border-gray-100 dark:border-[#1b2e4a] flex items-center gap-1">
+          <span className="font-bold">+</span> Create &quot;{query}&quot; as new raw material on save
+        </div>
+      )}
+    </div>,
+    document.body
+  ) : null;
+
+  return (
+    <div ref={wrapRef} className="flex items-center gap-1">
+      <input
+        ref={inputRef}
+        value={query}
+        onChange={handleChange}
+        onFocus={openDropdown}
+        className="input text-xs w-40"
+        placeholder="Type ingredient..."
+      />
+      {isLinked
+        ? <span title="Linked to inventory" className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold select-none">●</span>
+        : query.trim()
+          ? <span title="Will be auto-created as raw material" className="text-[10px] text-orange-400 font-bold select-none">+</span>
+          : null}
+      {dropdown}
+    </div>
+  );
+}
+
 // ─── Formulation Tab ───────────────────────────────────────────────────────────
 function FormulationTab({ product, form, setForm, onSave, isPending }) {
+  const [resolving, setResolving] = useState(false);
   const rows = form.formulation?.rows || [];
   const totalPct = rows.reduce((s, r) => s + (Number(r.percentage) || 0), 0);
   const formCost = calcFormCost({ formulation: form.formulation });
 
+  const { data: rmData } = useQuery({
+    queryKey: ['raw-materials-list'],
+    queryFn: () => api.get('/inventory/raw-materials').then(r => r.data.materials || []),
+    staleTime: 60_000,
+  });
+  const rawMaterials = rmData || [];
+
   function addRow() {
-    setForm(f => ({ ...f, formulation: { ...f.formulation, rows: [...(f.formulation?.rows || []), { name: '', percentage: 0, quantity: 0, unit: 'g', costPerKg: 0 }] } }));
+    setForm(f => ({ ...f, formulation: { ...f.formulation, rows: [...(f.formulation?.rows || []), { name: '', rawMaterialId: '', percentage: 0, quantity: 0, unit: 'g', costPerKg: 0 }] } }));
   }
-  function updateRow(i, field, val) {
+  function updateRow(i, fields) {
     setForm(f => {
       const rows = [...(f.formulation?.rows || [])];
-      rows[i] = { ...rows[i], [field]: val };
+      rows[i] = { ...rows[i], ...fields };
       return { ...f, formulation: { ...f.formulation, rows } };
     });
   }
   function removeRow(i) {
     setForm(f => ({ ...f, formulation: { ...f.formulation, rows: (f.formulation?.rows || []).filter((_, idx) => idx !== i) } }));
   }
+
+  async function handleSave() {
+    const unresolved = rows.filter(r => r.name?.trim() && !r.rawMaterialId);
+    if (unresolved.length > 0) {
+      setResolving(true);
+      try {
+        const res = await api.post('/catalog/resolve-ingredients', {
+          ingredients: unresolved.map(r => ({ name: r.name, unit: r.unit, costPerKg: r.costPerKg })),
+        });
+        const resolved = res.data.ingredients || [];
+        const resolvedMap = Object.fromEntries(resolved.map(r => [r.name.toLowerCase(), r]));
+        setForm(f => {
+          const newRows = (f.formulation?.rows || []).map(r => {
+            if (!r.rawMaterialId && r.name?.trim()) {
+              const match = resolvedMap[r.name.toLowerCase()];
+              if (match) return { ...r, rawMaterialId: match.rawMaterialId, unit: match.unit, costPerKg: r.costPerKg || match.costPerKg };
+            }
+            return r;
+          });
+          return { ...f, formulation: { ...f.formulation, rows: newRows } };
+        });
+        const newCreated = resolved.filter(r => r.isNew).length;
+        if (newCreated > 0) toast.success(`${newCreated} new raw material${newCreated > 1 ? 's' : ''} added to inventory`);
+      } catch (e) {
+        toast.error('Could not resolve some ingredients');
+      } finally {
+        setResolving(false);
+      }
+    }
+    onSave();
+  }
+
+  const linkedCount = rows.filter(r => r.rawMaterialId).length;
 
   return (
     <div className="space-y-4">
@@ -717,6 +842,11 @@ function FormulationTab({ product, form, setForm, onSave, isPending }) {
             </select>
           </div>
         </div>
+        {rows.length > 0 && (
+          <div className="text-xs text-gray-500 dark:text-gray-400">
+            <span className="text-emerald-600 dark:text-emerald-400 font-semibold">{linkedCount}</span>/{rows.length} linked to inventory
+          </div>
+        )}
         <div className="ml-auto text-right">
           <p className="text-xs text-gray-400">Total %</p>
           <p className={clsx('text-xl font-bold', Math.abs(totalPct - 100) < 0.1 ? 'text-green-600' : 'text-red-500')}>{numF(totalPct, 1)}%</p>
@@ -739,20 +869,31 @@ function FormulationTab({ product, form, setForm, onSave, isPending }) {
           <tbody>
             {rows.map((r, i) => (
               <tr key={i} className="border-t border-gray-100 dark:border-[#1b2e4a]">
-                <td className="px-3 py-1.5"><input value={r.name} onChange={e => updateRow(i, 'name', e.target.value)} className="input text-xs w-36" placeholder="Ingredient name" /></td>
-                <td className="px-3 py-1.5"><input type="number" value={r.percentage} onChange={e => updateRow(i, 'percentage', e.target.value)} className="input text-xs w-16" /></td>
+                <td className="px-3 py-1.5">
+                  <IngredientCell row={r} index={i} rawMaterials={rawMaterials} onUpdate={updateRow} />
+                </td>
+                <td className="px-3 py-1.5"><input type="number" value={r.percentage} onChange={e => updateRow(i, { percentage: e.target.value })} className="input text-xs w-16" /></td>
                 <td className="px-3 py-1.5"><span className="text-gray-500">{numF((form.formulation?.refWeight || 100) * (r.percentage || 0) / 100, 2)}</span></td>
-                <td className="px-3 py-1.5"><input type="number" value={r.costPerKg} onChange={e => updateRow(i, 'costPerKg', e.target.value)} className="input text-xs w-20" /></td>
+                <td className="px-3 py-1.5"><input type="number" value={r.costPerKg} onChange={e => updateRow(i, { costPerKg: e.target.value })} className="input text-xs w-20" /></td>
                 <td className="px-3 py-1.5 text-blue-600 font-mono">₹{numF((r.costPerKg || 0) * (r.percentage || 0) / 100)}</td>
                 <td className="px-3 py-1.5"><button onClick={() => removeRow(i)} className="text-red-400 hover:text-red-600">✕</button></td>
               </tr>
             ))}
+            {rows.length === 0 && (
+              <tr><td colSpan={6} className="px-3 py-6 text-center text-gray-400">No ingredients yet. Click "+ Add Ingredient" to start.</td></tr>
+            )}
           </tbody>
         </table>
       </div>
-      <div className="flex gap-3">
+      <div className="flex items-center gap-3 flex-wrap">
         <button onClick={addRow} className="btn-secondary text-sm">+ Add Ingredient</button>
-        <button onClick={onSave} disabled={isPending} className="btn-primary text-sm disabled:opacity-50 ml-auto">{isPending ? 'Saving…' : '💾 Save Formulation'}</button>
+        <div className="text-[11px] text-gray-400 flex items-center gap-3">
+          <span><span className="text-emerald-600 dark:text-emerald-400 font-bold">●</span> Linked to inventory</span>
+          <span><span className="text-orange-400 font-bold">+</span> Will auto-create as raw material</span>
+        </div>
+        <button onClick={handleSave} disabled={isPending || resolving} className="btn-primary text-sm disabled:opacity-50 ml-auto">
+          {resolving ? '🔗 Linking…' : isPending ? 'Saving…' : '💾 Save Formulation'}
+        </button>
       </div>
     </div>
   );

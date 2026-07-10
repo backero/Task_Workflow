@@ -1,4 +1,5 @@
 const CatalogProduct = require('../models/CatalogProduct');
+const Product = require('../models/Product');
 const { asyncHandler, sendSuccess, sendError } = require('../utils/helpers');
 const { uploadBuffer } = require('../utils/cloudinary');
 
@@ -153,4 +154,56 @@ exports.importProducts = asyncHandler(async (req, res) => {
     created++;
   }
   sendSuccess(res, { created, skipped }, `Imported ${created} products, skipped ${skipped}`);
+});
+
+// POST /api/catalog/resolve-ingredients
+// Given a list of ingredient names, match to existing raw materials or create new ones.
+// Returns enriched rows with rawMaterialId, unit, costPerKg and whether they were newly created.
+exports.resolveIngredients = asyncHandler(async (req, res) => {
+  const orgId = req.user.organizationId;
+  const { ingredients = [] } = req.body; // [{ name, unit, costPerKg }]
+
+  const result = [];
+  for (const ing of ingredients) {
+    const name = (ing.name || '').trim();
+    if (!name) continue;
+
+    const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    let mat = await Product.findOne({
+      organizationId: orgId,
+      isRawMaterial: true,
+      name: { $regex: new RegExp(`^${escaped}$`, 'i') },
+    });
+
+    let isNew = false;
+    if (!mat) {
+      const count = await Product.countDocuments({ organizationId: orgId, isRawMaterial: true });
+      const sku = 'RM-' + String(count + 1).padStart(4, '0');
+      mat = await Product.create({
+        organizationId: orgId,
+        name,
+        sku,
+        category: 'Raw Materials',
+        unit: ing.unit || 'g',
+        costPrice: ing.costPerKg || 0,
+        currentStock: 0,
+        isRawMaterial: true,
+        isFinishedGood: false,
+        isSellable: false,
+        batches: [],
+        createdBy: req.user._id,
+      });
+      isNew = true;
+    }
+
+    result.push({
+      name: mat.name,
+      rawMaterialId: mat._id.toString(),
+      unit: mat.unit,
+      costPerKg: ing.costPerKg || mat.costPrice || 0,
+      isNew,
+    });
+  }
+
+  sendSuccess(res, { ingredients: result });
 });
