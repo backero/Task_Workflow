@@ -13,7 +13,9 @@ services:
       - key: PORT
         value: 10000
       - key: FRONTEND_URL
-        value: https://backero-worktaskflow.netlify.app
+        value: https://task-workflow-liart.vercel.app
+      - key: GOOGLE_CALLBACK_URL
+        value: https://backero-backend.onrender.com/api/auth/google/callback
       - key: JWT_EXPIRES_IN
         value: 15m
       - key: JWT_REFRESH_EXPIRES_IN
