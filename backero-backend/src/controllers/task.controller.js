@@ -7,7 +7,7 @@ const Organization = require('../models/Organization');
 const { asyncHandler, sendSuccess, sendError, paginate, paginateResponse } = require('../utils/helpers');
 const { TASK_STATUS, SOCKET_EVENTS, ROLES, ROLE_HIERARCHY } = require('../utils/constants');
 const { createNotification } = require('../services/notification.service');
-const { sendTaskAssigned } = require('../services/whatsapp.service');
+const { sendTaskAssigned } = require('../services/whatsappCloud.service');
 const { sendTaskNotificationEmail } = require('../services/email.service');
 
 // GET /api/tasks

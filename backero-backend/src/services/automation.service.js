@@ -9,8 +9,26 @@ const MarketplaceDaily = require('../models/MarketplaceDaily');
 const MarketplacePlan = require('../models/MarketplacePlan');
 const MarketplacePlanProgress = require('../models/MarketplacePlanProgress');
 const { createNotification, bulkCreateNotifications } = require('./notification.service');
-const { sendTaskOverdueEmployee, sendTaskOverdueManager, sendTaskOverdueGroup, sendTasksDueTodayGroup, sendDailyReport, sendDailyReportWithPDF, sendInProgressLeadUpdate, sendActiveClientStageUpdate, sendOverdueFollowUpRepAlert, sendStaleLeadManagerAlert } = require('./whatsapp.service');
-const Department = require('../models/Department');
+const { sendDailyReport, sendDailyReportWithPDF } = require('./whatsapp.service');
+const {
+  sendTaskOverdueEmployee, sendTaskOverdueManager, sendInProgressLeadUpdate, sendActiveClientStageUpdate,
+  sendOverdueFollowUpRepAlert, sendStaleLeadManagerAlert, sendTasksDueTodaySummary, sendTeamTaskOverdueAlert,
+} = require('./whatsappCloud.service');
+
+// Individual DMs replace the old WhatsApp-group broadcast (Cloud API can't send to groups at all).
+// Excludes user IDs already notified directly (e.g. the assignee/manager) to avoid duplicate pings.
+async function notifyDepartmentMembers(organizationId, departmentName, excludeUserIds, sendFn, args) {
+  const excluded = new Set((excludeUserIds || []).filter(Boolean).map(String));
+  const members = await User.find({
+    organizationId, department: departmentName, isActive: true,
+    _id: { $nin: [...excluded] },
+  }).select('phone whatsapp settings');
+  await Promise.all(members.map((m) => {
+    const waPhone = m.whatsapp || m.phone;
+    if (!waPhone || m.settings?.notifications?.whatsapp === false) return null;
+    return sendFn(waPhone, args).catch(() => {});
+  }));
+}
 const { generateDailyReportPDF } = require('./reportPdf.service');
 const { autoSyncAllOrgs } = require('./googleSheets.service');
 const { TASK_STATUS, ROLES, ROLE_HIERARCHY, SOCKET_EVENTS } = require('../utils/constants');
@@ -164,18 +182,13 @@ const runOverdueTaskCheck = async () => {
       }
     }
 
-    // 3. WhatsApp to department group
-    const deptDoc = await Department.findOne({
-      organizationId: task.organizationId,
-      $or: [{ name: task.department }, { code: task.department }],
-    }).select('whatsappGroupId');
-    if (deptDoc?.whatsappGroupId) {
-      await sendTaskOverdueGroup(deptDoc.whatsappGroupId, {
-        title: task.title, employeeName,
-        department: task.department, dueDate: task.dueDate,
-        priority: task.priority, overdueCount: 1, taskId: task._id,
-      });
-    }
+    // 3. WhatsApp DM to the rest of the department team (individual sends — Cloud API can't message groups)
+    await notifyDepartmentMembers(
+      task.organizationId, task.department,
+      [task.assignedTo?._id, task.assignedBy?._id],
+      sendTeamTaskOverdueAlert,
+      { department: task.department, title: task.title, employeeName, priority: task.priority, dueDate: task.dueDate },
+    );
 
     // 4. WhatsApp to ALL admins/founders for every overdue task (skip assignedBy — they already got the manager message)
     await escalateToFounders(task, employeeName, task.assignedBy?._id);
@@ -236,18 +249,13 @@ const runOverdueTaskCheck = async () => {
       }
     }
 
-    // Department group — every repeat reminder
-    const deptDoc2 = await Department.findOne({
-      organizationId: task.organizationId,
-      $or: [{ name: task.department }, { code: task.department }],
-    }).select('whatsappGroupId');
-    if (deptDoc2?.whatsappGroupId) {
-      await sendTaskOverdueGroup(deptDoc2.whatsappGroupId, {
-        title: task.title, employeeName,
-        department: task.department, dueDate: task.dueDate,
-        priority: task.priority, overdueCount: task.overdueNotificationsSent, taskId: task._id,
-      });
-    }
+    // Department team DM — every repeat reminder
+    await notifyDepartmentMembers(
+      task.organizationId, task.department,
+      [task.assignedTo?._id, task.assignedBy?._id],
+      sendTeamTaskOverdueAlert,
+      { department: task.department, title: task.title, employeeName, priority: task.priority, dueDate: task.dueDate },
+    );
 
     // Escalate to admins after 3 reminders (exclude assignedBy — already got manager message)
     if (isCritical) {
@@ -549,17 +557,15 @@ const runDueTodayTaskReminder = async () => {
 
   let sent = 0;
   for (const { organizationId, department, tasks: deptTasks } of Object.values(byOrgDept)) {
-    const deptDoc = await Department.findOne({
-      organizationId,
-      $or: [{ name: department }, { code: department }],
-    }).select('whatsappGroupId');
-    if (!deptDoc?.whatsappGroupId) continue;
-
-    await sendTasksDueTodayGroup(deptDoc.whatsappGroupId, { department, tasks: deptTasks });
+    await notifyDepartmentMembers(
+      organizationId, department, [],
+      sendTasksDueTodaySummary,
+      { department, count: deptTasks.length },
+    );
     sent++;
   }
 
-  logger.info(`[DueToday] Sent to ${sent} department group(s), ${tasks.length} tasks total`);
+  logger.info(`[DueToday] Sent to ${sent} department(s), ${tasks.length} tasks total`);
 };
 
 const runFollowUpReminders = async () => {

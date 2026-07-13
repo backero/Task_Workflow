@@ -9,7 +9,18 @@ const { asyncHandler, sendSuccess, sendError, paginate, paginateResponse, genera
 const { LEAD_STATUS, SOCKET_EVENTS, ROLE_HIERARCHY, ROLES } = require('../utils/constants');
 const { createNotification } = require('../services/notification.service');
 const { appendLeadToSheet, updateLeadInSheet } = require('../services/googleSheets.service');
-const { sendNewLeadAlert, sendSampleDispatchedToClient, sendDispatchedFeedbackRequest } = require('../services/whatsapp.service');
+const { sendSampleDispatchedToClient, sendDispatchedFeedbackRequest, sendNewLeadAlertDM } = require('../services/whatsappCloud.service');
+
+// Individual DMs to the Sales department replace the old WhatsApp-group broadcast
+// (Cloud API can't send to groups at all).
+async function notifySalesTeamOfNewLead(organizationId, leadData) {
+  const members = await User.find({ organizationId, department: 'Sales', isActive: true }).select('phone whatsapp settings');
+  await Promise.all(members.map((m) => {
+    const waPhone = m.whatsapp || m.phone;
+    if (!waPhone || m.settings?.notifications?.whatsapp === false) return null;
+    return sendNewLeadAlertDM(waPhone, leadData).catch(() => {});
+  }));
+}
 
 // GET /api/crm/leads
 exports.getLeads = asyncHandler(async (req, res) => {
@@ -102,12 +113,11 @@ exports.createLead = asyncHandler(async (req, res) => {
     reference: { model: 'Lead', id: lead._id, title: name },
   });
 
-  // Notify CRM WhatsApp group (async, non-blocking)
-  Organization.findById(req.user.organizationId).select('googleSheets crmLeadGroupId').then((org) => {
-    if (org?.crmLeadGroupId) {
-      const createdByName = `${req.user.firstName} ${req.user.lastName}`.trim();
-      sendNewLeadAlert(org.crmLeadGroupId, { ...lead.toObject(), createdByName }).catch(() => {});
-    }
+  // Notify Sales team individually (async, non-blocking) — replaces the old WhatsApp group broadcast
+  const createdByName = `${req.user.firstName} ${req.user.lastName}`.trim();
+  notifySalesTeamOfNewLead(req.user.organizationId, { ...lead.toObject(), createdByName }).catch(() => {});
+
+  Organization.findById(req.user.organizationId).select('googleSheets').then((org) => {
     if (org?.googleSheets?.writeBackEnabled && org?.googleSheets?.sheetId) {
       appendLeadToSheet(org, lead).catch(() => {});
     }
