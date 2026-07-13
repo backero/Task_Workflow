@@ -10,6 +10,7 @@ let lastError = null;
 let _consecutive440s = 0;
 let _lastConnectedAt = 0;   // timestamp of last successful connection.open
 let _postConnectRetries = 0; // reconnect attempts within 2 min of a successful connect
+let _consecutiveGenericFails = 0; // reconnect attempts on codes we don't special-case (e.g. 403)
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -114,6 +115,7 @@ const initWhatsApp = async (io) => {
         qrCode = null;
         connectionStatus = 'connected';
         _consecutive440s = 0;
+        _consecutiveGenericFails = 0;
         _lastConnectedAt = Date.now();
         _postConnectRetries = 0;
         logger.info('[WhatsApp] ✅ Connected and ready');
@@ -173,9 +175,19 @@ const initWhatsApp = async (io) => {
           }
 
         } else {
-          // Generic / transient disconnect — reconnect with same session
-          logger.info(`[WhatsApp] Reconnecting in 5s (code: ${code})…`);
-          _scheduleReinit(5000, false);
+          // Generic / transient disconnect — reconnect with same session, but if the
+          // exact same unhandled code keeps recurring (e.g. 403 from a revoked/banned
+          // session that Baileys doesn't classify as loggedOut), retrying forever with
+          // the same credentials will never succeed — clear it for a fresh QR instead.
+          _consecutiveGenericFails++;
+          if (_consecutiveGenericFails >= 5) {
+            logger.warn(`[WhatsApp] ${_consecutiveGenericFails}× unhandled disconnect (code: ${code}) — clearing session for fresh QR`);
+            _consecutiveGenericFails = 0;
+            _scheduleReinit(3000, true);
+          } else {
+            logger.info(`[WhatsApp] Reconnecting in 5s (code: ${code}, attempt ${_consecutiveGenericFails})…`);
+            _scheduleReinit(5000, false);
+          }
         }
       }
     });

@@ -33,4 +33,14 @@ const authorizeInventoryWrite = (req, res, next) => {
   return sendError(res, 'Access denied. Inventory write permission required.', 403);
 };
 
-module.exports = { authorize, authorizeMinRole, authorizeManagerOrAbove, authorizeAdminOrAbove, authorizeFounderOrAbove, authorizeInventoryWrite };
+// admin+ OR explicit catalog:delete permission (e.g. a department manager granted product-delete rights)
+const authorizeCatalogDelete = (req, res, next) => {
+  if (!req.user) return sendError(res, 'Authentication required.', 401);
+  const level = ROLE_HIERARCHY[req.user.role] || 0;
+  if (level >= ROLE_HIERARCHY['admin'] || (req.user.permissions || []).includes('catalog:delete')) {
+    return next();
+  }
+  return sendError(res, 'Access denied. Catalog delete permission required.', 403);
+};
+
+module.exports = { authorize, authorizeMinRole, authorizeManagerOrAbove, authorizeAdminOrAbove, authorizeFounderOrAbove, authorizeInventoryWrite, authorizeCatalogDelete };
