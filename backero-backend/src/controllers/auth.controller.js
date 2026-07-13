@@ -198,23 +198,16 @@ exports.sendLoginOTP = asyncHandler(async (req, res) => {
   sendSuccess(res, devPayload, 'OTP sent to your registered email and mobile number');
 
   // ── WhatsApp (bonus — fire-and-forget, no retry loops) ───────────────────────
-  const { sendMessage, isConnected, getStatus } = require('../services/whatsapp.service');
-  const otpMsg = `🔐 *Backero Login OTP*\n\nYour OTP is: *${otp}*\n\nValid for 10 minutes. Do not share this with anyone.`;
+  // Uses the official WhatsApp Cloud API (Meta-approved AUTHENTICATION template),
+  // not the unofficial Baileys client — avoids the account-ban risk of automating
+  // the regular WhatsApp Web protocol for OTP delivery.
+  const { sendOTP } = require('../services/whatsappCloud.service');
   (async () => {
     try {
-      if (!isConnected()) {
-        logger.info(`[OTP] WA not ready (${getStatus()}) — waiting up to 15s`);
-        await new Promise((resolve) => {
-          const deadline = setTimeout(resolve, 15000);
-          const poll = setInterval(() => {
-            if (isConnected()) { clearInterval(poll); clearTimeout(deadline); resolve(); }
-          }, 1000);
-        });
-      }
-      const sent = await sendMessage(phone, otpMsg).catch(() => false);
-      logger.info(`[OTP] WhatsApp → ${phone}: ${sent ? '✅' : '❌'} | email: ${emailSent ? '✅' : '❌ (no email/SMTP)'}`);
+      const sent = await sendOTP(phone, otp).catch(() => false);
+      logger.info(`[OTP] WhatsApp Cloud → ${phone}: ${sent ? '✅' : '❌'} | email: ${emailSent ? '✅' : '❌ (no email/SMTP)'}`);
     } catch (err) {
-      logger.error(`[OTP] WhatsApp error: ${err.message}`);
+      logger.error(`[OTP] WhatsApp Cloud error: ${err.message}`);
     }
   })();
 });
