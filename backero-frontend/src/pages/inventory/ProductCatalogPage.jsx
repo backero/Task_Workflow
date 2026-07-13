@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-hot-toast';
 import { clsx } from 'clsx';
+import QRCode from 'react-qr-code';
 import api from '../../api/axios';
 
 const CATEGORIES = ['Hair Care', 'Skin Care', 'Face Care', 'Body Care', 'Oral Care', "Men's Care", 'Baby Care', 'Sun Care', 'Makeup', 'Fragrance', 'Wellness', 'Professional', 'Other'];
@@ -10,7 +11,20 @@ const PRODUCT_TYPES = ['Shampoo', 'Conditioner', 'Hair Oil', 'Serum', 'Cream', '
 const UNITS = ['ml', 'g', 'kg', 'L', 'pcs', 'oz'];
 const GST_RATES = [0, 5, 12, 18, 28];
 const STATUSES = ['Active', 'Inactive', 'Draft', 'Archived'];
-const TABS = ['Basic Info', 'Formulation', 'Variants', 'Costing', 'Packaging', 'Marketplace', 'R&D'];
+const TABS = ['Basic Info', 'Formulation', 'Variants', 'R&D & Overheads', 'Costing', 'Packaging', 'Marketplace', 'QR Code', 'Procedure', 'Documents', 'History'];
+
+const ASSUMPTION_FIELDS = [
+  { key: 'equipmentPct', label: 'Equipment (Mold/Tools)', max: 20, hint: '3-5% recommended' },
+  { key: 'consumablesPct', label: 'Consumables (Small/MSME)', max: 10, hint: '1-2% recommended' },
+  { key: 'storagePct', label: 'Storage (Warehouse)', max: 10, hint: '2-4% recommended' },
+  { key: 'housekeepingPct', label: 'Housekeeping (Sanitization)', max: 10, hint: '1-2% recommended' },
+  { key: 'adminPct', label: 'Admin (Admin STD)', max: 20, hint: '5-8% recommended' },
+  { key: 'wastagePct', label: 'Wastage (Production)', max: 10, hint: '2-5% recommended' },
+];
+
+function fmtDate(d) {
+  return d ? new Date(d).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—';
+}
 const PLATFORMS = ['flipkart', 'amazon', 'meesho', 'snapdeal'];
 const PLATFORM_ICONS = { flipkart: '🛒', amazon: '📦', meesho: '🏷️', snapdeal: '🔵' };
 
@@ -27,9 +41,13 @@ const emptyForm = () => ({
   storage: '', certifications: '', barcode: '', image: null,
   formulation: { refWeight: 100, refUnit: 'ml', rows: [] },
   variants: [],
-  standardAssumptions: { equipmentPct: 3, consumablesPct: 1, storagePct: 2, housekeepingPct: 1, adminPct: 5, wastagePct: 2 },
-  rnd: { testing: 0, consumables: 0, samples: 0, overhead: 0, otherOverhead: 0, qc: 0, lifecycle: 1000, docText: '', researchGuide: '', procedure: '' },
-  productionOverhead: { electricity: 0, labor: 0, labTesting: 0, other: 0 },
+  standardAssumptions: { equipmentPct: 3, consumablesPct: 1, storagePct: 2, housekeepingPct: 1, adminPct: 5, wastagePct: 2, image: null, lastUpdated: null },
+  rnd: { testing: 0, consumables: 0, samples: 0, overhead: 0, otherOverhead: 0, qc: 0, lifecycle: 1000, lastUpdated: null },
+  rndDoc: { text: '', attachments: [], lastUpdated: null },
+  researchGuide: { text: '', lastUpdated: null },
+  procedure: { text: '', attachments: [], lastUpdated: null },
+  documents: { coa: null, msds: null, registration: null, brochure: null },
+  productionOverhead: { electricity: 0, labor: 0, labTesting: 0, other: 0, lastUpdated: null },
   packaging: { items: defaultPackaging(), charges: { machine: 0, shrinkWrap: 0, other: 0 } },
   costing: { margins: { exFactory: 10, dealer: 15, distributor: 20, retailer: 25, selling: 35, b2b: 20, b2c: 40 } },
   marketplace: {
@@ -51,24 +69,33 @@ function calcFormCost(product) {
   return product.formulation.rows.reduce((sum, r) => sum + ((r.costPerKg || 0) * (r.percentage || 0) / 100), 0);
 }
 
-function calcTotalCostPerUnit(product) {
-  if (!product) return 0;
-  const refW = product.formulation?.refWeight || 100;
+// Shared breakdown used by R&D & Overheads, Costing, and Marketplace tabs — mirrors
+// product-catalog.html's recalcOverheads()/renderCosting()/renderMarketplace() formulas.
+function calcOverheadBreakdown(product) {
+  const refW = (product?.formulation?.refWeight) || product?.weight || 100;
   const formCost = calcFormCost(product) * refW / 1000;
-  const sa = product.standardAssumptions || {};
-  const overheadPct = ((sa.equipmentPct || 0) + (sa.consumablesPct || 0) + (sa.storagePct || 0) +
-    (sa.housekeepingPct || 0) + (sa.adminPct || 0) + (sa.wastagePct || 0)) / 100;
-  const rnd = product.rnd || {};
+  const sa = product?.standardAssumptions || {};
+  const saPct = (sa.equipmentPct || 0) + (sa.consumablesPct || 0) + (sa.storagePct || 0) +
+    (sa.housekeepingPct || 0) + (sa.adminPct || 0) + (sa.wastagePct || 0);
+  const saAmount = formCost * saPct / 100;
+  const rnd = product?.rnd || {};
   const lifecycle = rnd.lifecycle || 1000;
-  const rndTotal = ((rnd.testing || 0) + (rnd.consumables || 0) + (rnd.samples || 0) +
-    (rnd.overhead || 0) + (rnd.otherOverhead || 0) + (rnd.qc || 0));
+  const rndTotal = (rnd.testing || 0) + (rnd.consumables || 0) + (rnd.samples || 0) +
+    (rnd.overhead || 0) + (rnd.otherOverhead || 0) + (rnd.qc || 0);
   const rndPerUnit = lifecycle > 0 ? rndTotal / lifecycle : 0;
-  const po = product.productionOverhead || {};
-  const prodOverhead = (po.electricity || 0) + (po.labor || 0) + (po.labTesting || 0) + (po.other || 0);
-  const pkg = product.packaging || {};
+  const po = product?.productionOverhead || {};
+  const overheadTotal = (po.electricity || 0) + (po.labor || 0) + (po.labTesting || 0) + (po.other || 0);
+  const overheadPerUnit = refW > 0 ? overheadTotal / refW : 0;
+  const pkg = product?.packaging || {};
   const pkgCost = (pkg.items || []).filter(i => !i.optional).reduce((s, i) => s + (i.amount || i.qty * i.rate || 0), 0)
     + (pkg.charges?.machine || 0) + (pkg.charges?.shrinkWrap || 0) + (pkg.charges?.other || 0);
-  return formCost * (1 + overheadPct) + rndPerUnit + prodOverhead + pkgCost;
+  return { refW, formCost, saPct, saAmount, rndTotal, lifecycle, rndPerUnit, overheadTotal, overheadPerUnit, pkgCost };
+}
+
+function calcTotalCostPerUnit(product) {
+  if (!product) return 0;
+  const b = calcOverheadBreakdown(product);
+  return b.formCost + b.saAmount + b.overheadPerUnit + b.rndPerUnit + b.pkgCost;
 }
 
 // ─── Metric Card ───────────────────────────────────────────────────────────────
@@ -201,6 +228,18 @@ export default function ProductCatalogPage() {
     mutationFn: ({ id, file }) => { const fd = new FormData(); fd.append('image', file); return api.post(`/catalog/products/${id}/image`, fd); },
     onSuccess: (_, { id }) => { qc.invalidateQueries({ queryKey: ['catalog-detail', id] }); qc.invalidateQueries({ queryKey: ['catalog'] }); toast.success('Image uploaded'); },
     onError: () => toast.error('Image upload failed'),
+  });
+
+  const attachMutation = useMutation({
+    mutationFn: ({ id, file, kind }) => { const fd = new FormData(); fd.append('file', file); fd.append('kind', kind); return api.post(`/catalog/products/${id}/attachment`, fd); },
+    onSuccess: (_, { id }) => { qc.invalidateQueries({ queryKey: ['catalog-detail', id] }); toast.success('Attachment uploaded'); },
+    onError: (e) => toast.error(e?.response?.data?.message || 'Upload failed'),
+  });
+
+  const removeAttachMutation = useMutation({
+    mutationFn: ({ id, kind, attachmentId }) => api.delete(`/catalog/products/${id}/attachment`, { data: { kind, attachmentId } }),
+    onSuccess: (_, { id }) => { qc.invalidateQueries({ queryKey: ['catalog-detail', id] }); toast.success('Attachment removed'); },
+    onError: () => toast.error('Failed to remove attachment'),
   });
 
   function openCreate() {
@@ -619,10 +658,18 @@ export default function ProductCatalogPage() {
               {activeTab === 'Basic Info' && <BasicInfoTab product={detail} />}
               {activeTab === 'Formulation' && <FormulationTab product={detail} form={form} setForm={setForm} onSave={() => updateMutation.mutate({ id: detail._id, data: { formulation: form.formulation } })} isPending={isPending} />}
               {activeTab === 'Variants' && <VariantsTab product={detail} form={form} setForm={setForm} onSave={() => updateMutation.mutate({ id: detail._id, data: { variants: form.variants } })} isPending={isPending} />}
-              {activeTab === 'Costing' && <CostingTab product={detail} form={form} setForm={setForm} onSave={() => updateMutation.mutate({ id: detail._id, data: { costing: form.costing, standardAssumptions: form.standardAssumptions, productionOverhead: form.productionOverhead } })} isPending={isPending} />}
+              {activeTab === 'R&D & Overheads' && <RndOverheadsTab product={detail} form={form} setForm={setForm} onSave={() => updateMutation.mutate({ id: detail._id, data: { rnd: form.rnd, productionOverhead: form.productionOverhead, standardAssumptions: form.standardAssumptions } })} isPending={isPending} />}
+              {activeTab === 'Costing' && <CostingTab product={detail} form={form} setForm={setForm} onSave={() => updateMutation.mutate({ id: detail._id, data: { costing: form.costing } })} isPending={isPending} />}
               {activeTab === 'Packaging' && <PackagingTab product={detail} form={form} setForm={setForm} onSave={() => updateMutation.mutate({ id: detail._id, data: { packaging: form.packaging } })} isPending={isPending} />}
               {activeTab === 'Marketplace' && <MarketplaceTab product={detail} form={form} setForm={setForm} onSave={() => updateMutation.mutate({ id: detail._id, data: { marketplace: form.marketplace } })} isPending={isPending} />}
-              {activeTab === 'R&D' && <RndTab product={detail} form={form} setForm={setForm} onSave={() => updateMutation.mutate({ id: detail._id, data: { rnd: form.rnd } })} isPending={isPending} />}
+              {activeTab === 'QR Code' && <QRCodeTab product={detail} />}
+              {activeTab === 'Procedure' && <ProcedureTab product={detail} form={form} setForm={setForm} onSave={() => updateMutation.mutate({ id: detail._id, data: { rndDoc: form.rndDoc, researchGuide: form.researchGuide, procedure: form.procedure } })} isPending={isPending}
+                onAttach={(file, kind) => attachMutation.mutate({ id: detail._id, file, kind })}
+                onRemoveAttach={(kind, attachmentId) => removeAttachMutation.mutate({ id: detail._id, kind, attachmentId })} />}
+              {activeTab === 'Documents' && <DocumentsTab product={detail}
+                onAttach={(file, kind) => attachMutation.mutate({ id: detail._id, file, kind })}
+                onRemoveAttach={(kind) => removeAttachMutation.mutate({ id: detail._id, kind })} />}
+              {activeTab === 'History' && <HistoryTab product={detail} />}
             </div>
           </div>
         </div>,
@@ -633,54 +680,79 @@ export default function ProductCatalogPage() {
 }
 
 // ─── Basic Info Tab ────────────────────────────────────────────────────────────
-function BasicInfoTab({ product: p }) {
-  const cost = calcTotalCostPerUnit(p).toFixed(2);
+function DetailSection({ icon, title, children }) {
   return (
-    <div className="grid grid-cols-2 gap-6">
-      <div className="space-y-3">
-        <InfoRow label="SKU" value={p.code} mono />
-        <InfoRow label="Name" value={p.name} />
-        <InfoRow label="Category" value={p.category} />
-        <InfoRow label="Sub Category" value={p.subCategory} />
-        <InfoRow label="Type" value={p.type} />
-        <InfoRow label="Unit" value={p.unit} />
-        <InfoRow label="Reference Weight" value={p.weight ? `${p.weight} ${p.unit}` : '—'} />
+    <div className="mb-5">
+      <p className="text-xs font-bold text-gray-600 dark:text-gray-300 mb-2.5">{icon} {title}</p>
+      <div className="space-y-2">{children}</div>
+    </div>
+  );
+}
+
+function BasicInfoTab({ product: p }) {
+  const b = calcOverheadBreakdown(p);
+  const formulationCost = b.formCost > 0 ? `${numF(b.formCost, 4)} / ${p.unit || 'unit'}` : '—';
+
+  return (
+    <div className="grid grid-cols-3 gap-6">
+      <div>
+        <DetailSection icon="🖼️" title="Product Image">
+          {p.image ? (
+            <img src={p.image} alt={p.name} className="w-28 h-28 rounded-xl object-cover border border-slate-200" />
+          ) : (
+            <div className="w-28 h-28 rounded-xl bg-gradient-to-br from-purple-100 to-blue-100 flex items-center justify-center text-3xl">🧴</div>
+          )}
+        </DetailSection>
+        <DetailSection icon="📋" title="Basic Info">
+          <InfoRow label="SKU" value={p.code} mono />
+          <InfoRow label="Category" value={p.category} />
+          <InfoRow label="Sub-Category" value={p.subCategory} />
+          <InfoRow label="Type" value={p.type} />
+        </DetailSection>
       </div>
-      <div className="space-y-3">
-        <InfoRow label="GST Rate" value={`${p.gstRate}%`} />
-        <InfoRow label="HSN Code" value={p.hsnCode} mono />
-        <InfoRow label="Shelf Life" value={p.shelfLife ? `${p.shelfLife} months` : '—'} />
-        <InfoRow label="Status" value={p.status} badge={p.status === 'Active' ? 'green' : p.status === 'Draft' ? 'yellow' : 'gray'} />
-        <InfoRow label="Storage" value={p.storage} />
-        <InfoRow label="Certifications" value={p.certifications} />
-        <InfoRow label="Barcode" value={p.barcode} mono />
-        <InfoRow label="Est. Cost / Unit" value={cost > 0 ? `₹${cost}` : '—'} badge="blue" />
+
+      <div>
+        <DetailSection icon="📐" title="Specifications">
+          <InfoRow label="Base Unit" value={p.unit} />
+          <InfoRow label="Reference Weight" value={p.weight ? `${p.weight} ${p.unit}` : '-'} />
+          <InfoRow label="Shelf Life" value={p.shelfLife ? `${p.shelfLife} months` : '-'} />
+          <InfoRow label="HSN" value={p.hsnCode} mono />
+          <InfoRow label="GST" value={`${p.gstRate}%`} />
+          <InfoRow label="Barcode" value={p.barcode} mono />
+        </DetailSection>
       </div>
+
+      <div>
+        <DetailSection icon="💰" title="Cost Per Unit">
+          <InfoRow label="Formulation Cost" value={formulationCost} accent />
+        </DetailSection>
+        <DetailSection icon="📅" title="Dates">
+          <InfoRow label="Discontinued" value={p.discontinuedDate ? new Date(p.discontinuedDate).toLocaleDateString('en-IN') : '-'} />
+          <InfoRow label="Status" value={p.status} badge={p.status === 'Active' ? 'green' : p.status === 'Draft' ? 'yellow' : 'gray'} />
+        </DetailSection>
+        <DetailSection icon="🏅" title="Certifications">
+          <p className="text-xs text-gray-700 dark:text-gray-300">{p.certifications || 'None'}</p>
+        </DetailSection>
+      </div>
+
       {p.description && (
-        <div className="col-span-2">
+        <div className="col-span-3">
           <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1">Description</p>
           <p className="text-sm text-gray-700 dark:text-gray-300">{p.description}</p>
-        </div>
-      )}
-      {p.image && (
-        <div className="col-span-2">
-          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Product Image</p>
-          <img src={p.image} alt={p.name} className="w-28 h-28 rounded-xl object-cover border border-slate-200" />
         </div>
       )}
     </div>
   );
 }
 
-function InfoRow({ label, value, mono, badge }) {
-  if (!value) return null;
+function InfoRow({ label, value, mono, badge, accent }) {
   return (
     <div className="flex items-center gap-2">
       <span className="text-xs text-gray-400 w-28 flex-shrink-0">{label}</span>
       {badge ? (
-        <span className={clsx('text-xs px-2 py-0.5 rounded-full font-medium', badge === 'green' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : badge === 'yellow' ? 'bg-amber-100 text-amber-700' : badge === 'blue' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' : 'bg-gray-100 text-gray-500')}>{value}</span>
+        <span className={clsx('text-xs px-2 py-0.5 rounded-full font-medium', badge === 'green' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : badge === 'yellow' ? 'bg-amber-100 text-amber-700' : badge === 'blue' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' : 'bg-gray-100 text-gray-500')}>{value ?? '-'}</span>
       ) : (
-        <span className={clsx('text-xs text-gray-800 dark:text-gray-200', mono && 'font-mono')}>{value}</span>
+        <span className={clsx('text-xs', mono && 'font-mono', accent ? 'text-base font-bold text-blue-600 dark:text-blue-400' : 'text-gray-800 dark:text-gray-200')}>{value ?? '-'}</span>
       )}
     </div>
   );
@@ -690,7 +762,7 @@ function InfoRow({ label, value, mono, badge }) {
 function IngredientCell({ row, index, rawMaterials, onUpdate }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState(row.name || '');
-  const [dropPos, setDropPos] = useState({ top: 0, left: 0, width: 0 });
+  const [dropPos, setDropPos] = useState({ top: 0, left: 0, width: 0, openUp: false });
   const inputRef = useRef(null);
   const wrapRef = useRef(null);
 
@@ -711,10 +783,19 @@ function IngredientCell({ row, index, rawMaterials, onUpdate }) {
   const isLinked = !!row.rawMaterialId;
   const exactMatch = rawMaterials.some(m => m.name.toLowerCase() === query.toLowerCase());
 
+  const DROPDOWN_MAX_HEIGHT = 240;
+
   function openDropdown() {
     if (inputRef.current) {
       const r = inputRef.current.getBoundingClientRect();
-      setDropPos({ top: r.bottom + window.scrollY + 2, left: r.left + window.scrollX, width: 224 });
+      const spaceBelow = window.innerHeight - r.bottom;
+      const openUp = spaceBelow < DROPDOWN_MAX_HEIGHT && r.top > spaceBelow;
+      setDropPos({
+        top: openUp ? r.top + window.scrollY - 2 : r.bottom + window.scrollY + 2,
+        left: r.left + window.scrollX,
+        width: 224,
+        openUp,
+      });
     }
     setOpen(true);
   }
@@ -731,9 +812,15 @@ function IngredientCell({ row, index, rawMaterials, onUpdate }) {
     openDropdown();
   }
 
-  const dropdown = open && query.trim() ? createPortal(
-    <div style={{ position: 'fixed', top: dropPos.top, left: dropPos.left, width: dropPos.width, zIndex: 9999 }}
-      className="bg-white dark:bg-[#0d1b2e] border border-gray-200 dark:border-[#1b2e4a] rounded-lg shadow-xl overflow-hidden">
+  const dropdown = open ? createPortal(
+    <div
+      style={{
+        position: 'fixed',
+        left: dropPos.left, width: dropPos.width, zIndex: 9999,
+        maxHeight: DROPDOWN_MAX_HEIGHT, overflowY: 'auto',
+        ...(dropPos.openUp ? { bottom: window.innerHeight - dropPos.top, top: 'auto' } : { top: dropPos.top }),
+      }}
+      className="bg-white dark:bg-[#0d1b2e] border border-gray-200 dark:border-[#1b2e4a] rounded-lg shadow-xl">
       {suggestions.map(m => (
         <button key={m._id} onMouseDown={() => select(m)}
           className="w-full text-left px-3 py-1.5 text-xs hover:bg-orange-50 dark:hover:bg-orange-500/10 flex items-center justify-between gap-2">
@@ -741,10 +828,13 @@ function IngredientCell({ row, index, rawMaterials, onUpdate }) {
           <span className="text-gray-400 shrink-0">{m.unit} · {m.currentStock ?? 0}</span>
         </button>
       ))}
-      {!exactMatch && (
+      {query.trim() && !exactMatch && (
         <div className="px-3 py-1.5 text-xs text-orange-500 border-t border-gray-100 dark:border-[#1b2e4a] flex items-center gap-1">
           <span className="font-bold">+</span> Create &quot;{query}&quot; as new raw material on save
         </div>
+      )}
+      {!suggestions.length && !query.trim() && (
+        <div className="px-3 py-3 text-xs text-gray-400 text-center">No raw materials yet</div>
       )}
     </div>,
     document.body
@@ -971,58 +1061,124 @@ function VariantsTab({ product, form, setForm, onSave, isPending }) {
 
 // ─── Costing Tab ───────────────────────────────────────────────────────────────
 function CostingTab({ product, form, setForm, onSave, isPending }) {
-  const costPerUnit = calcTotalCostPerUnit({ ...product, ...form });
+  const merged = { ...product, ...form };
+  const b = calcOverheadBreakdown(merged);
+  const totalInputPerUnit = b.formCost + b.saAmount + b.overheadPerUnit + b.rndPerUnit;
+  const costPerUnit = totalInputPerUnit + b.pkgCost;
   const margins = form.costing?.margins || {};
-  const sa = form.standardAssumptions || {};
-  const po = form.productionOverhead || {};
+  const variants = form.variants || [];
+  const [showGST, setShowGST] = useState(false);
+  const gstRate = (form.gstRate || 0) / 100;
 
-  function setSA(f, v) { setForm(prev => ({ ...prev, standardAssumptions: { ...prev.standardAssumptions, [f]: Number(v) } })); }
-  function setPO(f, v) { setForm(prev => ({ ...prev, productionOverhead: { ...prev.productionOverhead, [f]: Number(v) } })); }
   function setMargin(f, v) { setForm(prev => ({ ...prev, costing: { ...prev.costing, margins: { ...prev.costing?.margins, [f]: Number(v) } } })); }
 
-  function priceAtMargin(cost, pct) { return pct > 0 ? (cost / (1 - pct / 100)) : cost; }
+  // Chained margin chain, matching product-catalog.html renderVariantPricing()
+  function computeVariantPricing(v) {
+    const refW = b.refW || 1;
+    const sizeRatio = refW > 0 && Number(v.weight) > 0 ? Number(v.weight) / refW : 1;
+    const productionCost = costPerUnit * sizeRatio;
+    const exFactory = productionCost * (1 + (Number(margins.exFactory) || 0) / 100);
+    const dealer = exFactory * (1 + (Number(margins.dealer) || 0) / 100);
+    const distributor = dealer * (1 + (Number(margins.distributor) || 0) / 100);
+    const retailer = distributor * (1 + (Number(margins.retailer) || 0) / 100);
+    const selling = retailer * (1 + (Number(margins.selling) || 0) / 100);
+    const b2b = productionCost * (1 + (Number(margins.b2b) || 0) / 100);
+    const b2c = productionCost * (1 + (Number(margins.b2c) || 0) / 100);
+    return { productionCost, exFactory, dealer, distributor, retailer, selling, b2b, b2c };
+  }
+
+  const firstVariantPricing = variants.length ? computeVariantPricing(variants[0]) : null;
 
   return (
     <div className="space-y-5">
-      <div className="grid grid-cols-2 gap-5">
-        <div className="rounded-xl border border-gray-200 dark:border-[#1b2e4a] p-4">
-          <p className="text-xs font-bold text-gray-600 dark:text-gray-300 mb-3">Standard Overhead %</p>
-          {[['equipmentPct', 'Equipment'], ['consumablesPct', 'Consumables'], ['storagePct', 'Storage'], ['housekeepingPct', 'Housekeeping'], ['adminPct', 'Admin'], ['wastagePct', 'Wastage']].map(([f, label]) => (
-            <div key={f} className="flex items-center gap-3 mb-2">
-              <label className="text-xs text-gray-500 w-28">{label}</label>
-              <input type="number" step="0.1" value={sa[f] || 0} onChange={e => setSA(f, e.target.value)} className="input text-xs w-20" />
-              <span className="text-xs text-gray-400">%</span>
-            </div>
-          ))}
-        </div>
-        <div className="rounded-xl border border-gray-200 dark:border-[#1b2e4a] p-4">
-          <p className="text-xs font-bold text-gray-600 dark:text-gray-300 mb-3">Production Overhead (₹ per batch)</p>
-          {[['electricity', 'Electricity'], ['labor', 'Labor'], ['labTesting', 'Lab Testing'], ['other', 'Other']].map(([f, label]) => (
-            <div key={f} className="flex items-center gap-3 mb-2">
-              <label className="text-xs text-gray-500 w-28">{label}</label>
-              <input type="number" value={po[f] || 0} onChange={e => setPO(f, e.target.value)} className="input text-xs w-24" />
-            </div>
-          ))}
+      {/* Cost Inputs */}
+      <div className="rounded-xl border border-gray-200 dark:border-[#1b2e4a] p-4 space-y-2">
+        <p className="text-xs font-bold text-gray-600 dark:text-gray-300 mb-1">📥 Cost Inputs</p>
+        <div className="flex justify-between text-xs"><span className="text-gray-500">🧪 Ingredients Cost Per Unit (from Formulation)</span><span className="font-mono font-semibold">₹{numF(b.formCost, 4)}</span></div>
+        <div className="flex justify-between text-xs bg-slate-900 text-white rounded-lg px-3 py-2 mt-2">
+          <span className="text-white/80">📊 Total Input Cost Per Unit (Formulation + R&amp;D + Overheads)</span>
+          <span className="font-mono font-bold text-amber-300">₹{numF(totalInputPerUnit, 4)}</span>
         </div>
       </div>
 
-      <div className="rounded-xl bg-blue-50 dark:bg-blue-900/10 border border-blue-200 dark:border-blue-800/40 p-4">
-        <p className="text-xs font-bold text-blue-700 dark:text-blue-300 mb-2">Estimated Cost / Unit: <span className="text-lg">₹{numF(costPerUnit)}</span></p>
+      {/* Unit Cost Summary */}
+      <div>
+        <p className="text-xs font-bold text-gray-600 dark:text-gray-300 mb-2">📊 Unit Cost Summary</p>
+        <HighlightStrip tone="dark" items={[
+          { label: 'Ingredients', value: `₹${numF(b.formCost)}` },
+          { label: 'Packaging', value: `₹${numF(b.pkgCost)}` },
+          { label: 'Overhead', value: `₹${numF(b.overheadPerUnit + b.saAmount)}` },
+          { label: 'R&D Per Unit', value: `₹${numF(b.rndPerUnit)}` },
+          { label: 'Grand Total / Unit', value: `₹${numF(costPerUnit)}`, big: true, accent: true },
+        ]} />
       </div>
 
+      {/* Margin Settings */}
       <div className="rounded-xl border border-gray-200 dark:border-[#1b2e4a] p-4">
-        <p className="text-xs font-bold text-gray-600 dark:text-gray-300 mb-3">Selling Price at Margin</p>
+        <p className="text-xs font-bold text-gray-600 dark:text-gray-300 mb-3">Margin Settings (%)</p>
+        <div className="grid grid-cols-5 gap-3 mb-2">
+          {[['exFactory', 'Ex-Factory'], ['dealer', 'Dealer'], ['distributor', 'Distributor'], ['retailer', 'Retailer'], ['selling', 'Selling']].map(([f, label]) => (
+            <div key={f}><label className="text-[10px] text-gray-500">{label}</label><input type="number" step="0.1" value={margins[f] || 0} onChange={e => setMargin(f, e.target.value)} className="input text-xs w-full" /></div>
+          ))}
+        </div>
         <div className="grid grid-cols-2 gap-3">
-          {[['exFactory', 'Ex-Factory'], ['dealer', 'Dealer'], ['distributor', 'Distributor'], ['retailer', 'Retailer'], ['selling', 'Selling Price'], ['b2b', 'B2B'], ['b2c', 'B2C']].map(([f, label]) => (
-            <div key={f} className="flex items-center gap-2">
-              <label className="text-xs text-gray-500 w-24">{label}</label>
-              <input type="number" value={margins[f] || 0} onChange={e => setMargin(f, e.target.value)} className="input text-xs w-16" />
-              <span className="text-xs text-gray-400">%</span>
-              <span className="text-xs font-mono text-green-600 dark:text-green-400 ml-1">= ₹{numF(priceAtMargin(costPerUnit, margins[f] || 0))}</span>
-            </div>
+          {[['b2b', 'B2B Margin (%)'], ['b2c', 'B2C Margin (%)']].map(([f, label]) => (
+            <div key={f}><label className="text-[10px] text-gray-500">{label}</label><input type="number" step="0.1" value={margins[f] || 0} onChange={e => setMargin(f, e.target.value)} className="input text-xs w-full" /></div>
           ))}
         </div>
       </div>
+
+      {/* GST toggle */}
+      <div className="flex items-center gap-3 flex-wrap">
+        <label className="flex items-center gap-2 cursor-pointer text-xs font-semibold text-gray-600 dark:text-gray-300">
+          <input type="checkbox" checked={showGST} onChange={e => setShowGST(e.target.checked)} className="w-4 h-4" />
+          Show GST Inclusive Prices
+        </label>
+        <span className="text-[11px] text-gray-400">GST Rate: {form.gstRate || 0}%</span>
+      </div>
+
+      {/* Variant Pricing */}
+      <div className="overflow-x-auto rounded-xl border border-gray-200 dark:border-[#1b2e4a]">
+        <table className="w-full text-xs">
+          <thead className="bg-gray-50 dark:bg-[#0f1a2e]">
+            <tr>{['Variant', 'Weight', 'Prod. Cost', 'Ex-Factory', 'Dealer', 'Dist.', 'Retail', 'Selling', 'B2B', 'B2C'].map(h => <th key={h} className="px-3 py-2 text-left font-semibold text-gray-500 dark:text-gray-400 whitespace-nowrap">{h}</th>)}</tr>
+          </thead>
+          <tbody>
+            {variants.map((v, i) => {
+              const p = computeVariantPricing(v);
+              const isRef = Math.abs(Number(v.weight) - b.refW) < 0.001;
+              return (
+                <tr key={i} className={clsx('border-t border-gray-100 dark:border-[#1b2e4a]', isRef && 'bg-amber-50/60 dark:bg-amber-500/5')}>
+                  <td className="px-3 py-1.5 font-semibold whitespace-nowrap">{v.name || '—'}{isRef && <span className="ml-1 text-amber-500" title="Reference weight">⭐</span>}</td>
+                  <td className="px-3 py-1.5 whitespace-nowrap">{v.weight} {v.unit}</td>
+                  <td className="px-3 py-1.5 font-mono">₹{numF(p.productionCost)}</td>
+                  <td className="px-3 py-1.5 font-mono">₹{numF(p.exFactory)}</td>
+                  <td className="px-3 py-1.5 font-mono">₹{numF(p.dealer)}</td>
+                  <td className="px-3 py-1.5 font-mono">₹{numF(p.distributor)}</td>
+                  <td className="px-3 py-1.5 font-mono">₹{numF(p.retailer)}</td>
+                  <td className="px-3 py-1.5 font-mono font-semibold">₹{numF(p.selling)}</td>
+                  <td className="px-3 py-1.5 font-mono">₹{numF(p.b2b)}</td>
+                  <td className="px-3 py-1.5 font-mono">₹{numF(p.b2c)}</td>
+                </tr>
+              );
+            })}
+            {!variants.length && <tr><td colSpan={10} className="px-3 py-6 text-center text-gray-400">No variants. Add sizes in the Variants tab.</td></tr>}
+          </tbody>
+        </table>
+      </div>
+
+      {/* GST-inclusive panel */}
+      {showGST && firstVariantPricing && (
+        <div className="rounded-xl border border-gray-200 dark:border-[#1b2e4a] p-4">
+          <p className="text-xs font-bold text-gray-600 dark:text-gray-300 mb-3">💰 GST Inclusive Prices (First Variant)</p>
+          <div className="grid grid-cols-3 gap-3 text-xs">
+            <div className="flex justify-between"><span className="text-gray-500">Ex-Factory (with GST)</span><span className="font-mono font-semibold">₹{numF(firstVariantPricing.exFactory * (1 + gstRate))}</span></div>
+            <div className="flex justify-between"><span className="text-gray-500">Selling (with GST)</span><span className="font-mono font-semibold">₹{numF(firstVariantPricing.selling * (1 + gstRate))}</span></div>
+            <div className="flex justify-between"><span className="text-gray-500">B2C (with GST)</span><span className="font-mono font-semibold">₹{numF(firstVariantPricing.b2c * (1 + gstRate))}</span></div>
+          </div>
+          <p className="text-[10px] text-gray-400 mt-2">All calculations are done without GST. GST is added only for display purposes at the selected rate.</p>
+        </div>
+      )}
 
       <button onClick={onSave} disabled={isPending} className="btn-primary text-sm disabled:opacity-50">{isPending ? 'Saving…' : '💾 Save Costing'}</button>
     </div>
@@ -1079,9 +1235,11 @@ function PackagingTab({ product, form, setForm, onSave, isPending }) {
 
 // ─── Marketplace Tab ───────────────────────────────────────────────────────────
 function MarketplaceTab({ product, form, setForm, onSave, isPending }) {
-  const costPerUnit = calcTotalCostPerUnit({ ...product, ...form });
+  const merged = { ...product, ...form };
+  const b = calcOverheadBreakdown(merged);
   const margins = form.marketplace?.margins || {};
   const fees = form.marketplace?.fees || {};
+  const mpItems = form.marketplace?.packaging || [];
 
   function setFee(platform, field, val) {
     setForm(prev => ({ ...prev, marketplace: { ...prev.marketplace, fees: { ...prev.marketplace?.fees, [platform]: { ...prev.marketplace?.fees?.[platform], [field]: Number(val) } } } }));
@@ -1089,26 +1247,76 @@ function MarketplaceTab({ product, form, setForm, onSave, isPending }) {
   function setMgn(platform, val) {
     setForm(prev => ({ ...prev, marketplace: { ...prev.marketplace, margins: { ...prev.marketplace?.margins, [platform]: Number(val) } } }));
   }
+  function updateMPItem(i, field, val) {
+    setForm(prev => { const items = [...(prev.marketplace?.packaging || [])]; items[i] = { ...items[i], [field]: field === 'name' ? val : Number(val) }; return { ...prev, marketplace: { ...prev.marketplace, packaging: items } }; });
+  }
+  function removeMPItem(i) { setForm(prev => ({ ...prev, marketplace: { ...prev.marketplace, packaging: (prev.marketplace?.packaging || []).filter((_, idx) => idx !== i) } })); }
+  function addMPItem() { setForm(prev => ({ ...prev, marketplace: { ...prev.marketplace, packaging: [...(prev.marketplace?.packaging || []), { name: 'New Item', qty: 1, rate: 0, amount: 0, optional: false }] } })); }
 
+  const mpPackagingTotal = mpItems.reduce((s, i) => s + (Number(i.qty) || 0) * (Number(i.rate) || 0), 0);
+  const baseCost = b.formCost + b.saAmount + b.overheadPerUnit + b.rndPerUnit + mpPackagingTotal;
+
+  // Solves for the min selling price that clears all % deductions + fixed costs + target margin,
+  // matching product-catalog.html recalcMarketplace()'s calcPlatform().
   function calcPlatform(p) {
     const f = fees[p] || {};
-    const margin = margins[p] || 0;
-    const sellingPrice = margin > 0 ? costPerUnit / (1 - margin / 100) : costPerUnit;
-    const totalFees = (sellingPrice * ((f.commission || 0) / 100)) + (f.fixed || 0) + (f.shipping || 0) + (f.collection || 0) + (f.fba || 0) + (f.penalty || 0);
-    const netRevenue = sellingPrice - totalFees;
-    const profit = netRevenue - costPerUnit;
-    return { sellingPrice, totalFees, netRevenue, profit };
+    const margin = (margins[p] || 0) / 100;
+    const totalDeductions = ((f.commission || 0) + (f.collection || 0) + (f.fba || 0) + (f.penalty || 0)) / 100;
+    const fixed = f.fixed || 0;
+    const shipping = f.shipping || 0;
+    const denom = 1 - totalDeductions - margin;
+    const minSelling = denom > 0 ? (baseCost + fixed + shipping) / denom : 0;
+    const sellerReceives = minSelling * (1 - totalDeductions) - fixed - shipping;
+    const netMargin = sellerReceives - baseCost;
+    return { minSelling, sellerReceives, netMargin };
   }
 
   const FEE_FIELDS = {
     flipkart: [['commission', 'Commission %'], ['fixed', 'Fixed (₹)'], ['shipping', 'Shipping (₹)'], ['collection', 'Collection %']],
-    amazon: [['commission', 'Commission %'], ['fixed', 'Fixed (₹)'], ['shipping', 'Shipping (₹)'], ['fba', 'FBA %']],
-    meesho: [['commission', 'Commission %'], ['shipping', 'Shipping (₹)'], ['collection', 'Collection %'], ['penalty', 'Penalty %']],
+    amazon: [['commission', 'Referral %'], ['fixed', 'Closing Fee (₹)'], ['shipping', 'Shipping (₹)'], ['fba', 'FBA/Storage %']],
+    meesho: [['commission', 'Commission %'], ['shipping', 'Shipping (₹)'], ['collection', 'Collection %'], ['penalty', 'Penalty/RTO %']],
     snapdeal: [['commission', 'Commission %'], ['fixed', 'Fixed (₹)'], ['shipping', 'Shipping (₹)'], ['collection', 'Collection %']],
   };
 
   return (
     <div className="space-y-4">
+      {/* Imported Costs */}
+      <div className="rounded-xl border border-gray-200 dark:border-[#1b2e4a] p-4 space-y-1.5 text-xs">
+        <p className="text-xs font-bold text-gray-600 dark:text-gray-300 mb-2">📥 Imported Costs</p>
+        <div className="flex justify-between"><span className="text-gray-400">Ingredients Cost Per Unit</span><span className="font-mono">₹{numF(b.formCost, 4)}</span></div>
+        <div className="flex justify-between"><span className="text-gray-400">Standard Assumptions Indirect Amount</span><span className="font-mono">₹{numF(b.saAmount, 4)}</span></div>
+        <div className="flex justify-between"><span className="text-gray-400">Production Overhead Per Unit</span><span className="font-mono">₹{numF(b.overheadPerUnit, 4)}</span></div>
+        <div className="flex justify-between"><span className="text-gray-400">R&D Cost Per Unit</span><span className="font-mono">₹{numF(b.rndPerUnit, 4)}</span></div>
+      </div>
+
+      {/* Marketplace Packaging */}
+      <div className="rounded-xl border border-gray-200 dark:border-[#1b2e4a] p-4">
+        <p className="text-xs font-bold text-gray-600 dark:text-gray-300 mb-3">📦 Marketplace Packaging &amp; Labeling</p>
+        <div className="overflow-x-auto">
+          <table className="w-full text-xs">
+            <thead><tr>{['Item', 'Qty', 'Rate (₹)', 'Amount (₹)', 'Optional', ''].map(h => <th key={h} className="px-2 py-1 text-left font-semibold text-gray-500">{h}</th>)}</tr></thead>
+            <tbody>
+              {mpItems.map((item, i) => (
+                <tr key={i} className="border-t border-gray-100 dark:border-[#1b2e4a]">
+                  <td className="px-2 py-1"><input value={item.name} onChange={e => updateMPItem(i, 'name', e.target.value)} className="input text-xs w-28" /></td>
+                  <td className="px-2 py-1"><input type="number" value={item.qty} onChange={e => updateMPItem(i, 'qty', e.target.value)} className="input text-xs w-14" /></td>
+                  <td className="px-2 py-1"><input type="number" value={item.rate} onChange={e => updateMPItem(i, 'rate', e.target.value)} className="input text-xs w-16" /></td>
+                  <td className="px-2 py-1 font-mono">₹{numF((Number(item.qty) || 0) * (Number(item.rate) || 0))}</td>
+                  <td className="px-2 py-1 text-center"><input type="checkbox" checked={!!item.optional} onChange={e => updateMPItem(i, 'optional', e.target.checked)} className="w-4 h-4" /></td>
+                  <td className="px-2 py-1"><button onClick={() => removeMPItem(i)} className="text-red-400 hover:text-red-600">✕</button></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <button onClick={addMPItem} className="btn-secondary text-xs mt-2">+ Add Marketplace Packaging Item</button>
+      </div>
+
+      <HighlightStrip items={[
+        { label: 'Total Base Cost / Unit', value: `₹${numF(baseCost)}`, big: true },
+        { label: 'Reference Weight', value: b.refW ? `${b.refW} ${form.formulation?.refUnit || form.unit || ''}` : '—' },
+      ]} />
+
       <div className="grid grid-cols-2 gap-4">
         {PLATFORMS.map(p => {
           const calc = calcPlatform(p);
@@ -1116,20 +1324,19 @@ function MarketplaceTab({ product, form, setForm, onSave, isPending }) {
             <div key={p} className="rounded-xl border border-gray-200 dark:border-[#1b2e4a] p-4">
               <p className="text-sm font-bold text-gray-700 dark:text-gray-200 mb-3">{PLATFORM_ICONS[p]} {p.charAt(0).toUpperCase() + p.slice(1)}</p>
               <div className="flex items-center gap-2 mb-3">
-                <label className="text-xs text-gray-500 w-20">Margin %</label>
+                <label className="text-xs text-gray-500 w-24">Margin %</label>
                 <input type="number" value={margins[p] || 0} onChange={e => setMgn(p, e.target.value)} className="input text-xs w-16" />
               </div>
               {(FEE_FIELDS[p] || []).map(([f, label]) => (
                 <div key={f} className="flex items-center gap-2 mb-2">
-                  <label className="text-xs text-gray-500 w-20">{label}</label>
+                  <label className="text-xs text-gray-500 w-24">{label}</label>
                   <input type="number" value={fees[p]?.[f] || 0} onChange={e => setFee(p, f, e.target.value)} className="input text-xs w-16" />
                 </div>
               ))}
-              <div className="mt-3 pt-2 border-t border-gray-100 dark:border-[#1b2e4a] space-y-1 text-xs">
-                <div className="flex justify-between"><span className="text-gray-400">Selling Price</span><span className="font-mono text-gray-700 dark:text-gray-300">₹{numF(calc.sellingPrice)}</span></div>
-                <div className="flex justify-between"><span className="text-gray-400">Platform Fees</span><span className="font-mono text-red-500">-₹{numF(calc.totalFees)}</span></div>
-                <div className="flex justify-between"><span className="text-gray-400">Net Revenue</span><span className="font-mono text-gray-700 dark:text-gray-300">₹{numF(calc.netRevenue)}</span></div>
-                <div className="flex justify-between font-semibold"><span className={calc.profit >= 0 ? 'text-green-600' : 'text-red-500'}>Profit</span><span className={clsx('font-mono', calc.profit >= 0 ? 'text-green-600' : 'text-red-500')}>₹{numF(calc.profit)}</span></div>
+              <div className="mt-3 pt-2 border-t-2 border-gray-100 dark:border-[#1b2e4a] space-y-1 text-xs">
+                <div className="flex justify-between"><span className="text-gray-400">Min Selling Price</span><span className="font-mono text-gray-700 dark:text-gray-300">₹{numF(calc.minSelling)}</span></div>
+                <div className="flex justify-between"><span className="text-gray-400">Seller Receives</span><span className="font-mono text-gray-700 dark:text-gray-300">₹{numF(calc.sellerReceives)}</span></div>
+                <div className="flex justify-between font-semibold"><span className={calc.netMargin >= 0 ? 'text-green-600' : 'text-red-500'}>Net Margin</span><span className={clsx('font-mono', calc.netMargin >= 0 ? 'text-green-600' : 'text-red-500')}>₹{numF(calc.netMargin)}</span></div>
               </div>
             </div>
           );
@@ -1140,42 +1347,359 @@ function MarketplaceTab({ product, form, setForm, onSave, isPending }) {
   );
 }
 
-// ─── R&D Tab ───────────────────────────────────────────────────────────────────
-function RndTab({ product, form, setForm, onSave, isPending }) {
-  const rnd = form.rnd || {};
-  const lifecycle = rnd.lifecycle || 1000;
-  const total = (rnd.testing || 0) + (rnd.consumables || 0) + (rnd.samples || 0) + (rnd.overhead || 0) + (rnd.otherOverhead || 0) + (rnd.qc || 0);
-  const perUnit = lifecycle > 0 ? total / lifecycle : 0;
+// ─── Highlight strip (pricing-highlight equivalent) ─────────────────────────────
+function HighlightStrip({ items, tone = 'light' }) {
+  const isDark = tone === 'dark';
+  return (
+    <div className={clsx('grid gap-4 rounded-xl p-4', isDark ? 'bg-slate-900 text-white' : 'border border-gray-200 dark:border-[#1b2e4a]')}
+      style={{ gridTemplateColumns: `repeat(${items.length}, minmax(0,1fr))` }}>
+      {items.map((it, i) => (
+        <div key={i}>
+          <p className={clsx('text-[11px] mb-1', isDark ? 'text-white/70' : 'text-gray-400')}>{it.label}</p>
+          <p className={clsx('font-bold', it.big ? 'text-xl' : 'text-base', isDark ? (it.accent ? 'text-amber-300' : 'text-white') : 'text-gray-800 dark:text-gray-100')}>{it.value}</p>
+        </div>
+      ))}
+    </div>
+  );
+}
 
-  function setR(f, v) { setForm(prev => ({ ...prev, rnd: { ...prev.rnd, [f]: v } })); }
+function LastUpdatedBadge({ date, onChange }) {
+  return (
+    <div className="flex items-center gap-2 flex-wrap">
+      <span className="inline-flex items-center px-3 py-1 rounded-full text-[11px] font-semibold bg-blue-100 text-blue-700 dark:bg-blue-500/10 dark:text-blue-300">
+        🕐 Last updated: {fmtDate(date)}
+      </span>
+      <input type="date" value={date ? new Date(date).toISOString().split('T')[0] : ''} onChange={e => onChange(e.target.value ? new Date(e.target.value).toISOString() : null)}
+        className="text-[11px] px-2 py-1 border border-gray-200 dark:border-[#1b2e4a] rounded-lg bg-white dark:bg-[#0d1b2e]" title="Edit last updated date" />
+    </div>
+  );
+}
+
+// ─── R&D & Overheads Tab ────────────────────────────────────────────────────────
+function RndOverheadsTab({ product, form, setForm, onSave, isPending }) {
+  const rnd = form.rnd || {};
+  const po = form.productionOverhead || {};
+  const sa = form.standardAssumptions || {};
+  const b = calcOverheadBreakdown({ ...product, ...form });
+
+  const lifecycle = rnd.lifecycle || 1000;
+
+  function setR(f, v) { setForm(prev => ({ ...prev, rnd: { ...prev.rnd, [f]: v, lastUpdated: new Date().toISOString() } })); }
+  function setRDate(v) { setForm(prev => ({ ...prev, rnd: { ...prev.rnd, lastUpdated: v } })); }
+  function setPO(f, v) { setForm(prev => ({ ...prev, productionOverhead: { ...prev.productionOverhead, [f]: v, lastUpdated: new Date().toISOString() } })); }
+  function setPODate(v) { setForm(prev => ({ ...prev, productionOverhead: { ...prev.productionOverhead, lastUpdated: v } })); }
+  function setSA(f, v) { setForm(prev => ({ ...prev, standardAssumptions: { ...prev.standardAssumptions, [f]: v, lastUpdated: new Date().toISOString() } })); }
+
+  function onImage(e) {
+    const f = e.target.files[0]; if (!f) return;
+    const r = new FileReader();
+    r.onload = ev => setForm(prev => ({ ...prev, standardAssumptions: { ...prev.standardAssumptions, image: ev.target.result, lastUpdated: new Date().toISOString() } }));
+    r.readAsDataURL(f);
+  }
 
   return (
-    <div className="space-y-5">
-      <div className="grid grid-cols-2 gap-4">
-        <div className="rounded-xl border border-gray-200 dark:border-[#1b2e4a] p-4 space-y-3">
-          <p className="text-xs font-bold text-gray-600 dark:text-gray-300">R&D Costs (₹)</p>
-          {[['testing', 'Testing'], ['consumables', 'Consumables'], ['samples', 'Samples'], ['overhead', 'Overhead'], ['otherOverhead', 'Other Overhead'], ['qc', 'QC']].map(([f, label]) => (
-            <div key={f} className="flex items-center gap-3">
-              <label className="text-xs text-gray-500 w-28">{label}</label>
-              <input type="number" value={rnd[f] || 0} onChange={e => setR(f, Number(e.target.value))} className="input text-xs w-24" />
+    <div className="space-y-6">
+      {/* R&D Costing */}
+      <div>
+        <div className="flex items-center justify-between flex-wrap gap-3 mb-3">
+          <p className="text-sm font-bold text-gray-700 dark:text-gray-200">🔬 R&D Costing</p>
+          <div className="flex items-center gap-3 flex-wrap">
+            <div className="flex items-center gap-2">
+              <label className="text-xs text-gray-500 whitespace-nowrap">Lifecycle (batches)</label>
+              <input type="number" min="1" value={rnd.lifecycle || 1000} onChange={e => setR('lifecycle', Number(e.target.value) || 1)} className="input text-xs w-24" />
+            </div>
+            <LastUpdatedBadge date={rnd.lastUpdated} onChange={setRDate} />
+          </div>
+        </div>
+        <div className="grid grid-cols-3 gap-3 mb-4">
+          {[['testing', 'R&D Testing Cost (₹)'], ['consumables', 'Chemical Consumables (₹)'], ['samples', 'Sample Cost (₹)'], ['overhead', 'R&D Overhead (₹)'], ['otherOverhead', 'Other R&D Overhead (₹)'], ['qc', 'Lab QC for R&D (₹)']].map(([f, label]) => (
+            <div key={f}><label className="label">{label}</label><input type="number" min="0" step="0.01" value={rnd[f] || 0} onChange={e => setR(f, Number(e.target.value))} className="input text-xs w-full" /></div>
+          ))}
+        </div>
+        <HighlightStrip items={[
+          { label: 'Total R&D Cost', value: `₹${numF(b.rndTotal)}` },
+          { label: 'Lifecycle Batches', value: lifecycle.toLocaleString('en-IN') },
+          { label: 'R&D Cost Per Unit', value: `₹${numF(b.rndPerUnit, 4)}`, big: true },
+        ]} />
+      </div>
+
+      <hr className="border-gray-100 dark:border-[#1b2e4a]" />
+
+      {/* Production Overhead */}
+      <div>
+        <div className="flex items-center justify-between flex-wrap gap-3 mb-3">
+          <p className="text-sm font-bold text-gray-700 dark:text-gray-200">🏭 Production Overhead</p>
+          <LastUpdatedBadge date={po.lastUpdated} onChange={setPODate} />
+        </div>
+        <div className="grid grid-cols-2 gap-3 mb-4">
+          {[['electricity', 'Electricity (₹)'], ['labor', 'Production Labor (₹)'], ['labTesting', 'Lab Testing Cost (₹)'], ['other', 'Other Production Overhead (₹)']].map(([f, label]) => (
+            <div key={f}><label className="label">{label}</label><input type="number" min="0" step="0.01" value={po[f] || 0} onChange={e => setPO(f, Number(e.target.value))} className="input text-xs w-full" /></div>
+          ))}
+        </div>
+        <HighlightStrip items={[
+          { label: 'Total Production Overhead', value: `₹${numF(b.overheadTotal)}` },
+          { label: 'Per Unit', value: `₹${numF(b.overheadPerUnit, 4)}`, big: true },
+          { label: 'Reference Weight', value: b.refW ? `${b.refW} ${form.formulation?.refUnit || form.unit || ''}` : '—' },
+        ]} />
+      </div>
+
+      <hr className="border-gray-100 dark:border-[#1b2e4a]" />
+
+      {/* Standard Assumptions */}
+      <div>
+        <p className="text-sm font-bold text-gray-700 dark:text-gray-200 mb-3">📝 Standard Assumptions (Industry STD%)</p>
+        <div className="grid grid-cols-3 gap-4 mb-4">
+          {ASSUMPTION_FIELDS.map(({ key, label, max, hint }) => (
+            <div key={key}>
+              <label className="label">{label} <span className="text-gray-400">%</span></label>
+              <div className="flex items-center gap-2">
+                <input type="range" min="0" max={max} step="0.5" value={sa[key] ?? 0} onChange={e => setSA(key, Number(e.target.value))} className="flex-1" />
+                <span className="text-xs font-semibold text-gray-700 dark:text-gray-200 w-10 text-right">{sa[key] ?? 0}%</span>
+              </div>
+              <p className="text-[10px] text-gray-400 mt-0.5">{hint}</p>
             </div>
           ))}
-          <div className="flex items-center gap-3">
-            <label className="text-xs text-gray-500 w-28">Product Lifecycle (units)</label>
-            <input type="number" value={rnd.lifecycle || 1000} onChange={e => setR('lifecycle', Number(e.target.value))} className="input text-xs w-24" />
-          </div>
-          <div className="pt-2 border-t border-gray-100 dark:border-[#1b2e4a]">
-            <p className="text-xs text-gray-400">Total R&D: <span className="text-blue-600 font-semibold">₹{numF(total)}</span></p>
-            <p className="text-xs text-gray-400 mt-0.5">Per Unit: <span className="text-green-600 font-semibold">₹{numF(perUnit)}</span></p>
-          </div>
         </div>
-        <div className="space-y-3">
-          <div><label className="label">R&D Documentation</label><textarea value={rnd.docText || ''} onChange={e => setR('docText', e.target.value)} rows={4} className="input resize-none text-xs" placeholder="Research notes, formulation history, test results…" /></div>
-          <div><label className="label">Research Guide & References</label><textarea value={rnd.researchGuide || ''} onChange={e => setR('researchGuide', e.target.value)} rows={3} className="input resize-none text-xs" placeholder="Literature sources, patent references, safety assessments…" /></div>
+        <HighlightStrip items={[
+          { label: 'Total Indirect % on Material Cost', value: `${numF(b.saPct, 1)}%` },
+          { label: 'Total Amount / Unit (at ref cost)', value: `₹${numF(b.saAmount, 4)}`, big: true },
+          { label: 'Reference Weight', value: b.refW ? `${b.refW} ${form.formulation?.refUnit || form.unit || ''}` : '—' },
+        ]} />
+        {(b.saPct < 15 || b.saPct > 30) && (
+          <div className="mt-3 flex items-start gap-2 text-xs bg-amber-50 dark:bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800/40 rounded-lg px-3 py-2">
+            <span>⚠️</span><span>Industry range for total indirect: 15% – 30%. Adjust sliders if your total is outside this range.</span>
+          </div>
+        )}
+        <div className="mt-4">
+          <label className="label">📷 Reference Image / Basis</label>
+          <div onClick={() => document.getElementById('saImageInput').click()} className="w-full h-28 border-2 border-dashed border-gray-200 dark:border-[#1b2e4a] rounded-xl flex items-center justify-center cursor-pointer overflow-hidden bg-gray-50 dark:bg-[#0f1a2e] hover:border-gray-400 transition-colors">
+            {sa.image ? <img src={sa.image} alt="Basis" className="w-full h-full object-cover" /> : <span className="text-xs text-gray-400">📷 Click to upload reference image / basis document</span>}
+          </div>
+          <input type="file" id="saImageInput" accept="image/*" className="hidden" onChange={onImage} />
         </div>
       </div>
-      <div><label className="label">Manufacturing Procedure</label><textarea value={rnd.procedure || ''} onChange={e => setR('procedure', e.target.value)} rows={6} className="input resize-none text-sm" placeholder="Step-by-step manufacturing procedure…" /></div>
-      <button onClick={onSave} disabled={isPending} className="btn-primary text-sm disabled:opacity-50">{isPending ? 'Saving…' : '💾 Save R&D'}</button>
+
+      <hr className="border-gray-100 dark:border-[#1b2e4a]" />
+
+      {/* Grand Total Summary */}
+      <div>
+        <p className="text-sm font-bold text-gray-700 dark:text-gray-200 mb-3">📊 Total Overhead &amp; R&amp;D Cost Summary</p>
+        <HighlightStrip tone="dark" items={[
+          { label: 'R&D Cost Per Unit', value: `₹${numF(b.rndPerUnit, 4)}` },
+          { label: 'Production Overhead Per Unit', value: `₹${numF(b.overheadPerUnit, 4)}` },
+          { label: 'Standard Assumptions Per Unit', value: `₹${numF(b.saAmount, 4)}` },
+          { label: 'Total Overhead & R&D Per Unit', value: `₹${numF(b.rndPerUnit + b.overheadPerUnit + b.saAmount, 4)}`, big: true, accent: true },
+        ]} />
+        <div className="mt-3">
+          <HighlightStrip items={[
+            { label: 'Total Cost for Product (at ref weight)', value: `₹${numF((b.rndPerUnit + b.overheadPerUnit + b.saAmount) * b.refW)}` },
+            { label: 'Reference Weight', value: b.refW ? `${b.refW} ${form.formulation?.refUnit || form.unit || ''}` : '—' },
+          ]} />
+        </div>
+      </div>
+
+      <button onClick={onSave} disabled={isPending} className="btn-primary text-sm disabled:opacity-50">{isPending ? 'Saving…' : '💾 Save R&D & Overheads'}</button>
+    </div>
+  );
+}
+
+// ─── QR Code Tab ─────────────────────────────────────────────────────────────
+function QRCodeTab({ product: p }) {
+  const qrData = JSON.stringify({ code: p.code, name: p.name, category: p.category || '', unit: p.unit || '' });
+  return (
+    <div className="flex flex-col items-center gap-4 py-6">
+      <p className="text-sm font-bold text-gray-700 dark:text-gray-200 self-start">🔲 Product QR Code</p>
+      <div className="bg-white p-6 rounded-xl border border-gray-200 dark:border-[#1b2e4a]">
+        <QRCode value={qrData} size={200} fgColor="#0f172a" bgColor="#ffffff" />
+      </div>
+      <div className="text-center text-sm">
+        <p className="font-bold text-gray-800 dark:text-gray-100">{p.name}</p>
+        <p className="text-gray-400">SKU: {p.code}</p>
+        <p className="text-gray-400">{p.unit || ''}</p>
+      </div>
+      <button onClick={() => window.print()} className="btn-primary text-sm">🖨️ Print Label</button>
+    </div>
+  );
+}
+
+// ─── Attachment list (shared by Procedure tab) ──────────────────────────────────
+function AttachmentList({ attachments, onRemove }) {
+  if (!attachments?.length) return null;
+  const icon = (t) => t === 'video' ? '🎬' : t === 'audio' ? '🎙️' : '📄';
+  return (
+    <div className="flex flex-col gap-2 mt-3">
+      {attachments.map((a) => (
+        <div key={a._id || a.url} className="flex items-center gap-3 px-3 py-2 rounded-lg border border-gray-200 dark:border-[#1b2e4a] text-xs">
+          <span className="text-lg">{icon(a.type)}</span>
+          <div className="flex-1 min-w-0">
+            <a href={a.url} target="_blank" rel="noreferrer" className="font-semibold text-blue-600 dark:text-blue-400 hover:underline truncate block">{a.name || 'Attachment'}</a>
+            <p className="text-gray-400">{a.type || 'file'} · {fmtDate(a.createdAt)}</p>
+          </div>
+          <button onClick={() => onRemove(a._id)} title="Remove" className="text-red-400 hover:text-red-600">🗑️</button>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ─── Procedure Tab ───────────────────────────────────────────────────────────────
+function ProcedureTab({ product, form, setForm, onSave, isPending, onAttach, onRemoveAttach }) {
+  const [recording, setRecording] = useState(false);
+  const [recSeconds, setRecSeconds] = useState(0);
+  const mediaRecorderRef = useRef(null);
+  const chunksRef = useRef([]);
+  const timerRef = useRef(null);
+
+  function setText(field, val) { setForm(prev => ({ ...prev, [field]: { ...prev[field], text: val } })); }
+
+  function onFile(kind) {
+    return (e) => {
+      const f = e.target.files[0]; if (!f) return;
+      onAttach(f, kind);
+      e.target.value = '';
+    };
+  }
+
+  async function toggleAudioRecord() {
+    if (recording) { mediaRecorderRef.current?.stop(); return; }
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const rec = new MediaRecorder(stream);
+      chunksRef.current = [];
+      rec.ondataavailable = (e) => { if (e.data.size > 0) chunksRef.current.push(e.data); };
+      rec.onstop = () => {
+        const blob = new Blob(chunksRef.current, { type: 'audio/webm' });
+        const file = new File([blob], `Recording ${new Date().toLocaleString()}.webm`, { type: 'audio/webm' });
+        onAttach(file, 'procedure');
+        setRecording(false); setRecSeconds(0);
+        clearInterval(timerRef.current);
+        stream.getTracks().forEach(t => t.stop());
+      };
+      mediaRecorderRef.current = rec;
+      rec.start();
+      setRecording(true); setRecSeconds(0);
+      timerRef.current = setInterval(() => setRecSeconds(s => s + 1), 1000);
+    } catch { toast.error('Microphone access denied'); }
+  }
+
+  const mm = String(Math.floor(recSeconds / 60)).padStart(2, '0');
+  const ss = String(recSeconds % 60).padStart(2, '0');
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <div className="flex items-center justify-between mb-2">
+          <p className="text-sm font-bold text-gray-700 dark:text-gray-200">📝 R&D Documentation</p>
+          <div>
+            <input type="file" id="rndDocFile" accept=".pdf,.doc,.docx,.xlsx,.jpg,.png" className="hidden" onChange={onFile('rndDoc')} />
+            <button onClick={() => document.getElementById('rndDocFile').click()} className="btn-secondary text-xs">📎 Attach R&D Doc</button>
+          </div>
+        </div>
+        <textarea value={form.rndDoc?.text || ''} onChange={e => setText('rndDoc', e.target.value)} rows={4} className="input resize-none text-xs w-full" placeholder="Research notes, formulation history, test results, stability studies…" />
+        <AttachmentList attachments={product.rndDoc?.attachments} onRemove={(id) => onRemoveAttach('rndDoc', id)} />
+      </div>
+
+      <div>
+        <p className="text-sm font-bold text-gray-700 dark:text-gray-200 mb-2">🔬 Research Guide</p>
+        <textarea value={form.researchGuide?.text || ''} onChange={e => setText('researchGuide', e.target.value)} rows={3} className="input resize-none text-xs w-full" placeholder="Literature sources, patent references, regulatory guidelines, safety assessments…" />
+      </div>
+
+      <div>
+        <div className="flex items-center justify-between flex-wrap gap-2 mb-2">
+          <p className="text-sm font-bold text-gray-700 dark:text-gray-200">🏭 Manufacturing Procedure</p>
+          <div className="flex gap-2">
+            <input type="file" id="procFile" accept=".pdf,.doc,.docx" className="hidden" onChange={onFile('procedure')} />
+            <button onClick={() => document.getElementById('procFile').click()} className="btn-secondary text-xs">📎 Attach File</button>
+            <input type="file" id="procVideo" accept="video/*" className="hidden" onChange={onFile('procedure')} />
+            <button onClick={() => document.getElementById('procVideo').click()} className="btn-secondary text-xs">🎬 Attach Video</button>
+            <button onClick={toggleAudioRecord} className="btn-secondary text-xs">{recording ? '⏹ Stop Recording' : '🎙️ Record Audio'}</button>
+          </div>
+        </div>
+        <textarea value={form.procedure?.text || ''} onChange={e => setText('procedure', e.target.value)} rows={6} className="input resize-none text-sm w-full" placeholder="Step-by-step manufacturing procedure…" />
+        {recording && (
+          <div className="mt-3 flex items-center gap-2 px-3 py-2 rounded-lg bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-800/40 text-xs">
+            <span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse" />
+            <span className="font-semibold text-red-600 dark:text-red-400">Recording…</span>
+            <span className="ml-auto text-gray-400">{mm}:{ss}</span>
+          </div>
+        )}
+        <AttachmentList attachments={product.procedure?.attachments} onRemove={(id) => onRemoveAttach('procedure', id)} />
+      </div>
+
+      <button onClick={onSave} disabled={isPending} className="btn-primary text-sm disabled:opacity-50">{isPending ? 'Saving…' : '💾 Save Procedure'}</button>
+    </div>
+  );
+}
+
+// ─── Documents Tab ───────────────────────────────────────────────────────────────
+function DocumentsTab({ product, onAttach, onRemoveAttach }) {
+  const slots = [
+    ['coa', 'COA (Certificate of Analysis)', '.pdf'],
+    ['msds', 'MSDS', '.pdf'],
+    ['registration', 'Product Registration', '.pdf'],
+    ['brochure', 'Marketing Brochure', '.pdf,.jpg,.png'],
+  ];
+  const docs = product.documents || {};
+
+  return (
+    <div className="space-y-4">
+      <p className="text-sm font-bold text-gray-700 dark:text-gray-200">📄 Documents &amp; Certificates</p>
+      <div className="grid grid-cols-2 gap-4">
+        {slots.map(([key, label, accept]) => {
+          const doc = docs[key];
+          return (
+            <div key={key} className="rounded-xl border border-gray-200 dark:border-[#1b2e4a] p-4">
+              <label className="label">{label}</label>
+              {doc?.url ? (
+                <div className="flex items-center gap-2 text-xs mt-1">
+                  <a href={doc.url} target="_blank" rel="noreferrer" className="font-semibold text-blue-600 dark:text-blue-400 hover:underline truncate flex-1">{doc.name || 'Document'}</a>
+                  <span className="text-gray-400">{fmtDate(doc.uploadedAt)}</span>
+                  <button onClick={() => onRemoveAttach(`documents.${key}`)} className="text-red-400 hover:text-red-600">🗑️</button>
+                </div>
+              ) : (
+                <div className="mt-1">
+                  <input type="file" id={`doc-${key}`} accept={accept} className="hidden" onChange={e => { const f = e.target.files[0]; if (f) onAttach(f, `documents.${key}`); e.target.value = ''; }} />
+                  <button onClick={() => document.getElementById(`doc-${key}`).click()} className="btn-secondary text-xs">📎 Upload</button>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ─── History Tab ─────────────────────────────────────────────────────────────────
+function HistoryTab({ product: p }) {
+  const events = [...(p.history || [])];
+  if (p.rnd?.lastUpdated) events.push({ action: 'R&D costing updated', date: p.rnd.lastUpdated, detail: `Lifecycle: ${p.rnd.lifecycle || 1000} batches` });
+  if (p.productionOverhead?.lastUpdated) events.push({ action: 'Production Overhead updated', date: p.productionOverhead.lastUpdated, detail: 'Manufacturing costs' });
+  if (p.standardAssumptions?.lastUpdated) events.push({ action: 'Standard Assumptions updated', date: p.standardAssumptions.lastUpdated, detail: 'Overhead % assumptions' });
+  if (p.rndDoc?.lastUpdated) events.push({ action: 'R&D documentation updated', date: p.rndDoc.lastUpdated, detail: 'Research notes modified' });
+  if (p.packaging?.lastUpdated) events.push({ action: 'Packaging updated', date: p.packaging.lastUpdated, detail: 'Packaging costs' });
+  if (p.costing?.lastUpdated) events.push({ action: 'Costing updated', date: p.costing.lastUpdated, detail: 'Margins' });
+  if (p.marketplace?.lastUpdated) events.push({ action: 'Marketplace updated', date: p.marketplace.lastUpdated, detail: 'Platform fees & margins' });
+  events.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+  return (
+    <div className="space-y-4">
+      <p className="text-sm font-bold text-gray-700 dark:text-gray-200">🕐 Activity History</p>
+      {!events.length ? (
+        <p className="text-xs text-gray-400 bg-gray-50 dark:bg-[#0f1a2e] rounded-lg px-4 py-3">No activity history recorded yet. Changes to R&D, overhead, procedures, and documents will be tracked automatically.</p>
+      ) : (
+        <div className="space-y-2">
+          {events.map((e, i) => (
+            <div key={i} className="flex items-start gap-3 px-3 py-2 rounded-lg border border-gray-100 dark:border-[#1b2e4a] text-xs">
+              <span className="text-gray-400 whitespace-nowrap">{fmtDate(e.date)}</span>
+              <div>
+                <p className="font-semibold text-gray-700 dark:text-gray-200">{e.action}</p>
+                {e.detail && <p className="text-gray-400">{e.detail}</p>}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

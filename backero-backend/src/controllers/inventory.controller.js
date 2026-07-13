@@ -305,6 +305,15 @@ exports.createRawMaterial = asyncHandler(async (req, res) => {
     enableMinStock, minStockLevel,
     qcChecker, qcNumber, refCheckNumber, qcPassed, qcNotes } = req.body;
 
+  const trimmedName = (name || '').trim();
+  const escaped = trimmedName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const existing = trimmedName && await Product.findOne({
+    organizationId: req.user.organizationId,
+    isRawMaterial: true,
+    name: { $regex: new RegExp(`^${escaped}$`, 'i') },
+  });
+  if (existing) return sendError(res, `A raw material named "${existing.name}" already exists (${existing.sku})`, 400);
+
   // Auto-generate RM-xxxx SKU
   const count = await Product.countDocuments({ organizationId: req.user.organizationId, isRawMaterial: true });
   const sku = 'RM-' + String(count + 1).padStart(4, '0');

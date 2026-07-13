@@ -29,6 +29,19 @@ const packagingItemSchema = new mongoose.Schema({
   optional: { type: Boolean, default: false },
 }, { _id: true });
 
+const attachmentSchema = new mongoose.Schema({
+  name: String,
+  url: String,
+  type: String, // 'document' | 'video' | 'audio'
+  createdAt: { type: Date, default: Date.now },
+}, { _id: true });
+
+const documentSlotSchema = new mongoose.Schema({
+  name: String,
+  url: String,
+  uploadedAt: Date,
+}, { _id: false });
+
 const catalogProductSchema = new mongoose.Schema({
   organizationId: { type: mongoose.Schema.Types.ObjectId, ref: 'Organization', required: true, index: true },
   code:         { type: String, required: true, trim: true },
@@ -76,10 +89,31 @@ const catalogProductSchema = new mongoose.Schema({
     otherOverhead: { type: Number, default: 0 },
     qc:            { type: Number, default: 0 },
     lifecycle:     { type: Number, default: 1000 },
-    docText:       String,
-    researchGuide: String,
-    procedure:     String,
     lastUpdated:   Date,
+  },
+
+  rndDoc: {
+    text:        String,
+    attachments: [attachmentSchema],
+    lastUpdated: Date,
+  },
+
+  researchGuide: {
+    text:        String,
+    lastUpdated: Date,
+  },
+
+  procedure: {
+    text:        String,
+    attachments: [attachmentSchema],
+    lastUpdated: Date,
+  },
+
+  documents: {
+    coa:          documentSlotSchema,
+    msds:         documentSlotSchema,
+    registration: documentSlotSchema,
+    brochure:     documentSlotSchema,
   },
 
   productionOverhead: {

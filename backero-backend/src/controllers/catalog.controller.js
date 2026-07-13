@@ -112,6 +112,65 @@ exports.uploadImage = asyncHandler(async (req, res) => {
   sendSuccess(res, { image: p.image }, 'Image uploaded');
 });
 
+const DOCUMENT_SLOTS = ['coa', 'msds', 'registration', 'brochure'];
+
+// POST /api/catalog/products/:id/attachment  (multipart: file, kind)
+// kind: 'rndDoc' | 'procedure' | 'documents.coa' | 'documents.msds' | 'documents.registration' | 'documents.brochure'
+exports.uploadAttachment = asyncHandler(async (req, res) => {
+  const p = await CatalogProduct.findOne({ _id: req.params.id, organizationId: req.user.organizationId });
+  if (!p) return sendError(res, 'Product not found', 404);
+  if (!req.file) return sendError(res, 'No file uploaded', 400);
+  const { kind } = req.body;
+
+  const mime = req.file.mimetype || '';
+  const resourceType = mime.startsWith('video/') || mime.startsWith('audio/') ? 'video' : mime.startsWith('image/') ? 'image' : 'raw';
+  const result = await uploadBuffer(req.file.buffer, { folder: `backero/catalog/${req.user.organizationId}/attachments`, resourceType });
+  const attachment = { name: req.file.originalname, url: result.secure_url, type: mime.startsWith('video/') ? 'video' : mime.startsWith('audio/') ? 'audio' : 'document', createdAt: new Date() };
+
+  if (kind === 'rndDoc') {
+    if (!p.rndDoc) p.rndDoc = { text: '', attachments: [] };
+    p.rndDoc.attachments.push(attachment);
+    p.rndDoc.lastUpdated = new Date();
+  } else if (kind === 'procedure') {
+    if (!p.procedure) p.procedure = { text: '', attachments: [] };
+    p.procedure.attachments.push(attachment);
+    p.procedure.lastUpdated = new Date();
+  } else if (kind?.startsWith('documents.')) {
+    const slot = kind.split('.')[1];
+    if (!DOCUMENT_SLOTS.includes(slot)) return sendError(res, 'Invalid document slot', 400);
+    if (!p.documents) p.documents = {};
+    p.documents[slot] = { name: req.file.originalname, url: result.secure_url, uploadedAt: new Date() };
+  } else {
+    return sendError(res, 'Invalid attachment kind', 400);
+  }
+
+  p.history.push({ action: 'Attachment uploaded', detail: `${kind}: ${req.file.originalname}` });
+  await p.save();
+  sendSuccess(res, { product: p }, 'Attachment uploaded');
+});
+
+// DELETE /api/catalog/products/:id/attachment  (body: { kind, attachmentId })
+exports.removeAttachment = asyncHandler(async (req, res) => {
+  const p = await CatalogProduct.findOne({ _id: req.params.id, organizationId: req.user.organizationId });
+  if (!p) return sendError(res, 'Product not found', 404);
+  const { kind, attachmentId } = req.body;
+
+  if (kind === 'rndDoc' && p.rndDoc?.attachments) {
+    p.rndDoc.attachments = p.rndDoc.attachments.filter(a => String(a._id) !== String(attachmentId));
+  } else if (kind === 'procedure' && p.procedure?.attachments) {
+    p.procedure.attachments = p.procedure.attachments.filter(a => String(a._id) !== String(attachmentId));
+  } else if (kind?.startsWith('documents.')) {
+    const slot = kind.split('.')[1];
+    if (!DOCUMENT_SLOTS.includes(slot)) return sendError(res, 'Invalid document slot', 400);
+    if (p.documents) p.documents[slot] = undefined;
+  } else {
+    return sendError(res, 'Invalid attachment kind', 400);
+  }
+
+  await p.save();
+  sendSuccess(res, { product: p }, 'Attachment removed');
+});
+
 // POST /api/catalog/import  — bulk import from localStorage JSON dump
 exports.importProducts = asyncHandler(async (req, res) => {
   const orgId = req.user.organizationId;
