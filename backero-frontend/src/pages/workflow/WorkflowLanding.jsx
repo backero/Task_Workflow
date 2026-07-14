@@ -996,9 +996,11 @@ export default function WorkflowLanding() {
     if (!socket) return;
     socket.on('task_created', refreshBoard);
     socket.on('task_updated', refreshBoard);
+    socket.on('task_reopened', refreshBoard);
     return () => {
       socket.off('task_created', refreshBoard);
       socket.off('task_updated', refreshBoard);
+      socket.off('task_reopened', refreshBoard);
     };
   }, [socket, refreshBoard]);
 

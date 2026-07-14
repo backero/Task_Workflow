@@ -584,8 +584,8 @@ export default function TaskDetailPanel({ onAddSubtask }) {
                   </ActionButton>
                 )}
 
-                {/* ── REOPEN: only the approver can reopen ── */}
-                {data.status === 'Completed' && isApprover && (
+                {/* ── REOPEN: only the approver can reopen (Completed or Achieved) ── */}
+                {['Completed', 'Achieved'].includes(data.status) && isApprover && (
                   <ActionButton onClick={handleReopen} color="red" disabled={loading}>
                     🔁 Reopen Task
                   </ActionButton>

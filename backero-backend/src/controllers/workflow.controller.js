@@ -592,6 +592,9 @@ const reopenTask = async (req, res) => {
     task.completionLocked = true;
     task.completionLockReasons = [reason || 'Task reopened'];
     task.updatedBy = userId;
+    task.isArchived = false;
+    task.archivedAt = undefined;
+    task.activity.push({ action: 'Reopened', performedBy: userId, details: reason || undefined });
     await task.save();
 
     await workflowEngine.reopenAncestors(taskId);
