@@ -206,7 +206,7 @@ exports.getEmployeeDashboard = asyncHandler(async (req, res) => {
   const empBase = { organizationId: orgId, assignedTo: userId, isArchived: { $ne: true }, pendingHubApproval: { $ne: true } };
 
   const [myTasks, overdueTasks, completedThisMonth, myLeads, unreadNotifications, pendingApprovals, myQueries] = await Promise.all([
-    Task.find({ ...empBase, status: { $nin: ['Completed', 'Cancelled'] } })
+    Task.find({ ...empBase, status: { $nin: ['Completed', 'Achieved', 'Cancelled'] } })
       .sort({ priority: -1, dueDate: 1 })
       .limit(10)
       .populate('assignedBy', 'firstName lastName'),
@@ -263,13 +263,13 @@ exports.getManagerDashboard = asyncHandler(async (req, res) => {
     pendingQueriesCount,
   ] = await Promise.all([
     safe(Task.aggregate([{ $match: filter }, { $group: { _id: '$status', count: { $sum: 1 } } }])),
-    safe(Task.find({ ...filter, status: { $nin: ['Completed', 'Cancelled'] } })
+    safe(Task.find({ ...filter, status: { $nin: ['Completed', 'Achieved', 'Cancelled'] } })
       .populate('assignedTo', 'firstName lastName avatar')
       .sort({ dueDate: 1, priority: -1 })
       .limit(20)
       .select('title status priority department assignedTo dueDate isOverdue progress')),
     safe(Task.countDocuments({ ...filter, $or: [{ parentTask: null }, { parentTask: { $exists: false } }], dueDate: { $lt: new Date() }, status: { $nin: ['Completed', 'Achieved', 'Cancelled'] } })),
-    safe(Task.find({ ...filter, status: { $nin: ['Completed', 'Cancelled'] }, dueDate: { $gte: today, $lte: threeDaysEnd } })
+    safe(Task.find({ ...filter, status: { $nin: ['Completed', 'Achieved', 'Cancelled'] }, dueDate: { $gte: today, $lte: threeDaysEnd } })
       .populate('assignedTo', 'firstName lastName')
       .sort({ dueDate: 1 })
       .limit(10)

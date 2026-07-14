@@ -164,7 +164,7 @@ router.post('/departments/:id/test', authorizeAdminOrAbove, asyncHandler(async (
     organizationId: req.user.organizationId,
     department: dept.name,
     isOverdue: true,
-    status: { $nin: [TASK_STATUS.COMPLETED, TASK_STATUS.CANCELLED] },
+    status: { $nin: [TASK_STATUS.COMPLETED, TASK_STATUS.ACHIEVED, TASK_STATUS.CANCELLED] },
   }).populate('assignedTo', 'firstName lastName').limit(5);
 
   if (overdueTasks.length > 0) {
@@ -195,7 +195,7 @@ router.post('/notify-assignments', asyncHandler(async (req, res) => {
   const filter = {
     organizationId: orgId,
     assignedTo: { $ne: null },
-    status: { $nin: ['Completed', 'Cancelled'] },
+    status: { $nin: ['Completed', 'Achieved', 'Cancelled'] },
   };
   if (specificIds) filter._id = { $in: specificIds };
 

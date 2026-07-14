@@ -722,7 +722,7 @@ const runDailyReport = async (targetPhones = null) => {
       safe(Task.countDocuments({ organizationId: org._id, dueDate: { $lt: new Date() }, status: { $nin: ['Completed', 'Achieved', 'Cancelled'] } })),
       safe(Task.countDocuments({ organizationId: org._id, status: 'Approval Pending' })),
       safe(Task.countDocuments({ organizationId: org._id, status: 'In Progress' })),
-      safe(Task.countDocuments({ organizationId: org._id, status: { $nin: ['Completed', 'Cancelled'] } })),
+      safe(Task.countDocuments({ organizationId: org._id, status: { $nin: ['Completed', 'Achieved', 'Cancelled'] } })),
       safe(require('../models/Lead').countDocuments({ organizationId: org._id, createdAt: { $gte: today, $lte: todayEnd } })),
       safe(require('../models/Lead').countDocuments({ organizationId: org._id, status: 'Payment Pending', updatedAt: { $gte: today } })),
       safe(require('../models/Lead').countDocuments({ organizationId: org._id, status: { $nin: ['Payment Pending', 'Lost'] } })),
