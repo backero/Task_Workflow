@@ -126,7 +126,7 @@ const runOverdueTaskCheck = async () => {
   // ── Newly overdue tasks ────────────────────────────────────────────────────
   const overdueTasks = await Task.find({
     dueDate: { $lt: now },
-    status: { $nin: [TASK_STATUS.COMPLETED, TASK_STATUS.CANCELLED] },
+    status: { $nin: [TASK_STATUS.COMPLETED, TASK_STATUS.ACHIEVED, TASK_STATUS.CANCELLED] },
     isOverdue: false,
   })
     .populate('assignedTo', 'firstName lastName phone whatsapp role department')
@@ -205,7 +205,7 @@ const runOverdueTaskCheck = async () => {
   // ── Already overdue — repeat reminders every 24h ───────────────────────────
   const alreadyOverdue = await Task.find({
     isOverdue: true,
-    status: { $nin: [TASK_STATUS.COMPLETED, TASK_STATUS.CANCELLED] },
+    status: { $nin: [TASK_STATUS.COMPLETED, TASK_STATUS.ACHIEVED, TASK_STATUS.CANCELLED] },
     lastReminderSent: { $lt: new Date(Date.now() - 24 * 60 * 60 * 1000) },
   })
     .populate('assignedTo', 'firstName lastName phone whatsapp')
@@ -623,7 +623,7 @@ const runDueTodayTaskReminder = async () => {
 
   const tasks = await Task.find({
     dueDate: { $gte: todayStart, $lte: todayEnd },
-    status: { $nin: [TASK_STATUS.COMPLETED, TASK_STATUS.CANCELLED] },
+    status: { $nin: [TASK_STATUS.COMPLETED, TASK_STATUS.ACHIEVED, TASK_STATUS.CANCELLED] },
     isOverdue: false,
   })
     .populate('assignedTo', 'firstName lastName')
