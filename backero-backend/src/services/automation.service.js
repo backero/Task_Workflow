@@ -133,10 +133,14 @@ const runOverdueTaskCheck = async () => {
     .populate('assignedBy', 'firstName lastName phone whatsapp');
 
   for (const task of overdueTasks) {
-    task.isOverdue = true;
-    task.overdueNotificationsSent = 1;
-    task.lastReminderSent = new Date();
-    await task.save();
+    // Atomic, guarded write — if the task was completed/achieved/cancelled by a user
+    // while this batch was being processed, the guard fails and we skip it entirely
+    // instead of overwriting fresh data with this loop's stale in-memory snapshot.
+    const guard = await Task.updateOne(
+      { _id: task._id, status: { $nin: [TASK_STATUS.COMPLETED, TASK_STATUS.ACHIEVED, TASK_STATUS.CANCELLED] } },
+      { $set: { isOverdue: true, overdueNotificationsSent: 1, lastReminderSent: new Date() } },
+    );
+    if (guard.matchedCount === 0) continue;
 
     const employeeName = task.assignedTo ? `${task.assignedTo.firstName} ${task.assignedTo.lastName}` : 'Unknown';
     const assignedByName = task.assignedBy ? `${task.assignedBy.firstName} ${task.assignedBy.lastName}` : '—';
@@ -202,74 +206,12 @@ const runOverdueTaskCheck = async () => {
     io?.to(`org:${task.organizationId}`).emit(SOCKET_EVENTS.OVERDUE_ALERT, { taskId: task._id, title: task.title });
   }
 
-  // ── Already overdue — repeat reminders every 24h ───────────────────────────
-  const alreadyOverdue = await Task.find({
-    isOverdue: true,
-    status: { $nin: [TASK_STATUS.COMPLETED, TASK_STATUS.ACHIEVED, TASK_STATUS.CANCELLED] },
-    lastReminderSent: { $lt: new Date(Date.now() - 24 * 60 * 60 * 1000) },
-  })
-    .populate('assignedTo', 'firstName lastName phone whatsapp')
-    .populate('assignedBy', 'firstName lastName phone whatsapp');
+  // No repeat reminders — a task gets exactly one overdue notification (to employee,
+  // manager, department team, and admins/founders, all above) when it first crosses
+  // its due date. It won't be nagged about again unless reopened with a new due date
+  // that later passes again.
 
-  for (const task of alreadyOverdue) {
-    task.overdueNotificationsSent = (task.overdueNotificationsSent || 0) + 1;
-    task.lastReminderSent = new Date();
-    await task.save();
-
-    const isCritical = task.overdueNotificationsSent >= 3;
-    const employeeName = task.assignedTo ? `${task.assignedTo.firstName} ${task.assignedTo.lastName}` : 'Unknown';
-    const assignedByName = task.assignedBy ? `${task.assignedBy.firstName} ${task.assignedBy.lastName}` : '—';
-
-    if (task.assignedTo) {
-      await createNotification({
-        organizationId: task.organizationId,
-        recipient: task.assignedTo._id,
-        title: '🚨 Task Still Overdue',
-        message: `"${task.title}" remains overdue (reminder #${task.overdueNotificationsSent}).`,
-        type: 'escalation',
-        priority: isCritical ? 'critical' : 'high',
-        actionUrl: `/tasks/${task._id}`,
-        reference: { model: 'Task', id: task._id },
-        channels: { inApp: true, whatsapp: false },
-      }, io);
-
-      // WhatsApp every repeat
-      const empPhone = task.assignedTo.whatsapp || task.assignedTo.phone;
-      if (empPhone) {
-        await sendTaskOverdueEmployee(empPhone, {
-          title: task.title, assignedByName,
-          dueDate: task.dueDate, overdueCount: task.overdueNotificationsSent, taskId: task._id,
-        });
-      }
-    }
-
-    // Manager WhatsApp on every 2nd+ reminder
-    if (task.assignedBy && task.overdueNotificationsSent >= 2) {
-      const mgrPhone = task.assignedBy.whatsapp || task.assignedBy.phone;
-      if (mgrPhone) {
-        await sendTaskOverdueManager(mgrPhone, {
-          title: task.title, employeeName,
-          department: task.department, dueDate: task.dueDate, priority: task.priority,
-          taskId: task._id,
-        });
-      }
-    }
-
-    // Department team DM — every repeat reminder
-    await notifyDepartmentMembers(
-      task.organizationId, task.department,
-      [task.assignedTo?._id, task.assignedBy?._id],
-      sendTeamTaskOverdueAlert,
-      { department: task.department, title: task.title, employeeName, priority: task.priority, dueDate: task.dueDate },
-    );
-
-    // Escalate to admins after 3 reminders (exclude assignedBy — already got manager message)
-    if (isCritical) {
-      await escalateToFounders(task, employeeName, task.assignedBy?._id);
-    }
-  }
-
-  logger.info(`Overdue check: ${overdueTasks.length} new, ${alreadyOverdue.length} repeat`);
+  logger.info(`Overdue check: ${overdueTasks.length} new`);
 };
 
 const escalateToFounders = async (task, employeeName = 'Team member', excludeId = null) => {
