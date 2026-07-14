@@ -59,6 +59,7 @@ const generateDailyReportPDF = async (reportData) => {
     marketplaceToday = null,
     platformListings = [],
     platformPlanSummary = [],
+    employeeActivity = [],
   } = reportData;
 
   const reportsDir = path.join(process.cwd(), 'reports', 'daily');
@@ -286,6 +287,57 @@ const generateDailyReportPDF = async (reportData) => {
       { label: 'Active Production', value: activeProductionOrders,color: C.purple  },
     ].forEach((b, i) => statBox(doc, b.label, b.value, 40 + i * (bw5b + 4), y, bw5b, b.color));
     y += 62;
+
+    // ── TEAM ACTIVITY TODAY ──────────────────────────────────────────────────
+    if (employeeActivity.length > 0) {
+      y += 6;
+      if (y > 660) { y = newPage(doc, orgName, date); }
+      y = sectionHeader(doc, 'TEAM ACTIVITY TODAY', y);
+
+      const aCols = [
+        { label: 'Employee',    x: 40,  w: 110 },
+        { label: 'Department',  x: 150, w: 90  },
+        { label: 'Completed',   x: 240, w: 60  },
+        { label: 'In Progress', x: 300, w: 60  },
+        { label: 'Updates',     x: 360, w: 50  },
+      ];
+      doc.rect(40, y, 515, 18).fill(C.primary);
+      aCols.forEach((c) => {
+        doc.fillColor(C.white).fontSize(7).font('Helvetica-Bold')
+           .text(c.label, c.x + 3, y + 5, { width: c.w - 4, lineBreak: false });
+      });
+      y += 18;
+
+      employeeActivity.forEach((emp, i) => {
+        if (y > 740) { y = newPage(doc, orgName, date); }
+        const bg = i % 2 === 0 ? C.white : C.lightGray;
+        doc.rect(40, y, 515, 18).fill(bg).stroke(C.border);
+        [
+          { col: aCols[0], val: emp.name || '—',                       color: C.primary, bold: true },
+          { col: aCols[1], val: emp.department || '—',                 color: C.gray },
+          { col: aCols[2], val: String(emp.completedTitles.length),    color: emp.completedTitles.length ? C.success : C.gray },
+          { col: aCols[3], val: String(emp.inProgressTitles.length),   color: emp.inProgressTitles.length ? C.warning : C.gray },
+          { col: aCols[4], val: String(emp.updateCount || 0),          color: emp.updateCount ? C.accent : C.gray },
+        ].forEach((cell) => {
+          doc.fillColor(cell.color).fontSize(7.5).font(cell.bold ? 'Helvetica-Bold' : 'Helvetica')
+             .text(cell.val, cell.col.x + 3, y + 5, { width: cell.col.w - 4, lineBreak: false, ellipsis: true });
+        });
+        y += 18;
+
+        // What they worked on, as a sub-line
+        const doneList = emp.completedTitles.length ? `Done: ${emp.completedTitles.join(', ')}` : '';
+        const progList = emp.inProgressTitles.length ? `In progress: ${emp.inProgressTitles.join(', ')}` : '';
+        const subText = [doneList, progList].filter(Boolean).join('   |   ');
+        if (subText) {
+          if (y > 750) { y = newPage(doc, orgName, date); }
+          doc.rect(40, y, 515, 14).fill('#f8faff').stroke(C.border);
+          doc.fillColor(C.gray).fontSize(6.5).font('Helvetica')
+             .text(subText, 46, y + 4, { width: 500, lineBreak: false, ellipsis: true });
+          y += 14;
+        }
+      });
+      y += 4;
+    }
 
     // ── TOP PERFORMER ─────────────────────────────────────────────────────────
     if (topPerformerName) {

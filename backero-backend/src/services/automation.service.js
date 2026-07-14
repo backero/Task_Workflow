@@ -8,6 +8,7 @@ const Organization = require('../models/Organization');
 const MarketplaceDaily = require('../models/MarketplaceDaily');
 const MarketplacePlan = require('../models/MarketplacePlan');
 const MarketplacePlanProgress = require('../models/MarketplacePlanProgress');
+const Invoice = require('../models/Invoice');
 const { createNotification, bulkCreateNotifications } = require('./notification.service');
 const { sendDailyReport, sendDailyReportWithPDF } = require('./whatsapp.service');
 const {
@@ -85,14 +86,14 @@ const startAutomationEngine = (socketIo) => {
     runOverdueFollowUpCheck().catch(logger.error);
   });
 
-  // Low stock check every 6 hours
-  cron.schedule('0 */6 * * *', () => {
-    runLowStockCheck().catch(logger.error);
+  // Every Monday at 9 AM IST: one consolidated low-stock digest to managers
+  cron.schedule('30 3 * * 1', () => {  // 9 AM IST = 3:30 AM UTC
+    runWeeklyStockDigest().catch(logger.error);
   });
 
-  // Weekly report every Monday at 9 AM IST
-  cron.schedule('30 3 * * 1', () => {
-    runWeeklyReport().catch(logger.error);
+  // 1st of every month at 9 AM IST: one consolidated low-stock digest to admins/founders
+  cron.schedule('30 3 1 * *', () => {  // 9 AM IST = 3:30 AM UTC
+    runMonthlyStockDigest().catch(logger.error);
   });
 
   // Every day at 10 AM IST: send daily stage updates to all active leads (Sample, In Progress, Ready to Dispatch, Payment Pending)
@@ -108,6 +109,11 @@ const startAutomationEngine = (socketIo) => {
   // Every 5 minutes: sync Google Sheets leads for all connected orgs
   cron.schedule('*/5 * * * *', () => {
     autoSyncAllOrgs().catch(logger.error);
+  });
+
+  // Every day at 8 AM IST: check overdue/due-soon invoices, alert Accounts & Finance
+  cron.schedule('30 2 * * *', () => {  // 8 AM IST = 2:30 AM UTC
+    runOverdueInvoiceCheck().catch(logger.error);
   });
 
   logger.info('Automation engine started successfully');
@@ -459,37 +465,118 @@ const runOverdueFollowUpCheck = async () => {
   logger.info(`[OverdueFollowUp] ${alerted} overdue follow-ups alerted`);
 };
 
-const runLowStockCheck = async () => {
-  const lowStockProducts = await Product.find({
+// Groups low-stock items (both raw materials and finished products live in the
+// Product collection, split by isRawMaterial) into one readable digest body
+// instead of pinging once per SKU.
+const buildStockDigestMessage = (products) => {
+  const line = (p) => `• ${p.name} (${p.sku}) — ${p.currentStock}/${p.minStockLevel} ${p.unit}${p.currentStock <= 0 ? ' ⚠️ OUT OF STOCK' : ''}`;
+  const section = (label, list) => (list.length ? `${label} (${list.length}):\n${list.map(line).join('\n')}` : '');
+  const materials = products.filter((p) => p.isRawMaterial);
+  const goods = products.filter((p) => !p.isRawMaterial);
+  return [section('📦 Raw Materials', materials), section('🏷️ Products', goods)].filter(Boolean).join('\n\n');
+};
+
+const groupByOrg = (products) => {
+  const byOrg = {};
+  for (const p of products) {
+    const key = p.organizationId.toString();
+    (byOrg[key] ||= []).push(p);
+  }
+  return byOrg;
+};
+
+const sendStockDigestToRoles = async (recipients, orgId, products, cadenceLabel) => {
+  const message = buildStockDigestMessage(products);
+  const title = `📦 ${cadenceLabel} Stock Digest — ${products.length} item${products.length !== 1 ? 's' : ''} low`;
+  for (const user of recipients) {
+    await createNotification({
+      organizationId: orgId,
+      recipient: user._id,
+      title,
+      message,
+      type: 'inventory',
+      priority: products.some((p) => p.currentStock <= 0) ? 'critical' : 'high',
+      actionUrl: '/inventory/raw-materials',
+      channels: { inApp: true, whatsapp: true },
+    }, io);
+  }
+};
+
+// Every Monday: one consolidated low-stock message to managers (no more per-SKU pings)
+const runWeeklyStockDigest = async () => {
+  const lowStock = await Product.find({
     isActive: true,
+    enableMinStock: true,
     $expr: { $lte: ['$currentStock', '$minStockLevel'] },
   });
+  if (!lowStock.length) return logger.info('[StockDigest] Weekly: nothing low, skipping');
 
-  for (const product of lowStockProducts) {
+  const byOrg = groupByOrg(lowStock);
+  for (const [orgId, products] of Object.entries(byOrg)) {
+    const managers = await User.find({ organizationId: orgId, role: ROLES.MANAGER, isActive: true });
+    if (managers.length) await sendStockDigestToRoles(managers, orgId, products, 'Weekly');
+  }
+  logger.info(`[StockDigest] Weekly digest sent for ${Object.keys(byOrg).length} org(s)`);
+};
+
+// 1st of every month: one consolidated low-stock message to admins/founders
+const runMonthlyStockDigest = async () => {
+  const lowStock = await Product.find({
+    isActive: true,
+    enableMinStock: true,
+    $expr: { $lte: ['$currentStock', '$minStockLevel'] },
+  });
+  if (!lowStock.length) return logger.info('[StockDigest] Monthly: nothing low, skipping');
+
+  const byOrg = groupByOrg(lowStock);
+  for (const [orgId, products] of Object.entries(byOrg)) {
     const admins = await User.find({
-      organizationId: product.organizationId,
-      role: { $in: [ROLES.ADMIN, ROLES.MANAGER, ROLES.FOUNDER] },
+      organizationId: orgId,
+      role: { $in: [ROLES.ADMIN, ROLES.FOUNDER, ROLES.CHAIRMAN, ROLES.SUPER_ADMIN] },
       isActive: true,
     });
+    if (admins.length) await sendStockDigestToRoles(admins, orgId, products, 'Monthly');
+  }
+  logger.info(`[StockDigest] Monthly digest sent for ${Object.keys(byOrg).length} org(s)`);
+};
 
-    for (const admin of admins) {
-      await createNotification({
-        organizationId: product.organizationId,
-        recipient: admin._id,
-        title: '📦 Low Stock Alert',
-        message: `${product.name} (SKU: ${product.sku}) is running low. Current: ${product.currentStock} ${product.unit}, Min: ${product.minStockLevel} ${product.unit}`,
-        type: 'inventory',
-        priority: product.currentStock === 0 ? 'critical' : 'high',
-        actionUrl: `/inventory/products/${product._id}`,
-        reference: { model: 'Product', id: product._id },
-        channels: { inApp: true, whatsapp: product.currentStock === 0 },
-      }, io);
-    }
+const runOverdueInvoiceCheck = async () => {
+  const now = new Date();
 
-    io?.to(`org:${product.organizationId}`).emit(SOCKET_EVENTS.INVENTORY_LOW, { product });
+  // Flip sent/partially_paid invoices past their due date to 'overdue'
+  const newlyOverdue = await Invoice.find({
+    status: { $in: ['sent', 'partially_paid'] },
+    dueDate: { $lt: now },
+  });
+  for (const inv of newlyOverdue) {
+    inv.status = 'overdue';
+    await inv.save();
   }
 
-  logger.info(`Low stock check: ${lowStockProducts.length} products below minimum`);
+  // Alert Accounts & Finance for every currently-overdue invoice (repeats daily until paid)
+  const overdueInvoices = await Invoice.find({ status: 'overdue' });
+  for (const inv of overdueInvoices) {
+    const daysOverdue = Math.max(1, Math.floor((now - inv.dueDate) / (1000 * 60 * 60 * 24)));
+    const financeUsers = await User.find({
+      organizationId: inv.organizationId,
+      department: 'Accounts & Finance',
+      isActive: true,
+    });
+    for (const u of financeUsers) {
+      await createNotification({
+        organizationId: inv.organizationId,
+        recipient: u._id,
+        title: '💰 Invoice Overdue',
+        message: `Invoice ${inv.invoiceNumber} for ${inv.client?.name || 'client'} is ${daysOverdue} day(s) overdue. Balance: ₹${(inv.balanceAmount || 0).toLocaleString('en-IN')}`,
+        type: 'finance', priority: 'high',
+        actionUrl: `/finance/invoices/${inv._id}`,
+        reference: { model: 'Invoice', id: inv._id },
+        channels: { inApp: true, whatsapp: true },
+      }, io);
+    }
+  }
+
+  logger.info(`[OverdueInvoice] ${newlyOverdue.length} newly overdue, ${overdueInvoices.length} total alerted`);
 };
 
 const runActiveClientUpdates = async () => {
@@ -627,6 +714,9 @@ const runDailyReport = async (targetPhones = null) => {
       platformListings,
       marketplacePlans,
       platformProgress,
+      completedByEmployee,
+      inProgressByEmployee,
+      updatesByEmployee,
     ] = await Promise.all([
       safe(Task.countDocuments({ organizationId: org._id, status: 'Completed', completedAt: { $gte: today } })),
       safe(Task.countDocuments({ organizationId: org._id, dueDate: { $lt: new Date() }, status: { $nin: ['Completed', 'Achieved', 'Cancelled'] } })),
@@ -688,6 +778,29 @@ const runDailyReport = async (targetPhones = null) => {
         { $sort: { week: -1 } },
         { $group: { _id: '$platform', latestDoc: { $first: '$$ROOT' } } },
       ])),
+      // Who completed what today
+      safe(Task.aggregate([
+        { $match: { organizationId: org._id, status: 'Completed', completedAt: { $gte: today, $lte: todayEnd }, assignedTo: { $ne: null } } },
+        { $group: { _id: '$assignedTo', titles: { $push: '$title' } } },
+        { $lookup: { from: 'users', localField: '_id', foreignField: '_id', as: 'user' } },
+        { $unwind: '$user' },
+        { $project: { _id: 0, userId: '$_id', name: { $concat: ['$user.firstName', ' ', '$user.lastName'] }, department: '$user.department', titles: 1 } },
+      ])),
+      // What everyone is currently working on
+      safe(Task.aggregate([
+        { $match: { organizationId: org._id, status: 'In Progress', assignedTo: { $ne: null } } },
+        { $group: { _id: '$assignedTo', titles: { $push: '$title' } } },
+        { $lookup: { from: 'users', localField: '_id', foreignField: '_id', as: 'user' } },
+        { $unwind: '$user' },
+        { $project: { _id: 0, userId: '$_id', name: { $concat: ['$user.firstName', ' ', '$user.lastName'] }, department: '$user.department', titles: 1 } },
+      ])),
+      // Daily-update comments posted today, per author
+      safe(Task.aggregate([
+        { $match: { organizationId: org._id } },
+        { $unwind: '$comments' },
+        { $match: { 'comments.type': 'daily_update', 'comments.createdAt': { $gte: today, $lte: todayEnd } } },
+        { $group: { _id: '$comments.author', count: { $sum: 1 } } },
+      ])),
     ]);
 
     const topP = (topPerformer || [])[0];
@@ -718,6 +831,22 @@ const runDailyReport = async (targetPhones = null) => {
       };
     });
 
+    // Merge completed / in-progress / updates into one per-employee activity list
+    const activityByUser = {};
+    const getRow = (userId, name, department) => (activityByUser[userId] ||= { userId, name, department, completedTitles: [], inProgressTitles: [], updateCount: 0 });
+    for (const row of (completedByEmployee || [])) getRow(row.userId, row.name, row.department).completedTitles = row.titles;
+    for (const row of (inProgressByEmployee || [])) {
+      const r = getRow(row.userId, row.name, row.department);
+      r.inProgressTitles = row.titles;
+      r.department = r.department || row.department;
+    }
+    for (const row of (updatesByEmployee || [])) {
+      if (activityByUser[row._id]) activityByUser[row._id].updateCount = row.count;
+    }
+    const employeeActivity = Object.values(activityByUser)
+      .sort((a, b) => (b.completedTitles.length - a.completedTitles.length) || (b.updateCount - a.updateCount))
+      .slice(0, 15);
+
     const reportData = {
       orgName: org.name,
       date: reportDate,
@@ -739,6 +868,7 @@ const runDailyReport = async (targetPhones = null) => {
       marketplaceToday: marketplaceToday || null,
       platformListings: platformListings || [],
       platformPlanSummary,
+      employeeActivity,
     };
 
     // Generate PDF (best-effort — don't block sending if PDF fails)
@@ -788,9 +918,4 @@ const runDailyReport = async (targetPhones = null) => {
   }
 };
 
-const runWeeklyReport = async () => {
-  logger.info('Generating weekly reports...');
-  // Weekly report generation - summarized for each org
-};
-
-module.exports = { startAutomationEngine, runOverdueTaskCheck, runLowStockCheck, runDailyReport, runOverdueFollowUpCheck, runStaleLedCheck };
+module.exports = { startAutomationEngine, runOverdueTaskCheck, runWeeklyStockDigest, runMonthlyStockDigest, runOverdueInvoiceCheck, runDailyReport, runOverdueFollowUpCheck, runStaleLedCheck };

@@ -365,6 +365,7 @@ const sendDailyReport = async (phone, {
   departmentStats = [],
   marketplaceToday = null,
   platformListings = [],
+  employeeActivity = [],
 }) => {
   const netToday = (incomeToday || 0) - (expenseToday || 0);
   const fmtD = (d) => d ? new Date(d).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' }) : '—';
@@ -402,12 +403,24 @@ const sendDailyReport = async (phone, {
       `📦 *Listings per Platform:*\n${platformListings.map((p) => `  • ${p._id}: *${p.count}* listings`).join('\n')}\n\n`;
   }
 
+  let activitySection = '';
+  if (employeeActivity.length > 0) {
+    const lines = employeeActivity.slice(0, 10).map((e) => {
+      const bits = [];
+      if (e.completedTitles.length) bits.push(`✅ ${e.completedTitles.slice(0, 3).join(', ')}${e.completedTitles.length > 3 ? ` +${e.completedTitles.length - 3} more` : ''}`);
+      if (e.inProgressTitles.length) bits.push(`🔄 working on: ${e.inProgressTitles.slice(0, 2).join(', ')}${e.inProgressTitles.length > 2 ? ` +${e.inProgressTitles.length - 2} more` : ''}`);
+      if (e.updateCount) bits.push(`📝 ${e.updateCount} update${e.updateCount !== 1 ? 's' : ''} posted`);
+      return `▸ *${e.name}*${e.department ? ` (${e.department})` : ''}\n   ${bits.join('\n   ') || 'No activity logged today'}`;
+    });
+    activitySection = `━━━━━━━━━━━━━━━━━━━━\n👤 *TEAM ACTIVITY TODAY*\n${lines.join('\n')}\n\n`;
+  }
+
   return sendMessage(phone,
     `📊 *Daily Operations Report*\n🏢 *${orgName}*\n📅 *${date}*\n\n` +
     `━━━━━━━━━━━━━━━━━━━━\n📋 *TASKS OVERVIEW*\n` +
     `✅ Completed Today: *${tasksCompleted}*\n🔄 In Progress: *${tasksInProgress}*\n` +
     `⏰ Overdue: *${tasksOverdue}*\n🔍 Pending Approvals: *${tasksPendingApproval}*\n📝 Total Active: *${totalTasks}*\n\n` +
-    deptSection + mktSection +
+    deptSection + activitySection + mktSection +
     `━━━━━━━━━━━━━━━━━━━━\n👥 *CRM / LEADS*\n` +
     `🆕 New Leads Today: *${newLeadsToday}*\n🏆 Won Today: *${leadsWonToday}*\n📊 Total Active Leads: *${activeLeads}*\n\n` +
     `━━━━━━━━━━━━━━━━━━━━\n💰 *FINANCE (Today)*\n` +
