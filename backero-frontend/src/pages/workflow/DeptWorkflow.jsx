@@ -33,6 +33,7 @@ const deptCfg = (d) => DEPT_CONFIG[d] || { icon: CogIcon, color: 'bg-gray-400', 
 
 const STATUS_DOT = {
   'Completed':        'bg-green-500',
+  'Achieved':         'bg-amber-500',
   'In Progress':      'bg-blue-500',
   'Assigned':         'bg-indigo-400',
   'Pending':          'bg-gray-300',
@@ -42,6 +43,7 @@ const STATUS_DOT = {
 };
 const STATUS_BADGE = {
   'Completed':        'bg-green-100 text-green-700',
+  'Achieved':         'bg-amber-100 text-amber-700',
   'In Progress':      'bg-blue-100 text-blue-700',
   'Assigned':         'bg-indigo-100 text-indigo-700',
   'Pending':          'bg-gray-100 text-gray-500',
@@ -61,7 +63,7 @@ const PRIORITY_CLS = {
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 const calcProgress = (task) => {
   const subs = task.subTasks || [];
-  if (!subs.length) return { done: task.status === 'Completed' ? 1 : 0, total: 1 };
+  if (!subs.length) return { done: (task.status === 'Completed' || task.status === 'Achieved') ? 1 : 0, total: 1 };
   const c = subs.map(calcProgress);
   return { done: c.reduce((s, x) => s + x.done, 0), total: c.reduce((s, x) => s + x.total, 0) };
 };
@@ -175,7 +177,7 @@ function SubRow({ task, depth, dept, editable, onStatus, onAddSub, onDelete }) {
   const [add,   setAdd]   = useState(false);
   const [del,   setDel]   = useState(false);
   const kids = task.subTasks || [];
-  const done = task.status === 'Completed';
+  const done = task.status === 'Completed' || task.status === 'Achieved';
   const prog = calcProgress(task);
 
   return (
@@ -227,7 +229,7 @@ function MemberCard({ task, dept, editable, onStatus, onAddSub, onDelete }) {
   const [add,  setAdd]  = useState(false);
   const [del,  setDel]  = useState(false);
   const kids = task.subTasks || [];
-  const done = task.status === 'Completed';
+  const done = task.status === 'Completed' || task.status === 'Achieved';
   const prog = calcProgress(task);
   const progress = pct(prog);
 
@@ -281,10 +283,10 @@ function ManagerCard({ task, dept, cfg, editable, onStatus, onAddSub, onDelete }
   const [add,  setAdd]  = useState(false);
   const [del,  setDel]  = useState(false);
   const kids = task.subTasks || [];
-  const done = task.status === 'Completed';
+  const done = task.status === 'Completed' || task.status === 'Achieved';
   const prog = calcProgress(task);
   const progress = pct(prog);
-  const doneKids = kids.filter(s => s.status === 'Completed').length;
+  const doneKids = kids.filter(s => s.status === 'Completed' || s.status === 'Achieved').length;
   const ringColor = done ? '#22c55e' : progress > 0 ? '#6366f1' : '#d1d5db';
 
   return (
@@ -363,7 +365,7 @@ function DeptColumn({ dept, tasks, editable, filter, rootId, onStatus, onAddTask
   const [addingTask, setAddingTask] = useState(false);
 
   const filtered = filter === 'all' ? tasks : tasks.filter(t => {
-    const ov = t.isOverdue || (t.dueDate && isPast(new Date(t.dueDate)) && t.status !== 'Completed');
+    const ov = t.isOverdue || (t.dueDate && isPast(new Date(t.dueDate)) && t.status !== 'Completed' && t.status !== 'Achieved');
     if (filter === 'overdue')     return ov;
     if (filter === 'in-progress') return t.status === 'In Progress';
     if (filter === 'pending')     return ['Pending', 'Assigned'].includes(t.status);

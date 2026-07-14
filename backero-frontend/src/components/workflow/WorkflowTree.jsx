@@ -28,6 +28,7 @@ const EDGE_TYPES = { dependencyEdge: DependencyEdge };
 
 const MINIMAP_COLORS = {
   'Completed':        '#22c55e',
+  'Achieved':         '#f59e0b',
   'In Progress':      '#eab308',
   'Pending':          '#94a3b8',
   'Assigned':         '#3b82f6',
@@ -237,13 +238,13 @@ function WorkflowCanvas({ rootTaskId }) {
           <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-1 bg-white/90 backdrop-blur border border-gray-200 rounded-2xl shadow-lg px-4 py-2 z-10">
             <StatBadge color="bg-slate-400"  label="Total"    value={nodes.length} />
             <div className="w-px h-4 bg-gray-200 mx-1" />
-            <StatBadge color="bg-green-500"  label="Done"     value={nodes.filter(n => n.data?.status === 'Completed').length} />
+            <StatBadge color="bg-green-500"  label="Done"     value={nodes.filter(n => n.data?.status === 'Completed' || n.data?.status === 'Achieved').length} />
             <StatBadge color="bg-yellow-500" label="Active"   value={nodes.filter(n => n.data?.status === 'In Progress').length} />
             <StatBadge color="bg-indigo-500" label="Approval" value={nodes.filter(n => n.data?.status === 'Approval Pending').length} />
-            {nodes.filter(n => n.data?.isOverdue && n.data?.status !== 'Completed').length > 0 && (
+            {nodes.filter(n => n.data?.isOverdue && n.data?.status !== 'Completed' && n.data?.status !== 'Achieved').length > 0 && (
               <>
                 <div className="w-px h-4 bg-gray-200 mx-1" />
-                <StatBadge color="bg-red-500" label="Overdue" value={nodes.filter(n => n.data?.isOverdue && n.data?.status !== 'Completed').length} />
+                <StatBadge color="bg-red-500" label="Overdue" value={nodes.filter(n => n.data?.isOverdue && n.data?.status !== 'Completed' && n.data?.status !== 'Achieved').length} />
               </>
             )}
           </div>

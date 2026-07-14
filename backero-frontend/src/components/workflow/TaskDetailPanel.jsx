@@ -89,6 +89,7 @@ export default function TaskDetailPanel({ onAddSubtask }) {
 
   if (!selectedNode || !data) return null;
 
+  const isDone = data.status === 'Completed' || data.status === 'Achieved';
   const updates = (taskDetail?.comments || []).filter(c => c.type === 'daily_update');
   const hasChildren = data.childCount > 0;
   const isAssignee = taskDetail?.assignedTo?._id?.toString() === user?._id?.toString()
@@ -208,7 +209,7 @@ export default function TaskDetailPanel({ onAddSubtask }) {
               <span className={clsx('text-[11px] font-bold uppercase', PRIORITY_COLORS[data.priority])}>
                 {data.priority}
               </span>
-              {data.completionLocked && data.status !== 'Completed' && (
+              {data.completionLocked && !isDone && (
                 <span className="text-[10px] text-amber-600 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded-full">🔒 Locked</span>
               )}
             </div>
@@ -250,12 +251,12 @@ export default function TaskDetailPanel({ onAddSubtask }) {
         <div className="mt-3">
           <div className="flex justify-between mb-1">
             <span className="text-[10px] text-gray-500 font-medium">Progress</span>
-            <span className="text-[11px] font-bold text-indigo-600">{data.progress}%</span>
+            <span className="text-[11px] font-bold text-indigo-600">{isDone ? 100 : data.progress}%</span>
           </div>
           <div className="w-full bg-gray-100 dark:bg-[#1b2e4a] rounded-full h-2 overflow-hidden">
             <div
-              className={clsx('h-full rounded-full transition-all duration-500', data.status === 'Completed' ? 'bg-green-500' : 'bg-indigo-500')}
-              style={{ width: `${data.progress}%` }}
+              className={clsx('h-full rounded-full transition-all duration-500', isDone ? 'bg-green-500' : 'bg-indigo-500')}
+              style={{ width: `${isDone ? 100 : data.progress}%` }}
             />
           </div>
         </div>
@@ -303,9 +304,9 @@ export default function TaskDetailPanel({ onAddSubtask }) {
               )}
               {data.dueDate && (
                 <InfoRow label="Due date">
-                  <span className={clsx('text-xs font-medium', data.isOverdue && data.status !== 'Completed' ? 'text-red-600' : 'text-gray-800 dark:text-gray-100')}>
+                  <span className={clsx('text-xs font-medium', data.isOverdue && !isDone ? 'text-red-600' : 'text-gray-800 dark:text-gray-100')}>
                     {format(new Date(data.dueDate), 'dd MMM yyyy')}
-                    {data.isOverdue && data.status !== 'Completed' && ' ⚠'}
+                    {data.isOverdue && !isDone && ' ⚠'}
                   </span>
                 </InfoRow>
               )}
@@ -357,7 +358,7 @@ export default function TaskDetailPanel({ onAddSubtask }) {
             )}
 
             {/* Add subtask button (managers only) */}
-            {isManager && !['Completed', 'Cancelled'].includes(data.status) && (
+            {isManager && !['Completed', 'Achieved', 'Cancelled'].includes(data.status) && (
               <button
                 onClick={() => onAddSubtask(taskId, data.title)}
                 className="w-full py-2.5 border-2 border-dashed border-indigo-300 rounded-xl text-xs font-semibold text-indigo-600 hover:bg-indigo-50 transition-colors"
@@ -405,7 +406,7 @@ export default function TaskDetailPanel({ onAddSubtask }) {
             </div>
 
             {/* Post update form */}
-            {canAct && !['Completed', 'Cancelled'].includes(data.status) && (
+            {canAct && !['Completed', 'Achieved', 'Cancelled'].includes(data.status) && (
               <div className="border-t border-gray-100 dark:border-[#1b2e4a] p-4 bg-gray-50 dark:bg-[#132035] space-y-3">
                 <textarea
                   value={updateText}

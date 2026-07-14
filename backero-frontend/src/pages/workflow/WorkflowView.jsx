@@ -17,6 +17,7 @@ const STATUS_COLORS = {
   'In Progress':      'bg-yellow-100 text-yellow-800',
   'Approval Pending': 'bg-indigo-100 text-indigo-700',
   'Completed':        'bg-green-100 text-green-700',
+  'Achieved':         'bg-amber-100 text-amber-700',
   'Reopened':         'bg-red-100 text-red-700',
   'Changes Requested':'bg-orange-100 text-orange-700',
   'Cancelled':        'bg-gray-100 text-gray-500',
@@ -46,7 +47,7 @@ export default function WorkflowView() {
   }, [taskId]);
 
   const totalNodes = graph.nodes?.length || 0;
-  const completedNodes = graph.nodes?.filter(n => n.data?.status === 'Completed').length || 0;
+  const completedNodes = graph.nodes?.filter(n => n.data?.status === 'Completed' || n.data?.status === 'Achieved').length || 0;
   const overallProgress = totalNodes > 0 ? Math.round((completedNodes / totalNodes) * 100) : 0;
 
   if (!taskId) {
@@ -182,12 +183,12 @@ const DEPT_HEADER_COLORS = {
 const dc = (d) => DEPT_HEADER_COLORS[d] || { bg: 'bg-gray-500', light: 'bg-gray-50', border: 'border-gray-200', text: 'text-gray-700', bar: 'bg-gray-400' };
 
 const DSTATUS_DOT = {
-  'Completed':'bg-green-500','In Progress':'bg-yellow-500','Assigned':'bg-blue-500',
+  'Completed':'bg-green-500','Achieved':'bg-amber-500','In Progress':'bg-yellow-500','Assigned':'bg-blue-500',
   'Pending':'bg-slate-400','Overdue':'bg-red-500','Approval Pending':'bg-indigo-500',
   'Under Review':'bg-purple-500','Changes Requested':'bg-orange-500',
 };
 const DSTATUS_BADGE = {
-  'Completed':'bg-green-100 text-green-700','In Progress':'bg-yellow-100 text-yellow-800',
+  'Completed':'bg-green-100 text-green-700','Achieved':'bg-amber-100 text-amber-700','In Progress':'bg-yellow-100 text-yellow-800',
   'Assigned':'bg-blue-100 text-blue-700','Pending':'bg-slate-100 text-slate-600',
   'Overdue':'bg-red-100 text-red-700','Approval Pending':'bg-indigo-100 text-indigo-700',
   'Under Review':'bg-purple-100 text-purple-700','Changes Requested':'bg-orange-100 text-orange-700',
@@ -196,7 +197,7 @@ const ALL_STATUSES = ['Pending','Assigned','In Progress','Under Review','Approva
 
 const calcDeptProgress = (node) => {
   const kids = node.children || [];
-  if (kids.length === 0) return { done: node.status === 'Completed' ? 1 : 0, total: 1 };
+  if (kids.length === 0) return { done: (node.status === 'Completed' || node.status === 'Achieved') ? 1 : 0, total: 1 };
   const agg = kids.map(calcDeptProgress);
   return { done: agg.reduce((s, x) => s + x.done, 0), total: agg.reduce((s, x) => s + x.total, 0) };
 };
@@ -267,7 +268,7 @@ function DeptTaskNode({ node, depth = 0, canEdit, onStatusChange, onAddSubtask, 
   };
 
   const hasKids   = (node.children || []).length > 0;
-  const isDone    = node.status === 'Completed';
+  const isDone    = node.status === 'Completed' || node.status === 'Achieved';
   const statusKey = node.isOverdue && !isDone ? 'Overdue' : node.status;
   const prog      = hasKids ? calcDeptProgress(node) : null;
   const initials  = node.assignedTo
@@ -730,6 +731,7 @@ function TaskTreeListView({ taskId }) {
 
 const STATUS_BG = {
   'Completed':        'border-l-green-500 bg-green-50',
+  'Achieved':         'border-l-amber-500 bg-amber-50',
   'In Progress':      'border-l-yellow-500 bg-yellow-50',
   'Approval Pending': 'border-l-indigo-500 bg-indigo-50',
   'Reopened':         'border-l-red-500 bg-red-50',
@@ -739,6 +741,7 @@ const STATUS_BG = {
 function TaskTreeRow({ node, depth }) {
   const [collapsed, setCollapsed] = useState(false);
   const hasChildren = node.children?.length > 0;
+  const isDone = node.status === 'Completed' || node.status === 'Achieved';
 
   return (
     <div>
@@ -761,7 +764,7 @@ function TaskTreeRow({ node, depth }) {
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
             <span className="text-xs font-semibold text-gray-900 dark:text-white truncate">{node.title}</span>
-            {node.isOverdue && node.status !== 'Completed' && (
+            {node.isOverdue && !isDone && (
               <span className="text-[10px] font-bold text-red-600 bg-red-100 px-1.5 rounded-full">OVERDUE</span>
             )}
           </div>
@@ -784,11 +787,11 @@ function TaskTreeRow({ node, depth }) {
         <div className="flex items-center gap-2 flex-shrink-0">
           <div className="w-16 bg-gray-200 rounded-full h-1.5 overflow-hidden">
             <div
-              className={clsx('h-full rounded-full', node.status === 'Completed' ? 'bg-green-500' : 'bg-indigo-500')}
-              style={{ width: `${node.progress || 0}%` }}
+              className={clsx('h-full rounded-full', isDone ? 'bg-green-500' : 'bg-indigo-500')}
+              style={{ width: `${isDone ? 100 : (node.progress || 0)}%` }}
             />
           </div>
-          <span className="text-[10px] font-bold text-gray-600 dark:text-gray-400 w-7 text-right">{node.progress || 0}%</span>
+          <span className="text-[10px] font-bold text-gray-600 dark:text-gray-400 w-7 text-right">{isDone ? 100 : (node.progress || 0)}%</span>
         </div>
       </div>
 

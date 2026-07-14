@@ -33,6 +33,7 @@ const STATUS_STYLE = {
   'Approval Pending': 'bg-indigo-100 text-indigo-700',
   'Changes Requested':'bg-orange-100 text-orange-700',
   'Completed':        'bg-green-100 text-green-700',
+  'Achieved':         'bg-amber-100 text-amber-700',
   'Reopened':         'bg-red-100 text-red-700',
   'Cancelled':        'bg-gray-100 text-gray-500',
 };
@@ -44,6 +45,7 @@ const STATUS_DOT = {
   'Approval Pending': 'bg-indigo-500',
   'Changes Requested':'bg-orange-500',
   'Completed':        'bg-green-500',
+  'Achieved':         'bg-amber-500',
   'Reopened':         'bg-red-500',
   'Cancelled':        'bg-gray-400',
 };
@@ -89,11 +91,11 @@ function TaskCard({ task, colors, canDelete, onDelete }) {
   };
 
   const due       = task.dueDate ? new Date(task.dueDate) : null;
-  const isOverdue = due && isPast(due) && task.status !== 'Completed';
-  const isDone    = task.status === 'Completed';
+  const isDone    = task.status === 'Completed' || task.status === 'Achieved';
+  const isOverdue = due && isPast(due) && !isDone;
   const subtasks  = task.subTasks || [];
   const hasSubs   = subtasks.length > 0;
-  const progress  = task.progress || 0;
+  const progress  = isDone ? 100 : (task.progress || 0);
 
   const initials = task.assignedTo
     ? ((task.assignedTo.firstName?.[0] || '') + (task.assignedTo.lastName?.[0] || '')).toUpperCase()
@@ -195,8 +197,9 @@ function TaskCard({ task, colors, canDelete, onDelete }) {
         <div className="border-t border-gray-100">
           {subtasks.map((s, i) => {
             const sDue      = s.dueDate ? new Date(s.dueDate) : null;
-            const sOverdue  = sDue && isPast(sDue) && s.status !== 'Completed';
-            const sPct      = s.progress ?? (s.status === 'Completed' ? 100 : 0);
+            const sDone     = s.status === 'Completed' || s.status === 'Achieved';
+            const sOverdue  = sDue && isPast(sDue) && !sDone;
+            const sPct      = sDone ? 100 : (s.progress ?? 0);
             const sInitials = s.assignedTo
               ? ((s.assignedTo.firstName?.[0] || '') + (s.assignedTo.lastName?.[0] || '')).toUpperCase()
               : null;
@@ -206,7 +209,7 @@ function TaskCard({ task, colors, canDelete, onDelete }) {
                 <div className="flex-1 min-w-0">
                   {/* Sub title + status */}
                   <div className="flex items-start justify-between gap-1">
-                    <p className={clsx('text-[10px] font-medium leading-snug flex-1', s.status === 'Completed' ? 'line-through text-gray-400' : 'text-gray-700 dark:text-gray-300')}>
+                    <p className={clsx('text-[10px] font-medium leading-snug flex-1', sDone ? 'line-through text-gray-400' : 'text-gray-700 dark:text-gray-300')}>
                       {s.title}
                     </p>
                     <span className={clsx('text-[9px] px-1.5 py-0.5 rounded-full font-semibold flex-shrink-0 whitespace-nowrap', STATUS_STYLE[s.status] || 'bg-gray-100 text-gray-500')}>
@@ -229,7 +232,7 @@ function TaskCard({ task, colors, canDelete, onDelete }) {
                     )}
                     <div className="flex-1 flex items-center gap-1.5 ml-auto">
                       <div className="flex-1 bg-gray-100 rounded-full h-1 overflow-hidden">
-                        <div className={clsx('h-full rounded-full', s.status === 'Completed' ? 'bg-green-400' : 'bg-brand-400')} style={{ width: `${sPct}%` }} />
+                        <div className={clsx('h-full rounded-full', sDone ? 'bg-green-400' : 'bg-brand-400')} style={{ width: `${sPct}%` }} />
                       </div>
                       <span className="text-[9px] text-gray-400 font-semibold w-6 text-right">{sPct}%</span>
                     </div>
@@ -268,9 +271,9 @@ function TaskCard({ task, colors, canDelete, onDelete }) {
 // ── Department Column ─────────────────────────────────────────────────────────
 
 function DeptColumn({ dept, tasks, colors, canDelete, onDelete }) {
-  const completed = tasks.filter(t => t.status === 'Completed').length;
+  const completed = tasks.filter(t => t.status === 'Completed' || t.status === 'Achieved').length;
   const inProgress = tasks.filter(t => t.status === 'In Progress').length;
-  const overdue = tasks.filter(t => t.dueDate && isPast(new Date(t.dueDate)) && t.status !== 'Completed').length;
+  const overdue = tasks.filter(t => t.dueDate && isPast(new Date(t.dueDate)) && t.status !== 'Completed' && t.status !== 'Achieved').length;
 
   return (
     <div className="flex-shrink-0 w-72 flex flex-col rounded-2xl overflow-hidden border border-gray-200 dark:border-[#1b2e4a] shadow-sm">
@@ -1113,10 +1116,10 @@ export default function WorkflowLanding() {
   });
 
   const totalTasks      = allTasks.length;
-  const completedCount  = allTasks.filter(t => t.status === 'Completed').length;
+  const completedCount  = allTasks.filter(t => t.status === 'Completed' || t.status === 'Achieved').length;
   const inProgressCount = allTasks.filter(t => t.status === 'In Progress').length;
   const pendingApproval = allTasks.filter(t => t.status === 'Approval Pending').length;
-  const overdueCount    = allTasks.filter(t => t.dueDate && isPast(new Date(t.dueDate)) && t.status !== 'Completed').length;
+  const overdueCount    = allTasks.filter(t => t.dueDate && isPast(new Date(t.dueDate)) && t.status !== 'Completed' && t.status !== 'Achieved').length;
 
   return (
     <div className="space-y-5">
