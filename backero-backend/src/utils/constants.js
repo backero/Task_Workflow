@@ -110,6 +110,20 @@ const PRODUCTION_STATUS = {
   CANCELLED: 'Cancelled',
 };
 
+// Batch Tracker (production.routes.js) — 8-stage detailed lifecycle, layered on top of ProductionOrder
+const BATCH_STAGE_NAMES = ['Order', 'Procurement', 'Work Assignment', 'Weighing', 'Bulk QC', 'Packaging', 'Final QC', 'Dispatch'];
+const BATCH_STAGE_TO_STATUS = [
+  PRODUCTION_STATUS.PLANNED,             // 0 Order
+  PRODUCTION_STATUS.PLANNED,             // 1 Procurement (not yet confirmed)
+  PRODUCTION_STATUS.MATERIAL_ALLOCATED,  // 2 Work Assignment (procurement just confirmed)
+  PRODUCTION_STATUS.IN_PRODUCTION,       // 3 Weighing
+  PRODUCTION_STATUS.QUALITY_CHECK,       // 4 Bulk QC
+  PRODUCTION_STATUS.PACKAGING,           // 5 Packaging
+  PRODUCTION_STATUS.QUALITY_CHECK,       // 6 Final QC
+  PRODUCTION_STATUS.COMPLETED,           // 7 Dispatch (Final QC approved, finished stock credited)
+];
+const BATCH_PROCESS_STEPS = ['Water Phase Heating', 'Oil Phase Heating', 'Emulsification', 'Cooling Phase', 'Add Heat-Sensitives', 'In-Process QC Check', 'Final Mix', 'Transfer to Holding'];
+
 const NOTIFICATION_PRIORITY = {
   LOW: 'low',
   MEDIUM: 'medium',
@@ -169,6 +183,9 @@ module.exports = {
   LEAD_SOURCES,
   STOCK_MOVEMENT_TYPES,
   PRODUCTION_STATUS,
+  BATCH_STAGE_NAMES,
+  BATCH_STAGE_TO_STATUS,
+  BATCH_PROCESS_STEPS,
   NOTIFICATION_PRIORITY,
   MARKETPLACE_PLATFORMS,
   MARKETING_TASK_TYPES,

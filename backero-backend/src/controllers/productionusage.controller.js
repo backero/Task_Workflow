@@ -1,33 +1,7 @@
 const ProductionUsage = require('../models/ProductionUsage');
 const Product = require('../models/Product');
 const { asyncHandler, sendSuccess } = require('../utils/helpers');
-
-async function nextNumber(orgId, type) {
-  const prefix = type === 'issue' ? 'PMI' : 'PMR';
-  const count = await ProductionUsage.countDocuments({ organizationId: orgId, type });
-  return `${prefix}-${String(count + 1).padStart(4, '0')}`;
-}
-
-function deductFIFO(product, qty) {
-  const batches = [...(product.batches || [])].sort(
-    (a, b) => new Date(a.receivedDate || 0) - new Date(b.receivedDate || 0)
-  );
-  const deductions = [];
-  let remaining = qty;
-  for (const batch of batches) {
-    if (remaining <= 0) break;
-    if ((batch.quantity || 0) <= 0) continue;
-    const take = Math.min(batch.quantity, remaining);
-    deductions.push({ batchId: batch.batchId, batchNumber: batch.batchNumber, qty: take });
-    remaining -= take;
-  }
-  if (remaining > 0) return null;
-  return deductions;
-}
-
-function recomputeStock(product) {
-  product.currentStock = product.batches.reduce((s, b) => s + (b.quantity || 0), 0);
-}
+const { deductFIFO, recomputeStock, nextUsageNumber: nextNumber } = require('../services/inventory.service');
 
 exports.list = asyncHandler(async (req, res) => {
   const orgId = req.user.organizationId;

@@ -19,6 +19,7 @@ const productionUsageSchema = new mongoose.Schema({
   notes:          { type: String, default: '' },
   takenBy:        { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   returnOf:       { type: mongoose.Schema.Types.ObjectId, ref: 'ProductionUsage', default: null },
+  productionOrderId: { type: mongoose.Schema.Types.ObjectId, ref: 'ProductionOrder', default: null },
   batchDeductions: { type: [batchDeductionSchema], default: [] },
 }, { timestamps: true });
 

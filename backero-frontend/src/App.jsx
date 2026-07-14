@@ -60,6 +60,7 @@ import DepartmentAnalytics from './pages/management/DepartmentAnalytics';
 // Production
 import RecordUsage from './pages/production/RecordUsage';
 import RecordUsageForm from './pages/production/RecordUsageForm';
+import BatchTracker from './pages/production/BatchTracker';
 
 // Settings
 import Settings from './pages/settings/Settings';
@@ -149,6 +150,7 @@ export default function App() {
           {/* Production */}
           <Route path="/production/usage" element={<RecordUsage />} />
           <Route path="/production/usage/:id" element={<RecordUsageForm />} />
+          <Route path="/production/batch-tracker" element={<BatchTracker />} />
 
           {/* Finance */}
           <Route path="/finance/ledger" element={<PermissionRoute module="finance"><Ledger /></PermissionRoute>} />
