@@ -5,11 +5,36 @@ const { authorizeAdminOrAbove } = require('../middleware/role.middleware');
 const { asyncHandler, sendSuccess } = require('../utils/helpers');
 const { getStatus, getQRCode, isConnected, reinitWhatsApp, sendTaskAssigned, getJoinedGroups, joinGroupViaLink, getDebugInfo, sendGroupMessage, sendTaskOverdueGroup } = require('../services/whatsapp.service');
 const { runDailyReport, runOverdueTaskCheck } = require('../services/automation.service');
+const { handleInboundWhatsAppWebhook } = require('../services/whatsappInbound.service');
 const Task = require('../models/Task');
 const User = require('../models/User');
 const Department = require('../models/Department');
 const Organization = require('../models/Organization');
 const logger = require('../utils/logger');
+
+// ── Meta Cloud API inbound webhook — public, no auth (Meta calls these directly) ──
+
+// GET /api/whatsapp/webhook — one-time verification handshake when registering
+// the callback URL in Meta's App Dashboard (System Users > WhatsApp > Configuration).
+router.get('/webhook', (req, res) => {
+  const mode      = req.query['hub.mode'];
+  const token     = req.query['hub.verify_token'];
+  const challenge = req.query['hub.challenge'];
+
+  if (mode === 'subscribe' && token && token === process.env.WHATSAPP_WEBHOOK_VERIFY_TOKEN) {
+    logger.info('[WhatsApp Webhook] Verification handshake succeeded');
+    return res.status(200).send(challenge);
+  }
+  logger.warn('[WhatsApp Webhook] Verification handshake failed — token mismatch');
+  res.sendStatus(403);
+});
+
+// POST /api/whatsapp/webhook — inbound messages (and delivery/read status events,
+// which are ignored). Always ack fast with 200 — Meta retries on non-2xx/timeout.
+router.post('/webhook', (req, res) => {
+  res.sendStatus(200);
+  handleInboundWhatsAppWebhook(req.body).catch((err) => logger.error(`[WhatsApp Webhook] ${err.message}`));
+});
 
 // ── Public endpoints — no auth needed (only for initial WA setup) ─────────────
 

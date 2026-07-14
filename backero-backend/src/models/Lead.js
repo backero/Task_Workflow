@@ -142,15 +142,17 @@ const leadSchema = new mongoose.Schema({
 
   // Communication history (calls, WhatsApp chats, meeting notes)
   communicationLogs: [{
-    type:        { type: String, enum: ['call', 'whatsapp', 'meeting', 'email', 'other'], default: 'call' },
-    title:       { type: String },
-    content:     { type: String },
-    happenedAt:  { type: Date, default: Date.now },
-    images:      [{ url: String, publicId: String, name: String }],
-    audioFiles:  [{ url: String, publicId: String, name: String }],
-    videoFiles:  [{ url: String, publicId: String, name: String }],
-    addedBy:     { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
-    createdAt:   { type: Date, default: Date.now },
+    type:              { type: String, enum: ['call', 'whatsapp', 'meeting', 'email', 'other'], default: 'call' },
+    title:             { type: String },
+    content:           { type: String },
+    happenedAt:        { type: Date, default: Date.now },
+    images:            [{ url: String, publicId: String, name: String }],
+    audioFiles:        [{ url: String, publicId: String, name: String }],
+    videoFiles:        [{ url: String, publicId: String, name: String }],
+    addedBy:           { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    // Set only for auto-logged inbound WhatsApp messages — dedupes webhook retries
+    whatsappMessageId: { type: String, index: true, sparse: true },
+    createdAt:         { type: Date, default: Date.now },
   }],
 
   tags: [{ type: String }],
