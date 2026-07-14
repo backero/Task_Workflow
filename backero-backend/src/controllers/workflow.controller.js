@@ -628,6 +628,11 @@ const achieveTask = async (req, res) => {
 
     task.status = TASK_STATUS.ACHIEVED;
     task.updatedBy = userId;
+    // Auto-archive root tasks (no parent) when achieved so the board shows only active work
+    if (!task.parentTask) {
+      task.isArchived = true;
+      task.archivedAt = new Date();
+    }
     task.activity.push({ action: 'Marked as Achieved', performedBy: userId });
     await task.save();
 
