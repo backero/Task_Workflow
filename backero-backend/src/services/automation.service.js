@@ -13,7 +13,7 @@ const { createNotification, bulkCreateNotifications } = require('./notification.
 const {
   sendTaskOverdueEmployee, sendTaskOverdueManager, sendInProgressLeadUpdate, sendActiveClientStageUpdate,
   sendOverdueFollowUpRepAlert, sendStaleLeadManagerAlert, sendTasksDueTodaySummary, sendTeamTaskOverdueAlert,
-  sendDailyReportSummary, sendDailyReportPDF,
+  sendDailyReportSummary, sendDailyReportMarketplace, sendDailyReportPDF,
 } = require('./whatsappCloud.service');
 
 // Individual DMs replace the old WhatsApp-group broadcast (Cloud API can't send to groups at all).
@@ -773,6 +773,16 @@ const runDailyReport = async (targetPhones = null) => {
       };
     });
 
+    // Single-line, per-platform plan progress for the WhatsApp marketplace message —
+    // template params can't contain newlines, so this stays " · "-joined, not one-per-line
+    // like the PDF. Capped to 6 platforms / 300 chars as a safety margin against Meta's
+    // template body length limit.
+    let platformSummaryLine = platformPlanSummary
+      .slice(0, 6)
+      .map((p) => `${p.platform} Wk${p.currentWeek ?? '-'}/${p.totalWeeks} ${p.checkedCount}/${p.totalTodayTasks} done`)
+      .join(' · ');
+    if (platformSummaryLine.length > 300) platformSummaryLine = `${platformSummaryLine.slice(0, 297)}...`;
+
     // Merge completed / in-progress / updates into one per-employee activity list
     const activityByUser = {};
     const getRow = (userId, name, department) => (activityByUser[userId] ||= { userId, name, department, completedTitles: [], inProgressTitles: [], updateCount: 0 });
@@ -810,6 +820,7 @@ const runDailyReport = async (targetPhones = null) => {
       marketplaceToday: marketplaceToday || null,
       platformListings: platformListings || [],
       platformPlanSummary,
+      platformSummaryLine,
       employeeActivity,
     };
 
@@ -822,9 +833,16 @@ const runDailyReport = async (targetPhones = null) => {
       logger.error(`PDF generation failed: ${pdfErr.message}`);
     }
 
+    const marketplaceReportData = {
+      date: reportDate,
+      ...(reportData.marketplaceToday || {}),
+      platformSummaryLine: reportData.platformSummaryLine,
+    };
+
     if (targetPhones && targetPhones.length > 0) {
       for (const phone of targetPhones) {
         await sendDailyReportSummary(phone, reportData).catch((err) => logger.error(`[DailyReport] summary send failed for +${phone}: ${err.message}`));
+        await sendDailyReportMarketplace(phone, marketplaceReportData).catch((err) => logger.error(`[DailyReport] marketplace send failed for +${phone}: ${err.message}`));
         if (pdfResult) await sendDailyReportPDF(phone, pdfResult.buffer, pdfResult.fileName, reportDate).catch((err) => logger.error(`[DailyReport] PDF send failed for +${phone}: ${err.message}`));
       }
     } else {
@@ -851,6 +869,7 @@ const runDailyReport = async (targetPhones = null) => {
         const adminPhone = admin.whatsapp || admin.phone;
         if (adminPhone) {
           await sendDailyReportSummary(adminPhone, reportData).catch((err) => logger.error(`[DailyReport] summary send failed for +${adminPhone}: ${err.message}`));
+          await sendDailyReportMarketplace(adminPhone, marketplaceReportData).catch((err) => logger.error(`[DailyReport] marketplace send failed for +${adminPhone}: ${err.message}`));
           if (pdfResult) await sendDailyReportPDF(adminPhone, pdfResult.buffer, pdfResult.fileName, reportDate).catch((err) => logger.error(`[DailyReport] PDF send failed for +${adminPhone}: ${err.message}`));
         }
       }

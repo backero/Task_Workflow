@@ -350,6 +350,31 @@ async function sendDailyReportSummary(phone, {
   ]);
 }
 
+// UTILITY template "daily_report_marketplace": {{1}} date, {{2}} totalSales, {{3}} adSpend,
+// {{4}} adRevenue, {{5}} ctr, {{6}} cvr, {{7}} returns, {{8}} per-platform plan progress.
+// {{8}} is one pre-formatted line (platforms joined by " · ") — Meta template parameters
+// can't contain newlines, so the per-platform breakdown must stay single-line, unlike the PDF.
+async function sendDailyReportMarketplace(phone, {
+  date, totalSales, adSpend, adRevenue, ctr, cvr, returns, platformSummaryLine,
+}) {
+  const fmt = (n) => (n || 0).toLocaleString('en-IN');
+  return sendTemplate(phone, 'daily_report_marketplace', [
+    {
+      type: 'body',
+      parameters: [
+        { type: 'text', text: date || '—' },
+        { type: 'text', text: fmt(totalSales) },
+        { type: 'text', text: fmt(adSpend) },
+        { type: 'text', text: fmt(adRevenue) },
+        { type: 'text', text: (ctr || 0).toFixed(1) },
+        { type: 'text', text: (cvr || 0).toFixed(1) },
+        { type: 'text', text: fmt(returns) },
+        { type: 'text', text: platformSummaryLine || 'No active marketplace plans.' },
+      ],
+    },
+  ]);
+}
+
 // UTILITY template "daily_report_pdf" — HEADER: dynamic document, BODY: {{1}} date.
 // Uploads the PDF to Meta first (required for a per-send document header), then sends.
 async function sendDailyReportPDF(phone, pdfBuffer, fileName, date) {
@@ -385,5 +410,6 @@ module.exports = {
   sendTeamTaskOverdueAlert,
   sendGenericAlert,
   sendDailyReportSummary,
+  sendDailyReportMarketplace,
   sendDailyReportPDF,
 };
