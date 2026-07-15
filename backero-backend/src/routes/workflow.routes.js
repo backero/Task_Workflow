@@ -1,9 +1,12 @@
 const express = require('express');
 const router = express.Router();
+const multer = require('multer');
 const { authenticate } = require('../middleware/auth.middleware');
 const { orgIsolation } = require('../middleware/orgIsolation.middleware');
 const { authorizeManagerOrAbove } = require('../middleware/role.middleware');
 const ctrl = require('../controllers/workflow.controller');
+
+const attachmentUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 25 * 1024 * 1024 } });
 
 router.use(authenticate, orgIsolation);
 
@@ -27,7 +30,7 @@ router.get('/:taskId/completion-check', ctrl.checkCompletion);
 
 router.post('/:taskId/subtask',         authorizeManagerOrAbove, ctrl.addSubtask);
 router.post('/:taskId/start',           ctrl.startTask);
-router.post('/:taskId/update',          ctrl.addUpdate);
+router.post('/:taskId/update',          attachmentUpload.array('files', 5), ctrl.addUpdate);
 router.post('/:taskId/apply-template',  authorizeManagerOrAbove, ctrl.applyTemplate);
 
 router.put('/:taskId/progress',         ctrl.updateProgress);

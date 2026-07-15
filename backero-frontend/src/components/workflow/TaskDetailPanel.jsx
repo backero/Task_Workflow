@@ -45,6 +45,8 @@ export default function TaskDetailPanel({ onAddSubtask }) {
   const [updateText, setUpdateText] = useState('');
   const [sliderProgress, setSliderProgress] = useState(0);
   const [updateHours, setUpdateHours] = useState('');
+  const [updateFiles, setUpdateFiles] = useState([]);
+  const fileInputRef = useRef(null);
 
   // Actions state
   const [actionNotes, setActionNotes] = useState('');
@@ -123,14 +125,26 @@ export default function TaskDetailPanel({ onAddSubtask }) {
       content: updateText.trim(),
       progress: hasChildren ? undefined : sliderProgress,
       hoursWorked: updateHours ? Number(updateHours) : undefined,
-    });
+    }, updateFiles);
     setUpdateText('');
     setUpdateHours('');
+    setUpdateFiles([]);
     toast.success('Update posted!');
     // Refresh task detail
     const r = await api.get(`/tasks/${taskId}`);
     setTaskDetail(r.data.task || r.data.data || r.data);
   });
+
+  const handleFilesSelected = (e) => {
+    const picked = Array.from(e.target.files || []);
+    if (!picked.length) return;
+    setUpdateFiles((prev) => [...prev, ...picked].slice(0, 5));
+    e.target.value = '';
+  };
+
+  const removeUpdateFile = (idx) => {
+    setUpdateFiles((prev) => prev.filter((_, i) => i !== idx));
+  };
 
   const handleSaveProgress = () => withLoading(async () => {
     await storeUpdateProgress(taskId, manualProgress);
@@ -399,6 +413,27 @@ export default function TaskDetailPanel({ onAddSubtask }) {
                     {u.hoursWorked && (
                       <p className="text-[10px] text-indigo-500 mt-1 font-medium">⏱ {u.hoursWorked}h logged</p>
                     )}
+                    {u.attachments?.length > 0 && (
+                      <div className="flex flex-wrap gap-1.5 mt-2">
+                        {u.attachments.map((a, ai) => (
+                          a.type?.startsWith('image/') ? (
+                            <a key={ai} href={a.url} target="_blank" rel="noreferrer" className="block w-14 h-14 rounded-lg overflow-hidden border border-gray-200 dark:border-[#1b2e4a]">
+                              <img src={a.url} alt={a.name} className="w-full h-full object-cover" />
+                            </a>
+                          ) : (
+                            <a
+                              key={ai}
+                              href={a.url}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="flex items-center gap-1 px-2 py-1 rounded-lg bg-white dark:bg-[#0f1a2e] border border-gray-200 dark:border-[#1b2e4a] text-[10px] text-indigo-600 hover:underline max-w-[140px]"
+                            >
+                              📄 <span className="truncate">{a.name}</span>
+                            </a>
+                          )
+                        ))}
+                      </div>
+                    )}
                   </div>
                 ))
               )}
@@ -443,6 +478,42 @@ export default function TaskDetailPanel({ onAddSubtask }) {
                     </div>
                   </div>
                 )}
+
+                {/* Attachments */}
+                <div className="space-y-1.5">
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    multiple
+                    accept="image/*,.pdf,.doc,.docx,.xls,.xlsx"
+                    onChange={handleFilesSelected}
+                    className="hidden"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={updateFiles.length >= 5}
+                    className="flex items-center gap-1.5 text-[11px] font-medium text-indigo-600 hover:text-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    📎 Attach photo / document {updateFiles.length > 0 && `(${updateFiles.length}/5)`}
+                  </button>
+                  {updateFiles.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5">
+                      {updateFiles.map((f, i) => (
+                        <span key={i} className="flex items-center gap-1 pl-2 pr-1 py-1 rounded-lg bg-white dark:bg-[#0f1a2e] border border-gray-200 dark:border-[#1b2e4a] text-[10px] text-gray-600 dark:text-gray-300 max-w-[160px]">
+                          <span className="truncate">{f.name}</span>
+                          <button
+                            type="button"
+                            onClick={() => removeUpdateFile(i)}
+                            className="flex-shrink-0 w-3.5 h-3.5 rounded-full hover:bg-gray-200 dark:hover:bg-[#1b2e4a] flex items-center justify-center text-gray-400 hover:text-gray-700"
+                          >
+                            ✕
+                          </button>
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
 
                 <button
                   onClick={handlePostUpdate}

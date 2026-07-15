@@ -1,13 +1,31 @@
 const mongoose = require('mongoose');
 const { TASK_STATUS, TASK_PRIORITY } = require('../utils/constants');
 
+// NOTE: these must be explicit Schema instances, not plain object literals — a plain
+// `[{ url: String, name: String, type: String, size: Number }]` array element gets
+// misread by Mongoose as a `{ type: <SchemaType> }` type descriptor (because the
+// object has a `type` key), silently collapsing the whole field into an array of
+// strings instead of subdocuments.
+const attachmentSchema = new mongoose.Schema({
+  url: String, name: String, type: String, size: Number,
+}, { _id: false });
+
+const proofOfWorkSchema = new mongoose.Schema({
+  url: String, name: String, type: String, uploadedAt: Date,
+}, { _id: false });
+
+const taskAttachmentSchema = new mongoose.Schema({
+  url: String, name: String, type: String, size: Number,
+  uploadedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+}, { _id: false });
+
 const commentSchema = new mongoose.Schema({
   author: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   content: { type: String, required: true },
   type: { type: String, enum: ['comment', 'daily_update'], default: 'comment' },
   progress: { type: Number },
   hoursWorked: { type: Number },
-  attachments: [{ url: String, name: String, type: String, size: Number }],
+  attachments: [attachmentSchema],
   isInternal: { type: Boolean, default: false },
 }, { timestamps: true });
 
@@ -55,8 +73,8 @@ const taskSchema = new mongoose.Schema({
   subTasks: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Task' }],
 
   // Attachments & Proof
-  attachments: [{ url: String, name: String, type: String, size: Number, uploadedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' } }],
-  proofOfWork: [{ url: String, name: String, type: String, uploadedAt: Date }],
+  attachments: [taskAttachmentSchema],
+  proofOfWork: [proofOfWorkSchema],
 
   // Blockers
   blockers: [{

@@ -168,12 +168,23 @@ const addUpdate = async (req, res) => {
     const task = await Task.findOne({ _id: taskId, organizationId: orgId }).populate('assignedBy', 'firstName lastName phone whatsapp');
     if (!task) return res.status(404).json({ success: false, message: 'Task not found' });
 
+    const attachments = [];
+    if (req.files?.length) {
+      const { uploadBuffer } = require('../utils/cloudinary');
+      for (const file of req.files) {
+        const resourceType = file.mimetype.startsWith('image/') ? 'image' : 'raw';
+        const result = await uploadBuffer(file.buffer, { folder: `backero/task-updates/${taskId}`, resourceType });
+        attachments.push({ url: result.secure_url, name: file.originalname, type: file.mimetype, size: file.size });
+      }
+    }
+
     task.comments = task.comments || [];
     task.comments.push({
       type: 'daily_update',
       content: content.trim(),
       author: userId,
       hoursWorked: hoursWorked ? Number(hoursWorked) : undefined,
+      attachments,
       createdAt: new Date(),
     });
 

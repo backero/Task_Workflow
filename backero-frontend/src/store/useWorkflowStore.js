@@ -64,8 +64,19 @@ export const useWorkflowStore = create((set, get) => ({
     return data.data;
   },
 
-  addUpdate: async (taskId, payload) => {
-    const { data } = await api.post(`/workflow/${taskId}/update`, payload);
+  addUpdate: async (taskId, payload, files) => {
+    let body = payload;
+    let headers;
+    if (files?.length) {
+      const form = new FormData();
+      Object.entries(payload).forEach(([key, val]) => {
+        if (val !== undefined && val !== null) form.append(key, val);
+      });
+      files.forEach((file) => form.append('files', file));
+      body = form;
+      headers = { 'Content-Type': 'multipart/form-data' };
+    }
+    const { data } = await api.post(`/workflow/${taskId}/update`, body, headers ? { headers } : undefined);
     await get().refreshGraph();
     return data.data;
   },
