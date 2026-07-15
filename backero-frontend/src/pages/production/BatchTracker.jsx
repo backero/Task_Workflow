@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import clsx from 'clsx';
 import api from '../../api/axios';
@@ -415,9 +416,16 @@ function OrderDetail({ id, onBack }) {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <button onClick={onBack} className="flex items-center gap-1.5 text-sm font-semibold text-gray-500 hover:text-gray-800 dark:hover:text-gray-200">
-          <ArrowLeftIcon className="w-4 h-4" /> Batch Tracker
-        </button>
+        <div className="flex items-center gap-3">
+          <button onClick={onBack} className="flex items-center gap-1.5 text-sm font-semibold text-gray-500 hover:text-gray-800 dark:hover:text-gray-200">
+            <ArrowLeftIcon className="w-4 h-4" /> Batch Tracker
+          </button>
+          {order.leadId?.name && (
+            <Link to="/crm/pipeline" className="flex items-center gap-1 text-xs font-semibold text-indigo-500 hover:text-indigo-700 bg-indigo-50 dark:bg-indigo-900/20 px-2.5 py-1 rounded-full">
+              👤 {order.leadId.name} — back to lead
+            </Link>
+          )}
+        </div>
         <button onClick={del} className="flex items-center gap-1.5 text-xs font-semibold text-red-500 hover:text-red-700 px-3 py-1.5 border border-red-200 rounded-lg">
           <TrashIcon className="w-3.5 h-3.5" /> Delete Order
         </button>

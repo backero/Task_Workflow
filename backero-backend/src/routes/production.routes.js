@@ -13,7 +13,26 @@ const { asyncHandler, sendSuccess, sendError, paginate, paginateResponse } = req
 const { PRODUCTION_STATUS, STOCK_MOVEMENT_TYPES, SOCKET_EVENTS, BATCH_STAGE_TO_STATUS, BATCH_PROCESS_STEPS } = require('../utils/constants');
 const { deductFIFO, recomputeStock, nextUsageNumber } = require('../services/inventory.service');
 const User = require('../models/User');
+const Lead = require('../models/Lead');
 const { createNotification } = require('../services/notification.service');
+const { sendActiveClientStageUpdate } = require('../services/whatsappCloud.service');
+
+// If this batch order is linked to a CRM lead, ping the client with a short
+// milestone update — reuses the already-approved client_stage_update template
+// (its free-text `lastUpdate` param carries the specific milestone), so this
+// works immediately without needing a new Meta template approval.
+async function notifyClientMilestone(order, milestoneText) {
+  if (!order.leadId) return;
+  try {
+    const lead = await Lead.findById(order.leadId).select('name phone whatsapp status');
+    if (!lead) return;
+    const phone = lead.whatsapp || lead.phone;
+    if (!phone) return;
+    await sendActiveClientStageUpdate(phone, { name: lead.name, stage: lead.status, lastUpdate: milestoneText });
+  } catch (err) {
+    require('../utils/logger').error(`[ProductionMilestone] notify failed: ${err.message}`);
+  }
+}
 
 router.use(authenticate, orgIsolation);
 
@@ -96,6 +115,7 @@ router.get('/:id', asyncHandler(async (req, res) => {
     .populate('catalogProduct')
     .populate('bom.product', 'name sku unit currentStock')
     .populate('assignedTo', 'firstName lastName avatar')
+    .populate('leadId', 'name phone status')
     .populate('qualityChecks.checkedBy', 'firstName lastName')
     .populate('ingredients.weighedBy', 'firstName lastName')
     .populate('processSteps.completedBy', 'firstName lastName');
@@ -260,6 +280,7 @@ router.post('/:id/procurement/confirm', authorizeManagerOrAbove, asyncHandler(as
   order.updatedBy = req.user._id;
   await order.save();
   notifyStageChange(req, order);
+  notifyClientMilestone(order, 'Raw materials for your order have been procured and confirmed ✅');
   sendSuccess(res, { order }, 'Procurement confirmed');
 }));
 
@@ -350,6 +371,7 @@ router.post('/:id/advance', authorizeManagerOrAbove, asyncHandler(async (req, re
   order.updatedBy = req.user._id;
   await order.save();
   notifyStageChange(req, order);
+  notifyClientMilestone(order, 'Your product formulation is complete and is now undergoing quality testing 🔬');
   sendSuccess(res, { order }, 'Advanced to Bulk QC');
 }));
 
@@ -363,6 +385,7 @@ router.post('/:id/bulk-qc', authorizeManagerOrAbove, asyncHandler(async (req, re
   order.updatedBy = req.user._id;
   await order.save();
   notifyStageChange(req, order);
+  if (result === 'PASS') notifyClientMilestone(order, 'Quality check passed! Your order is now being packaged 📦');
   sendSuccess(res, { order }, result === 'PASS' ? 'Bulk QC passed' : 'Batch held at Bulk QC');
 }));
 
@@ -376,6 +399,7 @@ router.post('/:id/packaging', authorizeManagerOrAbove, asyncHandler(async (req, 
   order.updatedBy = req.user._id;
   await order.save();
   notifyStageChange(req, order);
+  notifyClientMilestone(order, 'Your order has been packaged and is undergoing final quality checks ✅');
   sendSuccess(res, { order }, 'Packaging complete');
 }));
 
@@ -451,6 +475,7 @@ router.post('/:id/final-qc', authorizeManagerOrAbove, asyncHandler(async (req, r
   order.updatedBy = req.user._id;
   await order.save();
   notifyStageChange(req, order);
+  if (approve) notifyClientMilestone(order, 'Final quality check passed — your order is ready for dispatch! 🚀');
   sendSuccess(res, { order }, approve ? 'Final QC approved' : 'Batch rejected / held');
 }));
 
@@ -462,6 +487,43 @@ router.post('/:id/dispatch', authorizeManagerOrAbove, asyncHandler(async (req, r
   order.updatedBy = req.user._id;
   await order.save();
   notifyStageChange(req, order);
+
+  // Production work is done — auto-move the linked lead to "Ready to Dispatch" so sales
+  // can pick up payment collection + the final CRM dispatch step without waiting on a
+  // manual nudge. Skipped if the lead already moved past this point on its own.
+  if (order.leadId) {
+    const io = req.app.get('io');
+    const lead = await Lead.findOne({ _id: order.leadId, organizationId: req.user.organizationId });
+    if (lead && !['Ready to Dispatch', 'Payment Pending', 'Dispatched', 'Lost'].includes(lead.status)) {
+      const now = new Date();
+      const prevHistory = (lead.stageHistory || []).map((h) => ({ stage: h.stage, enteredAt: h.enteredAt, exitedAt: h.exitedAt, movedBy: h.movedBy }));
+      if (!prevHistory.length) {
+        prevHistory.push({ stage: lead.status, enteredAt: lead.createdAt, exitedAt: now, movedBy: req.user._id });
+      } else {
+        prevHistory[prevHistory.length - 1].exitedAt = now;
+      }
+      prevHistory.push({ stage: 'Ready to Dispatch', enteredAt: now, movedBy: req.user._id });
+
+      lead.status = 'Ready to Dispatch';
+      lead.stageHistory = prevHistory;
+      lead.updatedBy = req.user._id;
+      await lead.save();
+
+      if (lead.assignedTo) {
+        await createNotification({
+          organizationId: req.user.organizationId,
+          recipient: lead.assignedTo,
+          title: '🚚 Batch dispatched — lead moved to Ready to Dispatch',
+          message: `Batch ${order.batch} for "${lead.name}" (Order ${order.orderNumber}) cleared Final QC and is packed for dispatch. The lead was auto-moved to "Ready to Dispatch" — collect payment, then mark it Dispatched once the courier picks it up.`,
+          type: 'production', priority: 'medium',
+          actionUrl: '/crm/pipeline',
+          reference: { model: 'Lead', id: lead._id },
+          channels: { inApp: true, whatsapp: true },
+        }, io);
+      }
+    }
+  }
+
   sendSuccess(res, { order }, 'Batch dispatched');
 }));
 

@@ -168,6 +168,7 @@ const STAGE_INFO = {
   'In Progress':       { emoji: '⚙️', label: 'In Progress',         detail: 'Your order is actively in progress with our team.' },
   'Ready to Dispatch': { emoji: '📦', label: 'Ready to Dispatch',   detail: 'Great news! Your order is ready and will be dispatched shortly.' },
   'Payment Pending':   { emoji: '💳', label: 'Payment Pending',     detail: "Your order is ready. We're awaiting payment confirmation to proceed with dispatch." },
+  'Dispatched':        { emoji: '🚚', label: 'Dispatched',          detail: 'Your order is on its way to you!' },
 };
 
 // UTILITY template "client_stage_update": {{1}} name, {{2}} emoji+status label, {{3}} detail, {{4}} latest update text
@@ -211,6 +212,33 @@ async function sendDispatchedFeedbackRequest(phone, { name, product }) {
       parameters: [
         { type: 'text', text: name || 'there' },
         { type: 'text', text: product || 'your order' },
+      ],
+    },
+  ]);
+}
+
+// UTILITY templates "dispatch_photo_update" / "dispatch_video_update" — NOT YET SUBMITTED
+// to Meta as of this writing (need an app ID for the example-media resumable-upload step,
+// which isn't configured in this project). Calls will fail/no-op until a human submits
+// and Meta approves them via the WhatsApp Manager dashboard — see the template text this
+// function expects in the code comment below. Header: IMAGE or VIDEO, dynamic per send via
+// an uploaded media_id (same upload mechanism as sendDailyReportPDF).
+// Body: {{1}} name, {{2}} product, {{3}} tracking/carrier line, {{4}} note
+async function sendDispatchedWithMedia(phone, { name, product, trackingLine, note, mediaId, mediaType }) {
+  const templateName = mediaType === 'video' ? 'dispatch_video_update' : 'dispatch_photo_update';
+  const headerFormat = mediaType === 'video' ? 'video' : 'image';
+  return sendTemplate(phone, templateName, [
+    {
+      type: 'header',
+      parameters: [{ type: headerFormat, [headerFormat]: { id: mediaId } }],
+    },
+    {
+      type: 'body',
+      parameters: [
+        { type: 'text', text: name || 'there' },
+        { type: 'text', text: product || 'your order' },
+        { type: 'text', text: trackingLine || 'On its way to you' },
+        { type: 'text', text: note || 'Thank you for choosing Backero!' },
       ],
     },
   ]);
@@ -412,4 +440,6 @@ module.exports = {
   sendDailyReportSummary,
   sendDailyReportMarketplace,
   sendDailyReportPDF,
+  sendDispatchedWithMedia,
+  uploadMedia,
 };

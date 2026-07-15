@@ -87,6 +87,9 @@ const productionOrderSchema = new mongoose.Schema({
   batch: { type: String, required: true },
   status: { type: String, enum: Object.values(PRODUCTION_STATUS), default: PRODUCTION_STATUS.PLANNED, index: true },
 
+  // CRM origin — set when this batch was created from (or linked to) a Lead
+  leadId: { type: mongoose.Schema.Types.ObjectId, ref: 'Lead', index: true },
+
   // Batch Tracker (8-stage detailed lifecycle) ────────────────────────────────
   catalogProduct: { type: mongoose.Schema.Types.ObjectId, ref: 'CatalogProduct' },
   batchSizeKg: { type: Number },

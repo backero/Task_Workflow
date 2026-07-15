@@ -109,6 +109,9 @@ router.post('/leads/:id/sample-invoice', authorizeManagerOrAbove, ctrl.createSam
 router.post('/leads/:id/followup', authorizeManagerOrAbove, ctrl.addFollowUp);
 router.post('/leads/:id/assign', authorizeManagerOrAbove, ctrl.assignLead);
 router.post('/leads/:id/convert-to-task', authorizeManagerOrAbove, ctrl.convertToTask);
+router.post('/leads/:id/link-production', authorizeManagerOrAbove, ctrl.linkProduction);
+router.get('/production-orders/unlinked', authorizeManagerOrAbove, ctrl.getUnlinkedProductionOrders);
+router.post('/leads/:id/dispatch', authorizeManagerOrAbove, commLogUpload.single('file'), ctrl.dispatchLead);
 router.post('/leads/:id/send-update', authorizeManagerOrAbove, ctrl.sendClientUpdate);
 router.delete('/leads/:id', authorizeManagerOrAbove, ctrl.deleteLead);
 

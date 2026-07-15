@@ -51,14 +51,10 @@ const createNotification = async (data, io) => {
   }
 };
 
-const APP_URL = process.env.APP_URL || process.env.FRONTEND_URL || 'https://backero-worktaskflow.vercel.app';
-
 const sendWhatsAppNotification = async (phone, title, message, actionUrl) => {
   try {
-    const { sendMessage } = require('./whatsapp.service');
-    const link = actionUrl ? `${APP_URL}${actionUrl}` : APP_URL;
-    const text = `*🔔 Backero Alert*\n\n*${title}*\n\n${message}\n\n🔗 *Open App:* ${link}\n\n_Backero Enterprise Platform_`;
-    await sendMessage(phone, text);
+    const { sendGenericAlert } = require('./whatsappCloud.service');
+    await sendGenericAlert(phone, { title, message, actionUrl });
   } catch (error) {
     logger.error(`WhatsApp notification failed: ${error.message}`);
   }

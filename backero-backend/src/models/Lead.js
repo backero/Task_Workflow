@@ -137,6 +137,7 @@ const leadSchema = new mongoose.Schema({
 
   // Conversion
   convertedToTask: { type: mongoose.Schema.Types.ObjectId, ref: 'Task' },
+  productionOrderId: { type: mongoose.Schema.Types.ObjectId, ref: 'ProductionOrder', index: true },
   isConverted: { type: Boolean, default: false },
   trackingToken: { type: String, unique: true, sparse: true, index: true },
 

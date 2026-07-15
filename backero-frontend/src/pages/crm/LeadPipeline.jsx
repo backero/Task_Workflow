@@ -41,6 +41,8 @@ const stageLabel = (s) => STAGE_DISPLAY[s] || s;
 
 const LOST_REASONS = ['Price too high', 'Chose competitor', 'No budget', 'No response / Ghosted', 'Timeline mismatch', 'Product not suitable', 'Changed requirements', 'Other'];
 
+const BATCH_STAGE_NAMES = ['Order', 'Procurement', 'Work Assignment', 'Weighing', 'Bulk QC', 'Packaging', 'Final QC', 'Dispatch'];
+
 const SOURCES = ['Website Form', 'WhatsApp Chatbot', 'Google Sheets', 'Meta Ads', 'Manual Entry', 'Import', 'Referral'];
 const PRIORITIES = ['low', 'medium', 'high', 'critical'];
 
@@ -106,6 +108,13 @@ function LeadCard({ lead, stage, onClick, onAddLog }) {
             </span>
           )}
         </div>
+
+        {/* Linked batch order status */}
+        {lead.productionOrderId?.orderNumber && (
+          <div className="flex items-center gap-1.5 mt-2 bg-indigo-50 dark:bg-indigo-900/20 rounded-lg px-2 py-1.5 text-[10px] font-semibold text-indigo-600 dark:text-indigo-300">
+            🏭 {lead.productionOrderId.orderNumber} · {BATCH_STAGE_NAMES[lead.productionOrderId.stage] || lead.productionOrderId.status}
+          </div>
+        )}
 
         {/* Stale / Overdue follow-up badges */}
         {(lead.isStale || isOverdueFollowUp) && (
@@ -186,6 +195,12 @@ function LeadSlideOver({ leadId, onClose, onUpdated }) {
   const [stageShiftReason, setStageShiftReason] = useState('');
   const [showLeadTimeModal, setShowLeadTimeModal] = useState(false);
   const [leadTimeDays, setLeadTimeDays] = useState('');
+  const [showBatchLinkModal, setShowBatchLinkModal] = useState(false);
+  const [batchLinkMode, setBatchLinkMode] = useState('create');
+  const [selectedOrderId, setSelectedOrderId] = useState('');
+  const [showDispatchModal, setShowDispatchModal] = useState(false);
+  const [dispatchNote, setDispatchNote] = useState('');
+  const [dispatchFile, setDispatchFile] = useState(null);
   const [queryItems, setQueryItems] = useState([{ id: 1, title: '', description: '', assignedTo: '', urgency: 'medium' }]);
   const [submittingQueries, setSubmittingQueries] = useState(false);
   const { register, handleSubmit, reset, formState: { errors } } = useForm();
@@ -266,6 +281,42 @@ function LeadSlideOver({ leadId, onClose, onUpdated }) {
       toast.success('Stage updated');
     },
     onError: (err) => toast.error(err?.response?.data?.message || 'Failed to update stage'),
+  });
+
+  const { data: unlinkedOrders } = useQuery({
+    queryKey: ['crm', 'production-orders', 'unlinked'],
+    queryFn: () => api.get('/crm/production-orders/unlinked').then(r => r.data.orders || []),
+    enabled: showBatchLinkModal && batchLinkMode === 'link',
+  });
+
+  const linkProductionMutation = useMutation({
+    mutationFn: (body) => api.post(`/crm/leads/${leadId}/link-production`, body),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['crm', 'lead', leadId] });
+      qc.refetchQueries({ queryKey: ['crm', 'pipeline'] });
+      setShowBatchLinkModal(false);
+      setSelectedOrderId('');
+      toast.success('Linked to Batch Tracker');
+    },
+    onError: (err) => toast.error(err?.response?.data?.message || 'Failed to link batch order'),
+  });
+
+  const dispatchMutation = useMutation({
+    mutationFn: ({ note, file }) => {
+      const form = new FormData();
+      if (note) form.append('note', note);
+      if (file) form.append('file', file);
+      return api.post(`/crm/leads/${leadId}/dispatch`, form, { headers: { 'Content-Type': 'multipart/form-data' } });
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['crm', 'lead', leadId] });
+      qc.refetchQueries({ queryKey: ['crm', 'pipeline'] });
+      setShowDispatchModal(false);
+      setDispatchNote('');
+      setDispatchFile(null);
+      toast.success('Dispatched — client notified');
+    },
+    onError: (err) => toast.error(err?.response?.data?.message || 'Failed to mark as dispatched'),
   });
 
   const { data: usersData } = useQuery({
@@ -540,6 +591,12 @@ function LeadSlideOver({ leadId, onClose, onUpdated }) {
                         setLostReason(LOST_REASONS[0]);
                         setLostNotes('');
                         setShowLostModal(true);
+                        return;
+                      }
+                      if (stage === 'Dispatched') {
+                        setDispatchNote('');
+                        setDispatchFile(null);
+                        setShowDispatchModal(true);
                         return;
                       }
                       if (lead.status === 'New Lead' && stage !== 'New Lead') {
@@ -1825,13 +1882,149 @@ function LeadSlideOver({ leadId, onClose, onUpdated }) {
                     if (!leadTimeDays || Number(leadTimeDays) < 1) { toast.error('Enter a valid lead time'); return; }
                     statusMutation.mutate(
                       { status: 'In Progress', leadTime: Number(leadTimeDays), inProgressAt: new Date().toISOString() },
-                      { onSuccess: () => setShowLeadTimeModal(false) }
+                      {
+                        onSuccess: () => {
+                          setShowLeadTimeModal(false);
+                          if (!lead?.productionOrderId) setShowBatchLinkModal(true);
+                        },
+                      }
                     );
                   }}
                   disabled={statusMutation.isPending}
                   className="btn-primary flex-1 justify-center disabled:opacity-50"
                 >
                   {statusMutation.isPending ? 'Moving…' : 'Confirm'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Batch Tracker Link Modal — shown right after moving to Production */}
+      {showBatchLinkModal && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-gray-900/60 backdrop-blur-sm" onClick={() => setShowBatchLinkModal(false)} />
+          <div className="relative bg-white dark:bg-[#070c17] rounded-2xl shadow-2xl w-full max-w-md border border-gray-200 dark:border-[#1b2e4a]">
+            <div className="p-5 border-b border-gray-200 dark:border-[#1b2e4a] flex items-center justify-between">
+              <div>
+                <h3 className="font-bold text-gray-900 dark:text-white">🧪 Link to Batch Tracker</h3>
+                <p className="text-sm text-gray-500 mt-0.5">Connect this lead to a production batch so both teams stay in sync.</p>
+              </div>
+              <button onClick={() => setShowBatchLinkModal(false)} className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-[#17263d]">
+                <XMarkIcon className="w-5 h-5 text-gray-500" />
+              </button>
+            </div>
+            <div className="p-5 space-y-4">
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setBatchLinkMode('create')}
+                  className={clsx('py-2.5 rounded-xl text-sm font-semibold border-2 transition-colors',
+                    batchLinkMode === 'create' ? 'border-brand-500 bg-brand-50 dark:bg-brand-900/20 text-brand-700' : 'border-gray-200 dark:border-[#1b2e4a] text-gray-500')}
+                >
+                  + Create new order
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setBatchLinkMode('link')}
+                  className={clsx('py-2.5 rounded-xl text-sm font-semibold border-2 transition-colors',
+                    batchLinkMode === 'link' ? 'border-brand-500 bg-brand-50 dark:bg-brand-900/20 text-brand-700' : 'border-gray-200 dark:border-[#1b2e4a] text-gray-500')}
+                >
+                  Link existing order
+                </button>
+              </div>
+
+              {batchLinkMode === 'create' ? (
+                <p className="text-xs text-gray-400">
+                  Creates a new Batch Tracker order pre-filled with this lead's name, contact, and priority — starts at the Procurement stage.
+                </p>
+              ) : (
+                <div>
+                  <label className="label">Unlinked batch orders</label>
+                  <select value={selectedOrderId} onChange={(e) => setSelectedOrderId(e.target.value)} className="input">
+                    <option value="">— Select an order —</option>
+                    {(unlinkedOrders || []).map((o) => (
+                      <option key={o._id} value={o._id}>
+                        {o.orderNumber} · {o.customer || 'No customer set'} · {o.status}
+                      </option>
+                    ))}
+                  </select>
+                  {unlinkedOrders?.length === 0 && (
+                    <p className="text-xs text-gray-400 mt-1">No unlinked batch orders available — create a new one instead.</p>
+                  )}
+                </div>
+              )}
+
+              <div className="flex gap-3 pt-1">
+                <button type="button" onClick={() => setShowBatchLinkModal(false)} className="btn-secondary flex-1 justify-center">
+                  Skip for now
+                </button>
+                <button
+                  onClick={() => {
+                    if (batchLinkMode === 'link' && !selectedOrderId) { toast.error('Select an order to link'); return; }
+                    linkProductionMutation.mutate(
+                      batchLinkMode === 'link' ? { mode: 'link', productionOrderId: selectedOrderId } : { mode: 'create' }
+                    );
+                  }}
+                  disabled={linkProductionMutation.isPending}
+                  className="btn-primary flex-1 justify-center disabled:opacity-50"
+                >
+                  {linkProductionMutation.isPending ? 'Linking…' : 'Confirm'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Dispatched — detailed client update with optional photo/video */}
+      {showDispatchModal && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-gray-900/60 backdrop-blur-sm" onClick={() => setShowDispatchModal(false)} />
+          <div className="relative bg-white dark:bg-[#070c17] rounded-2xl shadow-2xl w-full max-w-md border border-gray-200 dark:border-[#1b2e4a]">
+            <div className="p-5 border-b border-gray-200 dark:border-[#1b2e4a] flex items-center justify-between">
+              <div>
+                <h3 className="font-bold text-gray-900 dark:text-white">🚚 Mark as Dispatched</h3>
+                <p className="text-sm text-gray-500 mt-0.5">Sends a detailed WhatsApp update to the client — tracking info is pulled from the linked batch order automatically.</p>
+              </div>
+              <button onClick={() => setShowDispatchModal(false)} className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-[#17263d]">
+                <XMarkIcon className="w-5 h-5 text-gray-500" />
+              </button>
+            </div>
+            <div className="p-5 space-y-4">
+              <div>
+                <label className="label">Note to client <span className="text-gray-400 font-normal">(optional)</span></label>
+                <textarea
+                  value={dispatchNote}
+                  onChange={(e) => setDispatchNote(e.target.value)}
+                  rows={3}
+                  className="input resize-none"
+                  placeholder="e.g. Handle with care, or any special delivery instructions..."
+                />
+              </div>
+              <div>
+                <label className="label">Attach photo / video <span className="text-gray-400 font-normal">(optional — sent once Meta approves the media template)</span></label>
+                <input
+                  type="file"
+                  accept="image/*,video/*"
+                  onChange={(e) => setDispatchFile(e.target.files?.[0] || null)}
+                  className="input py-1.5"
+                />
+                {dispatchFile && (
+                  <p className="text-xs text-gray-400 mt-1 truncate">{dispatchFile.name}</p>
+                )}
+              </div>
+              <div className="flex gap-3 pt-1">
+                <button type="button" onClick={() => setShowDispatchModal(false)} className="btn-secondary flex-1 justify-center">
+                  Cancel
+                </button>
+                <button
+                  onClick={() => dispatchMutation.mutate({ note: dispatchNote, file: dispatchFile })}
+                  disabled={dispatchMutation.isPending}
+                  className="btn-primary flex-1 justify-center disabled:opacity-50"
+                >
+                  {dispatchMutation.isPending ? 'Sending…' : 'Confirm Dispatch'}
                 </button>
               </div>
             </div>

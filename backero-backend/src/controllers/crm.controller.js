@@ -9,7 +9,7 @@ const { asyncHandler, sendSuccess, sendError, paginate, paginateResponse, genera
 const { LEAD_STATUS, SOCKET_EVENTS, ROLE_HIERARCHY, ROLES } = require('../utils/constants');
 const { createNotification } = require('../services/notification.service');
 const { appendLeadToSheet, updateLeadInSheet } = require('../services/googleSheets.service');
-const { sendSampleDispatchedToClient, sendDispatchedFeedbackRequest, sendNewLeadAlertDM } = require('../services/whatsappCloud.service');
+const { sendSampleDispatchedToClient, sendDispatchedFeedbackRequest, sendNewLeadAlertDM, sendActiveClientStageUpdate, sendDispatchedWithMedia, uploadMedia } = require('../services/whatsappCloud.service');
 
 // Individual DMs to the Sales department replace the old WhatsApp-group broadcast
 // (Cloud API can't send to groups at all).
@@ -59,6 +59,7 @@ exports.getLeads = asyncHandler(async (req, res) => {
     Lead.find(filter)
       .populate('assignedTo', 'firstName lastName avatar')
       .populate('assignedBy', 'firstName lastName')
+      .populate('productionOrderId', 'orderNumber batch stage status deliveryDate')
       .sort(sortOrder)
       .skip(skip)
       .limit(parseInt(limit))
@@ -140,6 +141,7 @@ exports.getLead = asyncHandler(async (req, res) => {
     .populate('assignedTo', 'firstName lastName avatar phone')
     .populate('assignedBy', 'firstName lastName')
     .populate('convertedToTask', 'title status')
+    .populate('productionOrderId', 'orderNumber batch stage status deliveryDate priority')
     .populate('createdBy', 'firstName lastName')
     .populate('followUps.performedBy', 'firstName lastName')
     .populate('sampleDetails.teamUpdates.postedBy', 'firstName lastName')
@@ -451,6 +453,151 @@ exports.convertToTask = asyncHandler(async (req, res) => {
   sendSuccess(res, { task, lead, trackingToken }, 'Lead converted to project');
 });
 
+// POST /api/crm/leads/:id/link-production  { mode: 'create' | 'link', productionOrderId? }
+// Links a CRM lead to a Batch Tracker production order — either creating a fresh one
+// pre-filled from the lead, or attaching an existing unlinked order. One lead : one batch.
+exports.linkProduction = asyncHandler(async (req, res) => {
+  const { mode, productionOrderId } = req.body;
+  const orgId = req.user.organizationId;
+
+  const lead = await Lead.findOne({ _id: req.params.id, organizationId: orgId });
+  if (!lead) return sendError(res, 'Lead not found.', 404);
+  if (lead.productionOrderId) return sendError(res, 'This lead is already linked to a batch order.', 400);
+
+  const ProductionOrder = require('../models/ProductionOrder');
+  const { PRODUCTION_STATUS, BATCH_PROCESS_STEPS } = require('../utils/constants');
+
+  let order;
+  if (mode === 'link') {
+    if (!productionOrderId) return sendError(res, 'productionOrderId is required.', 400);
+    order = await ProductionOrder.findOne({ _id: productionOrderId, organizationId: orgId });
+    if (!order) return sendError(res, 'Production order not found.', 404);
+    if (order.leadId) return sendError(res, 'That batch order is already linked to another lead.', 400);
+    order.leadId = lead._id;
+    order.updatedBy = req.user._id;
+    await order.save();
+  } else {
+    const count = await ProductionOrder.countDocuments({ organizationId: orgId });
+    order = await ProductionOrder.create({
+      organizationId: orgId,
+      orderNumber: `PO-${new Date().getFullYear()}-${String(count + 1).padStart(4, '0')}`,
+      batch: `BATCH-${Date.now()}`,
+      status: PRODUCTION_STATUS.PLANNED,
+      stage: 1,
+      customer: lead.name,
+      contact: lead.whatsapp || lead.phone,
+      priority: lead.priority === 'critical' ? 'Urgent' : lead.priority === 'high' ? 'High' : lead.priority === 'low' ? 'Low' : 'Normal',
+      deliveryDate: lead.inProgressAt && lead.leadTime
+        ? new Date(new Date(lead.inProgressAt).getTime() + lead.leadTime * 86400000).toISOString().slice(0, 10)
+        : undefined,
+      notes: lead.productInterest?.length ? `Interest: ${lead.productInterest.join(', ')}` : undefined,
+      leadId: lead._id,
+      processSteps: BATCH_PROCESS_STEPS.map((name) => ({ name, done: false })),
+      createdBy: req.user._id,
+    });
+  }
+
+  lead.productionOrderId = order._id;
+  lead.updatedBy = req.user._id;
+  await lead.save();
+
+  req.app.get('io')?.to(`org:${orgId}`).emit('production_updated', { orderId: order._id, stage: order.stage, status: order.status });
+
+  sendSuccess(res, { lead, order }, mode === 'link' ? 'Linked to existing batch order' : 'Batch order created and linked');
+});
+
+// GET /api/crm/production-orders/unlinked — for the "link existing order" picker
+exports.getUnlinkedProductionOrders = asyncHandler(async (req, res) => {
+  const ProductionOrder = require('../models/ProductionOrder');
+  const orders = await ProductionOrder.find({ organizationId: req.user.organizationId, leadId: null })
+    .select('orderNumber batch customer stage status createdAt')
+    .sort({ createdAt: -1 })
+    .limit(50);
+  sendSuccess(res, { orders });
+});
+
+// POST /api/crm/leads/:id/dispatch  (multipart: note, file optional — image or video)
+// Moves the lead to "Dispatched" and sends the client a detailed WhatsApp update (tracking,
+// carrier, note). If a photo/video is attached, also attempts the media-header template —
+// that template isn't Meta-approved yet, so it silently no-ops until it is; the text update
+// above is the guaranteed message either way.
+exports.dispatchLead = asyncHandler(async (req, res) => {
+  const { note } = req.body;
+  const orgId = req.user.organizationId;
+
+  const lead = await Lead.findOne({ _id: req.params.id, organizationId: orgId }).populate('productionOrderId', 'orderNumber batch dispatchRecord');
+  if (!lead) return sendError(res, 'Lead not found.', 404);
+  if (lead.status === 'Dispatched') return sendError(res, 'This lead is already marked as Dispatched.', 400);
+
+  const phone = lead.whatsapp || lead.phone;
+  const product = lead.sampleDetails?.product || lead.productInterest?.[0] || 'your order';
+  const dispatchRecord = lead.productionOrderId?.dispatchRecord;
+  const trackingLine = dispatchRecord?.tracking
+    ? `${dispatchRecord.carrier || 'Courier'} — ${dispatchRecord.tracking}`
+    : (dispatchRecord?.carrier || null);
+
+  let attachment = null;
+  if (req.file) {
+    const { uploadBuffer } = require('../utils/cloudinary');
+    const isVideo = req.file.mimetype.startsWith('video/');
+    const result = await uploadBuffer(req.file.buffer, { folder: `backero/crm/dispatch/${lead._id}`, resourceType: isVideo ? 'video' : 'image' });
+    attachment = { url: result.secure_url, publicId: result.public_id, name: req.file.originalname, type: req.file.mimetype };
+  }
+
+  if (phone) {
+    const detailParts = [];
+    if (trackingLine) detailParts.push(`Tracking: ${trackingLine}`);
+    if (note?.trim()) detailParts.push(note.trim());
+    detailParts.push("We'd love to hear how it goes — reply anytime!");
+    const lastUpdate = detailParts.join(' · ');
+
+    sendActiveClientStageUpdate(phone, { name: lead.name, stage: 'Dispatched', lastUpdate }).catch((err) => logger.error(`dispatch stage update failed: ${err.message}`));
+
+    if (attachment && (attachment.type.startsWith('image/') || attachment.type.startsWith('video/'))) {
+      (async () => {
+        try {
+          const mediaId = await uploadMedia(req.file.buffer, req.file.originalname, attachment.type);
+          if (mediaId) {
+            await sendDispatchedWithMedia(phone, {
+              name: lead.name, product, trackingLine, note: note?.trim(),
+              mediaId, mediaType: attachment.type.startsWith('video/') ? 'video' : 'image',
+            });
+          }
+        } catch (err) {
+          logger.error(`dispatch media template failed (likely not yet Meta-approved): ${err.message}`);
+        }
+      })();
+    }
+  }
+
+  if (attachment || note?.trim()) {
+    lead.communicationLogs.push({
+      type: 'other',
+      title: 'Dispatch update sent to client',
+      content: note?.trim() || '',
+      images: attachment?.type.startsWith('image/') ? [{ url: attachment.url, publicId: attachment.publicId, name: attachment.name }] : [],
+      videoFiles: attachment?.type.startsWith('video/') ? [{ url: attachment.url, publicId: attachment.publicId, name: attachment.name }] : [],
+      addedBy: req.user._id,
+    });
+  }
+
+  const now = new Date();
+  const prevHistory = (lead.stageHistory || []).map((h) => ({ stage: h.stage, enteredAt: h.enteredAt, exitedAt: h.exitedAt, movedBy: h.movedBy }));
+  if (!prevHistory.length) {
+    prevHistory.push({ stage: lead.status, enteredAt: lead.createdAt, exitedAt: now, movedBy: req.user._id });
+  } else {
+    prevHistory[prevHistory.length - 1].exitedAt = now;
+  }
+  prevHistory.push({ stage: 'Dispatched', enteredAt: now, movedBy: req.user._id });
+
+  lead.status = 'Dispatched';
+  lead.stageHistory = prevHistory;
+  lead.updatedBy = req.user._id;
+  await lead.save();
+
+  sendSuccess(res, { lead }, 'Marked as dispatched — client notified');
+});
+
 // POST /api/crm/leads/:id/send-update
 exports.sendClientUpdate = asyncHandler(async (req, res) => {
   const { message } = req.body;
@@ -502,6 +649,14 @@ exports.getPipeline = asyncHandler(async (req, res) => {
       },
     },
     {
+      $lookup: {
+        from: 'productionorders',
+        localField: 'productionOrderId',
+        foreignField: '_id',
+        as: 'productionOrderId',
+      },
+    },
+    {
       $addFields: {
         pendingQueries: {
           $size: { $filter: { input: '$queries', as: 'q', cond: { $eq: ['$$q.status', 'pending'] } } },
@@ -514,6 +669,12 @@ exports.getPipeline = asyncHandler(async (req, res) => {
             input: { $filter: { input: '$queries', as: 'q', cond: { $eq: ['$$q.status', 'answered'] } } },
             as: 'q',
             in: { title: '$$q.title', description: '$$q.description', answer: '$$q.answer' },
+          },
+        },
+        productionOrderId: {
+          $let: {
+            vars: { po: { $arrayElemAt: ['$productionOrderId', 0] } },
+            in: { $cond: [{ $eq: ['$$po', null] }, null, { orderNumber: '$$po.orderNumber', batch: '$$po.batch', stage: '$$po.stage', status: '$$po.status' }] },
           },
         },
       },
@@ -533,6 +694,7 @@ exports.getPipeline = asyncHandler(async (req, res) => {
             pendingQueries: '$pendingQueries',
             answeredQueries: '$answeredQueries',
             answeredQueryList: '$answeredQueryList',
+            productionOrderId: '$productionOrderId',
           },
         },
       },
