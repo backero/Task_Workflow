@@ -10,10 +10,10 @@ const MarketplacePlan = require('../models/MarketplacePlan');
 const MarketplacePlanProgress = require('../models/MarketplacePlanProgress');
 const Invoice = require('../models/Invoice');
 const { createNotification, bulkCreateNotifications } = require('./notification.service');
-const { sendDailyReport, sendDailyReportWithPDF } = require('./whatsapp.service');
 const {
   sendTaskOverdueEmployee, sendTaskOverdueManager, sendInProgressLeadUpdate, sendActiveClientStageUpdate,
   sendOverdueFollowUpRepAlert, sendStaleLeadManagerAlert, sendTasksDueTodaySummary, sendTeamTaskOverdueAlert,
+  sendDailyReportSummary, sendDailyReportPDF,
 } = require('./whatsappCloud.service');
 
 // Individual DMs replace the old WhatsApp-group broadcast (Cloud API can't send to groups at all).
@@ -824,8 +824,8 @@ const runDailyReport = async (targetPhones = null) => {
 
     if (targetPhones && targetPhones.length > 0) {
       for (const phone of targetPhones) {
-        await sendDailyReport(phone, reportData);
-        if (pdfResult) await sendDailyReportWithPDF(phone, pdfResult.buffer, pdfResult.fileName).catch(() => {});
+        await sendDailyReportSummary(phone, reportData).catch((err) => logger.error(`[DailyReport] summary send failed for +${phone}: ${err.message}`));
+        if (pdfResult) await sendDailyReportPDF(phone, pdfResult.buffer, pdfResult.fileName, reportDate).catch((err) => logger.error(`[DailyReport] PDF send failed for +${phone}: ${err.message}`));
       }
     } else {
       const admins = await User.find({
@@ -850,8 +850,8 @@ const runDailyReport = async (targetPhones = null) => {
 
         const adminPhone = admin.whatsapp || admin.phone;
         if (adminPhone) {
-          await sendDailyReport(adminPhone, reportData);
-          if (pdfResult) await sendDailyReportWithPDF(adminPhone, pdfResult.buffer, pdfResult.fileName).catch(() => {});
+          await sendDailyReportSummary(adminPhone, reportData).catch((err) => logger.error(`[DailyReport] summary send failed for +${adminPhone}: ${err.message}`));
+          if (pdfResult) await sendDailyReportPDF(adminPhone, pdfResult.buffer, pdfResult.fileName, reportDate).catch((err) => logger.error(`[DailyReport] PDF send failed for +${adminPhone}: ${err.message}`));
         }
       }
     }

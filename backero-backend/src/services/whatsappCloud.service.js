@@ -14,6 +14,36 @@ function toWhatsAppId(phone) {
   return digits.length === 10 ? `91${digits}` : digits;
 }
 
+// Uploads a document buffer to Meta so it can be referenced (by media id) as a
+// template's dynamic document header. Required before sending daily-report PDFs.
+async function uploadMedia(buffer, filename, mimetype) {
+  if (!isConfigured()) {
+    logger.warn('[WhatsApp Cloud] Not configured — skipping media upload');
+    return null;
+  }
+  const phoneNumberId = process.env.WHATSAPP_CLOUD_PHONE_NUMBER_ID;
+  const form = new FormData();
+  form.append('messaging_product', 'whatsapp');
+  form.append('file', new Blob([buffer], { type: mimetype }), filename);
+
+  try {
+    const res = await fetch(`https://graph.facebook.com/${GRAPH_VERSION}/${phoneNumberId}/media`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${process.env.WHATSAPP_CLOUD_ACCESS_TOKEN}` },
+      body: form,
+    });
+    const json = await res.json();
+    if (!res.ok || !json.id) {
+      logger.error(`[WhatsApp Cloud] Media upload failed: ${JSON.stringify(json.error || json)}`);
+      return null;
+    }
+    return json.id;
+  } catch (err) {
+    logger.error(`[WhatsApp Cloud] Media upload error: ${err.message}`);
+    return null;
+  }
+}
+
 // Generic Meta-approved template sender. `components` follows the Cloud API
 // message payload shape (body/button parameters) — see callers below for examples.
 async function sendTemplate(phone, templateName, components) {
@@ -262,6 +292,82 @@ async function sendTeamTaskOverdueAlert(phone, { department, title, employeeName
   ]);
 }
 
+// UTILITY template "backero_alert" — generic fallback used by notification.service.js
+// for any createNotification({ channels: { whatsapp: true } }) call across the app
+// (task status changes, approvals, workflow triggers, CRM assignments, low stock, etc.)
+// {{1}} title, {{2}} message (truncated to keep template body within Meta's length limit)
+// button: dynamic URL suffix {{1}} = actionUrl path (e.g. "/tasks/abc123")
+async function sendGenericAlert(phone, { title, message, actionUrl }) {
+  const truncated = (message || '').length > 300 ? `${message.slice(0, 297)}...` : (message || '');
+  const urlSuffix = (actionUrl || '').replace(/^\/+/, ''); // template's button URL already ends in "/{{1}}"
+  return sendTemplate(phone, 'backero_alert', [
+    {
+      type: 'body',
+      parameters: [
+        { type: 'text', text: title || 'Backero Alert' },
+        { type: 'text', text: truncated || 'Open the app for details.' },
+      ],
+    },
+    {
+      type: 'button', sub_type: 'url', index: '0',
+      parameters: [{ type: 'text', text: urlSuffix || '' }],
+    },
+  ]);
+}
+
+// UTILITY template "daily_report_summary": {{1}} orgName, {{2}} date,
+// {{3}} completed, {{4}} inProgress, {{5}} overdue, {{6}} pendingApproval,
+// {{7}} newLeads, {{8}} leadsWon, {{9}} activeLeads,
+// {{10}} income, {{11}} expense, {{12}} lowStock, {{13}} activeProductionOrders, {{14}} topPerformer
+// Department/employee-activity breakdowns are unbounded-length lists, so they can't be
+// safe template params — that detail lives in the attached PDF (sendDailyReportPDF) instead.
+async function sendDailyReportSummary(phone, {
+  orgName, date, tasksCompleted, tasksInProgress, tasksOverdue, tasksPendingApproval,
+  newLeadsToday, leadsWonToday, activeLeads,
+  incomeToday, expenseToday, lowStockCount, activeProductionOrders, topPerformerName,
+}) {
+  const fmt = (n) => (n || 0).toLocaleString('en-IN');
+  return sendTemplate(phone, 'daily_report_summary', [
+    {
+      type: 'body',
+      parameters: [
+        { type: 'text', text: orgName || '—' },
+        { type: 'text', text: date || '—' },
+        { type: 'text', text: String(tasksCompleted ?? 0) },
+        { type: 'text', text: String(tasksInProgress ?? 0) },
+        { type: 'text', text: String(tasksOverdue ?? 0) },
+        { type: 'text', text: String(tasksPendingApproval ?? 0) },
+        { type: 'text', text: String(newLeadsToday ?? 0) },
+        { type: 'text', text: String(leadsWonToday ?? 0) },
+        { type: 'text', text: String(activeLeads ?? 0) },
+        { type: 'text', text: fmt(incomeToday) },
+        { type: 'text', text: fmt(expenseToday) },
+        { type: 'text', text: String(lowStockCount ?? 0) },
+        { type: 'text', text: String(activeProductionOrders ?? 0) },
+        { type: 'text', text: topPerformerName || '—' },
+      ],
+    },
+  ]);
+}
+
+// UTILITY template "daily_report_pdf" — HEADER: dynamic document, BODY: {{1}} date.
+// Uploads the PDF to Meta first (required for a per-send document header), then sends.
+async function sendDailyReportPDF(phone, pdfBuffer, fileName, date) {
+  if (!pdfBuffer) return false;
+  const mediaId = await uploadMedia(pdfBuffer, fileName || 'daily-report.pdf', 'application/pdf');
+  if (!mediaId) return false;
+  return sendTemplate(phone, 'daily_report_pdf', [
+    {
+      type: 'header',
+      parameters: [{ type: 'document', document: { id: mediaId, filename: fileName || 'daily-report.pdf' } }],
+    },
+    {
+      type: 'body',
+      parameters: [{ type: 'text', text: date || '—' }],
+    },
+  ]);
+}
+
 module.exports = {
   isConfigured,
   sendOTP,
@@ -277,4 +383,7 @@ module.exports = {
   sendTasksDueTodaySummary,
   sendNewLeadAlertDM,
   sendTeamTaskOverdueAlert,
+  sendGenericAlert,
+  sendDailyReportSummary,
+  sendDailyReportPDF,
 };

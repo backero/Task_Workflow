@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { useAuthStore } from './store/useAuthStore';
 import { useSocketStore } from './store/useSocketStore';
@@ -6,6 +6,7 @@ import Layout from './components/layout/Layout';
 import ProtectedRoute from './components/common/ProtectedRoute';
 import PermissionRoute from './components/common/PermissionRoute';
 import DevAutoLogin from './components/common/DevAutoLogin';
+import LoadingScreen from './components/common/LoadingScreen';
 
 // Auth pages
 import Login from './pages/auth/Login';
@@ -83,6 +84,17 @@ export default function App() {
   const { user, token } = useAuthStore();
   const { connect, disconnect } = useSocketStore();
 
+  const [showSplash, setShowSplash] = useState(() => !sessionStorage.getItem('backero-booted'));
+  const [splashFading, setSplashFading] = useState(false);
+
+  useEffect(() => {
+    if (!showSplash) return;
+    sessionStorage.setItem('backero-booted', '1');
+    const fadeTimer = setTimeout(() => setSplashFading(true), 900);
+    const removeTimer = setTimeout(() => setShowSplash(false), 1400);
+    return () => { clearTimeout(fadeTimer); clearTimeout(removeTimer); };
+  }, [showSplash]);
+
   useEffect(() => {
     if (token && user) {
       connect(token);
@@ -92,20 +104,9 @@ export default function App() {
     return () => disconnect();
   }, [token]);
 
-  // Apply dark mode: localStorage override → user.settings.theme → OS preference
-  useEffect(() => {
-    const stored = localStorage.getItem('backero-theme');
-    const theme = stored || user?.settings?.theme;
-    if (theme === 'dark') {
-      document.documentElement.classList.add('dark');
-    } else if (theme === 'light') {
-      document.documentElement.classList.remove('dark');
-    } else {
-      if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
-        document.documentElement.classList.add('dark');
-      }
-    }
-  }, [user?.settings?.theme]);
+  if (showSplash) {
+    return <LoadingScreen fadingOut={splashFading} />;
+  }
 
   return (
     <BrowserRouter>

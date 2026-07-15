@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import companyLogo from '../../assets/Backero.png';
+import companyLogo from '../../assets/backero-leaf.png';
 import { NavLink, useLocation } from 'react-router-dom';
 import { useAuthStore } from '../../store/useAuthStore';
 import { usePermissions } from '../../store/usePermissions';
@@ -156,8 +156,8 @@ export default function Sidebar({ collapsed, onToggle }) {
         className="flex items-center gap-3 px-4 h-14 flex-shrink-0 relative z-10"
         style={{ borderBottom: '1px solid var(--b-chrome)' }}
       >
-        <div className="w-7 h-7 rounded-lg overflow-hidden flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(255,255,255,0.08)' }}>
-          <img src={companyLogo} alt="Logo" className="h-5 w-auto object-contain" />
+        <div className="w-10 h-10 rounded-lg overflow-hidden flex items-center justify-center flex-shrink-0 p-1.5" style={{ background: '#fff' }}>
+          <img src={companyLogo} alt="Logo" className="h-full w-full object-contain" />
         </div>
         {!collapsed && (
           <>

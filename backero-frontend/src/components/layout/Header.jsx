@@ -1,7 +1,7 @@
 ﻿import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  Bars3Icon, BellIcon, MagnifyingGlassIcon, SunIcon, MoonIcon,
+  Bars3Icon, BellIcon, MagnifyingGlassIcon,
   ArrowRightOnRectangleIcon, DevicePhoneMobileIcon, XMarkIcon,
 } from '@heroicons/react/24/outline';
 import { useAuthStore } from '../../store/useAuthStore';
@@ -17,11 +17,6 @@ export default function Header({ onMobileMenuToggle }) {
   const { unreadCount } = useNotificationStore();
   const [showNotifs, setShowNotifs] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
-  const [isDark, setIsDark] = useState(() => {
-    const stored = localStorage.getItem('backero-theme');
-    if (stored) return stored === 'dark';
-    return document.documentElement.classList.contains('dark');
-  });
   const [searchQuery, setSearchQuery] = useState('');
   const [showSearch, setShowSearch] = useState(false);
   const [debouncedSearch, setDebouncedSearch] = useState('');
@@ -44,12 +39,6 @@ export default function Header({ onMobileMenuToggle }) {
     const t = setTimeout(() => setDebouncedSearch(searchQuery), 300);
     return () => clearTimeout(t);
   }, [searchQuery]);
-
-  const toggleDark = () => {
-    const nowDark = document.documentElement.classList.toggle('dark');
-    localStorage.setItem('backero-theme', nowDark ? 'dark' : 'light');
-    setIsDark(nowDark);
-  };
 
   const { data: waStatus } = useQuery({
     queryKey: ['wa-status-header'],
@@ -161,17 +150,6 @@ export default function Header({ onMobileMenuToggle }) {
             }`} />
           </button>
         )}
-
-        {/* Dark mode toggle */}
-        <button
-          onClick={toggleDark}
-          className="p-2 rounded-lg text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/6 transition-colors"
-        >
-          {isDark
-            ? <SunIcon style={{ width: '17px', height: '17px' }} className="text-amber-400" />
-            : <MoonIcon style={{ width: '17px', height: '17px' }} />
-          }
-        </button>
 
         {/* Notifications */}
         <div className="relative" ref={notifRef}>
