@@ -9,6 +9,7 @@ const MarketplaceDaily = require('../models/MarketplaceDaily');
 const MarketplacePlan = require('../models/MarketplacePlan');
 const MarketplacePlanProgress = require('../models/MarketplacePlanProgress');
 const Invoice = require('../models/Invoice');
+const TeamReward = require('../models/TeamReward');
 const { createNotification, bulkCreateNotifications } = require('./notification.service');
 const {
   sendTaskOverdueEmployee, sendTaskOverdueManager, sendInProgressLeadUpdate, sendActiveClientStageUpdate,
@@ -114,6 +115,11 @@ const startAutomationEngine = (socketIo) => {
   // Every day at 8 AM IST: check overdue/due-soon invoices, alert Accounts & Finance
   cron.schedule('30 2 * * *', () => {  // 8 AM IST = 2:30 AM UTC
     runOverdueInvoiceCheck().catch(logger.error);
+  });
+
+  // Every Monday at 9:15 AM IST: flag departments that qualify for a team reward
+  cron.schedule('45 3 * * 1', () => {  // 9:15 AM IST = 3:45 AM UTC
+    runWeeklyTeamRewardCheck().catch(logger.error);
   });
 
   logger.info('Automation engine started successfully');
@@ -879,4 +885,152 @@ const runDailyReport = async (targetPhones = null) => {
   }
 };
 
-module.exports = { startAutomationEngine, runOverdueTaskCheck, runWeeklyStockDigest, runMonthlyStockDigest, runOverdueInvoiceCheck, runDailyReport, runOverdueFollowUpCheck, runStaleLedCheck };
+// ── Weekly team reward check ────────────────────────────────────────────────
+// A department qualifies for a week if every active member had zero late/
+// overdue tasks and posted a daily update on every day they had active work.
+// Qualification only flags a TeamReward for admin review — nothing is
+// auto-granted, and one member missing either condition disqualifies the
+// whole department for that week.
+const TEAM_REWARD_TERMINAL_STATUSES = ['Completed', 'Achieved', 'Cancelled'];
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+const evaluateDepartmentWeek = async (org, deptName, weekStart, weekEnd, now) => {
+  const members = await User.find({ organizationId: org._id, department: deptName, isActive: true }).select('_id');
+  if (!members.length) return null;
+  const memberIds = members.map((m) => m._id);
+
+  const tasks = await Task.find({
+    organizationId: org._id,
+    department: deptName,
+    assignedTo: { $in: memberIds },
+    createdAt: { $lte: weekEnd },
+    $or: [{ completedAt: null }, { completedAt: { $gte: weekStart } }],
+  }).select('assignedTo dueDate completedAt status createdAt comments').lean();
+
+  // 1) Any task completed late, or still open & overdue with its due date inside the week
+  const lateTask = tasks.find((t) => {
+    if (t.completedAt && t.dueDate) return new Date(t.completedAt) > new Date(t.dueDate);
+    if (!TEAM_REWARD_TERMINAL_STATUSES.includes(t.status) && t.dueDate) {
+      const due = new Date(t.dueDate);
+      return due < now && due >= weekStart && due <= weekEnd;
+    }
+    return false;
+  });
+  if (lateTask) return { qualified: false };
+
+  // 2) Every member must post a daily update on every day they had active (non-Pending) work
+  for (const memberId of memberIds) {
+    const memberTasks = tasks.filter((t) => String(t.assignedTo) === String(memberId));
+    if (!memberTasks.length) continue;
+
+    for (let dayStart = new Date(weekStart); dayStart <= weekEnd; dayStart = new Date(dayStart.getTime() + DAY_MS)) {
+      const dayEnd = new Date(Math.min(dayStart.getTime() + DAY_MS - 1, now.getTime()));
+      if (dayEnd < dayStart) break; // day hasn't happened yet
+
+      const hadActiveTaskThatDay = memberTasks.some((t) =>
+        t.status !== 'Pending' &&
+        new Date(t.createdAt) <= dayEnd &&
+        (!t.completedAt || new Date(t.completedAt) >= dayStart)
+      );
+      if (!hadActiveTaskThatDay) continue;
+
+      const postedUpdate = memberTasks.some((t) => (t.comments || []).some((c) =>
+        c.type === 'daily_update' && String(c.author) === String(memberId) &&
+        new Date(c.createdAt) >= dayStart && new Date(c.createdAt) <= dayEnd
+      ));
+      if (!postedUpdate) return { qualified: false };
+    }
+  }
+
+  // 3) Marketplace only: every platform's checklist for its current plan week must be
+  // fully checked off. MarketplacePlanProgress isn't timestamped per-day, so this checks
+  // completion, not exact day-by-day punctuality — same granularity the daily report uses.
+  if (deptName === 'Marketplace' && !(await evaluateMarketplacePlanCompliance(org))) {
+    return { qualified: false };
+  }
+
+  return { qualified: true, memberIds, tasksChecked: tasks.length };
+};
+
+const PLAN_DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+const evaluateMarketplacePlanCompliance = async (org) => {
+  const plans = await MarketplacePlan.find({ organizationId: org._id }).lean();
+  if (!plans.length) return true; // no platform plans configured — nothing to gate on
+
+  for (const plan of plans) {
+    if (!plan.weeks?.length) continue;
+    const latestProgress = await MarketplacePlanProgress.findOne({ organizationId: org._id, platform: plan.platform })
+      .sort({ week: -1 }).lean();
+    const weekNum = latestProgress ? latestProgress.week : plan.weeks[0].week;
+    const weekPlan = plan.weeks.find((w) => w.week === weekNum) || plan.weeks[0];
+
+    for (const day of PLAN_DAYS) {
+      const dayTasks = weekPlan.specific?.[day] || [];
+      if (!dayTasks.length) continue;
+      const checkedForDay = new Set(latestProgress?.days?.[day]?.checked || []);
+      if (!dayTasks.every((t) => checkedForDay.has(t.id))) return false;
+    }
+  }
+  return true;
+};
+
+const runWeeklyTeamRewardCheck = async () => {
+  logger.info('[TeamReward] Running weekly qualification check...');
+  const now = new Date();
+  const daysSinceMonday = (now.getDay() + 6) % 7; // 0 = Sun → treated as 6 days since Monday
+  const thisMonday = new Date(now);
+  thisMonday.setHours(0, 0, 0, 0);
+  thisMonday.setDate(thisMonday.getDate() - daysSinceMonday);
+  const weekStart = new Date(thisMonday.getTime() - 7 * DAY_MS);
+  const weekEnd = new Date(thisMonday.getTime() - 1); // Sunday 23:59:59.999 of the prior week
+
+  const orgs = await Organization.find({ isActive: true });
+
+  for (const org of orgs) {
+    const deptNames = (await Task.distinct('department', { organizationId: org._id })).filter(Boolean);
+
+    for (const deptName of deptNames) {
+      const exists = await TeamReward.findOne({ organizationId: org._id, department: deptName, weekStart });
+      if (exists) continue;
+
+      const result = await evaluateDepartmentWeek(org, deptName, weekStart, weekEnd, now).catch((err) => {
+        logger.error(`[TeamReward] eval failed for ${org.name}/${deptName}: ${err.message}`);
+        return null;
+      });
+      if (!result?.qualified) continue;
+
+      await TeamReward.create({
+        organizationId: org._id,
+        department: deptName,
+        weekStart,
+        weekEnd,
+        memberIds: result.memberIds,
+        tasksChecked: result.tasksChecked,
+      });
+
+      const reviewers = await User.find({
+        organizationId: org._id,
+        isActive: true,
+        $or: [
+          { department: deptName, role: { $in: [ROLES.MANAGER, ROLES.TEAM_LEAD] } },
+          { role: { $in: [ROLES.ADMIN, ROLES.FOUNDER, ROLES.CHAIRMAN, ROLES.SUPER_ADMIN] } },
+        ],
+      }).select('_id');
+
+      await bulkCreateNotifications(reviewers.map((r) => r._id), {
+        organizationId: org._id,
+        title: `🏆 ${deptName} earned a team reward`,
+        message: `Every member of ${deptName} hit their tasks and daily updates on time this week — review and grant their reward.`,
+        type: 'reward',
+        priority: 'medium',
+        actionUrl: '/management/team-rewards',
+        channels: { inApp: true, whatsapp: true },
+      }, io);
+
+      logger.info(`[TeamReward] ${deptName} qualified for ${org.name}, week of ${weekStart.toDateString()}`);
+    }
+  }
+};
+
+module.exports = { startAutomationEngine, runOverdueTaskCheck, runWeeklyStockDigest, runMonthlyStockDigest, runOverdueInvoiceCheck, runDailyReport, runOverdueFollowUpCheck, runStaleLedCheck, runWeeklyTeamRewardCheck };

@@ -8,7 +8,7 @@ const notificationSchema = new mongoose.Schema({
   message: { type: String, required: true },
   type: {
     type: String,
-    enum: ['task', 'approval', 'crm', 'inventory', 'production', 'finance', 'system', 'escalation', 'reminder'],
+    enum: ['task', 'approval', 'crm', 'inventory', 'production', 'finance', 'system', 'escalation', 'reminder', 'reward'],
     required: true,
   },
   priority: { type: String, enum: Object.values(NOTIFICATION_PRIORITY), default: NOTIFICATION_PRIORITY.MEDIUM },

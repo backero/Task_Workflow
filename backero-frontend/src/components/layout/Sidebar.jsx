@@ -8,7 +8,7 @@ import {
   CubeIcon, BoltIcon, ChartBarIcon, CogIcon, MegaphoneIcon,
   BuildingStorefrontIcon, BeakerIcon, BanknotesIcon,
   ChevronDownIcon, ChevronRightIcon, Bars3Icon, UserGroupIcon,
-  WrenchScrewdriverIcon,
+  WrenchScrewdriverIcon, TrophyIcon,
 } from '@heroicons/react/24/outline';
 import { clsx } from 'clsx';
 
@@ -142,6 +142,7 @@ export default function Sidebar({ collapsed, onToggle }) {
         { label: 'Team', to: '/management/team', icon: UserGroupIcon },
         { label: 'Employee Monitor', to: '/management/employees', icon: UsersIcon },
         { label: 'Dept Analytics', to: '/management/departments', icon: ChartBarIcon },
+        { label: 'Team Rewards', to: '/management/team-rewards', icon: TrophyIcon },
       ],
     });
   }

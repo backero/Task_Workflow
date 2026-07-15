@@ -57,6 +57,7 @@ import HRDept from './pages/departments/HR';
 import EmployeeMonitoring from './pages/management/EmployeeMonitoring';
 import TeamManagement from './pages/management/TeamManagement';
 import DepartmentAnalytics from './pages/management/DepartmentAnalytics';
+import TeamRewards from './pages/management/TeamRewards';
 
 // Production
 import RecordUsage from './pages/production/RecordUsage';
@@ -170,6 +171,7 @@ export default function App() {
           <Route path="/management/employees" element={<PermissionRoute module="management"><EmployeeMonitoring /></PermissionRoute>} />
           <Route path="/management/team" element={<PermissionRoute module="management"><TeamManagement /></PermissionRoute>} />
           <Route path="/management/departments" element={<PermissionRoute module="management"><DepartmentAnalytics /></PermissionRoute>} />
+          <Route path="/management/team-rewards" element={<PermissionRoute module="management"><TeamRewards /></PermissionRoute>} />
 
           {/* Workflow */}
           <Route path="/workflow" element={<WorkflowLanding />} />
