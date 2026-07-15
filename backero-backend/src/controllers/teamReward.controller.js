@@ -67,7 +67,7 @@ exports.grantTeamReward = asyncHandler(async (req, res) => {
   await bulkCreateNotifications(reward.memberIds, {
     organizationId: req.user.organizationId,
     title: `🎉 Congratulations, ${reward.department}!`,
-    message: `Your team completed every task and daily update on time last week — you've earned ${REWARD_LABELS[rewardType]}.${note ? ` Note: ${note.trim()}` : ''}`,
+    message: `Your team completed every task and daily update on time these last 2 weeks — you've earned ${REWARD_LABELS[rewardType]}.${note ? ` Note: ${note.trim()}` : ''}`,
     type: 'reward',
     priority: 'medium',
     actionUrl: '/management/team-rewards',

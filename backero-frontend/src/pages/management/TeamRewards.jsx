@@ -144,7 +144,7 @@ export default function TeamRewards() {
             Team Rewards
           </h1>
           <p className="text-sm text-gray-500 mt-0.5">
-            Teams that hit every task and daily update on time, all week — one missed update or late task cancels it for everyone.
+            Teams that hit every task and daily update on time, every day for 2 straight weeks — one missed update or late task cancels it for everyone. Runs twice a month.
           </p>
         </div>
       </div>
@@ -183,7 +183,7 @@ export default function TeamRewards() {
                 <div>
                   <h3 className="font-bold text-gray-900 dark:text-white">{r.department}</h3>
                   <p className="text-xs text-gray-500 mt-0.5">
-                    Week of {fmtDate(r.weekStart)} – {fmtDate(r.weekEnd)}
+                    {fmtDate(r.weekStart)} – {fmtDate(r.weekEnd)}
                   </p>
                 </div>
                 <span className={clsx('badge', {

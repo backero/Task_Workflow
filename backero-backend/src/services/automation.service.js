@@ -117,7 +117,8 @@ const startAutomationEngine = (socketIo) => {
     runOverdueInvoiceCheck().catch(logger.error);
   });
 
-  // Every Monday at 9:15 AM IST: flag departments that qualify for a team reward
+  // Fires every Monday at 9:15 AM IST, but only actually flags a new team reward once
+  // every 2 weeks — see REWARD_PERIOD_EPOCH below for how the biweekly boundary works.
   cron.schedule('45 3 * * 1', () => {  // 9:15 AM IST = 3:45 AM UTC
     runWeeklyTeamRewardCheck().catch(logger.error);
   });
@@ -975,15 +976,23 @@ const evaluateMarketplacePlanCompliance = async (org) => {
   return true;
 };
 
+// Reward period is 2 weeks (twice a month), not 1 — evaluateDepartmentWeek's day-loop
+// already handles any period length generically. Periods are anchored to a fixed epoch
+// Monday so they land on stable 14-day boundaries no matter when the cron actually fires;
+// the cron below still fires weekly, but the unique (department, weekStart) index means
+// it only finds a *new* completed period — and creates a TeamReward for it — once every
+// two weeks, no-opping quietly on the off week.
+const REWARD_PERIOD_EPOCH = new Date('2024-01-01T00:00:00.000Z'); // a Monday
+const REWARD_PERIOD_DAYS = 14;
+const REWARD_PERIOD_MS = REWARD_PERIOD_DAYS * DAY_MS;
+
 const runWeeklyTeamRewardCheck = async () => {
-  logger.info('[TeamReward] Running weekly qualification check...');
+  logger.info('[TeamReward] Running biweekly qualification check...');
   const now = new Date();
-  const daysSinceMonday = (now.getDay() + 6) % 7; // 0 = Sun → treated as 6 days since Monday
-  const thisMonday = new Date(now);
-  thisMonday.setHours(0, 0, 0, 0);
-  thisMonday.setDate(thisMonday.getDate() - daysSinceMonday);
-  const weekStart = new Date(thisMonday.getTime() - 7 * DAY_MS);
-  const weekEnd = new Date(thisMonday.getTime() - 1); // Sunday 23:59:59.999 of the prior week
+  const periodsElapsed = Math.floor((now.getTime() - REWARD_PERIOD_EPOCH.getTime()) / REWARD_PERIOD_MS);
+  const currentPeriodStart = new Date(REWARD_PERIOD_EPOCH.getTime() + periodsElapsed * REWARD_PERIOD_MS);
+  const weekStart = new Date(currentPeriodStart.getTime() - REWARD_PERIOD_MS); // last COMPLETED period
+  const weekEnd = new Date(currentPeriodStart.getTime() - 1);
 
   const orgs = await Organization.find({ isActive: true });
 
@@ -1021,14 +1030,14 @@ const runWeeklyTeamRewardCheck = async () => {
       await bulkCreateNotifications(reviewers.map((r) => r._id), {
         organizationId: org._id,
         title: `🏆 ${deptName} earned a team reward`,
-        message: `Every member of ${deptName} hit their tasks and daily updates on time this week — review and grant their reward.`,
+        message: `Every member of ${deptName} hit their tasks and daily updates on time these last 2 weeks — review and grant their reward.`,
         type: 'reward',
         priority: 'medium',
         actionUrl: '/management/team-rewards',
         channels: { inApp: true, whatsapp: true },
       }, io);
 
-      logger.info(`[TeamReward] ${deptName} qualified for ${org.name}, week of ${weekStart.toDateString()}`);
+      logger.info(`[TeamReward] ${deptName} qualified for ${org.name}, period of ${weekStart.toDateString()} - ${weekEnd.toDateString()}`);
     }
   }
 };
