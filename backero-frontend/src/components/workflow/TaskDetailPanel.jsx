@@ -59,8 +59,26 @@ export default function TaskDetailPanel({ onAddSubtask }) {
   const updatesEndRef = useRef(null);
 
   const isManager = MANAGER_ROLES.includes(user?.role);
-  const data = selectedNode?.data;
-  const taskId = data?.id?.toString();
+  const rawData = selectedNode?.data;
+  const taskId = rawData?.id?.toString();
+  // Merge in the freshly-fetched task detail so status/progress/etc. don't go stale after
+  // an action changes them — selectedNode is a snapshot from when the node was clicked and
+  // is never updated by the graph refresh that follows a mutation.
+  const data = rawData ? { ...rawData, ...(taskDetail || {}) } : rawData;
+
+  // Re-fetch task detail, eligibility, and pending approval for the given task.
+  const refreshDetail = (id) => Promise.all([
+    api.get(`/tasks/${id}`).then(r => {
+      setTaskDetail(r.data.task || r.data.data || r.data);
+      setManualProgress(r.data.task?.progress || r.data.data?.progress || 0);
+      setSliderProgress(r.data.task?.progress || r.data.data?.progress || 0);
+    }).catch(() => {}),
+    checkCompletion(id).then(setEligibility).catch(() => {}),
+    api.get(`/tasks/${id}/approvals`).then(r => {
+      const approvals = r.data.approvals || [];
+      setPendingApproval(approvals.find(a => a.status === 'pending') || null);
+    }).catch(() => {}),
+  ]);
 
   // Fetch full task detail whenever selected node changes
   useEffect(() => {
@@ -69,18 +87,7 @@ export default function TaskDetailPanel({ onAddSubtask }) {
     setEligibility(null);
     setPendingApproval(null);
     setActiveTab('info');
-
-    Promise.all([
-      api.get(`/tasks/${taskId}`).then(r => {
-        setTaskDetail(r.data.task || r.data.data || r.data);
-        setManualProgress(r.data.task?.progress || r.data.data?.progress || 0);
-        setSliderProgress(r.data.task?.progress || r.data.data?.progress || 0);
-      }).catch(() => {}),
-      checkCompletion(taskId).then(setEligibility).catch(() => {}),
-      api.get(`/approvals?taskId=${taskId}&status=pending`).then(r => {
-        setPendingApproval(r.data.data?.[0] || null);
-      }).catch(() => {}),
-    ]);
+    refreshDetail(taskId);
   }, [taskId]);
 
   useEffect(() => {
@@ -110,8 +117,18 @@ export default function TaskDetailPanel({ onAddSubtask }) {
 
   const withLoading = async (fn) => {
     setLoading(true);
-    try { await fn(); }
-    finally { setLoading(false); }
+    try {
+      await fn();
+      // Re-sync task detail/eligibility/approval after a successful action — otherwise the
+      // panel keeps showing the status/buttons from when the node was first selected.
+      if (taskId) await refreshDetail(taskId);
+    } catch (err) {
+      const errData = err?.response?.data;
+      const reasons = errData?.reasons?.length ? ` — ${errData.reasons.join('; ')}` : '';
+      toast.error((errData?.message || 'Something went wrong') + reasons);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleStart = () => withLoading(async () => {
@@ -130,9 +147,6 @@ export default function TaskDetailPanel({ onAddSubtask }) {
     setUpdateHours('');
     setUpdateFiles([]);
     toast.success('Update posted!');
-    // Refresh task detail
-    const r = await api.get(`/tasks/${taskId}`);
-    setTaskDetail(r.data.task || r.data.data || r.data);
   });
 
   const handleFilesSelected = (e) => {

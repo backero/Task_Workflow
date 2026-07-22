@@ -464,6 +464,17 @@ const completeTask = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Cannot complete task', reasons });
     }
 
+    // Resolve the approval that actually belongs to this task — never trust a client-supplied
+    // approvalId blindly, since an approval for a different task would otherwise be marked
+    // approved while this task's own pending approval is left dangling forever.
+    let approval = null;
+    if (approvalId) {
+      approval = await TaskApproval.findOne({ _id: approvalId, taskId, status: 'pending' });
+    }
+    if (!approval) {
+      approval = await TaskApproval.findOne({ taskId, status: 'pending' }).sort({ round: -1 });
+    }
+
     task.status = TASK_STATUS.COMPLETED;
     task.completedAt = new Date();
     task.progress = 100;
@@ -477,14 +488,13 @@ const completeTask = async (req, res) => {
     }
     await task.save();
 
-    if (approvalId) {
-      await TaskApproval.findByIdAndUpdate(approvalId, {
-        status: 'approved',
-        reviewedBy: userId,
-        reviewedAt: new Date(),
-        reviewNotes: notes,
-        updatedBy: userId,
-      });
+    if (approval) {
+      approval.status = 'approved';
+      approval.reviewedBy = userId;
+      approval.reviewedAt = new Date();
+      approval.reviewNotes = notes;
+      approval.updatedBy = userId;
+      await approval.save();
     }
 
     // Resolve downstream dependencies
@@ -546,6 +556,16 @@ const rejectTask = async (req, res) => {
       });
     }
 
+    // Resolve the approval that actually belongs to this task — see completeTask for why we
+    // never trust a client-supplied approvalId blindly.
+    let approval = null;
+    if (approvalId) {
+      approval = await TaskApproval.findOne({ _id: approvalId, taskId, status: 'pending' });
+    }
+    if (!approval) {
+      approval = await TaskApproval.findOne({ taskId, status: 'pending' }).sort({ round: -1 });
+    }
+
     task.status = TASK_STATUS.CHANGES_REQUESTED;
     task.completionLocked = true;
     task.completionLockReasons = [reason || 'Changes requested by reviewer'];
@@ -553,13 +573,12 @@ const rejectTask = async (req, res) => {
     task.updatedBy = userId;
     await task.save();
 
-    if (approvalId) {
-      await TaskApproval.findByIdAndUpdate(approvalId, {
-        status: 'changes_requested',
-        reviewedBy: userId,
-        reviewedAt: new Date(),
-        reviewNotes: reason,
-      });
+    if (approval) {
+      approval.status = 'changes_requested';
+      approval.reviewedBy = userId;
+      approval.reviewedAt = new Date();
+      approval.reviewNotes = reason;
+      await approval.save();
     }
 
     if (task.assignedTo) {
@@ -607,6 +626,13 @@ const reopenTask = async (req, res) => {
     task.archivedAt = undefined;
     task.activity.push({ action: 'Reopened', performedBy: userId, details: reason || undefined });
     await task.save();
+
+    // Any leftover pending approval must be superseded, otherwise it blocks future
+    // completion attempts forever (checkCompletionEligibility counts it indefinitely).
+    await TaskApproval.updateMany(
+      { taskId, status: 'pending' },
+      { status: 'changes_requested', reviewedBy: userId, reviewedAt: new Date(), reviewNotes: reason || 'Task reopened' }
+    );
 
     await workflowEngine.reopenAncestors(taskId);
     if (task.parentTask) await workflowEngine.propagateProgress(task.parentTask);

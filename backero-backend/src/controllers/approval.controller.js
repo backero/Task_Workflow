@@ -6,6 +6,8 @@ const { asyncHandler, sendSuccess, sendError, paginate, paginateResponse } = req
 const { TASK_STATUS, APPROVAL_STATUS, SOCKET_EVENTS, ROLE_HIERARCHY } = require('../utils/constants');
 const { createNotification } = require('../services/notification.service');
 const { sendTaskNotificationEmail } = require('../services/email.service');
+const workflowEngine = require('../services/workflowEngine.service');
+const dependencyService = require('../services/dependency.service');
 
 // GET /api/approvals - Get approval queue
 exports.getApprovals = asyncHandler(async (req, res) => {
@@ -104,6 +106,9 @@ exports.approveTask = asyncHandler(async (req, res) => {
   if (error) return sendError(res, error, 403);
   if (!task) return sendError(res, 'Task not found.', 404);
 
+  const { eligible, reasons } = await workflowEngine.checkCompletionEligibility(task._id);
+  if (!eligible) return res.status(400).json({ success: false, message: 'Cannot complete task.', reasons });
+
   approval.status = APPROVAL_STATUS.APPROVED;
   approval.reviewedBy = req.user._id;
   approval.reviewNotes = reviewNotes;
@@ -113,9 +118,21 @@ exports.approveTask = asyncHandler(async (req, res) => {
 
   task.status = TASK_STATUS.COMPLETED;
   task.completedAt = new Date();
+  task.progress = 100;
+  task.completionLocked = false;
+  task.completionLockReasons = [];
   task.activity.push({ action: 'Task approved and completed', performedBy: req.user._id, details: { reviewNotes } });
   task.updatedBy = req.user._id;
+  // Auto-archive root tasks (no parent) when completed so the board shows only active work
+  if (!task.parentTask) {
+    task.isArchived = true;
+    task.archivedAt = new Date();
+  }
   await task.save();
+
+  // Resolve downstream dependencies and propagate progress to parent
+  await dependencyService.resolveOutgoingDependencies(task._id, req.user.organizationId);
+  if (task.parentTask) await workflowEngine.propagateProgress(task.parentTask);
 
   // WhatsApp to client if this task is linked to a lead
   if (task.relatedTo?.model === 'Lead' && task.relatedTo?.id) {
