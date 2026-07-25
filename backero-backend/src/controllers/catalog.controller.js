@@ -124,7 +124,7 @@ exports.uploadAttachment = asyncHandler(async (req, res) => {
 
   const mime = req.file.mimetype || '';
   const resourceType = mime.startsWith('video/') || mime.startsWith('audio/') ? 'video' : mime.startsWith('image/') ? 'image' : 'raw';
-  const result = await uploadBuffer(req.file.buffer, { folder: `backero/catalog/${req.user.organizationId}/attachments`, resourceType });
+  const result = await uploadBuffer(req.file.buffer, { folder: `backero/catalog/${req.user.organizationId}/attachments`, resourceType, filename: req.file.originalname });
   const attachment = { name: req.file.originalname, url: result.secure_url, type: mime.startsWith('video/') ? 'video' : mime.startsWith('audio/') ? 'audio' : 'document', createdAt: new Date() };
 
   if (kind === 'rndDoc') {

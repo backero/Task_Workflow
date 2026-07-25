@@ -66,7 +66,6 @@ export const useWorkflowStore = create((set, get) => ({
 
   addUpdate: async (taskId, payload, files) => {
     let body = payload;
-    let headers;
     if (files?.length) {
       const form = new FormData();
       Object.entries(payload).forEach(([key, val]) => {
@@ -74,9 +73,11 @@ export const useWorkflowStore = create((set, get) => ({
       });
       files.forEach((file) => form.append('files', file));
       body = form;
-      headers = { 'Content-Type': 'multipart/form-data' };
     }
-    const { data } = await api.post(`/workflow/${taskId}/update`, body, headers ? { headers } : undefined);
+    // Let the browser set Content-Type itself — a FormData body needs a multipart
+    // boundary that only the browser's own header generation includes; setting the
+    // header manually here previously broke every file upload on this endpoint.
+    const { data } = await api.post(`/workflow/${taskId}/update`, body);
     await get().refreshGraph();
     return data.data;
   },

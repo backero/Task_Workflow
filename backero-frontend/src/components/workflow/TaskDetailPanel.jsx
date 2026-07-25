@@ -26,6 +26,18 @@ const PRIORITY_COLORS = {
   high: 'text-orange-500', medium: 'text-yellow-600', low: 'text-gray-400',
 };
 
+const ATTACHMENT_ICON = { image: '🖼️', pdf: '📕', office: '📘', csv: '📊', other: '📄' };
+
+function getAttachmentKind(a) {
+  const type = (a?.type || '').toLowerCase();
+  const name = (a?.name || '').toLowerCase();
+  if (type.startsWith('image/')) return 'image';
+  if (type === 'application/pdf' || name.endsWith('.pdf')) return 'pdf';
+  if (type === 'text/csv' || name.endsWith('.csv')) return 'csv';
+  if (/word|msword|officedocument\.(wordprocessingml|spreadsheetml)/.test(type) || /\.(docx?|xlsx?)$/.test(name)) return 'office';
+  return 'other';
+}
+
 const MANAGER_ROLES = ['super_admin', 'chairman', 'founder', 'admin', 'manager', 'team_lead'];
 const ADMIN_ROLES   = ['super_admin', 'chairman', 'founder', 'admin'];
 const ROLE_LEVEL    = { super_admin: 7, chairman: 6, founder: 5, admin: 4, manager: 3, team_lead: 2, member: 1 };
@@ -47,6 +59,7 @@ export default function TaskDetailPanel({ onAddSubtask }) {
   const [updateHours, setUpdateHours] = useState('');
   const [updateFiles, setUpdateFiles] = useState([]);
   const fileInputRef = useRef(null);
+  const [previewAttachment, setPreviewAttachment] = useState(null);
 
   // Actions state
   const [actionNotes, setActionNotes] = useState('');
@@ -430,20 +443,19 @@ export default function TaskDetailPanel({ onAddSubtask }) {
                     {u.attachments?.length > 0 && (
                       <div className="flex flex-wrap gap-1.5 mt-2">
                         {u.attachments.map((a, ai) => (
-                          a.type?.startsWith('image/') ? (
-                            <a key={ai} href={a.url} target="_blank" rel="noreferrer" className="block w-14 h-14 rounded-lg overflow-hidden border border-gray-200 dark:border-[#1b2e4a]">
+                          getAttachmentKind(a) === 'image' ? (
+                            <button key={ai} type="button" onClick={() => setPreviewAttachment(a)} className="block w-14 h-14 rounded-lg overflow-hidden border border-gray-200 dark:border-[#1b2e4a]">
                               <img src={a.url} alt={a.name} className="w-full h-full object-cover" />
-                            </a>
+                            </button>
                           ) : (
-                            <a
+                            <button
                               key={ai}
-                              href={a.url}
-                              target="_blank"
-                              rel="noreferrer"
+                              type="button"
+                              onClick={() => setPreviewAttachment(a)}
                               className="flex items-center gap-1 px-2 py-1 rounded-lg bg-white dark:bg-[#0f1a2e] border border-gray-200 dark:border-[#1b2e4a] text-[10px] text-indigo-600 hover:underline max-w-[140px]"
                             >
-                              📄 <span className="truncate">{a.name}</span>
-                            </a>
+                              {ATTACHMENT_ICON[getAttachmentKind(a)]} <span className="truncate">{a.name}</span>
+                            </button>
                           )
                         ))}
                       </div>
@@ -499,7 +511,7 @@ export default function TaskDetailPanel({ onAddSubtask }) {
                     ref={fileInputRef}
                     type="file"
                     multiple
-                    accept="image/*,.pdf,.doc,.docx,.xls,.xlsx"
+                    accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.csv,text/csv"
                     onChange={handleFilesSelected}
                     className="hidden"
                   />
@@ -733,6 +745,92 @@ export default function TaskDetailPanel({ onAddSubtask }) {
         onConfirm={handleDelete}
         onCancel={() => setConfirmDelete(false)}
       />
+
+      {previewAttachment && (
+        <AttachmentPreviewModal attachment={previewAttachment} onClose={() => setPreviewAttachment(null)} />
+      )}
+    </div>
+  );
+}
+
+function AttachmentPreviewModal({ attachment, onClose }) {
+  const kind = getAttachmentKind(attachment);
+  const [csvRows, setCsvRows] = useState(null);
+  const [csvError, setCsvError] = useState(false);
+
+  useEffect(() => {
+    if (kind !== 'csv') return;
+    let cancelled = false;
+    fetch(attachment.url)
+      .then((r) => r.text())
+      .then((text) => {
+        if (cancelled) return;
+        const rows = text.split(/\r\n|\n/).filter((l) => l.length > 0).slice(0, 200).map((l) => l.split(','));
+        setCsvRows(rows);
+      })
+      .catch(() => { if (!cancelled) setCsvError(true); });
+    return () => { cancelled = true; };
+  }, [attachment.url, kind]);
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4" onClick={onClose}>
+      <div className="absolute inset-0 bg-black/60" />
+      <div
+        className="relative bg-white dark:bg-[#0f1a2e] rounded-2xl shadow-2xl w-full max-w-3xl max-h-[85vh] flex flex-col overflow-hidden"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between gap-3 px-4 py-3 border-b border-gray-100 dark:border-[#1b2e4a] flex-shrink-0">
+          <p className="text-sm font-semibold text-gray-800 dark:text-gray-100 truncate">
+            {ATTACHMENT_ICON[kind]} {attachment.name}
+          </p>
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <a href={attachment.url} target="_blank" rel="noreferrer" className="text-[11px] font-medium text-indigo-600 hover:underline">
+              Open / Download ↗
+            </a>
+            <button onClick={onClose} className="w-7 h-7 rounded-lg hover:bg-gray-100 dark:hover:bg-[#1b2e4a] flex items-center justify-center text-gray-400 hover:text-gray-700 dark:hover:text-gray-200">
+              ✕
+            </button>
+          </div>
+        </div>
+
+        <div className="flex-1 overflow-auto bg-gray-50 dark:bg-[#0a1220]">
+          {kind === 'image' && (
+            <img src={attachment.url} alt={attachment.name} className="w-full h-full object-contain" />
+          )}
+          {kind === 'pdf' && (
+            <iframe src={attachment.url} title={attachment.name} className="w-full h-[75vh] border-0" />
+          )}
+          {kind === 'office' && (
+            <iframe
+              src={`https://docs.google.com/viewer?url=${encodeURIComponent(attachment.url)}&embedded=true`}
+              title={attachment.name}
+              className="w-full h-[75vh] border-0"
+            />
+          )}
+          {kind === 'csv' && (
+            csvError ? (
+              <p className="p-6 text-sm text-gray-500 text-center">Couldn't load a preview — use "Open / Download" above.</p>
+            ) : !csvRows ? (
+              <p className="p-6 text-sm text-gray-500 text-center">Loading preview…</p>
+            ) : (
+              <table className="w-full text-xs border-collapse">
+                <tbody>
+                  {csvRows.map((row, ri) => (
+                    <tr key={ri} className={ri === 0 ? 'bg-gray-100 dark:bg-[#132035] font-semibold' : 'odd:bg-white even:bg-gray-50 dark:odd:bg-[#0f1a2e] dark:even:bg-[#0a1220]'}>
+                      {row.map((cell, ci) => (
+                        <td key={ci} className="px-2 py-1 border border-gray-200 dark:border-[#1b2e4a] text-gray-700 dark:text-gray-300 whitespace-nowrap">{cell}</td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )
+          )}
+          {kind === 'other' && (
+            <p className="p-6 text-sm text-gray-500 text-center">No preview available for this file type — use "Open / Download" above.</p>
+          )}
+        </div>
+      </div>
     </div>
   );
 }

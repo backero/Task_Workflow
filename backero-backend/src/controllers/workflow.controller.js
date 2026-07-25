@@ -173,7 +173,7 @@ const addUpdate = async (req, res) => {
       const { uploadBuffer } = require('../utils/cloudinary');
       for (const file of req.files) {
         const resourceType = file.mimetype.startsWith('image/') ? 'image' : 'raw';
-        const result = await uploadBuffer(file.buffer, { folder: `backero/task-updates/${taskId}`, resourceType });
+        const result = await uploadBuffer(file.buffer, { folder: `backero/task-updates/${taskId}`, resourceType, filename: file.originalname });
         attachments.push({ url: result.secure_url, name: file.originalname, type: file.mimetype, size: file.size });
       }
     }

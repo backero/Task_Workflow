@@ -199,7 +199,15 @@ export default function RawMaterialsPage() {
         return true;
       });
     }
-    return data?.materials || [];
+    // Backend Product docs use costPrice/warehouseLocation; this page's forms, batches,
+    // CSV import/export, and QR display all speak unitPrice/location — alias here once so
+    // every read site below (and the edit form, which spreads `...m` straight into state)
+    // gets a real value instead of undefined.
+    return (data?.materials || []).map(m => ({
+      ...m,
+      unitPrice: m.unitPrice ?? m.costPrice,
+      location: m.location ?? m.warehouseLocation,
+    }));
   }, [data, lsAll, search, catFilter, statusFilter]);
 
   useEffect(() => {
@@ -245,13 +253,17 @@ export default function RawMaterialsPage() {
   // ── Mutations ────────────────────────────────────────────────────────────────
   const invalidate = () => qc.invalidateQueries({ queryKey: ['rawmaterials'] });
 
+  // The backend controller reads costPrice/warehouseLocation, not this form's
+  // unitPrice/location — without this the material saves with price ₹0 every time.
+  const toApiPayload = (d) => ({ ...d, costPrice: d.unitPrice, warehouseLocation: d.location });
+
   const createMut = useMutation({
-    mutationFn: d => api.post('/inventory/raw-materials', d),
+    mutationFn: d => api.post('/inventory/raw-materials', toApiPayload(d)),
     onSuccess: () => { invalidate(); toast.success('Material added'); closeForm(); },
     onError: e => toast.error(e?.response?.data?.message || 'Failed to add'),
   });
   const updateMut = useMutation({
-    mutationFn: ({ id, d }) => api.put(`/inventory/raw-materials/${id}`, d),
+    mutationFn: ({ id, d }) => api.put(`/inventory/raw-materials/${id}`, toApiPayload(d)),
     onSuccess: () => { invalidate(); toast.success('Material updated'); closeForm(); },
     onError: e => toast.error(e?.response?.data?.message || 'Failed to update'),
   });
