@@ -198,6 +198,9 @@ function LeadSlideOver({ leadId, onClose, onUpdated }) {
   const [showBatchLinkModal, setShowBatchLinkModal] = useState(false);
   const [batchLinkMode, setBatchLinkMode] = useState('create');
   const [selectedOrderId, setSelectedOrderId] = useState('');
+  const [newOrderCatalogProduct, setNewOrderCatalogProduct] = useState('');
+  const [newOrderCatalogSearch, setNewOrderCatalogSearch] = useState('');
+  const [newOrderBatchSizeKg, setNewOrderBatchSizeKg] = useState(10);
   const [showDispatchModal, setShowDispatchModal] = useState(false);
   const [dispatchNote, setDispatchNote] = useState('');
   const [dispatchFile, setDispatchFile] = useState(null);
@@ -289,6 +292,18 @@ function LeadSlideOver({ leadId, onClose, onUpdated }) {
     enabled: showBatchLinkModal && batchLinkMode === 'link',
   });
 
+  const { data: catalogProductsData } = useQuery({
+    queryKey: ['catalog', 'products', 'all'],
+    queryFn: () => api.get('/catalog/products').then((r) => r.data.products || []),
+    staleTime: 5 * 60 * 1000,
+    enabled: showBatchLinkModal && batchLinkMode === 'create',
+  });
+  const catalogProducts = (catalogProductsData || []).filter((p) => p.status !== 'Discontinued');
+  const catalogMatches = newOrderCatalogSearch
+    ? catalogProducts.filter((p) => (p.name || '').toLowerCase().includes(newOrderCatalogSearch.toLowerCase()) || (p.code || '').toLowerCase().includes(newOrderCatalogSearch.toLowerCase()))
+    : catalogProducts;
+  const selectedCatalogProduct = catalogProducts.find((p) => p._id === newOrderCatalogProduct);
+
   const linkProductionMutation = useMutation({
     mutationFn: (body) => api.post(`/crm/leads/${leadId}/link-production`, body),
     onSuccess: () => {
@@ -296,6 +311,9 @@ function LeadSlideOver({ leadId, onClose, onUpdated }) {
       qc.refetchQueries({ queryKey: ['crm', 'pipeline'] });
       setShowBatchLinkModal(false);
       setSelectedOrderId('');
+      setNewOrderCatalogProduct('');
+      setNewOrderCatalogSearch('');
+      setNewOrderBatchSizeKg(10);
       toast.success('Linked to Batch Tracker');
     },
     onError: (err) => toast.error(err?.response?.data?.message || 'Failed to link batch order'),
@@ -564,22 +582,21 @@ function LeadSlideOver({ leadId, onClose, onUpdated }) {
                         return;
                       }
                       if (stage === 'Sample') {
-                        setShowSampleModal(true);
-                        setSamplePrepDays('');
-                        setSampleRichProducts([{ name: '', quantity: '', sampleSize: '', unit: 'ml', bottleReq: false, bottleDetails: '', labelReq: false, labelDetails: '', labReq: false, labDetails: '', individualPacking: '' }]);
-                        setSampleEstimatedValue(lead.sampleDetails?.chargeAmount > 0 ? String(lead.sampleDetails.chargeAmount) : '');
-                        setSampleDiscussed('');
-                        setSampleOuterCarton(false);
-                        setSampleCartonSize('');
-                        setSampleShippingAddress('');
-                        setSampleCatalogOpen(-1);
-                        setSampleCatalogResults([]);
+                        // Sample-stage work (products, formulas, versioned samples, payments,
+                        // approval) all happens in Sample Production now — this just flips the
+                        // stage (still gated server-side on product interest + estimated value)
+                        // and takes the user straight there instead of opening a form here.
+                        statusMutation.mutate('Sample', {
+                          onSuccess: () => { onClose(); navigate(`/samples?open=${leadId}`); },
+                        });
                         return;
                       }
                       if (stage === 'In Progress') {
-                        if (!lead.sampleDetails?.sentDate) { toast.error('Fill in the sample Sent Date before moving to Production'); return; }
-                        setShowLeadTimeModal(true);
-                        setLeadTimeDays('');
+                        // Moving to Production is done from Sample Production's "Move to
+                        // Production" action (requires an Approved sample) — send the user there
+                        // instead of the old direct transition.
+                        onClose();
+                        navigate(`/samples?open=${leadId}`);
                         return;
                       }
                       if (stage === 'Payment Pending') {
@@ -754,334 +771,20 @@ function LeadSlideOver({ leadId, onClose, onUpdated }) {
                 );
               })()}
 
-              {/* ── Full Sample Panel ── */}
+              {/* Sample stage now lives entirely in Sample Production */}
               {lead.status === 'Sample' && (
-                <div className="mt-3 border-t border-fuchsia-100 dark:border-fuchsia-900/50 pt-4 space-y-4">
-
-                  {/* Deadline badge if prep days set */}
-                  {lead.sampleDetails?.startedAt && lead.sampleDetails?.preparationDays && (() => {
-                    const started = new Date(lead.sampleDetails.startedAt);
-                    const deadline = new Date(started);
-                    deadline.setDate(deadline.getDate() + lead.sampleDetails.preparationDays);
-                    const daysLeft = Math.ceil((deadline - new Date()) / 86400000);
-                    const overdue = daysLeft < 0;
-                    return (
-                      <div className={`rounded-xl px-3.5 py-2.5 flex items-center gap-2 border ${overdue ? 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800' : 'bg-fuchsia-50 dark:bg-fuchsia-900/20 border-fuchsia-200 dark:border-fuchsia-800'}`}>
-                        <span className="text-base">{overdue ? '⚠️' : '⏳'}</span>
-                        <div>
-                          <p className={`text-xs font-semibold ${overdue ? 'text-red-700 dark:text-red-300' : 'text-fuchsia-700 dark:text-fuchsia-300'}`}>
-                            {overdue ? `Overdue by ${Math.abs(daysLeft)} day${Math.abs(daysLeft) !== 1 ? 's' : ''}` : `${daysLeft} day${daysLeft !== 1 ? 's' : ''} left for sample prep`}
-                          </p>
-                          <p className="text-xs text-gray-500">Deadline: {format(deadline, 'dd MMM yyyy')}</p>
-                        </div>
-                      </div>
-                    );
-                  })()}
-
-                  {/* Sample Details — rich display */}
-                  <div className="rounded-xl border border-fuchsia-200 dark:border-fuchsia-800/60 bg-fuchsia-50/60 dark:bg-fuchsia-900/10 p-3.5 space-y-3">
-                    <p className="text-xs font-bold text-fuchsia-700 dark:text-fuchsia-300 uppercase tracking-wider">📦 Sample Details</p>
-
-                    {lead.sampleDetails?.discussion && (
-                      <div>
-                        <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-0.5">Discussion</p>
-                        <p className="text-xs text-gray-700 dark:text-gray-200 whitespace-pre-wrap">{lead.sampleDetails.discussion}</p>
-                      </div>
-                    )}
-
-                    {(lead.sampleDetails?.sampleProducts || []).length > 0 && (
-                      <div className="space-y-2">
-                        <p className="text-xs font-semibold text-gray-500 dark:text-gray-400">Products</p>
-                        {(lead.sampleDetails.sampleProducts).map((sp, i) => (
-                          <div key={i} className="rounded-lg bg-white dark:bg-gray-800 border border-fuchsia-100 dark:border-fuchsia-900/40 p-2.5 space-y-1">
-                            <p className="text-xs font-semibold text-gray-800 dark:text-gray-100">
-                              {i + 1}. {sp.name} — {sp.quantity} pcs × {sp.sampleSize}{sp.unit}
-                            </p>
-                            <div className="flex flex-wrap gap-1.5 text-xs">
-                              <span className={`px-1.5 py-0.5 rounded-full font-medium ${sp.bottleReq ? 'bg-fuchsia-100 text-fuchsia-700 dark:bg-fuchsia-900/40 dark:text-fuchsia-300' : 'bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400'}`}>
-                                🍾 Bottle: {sp.bottleReq ? 'Yes' : 'No'}
-                              </span>
-                              <span className={`px-1.5 py-0.5 rounded-full font-medium ${sp.labelReq ? 'bg-fuchsia-100 text-fuchsia-700 dark:bg-fuchsia-900/40 dark:text-fuchsia-300' : 'bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400'}`}>
-                                🏷️ Label: {sp.labelReq ? 'Yes' : 'No'}
-                              </span>
-                              <span className={`px-1.5 py-0.5 rounded-full font-medium ${sp.labReq ? 'bg-fuchsia-100 text-fuchsia-700 dark:bg-fuchsia-900/40 dark:text-fuchsia-300' : 'bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400'}`}>
-                                🔬 Lab: {sp.labReq ? 'Yes' : 'No'}
-                              </span>
-                            </div>
-                            {sp.bottleReq && sp.bottleDetails && <p className="text-xs text-gray-500">Bottle: {sp.bottleDetails}</p>}
-                            {sp.labelReq && sp.labelDetails && <p className="text-xs text-gray-500">Label: {sp.labelDetails}</p>}
-                            {sp.labReq && sp.labDetails && <p className="text-xs text-gray-500">Lab: {sp.labDetails}</p>}
-                            {sp.individualPacking && <p className="text-xs text-gray-500">Packing: {sp.individualPacking}</p>}
-                          </div>
-                        ))}
-                      </div>
-                    )}
-
-                    {lead.sampleDetails?.outerCartonRequired && (
-                      <div>
-                        <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-0.5">Outer Carton</p>
-                        <p className="text-xs text-gray-700 dark:text-gray-200">
-                          Yes{lead.sampleDetails.outerCartonSize ? ` — ${lead.sampleDetails.outerCartonSize}` : ''}
-                        </p>
-                      </div>
-                    )}
-
-                    {lead.sampleDetails?.shippingAddress && (
-                      <div>
-                        <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-0.5">Shipping Address</p>
-                        <p className="text-xs text-gray-700 dark:text-gray-200 whitespace-pre-wrap">{lead.sampleDetails.shippingAddress}</p>
-                      </div>
-                    )}
-
-                    {/* Dispatch tracking fields */}
-                    <div className="grid grid-cols-2 gap-2 pt-1 border-t border-fuchsia-100 dark:border-fuchsia-900/30">
-                      <div>
-                        <label className="text-xs text-gray-500 dark:text-gray-400 mb-1 block">Sent Date</label>
-                        <input type="date" value={sampleForm.sentDate} onChange={e => setSampleForm(p => ({...p, sentDate: e.target.value}))} className="input text-sm w-full" />
-                      </div>
-                      <div>
-                        <label className="text-xs text-gray-500 dark:text-gray-400 mb-1 block">Courier / Mode</label>
-                        <input value={sampleForm.courier} onChange={e => setSampleForm(p => ({...p, courier: e.target.value}))} className="input text-sm w-full" placeholder="e.g. Blue Dart" />
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Charges & Payment */}
-                  <div className="rounded-xl border border-amber-200 dark:border-amber-800/60 bg-amber-50/50 dark:bg-amber-900/10 p-3.5 space-y-3">
-                    <p className="text-xs font-bold text-amber-700 dark:text-amber-300 uppercase tracking-wider">💰 Charges & Payment</p>
-                    <div className="grid grid-cols-2 gap-2">
-                      <div>
-                        <label className="text-xs text-gray-500 dark:text-gray-400 mb-1 block">Sample Charge (₹)</label>
-                        <input type="number" value={sampleForm.chargeAmount} onChange={e => setSampleForm(p => ({...p, chargeAmount: e.target.value}))} className="input text-sm w-full" placeholder="0" />
-                      </div>
-                      <div>
-                        <label className="text-xs text-gray-500 dark:text-gray-400 mb-1 block">Paid by</label>
-                        <select value={sampleForm.chargeBy} onChange={e => setSampleForm(p => ({...p, chargeBy: e.target.value}))} className="input text-sm w-full">
-                          <option value="client">Client</option>
-                          <option value="company">Company</option>
-                        </select>
-                      </div>
-                      <div>
-                        <label className="text-xs text-gray-500 dark:text-gray-400 mb-1 block">Payment Status</label>
-                        <select value={sampleForm.paymentStatus} onChange={e => setSampleForm(p => ({...p, paymentStatus: e.target.value}))} className="input text-sm w-full">
-                          <option value="pending">Pending</option>
-                          <option value="full_paid">Full Paid</option>
-                        </select>
-                      </div>
-                      {sampleForm.paymentStatus === 'full_paid' && (
-                        <div>
-                          <label className="text-xs text-gray-500 dark:text-gray-400 mb-1 block">Amount Received (₹)</label>
-                          <input type="number" value={sampleForm.advanceAmount} onChange={e => setSampleForm(p => ({...p, advanceAmount: e.target.value}))} className="input text-sm w-full" placeholder="0" />
-                        </div>
-                      )}
-                      <div className={sampleForm.paymentStatus === 'full_paid' ? '' : 'col-span-2'}>
-                        <label className="text-xs text-gray-500 dark:text-gray-400 mb-1 block">Payment Mode</label>
-                        <select value={sampleForm.paymentMode} onChange={e => setSampleForm(p => ({...p, paymentMode: e.target.value}))} className="input text-sm w-full" disabled={sampleForm.paymentStatus === 'pending'}>
-                          <option value="cash">Cash</option>
-                          <option value="upi">UPI</option>
-                          <option value="bank_transfer">Bank Transfer</option>
-                        </select>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Save button */}
-                  <button
-                    onClick={() => sampleMutation.mutate(sampleForm)}
-                    disabled={sampleMutation.isPending}
-                    className="w-full py-2.5 rounded-xl text-sm font-bold text-white disabled:opacity-50 transition-all active:scale-95"
-                    style={{ background: 'linear-gradient(135deg,#d946ef,#a21caf)' }}
-                  >
-                    {sampleMutation.isPending ? 'Saving…' : '💾 Save Sample Details'}
-                  </button>
-
-                  {/* Payment Received / Work Started */}
-                  {lead.sampleDetails?.workStarted ? (
-                    <div className="rounded-lg bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800/50 px-3 py-2 flex items-center gap-2">
-                      <span>✅</span>
-                      <div>
-                        <p className="text-xs font-bold text-emerald-700 dark:text-emerald-300">Work Started</p>
-                        {lead.sampleDetails.workStartedAt && (
-                          <p className="text-xs text-emerald-600 dark:text-emerald-400">{format(new Date(lead.sampleDetails.workStartedAt), 'dd MMM yyyy, hh:mm a')}</p>
-                        )}
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="rounded-lg border border-emerald-200 dark:border-emerald-800/50 bg-emerald-50/50 dark:bg-emerald-900/10 p-2.5 space-y-2">
-                      <p className="text-xs font-semibold text-emerald-700 dark:text-emerald-300">💳 Payment Received?</p>
-                      <div className="flex items-center gap-2">
-                        <label className="flex-1 flex items-center gap-1.5 cursor-pointer rounded-lg border border-dashed border-emerald-300 dark:border-emerald-700 px-2.5 py-1.5 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-colors min-w-0">
-                          <span className="text-sm shrink-0">📎</span>
-                          <span className="text-xs text-gray-500 dark:text-gray-400 truncate">
-                            {paymentProofFile ? paymentProofFile.name : 'Upload screenshot'}
-                          </span>
-                          <input
-                            type="file"
-                            accept="image/*"
-                            className="hidden"
-                            onChange={e => { setPaymentProofFile(e.target.files?.[0] || null); e.target.value = ''; }}
-                          />
-                        </label>
-                        {paymentProofFile && (
-                          <button
-                            type="button"
-                            disabled={paymentProofUploading}
-                            onClick={async () => {
-                              setPaymentProofUploading(true);
-                              try {
-                                const fd = new FormData();
-                                fd.append('type', 'other');
-                                fd.append('content', 'Payment screenshot');
-                                fd.append('happenedAt', new Date().toISOString());
-                                fd.append('files', paymentProofFile);
-                                await api.post(`/crm/leads/${leadId}/comm-log`, fd).catch(() => {});
-                                sampleMutation.mutate(
-                                  { paymentStatus: 'full_paid', workStarted: true, workStartedAt: new Date().toISOString() },
-                                  { onSettled: () => { setPaymentProofFile(null); setPaymentProofUploading(false); } }
-                                );
-                              } catch { setPaymentProofUploading(false); }
-                            }}
-                            className="shrink-0 px-3 py-1.5 rounded-lg text-xs font-bold text-white disabled:opacity-50 transition-all active:scale-95"
-                            style={{ background: 'linear-gradient(135deg,#10b981,#059669)' }}
-                          >
-                            {paymentProofUploading ? 'Saving…' : 'Confirm'}
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Create Sample Invoice */}
-                  {lead.sampleDetails?.sampleInvoiceId ? (
-                    <div className="rounded-xl bg-emerald-50 dark:bg-emerald-900/20 px-3.5 py-2.5 flex items-center gap-2 border border-emerald-200 dark:border-emerald-800/50">
-                      <span className="text-emerald-600 dark:text-emerald-400 text-base">🧾</span>
-                      <div>
-                        <p className="text-xs font-semibold text-emerald-700 dark:text-emerald-300">Sample Invoice Created</p>
-                        <p className="text-xs text-emerald-600 dark:text-emerald-400">₹{(lead.sampleDetails.chargeAmount || 0).toLocaleString('en-IN')} — visible in Finance → Invoices</p>
-                      </div>
-                    </div>
-                  ) : (lead.sampleDetails?.chargeAmount > 0 && lead.sampleDetails?.chargeBy === 'client') ? (
+                <div className="mt-3 border-t border-fuchsia-100 dark:border-fuchsia-900/50 pt-4">
+                  <div className="rounded-xl border-2 border-fuchsia-200 dark:border-fuchsia-800 bg-fuchsia-50 dark:bg-fuchsia-900/20 p-4 text-center space-y-2">
+                    <p className="text-sm font-bold text-fuchsia-700 dark:text-fuchsia-300">🧪 Sample work happens in Sample Production</p>
+                    <p className="text-xs text-fuchsia-600 dark:text-fuchsia-400">Products, formulas, versioned samples, payments, and moving to Production all live there now — this lead is already synced.</p>
                     <button
-                      type="button"
-                      onClick={() => sampleInvoiceMutation.mutate()}
-                      disabled={sampleInvoiceMutation.isPending}
-                      className="w-full py-2.5 rounded-xl text-sm font-bold text-white disabled:opacity-50 transition-all active:scale-95"
-                      style={{ background: 'linear-gradient(135deg,#10b981,#059669)' }}
+                      onClick={() => { onClose(); navigate(`/samples?open=${leadId}`); }}
+                      className="mt-1 px-4 py-2 rounded-xl text-sm font-bold text-white transition-all active:scale-95"
+                      style={{ background: 'linear-gradient(135deg,#d946ef,#a21caf)' }}
                     >
-                      {sampleInvoiceMutation.isPending ? 'Creating…' : '🧾 Create Sample Invoice'}
+                      Open in Sample Production →
                     </button>
-                  ) : null}
-
-                  {/* Legacy finance entry */}
-                  {lead.sampleDetails?.financeTransactionId && !lead.sampleDetails?.sampleInvoiceId && (
-                    <div className="rounded-xl bg-emerald-50 dark:bg-emerald-900/20 px-3.5 py-2.5 flex items-center gap-2 border border-emerald-200 dark:border-emerald-800/50">
-                      <span className="text-emerald-600 dark:text-emerald-400 text-base">✓</span>
-                      <div>
-                        <p className="text-xs font-semibold text-emerald-700 dark:text-emerald-300">Finance Entry Created</p>
-                        <p className="text-xs text-emerald-600 dark:text-emerald-400">₹{(lead.sampleDetails.advanceAmount || 0).toLocaleString('en-IN')} recorded in Finance module</p>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Product Images */}
-                  <div className="rounded-xl border border-gray-200 dark:border-[#1b2e4a] bg-gray-50/50 dark:bg-[#0f1a2e]/50 p-3.5 space-y-2">
-                    <p className="text-xs font-bold text-gray-600 dark:text-gray-300 uppercase tracking-wider">🖼️ Product Images</p>
-                    {lead.sampleDetails?.images?.length > 0 && (
-                      <div className="flex gap-2 flex-wrap">
-                        {lead.sampleDetails.images.map((img, i) => (
-                          <a key={i} href={img.url} target="_blank" rel="noreferrer"
-                            className="w-16 h-16 rounded-lg overflow-hidden border border-gray-200 dark:border-[#1b2e4a] bg-gray-100 dark:bg-[#132035] flex items-center justify-center hover:opacity-80 transition-opacity"
-                          >
-                            <img src={img.url} alt={img.name || `img${i+1}`} className="w-full h-full object-cover"
-                              onError={e => { e.target.style.display='none'; e.target.parentNode.innerHTML='<span class="text-2xl">🖼️</span>'; }}
-                            />
-                          </a>
-                        ))}
-                      </div>
-                    )}
-                    <div className="flex gap-2">
-                      <input value={imageUrl} onChange={e => setImageUrl(e.target.value)} className="input text-sm flex-1" placeholder="Paste image URL…" />
-                      <button
-                        onClick={() => { if (imageUrl.trim()) addImageMutation.mutate({ url: imageUrl.trim(), name: 'Product image' }); }}
-                        disabled={!imageUrl.trim() || addImageMutation.isPending}
-                        className="px-3 py-2 rounded-xl bg-gray-200 dark:bg-[#1b2e4a] text-sm font-semibold text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-[#243657] disabled:opacity-50 transition-colors flex-shrink-0"
-                      >
-                        + Add
-                      </button>
-                    </div>
                   </div>
-
-                  {/* Activity Log — merged Team Updates + Client Says */}
-                  <div className="rounded-xl border border-indigo-200 dark:border-indigo-800/50 bg-indigo-50/30 dark:bg-indigo-900/10 p-3.5 space-y-2">
-                    <p className="text-xs font-bold text-indigo-700 dark:text-indigo-300 uppercase tracking-wider">📋 Activity Log</p>
-                    {(() => {
-                      const teamEntries = (lead.sampleDetails?.teamUpdates || []).map(u => ({ ...u, source: 'team' }));
-                      const clientEntries = (lead.sampleDetails?.clientNotes || []).map(n => ({ ...n, source: 'client' }));
-                      const all = [...teamEntries, ...clientEntries].sort((a, b) => new Date(b.postedAt) - new Date(a.postedAt));
-                      if (!all.length) return <p className="text-xs text-gray-400 italic">No activity yet</p>;
-                      return (
-                        <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
-                          {all.map((entry, i) => (
-                            <div key={i} className="bg-white dark:bg-[#0f1a2e] rounded-lg px-3 py-2 text-xs flex gap-2">
-                              <span className={`mt-0.5 flex-shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded-full ${entry.source === 'team' ? 'bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300' : 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300'}`}>
-                                {entry.source === 'team' ? 'Team' : 'Client'}
-                              </span>
-                              <div className="flex-1 min-w-0">
-                                <p className="text-gray-800 dark:text-gray-200">{entry.text}</p>
-                                <p className="text-gray-400 mt-0.5">
-                                  {entry.postedBy?.firstName ? `${entry.postedBy.firstName} · ` : ''}
-                                  {entry.postedAt ? format(new Date(entry.postedAt), 'dd MMM, h:mm a') : ''}
-                                </p>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      );
-                    })()}
-                    {/* Type toggle + input */}
-                    <div className="flex gap-1 mb-1">
-                      <button onClick={() => setActivityType('team')} className={`text-[11px] px-2.5 py-1 rounded-full font-semibold transition-colors ${activityType === 'team' ? 'bg-blue-600 text-white' : 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300'}`}>📝 Team Update</button>
-                      <button onClick={() => setActivityType('client')} className={`text-[11px] px-2.5 py-1 rounded-full font-semibold transition-colors ${activityType === 'client' ? 'bg-emerald-600 text-white' : 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300'}`}>💬 Client Note</button>
-                    </div>
-                    <div className="flex gap-2">
-                      <input
-                        value={activityText}
-                        onChange={e => setActivityText(e.target.value)}
-                        className="input text-sm flex-1"
-                        placeholder={activityType === 'team' ? 'e.g. Sample packed and ready…' : 'e.g. Client wants different size…'}
-                        onKeyDown={e => { if (e.key === 'Enter' && activityText.trim()) activityMutation.mutate({ text: activityText.trim(), type: activityType }); }}
-                      />
-                      <button
-                        onClick={() => { if (activityText.trim()) activityMutation.mutate({ text: activityText.trim(), type: activityType }); }}
-                        disabled={!activityText.trim() || activityMutation.isPending}
-                        className={`px-3 py-2 rounded-xl text-sm font-semibold disabled:opacity-50 transition-colors flex-shrink-0 ${activityType === 'team' ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 hover:bg-blue-200' : 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-200'}`}
-                      >
-                        Log
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Outcome */}
-                  <div className="rounded-xl border-2 border-fuchsia-200 dark:border-fuchsia-800 p-3.5 space-y-2">
-                    <p className="text-xs font-bold text-fuchsia-700 dark:text-fuchsia-300 uppercase tracking-wider">✅ Client Outcome</p>
-                    <div className="grid grid-cols-2 gap-2">
-                      <button
-                        onClick={() => { setShowLeadTimeModal(true); setLeadTimeDays(''); }}
-                        disabled={statusMutation.isPending}
-                        className="flex items-center justify-center gap-1 px-2 py-2.5 rounded-xl bg-emerald-100 dark:bg-emerald-900/30 text-xs font-bold text-emerald-700 dark:text-emerald-300 hover:bg-emerald-200 disabled:opacity-50 transition-colors border-2 border-emerald-200 dark:border-emerald-700"
-                      >
-                        ✓ Approved → Production
-                      </button>
-                      <button
-                        onClick={() => statusMutation.mutate('Follow-up')}
-                        disabled={statusMutation.isPending}
-                        className="flex items-center justify-center gap-1 px-2 py-2.5 rounded-xl bg-red-100 dark:bg-red-900/30 text-xs font-bold text-red-700 dark:text-red-300 hover:bg-red-200 disabled:opacity-50 transition-colors border-2 border-red-200 dark:border-red-700"
-                      >
-                        ✗ Rejected → Follow-up
-                      </button>
-                    </div>
-                  </div>
-
                 </div>
               )}
 
@@ -1936,9 +1639,40 @@ function LeadSlideOver({ leadId, onClose, onUpdated }) {
               </div>
 
               {batchLinkMode === 'create' ? (
-                <p className="text-xs text-gray-400">
-                  Creates a new Batch Tracker order pre-filled with this lead's name, contact, and priority — starts at the Procurement stage.
-                </p>
+                <div className="space-y-3">
+                  <p className="text-xs text-gray-400">
+                    Creates a new Batch Tracker order pre-filled with this lead's name, contact, and priority — starts at the Procurement stage.
+                  </p>
+                  <div>
+                    <label className="label">Catalog product</label>
+                    <input
+                      value={selectedCatalogProduct ? selectedCatalogProduct.name : newOrderCatalogSearch}
+                      onChange={(e) => { setNewOrderCatalogSearch(e.target.value); setNewOrderCatalogProduct(''); }}
+                      placeholder="Search catalog products…"
+                      className="input"
+                    />
+                    {newOrderCatalogSearch && !selectedCatalogProduct && (
+                      <div className="mt-1 border border-gray-200 dark:border-[#1b2e4a] rounded-lg max-h-32 overflow-y-auto bg-white dark:bg-[#0f1a2e]">
+                        {catalogMatches.length === 0 && <div className="px-3 py-2 text-xs text-gray-400">No products found</div>}
+                        {catalogMatches.slice(0, 8).map((p) => (
+                          <button key={p._id} type="button" onClick={() => { setNewOrderCatalogProduct(p._id); setNewOrderCatalogSearch(''); }}
+                            className="w-full text-left px-3 py-2 text-xs hover:bg-gray-50 dark:hover:bg-[#132035] flex justify-between">
+                            <span className="text-gray-900 dark:text-gray-100">{p.name}</span>
+                            <span className="text-gray-400 font-mono">{p.code}</span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                    {selectedCatalogProduct && (
+                      <p className="text-[11px] text-gray-400 mt-1">{selectedCatalogProduct.formulation?.rows?.length || 0} ingredient(s) in formulation · ref {selectedCatalogProduct.formulation?.refWeight || 100}{selectedCatalogProduct.formulation?.refUnit || 'g'}</p>
+                    )}
+                  </div>
+                  <div>
+                    <label className="label">Batch size (kg)</label>
+                    <input type="number" min="0.1" step="0.1" value={newOrderBatchSizeKg}
+                      onChange={(e) => setNewOrderBatchSizeKg(e.target.value)} className="input" />
+                  </div>
+                </div>
               ) : (
                 <div>
                   <label className="label">Unlinked batch orders</label>
@@ -1963,8 +1697,12 @@ function LeadSlideOver({ leadId, onClose, onUpdated }) {
                 <button
                   onClick={() => {
                     if (batchLinkMode === 'link' && !selectedOrderId) { toast.error('Select an order to link'); return; }
+                    if (batchLinkMode === 'create' && !newOrderCatalogProduct) { toast.error('Select a catalog product'); return; }
+                    if (batchLinkMode === 'create' && (!newOrderBatchSizeKg || Number(newOrderBatchSizeKg) <= 0)) { toast.error('Enter a valid batch size'); return; }
                     linkProductionMutation.mutate(
-                      batchLinkMode === 'link' ? { mode: 'link', productionOrderId: selectedOrderId } : { mode: 'create' }
+                      batchLinkMode === 'link'
+                        ? { mode: 'link', productionOrderId: selectedOrderId }
+                        : { mode: 'create', catalogProduct: newOrderCatalogProduct, batchSizeKg: Number(newOrderBatchSizeKg) }
                     );
                   }}
                   disabled={linkProductionMutation.isPending}
@@ -2242,6 +1980,16 @@ function CreateLeadModal({ onClose, onSuccess, onRefresh }) {
             <div>
               <label className="label">Company</label>
               <input {...register('company')} className="input" placeholder="Acme Corp" />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="label">Business Type</label>
+              <input {...register('businessType')} className="input" placeholder="e.g. Beauty Brand, Retail Chain" />
+            </div>
+            <div>
+              <label className="label">City</label>
+              <input {...register('city')} className="input" placeholder="Mumbai" />
             </div>
           </div>
           <div className="grid grid-cols-2 gap-3">

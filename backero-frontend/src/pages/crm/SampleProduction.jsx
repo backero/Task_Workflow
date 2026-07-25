@@ -1,0 +1,481 @@
+import { useState, useEffect } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { Link, useSearchParams } from 'react-router-dom';
+import toast from 'react-hot-toast';
+import clsx from 'clsx';
+import api from '../../api/axios';
+import { format } from 'date-fns';
+import SampleLeadDetail from './SampleLeadDetail';
+
+// Cross-customer work queue over the CRM's existing "Sample" pipeline stage —
+// no new data model. Everything here reads/writes the same Lead record that
+// LeadDetails.jsx already manages; this page just gives the lab/production
+// team one place to see every sample in flight instead of opening leads one
+// by one. "Send to Production" reuses the same link-production endpoint the
+// CRM pipeline already uses to hand a lead off to Batch Tracker.
+//
+// Visual design intentionally mirrors the "Sample Development" reference file
+// (design/sample production.html) — a warm cream/amber palette distinct from
+// the rest of the app's blue theme, scoped entirely to this page via the
+// FONT_IMPORT + hardcoded hex classes below (nothing global is touched).
+
+export const FONT_IMPORT = "@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Fraunces:wght@500;600;700&display=swap');";
+const displayFont = { fontFamily: "'Fraunces', Georgia, serif" };
+const bodyFont = { fontFamily: "'Inter', -apple-system, sans-serif" };
+
+export function Card({ children, className = '' }) {
+  return <div className={clsx('bg-[#f0eadd] rounded-2xl border border-[#e2dac8] shadow-[0_1px_3px_rgba(46,36,27,0.05),0_4px_12px_rgba(46,36,27,0.08)] p-4', className)} style={bodyFont}>{children}</div>;
+}
+
+export const PILL = {
+  success: 'bg-[#dce9d4] text-[#3a5f3c]',
+  warning: 'bg-[#f3e3c2] text-[#7a5a10]',
+  danger: 'bg-[#f0d8d2] text-[#8c3a30]',
+  info: 'bg-[#dde5ea] text-[#33526b]',
+  purple: 'bg-[#e6dce9] text-[#5d4470]',
+  gray: 'bg-[#e2dac8] text-[#5a4d3a]',
+};
+
+const KYC_FIELDS = ['name', 'phone', 'email', 'company', 'city', 'businessType'];
+function computeKycPercent(lead) {
+  const filled = KYC_FIELDS.filter((f) => lead[f]).length + ((lead.productInterest || []).length > 0 ? 1 : 0);
+  return Math.round((filled / (KYC_FIELDS.length + 1)) * 100);
+}
+
+function StatCard({ emoji, iconTone, label, value, hint, valueTone = 'text-[#2e241b]' }) {
+  return (
+    <Card className="flex items-start justify-between gap-3 hover:-translate-y-0.5 hover:shadow-[0_10px_40px_rgba(46,36,27,0.16)] transition-transform">
+      <div className="min-w-0">
+        <p className="text-xs text-[#6d5f4c] font-medium mb-1.5">{label}</p>
+        <p className={clsx('text-2xl font-bold tracking-tight', valueTone)}>{value}</p>
+        {hint && <p className="text-[11px] text-[#968871] mt-1">{hint}</p>}
+      </div>
+      <div className={clsx('w-11 h-11 rounded-xl flex items-center justify-center text-lg flex-shrink-0', PILL[iconTone] || PILL.gray)}>{emoji}</div>
+    </Card>
+  );
+}
+
+export const SUB_STAGE_PILL = {
+  Requested: PILL.gray,
+  'In Lab': PILL.info,
+  Sent: PILL.warning,
+  Feedback: PILL.purple,
+  Approved: PILL.success,
+  Rejected: PILL.danger,
+};
+
+const TABS = [
+  { key: 'kyc', label: 'KYC', emoji: '🪪', hint: 'Every lead currently in the Sample stage — the same records as CRM & Sales → Lead Pipeline.' },
+  { key: 'qa', label: 'Q&A Inbox', emoji: '📥', hint: 'Every technical query raised for a lead currently in Sample — reply here or from the lead’s own Q&A tab.' },
+  { key: 'sample', label: 'Samples', emoji: '🧪', hint: 'Leads currently being sampled — dispatch, feedback, invoicing happens on the lead itself.' },
+  { key: 'payments', label: 'Payments', emoji: '💳', hint: 'R&D / sampling fee confirmation — a sample stays locked at "Requested" until this is confirmed.' },
+  { key: 'awaiting', label: 'Awaiting Production', emoji: '⏳', hint: 'Sample approved (moved to In Progress) but not yet linked to a Batch Tracker order.' },
+  { key: 'linked', label: 'Orders', emoji: '🧾', hint: 'Already handed off — tracked in Batch Tracker from here on.' },
+];
+
+const FLOW_STEPS = ['Add customer (KYC)', 'Answer questions', 'Confirm payment', 'Make & track samples', 'Order to production'];
+
+export default function SampleProduction() {
+  const [tab, setTab] = useState('sample');
+  const [search, setSearch] = useState('');
+  const [openLeadId, setOpenLeadId] = useState(null);
+  const [sendLead, setSendLead] = useState(null);
+  const [catalogSearch, setCatalogSearch] = useState('');
+  const [selectedCatalogProduct, setSelectedCatalogProduct] = useState(null);
+  const [batchSizeKg, setBatchSizeKg] = useState(10);
+  const qc = useQueryClient();
+
+  // Arriving from CRM Pipeline's "move to Sample" / "move to Production" actions
+  // (?open=<leadId>) — jump straight into that lead's detail instead of the list.
+  const [searchParams, setSearchParams] = useSearchParams();
+  useEffect(() => {
+    const openId = searchParams.get('open');
+    if (openId) {
+      setOpenLeadId(openId);
+      setSearchParams({}, { replace: true });
+    }
+  }, [searchParams]);
+
+  const { data, isLoading } = useQuery({
+    queryKey: ['sample-production', 'leads'],
+    queryFn: () => Promise.all([
+      api.get('/crm/leads', { params: { status: 'Sample', limit: 200 } }).then((r) => r.data.data || r.data.leads || []),
+      api.get('/crm/leads', { params: { status: 'In Progress', limit: 200 } }).then((r) => r.data.data || r.data.leads || []),
+    ]),
+    refetchInterval: 60 * 1000,
+  });
+  const [sampleLeads, inProgressLeads] = data || [[], []];
+  const awaiting = inProgressLeads.filter((l) => !l.productionOrderId);
+  const linked = inProgressLeads.filter((l) => l.productionOrderId);
+
+  const { data: sampleQueries } = useQuery({
+    queryKey: ['sample-production', 'queries'],
+    queryFn: () => api.get('/crm/queries').then((r) => r.data.queries || []),
+    refetchInterval: 60 * 1000,
+  });
+
+  const sampleLeadIds = new Set(sampleLeads.map((l) => l._id));
+  const relevantQueries = (sampleQueries || []).filter((q) => sampleLeadIds.has(q.leadId?._id));
+  const activeQueries = relevantQueries.filter((q) => q.status === 'pending').length;
+
+  const samplesInLab = sampleLeads.filter((l) => l.sampleDetails?.subStage === 'In Lab').length;
+  const awaitingFeedback = sampleLeads.filter((l) => l.sampleDetails?.subStage === 'Feedback').length;
+
+  const now = new Date();
+  const approvedMTD = sampleLeads.filter((l) =>
+    (l.sampleDetails?.subStageHistory || []).some((h) => {
+      if (h.subStage !== 'Approved') return false;
+      const d = new Date(h.enteredAt);
+      return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+    })
+  ).length;
+
+  const paymentPendingLeads = sampleLeads.filter((l) => l.sampleDetails?.paymentStatus !== 'full_paid');
+  const paymentPendingValue = paymentPendingLeads.reduce((sum, l) => sum + (l.sampleDetails?.chargeAmount || 0), 0);
+
+  const rows = tab === 'sample' ? sampleLeads : tab === 'payments' ? sampleLeads : tab === 'kyc' ? sampleLeads : tab === 'awaiting' ? awaiting : linked;
+  const filtered = search
+    ? rows.filter((l) => (l.name || '').toLowerCase().includes(search.toLowerCase()) || (l.company || '').toLowerCase().includes(search.toLowerCase()))
+    : rows;
+
+  const filteredQueries = search
+    ? relevantQueries.filter((q) => (q.title || '').toLowerCase().includes(search.toLowerCase()) || (q.leadId?.name || '').toLowerCase().includes(search.toLowerCase()))
+    : relevantQueries;
+
+  const { data: catalogProducts } = useQuery({
+    queryKey: ['catalog', 'products', 'all'],
+    queryFn: () => api.get('/catalog/products').then((r) => r.data.products || []),
+    enabled: !!sendLead,
+    staleTime: 5 * 60 * 1000,
+  });
+  const activeCatalogProducts = (catalogProducts || []).filter((p) => p.status !== 'Discontinued');
+  const catalogMatches = catalogSearch
+    ? activeCatalogProducts.filter((p) => (p.name || '').toLowerCase().includes(catalogSearch.toLowerCase()) || (p.code || '').toLowerCase().includes(catalogSearch.toLowerCase()))
+    : activeCatalogProducts;
+
+  const sendToProduction = useMutation({
+    mutationFn: ({ leadId, catalogProduct, batchSizeKg }) => api.post(`/crm/leads/${leadId}/link-production`, { mode: 'create', catalogProduct, batchSizeKg }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['sample-production'] });
+      qc.invalidateQueries({ queryKey: ['crm'] });
+      toast.success('Sent to Production — batch order created');
+      setSendLead(null);
+      setSelectedCatalogProduct(null);
+      setCatalogSearch('');
+      setBatchSizeKg(10);
+    },
+    onError: (e) => toast.error(e.response?.data?.message || 'Failed to send to production'),
+  });
+
+  const confirmPayment = useMutation({
+    mutationFn: (leadId) => api.put(`/crm/leads/${leadId}/sample`, { paymentStatus: 'full_paid' }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['sample-production'] });
+      toast.success('Payment confirmed');
+    },
+    onError: (e) => toast.error(e.response?.data?.message || 'Failed to confirm payment'),
+  });
+
+  const [qaReplyDrafts, setQaReplyDrafts] = useState({});
+  const answerQueryMutation = useMutation({
+    mutationFn: ({ queryId, answer }) => api.put(`/crm/queries/${queryId}/reply`, { answer }),
+    onSuccess: (_r, vars) => {
+      qc.invalidateQueries({ queryKey: ['sample-production'] });
+      setQaReplyDrafts((d) => ({ ...d, [vars.queryId]: '' }));
+      toast.success('Reply sent');
+    },
+    onError: (e) => toast.error(e.response?.data?.message || 'Failed to reply'),
+  });
+
+  const accentBtn = 'inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-[#f2b23e] text-[#2e241b] text-xs font-bold hover:brightness-95 transition disabled:opacity-50';
+  const outlineBtn = 'inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full border-[1.5px] border-[#d3c9b4] text-[#6d5f4c] text-xs font-semibold hover:bg-[#e7dfce] hover:border-[#968871] hover:text-[#2e241b] transition';
+  const textLink = 'text-xs font-semibold text-[#4a3a29] hover:text-[#2e241b]';
+
+  return (
+    <div className="space-y-5 -m-4 sm:-m-6 p-4 sm:p-6 bg-[#c9c0ae] min-h-[calc(100vh-4rem)]" style={bodyFont}>
+      <style>{FONT_IMPORT}</style>
+
+      <Card className="flex items-center gap-3">
+        <div className="w-10 h-10 rounded-xl bg-[#f2b23e] flex items-center justify-center shadow-sm flex-shrink-0 text-lg">🧪</div>
+        <div>
+          <h1 className="text-lg font-bold text-[#2e241b] leading-tight" style={displayFont}>Sample Development</h1>
+          <p className="text-xs text-[#6d5f4c]">{sampleLeads.length} in sampling · {awaiting.length} awaiting production · {linked.length} linked</p>
+        </div>
+      </Card>
+
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+        <StatCard emoji="💬" iconTone="info" label="Active Queries" value={activeQueries} hint={`${activeQueries} open of ${relevantQueries.length} total`} />
+        <StatCard emoji="🧪" iconTone="purple" label="Samples In Lab" value={samplesInLab} />
+        <StatCard emoji="🔖" iconTone="warning" label="Awaiting Feedback" value={awaitingFeedback} valueTone="text-[#7a5a10]" />
+        <StatCard emoji="✅" iconTone="success" label="Approved (MTD)" value={approvedMTD} valueTone="text-[#3a5f3c]" />
+        <StatCard emoji="💳" iconTone="danger" label="R&D Payment Pending" value={paymentPendingLeads.length} hint={paymentPendingValue > 0 ? `₹${paymentPendingValue.toLocaleString('en-IN')} pending` : null} valueTone="text-[#8c3a30]" />
+      </div>
+
+      <Card className="p-0 overflow-hidden">
+        <div className="flex items-center gap-2 flex-wrap px-5 py-3 border-b border-[#e2dac8] bg-[#e7dfce] text-[11px] text-[#6d5f4c] font-semibold">
+          <span className="uppercase tracking-wide text-[#968871]">How work flows:</span>
+          {FLOW_STEPS.map((s, i) => (
+            <span key={s} className="flex items-center gap-2">
+              <span className="px-3 py-1 rounded-full border-[1.5px] border-[#d3c9b4] bg-[#f0eadd]">{s}</span>
+              {i < FLOW_STEPS.length - 1 && <span className="text-[#968871]">→</span>}
+            </span>
+          ))}
+        </div>
+
+        <div className="flex gap-1 px-5 border-b border-[#e2dac8] flex-wrap">
+          {TABS.map((t) => (
+            <button
+              key={t.key}
+              onClick={() => setTab(t.key)}
+              className={clsx(
+                'px-4 py-3 text-[13px] font-semibold border-b-[2.5px] transition-colors flex items-center gap-1.5',
+                tab === t.key ? 'border-[#f2b23e] text-[#2e241b]' : 'border-transparent text-[#6d5f4c] hover:text-[#2e241b]'
+              )}
+            >
+              <span>{t.emoji}</span>{t.label}
+            </button>
+          ))}
+        </div>
+
+        <div className="p-5 space-y-4">
+          <p className="text-xs text-[#968871]">{TABS.find((t) => t.key === tab)?.hint}</p>
+
+          <div className="flex items-center gap-3 flex-wrap">
+            <div className="relative max-w-sm flex-1 min-w-[220px]">
+              <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#968871] text-sm">🔍</span>
+              <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search customer, company…"
+                className="pl-9 pr-3 py-2 text-sm border-[1.5px] border-[#d3c9b4] rounded-full focus:outline-none focus:border-[#968871] w-full bg-[#e7dfce] text-[#2e241b] placeholder:text-[#968871]" />
+            </div>
+            {tab === 'kyc' && <Link to="/crm/pipeline" className={accentBtn}>+ New Lead</Link>}
+          </div>
+
+          {tab === 'kyc' && (
+            <div className="overflow-x-auto rounded-[10px] border border-[#e2dac8]">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-[#d3c9b4] text-left text-[11px] uppercase tracking-wide text-[#6d5f4c] bg-[#e7dfce]">
+                    <th className="px-4 py-2.5">Customer</th><th className="px-4 py-2.5">Phone</th><th className="px-4 py-2.5">City</th>
+                    <th className="px-4 py-2.5">Business Type</th><th className="px-4 py-2.5">Product Interest</th>
+                    <th className="px-4 py-2.5">KYC %</th><th className="px-4 py-2.5"></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {isLoading && <tr><td colSpan={7} className="px-4 py-8 text-center text-[#968871] text-xs">Loading…</td></tr>}
+                  {!isLoading && filtered.length === 0 && <tr><td colSpan={7} className="px-4 py-8 text-center text-[#968871] text-xs">Nothing here right now.</td></tr>}
+                  {filtered.map((l) => {
+                    const kyc = computeKycPercent(l);
+                    return (
+                      <tr key={l._id} className="border-b border-[#e2dac8] hover:bg-[#e7dfce]/60">
+                        <td className="px-4 py-2.5">
+                          <p className="text-[#2e241b] font-medium">{l.name}</p>
+                          <p className="text-[#968871] text-xs">{l.company || '—'}</p>
+                        </td>
+                        <td className="px-4 py-2.5 text-[#6d5f4c] text-xs">{l.phone}</td>
+                        <td className="px-4 py-2.5 text-[#6d5f4c] text-xs">{l.city || '—'}</td>
+                        <td className="px-4 py-2.5 text-[#6d5f4c] text-xs">{l.businessType || '—'}</td>
+                        <td className="px-4 py-2.5 text-[#6d5f4c] text-xs">{(l.productInterest || []).join(', ') || '—'}</td>
+                        <td className="px-4 py-2.5">
+                          <span className={clsx('text-[10px] font-semibold px-2 py-0.5 rounded-full', kyc >= 80 ? PILL.success : kyc >= 50 ? PILL.warning : PILL.gray)}>
+                            {kyc}%
+                          </span>
+                        </td>
+                        <td className="px-4 py-2.5 text-right whitespace-nowrap">
+                          <button onClick={() => setOpenLeadId(l._id)} className={clsx(textLink, 'mr-3')}>Open ▸</button>
+                          <Link to={`/crm/leads/${l._id}`} className={textLink}>Open lead →</Link>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {tab === 'qa' && (
+            <div className="rounded-[10px] border border-[#e2dac8] divide-y divide-[#e2dac8]">
+              {filteredQueries.length === 0 && <p className="px-4 py-8 text-center text-[#968871] text-xs">No queries for any Sample-stage lead right now.</p>}
+              {filteredQueries.map((q) => (
+                <div key={q._id} className="p-4 space-y-2">
+                  <div className="flex items-center justify-between flex-wrap gap-2">
+                    <div className="flex items-center gap-2 flex-wrap text-[11px]">
+                      <span className={clsx('px-2 py-0.5 rounded-full font-semibold', q.status === 'pending' ? PILL.warning : PILL.success)}>{q.status}</span>
+                      <span className="font-semibold text-[#4a3a29]">{q.leadId?.name || 'Unknown lead'}</span>
+                      <span className="text-[#968871]">{q.leadId?.company || ''}</span>
+                      <span className="text-[#968871]">· {format(new Date(q.createdAt), 'dd MMM, hh:mm a')}</span>
+                      <span className="text-[#968871]">· {q.urgency} urgency</span>
+                    </div>
+                    <button onClick={() => setOpenLeadId(q.leadId?._id)} className={textLink}>Open lead ▸</button>
+                  </div>
+                  <p className="text-sm font-semibold text-[#2e241b]">{q.title}</p>
+                  <p className="text-sm text-[#6d5f4c]">{q.description}</p>
+                  {q.answer ? (
+                    <div className={clsx('p-2 rounded-lg text-sm text-[#2e241b]', PILL.success)}>
+                      <p className="text-[11px] text-[#3a5f3c] font-semibold mb-0.5">{q.answeredBy ? `${q.answeredBy.firstName} ${q.answeredBy.lastName}` : 'Answered'}</p>
+                      {q.answer}
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <input
+                        value={qaReplyDrafts[q._id] || ''}
+                        onChange={(e) => setQaReplyDrafts((d) => ({ ...d, [q._id]: e.target.value }))}
+                        placeholder="Type a reply…"
+                        className="px-3 py-2 text-sm rounded-[10px] border-[1.5px] border-[#d3c9b4] bg-[#f0eadd] flex-1 focus:outline-none focus:border-[#968871]"
+                      />
+                      <button
+                        onClick={() => {
+                          const answer = (qaReplyDrafts[q._id] || '').trim();
+                          if (!answer) { toast.error('Reply cannot be empty'); return; }
+                          answerQueryMutation.mutate({ queryId: q._id, answer });
+                        }}
+                        disabled={answerQueryMutation.isPending}
+                        className={accentBtn}
+                      >
+                        Reply
+                      </button>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+
+          {tab !== 'kyc' && tab !== 'qa' && (
+            <div className="overflow-x-auto rounded-[10px] border border-[#e2dac8]">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-[#d3c9b4] text-left text-[11px] uppercase tracking-wide text-[#6d5f4c] bg-[#e7dfce]">
+                    <th className="px-4 py-2.5">Customer</th><th className="px-4 py-2.5">Product Interest</th>
+                    {(tab === 'sample' || tab === 'payments') && <th className="px-4 py-2.5">Sample Stage</th>}
+                    <th className="px-4 py-2.5">Payment</th>
+                    {tab !== 'payments' && <th className="px-4 py-2.5">{tab === 'linked' ? 'Batch Order' : 'Assigned To'}</th>}
+                    <th className="px-4 py-2.5"></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {isLoading && <tr><td colSpan={6} className="px-4 py-8 text-center text-[#968871] text-xs">Loading…</td></tr>}
+                  {!isLoading && filtered.length === 0 && <tr><td colSpan={6} className="px-4 py-8 text-center text-[#968871] text-xs">Nothing here right now.</td></tr>}
+                  {filtered.map((l) => (
+                    <tr key={l._id} className="border-b border-[#e2dac8] hover:bg-[#e7dfce]/60">
+                      <td className="px-4 py-2.5">
+                        <p className="text-[#2e241b] font-medium">{l.name}</p>
+                        <p className="text-[#968871] text-xs">{l.company || '—'}</p>
+                      </td>
+                      <td className="px-4 py-2.5 text-[#6d5f4c] text-xs">{(l.productInterest || []).join(', ') || '—'}</td>
+                      {(tab === 'sample' || tab === 'payments') && (
+                        <td className="px-4 py-2.5">
+                          <span className={clsx('text-[10px] font-semibold px-2 py-0.5 rounded-full', SUB_STAGE_PILL[l.sampleDetails?.subStage] || SUB_STAGE_PILL.Requested)}>
+                            {l.sampleDetails?.subStage || 'Requested'}
+                          </span>
+                        </td>
+                      )}
+                      <td className="px-4 py-2.5">
+                        <span className={clsx('text-[10px] font-semibold px-2 py-0.5 rounded-full', l.sampleDetails?.paymentStatus === 'full_paid' ? PILL.success : PILL.warning)}>
+                          {l.sampleDetails?.paymentStatus === 'full_paid' ? 'Paid' : 'Pending'}
+                        </span>
+                      </td>
+                      {tab !== 'payments' && (
+                        <td className="px-4 py-2.5 text-xs">
+                          {tab === 'linked'
+                            ? <span className="font-mono text-[#4a3a29]">{l.productionOrderId?.orderNumber || '—'}</span>
+                            : <span className="text-[#6d5f4c]">{l.assignedTo ? `${l.assignedTo.firstName || ''} ${l.assignedTo.lastName || ''}`.trim() : 'Unassigned'}</span>}
+                        </td>
+                      )}
+                      <td className="px-4 py-2.5 text-right whitespace-nowrap">
+                        {tab === 'sample' && (
+                          <button onClick={() => setOpenLeadId(l._id)} className={clsx(textLink, 'mr-3')}>Open ▸</button>
+                        )}
+                        {tab === 'payments' && (
+                          l.sampleDetails?.paymentStatus === 'full_paid'
+                            ? <span className="text-xs text-[#3a5f3c] font-semibold mr-3">✓ Paid</span>
+                            : (
+                              <button onClick={() => confirmPayment.mutate(l._id)} disabled={confirmPayment.isPending}
+                                className={clsx(textLink, 'disabled:opacity-50 mr-3')}>
+                                {confirmPayment.isPending ? 'Confirming…' : 'Confirm Payment'}
+                              </button>
+                            )
+                        )}
+                        {tab === 'awaiting' && (
+                          <button onClick={() => { setSendLead(l); setSelectedCatalogProduct(null); setCatalogSearch(''); setBatchSizeKg(10); }}
+                            className={clsx(textLink, 'disabled:opacity-50 mr-3')}>
+                            Send to Production →
+                          </button>
+                        )}
+                        {tab === 'linked' ? (
+                          <Link to="/production/batch-tracker" className={clsx(textLink, 'inline-flex items-center gap-1')}>
+                            Open in Batch Tracker ↗
+                          </Link>
+                        ) : (
+                          <Link to={`/crm/leads/${l._id}`} className={textLink}>Open lead →</Link>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      </Card>
+
+      {openLeadId && <SampleLeadDetail leadId={openLeadId} onClose={() => setOpenLeadId(null)} />}
+
+      {sendLead && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4" style={bodyFont}>
+          <style>{FONT_IMPORT}</style>
+          <div className="absolute inset-0 bg-[#2e241b]/50 backdrop-blur-sm" onClick={() => setSendLead(null)} />
+          <div className="relative bg-[#f0eadd] rounded-2xl shadow-[0_10px_40px_rgba(46,36,27,0.16)] w-full max-w-md border border-[#d3c9b4]">
+            <div className="p-5 border-b border-[#e2dac8] bg-[#e7dfce] rounded-t-2xl">
+              <h3 className="font-bold text-[#2e241b]" style={displayFont}>🏭 Send to Production</h3>
+              <p className="text-xs text-[#6d5f4c] mt-0.5">{sendLead.name} — creates a Batch Tracker order pre-filled from this lead.</p>
+            </div>
+            <div className="p-5 space-y-3">
+              <div>
+                <label className="text-xs font-semibold text-[#968871] uppercase tracking-wide mb-1 block">Catalog product</label>
+                <input
+                  value={selectedCatalogProduct ? selectedCatalogProduct.name : catalogSearch}
+                  onChange={(e) => { setCatalogSearch(e.target.value); setSelectedCatalogProduct(null); }}
+                  placeholder="Search catalog products…"
+                  className={clsx('px-3 py-2 text-sm rounded-[10px] border-[1.5px] border-[#d3c9b4] bg-[#fff] text-[#2e241b] focus:outline-none focus:border-[#968871] w-full')}
+                />
+                {catalogSearch && !selectedCatalogProduct && (
+                  <div className="mt-1 rounded-[10px] border border-[#d3c9b4] bg-white max-h-32 overflow-y-auto">
+                    {catalogMatches.length === 0 && <div className="px-3 py-2 text-xs text-[#968871]">No products found</div>}
+                    {catalogMatches.slice(0, 8).map((p) => (
+                      <button key={p._id} type="button" onClick={() => { setSelectedCatalogProduct(p); setCatalogSearch(''); }}
+                        className="w-full text-left px-3 py-2 text-xs hover:bg-[#e7dfce] flex justify-between">
+                        <span className="text-[#2e241b]">{p.name}</span>
+                        <span className="text-[#968871] font-mono">{p.code}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+                {selectedCatalogProduct && (
+                  <p className="text-[11px] text-[#968871] mt-1">{selectedCatalogProduct.formulation?.rows?.length || 0} ingredient(s) in formulation</p>
+                )}
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-[#968871] uppercase tracking-wide mb-1 block">Batch size (kg)</label>
+                <input type="number" min="0.1" step="0.1" value={batchSizeKg} onChange={(e) => setBatchSizeKg(e.target.value)}
+                  className="px-3 py-2 text-sm rounded-[10px] border-[1.5px] border-[#d3c9b4] bg-white text-[#2e241b] focus:outline-none focus:border-[#968871] w-full" />
+              </div>
+              <div className="flex gap-3 pt-1">
+                <button type="button" onClick={() => setSendLead(null)} className={clsx(outlineBtn, 'flex-1 justify-center')}>Cancel</button>
+                <button
+                  onClick={() => {
+                    if (!selectedCatalogProduct) { toast.error('Select a catalog product'); return; }
+                    if (!batchSizeKg || Number(batchSizeKg) <= 0) { toast.error('Enter a valid batch size'); return; }
+                    sendToProduction.mutate({ leadId: sendLead._id, catalogProduct: selectedCatalogProduct._id, batchSizeKg: Number(batchSizeKg) });
+                  }}
+                  disabled={sendToProduction.isPending}
+                  className={clsx(accentBtn, 'flex-1 justify-center')}
+                >
+                  {sendToProduction.isPending ? 'Sending…' : 'Confirm'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

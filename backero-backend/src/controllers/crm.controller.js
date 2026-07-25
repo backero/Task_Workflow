@@ -6,10 +6,11 @@ const User = require('../models/User');
 const Organization = require('../models/Organization');
 const Invoice = require('../models/Invoice');
 const { asyncHandler, sendSuccess, sendError, paginate, paginateResponse, generateInvoiceNumber } = require('../utils/helpers');
-const { LEAD_STATUS, SOCKET_EVENTS, ROLE_HIERARCHY, ROLES } = require('../utils/constants');
+const { LEAD_STATUS, SOCKET_EVENTS, ROLE_HIERARCHY, ROLES, SAMPLE_SUB_STAGES } = require('../utils/constants');
 const { createNotification } = require('../services/notification.service');
 const { appendLeadToSheet, updateLeadInSheet } = require('../services/googleSheets.service');
 const { sendSampleDispatchedToClient, sendDispatchedFeedbackRequest, sendNewLeadAlertDM, sendActiveClientStageUpdate, sendDispatchedWithMedia, uploadMedia } = require('../services/whatsappCloud.service');
+const { buildIngredientsFromCatalogProduct, computeFormulaCost } = require('../utils/productionHelpers');
 
 // Individual DMs to the Sales department replace the old WhatsApp-group broadcast
 // (Cloud API can't send to groups at all).
@@ -73,7 +74,9 @@ exports.getLeads = asyncHandler(async (req, res) => {
 // POST /api/crm/leads
 exports.createLead = asyncHandler(async (req, res) => {
   const io = req.app.get('io');
-  const { name, email, phone, whatsapp, company, source, status, priority, productInterest, estimatedValue, assignedTo, notes, campaign, city, state, designation } = req.body;
+  const { name, email, phone, whatsapp, company, source, status, priority, productInterest, estimatedValue, notes, campaign, city, state, designation, businessType } = req.body;
+  // "Unassigned" in the Add Lead form submits an empty string, which Mongoose can't cast to ObjectId.
+  const assignedTo = req.body.assignedTo || undefined;
 
   // Check duplicate by phone in org
   const existing = await Lead.findOne({ organizationId: req.user.organizationId, phone });
@@ -83,7 +86,7 @@ exports.createLead = asyncHandler(async (req, res) => {
   const lead = await Lead.create({
     organizationId: req.user.organizationId,
     name, email, phone, whatsapp, company, source, status: initialStage, priority, productInterest, estimatedValue,
-    assignedTo, notes, campaign, city, state, designation,
+    assignedTo, notes, campaign, city, state, designation, businessType,
     assignedBy: assignedTo ? req.user._id : undefined,
     assignedAt: assignedTo ? new Date() : undefined,
     createdBy: req.user._id,
@@ -117,6 +120,12 @@ exports.createLead = asyncHandler(async (req, res) => {
   // Notify Sales team individually (async, non-blocking) — replaces the old WhatsApp group broadcast
   const createdByName = `${req.user.firstName} ${req.user.lastName}`.trim();
   notifySalesTeamOfNewLead(req.user.organizationId, { ...lead.toObject(), createdByName }).catch(() => {});
+
+  // Welcome message to the client (async, non-blocking)
+  const newLeadPhone = lead.whatsapp || lead.phone;
+  if (newLeadPhone) {
+    sendActiveClientStageUpdate(newLeadPhone, { name: lead.name, stage: lead.status }).catch((err) => logger.error(err));
+  }
 
   Organization.findById(req.user.organizationId).select('googleSheets').then((org) => {
     if (org?.googleSheets?.writeBackEnabled && org?.googleSheets?.sheetId) {
@@ -159,7 +168,10 @@ function validateStageTransition(existing, newStatus, body) {
     if (!existing.estimatedValue || existing.estimatedValue <= 0) return 'Add estimated value before moving to Sample stage';
   }
   if (newStatus === 'In Progress') {
-    if (!existing.sampleDetails?.sentDate) return 'Fill in the sample Sent Date before moving to Production';
+    const hasApprovedSample = (existing.samples || []).some((s) => s.status === 'Approved');
+    if (!existing.sampleDetails?.sentDate && !hasApprovedSample) {
+      return 'Approve a sample in Sample Production (or fill in the sample Sent Date) before moving to Production';
+    }
   }
   if (newStatus === 'Payment Pending') {
     if (!body.dealValue || Number(body.dealValue) <= 0) return 'Enter confirmed deal value to mark as Payment Pending';
@@ -182,6 +194,8 @@ exports.updateLead = asyncHandler(async (req, res) => {
     if (gateError) return sendError(res, gateError, 422);
   }
   const setFields = { ...updates, updatedBy: req.user._id };
+  // "Unassigned" in the Edit Lead form submits an empty string, which Mongoose can't cast to ObjectId.
+  if (setFields.assignedTo === '') setFields.assignedTo = null;
 
   if (updates.status === LEAD_STATUS.WON && existing.status !== LEAD_STATUS.WON) setFields.convertedAt = new Date();
   if (updates.status === LEAD_STATUS.LOST && existing.status !== LEAD_STATUS.LOST) setFields.lostAt = new Date();
@@ -222,6 +236,12 @@ exports.updateLead = asyncHandler(async (req, res) => {
         name: lead.name,
         product: lead.sampleDetails?.product || (lead.productInterest?.[0] || ''),
       }).catch(logger.error);
+    }
+  } else if (updates.status && updates.status !== existing.status && updates.status !== LEAD_STATUS.LOST) {
+    // Follow-up stage-update message to client for every other status change (async, non-blocking)
+    const clientPhone = lead.whatsapp || lead.phone;
+    if (clientPhone) {
+      sendActiveClientStageUpdate(clientPhone, { name: lead.name, stage: lead.status }).catch(logger.error);
     }
   }
 
@@ -308,6 +328,229 @@ exports.updateSampleDetails = asyncHandler(async (req, res) => {
   }
 
   sendSuccess(res, { lead: updatedLead }, 'Sample details saved');
+});
+
+// PUT /api/crm/leads/:id/sample/stage  { subStage, rejectionReason? }
+// Moves the sample through Requested -> In Lab -> Sent -> Feedback -> Approved/Rejected.
+// Mirrors the "no payment = no sampling" rule from the design reference — leaving Requested
+// requires the R&D/sampling fee to already be marked full_paid via updateSampleDetails.
+exports.updateSampleSubStage = asyncHandler(async (req, res) => {
+  const { subStage, rejectionReason } = req.body;
+  if (!SAMPLE_SUB_STAGES.includes(subStage)) return sendError(res, 'Invalid sample stage.', 400);
+
+  const lead = await Lead.findOne({ _id: req.params.id, organizationId: req.user.organizationId });
+  if (!lead) return sendError(res, 'Lead not found.', 404);
+
+  if (subStage !== 'Requested' && lead.sampleDetails?.paymentStatus !== 'full_paid') {
+    return sendError(res, 'Confirm the R&D/sampling fee payment before moving this sample forward.', 422);
+  }
+  if (subStage === 'Rejected' && !rejectionReason?.trim()) {
+    return sendError(res, 'Add a reason for rejecting this sample.', 400);
+  }
+
+  lead.sampleDetails.subStage = subStage;
+  lead.sampleDetails.rejectionReason = subStage === 'Rejected' ? rejectionReason.trim() : undefined;
+  lead.sampleDetails.subStageHistory = lead.sampleDetails.subStageHistory || [];
+  lead.sampleDetails.subStageHistory.push({ subStage, movedBy: req.user._id });
+  lead.updatedBy = req.user._id;
+  await lead.save();
+
+  sendSuccess(res, { lead }, 'Sample stage updated');
+});
+
+// POST /api/crm/leads/:id/formulas  { name, productLink?, refWeight?, rows?, costPerUnit?, status? }
+// `rows` (if provided) are real Raw Material picks — { rawMaterialId, name, quantity, unit, costPerKg }
+// — and cost/unit is computed from them, same math as CatalogProduct.formulation. A manual
+// costPerUnit is only used as a fallback when no rows are given.
+exports.createFormula = asyncHandler(async (req, res) => {
+  const { name, productLink, refWeight, rows, costPerUnit, status } = req.body;
+  if (!name?.trim()) return sendError(res, 'Formula name is required.', 400);
+
+  const lead = await Lead.findOne({ _id: req.params.id, organizationId: req.user.organizationId });
+  if (!lead) return sendError(res, 'Lead not found.', 404);
+
+  lead.customFormulas = lead.customFormulas || [];
+  const formulaId = `FORM-${String(lead._id).slice(-4).toUpperCase()}-${lead.customFormulas.length + 1}`;
+  const computedCost = rows?.length ? computeFormulaCost(rows) : Number(costPerUnit) || 0;
+  lead.customFormulas.push({
+    formulaId,
+    name: name.trim(),
+    productLink: productLink || '',
+    refWeight: Number(refWeight) || 100,
+    currentVersion: 1,
+    versions: [{ version: 1, status: status || 'In Testing', costPerUnit: computedCost, rows: rows || [] }],
+    createdBy: req.user._id,
+  });
+  lead.updatedBy = req.user._id;
+  await lead.save();
+  sendSuccess(res, { lead }, 'Formula created', 201);
+});
+
+// PUT /api/crm/leads/:id/formulas/:formulaId  { status?, costPerUnit?, rows?, bumpVersion? }
+exports.updateFormula = asyncHandler(async (req, res) => {
+  const { status, costPerUnit, rows, bumpVersion } = req.body;
+  const lead = await Lead.findOne({ _id: req.params.id, organizationId: req.user.organizationId });
+  if (!lead) return sendError(res, 'Lead not found.', 404);
+
+  const formula = (lead.customFormulas || []).find((f) => f.formulaId === req.params.formulaId);
+  if (!formula) return sendError(res, 'Formula not found.', 404);
+
+  if (bumpVersion) {
+    const prev = formula.versions[formula.versions.length - 1];
+    const newRows = rows || prev?.rows || [];
+    const newCost = newRows.length ? computeFormulaCost(newRows) : (costPerUnit !== undefined ? Number(costPerUnit) || 0 : prev?.costPerUnit || 0);
+    formula.currentVersion += 1;
+    formula.versions.push({ version: formula.currentVersion, status: status || 'In Testing', costPerUnit: newCost, rows: newRows });
+  } else {
+    const latest = formula.versions[formula.versions.length - 1];
+    if (status) latest.status = status;
+    if (rows) { latest.rows = rows; latest.costPerUnit = computeFormulaCost(rows); }
+    else if (costPerUnit !== undefined) latest.costPerUnit = Number(costPerUnit) || 0;
+  }
+  lead.updatedBy = req.user._id;
+  await lead.save();
+  sendSuccess(res, { lead }, 'Formula updated');
+});
+
+// POST /api/crm/leads/:id/products  { productId?, catalogProductId?, name, basis?, approxPrice? }
+exports.linkProductPricing = asyncHandler(async (req, res) => {
+  const { productId, catalogProductId, name, basis, approxPrice } = req.body;
+  if (!name?.trim()) return sendError(res, 'Product name is required.', 400);
+
+  const lead = await Lead.findOne({ _id: req.params.id, organizationId: req.user.organizationId });
+  if (!lead) return sendError(res, 'Lead not found.', 404);
+
+  lead.productLinks = lead.productLinks || [];
+  lead.productLinks.push({
+    productId: productId?.trim() || `PROD-${String(lead._id).slice(-4).toUpperCase()}-${lead.productLinks.length + 1}`,
+    catalogProductId: catalogProductId || undefined,
+    name: name.trim(),
+    basis: catalogProductId ? 'Catalog SKU' : (basis || 'House Formula'),
+    approxPrice: Number(approxPrice) || 0,
+    createdBy: req.user._id,
+  });
+  lead.updatedBy = req.user._id;
+  await lead.save();
+  sendSuccess(res, { lead }, 'Product linked', 201);
+});
+
+// PUT /api/crm/leads/:id/products/:productId  { priceStatus?, paymentStatus?, approxPrice? }
+exports.updateProductPricing = asyncHandler(async (req, res) => {
+  const { priceStatus, paymentStatus, approxPrice } = req.body;
+  const lead = await Lead.findOne({ _id: req.params.id, organizationId: req.user.organizationId });
+  if (!lead) return sendError(res, 'Lead not found.', 404);
+
+  const link = (lead.productLinks || []).find((p) => p.productId === req.params.productId);
+  if (!link) return sendError(res, 'Product link not found.', 404);
+
+  if (priceStatus) link.priceStatus = priceStatus;
+  if (paymentStatus) link.paymentStatus = paymentStatus;
+  if (approxPrice !== undefined) link.approxPrice = Number(approxPrice) || 0;
+  lead.updatedBy = req.user._id;
+  await lead.save();
+  sendSuccess(res, { lead }, 'Product pricing updated');
+});
+
+// POST /api/crm/leads/:id/samples  { formulaId?, chainedFrom?, queryId? }
+// Creates a versioned, chainable sample record. Rejecting a sample (see updateVersionedSampleStatus)
+// doesn't auto-create the next version — the team calls this again with chainedFrom to do that explicitly.
+exports.createVersionedSample = asyncHandler(async (req, res) => {
+  const { formulaId, chainedFrom, queryId } = req.body;
+  const lead = await Lead.findOne({ _id: req.params.id, organizationId: req.user.organizationId });
+  if (!lead) return sendError(res, 'Lead not found.', 404);
+
+  lead.samples = lead.samples || [];
+  let version = 1;
+  if (chainedFrom) {
+    const parent = lead.samples.find((s) => s.sampleId === chainedFrom);
+    if (parent) version = parent.version + 1;
+  }
+  const sampleId = `SMPL-${String(lead._id).slice(-4).toUpperCase()}-${lead.samples.length + 1}`;
+  lead.samples.push({
+    sampleId,
+    formulaId: formulaId || undefined,
+    version,
+    chainedFrom: chainedFrom || undefined,
+    queryId: queryId || undefined,
+    status: 'Requested',
+    timeline: [{ event: chainedFrom ? `Follow-up sample requested (chained from ${chainedFrom})` : 'Sample created' }],
+    createdBy: req.user._id,
+  });
+  lead.updatedBy = req.user._id;
+  await lead.save();
+  sendSuccess(res, { lead }, 'Sample created', 201);
+});
+
+// PUT /api/crm/leads/:id/samples/:sampleId  { courier?, awb?, sentAt?, packagingConfirmed? }
+exports.updateVersionedSample = asyncHandler(async (req, res) => {
+  const { courier, awb, sentAt, packagingConfirmed } = req.body;
+  const lead = await Lead.findOne({ _id: req.params.id, organizationId: req.user.organizationId });
+  if (!lead) return sendError(res, 'Lead not found.', 404);
+
+  const sample = (lead.samples || []).find((s) => s.sampleId === req.params.sampleId);
+  if (!sample) return sendError(res, 'Sample not found.', 404);
+
+  if (courier !== undefined) sample.courier = courier;
+  if (awb !== undefined) sample.awb = awb;
+  if (sentAt !== undefined) {
+    sample.sentAt = sentAt;
+    sample.timeline.push({ event: `Dispatched via ${courier || sample.courier || 'courier'} (AWB ${awb || sample.awb || '—'})` });
+  }
+  if (packagingConfirmed !== undefined) {
+    sample.packagingConfirmed = packagingConfirmed;
+    if (packagingConfirmed) sample.timeline.push({ event: 'Packaging confirmed by customer' });
+  }
+  lead.updatedBy = req.user._id;
+  await lead.save();
+  sendSuccess(res, { lead }, 'Sample updated');
+});
+
+// PUT /api/crm/leads/:id/samples/:sampleId/status  { status, rejectionReason? }
+// Same payment hard-lock as updateSampleSubStage, and keeps lead.sampleDetails.subStage in sync
+// with this sample so the existing Sample Production queue/stat cards need no changes.
+exports.updateVersionedSampleStatus = asyncHandler(async (req, res) => {
+  const { status, rejectionReason } = req.body;
+  if (!SAMPLE_SUB_STAGES.includes(status)) return sendError(res, 'Invalid sample status.', 400);
+
+  const lead = await Lead.findOne({ _id: req.params.id, organizationId: req.user.organizationId });
+  if (!lead) return sendError(res, 'Lead not found.', 404);
+
+  if (status !== 'Requested' && lead.sampleDetails?.paymentStatus !== 'full_paid') {
+    return sendError(res, 'Confirm the R&D/sampling fee payment before moving this sample forward.', 422);
+  }
+  const sample = (lead.samples || []).find((s) => s.sampleId === req.params.sampleId);
+  if (!sample) return sendError(res, 'Sample not found.', 404);
+  if (status === 'Rejected' && !rejectionReason?.trim()) return sendError(res, 'Add a reason for rejecting this sample.', 400);
+
+  sample.status = status;
+  sample.rejectionReason = status === 'Rejected' ? rejectionReason.trim() : undefined;
+  sample.timeline.push({ event: `Status → ${status}` });
+
+  lead.sampleDetails.subStage = status;
+  lead.sampleDetails.subStageHistory = lead.sampleDetails.subStageHistory || [];
+  lead.sampleDetails.subStageHistory.push({ subStage: status, movedBy: req.user._id });
+
+  lead.updatedBy = req.user._id;
+  await lead.save();
+  sendSuccess(res, { lead }, 'Sample status updated');
+});
+
+// POST /api/crm/leads/:id/samples/:sampleId/feedback  { text }
+exports.addSampleFeedback = asyncHandler(async (req, res) => {
+  const { text } = req.body;
+  if (!text?.trim()) return sendError(res, 'Feedback text is required.', 400);
+
+  const lead = await Lead.findOne({ _id: req.params.id, organizationId: req.user.organizationId });
+  if (!lead) return sendError(res, 'Lead not found.', 404);
+
+  const sample = (lead.samples || []).find((s) => s.sampleId === req.params.sampleId);
+  if (!sample) return sendError(res, 'Sample not found.', 404);
+
+  sample.feedbackLog.push({ by: `${req.user.firstName} ${req.user.lastName}`.trim(), text: text.trim() });
+  sample.timeline.push({ event: 'Customer feedback logged' });
+  lead.updatedBy = req.user._id;
+  await lead.save();
+  sendSuccess(res, { lead }, 'Feedback logged');
 });
 
 // POST /api/crm/leads/:id/sample/team-update
@@ -457,7 +700,7 @@ exports.convertToTask = asyncHandler(async (req, res) => {
 // Links a CRM lead to a Batch Tracker production order — either creating a fresh one
 // pre-filled from the lead, or attaching an existing unlinked order. One lead : one batch.
 exports.linkProduction = asyncHandler(async (req, res) => {
-  const { mode, productionOrderId } = req.body;
+  const { mode, productionOrderId, catalogProduct, batchSizeKg } = req.body;
   const orgId = req.user.organizationId;
 
   const lead = await Lead.findOne({ _id: req.params.id, organizationId: orgId });
@@ -465,6 +708,7 @@ exports.linkProduction = asyncHandler(async (req, res) => {
   if (lead.productionOrderId) return sendError(res, 'This lead is already linked to a batch order.', 400);
 
   const ProductionOrder = require('../models/ProductionOrder');
+  const CatalogProduct = require('../models/CatalogProduct');
   const { PRODUCTION_STATUS, BATCH_PROCESS_STEPS } = require('../utils/constants');
 
   let order;
@@ -477,6 +721,15 @@ exports.linkProduction = asyncHandler(async (req, res) => {
     order.updatedBy = req.user._id;
     await order.save();
   } else {
+    // A batch order with no catalog product has no formulation, so its ingredients
+    // list stays empty forever — that permanently locks the Weighing stage's process
+    // steps (see BatchTracker.jsx allWeighed gate). Require a real catalog SKU here,
+    // same as the manual "+ New Order" flow, so every order can actually reach Dispatch.
+    if (!catalogProduct) return sendError(res, 'Select a catalog product for this batch order.', 400);
+    const catalogDoc = await CatalogProduct.findOne({ _id: catalogProduct, organizationId: orgId });
+    if (!catalogDoc) return sendError(res, 'Catalog product not found.', 404);
+    const ingredients = buildIngredientsFromCatalogProduct(catalogDoc, batchSizeKg);
+
     const count = await ProductionOrder.countDocuments({ organizationId: orgId });
     order = await ProductionOrder.create({
       organizationId: orgId,
@@ -492,6 +745,8 @@ exports.linkProduction = asyncHandler(async (req, res) => {
         : undefined,
       notes: lead.productInterest?.length ? `Interest: ${lead.productInterest.join(', ')}` : undefined,
       leadId: lead._id,
+      catalogProduct: catalogDoc._id,
+      ingredients,
       processSteps: BATCH_PROCESS_STEPS.map((name) => ({ name, done: false })),
       createdBy: req.user._id,
     });
@@ -837,7 +1092,12 @@ exports.raiseQuery = asyncHandler(async (req, res) => {
     preQueryStatus: lead.status,
   });
 
-  lead.status = LEAD_STATUS.QUERY_PENDING;
+  // Sample/Production stage leads keep their status — "Query Pending" isn't a pipeline
+  // column there, so flipping it would silently drop the lead out of the Sample Production
+  // view for as long as the query stays open. Only pre-Sample leads get paused this way.
+  if (![LEAD_STATUS.SAMPLE, LEAD_STATUS.IN_PROGRESS].includes(lead.status)) {
+    lead.status = LEAD_STATUS.QUERY_PENDING;
+  }
   lead.updatedBy = req.user._id;
   await lead.save();
 
