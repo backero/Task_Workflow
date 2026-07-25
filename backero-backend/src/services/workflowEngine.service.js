@@ -68,7 +68,7 @@ const propagateProgress = async (taskId) => {
 
 // ── Completion eligibility ────────────────────────────────────────────────────
 
-const checkCompletionEligibility = async (taskId) => {
+const checkCompletionEligibility = async (taskId, { excludeApprovalId } = {}) => {
   const task = await Task.findById(taskId);
   if (!task) return { eligible: false, reasons: ['Task not found'] };
 
@@ -94,8 +94,13 @@ const checkCompletionEligibility = async (taskId) => {
     }
   }
 
-  // Rule 3: no pending approvals
-  const pendingApprovals = await TaskApproval.countDocuments({ taskId, status: 'pending' });
+  // Rule 3: no pending approvals — excludes the approval currently being decided (its
+  // own status is still 'pending' at this point, since approveTask checks eligibility
+  // before flipping it to 'approved', which would otherwise make it permanently block
+  // itself and every completion approval would fail with "1 approval request(s) pending").
+  const approvalFilter = { taskId, status: 'pending' };
+  if (excludeApprovalId) approvalFilter._id = { $ne: excludeApprovalId };
+  const pendingApprovals = await TaskApproval.countDocuments(approvalFilter);
   if (pendingApprovals > 0) {
     reasons.push(`${pendingApprovals} approval request(s) pending`);
   }

@@ -106,7 +106,7 @@ exports.approveTask = asyncHandler(async (req, res) => {
   if (error) return sendError(res, error, 403);
   if (!task) return sendError(res, 'Task not found.', 404);
 
-  const { eligible, reasons } = await workflowEngine.checkCompletionEligibility(task._id);
+  const { eligible, reasons } = await workflowEngine.checkCompletionEligibility(task._id, { excludeApprovalId: approval._id });
   if (!eligible) return res.status(400).json({ success: false, message: 'Cannot complete task.', reasons });
 
   approval.status = APPROVAL_STATUS.APPROVED;
