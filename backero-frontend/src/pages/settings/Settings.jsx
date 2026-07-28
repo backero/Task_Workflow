@@ -11,7 +11,11 @@ export default function Settings() {
   const [sigPreview, setSigPreview] = useState('');
   const [logoPreview, setLogoPreview] = useState('');
   const [qrPreview, setQrPreview] = useState('');
+  const [avatarBroken, setAvatarBroken] = useState(false);
+  const avatarInputRef = React.useRef(null);
   const queryClient = useQueryClient();
+
+  useEffect(() => { setAvatarBroken(false); }, [user?.avatar]);
 
   const { register, handleSubmit } = useForm({ defaultValues: { firstName: user?.firstName, lastName: user?.lastName, phone: user?.phone, designation: user?.designation } });
   const { register: regPass, handleSubmit: submitPass, reset: resetPass } = useForm();
@@ -57,6 +61,23 @@ export default function Settings() {
     onSuccess: (res) => { setUser(res.data.user); toast.success('Profile updated'); },
     onError: (err) => toast.error(err.response?.data?.message || 'Failed'),
   });
+
+  const avatarMutation = useMutation({
+    mutationFn: (file) => {
+      const form = new FormData();
+      form.append('avatar', file);
+      return api.post('/users/me/avatar', form, { headers: { 'Content-Type': 'multipart/form-data' } });
+    },
+    onSuccess: (res) => { setUser(res.data.user); toast.success('Profile photo updated'); },
+    onError: (err) => toast.error(err.response?.data?.message || 'Failed to upload photo'),
+  });
+
+  const handleAvatarSelected = (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    avatarMutation.mutate(file);
+  };
 
   const passwordMutation = useMutation({
     mutationFn: (data) => api.patch('/auth/change-password', data),
@@ -120,13 +141,47 @@ export default function Settings() {
           <h3 className="section-title">Profile Information</h3>
           <form onSubmit={handleSubmit(profileMutation.mutate)} className="space-y-4">
             <div className="flex items-center gap-4 mb-6">
-              <div className="w-16 h-16 rounded-full bg-brand-100 dark:bg-brand-900/30 flex items-center justify-center">
-                <span className="text-brand-700 dark:text-brand-400 text-2xl font-bold">{user?.firstName?.[0]}{user?.lastName?.[0]}</span>
-              </div>
+              <input
+                ref={avatarInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handleAvatarSelected}
+                className="hidden"
+              />
+              <button
+                type="button"
+                onClick={() => avatarInputRef.current?.click()}
+                disabled={avatarMutation.isPending}
+                className="relative w-16 h-16 rounded-full group flex-shrink-0"
+                title="Change profile photo"
+              >
+                {user?.avatar && !avatarBroken ? (
+                  <img
+                    src={user.avatar}
+                    alt="Profile"
+                    className="w-16 h-16 rounded-full object-cover"
+                    onError={() => setAvatarBroken(true)}
+                  />
+                ) : (
+                  <div className="w-16 h-16 rounded-full bg-brand-100 dark:bg-brand-900/30 flex items-center justify-center">
+                    <span className="text-brand-700 dark:text-brand-400 text-2xl font-bold">{user?.firstName?.[0]}{user?.lastName?.[0]}</span>
+                  </div>
+                )}
+                <span className="absolute inset-0 rounded-full bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white text-[10px] font-medium transition-opacity">
+                  {avatarMutation.isPending ? '...' : '📷 Edit'}
+                </span>
+              </button>
               <div>
                 <p className="font-semibold text-gray-900 dark:text-white">{user?.firstName} {user?.lastName}</p>
                 <p className="text-sm text-gray-500 capitalize">{user?.role?.replace('_', ' ')} • {user?.department}</p>
                 <p className="text-xs text-gray-400">{user?.email}</p>
+                <button
+                  type="button"
+                  onClick={() => avatarInputRef.current?.click()}
+                  className="text-xs text-brand-600 hover:text-brand-700 font-medium mt-1"
+                >
+                  Change photo
+                </button>
               </div>
             </div>
             <div className="grid grid-cols-2 gap-4">

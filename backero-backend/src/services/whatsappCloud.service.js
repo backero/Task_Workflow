@@ -52,6 +52,10 @@ async function sendTemplate(phone, templateName, components) {
     return false;
   }
   const to = toWhatsAppId(phone);
+  if (to.length < 11 || to.length > 15) {
+    logger.warn(`[WhatsApp Cloud] Skipping ${templateName} — invalid phone "${phone}"`);
+    return false;
+  }
   const phoneNumberId = process.env.WHATSAPP_CLOUD_PHONE_NUMBER_ID;
 
   const payload = {

@@ -1,10 +1,11 @@
-import { useState } from 'react';
+import { useState, Fragment } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { format, formatDistanceToNowStrict } from 'date-fns';
 import clsx from 'clsx';
 import toast from 'react-hot-toast';
 import api from '../../api/axios';
 import { FONT_IMPORT, PILL, SUB_STAGE_PILL } from './SampleProduction';
+import { customerId } from '../../utils/leadHelpers';
 
 // Full per-lead "Sample Development" window — mirrors the reference design's 7-tab customer
 // window (Overview / Q&A / Products / Formulas / Samples / Payments / Approvals). Everything
@@ -22,15 +23,23 @@ const accentBtn = 'inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-[#
 const outlineBtn = 'inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full border-[1.5px] border-[#d3c9b4] text-[#6d5f4c] text-xs font-semibold hover:bg-[#e7dfce] hover:border-[#968871] hover:text-[#2e241b] transition';
 const textLink = 'text-xs font-semibold text-[#4a3a29] hover:text-[#2e241b]';
 
-export default function SampleLeadDetail({ leadId, onClose }) {
+export default function SampleLeadDetail({ leadId, onClose, initialTab }) {
   const qc = useQueryClient();
-  const [tab, setTab] = useState('Overview');
+  const [tab, setTab] = useState(initialTab || 'Overview');
 
   // Q&A
   const [showRaiseForm, setShowRaiseForm] = useState(false);
   const [queryTitle, setQueryTitle] = useState('');
   const [queryDesc, setQueryDesc] = useState('');
   const [queryUrgency, setQueryUrgency] = useState('medium');
+  const [queryContactName, setQueryContactName] = useState('');
+  const [queryContactEmail, setQueryContactEmail] = useState('');
+  const [queryTargetPrice, setQueryTargetPrice] = useState('');
+  const [queryBenchmarkNotes, setQueryBenchmarkNotes] = useState('');
+  const [queryPackagingIntent, setQueryPackagingIntent] = useState('');
+  const [queryInternalNotes, setQueryInternalNotes] = useState('');
+  const [queryCatalogSearch, setQueryCatalogSearch] = useState('');
+  const [querySelectedCatalogProduct, setQuerySelectedCatalogProduct] = useState(null);
   const [replyDrafts, setReplyDrafts] = useState({});
 
   // Products
@@ -45,8 +54,21 @@ export default function SampleLeadDetail({ leadId, onClose }) {
   const [formulaName, setFormulaName] = useState('');
   const [formulaProductLink, setFormulaProductLink] = useState('');
   const [formulaCost, setFormulaCost] = useState('');
+  const [formulaRefWeight, setFormulaRefWeight] = useState(100);
+  const [formulaRefUnit, setFormulaRefUnit] = useState('g');
+  const [formulaProcedure, setFormulaProcedure] = useState('');
   const [rmSearch, setRmSearch] = useState('');
   const [formulaRows, setFormulaRows] = useState([]);
+  const [expandedFormulaId, setExpandedFormulaId] = useState(null);
+
+  // Editing an EXISTING formula's current version — locked out once that version is
+  // Accepted/Archived (only cloning to a new version is still allowed at that point).
+  const [editingFormulaId, setEditingFormulaId] = useState(null);
+  const [editRows, setEditRows] = useState([]);
+  const [editRefWeight, setEditRefWeight] = useState(100);
+  const [editRefUnit, setEditRefUnit] = useState('g');
+  const [editProcedure, setEditProcedure] = useState('');
+  const [editRmSearch, setEditRmSearch] = useState('');
 
   // Move to Production — creates the Batch Tracker order in the same step, no separate
   // "Send to Production" visit required.
@@ -58,7 +80,7 @@ export default function SampleLeadDetail({ leadId, onClose }) {
   const { data: catalogProducts } = useQuery({
     queryKey: ['catalog', 'products', 'all'],
     queryFn: () => api.get('/catalog/products').then((r) => r.data.products || []),
-    enabled: showProductForm || showMoveModal,
+    enabled: showProductForm || showMoveModal || showRaiseForm,
     staleTime: 5 * 60 * 1000,
   });
   const catalogMatches = prodSearch
@@ -67,26 +89,49 @@ export default function SampleLeadDetail({ leadId, onClose }) {
   const moveCatalogMatches = moveCatalogSearch
     ? (catalogProducts || []).filter((p) => (p.name || '').toLowerCase().includes(moveCatalogSearch.toLowerCase()) || (p.code || '').toLowerCase().includes(moveCatalogSearch.toLowerCase()))
     : (catalogProducts || []);
+  const queryCatalogMatches = queryCatalogSearch
+    ? (catalogProducts || []).filter((p) => (p.name || '').toLowerCase().includes(queryCatalogSearch.toLowerCase()) || (p.code || '').toLowerCase().includes(queryCatalogSearch.toLowerCase()))
+    : (catalogProducts || []);
 
   const { data: rawMaterials } = useQuery({
     queryKey: ['inventory', 'raw-materials', 'all'],
     queryFn: () => api.get('/inventory/raw-materials').then((r) => r.data.materials || []),
-    enabled: showFormulaForm,
+    enabled: showFormulaForm || !!editingFormulaId,
     staleTime: 5 * 60 * 1000,
   });
   const rmMatches = rmSearch
     ? (rawMaterials || []).filter((m) => (m.name || '').toLowerCase().includes(rmSearch.toLowerCase()))
     : (rawMaterials || []);
+  const editRmMatches = editRmSearch
+    ? (rawMaterials || []).filter((m) => (m.name || '').toLowerCase().includes(editRmSearch.toLowerCase()))
+    : (rawMaterials || []);
   const formulaRowsCost = formulaRows.reduce((sum, r) => sum + (Number(r.quantity) || 0) * (Number(r.costPerUnit) || 0), 0);
+  const editRowsCost = editRows.reduce((sum, r) => sum + (Number(r.quantity) || 0) * (Number(r.costPerUnit) || 0), 0);
 
   // Samples
   const [showSampleForm, setShowSampleForm] = useState(false);
   const [newSampleFormulaId, setNewSampleFormulaId] = useState('');
   const [newSampleChainedFrom, setNewSampleChainedFrom] = useState('');
+  const [newSampleNotes, setNewSampleNotes] = useState('');
   const [openSampleId, setOpenSampleId] = useState(null);
-  const [rejectFor, setRejectFor] = useState(null);
-  const [rejectReason, setRejectReason] = useState('');
   const [feedbackDraft, setFeedbackDraft] = useState('');
+
+  // Stage-transition modals — dispatch/feedback/approve/reject each gate a subStage move
+  // behind capturing the data the mockup requires for that step (courier info, feedback
+  // text, packaging confirmation, rejection reason) instead of a bare status flip.
+  const [courierModalFor, setCourierModalFor] = useState(null);
+  const [courierName, setCourierName] = useState('');
+  const [courierAwb, setCourierAwb] = useState('');
+  const [courierSentDate, setCourierSentDate] = useState('');
+  const [feedbackModalFor, setFeedbackModalFor] = useState(null);
+  const [feedbackModalText, setFeedbackModalText] = useState('');
+  const [approveModalFor, setApproveModalFor] = useState(null);
+  const [approvePackaging, setApprovePackaging] = useState(false);
+  const [approveContactName, setApproveContactName] = useState('');
+  const [rejectModalFor, setRejectModalFor] = useState(null);
+  const [rejectReasonModal, setRejectReasonModal] = useState('');
+  const [rejectCloneFollowUp, setRejectCloneFollowUp] = useState(true);
+  const [rejectContactName, setRejectContactName] = useState('');
 
   const { data: lead, isLoading } = useQuery({
     queryKey: ['crm', 'lead', leadId],
@@ -108,7 +153,13 @@ export default function SampleLeadDetail({ leadId, onClose }) {
 
   const raiseMutation = useMutation({
     mutationFn: (body) => api.post(`/crm/leads/${leadId}/query`, body),
-    onSuccess: () => { toast.success('Query raised'); setQueryTitle(''); setQueryDesc(''); setShowRaiseForm(false); invalidate(); },
+    onSuccess: () => {
+      toast.success('Query raised');
+      setQueryTitle(''); setQueryDesc(''); setQueryContactName(''); setQueryContactEmail('');
+      setQueryTargetPrice(''); setQueryBenchmarkNotes(''); setQueryPackagingIntent(''); setQueryInternalNotes('');
+      setQueryCatalogSearch(''); setQuerySelectedCatalogProduct(null);
+      setShowRaiseForm(false); invalidate();
+    },
     onError: (e) => toast.error(e.response?.data?.message || 'Failed to raise query'),
   });
 
@@ -138,19 +189,19 @@ export default function SampleLeadDetail({ leadId, onClose }) {
 
   const createFormulaMutation = useMutation({
     mutationFn: (body) => api.post(`/crm/leads/${leadId}/formulas`, body),
-    onSuccess: () => { toast.success('Formula created'); setFormulaName(''); setFormulaProductLink(''); setFormulaCost(''); setFormulaRows([]); setShowFormulaForm(false); invalidate(); },
+    onSuccess: () => { toast.success('Formula created'); setFormulaName(''); setFormulaProductLink(''); setFormulaCost(''); setFormulaRefWeight(100); setFormulaRefUnit('g'); setFormulaProcedure(''); setFormulaRows([]); setShowFormulaForm(false); invalidate(); },
     onError: (e) => toast.error(e.response?.data?.message || 'Failed to create formula'),
   });
 
   const updateFormulaMutation = useMutation({
     mutationFn: ({ formulaId, ...body }) => api.put(`/crm/leads/${leadId}/formulas/${formulaId}`, body),
-    onSuccess: () => { toast.success('Formula updated'); invalidate(); },
+    onSuccess: () => { toast.success('Formula updated'); setEditingFormulaId(null); invalidate(); },
     onError: (e) => toast.error(e.response?.data?.message || 'Failed to update formula'),
   });
 
   const createSampleMutation = useMutation({
     mutationFn: (body) => api.post(`/crm/leads/${leadId}/samples`, body),
-    onSuccess: () => { toast.success('Sample created'); setShowSampleForm(false); setNewSampleFormulaId(''); setNewSampleChainedFrom(''); invalidate(); },
+    onSuccess: () => { toast.success('Sample created'); setShowSampleForm(false); setNewSampleFormulaId(''); setNewSampleChainedFrom(''); setNewSampleNotes(''); invalidate(); },
     onError: (e) => toast.error(e.response?.data?.message || 'Failed to create sample'),
   });
 
@@ -162,7 +213,7 @@ export default function SampleLeadDetail({ leadId, onClose }) {
 
   const sampleStatusMutation = useMutation({
     mutationFn: ({ sampleId, ...body }) => api.put(`/crm/leads/${leadId}/samples/${sampleId}/status`, body),
-    onSuccess: () => { toast.success('Sample status updated'); setRejectFor(null); setRejectReason(''); invalidate(); },
+    onSuccess: () => { toast.success('Sample status updated'); invalidate(); },
     onError: (e) => toast.error(e.response?.data?.message || 'Failed to update status'),
   });
 
@@ -170,6 +221,52 @@ export default function SampleLeadDetail({ leadId, onClose }) {
     mutationFn: ({ sampleId, text }) => api.post(`/crm/leads/${leadId}/samples/${sampleId}/feedback`, { text }),
     onSuccess: () => { toast.success('Feedback logged'); setFeedbackDraft(''); invalidate(); },
     onError: (e) => toast.error(e.response?.data?.message || 'Failed to log feedback'),
+  });
+
+  const dispatchMutation = useMutation({
+    mutationFn: async ({ sampleId, courier, awb, sentAt }) => {
+      await api.put(`/crm/leads/${leadId}/samples/${sampleId}`, { courier, awb, sentAt });
+      return api.put(`/crm/leads/${leadId}/samples/${sampleId}/status`, { status: 'Sent' });
+    },
+    onSuccess: () => { toast.success('Sample dispatched'); setCourierModalFor(null); invalidate(); },
+    onError: (e) => toast.error(e.response?.data?.message || 'Failed to dispatch sample'),
+  });
+
+  const feedbackTransitionMutation = useMutation({
+    mutationFn: async ({ sampleId, text }) => {
+      await api.post(`/crm/leads/${leadId}/samples/${sampleId}/feedback`, { text });
+      return api.put(`/crm/leads/${leadId}/samples/${sampleId}/status`, { status: 'Feedback' });
+    },
+    onSuccess: () => { toast.success('Feedback logged'); setFeedbackModalFor(null); invalidate(); },
+    onError: (e) => toast.error(e.response?.data?.message || 'Failed to log feedback'),
+  });
+
+  const approveMutation = useMutation({
+    mutationFn: async ({ sampleId, packagingConfirmed, formulaId, approvedByContact }) => {
+      if (packagingConfirmed) await api.put(`/crm/leads/${leadId}/samples/${sampleId}`, { packagingConfirmed: true });
+      await api.put(`/crm/leads/${leadId}/samples/${sampleId}/status`, { status: 'Approved', approvedByContact: approvedByContact || undefined });
+      if (formulaId) await api.put(`/crm/leads/${leadId}/formulas/${formulaId}`, { status: 'Accepted' });
+    },
+    onSuccess: () => { toast.success('Sample approved'); setApproveModalFor(null); setApproveContactName(''); invalidate(); },
+    onError: (e) => toast.error(e.response?.data?.message || 'Failed to approve sample'),
+  });
+
+  const rejectMutation = useMutation({
+    mutationFn: async ({ sampleId, rejectionReason, cloneFollowUp, formulaId, rejectedByContact }) => {
+      await api.put(`/crm/leads/${leadId}/samples/${sampleId}/status`, { status: 'Rejected', rejectionReason, rejectedByContact: rejectedByContact || undefined });
+      if (cloneFollowUp) {
+        if (formulaId) await api.put(`/crm/leads/${leadId}/formulas/${formulaId}`, { bumpVersion: true });
+        await api.post(`/crm/leads/${leadId}/samples`, { formulaId: formulaId || undefined, chainedFrom: sampleId });
+      }
+    },
+    onSuccess: () => { toast.success('Sample rejected'); setRejectModalFor(null); setRejectContactName(''); invalidate(); },
+    onError: (e) => toast.error(e.response?.data?.message || 'Failed to reject sample'),
+  });
+
+  const deleteProductMutation = useMutation({
+    mutationFn: (productId) => api.delete(`/crm/leads/${leadId}/products/${productId}`),
+    onSuccess: () => { toast.success('Product link removed'); invalidate(); },
+    onError: (e) => toast.error(e.response?.data?.message || 'Failed to remove product link'),
   });
 
   const moveToProductionMutation = useMutation({
@@ -208,7 +305,10 @@ export default function SampleLeadDetail({ leadId, onClose }) {
       <div className="relative bg-[#f0eadd] rounded-2xl shadow-[0_10px_40px_rgba(46,36,27,0.16)] w-full max-w-4xl border border-[#d3c9b4] flex flex-col" style={{ maxHeight: '90vh' }}>
         <div className="p-5 border-b border-[#e2dac8] bg-[#e7dfce] flex items-center justify-between flex-shrink-0 rounded-t-2xl">
           <div>
-            <h3 className="font-bold text-[#2e241b]" style={displayFont}>{lead?.name || 'Loading…'}</h3>
+            <div className="flex items-center gap-2">
+              <h3 className="font-bold text-[#2e241b]" style={displayFont}>{lead?.name || 'Loading…'}</h3>
+              {lead && <span className="font-mono text-[10px] font-semibold px-1.5 py-0.5 rounded bg-[#ddd3be] text-[#4a3a29]">{customerId(lead)}</span>}
+            </div>
             <p className="text-xs text-[#6d5f4c]">{lead?.company || '—'} · {lead?.phone}</p>
           </div>
           <button onClick={onClose} className="w-9 h-9 rounded-lg hover:bg-[#ddd3be] flex items-center justify-center text-[#968871] hover:text-[#2e241b] text-lg">✕</button>
@@ -295,6 +395,37 @@ export default function SampleLeadDetail({ leadId, onClose }) {
                 <div className="p-3 rounded-[10px] border-[1.5px] border-dashed border-[#d3c9b4] bg-[#e7dfce] space-y-2">
                   <input value={queryTitle} onChange={(e) => setQueryTitle(e.target.value)} placeholder="Query title" className={clsx(inputCls, 'w-full')} />
                   <textarea value={queryDesc} onChange={(e) => setQueryDesc(e.target.value)} placeholder="Describe the question…" rows={2} className={clsx(inputCls, 'w-full')} />
+                  <div className="grid grid-cols-2 gap-2">
+                    <input value={queryContactName} onChange={(e) => setQueryContactName(e.target.value)} placeholder="Contact person name" className={inputCls} />
+                    <input value={queryContactEmail} onChange={(e) => setQueryContactEmail(e.target.value)} placeholder="Contact email" className={inputCls} />
+                  </div>
+                  <div>
+                    <input
+                      value={querySelectedCatalogProduct ? querySelectedCatalogProduct.name : queryCatalogSearch}
+                      onChange={(e) => { setQueryCatalogSearch(e.target.value); setQuerySelectedCatalogProduct(null); }}
+                      placeholder="Link a catalog product (optional)…"
+                      className={clsx(inputCls, 'w-full')}
+                    />
+                    {queryCatalogSearch && !querySelectedCatalogProduct && (
+                      <div className="mt-1 rounded-[10px] border border-[#d3c9b4] bg-[#f0eadd] max-h-32 overflow-y-auto">
+                        {queryCatalogMatches.length === 0 && <div className="px-3 py-2 text-xs text-[#968871]">No catalog match.</div>}
+                        {queryCatalogMatches.slice(0, 8).map((p) => (
+                          <button key={p._id} type="button"
+                            onClick={() => { setQuerySelectedCatalogProduct(p); setQueryCatalogSearch(''); }}
+                            className="w-full text-left px-3 py-2 text-xs hover:bg-[#e7dfce] flex justify-between">
+                            <span className="text-[#2e241b]">{p.name}</span>
+                            <span className="text-[#968871] font-mono">{p.code}</span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <input value={queryTargetPrice} onChange={(e) => setQueryTargetPrice(e.target.value)} type="number" placeholder="Target price (₹/unit)" className={inputCls} />
+                    <input value={queryPackagingIntent} onChange={(e) => setQueryPackagingIntent(e.target.value)} placeholder="Packaging intent" className={inputCls} />
+                  </div>
+                  <textarea value={queryBenchmarkNotes} onChange={(e) => setQueryBenchmarkNotes(e.target.value)} placeholder="Benchmark / reference notes…" rows={2} className={clsx(inputCls, 'w-full')} />
+                  <textarea value={queryInternalNotes} onChange={(e) => setQueryInternalNotes(e.target.value)} placeholder="Internal notes (not shared with customer)…" rows={2} className={clsx(inputCls, 'w-full')} />
                   <div className="flex items-center gap-2">
                     <select value={queryUrgency} onChange={(e) => setQueryUrgency(e.target.value)} className={inputCls}>
                       <option value="low">Low</option>
@@ -304,7 +435,18 @@ export default function SampleLeadDetail({ leadId, onClose }) {
                     <button
                       onClick={() => {
                         if (!queryTitle.trim() || !queryDesc.trim()) { toast.error('Title and description required'); return; }
-                        raiseMutation.mutate({ title: queryTitle.trim(), description: queryDesc.trim(), urgency: queryUrgency });
+                        raiseMutation.mutate({
+                          title: queryTitle.trim(),
+                          description: queryDesc.trim(),
+                          urgency: queryUrgency,
+                          contactName: queryContactName.trim() || undefined,
+                          contactEmail: queryContactEmail.trim() || undefined,
+                          linkedCatalogProductId: querySelectedCatalogProduct?._id,
+                          targetPrice: queryTargetPrice ? Number(queryTargetPrice) : undefined,
+                          benchmarkNotes: queryBenchmarkNotes.trim() || undefined,
+                          packagingIntent: queryPackagingIntent.trim() || undefined,
+                          internalNotes: queryInternalNotes.trim() || undefined,
+                        });
                       }}
                       disabled={raiseMutation.isPending}
                       className={clsx(accentBtn, 'ml-auto')}
@@ -330,6 +472,15 @@ export default function SampleLeadDetail({ leadId, onClose }) {
                   </div>
                   <p className="text-sm font-semibold text-[#2e241b]">{q.title}</p>
                   <p className="text-sm text-[#6d5f4c]">{q.description}</p>
+                  {(q.contactName || q.contactEmail || q.targetPrice || q.benchmarkNotes || q.packagingIntent || q.internalNotes) && (
+                    <div className="text-[11px] text-[#6d5f4c] bg-[#e7dfce] rounded-lg p-2 space-y-0.5">
+                      {q.contactName && <p>Contact: <span className="text-[#2e241b] font-medium">{q.contactName}</span>{q.contactEmail && ` · ${q.contactEmail}`}</p>}
+                      {q.targetPrice > 0 && <p>Target price: ₹{q.targetPrice.toLocaleString('en-IN')}/unit</p>}
+                      {q.packagingIntent && <p>Packaging: {q.packagingIntent}</p>}
+                      {q.benchmarkNotes && <p>Benchmark: {q.benchmarkNotes}</p>}
+                      {q.internalNotes && <p className="italic">Internal: {q.internalNotes}</p>}
+                    </div>
+                  )}
                   {q.answer ? (
                     <div className={clsx('p-2 rounded-lg text-sm text-[#2e241b]', PILL.success)}>
                       <p className="text-[11px] text-[#3a5f3c] font-semibold mb-0.5">
@@ -437,32 +588,55 @@ export default function SampleLeadDetail({ leadId, onClose }) {
                       </tr>
                     </thead>
                     <tbody>
-                      {products.map((p) => (
+                      {products.map((p) => {
+                        const quoted = p.priceStatus === 'Pending' && p.approxPrice > 0;
+                        return (
                         <tr key={p.productId} className="border-b border-[#e2dac8]">
                           <td className="px-3 py-2"><span className="font-mono text-xs text-[#6d5f4c]">{p.productId}</span><p className="text-[#2e241b] font-medium">{p.name}</p></td>
                           <td className="px-3 py-2 text-xs text-[#6d5f4c]">{p.basis}</td>
-                          <td className="px-3 py-2 text-xs">₹{p.approxPrice.toLocaleString('en-IN')}</td>
+                          <td className="px-3 py-2 text-xs">
+                            <input
+                              type="number"
+                              defaultValue={p.approxPrice}
+                              onBlur={(e) => { const v = Number(e.target.value) || 0; if (v !== p.approxPrice) updateProductMutation.mutate({ productId: p.productId, approxPrice: v }); }}
+                              className="w-20 px-1.5 py-0.5 rounded border border-[#d3c9b4] bg-white text-xs"
+                            />
+                          </td>
                           <td className="px-3 py-2">
-                            <select value={p.priceStatus} onChange={(e) => updateProductMutation.mutate({ productId: p.productId, priceStatus: e.target.value })}
-                              className="text-[10px] font-semibold rounded-full px-2 py-0.5 border border-[#d3c9b4] bg-[#f0eadd] text-[#4a3a29]">
-                              <option value="Pending">Pending</option>
-                              <option value="Accepted">Accepted</option>
-                              <option value="Rejected">Rejected</option>
-                            </select>
+                            <span className={clsx('text-[10px] font-semibold px-2 py-0.5 rounded-full',
+                              p.priceStatus === 'Accepted' ? PILL.success : p.priceStatus === 'Rejected' ? PILL.danger : quoted ? PILL.warning : PILL.gray)}>
+                              {p.priceStatus === 'Accepted' || p.priceStatus === 'Rejected' ? p.priceStatus : quoted ? 'Quoted' : 'Not Quoted'}
+                            </span>
+                            {quoted && (
+                              <div className="flex items-center gap-2 mt-1">
+                                <button onClick={() => updateProductMutation.mutate({ productId: p.productId, priceStatus: 'Accepted' })} className={textLink}>Accept Price</button>
+                                <button onClick={() => updateProductMutation.mutate({ productId: p.productId, priceStatus: 'Rejected' })} className={clsx(textLink, 'text-[#8c3a30]')}>Reject</button>
+                              </div>
+                            )}
                           </td>
                           <td className="px-3 py-2">
                             <span className={clsx('text-[10px] font-semibold px-2 py-0.5 rounded-full', p.paymentStatus === 'full_paid' ? PILL.success : PILL.warning)}>
                               {p.paymentStatus === 'full_paid' ? 'Paid' : 'Pending'}
                             </span>
                           </td>
-                          <td className="px-3 py-2 text-right">
-                            {p.paymentStatus !== 'full_paid' && (
+                          <td className="px-3 py-2 text-right whitespace-nowrap">
+                            {p.paymentStatus !== 'full_paid' ? (
                               <button onClick={() => updateProductMutation.mutate({ productId: p.productId, paymentStatus: 'full_paid' })}
-                                className={textLink}>Mark Paid</button>
+                                className={clsx(textLink, 'mr-3')}>Mark Paid</button>
+                            ) : (
+                              <button onClick={() => updateProductMutation.mutate({ productId: p.productId, paymentStatus: 'pending' })}
+                                className={clsx(textLink, 'mr-3')}>Revoke</button>
                             )}
+                            <button
+                              onClick={() => { if (confirm(`Remove ${p.name} from this lead?`)) deleteProductMutation.mutate(p.productId); }}
+                              className="text-[#8c3a30] font-semibold hover:opacity-70"
+                            >
+                              Delete
+                            </button>
                           </td>
                         </tr>
-                      ))}
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>
@@ -482,16 +656,54 @@ export default function SampleLeadDetail({ leadId, onClose }) {
                   <input value={formulaName} onChange={(e) => setFormulaName(e.target.value)} placeholder="Formula name, e.g. Vitamin C Serum 15% + Ferulic" className={clsx(inputCls, 'w-full')} />
                   <input value={formulaProductLink} onChange={(e) => setFormulaProductLink(e.target.value)} placeholder="Product link (optional)" className={clsx(inputCls, 'w-full')} />
 
+                  <div className="flex items-center gap-2">
+                    <label className="text-xs text-[#968871]">Batch / reference weight</label>
+                    <input type="number" min="1" value={formulaRefWeight} onChange={(e) => setFormulaRefWeight(e.target.value)} className="w-24 px-2 py-1 rounded border border-[#d3c9b4] bg-white text-xs" />
+                    <select value={formulaRefUnit} onChange={(e) => setFormulaRefUnit(e.target.value)} className="px-2 py-1 rounded border border-[#d3c9b4] bg-white text-xs">
+                      <option value="g">g</option>
+                      <option value="kg">kg</option>
+                      <option value="ml">ml</option>
+                      <option value="L">L</option>
+                    </select>
+                    <span className="text-xs text-[#968871]">used to convert each ingredient's % into quantity</span>
+                  </div>
+
                   <div>
                     <p className="text-xs font-semibold text-[#968871] uppercase tracking-wide mb-1">Ingredients (from Raw Materials)</p>
                     {formulaRows.length > 0 && (
                       <div className="space-y-1 mb-2">
                         {formulaRows.map((r, i) => (
-                          <div key={i} className="flex items-center gap-2 text-xs bg-[#f0eadd] rounded-lg px-2 py-1.5 border border-[#d3c9b4]">
-                            <span className="flex-1 text-[#2e241b]">{r.name}</span>
-                            <input type="number" value={r.quantity} onChange={(e) => setFormulaRows((rows) => rows.map((row, ri) => ri === i ? { ...row, quantity: e.target.value } : row))}
+                          <div key={i} className="flex items-center gap-2 text-xs bg-[#f0eadd] rounded-lg px-2 py-1.5 border border-[#d3c9b4] flex-wrap">
+                            <span className="flex-1 min-w-[100px] text-[#2e241b]">{r.name}</span>
+                            <input type="number" value={r.percent ?? ''} placeholder="%"
+                              onChange={(e) => {
+                                const percent = e.target.value;
+                                const qty = ((Number(percent) || 0) / 100 * (Number(formulaRefWeight) || 100) * (Number(r.conv) || 1));
+                                setFormulaRows((rows) => rows.map((row, ri) => ri === i ? { ...row, percent, quantity: qty.toFixed(3) } : row));
+                              }}
+                              className="w-14 px-2 py-1 rounded border border-[#d3c9b4] bg-white" />
+                            <span className="text-[#968871]">%</span>
+                            <input type="number" value={r.conv ?? 1} placeholder="Conv" title="Unit conversion factor"
+                              onChange={(e) => {
+                                const conv = e.target.value;
+                                const qty = ((Number(r.percent) || 0) / 100 * (Number(formulaRefWeight) || 100) * (Number(conv) || 1));
+                                setFormulaRows((rows) => rows.map((row, ri) => ri === i ? { ...row, conv, quantity: qty.toFixed(3) } : row));
+                              }}
+                              className="w-14 px-2 py-1 rounded border border-[#d3c9b4] bg-white" />
+                            <input type="number" value={r.quantity}
+                              onChange={(e) => {
+                                const quantity = e.target.value;
+                                const pct = Number(formulaRefWeight) ? ((Number(quantity) || 0) / Number(formulaRefWeight) * 100).toFixed(2) : r.percent;
+                                setFormulaRows((rows) => rows.map((row, ri) => ri === i ? { ...row, quantity, percent: pct } : row));
+                              }}
                               className="w-20 px-2 py-1 rounded border border-[#d3c9b4] bg-white" />
                             <span className="text-[#968871] w-6">{r.unit}</span>
+                            <input value={r.phase || ''} placeholder="Phase"
+                              onChange={(e) => setFormulaRows((rows) => rows.map((row, ri) => ri === i ? { ...row, phase: e.target.value } : row))}
+                              className="w-16 px-2 py-1 rounded border border-[#d3c9b4] bg-white" />
+                            <input value={r.notes || ''} placeholder="Notes"
+                              onChange={(e) => setFormulaRows((rows) => rows.map((row, ri) => ri === i ? { ...row, notes: e.target.value } : row))}
+                              className="w-24 px-2 py-1 rounded border border-[#d3c9b4] bg-white" />
                             <span className="text-[#6d5f4c] w-16 text-right">₹{r.costPerUnit}/{r.unit}</span>
                             <button type="button" onClick={() => setFormulaRows((rows) => rows.filter((_, ri) => ri !== i))} className="text-[#8c3a30] hover:opacity-70">✕</button>
                           </div>
@@ -509,7 +721,7 @@ export default function SampleLeadDetail({ leadId, onClose }) {
                         {rmMatches.length === 0 && <div className="px-3 py-2 text-xs text-[#968871]">No raw material found.</div>}
                         {rmMatches.slice(0, 8).map((m) => (
                           <button key={m._id} type="button"
-                            onClick={() => { setFormulaRows((rows) => [...rows, { rawMaterialId: m._id, name: m.name, quantity: 0, unit: m.unit || 'g', costPerUnit: m.costPrice || 0 }]); setRmSearch(''); }}
+                            onClick={() => { setFormulaRows((rows) => [...rows, { rawMaterialId: m._id, name: m.name, quantity: 0, percent: '', conv: 1, phase: '', notes: '', unit: m.unit || 'g', costPerUnit: m.costPrice || 0 }]); setRmSearch(''); }}
                             className="w-full text-left px-3 py-2 text-xs hover:bg-[#e7dfce] flex justify-between">
                             <span className="text-[#2e241b]">{m.name}</span>
                             <span className="text-[#968871]">₹{m.costPrice || 0}/{m.unit}</span>
@@ -519,12 +731,27 @@ export default function SampleLeadDetail({ leadId, onClose }) {
                     )}
                   </div>
 
+                  {formulaRows.length > 0 && (() => {
+                    const totalPercent = formulaRows.reduce((s, r) => s + (Number(r.percent) || 0), 0);
+                    const totalQty = formulaRows.reduce((s, r) => s + (Number(r.quantity) || 0), 0);
+                    const costPerUnit = Number(formulaRefWeight) ? formulaRowsCost / Number(formulaRefWeight) : 0;
+                    const off = Math.abs(totalPercent - 100) > 0.5;
+                    return (
+                      <div className={clsx('flex items-center gap-4 flex-wrap text-xs px-3 py-2 rounded-lg', off ? (totalPercent > 100 ? PILL.danger : PILL.warning) : PILL.success)}>
+                        <span>Total %: <strong>{totalPercent.toFixed(1)}%</strong></span>
+                        <span>Total Qty: <strong>{totalQty.toFixed(2)} {formulaRefUnit}</strong></span>
+                        <span>Batch Amount: <strong>₹{formulaRowsCost.toFixed(2)}</strong></span>
+                        <span>Cost/Unit: <strong>₹{costPerUnit.toFixed(2)}</strong></span>
+                        {off && <span className="ml-auto font-semibold">{totalPercent > 100 ? '⚠ Over 100%' : '⚠ Under 100%'}</span>}
+                      </div>
+                    );
+                  })()}
+
+                  <textarea value={formulaProcedure} onChange={(e) => setFormulaProcedure(e.target.value)} placeholder="Manufacturing procedure…" rows={2} className={clsx(inputCls, 'w-full')} />
+
                   <div className="flex items-center gap-2">
                     {formulaRows.length === 0 && (
                       <input value={formulaCost} onChange={(e) => setFormulaCost(e.target.value)} type="number" placeholder="Cost/unit (manual, if no ingredients)" className={clsx(inputCls, 'flex-1')} />
-                    )}
-                    {formulaRows.length > 0 && (
-                      <p className="text-sm font-semibold text-[#2e241b]">Computed cost: ₹{formulaRowsCost.toFixed(2)}</p>
                     )}
                     <button
                       onClick={() => {
@@ -532,7 +759,10 @@ export default function SampleLeadDetail({ leadId, onClose }) {
                         createFormulaMutation.mutate({
                           name: formulaName.trim(),
                           productLink: formulaProductLink.trim(),
-                          rows: formulaRows.length ? formulaRows.map((r) => ({ ...r, quantity: Number(r.quantity) || 0 })) : undefined,
+                          refWeight: Number(formulaRefWeight) || 100,
+                          refUnit: formulaRefUnit,
+                          procedure: formulaProcedure.trim() || undefined,
+                          rows: formulaRows.length ? formulaRows.map((r) => ({ rawMaterialId: r.rawMaterialId, name: r.name, quantity: Number(r.quantity) || 0, unit: r.unit, costPerUnit: r.costPerUnit, phase: r.phase || undefined, notes: r.notes || undefined, conv: Number(r.conv) || 1 })) : undefined,
                           costPerUnit: formulaRows.length ? undefined : Number(formulaCost) || 0,
                         });
                       }}
@@ -559,30 +789,190 @@ export default function SampleLeadDetail({ leadId, onClose }) {
                     <tbody>
                       {formulas.map((f) => {
                         const latest = f.versions[f.versions.length - 1];
+                        const currentLocked = latest?.status === 'Accepted' || latest?.status === 'Archived';
                         return (
-                          <tr key={f.formulaId} className="border-b border-[#e2dac8]">
-                            <td className="px-3 py-2 font-mono text-xs text-[#6d5f4c]">{f.formulaId}</td>
-                            <td className="px-3 py-2 text-[#2e241b] font-medium">{f.name}</td>
-                            <td className="px-3 py-2 text-xs text-[#968871]">{f.productLink || '—'}</td>
-                            <td className="px-3 py-2 text-xs">V{f.currentVersion}</td>
-                            <td className="px-3 py-2">
-                              <select value={latest?.status} onChange={(e) => updateFormulaMutation.mutate({ formulaId: f.formulaId, status: e.target.value })}
-                                className="text-[10px] font-semibold rounded-full px-2 py-0.5 border border-[#d3c9b4] bg-[#f0eadd] text-[#4a3a29]">
-                                <option value="Draft">Draft</option>
-                                <option value="In Testing">In Testing</option>
-                                <option value="Accepted">Accepted</option>
-                                <option value="Rejected">Rejected</option>
-                              </select>
-                            </td>
-                            <td className="px-3 py-2 text-xs">
-                              ₹{(latest?.costPerUnit || 0).toFixed(2)}
-                              {latest?.rows?.length > 0 && <p className="text-[10px] text-[#968871]">{latest.rows.length} ingredient(s)</p>}
-                            </td>
-                            <td className="px-3 py-2 text-right">
-                              <button onClick={() => updateFormulaMutation.mutate({ formulaId: f.formulaId, bumpVersion: true })}
-                                className={textLink}>+ Version</button>
-                            </td>
-                          </tr>
+                          <Fragment key={f.formulaId}>
+                            <tr className="border-b border-[#e2dac8]">
+                              <td className="px-3 py-2 font-mono text-xs text-[#6d5f4c]">{f.formulaId}</td>
+                              <td className="px-3 py-2 text-[#2e241b] font-medium">{f.name}</td>
+                              <td className="px-3 py-2 text-xs text-[#968871]">{f.productLink || '—'}</td>
+                              <td className="px-3 py-2 text-xs">V{f.currentVersion}</td>
+                              <td className="px-3 py-2">
+                                <select value={latest?.status} onChange={(e) => updateFormulaMutation.mutate({ formulaId: f.formulaId, status: e.target.value })}
+                                  className="text-[10px] font-semibold rounded-full px-2 py-0.5 border border-[#d3c9b4] bg-[#f0eadd] text-[#4a3a29]">
+                                  <option value="Draft">Draft</option>
+                                  <option value="In Testing">In Testing</option>
+                                  <option value="Accepted">Accepted</option>
+                                  <option value="Rejected">Rejected</option>
+                                  <option value="Archived">Archived</option>
+                                </select>
+                              </td>
+                              <td className="px-3 py-2 text-xs">
+                                ₹{(latest?.costPerUnit || 0).toFixed(2)}
+                                {latest?.rows?.length > 0 && <p className="text-[10px] text-[#968871]">{latest.rows.length} ingredient(s)</p>}
+                              </td>
+                              <td className="px-3 py-2 text-right whitespace-nowrap">
+                                <button
+                                  onClick={() => {
+                                    if (editingFormulaId === f.formulaId) { setEditingFormulaId(null); return; }
+                                    const refW = f.refWeight || 100;
+                                    setEditRows((latest?.rows || []).map((r) => ({ ...r, percent: refW ? ((Number(r.quantity) || 0) / refW * 100).toFixed(2) : '', conv: r.conv || 1 })));
+                                    setEditRefWeight(refW);
+                                    setEditRefUnit(f.refUnit || 'g');
+                                    setEditProcedure(latest?.procedure || '');
+                                    setEditingFormulaId(f.formulaId);
+                                    setExpandedFormulaId(null);
+                                  }}
+                                  className={clsx(textLink, 'mr-3')}
+                                >
+                                  {editingFormulaId === f.formulaId ? 'Close editor' : currentLocked ? '🔒 View ingredients' : '✏️ Edit ingredients'}
+                                </button>
+                                <button onClick={() => setExpandedFormulaId((id) => id === f.formulaId ? null : f.formulaId)} className={clsx(textLink, 'mr-3')}>
+                                  {expandedFormulaId === f.formulaId ? 'Hide history' : `History (${f.versions.length})`}
+                                </button>
+                                <button onClick={() => updateFormulaMutation.mutate({ formulaId: f.formulaId, bumpVersion: true })}
+                                  className={textLink}>+ Version</button>
+                              </td>
+                            </tr>
+                            {editingFormulaId === f.formulaId && (() => {
+                              const editTotalPercent = editRows.reduce((s, r) => s + (Number(r.percent) || 0), 0);
+                              const editOff = Math.abs(editTotalPercent - 100) > 0.5;
+                              return (
+                                <tr className="border-b border-[#e2dac8] bg-[#e7dfce]/60">
+                                  <td colSpan={7} className="px-3 py-3 space-y-2">
+                                    <div className="flex items-center justify-between">
+                                      <p className="text-xs font-semibold text-[#968871] uppercase tracking-wide">
+                                        Editing V{f.currentVersion} ingredients{currentLocked && <span className="text-[#8c3a30] ml-2">🔒 Locked — this version is {latest.status}. Clone to a new version to keep editing.</span>}
+                                      </p>
+                                    </div>
+                                    {!currentLocked && (
+                                      <div className="flex items-center gap-2">
+                                        <label className="text-xs text-[#968871]">Ref weight</label>
+                                        <input type="number" min="1" value={editRefWeight} onChange={(e) => setEditRefWeight(e.target.value)} className="w-24 px-2 py-1 rounded border border-[#d3c9b4] bg-white text-xs" />
+                                        <select value={editRefUnit} onChange={(e) => setEditRefUnit(e.target.value)} className="px-2 py-1 rounded border border-[#d3c9b4] bg-white text-xs">
+                                          <option value="g">g</option><option value="kg">kg</option><option value="ml">ml</option><option value="L">L</option>
+                                        </select>
+                                      </div>
+                                    )}
+                                    <div className="space-y-1">
+                                      {editRows.map((r, i) => (
+                                        <div key={i} className="flex items-center gap-2 text-xs bg-[#f0eadd] rounded-lg px-2 py-1.5 border border-[#d3c9b4] flex-wrap">
+                                          <span className="flex-1 min-w-[100px] text-[#2e241b]">{r.name}</span>
+                                          <input type="number" disabled={currentLocked} value={r.percent ?? ''} placeholder="%"
+                                            onChange={(e) => {
+                                              const percent = e.target.value;
+                                              const qty = ((Number(percent) || 0) / 100 * (Number(editRefWeight) || 100) * (Number(r.conv) || 1));
+                                              setEditRows((rows) => rows.map((row, ri) => ri === i ? { ...row, percent, quantity: qty.toFixed(3) } : row));
+                                            }}
+                                            className="w-14 px-2 py-1 rounded border border-[#d3c9b4] bg-white disabled:opacity-50" />
+                                          <span className="text-[#968871]">%</span>
+                                          <input type="number" disabled={currentLocked} value={r.conv ?? 1} title="Unit conversion factor"
+                                            onChange={(e) => {
+                                              const conv = e.target.value;
+                                              const qty = ((Number(r.percent) || 0) / 100 * (Number(editRefWeight) || 100) * (Number(conv) || 1));
+                                              setEditRows((rows) => rows.map((row, ri) => ri === i ? { ...row, conv, quantity: qty.toFixed(3) } : row));
+                                            }}
+                                            className="w-14 px-2 py-1 rounded border border-[#d3c9b4] bg-white disabled:opacity-50" />
+                                          <input type="number" disabled={currentLocked} value={r.quantity}
+                                            onChange={(e) => {
+                                              const quantity = e.target.value;
+                                              const pct = Number(editRefWeight) ? ((Number(quantity) || 0) / Number(editRefWeight) * 100).toFixed(2) : r.percent;
+                                              setEditRows((rows) => rows.map((row, ri) => ri === i ? { ...row, quantity, percent: pct } : row));
+                                            }}
+                                            className="w-20 px-2 py-1 rounded border border-[#d3c9b4] bg-white disabled:opacity-50" />
+                                          <span className="text-[#968871] w-6">{r.unit}</span>
+                                          <input disabled={currentLocked} value={r.phase || ''} placeholder="Phase"
+                                            onChange={(e) => setEditRows((rows) => rows.map((row, ri) => ri === i ? { ...row, phase: e.target.value } : row))}
+                                            className="w-16 px-2 py-1 rounded border border-[#d3c9b4] bg-white disabled:opacity-50" />
+                                          <input disabled={currentLocked} value={r.notes || ''} placeholder="Notes"
+                                            onChange={(e) => setEditRows((rows) => rows.map((row, ri) => ri === i ? { ...row, notes: e.target.value } : row))}
+                                            className="w-24 px-2 py-1 rounded border border-[#d3c9b4] bg-white disabled:opacity-50" />
+                                          <span className="text-[#6d5f4c] w-16 text-right">₹{r.costPerUnit}/{r.unit}</span>
+                                          {!currentLocked && (
+                                            <button type="button" onClick={() => setEditRows((rows) => rows.filter((_, ri) => ri !== i))} className="text-[#8c3a30] hover:opacity-70">✕</button>
+                                          )}
+                                        </div>
+                                      ))}
+                                    </div>
+                                    {!currentLocked && (
+                                      <>
+                                        <input
+                                          value={editRmSearch}
+                                          onChange={(e) => setEditRmSearch(e.target.value)}
+                                          placeholder="Search raw materials to add…"
+                                          className={clsx(inputCls, 'w-full bg-white')}
+                                        />
+                                        {editRmSearch && (
+                                          <div className="rounded-[10px] border border-[#d3c9b4] bg-white max-h-32 overflow-y-auto">
+                                            {editRmMatches.length === 0 && <div className="px-3 py-2 text-xs text-[#968871]">No raw material found.</div>}
+                                            {editRmMatches.slice(0, 8).map((m) => (
+                                              <button key={m._id} type="button"
+                                                onClick={() => { setEditRows((rows) => [...rows, { rawMaterialId: m._id, name: m.name, quantity: 0, percent: '', conv: 1, phase: '', notes: '', unit: m.unit || 'g', costPerUnit: m.costPrice || 0 }]); setEditRmSearch(''); }}
+                                                className="w-full text-left px-3 py-2 text-xs hover:bg-[#e7dfce] flex justify-between">
+                                                <span className="text-[#2e241b]">{m.name}</span>
+                                                <span className="text-[#968871]">₹{m.costPrice || 0}/{m.unit}</span>
+                                              </button>
+                                            ))}
+                                          </div>
+                                        )}
+                                        <div className={clsx('flex items-center gap-4 flex-wrap text-xs px-3 py-2 rounded-lg', editOff ? (editTotalPercent > 100 ? PILL.danger : PILL.warning) : PILL.success)}>
+                                          <span>Total %: <strong>{editTotalPercent.toFixed(1)}%</strong></span>
+                                          <span>Batch Amount: <strong>₹{editRowsCost.toFixed(2)}</strong></span>
+                                          <span>Cost/Unit: <strong>₹{(Number(editRefWeight) ? editRowsCost / Number(editRefWeight) : 0).toFixed(2)}</strong></span>
+                                          {editOff && <span className="ml-auto font-semibold">{editTotalPercent > 100 ? '⚠ Over 100%' : '⚠ Under 100%'}</span>}
+                                        </div>
+                                        <textarea value={editProcedure} onChange={(e) => setEditProcedure(e.target.value)} placeholder="Manufacturing procedure…" rows={2} className={clsx(inputCls, 'w-full bg-white')} />
+                                        <button
+                                          onClick={() => updateFormulaMutation.mutate({
+                                            formulaId: f.formulaId,
+                                            refUnit: editRefUnit,
+                                            procedure: editProcedure.trim() || undefined,
+                                            rows: editRows.map((r) => ({ rawMaterialId: r.rawMaterialId, name: r.name, quantity: Number(r.quantity) || 0, unit: r.unit, costPerUnit: r.costPerUnit, phase: r.phase || undefined, notes: r.notes || undefined, conv: Number(r.conv) || 1 })),
+                                          })}
+                                          disabled={updateFormulaMutation.isPending}
+                                          className={accentBtn}
+                                        >
+                                          {updateFormulaMutation.isPending ? 'Saving…' : 'Save changes'}
+                                        </button>
+                                      </>
+                                    )}
+                                    {currentLocked && latest?.procedure && (
+                                      <div>
+                                        <p className="text-[10px] text-[#968871] uppercase tracking-wide">Manufacturing procedure</p>
+                                        <p className="text-xs text-[#4a3a29] whitespace-pre-wrap">{latest.procedure}</p>
+                                      </div>
+                                    )}
+                                  </td>
+                                </tr>
+                              );
+                            })()}
+                            {expandedFormulaId === f.formulaId && (
+                              <tr className="border-b border-[#e2dac8] bg-[#e7dfce]/60">
+                                <td colSpan={7} className="px-3 py-3">
+                                  <p className="text-xs font-semibold text-[#968871] uppercase tracking-wide mb-2">Version history</p>
+                                  <div className="space-y-1.5">
+                                    {[...f.versions].reverse().map((v) => (
+                                      <div key={v.version} className="flex items-center justify-between gap-3 text-xs bg-[#f0eadd] rounded-lg px-3 py-2 border border-[#d3c9b4]">
+                                        <div className="flex items-center gap-2 flex-wrap">
+                                          <span className="font-semibold text-[#2e241b]">V{v.version}</span>
+                                          <span className={clsx('px-2 py-0.5 rounded-full font-semibold text-[10px]',
+                                            v.status === 'Accepted' ? PILL.success : v.status === 'Rejected' ? PILL.danger : v.status === 'Archived' ? PILL.gray : PILL.info)}>
+                                            {v.status}
+                                          </span>
+                                          <span className="text-[#968871]">₹{(v.costPerUnit || 0).toFixed(2)}/unit · {v.rows?.length || 0} ingredient(s)</span>
+                                          <span className="text-[#968871]">{v.createdAt ? format(new Date(v.createdAt), 'dd MMM yyyy') : ''}</span>
+                                        </div>
+                                        {(v.status === 'Draft' || v.status === 'In Testing') && v.version !== f.currentVersion && (
+                                          <button onClick={() => updateFormulaMutation.mutate({ formulaId: f.formulaId, version: v.version, status: 'Archived' })}
+                                            className="text-[#8c3a30] font-semibold hover:opacity-70 flex-shrink-0">🗄 Archive</button>
+                                        )}
+                                      </div>
+                                    ))}
+                                  </div>
+                                </td>
+                              </tr>
+                            )}
+                          </Fragment>
                         );
                       })}
                     </tbody>
@@ -605,18 +995,25 @@ export default function SampleLeadDetail({ leadId, onClose }) {
 
               {showSampleForm && (
                 <div className="p-3 rounded-[10px] border-[1.5px] border-dashed border-[#d3c9b4] bg-[#e7dfce] space-y-2">
+                  {formulas.length === 0 && (
+                    <p className="text-xs text-[#8c3a30]">No formulas yet — create one in the Formulas tab first. A sample must be linked to a formula.</p>
+                  )}
                   <select value={newSampleFormulaId} onChange={(e) => setNewSampleFormulaId(e.target.value)} className={clsx(inputCls, 'w-full')}>
-                    <option value="">— No formula linked —</option>
-                    {formulas.map((f) => <option key={f.formulaId} value={f.formulaId}>{f.formulaId} — {f.name}</option>)}
+                    <option value="">— Select a formula (required) —</option>
+                    {formulas.map((f) => <option key={f.formulaId} value={f.formulaId}>{f.formulaId} — {f.name} (V{f.currentVersion})</option>)}
                   </select>
+                  <textarea value={newSampleNotes} onChange={(e) => setNewSampleNotes(e.target.value)} placeholder="Lab notes…" rows={2} className={clsx(inputCls, 'w-full')} />
                   <div className="flex items-center gap-2">
                     <select value={newSampleChainedFrom} onChange={(e) => setNewSampleChainedFrom(e.target.value)} className={clsx(inputCls, 'flex-1')}>
                       <option value="">— Fresh sample (not chained) —</option>
                       {samples.filter((s) => s.status === 'Rejected').map((s) => <option key={s.sampleId} value={s.sampleId}>Chain from {s.sampleId} (V{s.version}, Rejected)</option>)}
                     </select>
                     <button
-                      onClick={() => createSampleMutation.mutate({ formulaId: newSampleFormulaId || undefined, chainedFrom: newSampleChainedFrom || undefined })}
-                      disabled={createSampleMutation.isPending}
+                      onClick={() => {
+                        if (!newSampleFormulaId) { toast.error('Select a formula for this sample'); return; }
+                        createSampleMutation.mutate({ formulaId: newSampleFormulaId, chainedFrom: newSampleChainedFrom || undefined, notes: newSampleNotes.trim() || undefined });
+                      }}
+                      disabled={createSampleMutation.isPending || !newSampleFormulaId}
                       className={accentBtn}
                     >
                       {createSampleMutation.isPending ? 'Creating…' : 'Create'}
@@ -686,7 +1083,14 @@ export default function SampleLeadDetail({ leadId, onClose }) {
                     <button
                       key={s}
                       disabled={locked || sampleStatusMutation.isPending}
-                      onClick={() => { if (s === 'Rejected') { setRejectFor(openSample.sampleId); return; } sampleStatusMutation.mutate({ sampleId: openSample.sampleId, status: s }); }}
+                      onClick={() => {
+                        if (locked) return;
+                        if (s === 'Sent') { setCourierModalFor(openSample.sampleId); setCourierName(openSample.courier || ''); setCourierAwb(openSample.awb || ''); setCourierSentDate(new Date().toISOString().slice(0, 10)); return; }
+                        if (s === 'Feedback') { setFeedbackModalFor(openSample.sampleId); setFeedbackModalText(''); return; }
+                        if (s === 'Approved') { setApproveModalFor(openSample.sampleId); setApprovePackaging(!!openSample.packagingConfirmed); return; }
+                        if (s === 'Rejected') { setRejectModalFor(openSample.sampleId); setRejectReasonModal(''); setRejectCloneFollowUp(true); return; }
+                        sampleStatusMutation.mutate({ sampleId: openSample.sampleId, status: s });
+                      }}
                       className={clsx('text-xs font-semibold px-2.5 py-1 rounded-full border-[1.5px] transition-colors', locked ? 'opacity-30 cursor-not-allowed border-[#d3c9b4] text-[#968871]' : 'border-[#d3c9b4] hover:border-[#968871] text-[#6d5f4c] hover:text-[#2e241b]')}
                     >
                       {locked ? '🔒 ' : ''}{s}
@@ -694,19 +1098,11 @@ export default function SampleLeadDetail({ leadId, onClose }) {
                   );
                 })}
               </div>
-              {rejectFor === openSample.sampleId && (
-                <div className="flex items-center gap-2">
-                  <input value={rejectReason} onChange={(e) => setRejectReason(e.target.value)} placeholder="Reason for rejection…" className={clsx(inputCls, 'flex-1')} />
-                  <button
-                    onClick={() => { if (!rejectReason.trim()) { toast.error('Reason required'); return; } sampleStatusMutation.mutate({ sampleId: openSample.sampleId, status: 'Rejected', rejectionReason: rejectReason.trim() }); }}
-                    className={accentBtn}
-                  >
-                    Confirm Reject
-                  </button>
-                </div>
-              )}
               {openSample.status === 'Rejected' && openSample.rejectionReason && (
-                <p className="text-xs text-[#8c3a30]">Reason: {openSample.rejectionReason}</p>
+                <p className="text-xs text-[#8c3a30]">Reason: {openSample.rejectionReason}{openSample.rejectedByContact && ` — rejected by ${openSample.rejectedByContact}`}</p>
+              )}
+              {openSample.status === 'Approved' && openSample.approvedByContact && (
+                <p className="text-xs text-[#3a5f3c]">Approved by {openSample.approvedByContact}</p>
               )}
               {openSample.status === 'Rejected' && (
                 <button
@@ -721,27 +1117,14 @@ export default function SampleLeadDetail({ leadId, onClose }) {
                 <div className="space-y-3">
                   <div>
                     <p className="text-xs font-semibold text-[#968871] uppercase tracking-wide mb-2">Courier</p>
-                    <div className="space-y-2">
-                      <input
-                        defaultValue={openSample.courier || ''}
-                        onBlur={(e) => { if (e.target.value !== openSample.courier) updateSampleMutation.mutate({ sampleId: openSample.sampleId, courier: e.target.value }); }}
-                        placeholder="Courier"
-                        className={clsx(inputCls, 'w-full')}
-                      />
-                      <input
-                        defaultValue={openSample.awb || ''}
-                        onBlur={(e) => { if (e.target.value !== openSample.awb) updateSampleMutation.mutate({ sampleId: openSample.sampleId, awb: e.target.value }); }}
-                        placeholder="Docket / AWB"
-                        className={clsx(inputCls, 'w-full')}
-                      />
-                      <button
-                        onClick={() => updateSampleMutation.mutate({ sampleId: openSample.sampleId, sentAt: new Date().toISOString() })}
-                        disabled={updateSampleMutation.isPending || !!openSample.sentAt}
-                        className={clsx(textLink, 'disabled:opacity-50')}
-                      >
-                        {openSample.sentAt ? `Sent ${format(new Date(openSample.sentAt), 'dd MMM yyyy')}` : 'Mark as Dispatched'}
-                      </button>
-                    </div>
+                    {openSample.sentAt ? (
+                      <div className="text-sm text-[#2e241b] space-y-0.5">
+                        <p>{openSample.courier || '—'}{openSample.awb && <span className="text-xs text-[#968871]"> · AWB {openSample.awb}</span>}</p>
+                        <p className="text-xs text-[#968871]">Sent {format(new Date(openSample.sentAt), 'dd MMM yyyy')}</p>
+                      </div>
+                    ) : (
+                      <p className="text-xs text-[#968871]">Not dispatched yet — move this sample to "Sent" to record courier details.</p>
+                    )}
                   </div>
 
                   <div>
@@ -750,6 +1133,17 @@ export default function SampleLeadDetail({ leadId, onClose }) {
                       <input type="checkbox" checked={openSample.packagingConfirmed} onChange={(e) => updateSampleMutation.mutate({ sampleId: openSample.sampleId, packagingConfirmed: e.target.checked })} />
                       Packaging confirmed by customer
                     </label>
+                  </div>
+
+                  <div>
+                    <p className="text-xs font-semibold text-[#968871] uppercase tracking-wide mb-2">Lab Notes</p>
+                    <textarea
+                      defaultValue={openSample.notes || ''}
+                      onBlur={(e) => { if (e.target.value !== (openSample.notes || '')) updateSampleMutation.mutate({ sampleId: openSample.sampleId, notes: e.target.value }); }}
+                      placeholder="Lab notes for this sample…"
+                      rows={2}
+                      className={clsx(inputCls, 'w-full')}
+                    />
                   </div>
 
                   <div>
@@ -800,10 +1194,15 @@ export default function SampleLeadDetail({ leadId, onClose }) {
                     {isPaid ? 'R&D fee paid' : 'R&D fee pending'}
                   </span>
                   <span className="text-xs text-[#968871]">₹{(sd.chargeAmount || 0).toLocaleString('en-IN')}</span>
-                  {!isPaid && (
+                  {!isPaid ? (
                     <button onClick={() => paymentMutation.mutate({ paymentStatus: 'full_paid' })} disabled={paymentMutation.isPending}
                       className={clsx(textLink, 'ml-auto')}>
                       Mark as Paid
+                    </button>
+                  ) : (
+                    <button onClick={() => paymentMutation.mutate({ paymentStatus: 'pending' })} disabled={paymentMutation.isPending}
+                      className={clsx(textLink, 'ml-auto')}>
+                      Revoke payment
                     </button>
                   )}
                 </div>
@@ -921,6 +1320,151 @@ export default function SampleLeadDetail({ leadId, onClose }) {
                   className={clsx(accentBtn, 'flex-1 justify-center')}
                 >
                   {moveToProductionMutation.isPending ? 'Moving…' : 'Confirm'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {courierModalFor && (
+        <div className="fixed inset-0 z-[80] flex items-center justify-center p-4" style={bodyFont}>
+          <div className="absolute inset-0 bg-[#2e241b]/50 backdrop-blur-sm" onClick={() => setCourierModalFor(null)} />
+          <div className="relative bg-[#f0eadd] rounded-2xl shadow-[0_10px_40px_rgba(46,36,27,0.16)] w-full max-w-md border border-[#d3c9b4]">
+            <div className="p-5 border-b border-[#e2dac8] bg-[#e7dfce] rounded-t-2xl">
+              <h3 className="font-bold text-[#2e241b]" style={displayFont}>🚚 Dispatch Sample</h3>
+              <p className="text-xs text-[#6d5f4c] mt-0.5">{courierModalFor} — record courier details to mark this sample Sent.</p>
+            </div>
+            <div className="p-5 space-y-3">
+              <div>
+                <label className="text-xs font-semibold text-[#968871] uppercase tracking-wide mb-1 block">Courier name</label>
+                <input value={courierName} onChange={(e) => setCourierName(e.target.value)} placeholder="BlueDart / Delhivery…" className={clsx(inputCls, 'w-full bg-white')} />
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-[#968871] uppercase tracking-wide mb-1 block">Docket / AWB no.</label>
+                <input value={courierAwb} onChange={(e) => setCourierAwb(e.target.value)} placeholder="AWB number" className={clsx(inputCls, 'w-full bg-white')} />
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-[#968871] uppercase tracking-wide mb-1 block">Sent date</label>
+                <input type="date" value={courierSentDate} onChange={(e) => setCourierSentDate(e.target.value)} className={clsx(inputCls, 'w-full bg-white')} />
+              </div>
+              <div className="flex gap-3 pt-1">
+                <button type="button" onClick={() => setCourierModalFor(null)} className={clsx(outlineBtn, 'flex-1 justify-center')}>Cancel</button>
+                <button
+                  onClick={() => {
+                    if (!courierName.trim() || !courierAwb.trim()) { toast.error('Courier name and AWB are required'); return; }
+                    dispatchMutation.mutate({ sampleId: courierModalFor, courier: courierName.trim(), awb: courierAwb.trim(), sentAt: courierSentDate ? new Date(courierSentDate).toISOString() : new Date().toISOString() });
+                  }}
+                  disabled={dispatchMutation.isPending}
+                  className={clsx(accentBtn, 'flex-1 justify-center')}
+                >
+                  {dispatchMutation.isPending ? 'Dispatching…' : 'Mark as Sent'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {feedbackModalFor && (
+        <div className="fixed inset-0 z-[80] flex items-center justify-center p-4" style={bodyFont}>
+          <div className="absolute inset-0 bg-[#2e241b]/50 backdrop-blur-sm" onClick={() => setFeedbackModalFor(null)} />
+          <div className="relative bg-[#f0eadd] rounded-2xl shadow-[0_10px_40px_rgba(46,36,27,0.16)] w-full max-w-md border border-[#d3c9b4]">
+            <div className="p-5 border-b border-[#e2dac8] bg-[#e7dfce] rounded-t-2xl">
+              <h3 className="font-bold text-[#2e241b]" style={displayFont}>💬 Log Customer Feedback</h3>
+              <p className="text-xs text-[#6d5f4c] mt-0.5">{feedbackModalFor} — moves this sample to "Feedback".</p>
+            </div>
+            <div className="p-5 space-y-3">
+              <textarea value={feedbackModalText} onChange={(e) => setFeedbackModalText(e.target.value)} rows={4} placeholder="What did the customer say?" className={clsx(inputCls, 'w-full bg-white')} />
+              <div className="flex gap-3 pt-1">
+                <button type="button" onClick={() => setFeedbackModalFor(null)} className={clsx(outlineBtn, 'flex-1 justify-center')}>Cancel</button>
+                <button
+                  onClick={() => {
+                    if (!feedbackModalText.trim()) { toast.error('Feedback cannot be empty'); return; }
+                    feedbackTransitionMutation.mutate({ sampleId: feedbackModalFor, text: feedbackModalText.trim() });
+                  }}
+                  disabled={feedbackTransitionMutation.isPending}
+                  className={clsx(accentBtn, 'flex-1 justify-center')}
+                >
+                  {feedbackTransitionMutation.isPending ? 'Saving…' : 'Log & Move to Feedback'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {approveModalFor && (
+        <div className="fixed inset-0 z-[80] flex items-center justify-center p-4" style={bodyFont}>
+          <div className="absolute inset-0 bg-[#2e241b]/50 backdrop-blur-sm" onClick={() => setApproveModalFor(null)} />
+          <div className="relative bg-[#f0eadd] rounded-2xl shadow-[0_10px_40px_rgba(46,36,27,0.16)] w-full max-w-md border border-[#d3c9b4]">
+            <div className="p-5 border-b border-[#e2dac8] bg-[#e7dfce] rounded-t-2xl">
+              <h3 className="font-bold text-[#2e241b]" style={displayFont}>✅ Approve Sample</h3>
+              <p className="text-xs text-[#6d5f4c] mt-0.5">
+                {approveModalFor}
+                {samples.find((s) => s.sampleId === approveModalFor)?.formulaId ? ' — the linked formula version will be marked Accepted.' : ''}
+              </p>
+            </div>
+            <div className="p-5 space-y-3">
+              <div>
+                <label className="text-xs font-semibold text-[#968871] uppercase tracking-wide mb-1 block">Approved by (customer contact, optional)</label>
+                <input value={approveContactName} onChange={(e) => setApproveContactName(e.target.value)} placeholder="e.g. Priya Menon (Nykaa)" className={clsx(inputCls, 'w-full bg-white')} />
+              </div>
+              <label className="flex items-center gap-2 text-sm text-[#4a3a29]">
+                <input type="checkbox" checked={approvePackaging} onChange={(e) => setApprovePackaging(e.target.checked)} />
+                Packaging confirmed by customer
+              </label>
+              <div className="flex gap-3 pt-1">
+                <button type="button" onClick={() => setApproveModalFor(null)} className={clsx(outlineBtn, 'flex-1 justify-center')}>Cancel</button>
+                <button
+                  onClick={() => {
+                    const s = samples.find((x) => x.sampleId === approveModalFor);
+                    approveMutation.mutate({ sampleId: approveModalFor, packagingConfirmed: approvePackaging, formulaId: s?.formulaId, approvedByContact: approveContactName.trim() });
+                  }}
+                  disabled={approveMutation.isPending}
+                  className={clsx(accentBtn, 'flex-1 justify-center')}
+                >
+                  {approveMutation.isPending ? 'Approving…' : 'Confirm Approve'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {rejectModalFor && (
+        <div className="fixed inset-0 z-[80] flex items-center justify-center p-4" style={bodyFont}>
+          <div className="absolute inset-0 bg-[#2e241b]/50 backdrop-blur-sm" onClick={() => setRejectModalFor(null)} />
+          <div className="relative bg-[#f0eadd] rounded-2xl shadow-[0_10px_40px_rgba(46,36,27,0.16)] w-full max-w-md border border-[#d3c9b4]">
+            <div className="p-5 border-b border-[#e2dac8] bg-[#e7dfce] rounded-t-2xl">
+              <h3 className="font-bold text-[#2e241b]" style={displayFont}>✕ Reject Sample</h3>
+              <p className="text-xs text-[#6d5f4c] mt-0.5">{rejectModalFor}</p>
+            </div>
+            <div className="p-5 space-y-3">
+              <div>
+                <label className="text-xs font-semibold text-[#968871] uppercase tracking-wide mb-1 block">Rejection reason</label>
+                <textarea value={rejectReasonModal} onChange={(e) => setRejectReasonModal(e.target.value)} rows={3} placeholder="Why was this sample rejected?" className={clsx(inputCls, 'w-full bg-white')} />
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-[#968871] uppercase tracking-wide mb-1 block">Rejected by (customer contact, optional)</label>
+                <input value={rejectContactName} onChange={(e) => setRejectContactName(e.target.value)} placeholder="e.g. Priya Menon (Nykaa)" className={clsx(inputCls, 'w-full bg-white')} />
+              </div>
+              <label className="flex items-center gap-2 text-sm text-[#4a3a29]">
+                <input type="checkbox" checked={rejectCloneFollowUp} onChange={(e) => setRejectCloneFollowUp(e.target.checked)} />
+                Clone formula to a new version &amp; create a follow-up sample
+              </label>
+              <div className="flex gap-3 pt-1">
+                <button type="button" onClick={() => setRejectModalFor(null)} className={clsx(outlineBtn, 'flex-1 justify-center')}>Cancel</button>
+                <button
+                  onClick={() => {
+                    if (!rejectReasonModal.trim()) { toast.error('Reason required'); return; }
+                    const s = samples.find((x) => x.sampleId === rejectModalFor);
+                    rejectMutation.mutate({ sampleId: rejectModalFor, rejectionReason: rejectReasonModal.trim(), cloneFollowUp: rejectCloneFollowUp, formulaId: s?.formulaId, rejectedByContact: rejectContactName.trim() });
+                  }}
+                  disabled={rejectMutation.isPending}
+                  className={clsx(accentBtn, 'flex-1 justify-center')}
+                >
+                  {rejectMutation.isPending ? 'Rejecting…' : 'Confirm Reject'}
                 </button>
               </div>
             </div>

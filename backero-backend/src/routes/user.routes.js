@@ -1,4 +1,6 @@
 const router = require('express').Router();
+const multer = require('multer');
+const logger = require('../utils/logger');
 const User = require('../models/User');
 const { authenticate } = require('../middleware/auth.middleware');
 const { orgIsolation } = require('../middleware/orgIsolation.middleware');
@@ -7,6 +9,14 @@ const { asyncHandler, sendSuccess, sendError, paginate, paginateResponse, saniti
 const upload = require('../middleware/upload.middleware');
 const { buildTeamTemplate, importTeam } = require('../services/import.service');
 const { sendWelcomeEmail } = require('../services/email.service');
+
+const avatarUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    file.mimetype.startsWith('image/') ? cb(null, true) : cb(new Error('Only image files are allowed'));
+  },
+});
 
 router.use(authenticate, orgIsolation);
 
@@ -116,6 +126,24 @@ router.patch('/me/profile', asyncHandler(async (req, res) => {
   const { password, refreshToken, role, organizationId, ...updates } = req.body;
   const user = await User.findByIdAndUpdate(req.user._id, updates, { new: true }).select('-password -refreshToken');
   sendSuccess(res, { user }, 'Profile updated');
+}));
+
+router.post('/me/avatar', avatarUpload.single('avatar'), asyncHandler(async (req, res) => {
+  if (!req.file) return sendError(res, 'No image uploaded.', 400);
+  const { uploadBuffer, deleteByPublicId } = require('../utils/cloudinary');
+  const previous = await User.findById(req.user._id).select('avatarPublicId');
+  const result = await uploadBuffer(req.file.buffer, {
+    folder: `backero/avatars/${req.user._id}`,
+    resourceType: 'image',
+    transformation: [{ width: 300, height: 300, crop: 'fill', gravity: 'face' }],
+  });
+  const user = await User.findByIdAndUpdate(
+    req.user._id,
+    { avatar: result.secure_url, avatarPublicId: result.public_id },
+    { new: true }
+  ).select('-password -refreshToken');
+  if (previous?.avatarPublicId) deleteByPublicId(previous.avatarPublicId).catch((err) => logger.error(err));
+  sendSuccess(res, { user }, 'Profile photo updated');
 }));
 
 module.exports = router;

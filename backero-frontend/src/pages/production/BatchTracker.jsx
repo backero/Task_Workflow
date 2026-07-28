@@ -9,7 +9,7 @@ import {
   BeakerIcon, LockClosedIcon, TruckIcon,
 } from '@heroicons/react/24/outline';
 
-const STAGE_NAMES = ['Order', 'Procurement', 'Work Assignment', 'Weighing', 'Bulk QC', 'Packaging', 'Final QC', 'Dispatch'];
+const STAGE_NAMES = ['Order', 'Work Assignment', 'Procurement', 'Weighing', 'Bulk QC', 'Packaging', 'Final QC', 'Dispatch'];
 const PROCESS_STEPS = ['Water Phase Heating', 'Oil Phase Heating', 'Emulsification', 'Cooling Phase', 'Add Heat-Sensitives', 'In-Process QC Check', 'Final Mix', 'Transfer to Holding'];
 
 const STAGE_BUCKET_COLOR = (stage) => {
@@ -230,6 +230,8 @@ function NewOrderModal({ onClose, onCreated }) {
   const [form, setForm] = useState({ catalogProduct: '', batchSizeKg: 10, customer: '', contact: '', container: '', priority: 'Normal', deliveryDate: '', plannedQuantity: '', unit: 'pcs' });
   const [crmSpec, setCrmSpec] = useState(defaultCrmSpec());
   const [search, setSearch] = useState('');
+  const [custSearch, setCustSearch] = useState('');
+  const [custLocked, setCustLocked] = useState(false);
   const [busy, setBusy] = useState(false);
   const patchSpec = (key, val) => setCrmSpec((c) => ({ ...c, [key]: val }));
 
@@ -242,6 +244,21 @@ function NewOrderModal({ onClose, onCreated }) {
   const filtered = search ? products.filter((p) => (p.name || '').toLowerCase().includes(search.toLowerCase()) || (p.code || '').toLowerCase().includes(search.toLowerCase())) : products;
   const selected = products.find((p) => p._id === form.catalogProduct);
 
+  const { data: customerData } = useQuery({
+    queryKey: ['production-customers', 'all'],
+    queryFn: () => api.get('/production-customers').then((r) => r.data.customers || []),
+    staleTime: 60 * 1000,
+  });
+  const customers = customerData || [];
+  const custMatches = custSearch ? customers.filter((c) => c.name.toLowerCase().includes(custSearch.toLowerCase())) : customers;
+
+  const pickCustomer = (c) => {
+    setForm((f) => ({ ...f, customer: c.name, contact: c.contact || f.contact, container: f.container || c.defaultContainer || '' }));
+    if (c.savedCrmSpec && Object.keys(c.savedCrmSpec).length) setCrmSpec((cs) => ({ ...cs, ...c.savedCrmSpec }));
+    setCustSearch('');
+    setCustLocked(true);
+  };
+
   const submit = async () => {
     if (!form.catalogProduct) { toast.error('Select a product from the catalog'); return; }
     if (!form.customer.trim()) { toast.error('Enter a customer name'); return; }
@@ -249,6 +266,11 @@ function NewOrderModal({ onClose, onCreated }) {
     setBusy(true);
     try {
       const { data } = await api.post('/production', { ...form, batchSizeKg: Number(form.batchSizeKg), plannedQuantity: Number(form.plannedQuantity) || 0, crmSpec });
+      const known = customers.some((c) => c.name.toLowerCase() === form.customer.trim().toLowerCase());
+      if (!known) {
+        api.post('/production-customers', { name: form.customer.trim(), contact: form.contact, defaultContainer: form.container })
+          .catch(() => {}); // best-effort — order is already created either way
+      }
       toast.success(`Order ${data.order.orderNumber} created`);
       onCreated(data.order._id);
     } catch (e) {
@@ -288,7 +310,23 @@ function NewOrderModal({ onClose, onCreated }) {
           <div className="grid grid-cols-1 lg:grid-cols-[300px_1fr] gap-5 mt-4 items-start">
             {/* LEFT — customer & order details */}
             <div className="grid grid-cols-2 lg:grid-cols-1 gap-3">
-              <Field label="Customer"><input value={form.customer} onChange={(e) => setForm((f) => ({ ...f, customer: e.target.value }))} className={inputCls} placeholder="e.g. Nykaa" /></Field>
+              <Field label="Customer">
+                <input
+                  value={form.customer}
+                  onChange={(e) => { setForm((f) => ({ ...f, customer: e.target.value })); setCustSearch(e.target.value); setCustLocked(false); }}
+                  className={inputCls} placeholder="Search or type a new customer…" />
+                {custSearch && !custLocked && (
+                  <div className="mt-1 border border-gray-200 dark:border-[#1b2e4a] rounded-lg max-h-32 overflow-y-auto bg-white dark:bg-[#0f1a2e]">
+                    {custMatches.length === 0 && <div className="px-3 py-2 text-xs text-gray-400">No saved customer — will be saved as new</div>}
+                    {custMatches.slice(0, 6).map((c) => (
+                      <button key={c._id} onClick={() => pickCustomer(c)} className="w-full text-left px-3 py-2 text-xs hover:bg-gray-50 dark:hover:bg-[#132035] flex justify-between">
+                        <span className="text-gray-900 dark:text-gray-100">{c.name}</span>
+                        <span className="text-gray-400">{c.contact}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </Field>
               <Field label="Contact"><input value={form.contact} onChange={(e) => setForm((f) => ({ ...f, contact: e.target.value }))} className={inputCls} placeholder="Phone" /></Field>
               <Field label="Batch Size (kg)"><input type="number" min="0.1" step="0.1" value={form.batchSizeKg} onChange={(e) => setForm((f) => ({ ...f, batchSizeKg: e.target.value }))} className={inputCls} /></Field>
               <Field label="Planned Qty (units)"><input type="number" value={form.plannedQuantity} onChange={(e) => setForm((f) => ({ ...f, plannedQuantity: e.target.value }))} className={inputCls} placeholder="e.g. 200" /></Field>
@@ -444,8 +482,8 @@ function OrderDetail({ id, onBack }) {
       <StageBar order={order} viewStage={stage} setViewStage={setViewStage} />
 
       {stage === 0 && <StageOrder order={order} onSaved={invalidate} />}
-      {stage === 1 && <StageProcurement order={order} onAdvanced={invalidate} />}
-      {stage === 2 && <StageWorkAssignment order={order} onSaved={invalidate} />}
+      {stage === 1 && <StageWorkAssignment order={order} onSaved={invalidate} />}
+      {stage === 2 && <StageProcurement order={order} onAdvanced={invalidate} />}
       {stage === 3 && <StageWeighing order={order} onSaved={invalidate} />}
       {stage === 4 && <StageBulkQC order={order} onSaved={invalidate} />}
       {stage === 5 && <StagePackaging order={order} onSaved={invalidate} />}
@@ -609,7 +647,7 @@ function StageOrder({ order, onSaved }) {
   );
 }
 
-// ── STAGE 1: PROCUREMENT ─────────────────────────────────────────────────────
+// ── STAGE 2: PROCUREMENT ─────────────────────────────────────────────────────
 
 function StageProcurement({ order, onAdvanced }) {
   const [busy, setBusy] = useState(false);
@@ -627,7 +665,7 @@ function StageProcurement({ order, onAdvanced }) {
 
   const confirm = async () => {
     setBusy(true);
-    try { await api.post(`/production/${order._id}/procurement/confirm`); toast.success('Procurement confirmed — advancing to Work Assignment'); onAdvanced(); }
+    try { await api.post(`/production/${order._id}/procurement/confirm`); toast.success('Procurement confirmed — advancing to Weighing'); onAdvanced(); }
     catch (e) { toast.error(e.response?.data?.message || 'Failed'); }
     finally { setBusy(false); }
   };
@@ -659,13 +697,13 @@ function StageProcurement({ order, onAdvanced }) {
         <div className="mt-3 bg-red-50 border border-red-200 rounded-xl px-3 py-2 text-xs text-red-700">⚠ {shortRows.length} material(s) below required quantity — procure before proceeding.</div>
       )}
       <button onClick={confirm} disabled={busy} className="mt-4 px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white text-sm font-semibold rounded-xl disabled:opacity-50">
-        {busy ? 'Confirming…' : 'Formula Correct & Materials Available → Work Assignment'}
+        {busy ? 'Confirming…' : 'Formula Correct & Materials Available → Weighing'}
       </button>
     </Card>
   );
 }
 
-// ── STAGE 2: WORK ASSIGNMENT ──────────────────────────────────────────────────
+// ── STAGE 1: WORK ASSIGNMENT ──────────────────────────────────────────────────
 
 function StageWorkAssignment({ order, onSaved }) {
   const wa = order.workAssignment || {};
@@ -677,7 +715,7 @@ function StageWorkAssignment({ order, onSaved }) {
 
   const save = async () => {
     setBusy(true);
-    try { await api.patch(`/production/${order._id}/work-assignment`, form); toast.success('Work assigned — advancing to Weighing'); onSaved(); }
+    try { await api.patch(`/production/${order._id}/work-assignment`, form); toast.success('Work assigned — advancing to Procurement'); onSaved(); }
     catch (e) { toast.error(e.response?.data?.message || 'Failed'); }
     finally { setBusy(false); }
   };
@@ -697,7 +735,7 @@ function StageWorkAssignment({ order, onSaved }) {
         {personField('weighPerson', 'Weighing In-charge')}{personField('prodPerson', 'Production In-charge')}{personField('qcPerson', 'QC In-charge')}
         {personField('packPerson', 'Packaging In-charge')}{personField('dispatchPerson', 'Dispatch In-charge')}{personField('supervisor', 'Supervisor')}
       </div>
-      <button onClick={save} disabled={busy} className="mt-4 px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white text-sm font-semibold rounded-xl disabled:opacity-50">{busy ? 'Saving…' : 'Confirm Schedule → Weighing'}</button>
+      <button onClick={save} disabled={busy} className="mt-4 px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white text-sm font-semibold rounded-xl disabled:opacity-50">{busy ? 'Saving…' : 'Confirm Schedule → Procurement'}</button>
     </Card>
   );
 }

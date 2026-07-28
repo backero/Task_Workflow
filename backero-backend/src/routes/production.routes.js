@@ -16,6 +16,7 @@ const User = require('../models/User');
 const Lead = require('../models/Lead');
 const { createNotification } = require('../services/notification.service');
 const { sendActiveClientStageUpdate } = require('../services/whatsappCloud.service');
+const { buildIngredientsFromCatalogProduct } = require('../utils/productionHelpers');
 
 // If this batch order is linked to a CRM lead, ping the client with a short
 // milestone update — reuses the already-approved client_stage_update template
@@ -75,18 +76,7 @@ router.post('/', authorizeManagerOrAbove, asyncHandler(async (req, res) => {
   const { catalogProduct, batchSizeKg } = req.body;
   if (catalogProduct) {
     catalogDoc = await CatalogProduct.findOne({ _id: catalogProduct, organizationId: orgId });
-    if (catalogDoc?.formulation?.rows?.length) {
-      // formulation.rows quantities are per formulation.refWeight (assumed grams); scale to the target batch size in grams.
-      const refWeight = catalogDoc.formulation.refWeight || 100;
-      const targetGrams = (Number(batchSizeKg) || 0) * 1000;
-      const scaleFactor = refWeight > 0 ? targetGrams / refWeight : 0;
-      ingredients = catalogDoc.formulation.rows.map((r) => ({
-        rawMaterialId: r.rawMaterialId || '',
-        name: r.name,
-        unit: r.unit || 'g',
-        targetQty: Math.round((r.quantity || 0) * scaleFactor * 100) / 100,
-      }));
-    }
+    ingredients = buildIngredientsFromCatalogProduct(catalogDoc, batchSizeKg);
   }
 
   const order = await ProductionOrder.create({
@@ -96,7 +86,7 @@ router.post('/', authorizeManagerOrAbove, asyncHandler(async (req, res) => {
     batch,
     status: PRODUCTION_STATUS.PLANNED,
     // Stage 0 ("Order") is a permanently-editable info panel, not a gated step —
-    // a new batch starts life actively sitting at stage 1 (Procurement).
+    // a new batch starts life actively sitting at stage 1 (Work Assignment).
     stage: 1,
     catalogProduct: catalogDoc?._id,
     ingredients,
@@ -105,6 +95,7 @@ router.post('/', authorizeManagerOrAbove, asyncHandler(async (req, res) => {
   });
 
   io?.to(`org:${orgId}`).emit(SOCKET_EVENTS.PRODUCTION_STARTED, { order });
+  notifyClientMilestone(order, 'Your order has been created and is now being scheduled with our production team 📋');
   sendSuccess(res, { order }, 'Production order created', 201);
 }));
 
@@ -270,30 +261,32 @@ router.patch('/:id/order', authorizeManagerOrAbove, asyncHandler(async (req, res
   sendSuccess(res, { order }, 'Order updated');
 }));
 
-// POST Stage 1 — confirm procurement (formula/RM availability confirmed), advance 1 -> 2
-router.post('/:id/procurement/confirm', authorizeManagerOrAbove, asyncHandler(async (req, res) => {
-  const order = await loadOrder(req, res);
-  if (!order) return;
-  if (order.stage !== 1) return sendError(res, 'Order is not at the Procurement stage.', 400);
-  order.stage = 2;
-  order.status = BATCH_STAGE_TO_STATUS[2];
-  order.updatedBy = req.user._id;
-  await order.save();
-  notifyStageChange(req, order);
-  notifyClientMilestone(order, 'Raw materials for your order have been procured and confirmed ✅');
-  sendSuccess(res, { order }, 'Procurement confirmed');
-}));
-
-// PATCH Stage 2 — work assignment / schedule, advance 2 -> 3
+// PATCH Stage 1 — work assignment / schedule, advance 1 -> 2
 router.patch('/:id/work-assignment', authorizeManagerOrAbove, asyncHandler(async (req, res) => {
   const order = await loadOrder(req, res);
   if (!order) return;
   order.workAssignment = { ...(order.workAssignment?.toObject?.() || order.workAssignment || {}), ...req.body };
-  if (order.stage === 2) { order.stage = 3; order.status = BATCH_STAGE_TO_STATUS[3]; }
+  const advanced = order.stage === 1;
+  if (advanced) { order.stage = 2; order.status = BATCH_STAGE_TO_STATUS[2]; }
   order.updatedBy = req.user._id;
   await order.save();
   notifyStageChange(req, order);
+  if (advanced) notifyClientMilestone(order, 'Your order has been scheduled with our production team — raw materials are now being procured 🧾');
   sendSuccess(res, { order }, 'Work assignment saved');
+}));
+
+// POST Stage 2 — confirm procurement (formula/RM availability confirmed), advance 2 -> 3
+router.post('/:id/procurement/confirm', authorizeManagerOrAbove, asyncHandler(async (req, res) => {
+  const order = await loadOrder(req, res);
+  if (!order) return;
+  if (order.stage !== 2) return sendError(res, 'Order is not at the Procurement stage.', 400);
+  order.stage = 3;
+  order.status = BATCH_STAGE_TO_STATUS[3];
+  order.updatedBy = req.user._id;
+  await order.save();
+  notifyStageChange(req, order);
+  notifyClientMilestone(order, 'Raw materials for your order have been procured and confirmed — production is now underway 👩‍🔬');
+  sendSuccess(res, { order }, 'Procurement confirmed');
 }));
 
 // POST Stage 3 — record one ingredient as weighed; FIFO-deducts real raw material

@@ -32,6 +32,7 @@ import CalendarView from './pages/tasks/CalendarView';
 import LeadPipeline from './pages/crm/LeadPipeline';
 import LeadDetails from './pages/crm/LeadDetails';
 import TechnicalQueries from './pages/crm/TechnicalQueries';
+import SampleProduction from './pages/crm/SampleProduction';
 
 // Inventory pages
 import Products from './pages/inventory/Products';
@@ -141,6 +142,7 @@ export default function App() {
           <Route path="/crm/leads" element={<PermissionRoute module="crm"><LeadPipeline /></PermissionRoute>} />
           <Route path="/crm/leads/:id" element={<PermissionRoute module="crm"><LeadDetails /></PermissionRoute>} />
           <Route path="/crm/queries" element={<TechnicalQueries />} />
+          <Route path="/samples" element={<PermissionRoute module="crm"><SampleProduction /></PermissionRoute>} />
 
           {/* Inventory */}
           <Route path="/inventory/products" element={<PermissionRoute module="inventory"><Products /></PermissionRoute>} />

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import companyLogo from '../../assets/backero-leaf.png';
 import { NavLink, useLocation } from 'react-router-dom';
 import { useAuthStore } from '../../store/useAuthStore';
@@ -76,6 +76,9 @@ export default function Sidebar({ collapsed, onToggle }) {
     canCRM, canInventory, canFinance,
     canManagement, canApprovals,
   } = usePermissions();
+  const [avatarBroken, setAvatarBroken] = useState(false);
+
+  useEffect(() => { setAvatarBroken(false); }, [user?.avatar]);
 
   const groups = [];
 
@@ -114,11 +117,13 @@ export default function Sidebar({ collapsed, onToggle }) {
     ]});
   }
   if (canInventory) {
-    opsItems.push({ label: 'Production', icon: BeakerIcon, children: [
+    const productionChildren = [
       { label: 'Dashboard',      to: '/departments/rnd' },
       { label: 'Record Usage',   to: '/production/usage' },
       { label: 'Batch Tracker',  to: '/production/batch-tracker' },
-    ]});
+    ];
+    if (canCRM) productionChildren.push({ label: 'Sample Production', to: '/samples' });
+    opsItems.push({ label: 'Production', icon: BeakerIcon, children: productionChildren });
   }
   if (opsItems.length > 0) groups.push({ label: 'Operations', items: opsItems });
 
@@ -221,12 +226,21 @@ export default function Sidebar({ collapsed, onToggle }) {
         </div>
         {!collapsed && user && (
           <div className="mt-2 flex items-center gap-2.5 px-3 py-2 rounded-lg" style={{ background: 'rgba(255,255,255,0.04)' }}>
-            <div
-              className="w-7 h-7 rounded-lg flex items-center justify-center text-white text-[11px] font-bold flex-shrink-0"
-              style={{ background: 'linear-gradient(135deg,#1d4ed8,#1e40af)' }}
-            >
-              {user.firstName?.[0]}{user.lastName?.[0]}
-            </div>
+            {user.avatar && !avatarBroken ? (
+              <img
+                src={user.avatar}
+                alt="Profile"
+                className="w-7 h-7 rounded-lg object-cover flex-shrink-0"
+                onError={() => setAvatarBroken(true)}
+              />
+            ) : (
+              <div
+                className="w-7 h-7 rounded-lg flex items-center justify-center text-white text-[11px] font-bold flex-shrink-0"
+                style={{ background: 'linear-gradient(135deg,#1d4ed8,#1e40af)' }}
+              >
+                {user.firstName?.[0]}{user.lastName?.[0]}
+              </div>
+            )}
             <div className="min-w-0">
               <p className="text-[12px] font-semibold text-white/75 truncate leading-tight">
                 {user.firstName} {user.lastName}

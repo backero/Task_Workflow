@@ -20,10 +20,13 @@ export default function Header({ onMobileMenuToggle }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [showSearch, setShowSearch] = useState(false);
   const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [avatarBroken, setAvatarBroken] = useState(false);
   const navigate = useNavigate();
   const notifRef = useRef(null);
   const userMenuRef = useRef(null);
   const searchRef = useRef(null);
+
+  useEffect(() => { setAvatarBroken(false); }, [user?.avatar]);
 
   useEffect(() => {
     const handleClick = (e) => {
@@ -180,12 +183,21 @@ export default function Header({ onMobileMenuToggle }) {
             onClick={() => setShowUserMenu((p) => !p)}
             className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-white/6 transition-colors"
           >
-            <div
-              className="w-7 h-7 rounded-lg flex items-center justify-center text-white text-xs font-bold flex-shrink-0"
-              style={{ background: 'linear-gradient(135deg,#1d4ed8,#1e40af)' }}
-            >
-              {initials}
-            </div>
+            {user?.avatar && !avatarBroken ? (
+              <img
+                src={user.avatar}
+                alt="Profile"
+                className="w-7 h-7 rounded-lg object-cover flex-shrink-0"
+                onError={() => setAvatarBroken(true)}
+              />
+            ) : (
+              <div
+                className="w-7 h-7 rounded-lg flex items-center justify-center text-white text-xs font-bold flex-shrink-0"
+                style={{ background: 'linear-gradient(135deg,#1d4ed8,#1e40af)' }}
+              >
+                {initials}
+              </div>
+            )}
             <div className="hidden sm:block text-left">
               <p className="text-[13px] font-semibold text-slate-700 dark:text-slate-200 leading-tight">{user?.firstName}</p>
               <p className="text-[10px] text-slate-400 capitalize leading-tight">{user?.role?.replace('_', ' ')}</p>

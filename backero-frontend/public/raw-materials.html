@@ -244,6 +244,28 @@
   @media (max-width: 768px) { .dashboard-grid { grid-template-columns: repeat(2, 1fr); } .form-grid { grid-template-columns: 1fr; } .detail-grid { grid-template-columns: 1fr; } .header { flex-direction: column; gap: 10px; padding: 12px 16px; } .search-pill input { min-width: 200px; } .main { padding: 16px; } }
   @media print { .header, .btn, .modal-close, .actions { display: none !important; } .card { box-shadow: none; border: 1px solid var(--border); } }
   #mainHeader { display: var(--hide-header, flex); }
+
+  .actions .use-btn { color: #a78bfa; }
+  .stock-balance { display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px; }
+  .stock-balance-item { background:var(--card-bg);border-radius:10px;padding:12px;border:1px solid var(--border-light);text-align:center; }
+  .stock-balance-item .sb-label { font-size:11px;color:var(--text-secondary);font-weight:500;margin-bottom:4px; }
+  .stock-balance-item .sb-val { font-size:18px;font-weight:700; }
+  .sb-val.green { color:var(--success); }
+  .sb-val.red { color:var(--danger); }
+  .sb-val.blue { color:var(--info); }
+  .usage-section { margin-top:16px;padding:16px;background:var(--surface);border-top:1px solid var(--border); }
+  .usage-section-header { display:flex;align-items:center;justify-content:space-between;margin-bottom:12px; }
+  .usage-section-header h4 { font-size:12px;color:var(--text-secondary);font-weight:600;text-transform:uppercase;letter-spacing:0.5px; }
+  .usage-item { display:flex;align-items:center;gap:10px;padding:8px 10px;background:var(--card-bg);border-radius:8px;border:1px solid var(--border-light);font-size:12px;margin-bottom:6px; }
+  .u-badge { padding:2px 8px;border-radius:50px;font-size:10px;font-weight:700;flex-shrink:0; }
+  .u-badge.issue { background:rgba(248,113,113,0.15);color:#f87171; }
+  .u-badge.return { background:rgba(52,211,153,0.15);color:#34d399; }
+  .u-info { flex:1;min-width:0; }
+  .u-purpose { font-weight:500;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis; }
+  .u-date { color:var(--text-muted);font-size:11px; }
+  .u-qty { font-weight:700;flex-shrink:0;min-width:70px;text-align:right; }
+  .btn-return-sm { background:rgba(52,211,153,0.12);color:#34d399;border:1px solid rgba(52,211,153,0.25);font-size:10px;padding:3px 8px;border-radius:6px;cursor:pointer;font-family:var(--font);flex-shrink:0; }
+  .btn-return-sm:hover { background:rgba(52,211,153,0.22); }
 </style>
 </head>
 <body>
@@ -617,6 +639,74 @@
   </div>
 </div>
 
+<!-- RECORD USAGE MODAL -->
+<div class="modal-overlay" id="useModal">
+  <div class="modal" style="max-width:480px">
+    <div class="modal-header">
+      <h2>📤 Record Production Usage</h2>
+      <button class="modal-close" onclick="closeModal('useModal')">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div style="background:var(--surface);border-radius:10px;padding:12px 16px;margin-bottom:14px;border:1px solid var(--border-light)">
+        <div id="useModalMatName" style="font-size:15px;font-weight:700"></div>
+        <div id="useModalMatMeta" style="font-size:12px;color:var(--text-secondary);margin-top:3px"></div>
+      </div>
+      <div style="background:rgba(52,211,153,0.08);border:1px solid rgba(52,211,153,0.2);border-radius:8px;padding:10px 14px;margin-bottom:16px;font-size:13px">
+        Available stock: <strong id="useModalAvail">0</strong>
+        <div style="font-size:11px;color:var(--text-secondary);margin-top:3px">FIFO — oldest batch deducted first automatically</div>
+      </div>
+      <div class="form-group" style="margin-bottom:12px">
+        <label>Quantity Used <span class="req">*</span></label>
+        <input type="number" id="useQty" step="0.01" min="0.01" placeholder="Enter quantity">
+      </div>
+      <div class="form-group" style="margin-bottom:12px">
+        <label>Purpose / Production Details</label>
+        <input type="text" id="usePurpose" placeholder="e.g., Aloe vera cream batch, Shampoo production">
+      </div>
+      <div class="form-group">
+        <label>Notes (optional)</label>
+        <textarea id="useNotes" placeholder="Additional notes..." style="min-height:50px"></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('useModal')">Cancel</button>
+      <button class="btn btn-danger" onclick="recordUsage()">📤 Confirm Usage</button>
+    </div>
+  </div>
+</div>
+
+<!-- RETURN TO STOCK MODAL -->
+<div class="modal-overlay" id="returnModal">
+  <div class="modal" style="max-width:480px">
+    <div class="modal-header">
+      <h2>↩️ Return to Stock</h2>
+      <button class="modal-close" onclick="closeModal('returnModal')">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div style="background:var(--surface);border-radius:10px;padding:12px 16px;margin-bottom:14px;border:1px solid var(--border-light)">
+        <div id="returnModalTitle" style="font-size:15px;font-weight:700"></div>
+        <div id="returnModalMeta" style="font-size:12px;color:var(--text-secondary);margin-top:3px"></div>
+      </div>
+      <div style="background:rgba(52,211,153,0.08);border:1px solid rgba(52,211,153,0.2);border-radius:8px;padding:10px 14px;margin-bottom:16px;font-size:13px">
+        Max returnable: <strong id="returnModalMax">0</strong>
+        <div style="font-size:11px;color:var(--text-secondary);margin-top:3px">Returned stock will be added back to original batch (FIFO)</div>
+      </div>
+      <div class="form-group" style="margin-bottom:12px">
+        <label>Return Quantity <span class="req">*</span></label>
+        <input type="number" id="returnQty" step="0.01" min="0.01" placeholder="Quantity to return">
+      </div>
+      <div class="form-group">
+        <label>Notes (optional)</label>
+        <textarea id="returnNotes" placeholder="Reason for return..." style="min-height:50px"></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('returnModal')">Cancel</button>
+      <button class="btn btn-primary" onclick="recordReturn()">↩️ Confirm Return</button>
+    </div>
+  </div>
+</div>
+
 <div class="scan-overlay" id="scanOverlay">
   <div class="scan-spinner"></div>
   <div class="scan-text" id="scanText">Scanning...</div>
@@ -634,6 +724,9 @@ let expandedId = null;
 let batchTargetId = null;
 let currentQRMaterial = null;
 let existingMatch = null;
+let useTargetId = null;
+let usageDB = [];
+let nextIssueNum = 1;
 let tesseractWorker = null;
 let recognition = null;
 
@@ -739,11 +832,23 @@ function loadDB() {
     const raw = localStorage.getItem(DB_KEY);
     if (raw) { const data = JSON.parse(raw); materials = data.materials || []; nextId = data.nextId || 1; }
   } catch (e) { showToast('Failed to load data', 'error'); }
+  loadUsageDB();
   if (!materials.length) addDemoData();
   renderAll();
 }
 
 function saveDB() { localStorage.setItem(DB_KEY, JSON.stringify({materials, nextId})); renderAll(); }
+
+function loadUsageDB() {
+  try {
+    const raw = localStorage.getItem('rawMaterialIssueDB_v1');
+    if (raw) { const d = JSON.parse(raw); usageDB = d.issues || []; nextIssueNum = d.nextNum || 1; }
+  } catch(e) {}
+}
+
+function saveUsageDB() {
+  localStorage.setItem('rawMaterialIssueDB_v1', JSON.stringify({issues: usageDB, nextNum: nextIssueNum}));
+}
 
 function addDemoData() {
   const demo = [
@@ -851,6 +956,7 @@ function renderTable() {
       '<td class="'+stockClass+'">'+stock.toLocaleString('en-IN')+'</td>' +
       '<td><span class="tag '+status.class+'">'+status.label+'</span></td>' +
       '<td class="actions">' +
+        '<button class="use-btn" title="Record Usage" onclick="openUseModal('+m.id+')">📤</button>' +
         '<button class="batch-btn" title="Add Batch" onclick="openBatchModal('+m.id+')">🧪</button>' +
         '<button class="qr-btn" title="Print QR" onclick="openQRModal('+m.id+')">🔲</button>' +
         '<button class="edit-btn" title="Edit" onclick="editMaterial('+m.id+')">✏️</button>' +
@@ -897,7 +1003,7 @@ function renderTable() {
       '</div>' +
       '<div class="detail-center">' + batchesHtml + '</div>' +
       '<div class="detail-right">' + qcHtml + '</div>' +
-    '</div>';
+    '</div>' + renderUsageSection(m);
 
     const detailTd = document.createElement('td'); detailTd.setAttribute('colspan', '10'); detailTd.appendChild(detailPanel);
     detailTr.appendChild(detailTd);
@@ -1308,7 +1414,184 @@ async function importPDF(file) {
 }
 
 // ========== KEYBOARD SHORTCUTS ==========
-document.addEventListener('keydown', (e) => { if (e.key === 'Escape') { ['addModal','qrModal','batchModal','lowStockModal'].forEach(id => closeModal(id)); } if (e.ctrlKey && e.key === 'n') { e.preventDefault(); openAddModal(); } if (e.ctrlKey && e.key === 'e') { e.preventDefault(); exportCSV(); } });
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') { ['addModal','qrModal','batchModal','lowStockModal','useModal','returnModal'].forEach(id => closeModal(id)); } if (e.ctrlKey && e.key === 'n') { e.preventDefault(); openAddModal(); } if (e.ctrlKey && e.key === 'e') { e.preventDefault(); exportCSV(); } });
+
+// ========== USAGE / ISSUE TRACKING ==========
+
+function getUsagesForMaterial(materialId) {
+  return usageDB.filter(u => u.materialId === materialId);
+}
+
+function getTotalIssued(materialId) {
+  return usageDB.filter(u => u.materialId === materialId && u.type === 'issue').reduce((s, u) => s + u.quantity, 0);
+}
+
+function getTotalReturned(materialId) {
+  return usageDB.filter(u => u.materialId === materialId && u.type === 'return').reduce((s, u) => s + u.quantity, 0);
+}
+
+function renderUsageSection(m) {
+  const usages = getUsagesForMaterial(m.id);
+  const totalIssued = getTotalIssued(m.id);
+  const totalReturned = getTotalReturned(m.id);
+  const netUsed = Math.max(0, totalIssued - totalReturned);
+  const currentStock = getStock(m);
+  const totalReceived = currentStock + netUsed;
+
+  let html = '<div class="usage-section">';
+  html += '<div class="usage-section-header"><h4>📤 Production Usage History</h4>' +
+    '<button class="btn btn-sm btn-primary" onclick="openUseModal(' + m.id + ')" style="font-size:11px;padding:4px 12px">📤 Record Usage</button></div>';
+
+  html += '<div class="stock-balance">' +
+    '<div class="stock-balance-item"><div class="sb-label">Current Stock</div><div class="sb-val ' + (currentStock <= 0 ? 'red' : 'green') + '">' + currentStock.toLocaleString('en-IN') + ' <span style="font-size:12px;font-weight:400">' + m.unit + '</span></div></div>' +
+    '<div class="stock-balance-item"><div class="sb-label">Net Used (Production)</div><div class="sb-val red">' + netUsed.toLocaleString('en-IN') + ' <span style="font-size:12px;font-weight:400">' + m.unit + '</span></div></div>' +
+    '<div class="stock-balance-item"><div class="sb-label">Total Received</div><div class="sb-val blue">' + totalReceived.toLocaleString('en-IN') + ' <span style="font-size:12px;font-weight:400">' + m.unit + '</span></div></div>' +
+    '</div>';
+
+  if (!usages.length) {
+    html += '<div style="color:var(--text-secondary);font-size:12px;padding:6px 0;text-align:center">No usage recorded yet</div>';
+  } else {
+    usages.slice(0, 15).forEach(u => {
+      const d = new Date(u.date);
+      const dateStr = d.toLocaleDateString('en-IN') + ' ' + d.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
+      const returnedFor = u.type === 'issue'
+        ? usageDB.filter(r => r.returnOf === u.id && r.type === 'return').reduce((s, r) => s + r.quantity, 0)
+        : 0;
+      const canReturn = u.type === 'issue' && returnedFor < u.quantity;
+      html += '<div class="usage-item">' +
+        '<span class="u-badge ' + u.type + '">' + (u.type === 'issue' ? '📤 Used' : '↩️ Returned') + '</span>' +
+        '<div class="u-info">' +
+          '<div class="u-purpose">' + (u.purpose || 'Production') + (u.notes ? ' — ' + u.notes : '') + '</div>' +
+          '<div class="u-date">' + dateStr + ' &nbsp;•&nbsp; ' + u.issueNumber + (returnedFor > 0 ? ' &nbsp;•&nbsp; <span style="color:var(--success)">↩️ ' + returnedFor + ' ' + u.unit + ' returned</span>' : '') + '</div>' +
+        '</div>' +
+        '<span class="u-qty" style="color:' + (u.type === 'issue' ? 'var(--danger)' : 'var(--success)') + '">' + (u.type === 'issue' ? '−' : '+') + u.quantity + ' ' + u.unit + '</span>' +
+        (canReturn ? '<button class="btn-return-sm" onclick="openReturnModal(\'' + u.id + '\')">↩️ Return</button>' : '') +
+        '</div>';
+    });
+    if (usages.length > 15) html += '<div style="font-size:11px;color:var(--text-muted);padding:6px 0;text-align:center">... and ' + (usages.length - 15) + ' more entries</div>';
+  }
+
+  html += '</div>';
+  return html;
+}
+
+function openUseModal(id) {
+  const m = materials.find(x => x.id === id);
+  if (!m) return;
+  useTargetId = id;
+  const stock = getStock(m);
+  document.getElementById('useModalMatName').textContent = m.name;
+  document.getElementById('useModalMatMeta').textContent = m.code + ' | ' + m.unit + ' | ' + (m.category || '');
+  const availEl = document.getElementById('useModalAvail');
+  availEl.textContent = stock.toLocaleString('en-IN') + ' ' + m.unit;
+  availEl.style.color = stock <= 0 ? 'var(--danger)' : 'var(--success)';
+  document.getElementById('useQty').value = '';
+  document.getElementById('useQty').max = stock;
+  document.getElementById('usePurpose').value = '';
+  document.getElementById('useNotes').value = '';
+  openModal('useModal');
+}
+
+function deductFIFO(material, qty) {
+  const sorted = [...material.batches]
+    .filter(b => (parseFloat(b.quantity) || 0) > 0)
+    .sort((a, b) => new Date(a.receivedDate || '2000-01-01') - new Date(b.receivedDate || '2000-01-01'));
+  const total = sorted.reduce((s, b) => s + (parseFloat(b.quantity) || 0), 0);
+  if (total < qty - 0.0001) return null;
+  const deductions = [];
+  let remaining = qty;
+  for (const sb of sorted) {
+    if (remaining <= 0.0001) break;
+    const actual = material.batches.find(b => b.batchId === sb.batchId);
+    if (!actual) continue;
+    const take = Math.min(parseFloat(actual.quantity) || 0, remaining);
+    if (take > 0) {
+      deductions.push({ batchId: actual.batchId, batchNumber: actual.batchNumber || actual.batchId, qty: take });
+      actual.quantity = parseFloat((parseFloat(actual.quantity) - take).toFixed(6));
+      remaining -= take;
+    }
+  }
+  return deductions;
+}
+
+function recordUsage() {
+  const m = materials.find(x => x.id === useTargetId);
+  if (!m) return;
+  const qty = parseFloat(document.getElementById('useQty').value);
+  const purpose = document.getElementById('usePurpose').value.trim();
+  const notes = document.getElementById('useNotes').value.trim();
+  if (!qty || qty <= 0) { showToast('Enter valid quantity', 'error'); return; }
+  const stock = getStock(m);
+  if (qty > stock + 0.0001) { showToast('Insufficient stock — Available: ' + stock + ' ' + m.unit, 'error'); return; }
+  const deductions = deductFIFO(m, qty);
+  if (!deductions) { showToast('Insufficient stock', 'error'); return; }
+  const issueNum = 'RMI-' + String(nextIssueNum).padStart(4, '0');
+  nextIssueNum++;
+  usageDB.unshift({
+    id: issueNum, issueNumber: issueNum, type: 'issue',
+    materialId: m.id, materialCode: m.code, materialName: m.name, unit: m.unit,
+    quantity: qty, purpose: purpose || 'Production', notes: notes,
+    batchDeductions: deductions, date: new Date().toISOString(), returnOf: null
+  });
+  saveDB(); saveUsageDB();
+  closeModal('useModal');
+  showToast('Usage recorded: −' + qty + ' ' + m.unit + ' of ' + m.name + ' (' + issueNum + ')', 'success');
+}
+
+function openReturnModal(issueId) {
+  const issue = usageDB.find(u => u.id === issueId);
+  if (!issue || issue.type !== 'issue') return;
+  const alreadyReturned = usageDB.filter(u => u.returnOf === issueId && u.type === 'return').reduce((s, u) => s + u.quantity, 0);
+  const returnable = parseFloat((issue.quantity - alreadyReturned).toFixed(6));
+  if (returnable <= 0) { showToast('This usage has already been fully returned', 'warning'); return; }
+  document.getElementById('returnModalTitle').textContent = issue.materialName;
+  document.getElementById('returnModalMeta').textContent = issue.issueNumber + ' | ' + issue.purpose + ' | Used: ' + issue.quantity + ' ' + issue.unit;
+  document.getElementById('returnModalMax').textContent = returnable.toLocaleString('en-IN') + ' ' + issue.unit;
+  document.getElementById('returnQty').value = '';
+  document.getElementById('returnQty').max = returnable;
+  document.getElementById('returnNotes').value = '';
+  document.getElementById('returnModal').dataset.issueId = issueId;
+  openModal('returnModal');
+}
+
+function recordReturn() {
+  const issueId = document.getElementById('returnModal').dataset.issueId;
+  const issue = usageDB.find(u => u.id === issueId);
+  if (!issue) return;
+  const qty = parseFloat(document.getElementById('returnQty').value);
+  const notes = document.getElementById('returnNotes').value.trim();
+  if (!qty || qty <= 0) { showToast('Enter valid return quantity', 'error'); return; }
+  const alreadyReturned = usageDB.filter(u => u.returnOf === issueId && u.type === 'return').reduce((s, u) => s + u.quantity, 0);
+  const returnable = parseFloat((issue.quantity - alreadyReturned).toFixed(6));
+  if (qty > returnable + 0.0001) { showToast('Max returnable: ' + returnable + ' ' + issue.unit, 'error'); return; }
+  const m = materials.find(x => x.id === issue.materialId);
+  if (!m) return;
+  const returnDeductions = [];
+  let remaining = qty;
+  for (const d of issue.batchDeductions) {
+    if (remaining <= 0.0001) break;
+    const returnQty = Math.min(d.qty, remaining);
+    const batch = m.batches.find(b => b.batchId === d.batchId);
+    if (batch) {
+      batch.quantity = parseFloat((parseFloat(batch.quantity) + returnQty).toFixed(6));
+    } else {
+      m.batches.push({ batchId: d.batchId, batchNumber: (d.batchNumber || d.batchId) + '-RTN', quantity: returnQty, price: m.unitPrice, receivedDate: new Date().toISOString().split('T')[0], notes: 'Returned from production' });
+    }
+    returnDeductions.push({ batchId: d.batchId, batchNumber: d.batchNumber || d.batchId, qty: returnQty });
+    remaining -= returnQty;
+  }
+  const returnNum = 'RMR-' + String(nextIssueNum).padStart(4, '0');
+  nextIssueNum++;
+  usageDB.unshift({
+    id: returnNum, issueNumber: returnNum, type: 'return',
+    materialId: m.id, materialCode: m.code, materialName: m.name, unit: m.unit,
+    quantity: qty, purpose: 'Return from: ' + issue.purpose, notes: notes,
+    batchDeductions: returnDeductions, date: new Date().toISOString(), returnOf: issueId
+  });
+  saveDB(); saveUsageDB();
+  closeModal('returnModal');
+  showToast('Return recorded: +' + qty + ' ' + m.unit + ' back to stock (' + returnNum + ')', 'success');
+}
 
 // ========== INIT ==========
 loadDB();

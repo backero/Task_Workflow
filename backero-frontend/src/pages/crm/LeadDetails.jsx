@@ -194,6 +194,7 @@ export default function LeadDetails() {
       company: data.company,
       city: data.city,
       state: data.state,
+      businessType: data.businessType,
       priority: data.priority,
       estimatedValue: data.estimatedValue ? Number(data.estimatedValue) : 0,
       notes: data.notes,
@@ -1330,6 +1331,12 @@ export default function LeadDetails() {
                 <div>
                   <label className="label">State</label>
                   <input {...regEdit('state')} defaultValue={lead.state} className="input" />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="label">Business Type</label>
+                  <input {...regEdit('businessType')} defaultValue={lead.businessType} className="input" placeholder="e.g. Beauty Brand" />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-3">

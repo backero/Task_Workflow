@@ -4,8 +4,10 @@ import { Link, useSearchParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import clsx from 'clsx';
 import api from '../../api/axios';
-import { format } from 'date-fns';
+import { format, formatDistanceToNowStrict } from 'date-fns';
 import SampleLeadDetail from './SampleLeadDetail';
+import CreateLeadModal from './CreateLeadModal';
+import { customerId } from '../../utils/leadHelpers';
 
 // Cross-customer work queue over the CRM's existing "Sample" pipeline stage —
 // no new data model. Everything here reads/writes the same Lead record that
@@ -65,6 +67,7 @@ export const SUB_STAGE_PILL = {
 };
 
 const TABS = [
+  { key: 'new', label: 'New Leads', emoji: '🆕', hint: 'Brand-new leads — no CRM stage move needed. Add a product, formula, or sample here and the lead promotes to Sample automatically.' },
   { key: 'kyc', label: 'KYC', emoji: '🪪', hint: 'Every lead currently in the Sample stage — the same records as CRM & Sales → Lead Pipeline.' },
   { key: 'qa', label: 'Q&A Inbox', emoji: '📥', hint: 'Every technical query raised for a lead currently in Sample — reply here or from the lead’s own Q&A tab.' },
   { key: 'sample', label: 'Samples', emoji: '🧪', hint: 'Leads currently being sampled — dispatch, feedback, invoicing happens on the lead itself.' },
@@ -74,15 +77,90 @@ const TABS = [
 ];
 
 const FLOW_STEPS = ['Add customer (KYC)', 'Answer questions', 'Confirm payment', 'Make & track samples', 'Order to production'];
+const SAMPLE_SUB_STAGES = ['Requested', 'In Lab', 'Sent', 'Feedback', 'Approved', 'Rejected'];
+
+function toCsv(rows, columns) {
+  const escape = (v) => {
+    const s = v === null || v === undefined ? '' : String(v);
+    return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+  };
+  const header = columns.map((c) => escape(c.label)).join(',');
+  const lines = rows.map((r) => columns.map((c) => escape(c.value(r))).join(','));
+  return [header, ...lines].join('\n');
+}
+
+function downloadCsv(filename, csv) {
+  const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+function applySort(rows, accessors, sortState) {
+  const acc = sortState.col && accessors[sortState.col];
+  if (!acc) return rows;
+  const sorted = [...rows].sort((a, b) => {
+    const av = acc(a), bv = acc(b);
+    if (typeof av === 'number' && typeof bv === 'number') return av - bv;
+    return String(av).localeCompare(String(bv));
+  });
+  return sortState.dir === 'desc' ? sorted.reverse() : sorted;
+}
+
+function SortableTh({ label, sortKey, sortState, setSortState, className = '' }) {
+  const active = sortState.col === sortKey;
+  return (
+    <th
+      className={clsx('px-4 py-2.5 cursor-pointer select-none hover:text-[#2e241b]', className)}
+      onClick={() => setSortState((s) => (s.col === sortKey ? { col: sortKey, dir: s.dir === 'asc' ? 'desc' : 'asc' } : { col: sortKey, dir: 'asc' }))}
+    >
+      {label}{active && <span className="ml-1">{sortState.dir === 'asc' ? '▲' : '▼'}</span>}
+    </th>
+  );
+}
 
 export default function SampleProduction() {
   const [tab, setTab] = useState('sample');
   const [search, setSearch] = useState('');
   const [openLeadId, setOpenLeadId] = useState(null);
+  const [openLeadInitialTab, setOpenLeadInitialTab] = useState(null);
   const [sendLead, setSendLead] = useState(null);
   const [catalogSearch, setCatalogSearch] = useState('');
   const [selectedCatalogProduct, setSelectedCatalogProduct] = useState(null);
   const [batchSizeKg, setBatchSizeKg] = useState(10);
+  const [sampleStageFilter, setSampleStageFilter] = useState('');
+  const [sortState, setSortState] = useState({ col: null, dir: 'asc' });
+  const [showCreateLead, setShowCreateLead] = useState(false);
+  const [qaSortKey, setQaSortKey] = useState('aging');
+  const [qaSortDir, setQaSortDir] = useState('desc');
+
+  // KYC edit modal — covers the fields the "Sample Development" reference keeps on this page
+  // (not just name/phone/email, but preferredName/language/bestTime/teamSize/rapportNote too),
+  // saved via the existing generic PUT /crm/leads/:id endpoint (applies whatever fields are sent).
+  const [editKycLead, setEditKycLead] = useState(null);
+  const [kycForm, setKycForm] = useState({});
+  const [kycPasteText, setKycPasteText] = useState('');
+
+  // Q&A "Connect Existing" — inline catalog-product picker per query row.
+  const [connectingQueryId, setConnectingQueryId] = useState(null);
+  const [connectCatalogSearch, setConnectCatalogSearch] = useState('');
+
+  // Orders tab detail modal
+  const [openOrderLead, setOpenOrderLead] = useState(null);
+  const [orderQty, setOrderQty] = useState('');
+  const [orderDeliveryDate, setOrderDeliveryDate] = useState('');
+  const [orderMarginPct, setOrderMarginPct] = useState(30);
+
+  // Orders tab dispatch confirmation modal
+  const [dispatchLead, setDispatchLead] = useState(null);
+  const [dispatchNote, setDispatchNote] = useState('');
+  const [dispatchFile, setDispatchFile] = useState(null);
+
   const qc = useQueryClient();
 
   // Arriving from CRM Pipeline's "move to Sample" / "move to Production" actions
@@ -101,12 +179,27 @@ export default function SampleProduction() {
     queryFn: () => Promise.all([
       api.get('/crm/leads', { params: { status: 'Sample', limit: 200 } }).then((r) => r.data.data || r.data.leads || []),
       api.get('/crm/leads', { params: { status: 'In Progress', limit: 200 } }).then((r) => r.data.data || r.data.leads || []),
+      // Production auto-moves a lead to "Ready to Dispatch" once its batch clears Final QC
+      // (see production.routes.js) — it drops out of "In Progress" at that point, so the
+      // Orders tab needs to keep tracking it here until the dispatch confirmation below.
+      api.get('/crm/leads', { params: { status: 'Ready to Dispatch', limit: 200 } }).then((r) => r.data.data || r.data.leads || []),
     ]),
     refetchInterval: 60 * 1000,
   });
-  const [sampleLeads, inProgressLeads] = data || [[], []];
+  const [sampleLeads, inProgressLeads, readyToDispatchLeads] = data || [[], [], []];
   const awaiting = inProgressLeads.filter((l) => !l.productionOrderId);
-  const linked = inProgressLeads.filter((l) => l.productionOrderId);
+  const linked = [...inProgressLeads.filter((l) => l.productionOrderId), ...(readyToDispatchLeads || [])];
+
+  const { data: newLeadsData } = useQuery({
+    queryKey: ['sample-production', 'new-leads'],
+    queryFn: () => Promise.all([
+      api.get('/crm/leads', { params: { status: 'New Lead', limit: 200 } }).then((r) => r.data.data || r.data.leads || []),
+      api.get('/crm/leads', { params: { status: 'Follow-up', limit: 200 } }).then((r) => r.data.data || r.data.leads || []),
+    ]),
+    refetchInterval: 60 * 1000,
+  });
+  const [newStatusLeads, followUpLeads] = newLeadsData || [[], []];
+  const newLeads = [...newStatusLeads, ...followUpLeads];
 
   const { data: sampleQueries } = useQuery({
     queryKey: ['sample-production', 'queries'],
@@ -133,24 +226,98 @@ export default function SampleProduction() {
   const paymentPendingLeads = sampleLeads.filter((l) => l.sampleDetails?.paymentStatus !== 'full_paid');
   const paymentPendingValue = paymentPendingLeads.reduce((sum, l) => sum + (l.sampleDetails?.chargeAmount || 0), 0);
 
-  const rows = tab === 'sample' ? sampleLeads : tab === 'payments' ? sampleLeads : tab === 'kyc' ? sampleLeads : tab === 'awaiting' ? awaiting : linked;
+  const rows = tab === 'sample' ? sampleLeads : tab === 'payments' ? sampleLeads : tab === 'kyc' ? sampleLeads : tab === 'new' ? newLeads : tab === 'awaiting' ? awaiting : linked;
   const filtered = search
     ? rows.filter((l) => (l.name || '').toLowerCase().includes(search.toLowerCase()) || (l.company || '').toLowerCase().includes(search.toLowerCase()))
     : rows;
+
+  const stageChipCounts = SAMPLE_SUB_STAGES.reduce((acc, s) => {
+    acc[s] = sampleLeads.filter((l) => (l.sampleDetails?.subStage || 'Requested') === s).length;
+    return acc;
+  }, {});
+  const stageFiltered = tab === 'sample' && sampleStageFilter
+    ? filtered.filter((l) => (l.sampleDetails?.subStage || 'Requested') === sampleStageFilter)
+    : filtered;
+
+  const sortAccessors = {
+    kyc: {
+      customerId: (l) => customerId(l), name: (l) => l.name || '', phone: (l) => l.phone || '', city: (l) => l.city || '',
+      businessType: (l) => l.businessType || '', productInterest: (l) => (l.productInterest || []).join(', '),
+      kyc: (l) => computeKycPercent(l),
+    },
+    shared: {
+      name: (l) => l.name || '',
+      stage: (l) => l.sampleDetails?.subStage || 'Requested',
+      payment: (l) => (l.sampleDetails?.paymentStatus === 'full_paid' ? 1 : 0),
+    },
+  };
+  const sortedKycRows = applySort(filtered, sortAccessors.kyc, sortState);
+  const sortedRows = applySort(stageFiltered, sortAccessors.shared, sortState);
 
   const filteredQueries = search
     ? relevantQueries.filter((q) => (q.title || '').toLowerCase().includes(search.toLowerCase()) || (q.leadId?.name || '').toLowerCase().includes(search.toLowerCase()))
     : relevantQueries;
 
+  const leadsById = new Map([...sampleLeads, ...inProgressLeads].map((l) => [l._id, l]));
+
+  const exportCSV = () => {
+    const dateStr = format(new Date(), 'yyyy-MM-dd');
+    downloadCsv(`sample-dev-queries-${dateStr}.csv`, toCsv(relevantQueries, [
+      { label: 'Query ID', value: (q) => q._id },
+      { label: 'Customer', value: (q) => q.leadId?.name || '' },
+      { label: 'Company', value: (q) => q.leadId?.company || '' },
+      { label: 'Phone', value: (q) => q.leadId?.phone || '' },
+      { label: 'Title', value: (q) => q.title },
+      { label: 'Description', value: (q) => q.description },
+      { label: 'Urgency', value: (q) => q.urgency },
+      { label: 'Status', value: (q) => q.status },
+      { label: 'Created', value: (q) => format(new Date(q.createdAt), 'yyyy-MM-dd HH:mm') },
+      { label: 'Answer', value: (q) => q.answer || '' },
+    ]));
+    downloadCsv(`sample-dev-samples-${dateStr}.csv`, toCsv(sampleLeads, [
+      { label: 'Customer', value: (l) => l.name },
+      { label: 'Company', value: (l) => l.company || '' },
+      { label: 'Phone', value: (l) => l.phone },
+      { label: 'Product Interest', value: (l) => (l.productInterest || []).join('; ') },
+      { label: 'Sample Stage', value: (l) => l.sampleDetails?.subStage || 'Requested' },
+      { label: 'Payment Status', value: (l) => (l.sampleDetails?.paymentStatus === 'full_paid' ? 'Paid' : 'Pending') },
+      { label: 'Charge Amount', value: (l) => l.sampleDetails?.chargeAmount || 0 },
+      { label: 'Assigned To', value: (l) => (l.assignedTo ? `${l.assignedTo.firstName || ''} ${l.assignedTo.lastName || ''}`.trim() : '') },
+      { label: 'Production Order', value: (l) => l.productionOrderId?.orderNumber || '' },
+    ]));
+
+    const sampleRows = sampleLeads.flatMap((l) => (l.samples || []).map((s) => ({ lead: l, sample: s })));
+    downloadCsv(`sample-dev-sample-versions-${dateStr}.csv`, toCsv(sampleRows, [
+      { label: 'Sample ID', value: ({ sample }) => sample.sampleId },
+      { label: 'Customer', value: ({ lead }) => lead.name },
+      { label: 'Query ID', value: ({ sample }) => sample.queryId || '' },
+      { label: 'Formula ID', value: ({ sample }) => sample.formulaId || '' },
+      { label: 'Version', value: ({ sample }) => sample.version },
+      { label: 'Status', value: ({ sample }) => sample.status },
+      { label: 'Packaging Confirmed', value: ({ sample }) => (sample.packagingConfirmed ? 'Yes' : 'No') },
+      { label: 'Courier', value: ({ sample }) => sample.courier || '' },
+      { label: 'Docket', value: ({ sample }) => sample.awb || '' },
+      { label: 'Sent At', value: ({ sample }) => (sample.sentAt ? format(new Date(sample.sentAt), 'yyyy-MM-dd') : '') },
+      { label: 'Chained From', value: ({ sample }) => sample.chainedFrom || '' },
+      { label: 'Approved By', value: ({ sample }) => sample.approvedByContact || '' },
+      { label: 'Rejected By', value: ({ sample }) => sample.rejectedByContact || '' },
+      { label: 'Feedback Count', value: ({ sample }) => (sample.feedbackLog || []).length },
+      { label: 'Created At', value: ({ sample }) => (sample.createdAt ? format(new Date(sample.createdAt), 'yyyy-MM-dd') : '') },
+    ]));
+  };
+
   const { data: catalogProducts } = useQuery({
     queryKey: ['catalog', 'products', 'all'],
     queryFn: () => api.get('/catalog/products').then((r) => r.data.products || []),
-    enabled: !!sendLead,
+    enabled: !!sendLead || !!connectingQueryId,
     staleTime: 5 * 60 * 1000,
   });
   const activeCatalogProducts = (catalogProducts || []).filter((p) => p.status !== 'Discontinued');
   const catalogMatches = catalogSearch
     ? activeCatalogProducts.filter((p) => (p.name || '').toLowerCase().includes(catalogSearch.toLowerCase()) || (p.code || '').toLowerCase().includes(catalogSearch.toLowerCase()))
+    : activeCatalogProducts;
+  const connectCatalogMatches = connectCatalogSearch
+    ? activeCatalogProducts.filter((p) => (p.name || '').toLowerCase().includes(connectCatalogSearch.toLowerCase()) || (p.code || '').toLowerCase().includes(connectCatalogSearch.toLowerCase()))
     : activeCatalogProducts;
 
   const sendToProduction = useMutation({
@@ -176,6 +343,24 @@ export default function SampleProduction() {
     onError: (e) => toast.error(e.response?.data?.message || 'Failed to confirm payment'),
   });
 
+  const confirmDispatch = useMutation({
+    mutationFn: ({ leadId, note, file }) => {
+      const form = new FormData();
+      if (note) form.append('note', note);
+      if (file) form.append('file', file);
+      return api.post(`/crm/leads/${leadId}/dispatch`, form, { headers: { 'Content-Type': 'multipart/form-data' } });
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['sample-production'] });
+      qc.invalidateQueries({ queryKey: ['crm'] });
+      toast.success('Dispatched — client notified');
+      setDispatchLead(null);
+      setDispatchNote('');
+      setDispatchFile(null);
+    },
+    onError: (e) => toast.error(e.response?.data?.message || 'Failed to mark as dispatched'),
+  });
+
   const [qaReplyDrafts, setQaReplyDrafts] = useState({});
   const answerQueryMutation = useMutation({
     mutationFn: ({ queryId, answer }) => api.put(`/crm/queries/${queryId}/reply`, { answer }),
@@ -187,9 +372,63 @@ export default function SampleProduction() {
     onError: (e) => toast.error(e.response?.data?.message || 'Failed to reply'),
   });
 
+  const updateKycMutation = useMutation({
+    mutationFn: ({ leadId, body }) => api.put(`/crm/leads/${leadId}`, body),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['sample-production'] }); toast.success('KYC updated'); setEditKycLead(null); },
+    onError: (e) => toast.error(e.response?.data?.message || 'Failed to update KYC'),
+  });
+
+  const connectProductMutation = useMutation({
+    mutationFn: ({ leadId, product }) => api.post(`/crm/leads/${leadId}/products`, { name: product.name, catalogProductId: product._id, productId: product.code }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['sample-production'] });
+      toast.success('Product connected');
+      setConnectingQueryId(null);
+      setConnectCatalogSearch('');
+    },
+    onError: (e) => toast.error(e.response?.data?.message || 'Failed to connect product'),
+  });
+
+  const { data: openOrderDetail } = useQuery({
+    queryKey: ['production', 'order', openOrderLead?.productionOrderId?._id],
+    queryFn: () => api.get(`/production/${openOrderLead.productionOrderId._id}`).then((r) => r.data.order || r.data.data),
+    enabled: !!openOrderLead?.productionOrderId?._id,
+  });
+  useEffect(() => {
+    if (openOrderDetail) {
+      setOrderQty(String(openOrderDetail.plannedQuantity || openOrderDetail.batchSizeKg || ''));
+      setOrderDeliveryDate(openOrderDetail.deliveryDate ? String(openOrderDetail.deliveryDate).slice(0, 10) : '');
+    }
+  }, [openOrderDetail]);
+
+  const updateOrderMutation = useMutation({
+    mutationFn: ({ orderId, body }) => api.patch(`/production/${orderId}/order`, body),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['sample-production'] });
+      qc.invalidateQueries({ queryKey: ['production'] });
+      toast.success('Order updated');
+    },
+    onError: (e) => toast.error(e.response?.data?.message || 'Failed to update order'),
+  });
+
+  function agingBadge(q) {
+    if (q.status !== 'pending') return null;
+    const hours = (Date.now() - new Date(q.createdAt).getTime()) / 3600000;
+    const tone = hours > 48 ? PILL.danger : hours > 24 ? PILL.warning : PILL.gray;
+    return <span className={clsx('text-[10px] font-semibold px-1.5 py-0.5 rounded-full', tone)}>{formatDistanceToNowStrict(new Date(q.createdAt))} old</span>;
+  }
+
+  const qaSortAccessors = {
+    aging: (q) => new Date(q.createdAt).getTime(),
+    customer: (q) => q.leadId?.name || '',
+    status: (q) => q.status || '',
+  };
+  const sortedQueries = applySort(filteredQueries, qaSortAccessors, { col: qaSortKey, dir: qaSortDir });
+
   const accentBtn = 'inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-[#f2b23e] text-[#2e241b] text-xs font-bold hover:brightness-95 transition disabled:opacity-50';
   const outlineBtn = 'inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full border-[1.5px] border-[#d3c9b4] text-[#6d5f4c] text-xs font-semibold hover:bg-[#e7dfce] hover:border-[#968871] hover:text-[#2e241b] transition';
   const textLink = 'text-xs font-semibold text-[#4a3a29] hover:text-[#2e241b]';
+  const modalInputCls = 'px-3 py-2 text-sm rounded-[10px] border-[1.5px] border-[#d3c9b4] bg-white text-[#2e241b] focus:outline-none focus:border-[#968871] placeholder:text-[#968871]';
 
   return (
     <div className="space-y-5 -m-4 sm:-m-6 p-4 sm:p-6 bg-[#c9c0ae] min-h-[calc(100vh-4rem)]" style={bodyFont}>
@@ -197,10 +436,13 @@ export default function SampleProduction() {
 
       <Card className="flex items-center gap-3">
         <div className="w-10 h-10 rounded-xl bg-[#f2b23e] flex items-center justify-center shadow-sm flex-shrink-0 text-lg">🧪</div>
-        <div>
+        <div className="flex-1 min-w-0">
           <h1 className="text-lg font-bold text-[#2e241b] leading-tight" style={displayFont}>Sample Development</h1>
           <p className="text-xs text-[#6d5f4c]">{sampleLeads.length} in sampling · {awaiting.length} awaiting production · {linked.length} linked</p>
         </div>
+        <button onClick={exportCSV} className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full border-[1.5px] border-[#d3c9b4] text-[#6d5f4c] text-xs font-semibold hover:bg-[#e7dfce] hover:border-[#968871] hover:text-[#2e241b] transition flex-shrink-0">
+          📥 Export CSV
+        </button>
       </Card>
 
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
@@ -226,7 +468,7 @@ export default function SampleProduction() {
           {TABS.map((t) => (
             <button
               key={t.key}
-              onClick={() => setTab(t.key)}
+              onClick={() => { setTab(t.key); setSortState({ col: null, dir: 'asc' }); }}
               className={clsx(
                 'px-4 py-3 text-[13px] font-semibold border-b-[2.5px] transition-colors flex items-center gap-1.5',
                 tab === t.key ? 'border-[#f2b23e] text-[#2e241b]' : 'border-transparent text-[#6d5f4c] hover:text-[#2e241b]'
@@ -246,26 +488,115 @@ export default function SampleProduction() {
               <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search customer, company…"
                 className="pl-9 pr-3 py-2 text-sm border-[1.5px] border-[#d3c9b4] rounded-full focus:outline-none focus:border-[#968871] w-full bg-[#e7dfce] text-[#2e241b] placeholder:text-[#968871]" />
             </div>
-            {tab === 'kyc' && <Link to="/crm/pipeline" className={accentBtn}>+ New Lead</Link>}
+            {(tab === 'kyc' || tab === 'new') && <button onClick={() => setShowCreateLead(true)} className={accentBtn}>+ New Lead</button>}
           </div>
+
+          {tab === 'sample' && (
+            <div className="flex items-center gap-2 flex-wrap">
+              <button
+                onClick={() => setSampleStageFilter('')}
+                className={clsx('px-3 py-1 rounded-full text-[11px] font-semibold border-[1.5px] transition-colors',
+                  !sampleStageFilter ? 'bg-[#2e241b] border-[#2e241b] text-white' : 'border-[#d3c9b4] bg-[#e7dfce] text-[#6d5f4c] hover:border-[#968871]')}
+              >
+                All <span className="opacity-75 font-bold">{sampleLeads.length}</span>
+              </button>
+              {SAMPLE_SUB_STAGES.map((s) => (
+                <button
+                  key={s}
+                  onClick={() => setSampleStageFilter(s)}
+                  className={clsx('px-3 py-1 rounded-full text-[11px] font-semibold border-[1.5px] transition-colors',
+                    sampleStageFilter === s ? 'bg-[#2e241b] border-[#2e241b] text-white' : 'border-[#d3c9b4] bg-[#e7dfce] text-[#6d5f4c] hover:border-[#968871]')}
+                >
+                  {s} <span className="opacity-75 font-bold">{stageChipCounts[s] || 0}</span>
+                </button>
+              ))}
+            </div>
+          )}
+
+          {tab === 'new' && (
+            <div className="overflow-x-auto rounded-[10px] border border-[#e2dac8]">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-[#d3c9b4] text-left text-[11px] uppercase tracking-wide text-[#6d5f4c] bg-[#e7dfce]">
+                    <SortableTh label="Customer ID" sortKey="customerId" sortState={sortState} setSortState={setSortState} />
+                    <SortableTh label="Customer" sortKey="name" sortState={sortState} setSortState={setSortState} />
+                    <SortableTh label="Phone" sortKey="phone" sortState={sortState} setSortState={setSortState} />
+                    <SortableTh label="City" sortKey="city" sortState={sortState} setSortState={setSortState} />
+                    <SortableTh label="Business Type" sortKey="businessType" sortState={sortState} setSortState={setSortState} />
+                    <SortableTh label="Product Interest" sortKey="productInterest" sortState={sortState} setSortState={setSortState} />
+                    <th className="px-4 py-2.5">Status</th>
+                    <th className="px-4 py-2.5"></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {isLoading && <tr><td colSpan={8} className="px-4 py-8 text-center text-[#968871] text-xs">Loading…</td></tr>}
+                  {!isLoading && sortedKycRows.length === 0 && <tr><td colSpan={8} className="px-4 py-8 text-center text-[#968871] text-xs">No new leads right now.</td></tr>}
+                  {sortedKycRows.map((l) => (
+                    <tr key={l._id} className="border-b border-[#e2dac8] hover:bg-[#e7dfce]/60">
+                      <td className="px-4 py-2.5 font-mono text-xs text-[#4a3a29] font-semibold">{customerId(l)}</td>
+                      <td className="px-4 py-2.5">
+                        <p className="text-[#2e241b] font-medium">{l.name}</p>
+                        <p className="text-[#968871] text-xs">{l.company || '—'}</p>
+                      </td>
+                      <td className="px-4 py-2.5 text-[#6d5f4c] text-xs">{l.phone}</td>
+                      <td className="px-4 py-2.5 text-[#6d5f4c] text-xs">{l.city || '—'}</td>
+                      <td className="px-4 py-2.5 text-[#6d5f4c] text-xs">{l.businessType || '—'}</td>
+                      <td className="px-4 py-2.5 text-[#6d5f4c] text-xs">{(l.productInterest || []).join(', ') || '—'}</td>
+                      <td className="px-4 py-2.5">
+                        <span className={clsx('text-[10px] font-semibold px-2 py-0.5 rounded-full', l.status === 'Follow-up' ? PILL.warning : PILL.gray)}>
+                          {l.status}
+                        </span>
+                      </td>
+                      <td className="px-4 py-2.5 text-right whitespace-nowrap">
+                        <button
+                          onClick={() => {
+                            setEditKycLead(l);
+                            setKycForm({
+                              name: l.name || '', phone: l.phone || '', phone2: l.phone2 || '', whatsapp: l.whatsapp || '',
+                              email: l.email || '', company: l.company || '', city: l.city || '', businessType: l.businessType || '',
+                              productInterest: (l.productInterest || []).join(', '),
+                              preferredName: l.preferredName || '', language: l.language || '', bestTime: l.bestTime || '',
+                              teamSize: l.teamSize || '', rapportNote: l.rapportNote || '',
+                            });
+                            setKycPasteText('');
+                          }}
+                          className={clsx(textLink, 'mr-3')}
+                        >
+                          Edit KYC
+                        </button>
+                        <button onClick={() => { setOpenLeadId(l._id); setOpenLeadInitialTab(null); }} className={clsx(textLink, 'mr-3')}>Open ▸</button>
+                        <Link to={`/crm/leads/${l._id}`} className={textLink}>Open lead →</Link>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
 
           {tab === 'kyc' && (
             <div className="overflow-x-auto rounded-[10px] border border-[#e2dac8]">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-[#d3c9b4] text-left text-[11px] uppercase tracking-wide text-[#6d5f4c] bg-[#e7dfce]">
-                    <th className="px-4 py-2.5">Customer</th><th className="px-4 py-2.5">Phone</th><th className="px-4 py-2.5">City</th>
-                    <th className="px-4 py-2.5">Business Type</th><th className="px-4 py-2.5">Product Interest</th>
-                    <th className="px-4 py-2.5">KYC %</th><th className="px-4 py-2.5"></th>
+                    <SortableTh label="Customer ID" sortKey="customerId" sortState={sortState} setSortState={setSortState} />
+                    <SortableTh label="Customer" sortKey="name" sortState={sortState} setSortState={setSortState} />
+                    <SortableTh label="Phone" sortKey="phone" sortState={sortState} setSortState={setSortState} />
+                    <SortableTh label="City" sortKey="city" sortState={sortState} setSortState={setSortState} />
+                    <SortableTh label="Business Type" sortKey="businessType" sortState={sortState} setSortState={setSortState} />
+                    <SortableTh label="Product Interest" sortKey="productInterest" sortState={sortState} setSortState={setSortState} />
+                    <SortableTh label="KYC %" sortKey="kyc" sortState={sortState} setSortState={setSortState} />
+                    <th className="px-4 py-2.5"></th>
                   </tr>
                 </thead>
                 <tbody>
-                  {isLoading && <tr><td colSpan={7} className="px-4 py-8 text-center text-[#968871] text-xs">Loading…</td></tr>}
-                  {!isLoading && filtered.length === 0 && <tr><td colSpan={7} className="px-4 py-8 text-center text-[#968871] text-xs">Nothing here right now.</td></tr>}
-                  {filtered.map((l) => {
+                  {isLoading && <tr><td colSpan={8} className="px-4 py-8 text-center text-[#968871] text-xs">Loading…</td></tr>}
+                  {!isLoading && sortedKycRows.length === 0 && <tr><td colSpan={8} className="px-4 py-8 text-center text-[#968871] text-xs">Nothing here right now.</td></tr>}
+                  {sortedKycRows.map((l) => {
                     const kyc = computeKycPercent(l);
                     return (
                       <tr key={l._id} className="border-b border-[#e2dac8] hover:bg-[#e7dfce]/60">
+                        <td className="px-4 py-2.5 font-mono text-xs text-[#4a3a29] font-semibold">{customerId(l)}</td>
                         <td className="px-4 py-2.5">
                           <p className="text-[#2e241b] font-medium">{l.name}</p>
                           <p className="text-[#968871] text-xs">{l.company || '—'}</p>
@@ -280,7 +611,23 @@ export default function SampleProduction() {
                           </span>
                         </td>
                         <td className="px-4 py-2.5 text-right whitespace-nowrap">
-                          <button onClick={() => setOpenLeadId(l._id)} className={clsx(textLink, 'mr-3')}>Open ▸</button>
+                          <button
+                            onClick={() => {
+                              setEditKycLead(l);
+                              setKycForm({
+                                name: l.name || '', phone: l.phone || '', phone2: l.phone2 || '', whatsapp: l.whatsapp || '',
+                                email: l.email || '', company: l.company || '', city: l.city || '', businessType: l.businessType || '',
+                                productInterest: (l.productInterest || []).join(', '),
+                                preferredName: l.preferredName || '', language: l.language || '', bestTime: l.bestTime || '',
+                                teamSize: l.teamSize || '', rapportNote: l.rapportNote || '',
+                              });
+                              setKycPasteText('');
+                            }}
+                            className={clsx(textLink, 'mr-3')}
+                          >
+                            Edit KYC
+                          </button>
+                          <button onClick={() => { setOpenLeadId(l._id); setOpenLeadInitialTab(null); }} className={clsx(textLink, 'mr-3')}>Open ▸</button>
                           <Link to={`/crm/leads/${l._id}`} className={textLink}>Open lead →</Link>
                         </td>
                       </tr>
@@ -292,20 +639,83 @@ export default function SampleProduction() {
           )}
 
           {tab === 'qa' && (
-            <div className="rounded-[10px] border border-[#e2dac8] divide-y divide-[#e2dac8]">
-              {filteredQueries.length === 0 && <p className="px-4 py-8 text-center text-[#968871] text-xs">No queries for any Sample-stage lead right now.</p>}
-              {filteredQueries.map((q) => (
+            <div className="space-y-2">
+              <div className="flex items-center gap-2 text-xs text-[#6d5f4c]">
+                <span className="uppercase tracking-wide text-[#968871] font-semibold">Sort:</span>
+                {[['aging', 'Aging'], ['customer', 'Customer'], ['status', 'Status']].map(([key, label]) => (
+                  <button
+                    key={key}
+                    onClick={() => {
+                      if (qaSortKey === key) setQaSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
+                      else { setQaSortKey(key); setQaSortDir('desc'); }
+                    }}
+                    className={clsx('px-2.5 py-1 rounded-full border-[1.5px]', qaSortKey === key ? 'border-[#2e241b] bg-[#2e241b] text-white' : 'border-[#d3c9b4] bg-[#e7dfce]')}
+                  >
+                    {label}{qaSortKey === key && (qaSortDir === 'asc' ? ' ▲' : ' ▼')}
+                  </button>
+                ))}
+              </div>
+              <div className="rounded-[10px] border border-[#e2dac8] divide-y divide-[#e2dac8]">
+              {sortedQueries.length === 0 && <p className="px-4 py-8 text-center text-[#968871] text-xs">No queries for any Sample-stage lead right now.</p>}
+              {sortedQueries.map((q) => {
+                const relatedLead = leadsById.get(q.leadId?._id);
+                const hasProduct = (relatedLead?.productLinks?.length || 0) > 0;
+                return (
                 <div key={q._id} className="p-4 space-y-2">
                   <div className="flex items-center justify-between flex-wrap gap-2">
                     <div className="flex items-center gap-2 flex-wrap text-[11px]">
                       <span className={clsx('px-2 py-0.5 rounded-full font-semibold', q.status === 'pending' ? PILL.warning : PILL.success)}>{q.status}</span>
+                      {agingBadge(q)}
                       <span className="font-semibold text-[#4a3a29]">{q.leadId?.name || 'Unknown lead'}</span>
                       <span className="text-[#968871]">{q.leadId?.company || ''}</span>
                       <span className="text-[#968871]">· {format(new Date(q.createdAt), 'dd MMM, hh:mm a')}</span>
                       <span className="text-[#968871]">· {q.urgency} urgency</span>
                     </div>
-                    <button onClick={() => setOpenLeadId(q.leadId?._id)} className={textLink}>Open lead ▸</button>
+                    <div className="flex items-center gap-3 flex-wrap">
+                      <button onClick={() => { setOpenLeadId(q.leadId?._id); setOpenLeadInitialTab('Products'); }} className={textLink}>🆕 Create Product</button>
+                      <button onClick={() => { setConnectingQueryId((id) => id === q._id ? null : q._id); setConnectCatalogSearch(''); }} className={textLink}>🔗 Connect Existing</button>
+                      <button
+                        disabled={!hasProduct}
+                        title={hasProduct ? '' : 'Link a product to this lead first'}
+                        onClick={() => { setOpenLeadId(q.leadId?._id); setOpenLeadInitialTab('Formulas'); }}
+                        className={clsx(textLink, !hasProduct && 'opacity-40 cursor-not-allowed')}
+                      >
+                        🧬 Create Formula
+                      </button>
+                      <button
+                        disabled={!hasProduct}
+                        title={hasProduct ? '' : 'Link a product to this lead first'}
+                        onClick={() => { setOpenLeadId(q.leadId?._id); setOpenLeadInitialTab('Samples'); }}
+                        className={clsx(textLink, !hasProduct && 'opacity-40 cursor-not-allowed')}
+                      >
+                        🧪 Create Sample
+                      </button>
+                      <button onClick={() => { setOpenLeadId(q.leadId?._id); setOpenLeadInitialTab(null); }} className={textLink}>Open lead ▸</button>
+                    </div>
                   </div>
+                  {connectingQueryId === q._id && (
+                    <div className="p-2 rounded-lg border-[1.5px] border-dashed border-[#d3c9b4] bg-[#e7dfce]">
+                      <input
+                        value={connectCatalogSearch}
+                        onChange={(e) => setConnectCatalogSearch(e.target.value)}
+                        placeholder="Search catalog products to connect…"
+                        className={clsx(modalInputCls, 'w-full')}
+                      />
+                      {connectCatalogSearch && (
+                        <div className="mt-1 rounded-[10px] border border-[#d3c9b4] bg-white max-h-32 overflow-y-auto">
+                          {connectCatalogMatches.length === 0 && <div className="px-3 py-2 text-xs text-[#968871]">No products found</div>}
+                          {connectCatalogMatches.slice(0, 8).map((p) => (
+                            <button key={p._id} type="button"
+                              onClick={() => connectProductMutation.mutate({ leadId: q.leadId?._id, product: p })}
+                              className="w-full text-left px-3 py-2 text-xs hover:bg-[#e7dfce] flex justify-between">
+                              <span className="text-[#2e241b]">{p.name}</span>
+                              <span className="text-[#968871] font-mono">{p.code}</span>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
                   <p className="text-sm font-semibold text-[#2e241b]">{q.title}</p>
                   <p className="text-sm text-[#6d5f4c]">{q.description}</p>
                   {q.answer ? (
@@ -335,7 +745,9 @@ export default function SampleProduction() {
                     </div>
                   )}
                 </div>
-              ))}
+                );
+              })}
+              </div>
             </div>
           )}
 
@@ -344,17 +756,18 @@ export default function SampleProduction() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-[#d3c9b4] text-left text-[11px] uppercase tracking-wide text-[#6d5f4c] bg-[#e7dfce]">
-                    <th className="px-4 py-2.5">Customer</th><th className="px-4 py-2.5">Product Interest</th>
-                    {(tab === 'sample' || tab === 'payments') && <th className="px-4 py-2.5">Sample Stage</th>}
-                    <th className="px-4 py-2.5">Payment</th>
+                    <SortableTh label="Customer" sortKey="name" sortState={sortState} setSortState={setSortState} />
+                    <th className="px-4 py-2.5">Product Interest</th>
+                    {(tab === 'sample' || tab === 'payments') && <SortableTh label="Sample Stage" sortKey="stage" sortState={sortState} setSortState={setSortState} />}
+                    <SortableTh label="Payment" sortKey="payment" sortState={sortState} setSortState={setSortState} />
                     {tab !== 'payments' && <th className="px-4 py-2.5">{tab === 'linked' ? 'Batch Order' : 'Assigned To'}</th>}
                     <th className="px-4 py-2.5"></th>
                   </tr>
                 </thead>
                 <tbody>
                   {isLoading && <tr><td colSpan={6} className="px-4 py-8 text-center text-[#968871] text-xs">Loading…</td></tr>}
-                  {!isLoading && filtered.length === 0 && <tr><td colSpan={6} className="px-4 py-8 text-center text-[#968871] text-xs">Nothing here right now.</td></tr>}
-                  {filtered.map((l) => (
+                  {!isLoading && sortedRows.length === 0 && <tr><td colSpan={6} className="px-4 py-8 text-center text-[#968871] text-xs">Nothing here right now.</td></tr>}
+                  {sortedRows.map((l) => (
                     <tr key={l._id} className="border-b border-[#e2dac8] hover:bg-[#e7dfce]/60">
                       <td className="px-4 py-2.5">
                         <p className="text-[#2e241b] font-medium">{l.name}</p>
@@ -382,7 +795,7 @@ export default function SampleProduction() {
                       )}
                       <td className="px-4 py-2.5 text-right whitespace-nowrap">
                         {tab === 'sample' && (
-                          <button onClick={() => setOpenLeadId(l._id)} className={clsx(textLink, 'mr-3')}>Open ▸</button>
+                          <button onClick={() => { setOpenLeadId(l._id); setOpenLeadInitialTab(null); }} className={clsx(textLink, 'mr-3')}>Open ▸</button>
                         )}
                         {tab === 'payments' && (
                           l.sampleDetails?.paymentStatus === 'full_paid'
@@ -401,9 +814,27 @@ export default function SampleProduction() {
                           </button>
                         )}
                         {tab === 'linked' ? (
-                          <Link to="/production/batch-tracker" className={clsx(textLink, 'inline-flex items-center gap-1')}>
-                            Open in Batch Tracker ↗
-                          </Link>
+                          <>
+                            <button
+                              onClick={() => { setOpenOrderLead(l); setOrderQty(''); setOrderDeliveryDate(''); setOrderMarginPct(30); }}
+                              className={clsx(textLink, 'mr-3')}
+                            >
+                              Order Detail
+                            </button>
+                            <Link to="/production/batch-tracker" className={clsx(textLink, 'inline-flex items-center gap-1 mr-3')}>
+                              Open in Batch Tracker ↗
+                            </Link>
+                            {l.status === 'Dispatched' ? (
+                              <span className="text-xs text-[#3a5f3c] font-semibold">✓ Dispatched</span>
+                            ) : (
+                              <button
+                                onClick={() => { setDispatchLead(l); setDispatchNote(''); setDispatchFile(null); }}
+                                className={clsx(textLink, 'font-semibold')}
+                              >
+                                Confirm Dispatch
+                              </button>
+                            )}
+                          </>
                         ) : (
                           <Link to={`/crm/leads/${l._id}`} className={textLink}>Open lead →</Link>
                         )}
@@ -417,7 +848,25 @@ export default function SampleProduction() {
         </div>
       </Card>
 
-      {openLeadId && <SampleLeadDetail leadId={openLeadId} onClose={() => setOpenLeadId(null)} />}
+      {openLeadId && (
+        <SampleLeadDetail
+          leadId={openLeadId}
+          initialTab={openLeadInitialTab}
+          onClose={() => { setOpenLeadId(null); setOpenLeadInitialTab(null); }}
+        />
+      )}
+
+      {showCreateLead && (
+        <CreateLeadModal
+          onClose={() => setShowCreateLead(false)}
+          onRefresh={() => { qc.invalidateQueries({ queryKey: ['sample-production'] }); qc.invalidateQueries({ queryKey: ['crm'] }); }}
+          onSuccess={() => {
+            setShowCreateLead(false);
+            qc.invalidateQueries({ queryKey: ['sample-production'] });
+            qc.invalidateQueries({ queryKey: ['crm'] });
+          }}
+        />
+      )}
 
       {sendLead && (
         <div className="fixed inset-0 z-[70] flex items-center justify-center p-4" style={bodyFont}>
@@ -470,6 +919,219 @@ export default function SampleProduction() {
                   className={clsx(accentBtn, 'flex-1 justify-center')}
                 >
                   {sendToProduction.isPending ? 'Sending…' : 'Confirm'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {editKycLead && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4" style={bodyFont}>
+          <style>{FONT_IMPORT}</style>
+          <div className="absolute inset-0 bg-[#2e241b]/50 backdrop-blur-sm" onClick={() => setEditKycLead(null)} />
+          <div className="relative bg-[#f0eadd] rounded-2xl shadow-[0_10px_40px_rgba(46,36,27,0.16)] w-full max-w-2xl border border-[#d3c9b4] flex flex-col" style={{ maxHeight: '90vh' }}>
+            <div className="p-5 border-b border-[#e2dac8] bg-[#e7dfce] rounded-t-2xl flex items-center justify-between flex-shrink-0">
+              <h3 className="font-bold text-[#2e241b]" style={displayFont}>🪪 Edit KYC — {editKycLead.name}</h3>
+              <button onClick={() => setEditKycLead(null)} className="w-9 h-9 rounded-lg hover:bg-[#ddd3be] flex items-center justify-center text-[#968871] hover:text-[#2e241b] text-lg">✕</button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-5 space-y-3">
+              <div>
+                <label className="text-xs font-semibold text-[#968871] uppercase tracking-wide mb-1 block">Paste to autofill</label>
+                <textarea
+                  value={kycPasteText}
+                  onChange={(e) => setKycPasteText(e.target.value)}
+                  rows={3}
+                  placeholder="Paste an email signature or WhatsApp intro — empty fields below get filled in automatically."
+                  className={clsx(modalInputCls, 'w-full')}
+                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    const text = kycPasteText;
+                    if (!text.trim()) return;
+                    setKycForm((f) => {
+                      const next = { ...f };
+                      if (!next.email) {
+                        const m = text.match(/[\w.+-]+@[\w-]+\.[\w.]+/);
+                        if (m) next.email = m[0];
+                      }
+                      const phoneMatches = [...text.matchAll(/(\+?\d[\d\s-]{8,}\d)/g)].map((m) => m[0].replace(/\s+/g, ''));
+                      if (!next.phone && phoneMatches[0]) next.phone = phoneMatches[0];
+                      if (!next.phone2 && phoneMatches[1]) next.phone2 = phoneMatches[1];
+                      const waLine = text.split(/\r?\n/).find((l) => /whatsapp/i.test(l));
+                      if (!next.whatsapp && waLine) {
+                        const m = waLine.match(/(\+?\d[\d\s-]{8,}\d)/);
+                        if (m) next.whatsapp = m[0].replace(/\s+/g, '');
+                      }
+                      if (!next.name) {
+                        let m = text.match(/(?:^|[\r\n])\s*(?:name|contact(?:\s*person)?)\s*[:\-]\s*([^\r\n]+)/i);
+                        if (!m) m = text.match(/(?:\bi am\b|\bthis is\b|\bi'?m\b)\s+([A-Za-z][A-Za-z .]{1,40})/i);
+                        if (m) next.name = m[1].trim();
+                      }
+                      return next;
+                    });
+                    setKycPasteText('');
+                    toast.success('Autofilled empty fields');
+                  }}
+                  className={clsx(outlineBtn, 'mt-1.5')}
+                >
+                  Autofill from paste
+                </button>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <input value={kycForm.name || ''} onChange={(e) => setKycForm((f) => ({ ...f, name: e.target.value }))} placeholder="Name" className={modalInputCls} />
+                <input value={kycForm.preferredName || ''} onChange={(e) => setKycForm((f) => ({ ...f, preferredName: e.target.value }))} placeholder="Preferred name" className={modalInputCls} />
+                <input value={kycForm.phone || ''} onChange={(e) => setKycForm((f) => ({ ...f, phone: e.target.value }))} placeholder="Phone" className={modalInputCls} />
+                <input value={kycForm.phone2 || ''} onChange={(e) => setKycForm((f) => ({ ...f, phone2: e.target.value }))} placeholder="Phone 2 (secondary)" className={modalInputCls} />
+                <input value={kycForm.whatsapp || ''} onChange={(e) => setKycForm((f) => ({ ...f, whatsapp: e.target.value }))} placeholder="WhatsApp" className={modalInputCls} />
+                <input value={kycForm.email || ''} onChange={(e) => setKycForm((f) => ({ ...f, email: e.target.value }))} placeholder="Email" className={modalInputCls} />
+                <input value={kycForm.company || ''} onChange={(e) => setKycForm((f) => ({ ...f, company: e.target.value }))} placeholder="Company" className={modalInputCls} />
+                <input value={kycForm.city || ''} onChange={(e) => setKycForm((f) => ({ ...f, city: e.target.value }))} placeholder="City" className={modalInputCls} />
+                <input value={kycForm.businessType || ''} onChange={(e) => setKycForm((f) => ({ ...f, businessType: e.target.value }))} placeholder="Business type" className={modalInputCls} />
+                <input value={kycForm.language || ''} onChange={(e) => setKycForm((f) => ({ ...f, language: e.target.value }))} placeholder="Preferred language" className={modalInputCls} />
+                <input value={kycForm.bestTime || ''} onChange={(e) => setKycForm((f) => ({ ...f, bestTime: e.target.value }))} placeholder="Best time to contact" className={modalInputCls} />
+                <input value={kycForm.teamSize || ''} onChange={(e) => setKycForm((f) => ({ ...f, teamSize: e.target.value }))} placeholder="Team size" className={modalInputCls} />
+              </div>
+              <input value={kycForm.productInterest || ''} onChange={(e) => setKycForm((f) => ({ ...f, productInterest: e.target.value }))} placeholder="Product interest (comma-separated)" className={clsx(modalInputCls, 'w-full')} />
+              <textarea value={kycForm.rapportNote || ''} onChange={(e) => setKycForm((f) => ({ ...f, rapportNote: e.target.value }))} placeholder="Rapport / relationship notes…" rows={2} className={clsx(modalInputCls, 'w-full')} />
+
+              <div className="flex gap-3 pt-1">
+                <button type="button" onClick={() => setEditKycLead(null)} className={clsx(outlineBtn, 'flex-1 justify-center')}>Cancel</button>
+                <button
+                  onClick={() => {
+                    if (!kycForm.name?.trim()) { toast.error('Name is required'); return; }
+                    updateKycMutation.mutate({
+                      leadId: editKycLead._id,
+                      body: {
+                        ...kycForm,
+                        productInterest: (kycForm.productInterest || '').split(',').map((s) => s.trim()).filter(Boolean),
+                      },
+                    });
+                  }}
+                  disabled={updateKycMutation.isPending}
+                  className={clsx(accentBtn, 'flex-1 justify-center')}
+                >
+                  {updateKycMutation.isPending ? 'Saving…' : 'Save'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {openOrderLead && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4" style={bodyFont}>
+          <style>{FONT_IMPORT}</style>
+          <div className="absolute inset-0 bg-[#2e241b]/50 backdrop-blur-sm" onClick={() => setOpenOrderLead(null)} />
+          <div className="relative bg-[#f0eadd] rounded-2xl shadow-[0_10px_40px_rgba(46,36,27,0.16)] w-full max-w-md border border-[#d3c9b4]">
+            <div className="p-5 border-b border-[#e2dac8] bg-[#e7dfce] rounded-t-2xl">
+              <h3 className="font-bold text-[#2e241b]" style={displayFont}>🧾 Order Detail</h3>
+              <p className="text-xs text-[#6d5f4c] mt-0.5">{openOrderLead.name} — {openOrderLead.productionOrderId?.orderNumber}</p>
+            </div>
+            <div className="p-5 space-y-3">
+              <div>
+                <label className="text-xs font-semibold text-[#968871] uppercase tracking-wide mb-1 block">Quantity</label>
+                <input type="number" value={orderQty} onChange={(e) => setOrderQty(e.target.value)} className={clsx(modalInputCls, 'w-full')} />
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-[#968871] uppercase tracking-wide mb-1 block">Delivery date</label>
+                <input type="date" value={orderDeliveryDate} onChange={(e) => setOrderDeliveryDate(e.target.value)} className={clsx(modalInputCls, 'w-full')} />
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-[#968871] uppercase tracking-wide mb-1 block">Margin %</label>
+                <input type="number" value={orderMarginPct} onChange={(e) => setOrderMarginPct(e.target.value)} className={clsx(modalInputCls, 'w-full')} />
+              </div>
+              {openOrderDetail && (() => {
+                const cost = openOrderDetail.estimatedCost || 0;
+                const margin = Number(orderMarginPct) || 0;
+                const suggestedPrice = margin < 100 ? cost / (1 - margin / 100) : cost;
+                return (
+                  <div className="flex items-center gap-4 flex-wrap text-xs px-3 py-2 rounded-lg bg-[#e7dfce]">
+                    <span>Estimated cost: <strong>₹{cost.toFixed(2)}</strong></span>
+                    <span>Suggested price: <strong>₹{suggestedPrice.toFixed(2)}</strong></span>
+                  </div>
+                );
+              })()}
+              <div className="flex gap-3 pt-1">
+                <button
+                  type="button"
+                  onClick={() => window.print()}
+                  className={clsx(outlineBtn, 'flex-1 justify-center')}
+                >
+                  🖨️ Print
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    navigator.clipboard.writeText(JSON.stringify(openOrderDetail || {}, null, 2));
+                    toast.success('Order JSON copied');
+                  }}
+                  className={clsx(outlineBtn, 'flex-1 justify-center')}
+                >
+                  📋 Copy JSON
+                </button>
+              </div>
+              <div className="flex gap-3">
+                <button type="button" onClick={() => setOpenOrderLead(null)} className={clsx(outlineBtn, 'flex-1 justify-center')}>Close</button>
+                <button
+                  onClick={() => {
+                    const orderId = openOrderLead.productionOrderId?._id;
+                    if (!orderId) return;
+                    updateOrderMutation.mutate({
+                      orderId,
+                      body: { plannedQuantity: Number(orderQty) || undefined, deliveryDate: orderDeliveryDate || undefined },
+                    });
+                  }}
+                  disabled={updateOrderMutation.isPending}
+                  className={clsx(accentBtn, 'flex-1 justify-center')}
+                >
+                  {updateOrderMutation.isPending ? 'Saving…' : 'Save'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {dispatchLead && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4" style={bodyFont}>
+          <style>{FONT_IMPORT}</style>
+          <div className="absolute inset-0 bg-[#2e241b]/50 backdrop-blur-sm" onClick={() => setDispatchLead(null)} />
+          <div className="relative bg-[#f0eadd] rounded-2xl shadow-[0_10px_40px_rgba(46,36,27,0.16)] w-full max-w-md border border-[#d3c9b4]">
+            <div className="p-5 border-b border-[#e2dac8] bg-[#e7dfce] rounded-t-2xl">
+              <h3 className="font-bold text-[#2e241b]" style={displayFont}>🚚 Confirm Dispatch</h3>
+              <p className="text-xs text-[#6d5f4c] mt-0.5">{dispatchLead.name} — {dispatchLead.productionOrderId?.orderNumber}</p>
+            </div>
+            <div className="p-5 space-y-3">
+              <div>
+                <label className="text-xs font-semibold text-[#968871] uppercase tracking-wide mb-1 block">Note to client (optional)</label>
+                <textarea
+                  value={dispatchNote}
+                  onChange={(e) => setDispatchNote(e.target.value)}
+                  rows={3}
+                  className={clsx(modalInputCls, 'w-full resize-none')}
+                  placeholder="e.g. Tracking details, courier info…"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-[#968871] uppercase tracking-wide mb-1 block">Proof (photo/video, optional)</label>
+                <input
+                  type="file"
+                  accept="image/*,video/*"
+                  onChange={(e) => setDispatchFile(e.target.files?.[0] || null)}
+                  className="text-xs text-[#6d5f4c]"
+                />
+              </div>
+              <div className="flex gap-3 pt-1">
+                <button type="button" onClick={() => setDispatchLead(null)} className={clsx(outlineBtn, 'flex-1 justify-center')}>Cancel</button>
+                <button
+                  onClick={() => confirmDispatch.mutate({ leadId: dispatchLead._id, note: dispatchNote, file: dispatchFile })}
+                  disabled={confirmDispatch.isPending}
+                  className={clsx(accentBtn, 'flex-1 justify-center')}
+                >
+                  {confirmDispatch.isPending ? 'Dispatching…' : 'Confirm Dispatch'}
                 </button>
               </div>
             </div>

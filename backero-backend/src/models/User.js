@@ -21,6 +21,7 @@ const userSchema = new mongoose.Schema({
   designation: { type: String },
   employeeId: { type: String },
   avatar: { type: String },
+  avatarPublicId: { type: String, select: false },
   reportsTo: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   isActive: { type: Boolean, default: true },
   isVerified: { type: Boolean, default: false },

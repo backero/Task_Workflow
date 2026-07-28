@@ -79,6 +79,9 @@ const LEAD_STATUS = {
   LOST: 'Lost',
 };
 
+// Sub-stages tracked inside the CRM "Sample" pipeline stage (Lead.sampleDetails.subStage)
+const SAMPLE_SUB_STAGES = ['Requested', 'In Lab', 'Sent', 'Feedback', 'Approved', 'Rejected'];
+
 const LEAD_SOURCES = {
   WEBSITE: 'Website Form',
   WHATSAPP: 'WhatsApp Chatbot',
@@ -111,11 +114,11 @@ const PRODUCTION_STATUS = {
 };
 
 // Batch Tracker (production.routes.js) — 8-stage detailed lifecycle, layered on top of ProductionOrder
-const BATCH_STAGE_NAMES = ['Order', 'Procurement', 'Work Assignment', 'Weighing', 'Bulk QC', 'Packaging', 'Final QC', 'Dispatch'];
+const BATCH_STAGE_NAMES = ['Order', 'Work Assignment', 'Procurement', 'Weighing', 'Bulk QC', 'Packaging', 'Final QC', 'Dispatch'];
 const BATCH_STAGE_TO_STATUS = [
   PRODUCTION_STATUS.PLANNED,             // 0 Order
-  PRODUCTION_STATUS.PLANNED,             // 1 Procurement (not yet confirmed)
-  PRODUCTION_STATUS.MATERIAL_ALLOCATED,  // 2 Work Assignment (procurement just confirmed)
+  PRODUCTION_STATUS.PLANNED,             // 1 Work Assignment (not yet scheduled)
+  PRODUCTION_STATUS.MATERIAL_ALLOCATED,  // 2 Procurement (work assignment just confirmed)
   PRODUCTION_STATUS.IN_PRODUCTION,       // 3 Weighing
   PRODUCTION_STATUS.QUALITY_CHECK,       // 4 Bulk QC
   PRODUCTION_STATUS.PACKAGING,           // 5 Packaging
@@ -180,6 +183,7 @@ module.exports = {
   DEPARTMENTS,
   DEPARTMENT_COLORS,
   LEAD_STATUS,
+  SAMPLE_SUB_STAGES,
   LEAD_SOURCES,
   STOCK_MOVEMENT_TYPES,
   PRODUCTION_STATUS,

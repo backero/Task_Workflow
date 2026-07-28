@@ -48,6 +48,7 @@ const catalogRoutes           = require('./src/routes/catalog.routes');
 const rawMaterialRoutes       = require('./src/routes/rawmaterial.routes');
 const productionUsageRoutes   = require('./src/routes/productionusage.routes');
 const teamRewardRoutes        = require('./src/routes/teamReward.routes');
+const productionCustomerRoutes = require('./src/routes/productioncustomer.routes');
 
 const app = express();
 const server = http.createServer(app);
@@ -188,6 +189,7 @@ app.use('/api/catalog',            catalogRoutes);
 app.use('/api/rawmaterials',       rawMaterialRoutes);
 app.use('/api/production-usage',   productionUsageRoutes);
 app.use('/api/team-rewards',       teamRewardRoutes);
+app.use('/api/production-customers', productionCustomerRoutes);
 
 // 404 handler
 app.use('*', (req, res) => {

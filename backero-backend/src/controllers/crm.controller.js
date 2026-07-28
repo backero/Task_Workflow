@@ -182,6 +182,37 @@ function validateStageTransition(existing, newStatus, body) {
   return null;
 }
 
+// Sample Production is now the single place the whole pre-dispatch lifecycle happens,
+// so a lead no longer needs a manual CRM "move to Sample" stage transition first — the
+// first real Sample Production activity (formula, product link, or sample) against a
+// New Lead/Follow-up lead promotes it automatically. Mirrors updateLead's stageHistory
+// + WhatsApp stage-update side effects but skips validateStageTransition's gate, since
+// this is a system-driven transition rather than a user-initiated one.
+async function promoteToSampleIfNeeded(lead, req) {
+  if (![LEAD_STATUS.NEW, LEAD_STATUS.FOLLOWUP].includes(lead.status)) return;
+
+  const now = new Date();
+  const prevHistory = (lead.stageHistory || []).map((h) => ({
+    stage: h.stage, enteredAt: h.enteredAt, exitedAt: h.exitedAt, movedBy: h.movedBy,
+  }));
+  if (!prevHistory.length) {
+    prevHistory.push({ stage: lead.status, enteredAt: lead.createdAt, exitedAt: now, movedBy: req.user._id });
+  } else {
+    prevHistory[prevHistory.length - 1].exitedAt = now;
+  }
+  prevHistory.push({ stage: LEAD_STATUS.SAMPLE, enteredAt: now, movedBy: req.user._id });
+
+  lead.status = LEAD_STATUS.SAMPLE;
+  lead.stageHistory = prevHistory;
+  lead.updatedBy = req.user._id;
+  await lead.save();
+
+  const clientPhone = lead.whatsapp || lead.phone;
+  if (clientPhone) {
+    sendActiveClientStageUpdate(clientPhone, { name: lead.name, stage: lead.status }).catch(logger.error);
+  }
+}
+
 // PUT /api/crm/leads/:id
 exports.updateLead = asyncHandler(async (req, res) => {
   const existing = await Lead.findOne({ _id: req.params.id, organizationId: req.user.organizationId });
@@ -363,11 +394,12 @@ exports.updateSampleSubStage = asyncHandler(async (req, res) => {
 // — and cost/unit is computed from them, same math as CatalogProduct.formulation. A manual
 // costPerUnit is only used as a fallback when no rows are given.
 exports.createFormula = asyncHandler(async (req, res) => {
-  const { name, productLink, refWeight, rows, costPerUnit, status } = req.body;
+  const { name, productLink, refWeight, refUnit, rows, costPerUnit, status, procedure } = req.body;
   if (!name?.trim()) return sendError(res, 'Formula name is required.', 400);
 
   const lead = await Lead.findOne({ _id: req.params.id, organizationId: req.user.organizationId });
   if (!lead) return sendError(res, 'Lead not found.', 404);
+  await promoteToSampleIfNeeded(lead, req);
 
   lead.customFormulas = lead.customFormulas || [];
   const formulaId = `FORM-${String(lead._id).slice(-4).toUpperCase()}-${lead.customFormulas.length + 1}`;
@@ -377,8 +409,9 @@ exports.createFormula = asyncHandler(async (req, res) => {
     name: name.trim(),
     productLink: productLink || '',
     refWeight: Number(refWeight) || 100,
+    refUnit: refUnit || 'g',
     currentVersion: 1,
-    versions: [{ version: 1, status: status || 'In Testing', costPerUnit: computedCost, rows: rows || [] }],
+    versions: [{ version: 1, status: status || 'In Testing', costPerUnit: computedCost, rows: rows || [], procedure: procedure || undefined }],
     createdBy: req.user._id,
   });
   lead.updatedBy = req.user._id;
@@ -386,26 +419,33 @@ exports.createFormula = asyncHandler(async (req, res) => {
   sendSuccess(res, { lead }, 'Formula created', 201);
 });
 
-// PUT /api/crm/leads/:id/formulas/:formulaId  { status?, costPerUnit?, rows?, bumpVersion? }
+// PUT /api/crm/leads/:id/formulas/:formulaId  { status?, costPerUnit?, rows?, bumpVersion?, version?, refUnit?, procedure? }
+// `version` (optional) targets a specific version to edit instead of the latest — used e.g.
+// to archive an older Draft/In Testing version without disturbing the current one.
 exports.updateFormula = asyncHandler(async (req, res) => {
-  const { status, costPerUnit, rows, bumpVersion } = req.body;
+  const { status, costPerUnit, rows, bumpVersion, version, refUnit, procedure } = req.body;
   const lead = await Lead.findOne({ _id: req.params.id, organizationId: req.user.organizationId });
   if (!lead) return sendError(res, 'Lead not found.', 404);
 
   const formula = (lead.customFormulas || []).find((f) => f.formulaId === req.params.formulaId);
   if (!formula) return sendError(res, 'Formula not found.', 404);
+  if (refUnit) formula.refUnit = refUnit;
 
   if (bumpVersion) {
     const prev = formula.versions[formula.versions.length - 1];
     const newRows = rows || prev?.rows || [];
     const newCost = newRows.length ? computeFormulaCost(newRows) : (costPerUnit !== undefined ? Number(costPerUnit) || 0 : prev?.costPerUnit || 0);
     formula.currentVersion += 1;
-    formula.versions.push({ version: formula.currentVersion, status: status || 'In Testing', costPerUnit: newCost, rows: newRows });
+    formula.versions.push({ version: formula.currentVersion, status: status || 'In Testing', costPerUnit: newCost, rows: newRows, procedure: procedure || prev?.procedure });
   } else {
-    const latest = formula.versions[formula.versions.length - 1];
-    if (status) latest.status = status;
-    if (rows) { latest.rows = rows; latest.costPerUnit = computeFormulaCost(rows); }
-    else if (costPerUnit !== undefined) latest.costPerUnit = Number(costPerUnit) || 0;
+    const target = version !== undefined
+      ? formula.versions.find((v) => v.version === Number(version))
+      : formula.versions[formula.versions.length - 1];
+    if (!target) return sendError(res, 'Formula version not found.', 404);
+    if (status) target.status = status;
+    if (rows) { target.rows = rows; target.costPerUnit = computeFormulaCost(rows); }
+    else if (costPerUnit !== undefined) target.costPerUnit = Number(costPerUnit) || 0;
+    if (procedure !== undefined) target.procedure = procedure;
   }
   lead.updatedBy = req.user._id;
   await lead.save();
@@ -419,6 +459,7 @@ exports.linkProductPricing = asyncHandler(async (req, res) => {
 
   const lead = await Lead.findOne({ _id: req.params.id, organizationId: req.user.organizationId });
   if (!lead) return sendError(res, 'Lead not found.', 404);
+  await promoteToSampleIfNeeded(lead, req);
 
   lead.productLinks = lead.productLinks || [];
   lead.productLinks.push({
@@ -451,13 +492,28 @@ exports.updateProductPricing = asyncHandler(async (req, res) => {
   sendSuccess(res, { lead }, 'Product pricing updated');
 });
 
+// DELETE /api/crm/leads/:id/products/:productId
+exports.deleteProductLink = asyncHandler(async (req, res) => {
+  const lead = await Lead.findOne({ _id: req.params.id, organizationId: req.user.organizationId });
+  if (!lead) return sendError(res, 'Lead not found.', 404);
+
+  const before = (lead.productLinks || []).length;
+  lead.productLinks = (lead.productLinks || []).filter((p) => p.productId !== req.params.productId);
+  if (lead.productLinks.length === before) return sendError(res, 'Product link not found.', 404);
+
+  lead.updatedBy = req.user._id;
+  await lead.save();
+  sendSuccess(res, { lead }, 'Product link removed');
+});
+
 // POST /api/crm/leads/:id/samples  { formulaId?, chainedFrom?, queryId? }
 // Creates a versioned, chainable sample record. Rejecting a sample (see updateVersionedSampleStatus)
 // doesn't auto-create the next version — the team calls this again with chainedFrom to do that explicitly.
 exports.createVersionedSample = asyncHandler(async (req, res) => {
-  const { formulaId, chainedFrom, queryId } = req.body;
+  const { formulaId, chainedFrom, queryId, notes } = req.body;
   const lead = await Lead.findOne({ _id: req.params.id, organizationId: req.user.organizationId });
   if (!lead) return sendError(res, 'Lead not found.', 404);
+  await promoteToSampleIfNeeded(lead, req);
 
   lead.samples = lead.samples || [];
   let version = 1;
@@ -472,6 +528,7 @@ exports.createVersionedSample = asyncHandler(async (req, res) => {
     version,
     chainedFrom: chainedFrom || undefined,
     queryId: queryId || undefined,
+    notes: notes || undefined,
     status: 'Requested',
     timeline: [{ event: chainedFrom ? `Follow-up sample requested (chained from ${chainedFrom})` : 'Sample created' }],
     createdBy: req.user._id,
@@ -481,9 +538,9 @@ exports.createVersionedSample = asyncHandler(async (req, res) => {
   sendSuccess(res, { lead }, 'Sample created', 201);
 });
 
-// PUT /api/crm/leads/:id/samples/:sampleId  { courier?, awb?, sentAt?, packagingConfirmed? }
+// PUT /api/crm/leads/:id/samples/:sampleId  { courier?, awb?, sentAt?, packagingConfirmed?, notes? }
 exports.updateVersionedSample = asyncHandler(async (req, res) => {
-  const { courier, awb, sentAt, packagingConfirmed } = req.body;
+  const { courier, awb, sentAt, packagingConfirmed, notes } = req.body;
   const lead = await Lead.findOne({ _id: req.params.id, organizationId: req.user.organizationId });
   if (!lead) return sendError(res, 'Lead not found.', 404);
 
@@ -492,6 +549,7 @@ exports.updateVersionedSample = asyncHandler(async (req, res) => {
 
   if (courier !== undefined) sample.courier = courier;
   if (awb !== undefined) sample.awb = awb;
+  if (notes !== undefined) sample.notes = notes;
   if (sentAt !== undefined) {
     sample.sentAt = sentAt;
     sample.timeline.push({ event: `Dispatched via ${courier || sample.courier || 'courier'} (AWB ${awb || sample.awb || '—'})` });
@@ -505,11 +563,11 @@ exports.updateVersionedSample = asyncHandler(async (req, res) => {
   sendSuccess(res, { lead }, 'Sample updated');
 });
 
-// PUT /api/crm/leads/:id/samples/:sampleId/status  { status, rejectionReason? }
+// PUT /api/crm/leads/:id/samples/:sampleId/status  { status, rejectionReason?, approvedByContact?, rejectedByContact? }
 // Same payment hard-lock as updateSampleSubStage, and keeps lead.sampleDetails.subStage in sync
 // with this sample so the existing Sample Production queue/stat cards need no changes.
 exports.updateVersionedSampleStatus = asyncHandler(async (req, res) => {
-  const { status, rejectionReason } = req.body;
+  const { status, rejectionReason, approvedByContact, rejectedByContact } = req.body;
   if (!SAMPLE_SUB_STAGES.includes(status)) return sendError(res, 'Invalid sample status.', 400);
 
   const lead = await Lead.findOne({ _id: req.params.id, organizationId: req.user.organizationId });
@@ -524,6 +582,8 @@ exports.updateVersionedSampleStatus = asyncHandler(async (req, res) => {
 
   sample.status = status;
   sample.rejectionReason = status === 'Rejected' ? rejectionReason.trim() : undefined;
+  if (status === 'Approved' && approvedByContact !== undefined) sample.approvedByContact = approvedByContact;
+  if (status === 'Rejected' && rejectedByContact !== undefined) sample.rejectedByContact = rejectedByContact;
   sample.timeline.push({ event: `Status → ${status}` });
 
   lead.sampleDetails.subStage = status;
@@ -1073,7 +1133,7 @@ exports.deleteLead = asyncHandler(async (req, res) => {
 // POST /api/crm/leads/:id/query
 exports.raiseQuery = asyncHandler(async (req, res) => {
   const io = req.app.get('io');
-  const { title, description, urgency, assignedTo } = req.body;
+  const { title, description, urgency, assignedTo, contactName, contactEmail, linkedCatalogProductId, targetPrice, benchmarkNotes, packagingIntent, internalNotes } = req.body;
   if (!title || !description) return sendError(res, 'Title and description are required', 400);
 
   const lead = await Lead.findOne({ _id: req.params.id, organizationId: req.user.organizationId });
@@ -1090,12 +1150,24 @@ exports.raiseQuery = asyncHandler(async (req, res) => {
     description,
     urgency: urgency || 'medium',
     preQueryStatus: lead.status,
+    contactName: contactName || undefined,
+    contactEmail: contactEmail || undefined,
+    linkedCatalogProductId: linkedCatalogProductId || undefined,
+    targetPrice: targetPrice !== undefined ? Number(targetPrice) || 0 : undefined,
+    benchmarkNotes: benchmarkNotes || undefined,
+    packagingIntent: packagingIntent || undefined,
+    internalNotes: internalNotes || undefined,
   });
 
   // Sample/Production stage leads keep their status — "Query Pending" isn't a pipeline
   // column there, so flipping it would silently drop the lead out of the Sample Production
-  // view for as long as the query stays open. Only pre-Sample leads get paused this way.
-  if (![LEAD_STATUS.SAMPLE, LEAD_STATUS.IN_PROGRESS].includes(lead.status)) {
+  // view for as long as the query stays open. New Lead/Follow-up leads instead promote
+  // straight to Sample (via promoteToSampleIfNeeded) — raising a query is real Sample
+  // Production activity too, and "Query Pending" isn't shown in the New Leads tab either,
+  // so leaving it there would strand the lead nowhere visible.
+  if ([LEAD_STATUS.NEW, LEAD_STATUS.FOLLOWUP].includes(lead.status)) {
+    await promoteToSampleIfNeeded(lead, req);
+  } else if (![LEAD_STATUS.SAMPLE, LEAD_STATUS.IN_PROGRESS].includes(lead.status)) {
     lead.status = LEAD_STATUS.QUERY_PENDING;
   }
   lead.updatedBy = req.user._id;
