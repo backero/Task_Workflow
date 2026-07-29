@@ -6,7 +6,7 @@ import clsx from 'clsx';
 import api from '../../api/axios';
 import { format, formatDistanceToNowStrict } from 'date-fns';
 import SampleLeadDetail from './SampleLeadDetail';
-import CreateLeadModal from './CreateLeadModal';
+import EditKycModal from './EditKycModal';
 import { customerId } from '../../utils/leadHelpers';
 
 // Cross-customer work queue over the CRM's existing "Sample" pipeline stage —
@@ -143,8 +143,6 @@ export default function SampleProduction() {
   // (not just name/phone/email, but preferredName/language/bestTime/teamSize/rapportNote too),
   // saved via the existing generic PUT /crm/leads/:id endpoint (applies whatever fields are sent).
   const [editKycLead, setEditKycLead] = useState(null);
-  const [kycForm, setKycForm] = useState({});
-  const [kycPasteText, setKycPasteText] = useState('');
 
   // Q&A "Connect Existing" — inline catalog-product picker per query row.
   const [connectingQueryId, setConnectingQueryId] = useState(null);
@@ -372,10 +370,14 @@ export default function SampleProduction() {
     onError: (e) => toast.error(e.response?.data?.message || 'Failed to reply'),
   });
 
-  const updateKycMutation = useMutation({
-    mutationFn: ({ leadId, body }) => api.put(`/crm/leads/${leadId}`, body),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['sample-production'] }); toast.success('KYC updated'); setEditKycLead(null); },
-    onError: (e) => toast.error(e.response?.data?.message || 'Failed to update KYC'),
+  const updateLeadStatusMutation = useMutation({
+    mutationFn: ({ leadId, status }) => api.put(`/crm/leads/${leadId}`, { status }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['sample-production'] });
+      qc.invalidateQueries({ queryKey: ['crm'] });
+      toast.success('Stage updated');
+    },
+    onError: (e) => toast.error(e.response?.data?.message || 'Failed to update stage'),
   });
 
   const connectProductMutation = useMutation({
@@ -524,13 +526,15 @@ export default function SampleProduction() {
                     <SortableTh label="City" sortKey="city" sortState={sortState} setSortState={setSortState} />
                     <SortableTh label="Business Type" sortKey="businessType" sortState={sortState} setSortState={setSortState} />
                     <SortableTh label="Product Interest" sortKey="productInterest" sortState={sortState} setSortState={setSortState} />
+                    <th className="px-4 py-2.5">Payment</th>
+                    <th className="px-4 py-2.5">Assigned To</th>
                     <th className="px-4 py-2.5">Status</th>
                     <th className="px-4 py-2.5"></th>
                   </tr>
                 </thead>
                 <tbody>
-                  {isLoading && <tr><td colSpan={8} className="px-4 py-8 text-center text-[#968871] text-xs">Loading…</td></tr>}
-                  {!isLoading && sortedKycRows.length === 0 && <tr><td colSpan={8} className="px-4 py-8 text-center text-[#968871] text-xs">No new leads right now.</td></tr>}
+                  {isLoading && <tr><td colSpan={10} className="px-4 py-8 text-center text-[#968871] text-xs">Loading…</td></tr>}
+                  {!isLoading && sortedKycRows.length === 0 && <tr><td colSpan={10} className="px-4 py-8 text-center text-[#968871] text-xs">No new leads right now.</td></tr>}
                   {sortedKycRows.map((l) => (
                     <tr key={l._id} className="border-b border-[#e2dac8] hover:bg-[#e7dfce]/60">
                       <td className="px-4 py-2.5 font-mono text-xs text-[#4a3a29] font-semibold">{customerId(l)}</td>
@@ -543,29 +547,33 @@ export default function SampleProduction() {
                       <td className="px-4 py-2.5 text-[#6d5f4c] text-xs">{l.businessType || '—'}</td>
                       <td className="px-4 py-2.5 text-[#6d5f4c] text-xs">{(l.productInterest || []).join(', ') || '—'}</td>
                       <td className="px-4 py-2.5">
-                        <span className={clsx('text-[10px] font-semibold px-2 py-0.5 rounded-full', l.status === 'Follow-up' ? PILL.warning : PILL.gray)}>
-                          {l.status}
+                        <span className={clsx('text-[10px] font-semibold px-2 py-0.5 rounded-full', l.sampleDetails?.paymentStatus === 'full_paid' ? PILL.success : PILL.warning)}>
+                          {l.sampleDetails?.paymentStatus === 'full_paid' ? 'Paid' : 'Pending'}
                         </span>
+                      </td>
+                      <td className="px-4 py-2.5 text-[#6d5f4c] text-xs">
+                        {l.assignedTo ? `${l.assignedTo.firstName || ''} ${l.assignedTo.lastName || ''}`.trim() : 'Unassigned'}
+                      </td>
+                      <td className="px-4 py-2.5">
+                        <select
+                          value={l.status}
+                          onChange={(e) => updateLeadStatusMutation.mutate({ leadId: l._id, status: e.target.value })}
+                          disabled={updateLeadStatusMutation.isPending}
+                          className={clsx('text-[10px] font-semibold px-2 py-1 rounded-full border-0 cursor-pointer disabled:opacity-50',
+                            l.status === 'Follow-up' ? PILL.warning : PILL.gray)}
+                        >
+                          <option value="New Lead">New Lead</option>
+                          <option value="Follow-up">Follow-up</option>
+                        </select>
                       </td>
                       <td className="px-4 py-2.5 text-right whitespace-nowrap">
                         <button
-                          onClick={() => {
-                            setEditKycLead(l);
-                            setKycForm({
-                              name: l.name || '', phone: l.phone || '', phone2: l.phone2 || '', whatsapp: l.whatsapp || '',
-                              email: l.email || '', company: l.company || '', city: l.city || '', businessType: l.businessType || '',
-                              productInterest: (l.productInterest || []).join(', '),
-                              preferredName: l.preferredName || '', language: l.language || '', bestTime: l.bestTime || '',
-                              teamSize: l.teamSize || '', rapportNote: l.rapportNote || '',
-                            });
-                            setKycPasteText('');
-                          }}
+                          onClick={() => setEditKycLead(l)}
                           className={clsx(textLink, 'mr-3')}
                         >
                           Edit KYC
                         </button>
-                        <button onClick={() => { setOpenLeadId(l._id); setOpenLeadInitialTab(null); }} className={clsx(textLink, 'mr-3')}>Open ▸</button>
-                        <Link to={`/crm/leads/${l._id}`} className={textLink}>Open lead →</Link>
+                        <button onClick={() => { setOpenLeadId(l._id); setOpenLeadInitialTab(null); }} className={textLink}>Open ▸</button>
                       </td>
                     </tr>
                   ))}
@@ -612,23 +620,12 @@ export default function SampleProduction() {
                         </td>
                         <td className="px-4 py-2.5 text-right whitespace-nowrap">
                           <button
-                            onClick={() => {
-                              setEditKycLead(l);
-                              setKycForm({
-                                name: l.name || '', phone: l.phone || '', phone2: l.phone2 || '', whatsapp: l.whatsapp || '',
-                                email: l.email || '', company: l.company || '', city: l.city || '', businessType: l.businessType || '',
-                                productInterest: (l.productInterest || []).join(', '),
-                                preferredName: l.preferredName || '', language: l.language || '', bestTime: l.bestTime || '',
-                                teamSize: l.teamSize || '', rapportNote: l.rapportNote || '',
-                              });
-                              setKycPasteText('');
-                            }}
+                            onClick={() => setEditKycLead(l)}
                             className={clsx(textLink, 'mr-3')}
                           >
                             Edit KYC
                           </button>
-                          <button onClick={() => { setOpenLeadId(l._id); setOpenLeadInitialTab(null); }} className={clsx(textLink, 'mr-3')}>Open ▸</button>
-                          <Link to={`/crm/leads/${l._id}`} className={textLink}>Open lead →</Link>
+                          <button onClick={() => { setOpenLeadId(l._id); setOpenLeadInitialTab(null); }} className={textLink}>Open ▸</button>
                         </td>
                       </tr>
                     );
@@ -751,7 +748,7 @@ export default function SampleProduction() {
             </div>
           )}
 
-          {tab !== 'kyc' && tab !== 'qa' && (
+          {tab !== 'kyc' && tab !== 'qa' && tab !== 'new' && (
             <div className="overflow-x-auto rounded-[10px] border border-[#e2dac8]">
               <table className="w-full text-sm">
                 <thead>
@@ -794,9 +791,6 @@ export default function SampleProduction() {
                         </td>
                       )}
                       <td className="px-4 py-2.5 text-right whitespace-nowrap">
-                        {tab === 'sample' && (
-                          <button onClick={() => { setOpenLeadId(l._id); setOpenLeadInitialTab(null); }} className={clsx(textLink, 'mr-3')}>Open ▸</button>
-                        )}
                         {tab === 'payments' && (
                           l.sampleDetails?.paymentStatus === 'full_paid'
                             ? <span className="text-xs text-[#3a5f3c] font-semibold mr-3">✓ Paid</span>
@@ -836,7 +830,7 @@ export default function SampleProduction() {
                             )}
                           </>
                         ) : (
-                          <Link to={`/crm/leads/${l._id}`} className={textLink}>Open lead →</Link>
+                          <button onClick={() => { setOpenLeadId(l._id); setOpenLeadInitialTab(null); }} className={textLink}>Open ▸</button>
                         )}
                       </td>
                     </tr>
@@ -856,17 +850,7 @@ export default function SampleProduction() {
         />
       )}
 
-      {showCreateLead && (
-        <CreateLeadModal
-          onClose={() => setShowCreateLead(false)}
-          onRefresh={() => { qc.invalidateQueries({ queryKey: ['sample-production'] }); qc.invalidateQueries({ queryKey: ['crm'] }); }}
-          onSuccess={() => {
-            setShowCreateLead(false);
-            qc.invalidateQueries({ queryKey: ['sample-production'] });
-            qc.invalidateQueries({ queryKey: ['crm'] });
-          }}
-        />
-      )}
+      {showCreateLead && <EditKycModal onClose={() => setShowCreateLead(false)} />}
 
       {sendLead && (
         <div className="fixed inset-0 z-[70] flex items-center justify-center p-4" style={bodyFont}>
@@ -926,100 +910,7 @@ export default function SampleProduction() {
         </div>
       )}
 
-      {editKycLead && (
-        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4" style={bodyFont}>
-          <style>{FONT_IMPORT}</style>
-          <div className="absolute inset-0 bg-[#2e241b]/50 backdrop-blur-sm" onClick={() => setEditKycLead(null)} />
-          <div className="relative bg-[#f0eadd] rounded-2xl shadow-[0_10px_40px_rgba(46,36,27,0.16)] w-full max-w-2xl border border-[#d3c9b4] flex flex-col" style={{ maxHeight: '90vh' }}>
-            <div className="p-5 border-b border-[#e2dac8] bg-[#e7dfce] rounded-t-2xl flex items-center justify-between flex-shrink-0">
-              <h3 className="font-bold text-[#2e241b]" style={displayFont}>🪪 Edit KYC — {editKycLead.name}</h3>
-              <button onClick={() => setEditKycLead(null)} className="w-9 h-9 rounded-lg hover:bg-[#ddd3be] flex items-center justify-center text-[#968871] hover:text-[#2e241b] text-lg">✕</button>
-            </div>
-            <div className="flex-1 overflow-y-auto p-5 space-y-3">
-              <div>
-                <label className="text-xs font-semibold text-[#968871] uppercase tracking-wide mb-1 block">Paste to autofill</label>
-                <textarea
-                  value={kycPasteText}
-                  onChange={(e) => setKycPasteText(e.target.value)}
-                  rows={3}
-                  placeholder="Paste an email signature or WhatsApp intro — empty fields below get filled in automatically."
-                  className={clsx(modalInputCls, 'w-full')}
-                />
-                <button
-                  type="button"
-                  onClick={() => {
-                    const text = kycPasteText;
-                    if (!text.trim()) return;
-                    setKycForm((f) => {
-                      const next = { ...f };
-                      if (!next.email) {
-                        const m = text.match(/[\w.+-]+@[\w-]+\.[\w.]+/);
-                        if (m) next.email = m[0];
-                      }
-                      const phoneMatches = [...text.matchAll(/(\+?\d[\d\s-]{8,}\d)/g)].map((m) => m[0].replace(/\s+/g, ''));
-                      if (!next.phone && phoneMatches[0]) next.phone = phoneMatches[0];
-                      if (!next.phone2 && phoneMatches[1]) next.phone2 = phoneMatches[1];
-                      const waLine = text.split(/\r?\n/).find((l) => /whatsapp/i.test(l));
-                      if (!next.whatsapp && waLine) {
-                        const m = waLine.match(/(\+?\d[\d\s-]{8,}\d)/);
-                        if (m) next.whatsapp = m[0].replace(/\s+/g, '');
-                      }
-                      if (!next.name) {
-                        let m = text.match(/(?:^|[\r\n])\s*(?:name|contact(?:\s*person)?)\s*[:\-]\s*([^\r\n]+)/i);
-                        if (!m) m = text.match(/(?:\bi am\b|\bthis is\b|\bi'?m\b)\s+([A-Za-z][A-Za-z .]{1,40})/i);
-                        if (m) next.name = m[1].trim();
-                      }
-                      return next;
-                    });
-                    setKycPasteText('');
-                    toast.success('Autofilled empty fields');
-                  }}
-                  className={clsx(outlineBtn, 'mt-1.5')}
-                >
-                  Autofill from paste
-                </button>
-              </div>
-
-              <div className="grid grid-cols-2 gap-2">
-                <input value={kycForm.name || ''} onChange={(e) => setKycForm((f) => ({ ...f, name: e.target.value }))} placeholder="Name" className={modalInputCls} />
-                <input value={kycForm.preferredName || ''} onChange={(e) => setKycForm((f) => ({ ...f, preferredName: e.target.value }))} placeholder="Preferred name" className={modalInputCls} />
-                <input value={kycForm.phone || ''} onChange={(e) => setKycForm((f) => ({ ...f, phone: e.target.value }))} placeholder="Phone" className={modalInputCls} />
-                <input value={kycForm.phone2 || ''} onChange={(e) => setKycForm((f) => ({ ...f, phone2: e.target.value }))} placeholder="Phone 2 (secondary)" className={modalInputCls} />
-                <input value={kycForm.whatsapp || ''} onChange={(e) => setKycForm((f) => ({ ...f, whatsapp: e.target.value }))} placeholder="WhatsApp" className={modalInputCls} />
-                <input value={kycForm.email || ''} onChange={(e) => setKycForm((f) => ({ ...f, email: e.target.value }))} placeholder="Email" className={modalInputCls} />
-                <input value={kycForm.company || ''} onChange={(e) => setKycForm((f) => ({ ...f, company: e.target.value }))} placeholder="Company" className={modalInputCls} />
-                <input value={kycForm.city || ''} onChange={(e) => setKycForm((f) => ({ ...f, city: e.target.value }))} placeholder="City" className={modalInputCls} />
-                <input value={kycForm.businessType || ''} onChange={(e) => setKycForm((f) => ({ ...f, businessType: e.target.value }))} placeholder="Business type" className={modalInputCls} />
-                <input value={kycForm.language || ''} onChange={(e) => setKycForm((f) => ({ ...f, language: e.target.value }))} placeholder="Preferred language" className={modalInputCls} />
-                <input value={kycForm.bestTime || ''} onChange={(e) => setKycForm((f) => ({ ...f, bestTime: e.target.value }))} placeholder="Best time to contact" className={modalInputCls} />
-                <input value={kycForm.teamSize || ''} onChange={(e) => setKycForm((f) => ({ ...f, teamSize: e.target.value }))} placeholder="Team size" className={modalInputCls} />
-              </div>
-              <input value={kycForm.productInterest || ''} onChange={(e) => setKycForm((f) => ({ ...f, productInterest: e.target.value }))} placeholder="Product interest (comma-separated)" className={clsx(modalInputCls, 'w-full')} />
-              <textarea value={kycForm.rapportNote || ''} onChange={(e) => setKycForm((f) => ({ ...f, rapportNote: e.target.value }))} placeholder="Rapport / relationship notes…" rows={2} className={clsx(modalInputCls, 'w-full')} />
-
-              <div className="flex gap-3 pt-1">
-                <button type="button" onClick={() => setEditKycLead(null)} className={clsx(outlineBtn, 'flex-1 justify-center')}>Cancel</button>
-                <button
-                  onClick={() => {
-                    if (!kycForm.name?.trim()) { toast.error('Name is required'); return; }
-                    updateKycMutation.mutate({
-                      leadId: editKycLead._id,
-                      body: {
-                        ...kycForm,
-                        productInterest: (kycForm.productInterest || '').split(',').map((s) => s.trim()).filter(Boolean),
-                      },
-                    });
-                  }}
-                  disabled={updateKycMutation.isPending}
-                  className={clsx(accentBtn, 'flex-1 justify-center')}
-                >
-                  {updateKycMutation.isPending ? 'Saving…' : 'Save'}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      {editKycLead && <EditKycModal lead={editKycLead} onClose={() => setEditKycLead(null)} />}
 
       {openOrderLead && (
         <div className="fixed inset-0 z-[70] flex items-center justify-center p-4" style={bodyFont}>

@@ -14,7 +14,7 @@ import { clsx } from 'clsx';
 import { format, isValid } from 'date-fns';
 import GoogleSheetsPanel from '../../components/crm/GoogleSheetsPanel';
 import ErrorBoundary from '../../components/common/ErrorBoundary';
-import CreateLeadModal from './CreateLeadModal';
+import EditKycModal from './EditKycModal';
 import { customerId } from '../../utils/leadHelpers';
 
 const PIPELINE_STAGES = ['New Lead', 'Follow-up', 'In Progress', 'Ready to Dispatch', 'Payment Pending', 'Dispatched', 'Lost'];
@@ -241,7 +241,7 @@ function StageLeadsModal({ stage, onClose, onSelectLead }) {
               return (
                 <button
                   key={lead._id}
-                  onClick={() => { onSelectLead(lead._id); onClose(); }}
+                  onClick={() => { onSelectLead(lead); onClose(); }}
                   className="w-full text-left flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-gray-50 dark:hover:bg-[#0f1a2e] transition-colors border border-transparent hover:border-gray-100 dark:hover:border-[#1b2e4a]"
                 >
                   <div
@@ -437,6 +437,7 @@ function VelocityView() {
 export default function LeadPipeline() {
   const [showForm, setShowForm] = useState(false);
   const [stageModal, setStageModal] = useState(null);
+  const [editKycLead, setEditKycLead] = useState(null);
   const [activeView, setActiveView] = useState('pipeline');
   const { isManagerOrAbove } = useAuthStore();
   const qc = useQueryClient();
@@ -592,7 +593,7 @@ export default function LeadPipeline() {
                         key={lead._id}
                         lead={lead}
                         stage={stage}
-                        onClick={(l) => navigate(`/samples?open=${l._id}`)}
+                        onClick={(l) => setEditKycLead(l)}
                       />
                     ))}
                     {count > 8 && (
@@ -623,21 +624,14 @@ export default function LeadPipeline() {
           <StageLeadsModal
             stage={stageModal}
             onClose={() => setStageModal(null)}
-            onSelectLead={(id) => navigate(`/samples?open=${id}`)}
+            onSelectLead={(lead) => setEditKycLead(lead)}
           />
         )}
       </AnimatePresence>
 
-      {showForm && (
-        <CreateLeadModal
-          onClose={() => setShowForm(false)}
-          onRefresh={() => qc.invalidateQueries({ queryKey: ['crm'] })}
-          onSuccess={() => {
-            setShowForm(false);
-            qc.invalidateQueries({ queryKey: ['crm'] });
-          }}
-        />
-      )}
+      {showForm && <EditKycModal onClose={() => setShowForm(false)} />}
+
+      {editKycLead && <EditKycModal lead={editKycLead} onClose={() => setEditKycLead(null)} />}
 
     </div>
   );

@@ -39,7 +39,7 @@ const leadSchema = new mongoose.Schema({
   rapportNote: { type: String },
 
   // Lead info
-  source: { type: String, enum: Object.values(LEAD_SOURCES), default: LEAD_SOURCES.MANUAL },
+  source: { type: String, default: LEAD_SOURCES.MANUAL },
   sourceDetails: { type: String },
   status: { type: String, default: LEAD_STATUS.NEW, index: true },
   pipeline: { type: String, default: 'default' },
