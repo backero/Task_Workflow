@@ -380,6 +380,17 @@ export default function SampleProduction() {
     onError: (e) => toast.error(e.response?.data?.message || 'Failed to update stage'),
   });
 
+  const deleteLeadMutation = useMutation({
+    mutationFn: (leadId) => api.delete(`/crm/leads/${leadId}`),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['sample-production'] });
+      qc.invalidateQueries({ queryKey: ['crm'] });
+      qc.invalidateQueries({ queryKey: ['dashboard'] });
+      toast.success('Lead deleted');
+    },
+    onError: (e) => toast.error(e.response?.data?.message || 'Failed to delete lead'),
+  });
+
   const connectProductMutation = useMutation({
     mutationFn: ({ leadId, product }) => api.post(`/crm/leads/${leadId}/products`, { name: product.name, catalogProductId: product._id, productId: product.code }),
     onSuccess: () => {
@@ -573,7 +584,14 @@ export default function SampleProduction() {
                         >
                           Edit KYC
                         </button>
-                        <button onClick={() => { setOpenLeadId(l._id); setOpenLeadInitialTab(null); }} className={textLink}>Open ▸</button>
+                        <button onClick={() => { setOpenLeadId(l._id); setOpenLeadInitialTab(null); }} className={clsx(textLink, 'mr-3')}>Open ▸</button>
+                        <button
+                          onClick={() => { if (window.confirm(`Delete lead "${l.name}"? This cannot be undone.`)) deleteLeadMutation.mutate(l._id); }}
+                          disabled={deleteLeadMutation.isPending}
+                          className="text-xs font-semibold text-[#8c3a30] hover:text-[#6b2c24] disabled:opacity-50"
+                        >
+                          Delete
+                        </button>
                       </td>
                     </tr>
                   ))}
@@ -625,7 +643,14 @@ export default function SampleProduction() {
                           >
                             Edit KYC
                           </button>
-                          <button onClick={() => { setOpenLeadId(l._id); setOpenLeadInitialTab(null); }} className={textLink}>Open ▸</button>
+                          <button onClick={() => { setOpenLeadId(l._id); setOpenLeadInitialTab(null); }} className={clsx(textLink, 'mr-3')}>Open ▸</button>
+                          <button
+                            onClick={() => { if (window.confirm(`Delete lead "${l.name}"? This cannot be undone.`)) deleteLeadMutation.mutate(l._id); }}
+                            disabled={deleteLeadMutation.isPending}
+                            className="text-xs font-semibold text-[#8c3a30] hover:text-[#6b2c24] disabled:opacity-50"
+                          >
+                            Delete
+                          </button>
                         </td>
                       </tr>
                     );
