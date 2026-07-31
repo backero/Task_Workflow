@@ -171,6 +171,96 @@ exports.removeAttachment = asyncHandler(async (req, res) => {
   sendSuccess(res, { product: p }, 'Attachment removed');
 });
 
+// POST /api/catalog/products/:id/formulation-versions  (body: { changeNotes })
+// Creates a new draft version cloned from the currently active (locked) formulation.
+// Lazily seeds a "V1" locked version from the product's current `formulation` field
+// the first time versioning is used, so pre-existing products need no migration.
+exports.createFormulationVersion = asyncHandler(async (req, res) => {
+  const p = await CatalogProduct.findOne({ _id: req.params.id, organizationId: req.user.organizationId });
+  if (!p) return sendError(res, 'Product not found', 404);
+
+  if (!p.formulationVersions.length) {
+    p.formulationVersions.push({
+      versionLabel: 'V1',
+      status: 'locked',
+      refWeight: p.formulation?.refWeight || 100,
+      refUnit: p.formulation?.refUnit || 'ml',
+      rows: p.formulation?.rows || [],
+      changeNotes: 'Initial formulation',
+      createdBy: req.user._id,
+      activatedAt: p.createdAt || new Date(),
+    });
+  }
+
+  // Clone from the live `formulation` field, not the stored "locked" version snapshot —
+  // the main Formulation tab saves directly to `p.formulation` without touching the
+  // formulationVersions array, so a locked version's stored rows go stale the moment
+  // the active formulation is edited again. `p.formulation` is always current.
+  const label = `V${p.formulationVersions.length + 1}`;
+  p.formulationVersions.push({
+    versionLabel: label,
+    status: 'draft',
+    refWeight: p.formulation?.refWeight ?? 100,
+    refUnit: p.formulation?.refUnit ?? 'ml',
+    rows: p.formulation?.rows || [],
+    changeNotes: req.body.changeNotes || '',
+    createdBy: req.user._id,
+  });
+  p.history.push({ action: 'Formulation version created', detail: label });
+  await p.save();
+  sendSuccess(res, { product: p }, `${label} created`);
+});
+
+// PUT /api/catalog/products/:id/formulation-versions/:versionId  (body: { rows, refWeight, refUnit, changeNotes, status })
+// Editing is only allowed while a version is draft/testing — locked/archived versions are frozen history.
+exports.updateFormulationVersion = asyncHandler(async (req, res) => {
+  const p = await CatalogProduct.findOne({ _id: req.params.id, organizationId: req.user.organizationId });
+  if (!p) return sendError(res, 'Product not found', 404);
+  const version = p.formulationVersions.id(req.params.versionId);
+  if (!version) return sendError(res, 'Version not found', 404);
+  if (['locked', 'archived'].includes(version.status)) return sendError(res, 'Cannot edit a locked/archived version', 400);
+
+  const { rows, refWeight, refUnit, changeNotes, status } = req.body;
+  if (rows) version.rows = rows;
+  if (refWeight !== undefined) version.refWeight = refWeight;
+  if (refUnit) version.refUnit = refUnit;
+  if (changeNotes !== undefined) version.changeNotes = changeNotes;
+  if (status && ['draft', 'testing'].includes(status)) version.status = status;
+  await p.save();
+  sendSuccess(res, { product: p }, 'Version updated');
+});
+
+// POST /api/catalog/products/:id/formulation-versions/:versionId/activate
+// Promotes a draft/testing version to locked+active, archives whichever version was previously
+// locked, and copies its rows into the top-level `formulation` field so all existing cost-calc
+// code (calcOverheadBreakdown etc.) keeps reading the active formulation unchanged.
+exports.activateFormulationVersion = asyncHandler(async (req, res) => {
+  const p = await CatalogProduct.findOne({ _id: req.params.id, organizationId: req.user.organizationId });
+  if (!p) return sendError(res, 'Product not found', 404);
+  const version = p.formulationVersions.id(req.params.versionId);
+  if (!version) return sendError(res, 'Version not found', 404);
+
+  p.formulationVersions.forEach(v => { if (v.status === 'locked') v.status = 'archived'; });
+  version.status = 'locked';
+  version.activatedAt = new Date();
+  p.formulation = { refWeight: version.refWeight, refUnit: version.refUnit, rows: version.rows };
+  p.history.push({ action: 'Formulation version activated', detail: version.versionLabel });
+  await p.save();
+  sendSuccess(res, { product: p }, `${version.versionLabel} activated`);
+});
+
+// DELETE /api/catalog/products/:id/formulation-versions/:versionId
+exports.deleteFormulationVersion = asyncHandler(async (req, res) => {
+  const p = await CatalogProduct.findOne({ _id: req.params.id, organizationId: req.user.organizationId });
+  if (!p) return sendError(res, 'Product not found', 404);
+  const version = p.formulationVersions.id(req.params.versionId);
+  if (!version) return sendError(res, 'Version not found', 404);
+  if (['locked', 'archived'].includes(version.status)) return sendError(res, 'Cannot delete a locked/archived version', 400);
+  version.deleteOne();
+  await p.save();
+  sendSuccess(res, { product: p }, 'Version deleted');
+});
+
 // POST /api/catalog/import  — bulk import from localStorage JSON dump
 exports.importProducts = asyncHandler(async (req, res) => {
   const orgId = req.user.organizationId;

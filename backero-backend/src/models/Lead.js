@@ -123,6 +123,12 @@ const leadSchema = new mongoose.Schema({
     paymentStatus: { type: String, enum: ['pending', 'full_paid'], default: 'pending' },
     advanceAmount: { type: Number, default: 0 },
     paymentMode: { type: String, enum: ['cash', 'upi', 'bank_transfer'], default: 'upi' },
+    // R&D/sampling payment audit trail — captured alongside confirming the fee, so there's a
+    // record of how/when/by-whom it was actually received (not just a paid/pending flag).
+    paymentTxnRef: { type: String },
+    paidAt: { type: Date },
+    receivedBy: { type: String },
+    paymentNotes: { type: String },
     images: [{ url: String, name: String, addedAt: { type: Date, default: Date.now } }],
     teamUpdates: [sampleLogSchema],
     clientNotes: [sampleLogSchema],
@@ -140,6 +146,9 @@ const leadSchema = new mongoose.Schema({
     formulaId: { type: String },
     name: { type: String },
     productLink: { type: String },
+    // Set when this formula was created via "Link from Catalog" — a one-time copy of a real
+    // CatalogProduct's Formulation & Procedure at link time, not a live/synced reference.
+    catalogProductId: { type: mongoose.Schema.Types.ObjectId, ref: 'CatalogProduct' },
     refWeight: { type: Number, default: 100 },
     refUnit: { type: String, enum: ['g', 'kg', 'ml', 'L'], default: 'g' },
     currentVersion: { type: Number, default: 1 },
@@ -148,6 +157,7 @@ const leadSchema = new mongoose.Schema({
       status: { type: String, enum: ['Draft', 'In Testing', 'Accepted', 'Rejected', 'Archived'], default: 'In Testing' },
       costPerUnit: { type: Number, default: 0 },
       procedure: { type: String },
+      changeNote: { type: String },
       rows: [{
         rawMaterialId: { type: String },
         name: { type: String },
@@ -171,9 +181,11 @@ const leadSchema = new mongoose.Schema({
     productId: { type: String },
     catalogProductId: { type: mongoose.Schema.Types.ObjectId, ref: 'CatalogProduct' },
     name: { type: String },
-    basis: { type: String, enum: ['House Formula', 'Client Provided', 'Catalog SKU'], default: 'House Formula' },
+    basis: { type: String, enum: ["Customer's Formula", 'House Formula', 'To Be Developed'], default: 'House Formula' },
+    notes: { type: String },
     approxPrice: { type: Number, default: 0 },
-    priceStatus: { type: String, enum: ['Pending', 'Accepted', 'Rejected'], default: 'Pending' },
+    // Pricing flow: Not quoted -> Quoted (💰 Quote Price) -> Accepted (✓ Accept Price).
+    priceStatus: { type: String, enum: ['Not quoted', 'Quoted', 'Accepted'], default: 'Not quoted' },
     paymentStatus: { type: String, enum: ['pending', 'full_paid'], default: 'pending' },
     createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
     createdAt: { type: Date, default: Date.now },
@@ -185,6 +197,10 @@ const leadSchema = new mongoose.Schema({
   samples: [{
     sampleId: { type: String },
     formulaId: { type: String },
+    // Which of the FORMULA's own versions this sample was requested against — distinct from
+    // `version` below, which is this sample's own chain depth (1st request, 2nd follow-up, ...).
+    formulaVersionNo: { type: Number },
+    productId: { type: String },
     version: { type: Number, default: 1 },
     chainedFrom: { type: String },
     status: { type: String, enum: ['Requested', 'In Lab', 'Sent', 'Feedback', 'Approved', 'Rejected'], default: 'Requested' },

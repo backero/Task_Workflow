@@ -131,5 +131,7 @@ router.post('/leads/:id/query', ctrl.raiseQuery);
 router.get('/leads/:id/queries', ctrl.getLeadQueries);
 router.get('/queries', ctrl.getQueries);
 router.put('/queries/:queryId/reply', ctrl.answerQuery);
+router.put('/queries/:queryId/status', ctrl.updateQueryStatus);
+router.put('/queries/:queryId/link', ctrl.linkQuery);
 
 module.exports = router;

@@ -11,7 +11,7 @@ const PRODUCT_TYPES = ['Shampoo', 'Conditioner', 'Hair Oil', 'Serum', 'Cream', '
 const UNITS = ['ml', 'g', 'kg', 'L', 'pcs', 'oz'];
 const GST_RATES = [0, 5, 12, 18, 28];
 const STATUSES = ['Active', 'Inactive', 'Draft', 'Archived'];
-const TABS = ['Basic Info', 'Formulation', 'Variants', 'R&D & Overheads', 'Costing', 'Packaging', 'Marketplace', 'QR Code', 'Procedure', 'Documents', 'History'];
+const TABS = ['Overview', 'Formulation & Procedure', 'R&D & Overheads', 'Costing', 'Marketplace', 'QR Code', 'Documents', 'History'];
 
 const ASSUMPTION_FIELDS = [
   { key: 'equipmentPct', label: 'Equipment (Mold/Tools)', max: 20, hint: '3-5% recommended' },
@@ -40,6 +40,7 @@ const emptyForm = () => ({
   hsnCode: '', shelfLife: '', status: 'Active', discontinuedDate: '', description: '',
   storage: '', certifications: '', barcode: '', image: null,
   formulation: { refWeight: 100, refUnit: 'ml', rows: [] },
+  formulationVersions: [],
   variants: [],
   standardAssumptions: { equipmentPct: 3, consumablesPct: 1, storagePct: 2, housekeepingPct: 1, adminPct: 5, wastagePct: 2, image: null, lastUpdated: null },
   rnd: { testing: 0, consumables: 0, samples: 0, overhead: 0, otherOverhead: 0, qc: 0, lifecycle: 1000, lastUpdated: null },
@@ -64,9 +65,22 @@ const emptyForm = () => ({
 
 function numF(v, d = 2) { return Number(v || 0).toFixed(d); }
 
+// Batch Tracker's buildIngredientsFromCatalogProduct (backend) scales each row's stored
+// `quantity` field directly to build real production-order weighing targets — it does NOT
+// recompute from percentage. So `quantity` must be kept in sync with the displayed
+// percentage/refWeight/convFactor-derived amount on every save, or Weighing stage targets
+// silently come out as 0 for any row edited through this UI.
+function withComputedQuantity(rows, refWeight) {
+  const rw = Number(refWeight) || 100;
+  return (rows || []).map(r => ({
+    ...r,
+    quantity: rw * (Number(r.percentage) || 0) / 100 * (Number(r.convFactor) || 1),
+  }));
+}
+
 function calcFormCost(product) {
   if (!product?.formulation?.rows?.length) return 0;
-  return product.formulation.rows.reduce((sum, r) => sum + ((r.costPerKg || 0) * (r.percentage || 0) / 100), 0);
+  return product.formulation.rows.reduce((sum, r) => sum + ((r.costPerKg || 0) * (r.percentage || 0) / 100 * (Number(r.convFactor) || 1)), 0);
 }
 
 // Shared breakdown used by R&D & Overheads, Costing, and Marketplace tabs — mirrors
@@ -136,7 +150,7 @@ export default function ProductCatalogPage() {
   const [selectedId, setSelectedId] = useState(null);
   const [showForm, setShowForm] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
-  const [activeTab, setActiveTab] = useState('Basic Info');
+  const [activeTab, setActiveTab] = useState('Overview');
   const [form, setForm] = useState(emptyForm());
   const [importing, setImporting] = useState(false);
   const [imagePreview, setImagePreview] = useState(null);
@@ -242,18 +256,51 @@ export default function ProductCatalogPage() {
     onError: () => toast.error('Failed to remove attachment'),
   });
 
+  const createVersionMutation = useMutation({
+    mutationFn: ({ id, changeNotes }) => api.post(`/catalog/products/${id}/formulation-versions`, { changeNotes }),
+    onSuccess: (_, { id }) => { qc.invalidateQueries({ queryKey: ['catalog-detail', id] }); toast.success('New version created'); },
+    onError: (e) => toast.error(e?.response?.data?.message || 'Failed to create version'),
+  });
+
+  const updateVersionMutation = useMutation({
+    mutationFn: ({ id, versionId, data }) => api.put(`/catalog/products/${id}/formulation-versions/${versionId}`, data),
+    onSuccess: (_, { id }) => { qc.invalidateQueries({ queryKey: ['catalog-detail', id] }); toast.success('Version saved'); },
+    onError: (e) => toast.error(e?.response?.data?.message || 'Failed to save version'),
+  });
+
+  const activateVersionMutation = useMutation({
+    mutationFn: ({ id, versionId }) => api.post(`/catalog/products/${id}/formulation-versions/${versionId}/activate`),
+    onSuccess: (res, { id }) => {
+      qc.invalidateQueries({ queryKey: ['catalog-detail', id] });
+      qc.invalidateQueries({ queryKey: ['catalog'] });
+      // The main Formulation editor only re-syncs form.formulation when detail._id changes (so in-progress
+      // edits on other tabs survive unrelated refetches) — activation changes formulation in place, so merge
+      // the freshly-activated content into local form state directly instead of waiting on that effect.
+      const updated = res?.data?.product;
+      if (updated) setForm(f => ({ ...f, formulation: updated.formulation }));
+      toast.success('Version activated');
+    },
+    onError: (e) => toast.error(e?.response?.data?.message || 'Failed to activate version'),
+  });
+
+  const deleteVersionMutation = useMutation({
+    mutationFn: ({ id, versionId }) => api.delete(`/catalog/products/${id}/formulation-versions/${versionId}`),
+    onSuccess: (_, { id }) => { qc.invalidateQueries({ queryKey: ['catalog-detail', id] }); toast.success('Version deleted'); },
+    onError: (e) => toast.error(e?.response?.data?.message || 'Failed to delete version'),
+  });
+
   function openCreate() {
     const nextNum = String((listData?.products?.length || 0) + 1).padStart(4, '0');
     setForm({ ...emptyForm(), code: `FG-${nextNum}` });
-    setEditingProduct(null); setActiveTab('Basic Info'); setImagePreview(null); setShowForm(true);
+    setEditingProduct(null); setActiveTab('Overview'); setImagePreview(null); setShowForm(true);
   }
   function openEdit(p) {
     setForm({ ...emptyForm(), ...p, formulation: p.formulation || { refWeight: p.weight || 100, refUnit: p.unit || 'ml', rows: [] } });
-    setEditingProduct(p); setActiveTab('Basic Info'); setImagePreview(p.image || null); setShowForm(true);
+    setEditingProduct(p); setActiveTab('Overview'); setImagePreview(p.image || null); setShowForm(true);
   }
   function closeForm() { setShowForm(false); setEditingProduct(null); setImagePreview(null); }
 
-  function openDetail(p) { setSelectedId(p._id); setActiveTab('Basic Info'); }
+  function openDetail(p) { setSelectedId(p._id); setActiveTab('Overview'); }
   function closeDetail() { setSelectedId(null); }
 
   function setF(field, val) { setForm(f => ({ ...f, [field]: val })); }
@@ -372,16 +419,16 @@ export default function ProductCatalogPage() {
       {/* ── Header ── */}
       <div className="bg-white border-b border-slate-200 px-8 py-3.5 flex items-center justify-between sticky top-0 z-10">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl flex items-center justify-center text-lg bg-purple-100">📦</div>
+          <div className="w-9 h-9 rounded-xl flex items-center justify-center text-lg bg-amber-100">📦</div>
           <div>
             <h1 className="text-base font-bold text-slate-900">Product Catalog</h1>
-            <p className="text-[11px] text-slate-500">Finished Goods — Formulation & Costing</p>
+            <p className="text-[11px] text-slate-500">Finished Goods — B2B Cosmetic Manufacturing</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <button onClick={importCSVFile} disabled={importing} className="text-sm px-4 py-2 rounded-full border border-slate-200 text-slate-600 hover:bg-slate-50 font-semibold transition-all disabled:opacity-50">📤 Bulk Import</button>
-          <button onClick={importFromLocalStorage} disabled={importing} className="text-sm px-4 py-2 rounded-full bg-amber-50 text-amber-700 border border-amber-200 font-semibold hover:bg-amber-100 disabled:opacity-50 transition-all">{importing ? 'Importing…' : '☁️ Sync LS'}</button>
+          <button onClick={importFromLocalStorage} disabled={importing} className="text-xs px-3 py-1.5 rounded-full text-slate-400 hover:text-slate-600 hover:bg-slate-50 font-semibold transition-all disabled:opacity-50">{importing ? 'Syncing…' : '☁️ Sync LS'}</button>
           <button onClick={exportCSV} disabled={products.length === 0} className="text-sm px-4 py-2 rounded-full border border-slate-200 text-slate-600 hover:bg-slate-50 font-semibold transition-all disabled:opacity-40">📥 Export CSV</button>
+          <button onClick={importCSVFile} disabled={importing} className="text-sm px-4 py-2 rounded-full border border-slate-200 text-slate-600 hover:bg-slate-50 font-semibold transition-all disabled:opacity-50">📤 Import CSV</button>
           <button onClick={openCreate} className="text-sm px-4 py-2 rounded-full font-semibold text-slate-900 hover:brightness-95 transition-all" style={{ background: '#e5ff00' }}>➕ Add Product</button>
         </div>
       </div>
@@ -390,9 +437,9 @@ export default function ProductCatalogPage() {
 
         {/* ── 3 Metric Cards ── */}
         <div className="grid grid-cols-3 gap-4 mb-6">
-          <MetricCard label="Total Products" value={stats.total} sub="📦 All SKUs" icon="📦" iconBg="bg-purple-100" />
-          <MetricCard label="Active Products" value={stats.active} sub="✅ Live in catalog" icon="✅" iconBg="bg-emerald-100" />
-          <MetricCard label="Categories" value={stats.byCategory?.length || 0} sub="🏷️ Product lines" icon="🏷️" iconBg="bg-orange-100" />
+          <MetricCard label="Total Products" value={stats.total} sub="📦 SKUs" icon="📦" iconBg="bg-purple-100" />
+          <MetricCard label="Active" value={stats.active} sub="✅ In production" icon="✅" iconBg="bg-emerald-100" />
+          <MetricCard label="Categories" value={stats.byCategory?.length || 0} sub="🏷️ Unique" icon="🏷️" iconBg="bg-orange-100" />
         </div>
 
         {/* ── Table Card ── */}
@@ -655,17 +702,26 @@ export default function ProductCatalogPage() {
 
             {/* Tab Content */}
             <div className="flex-1 overflow-y-auto p-6">
-              {activeTab === 'Basic Info' && <BasicInfoTab product={detail} />}
-              {activeTab === 'Formulation' && <FormulationTab product={detail} form={form} setForm={setForm} onSave={() => updateMutation.mutate({ id: detail._id, data: { formulation: form.formulation } })} isPending={isPending} />}
-              {activeTab === 'Variants' && <VariantsTab product={detail} form={form} setForm={setForm} onSave={() => updateMutation.mutate({ id: detail._id, data: { variants: form.variants } })} isPending={isPending} />}
+              {activeTab === 'Overview' && <BasicInfoTab product={detail} />}
+              {activeTab === 'Formulation & Procedure' && <FormulationProcedureTab product={detail} form={form} setForm={setForm} isPending={isPending}
+                onSaveFormulation={() => updateMutation.mutate({ id: detail._id, data: { formulation: { ...form.formulation, rows: withComputedQuantity(form.formulation?.rows, form.formulation?.refWeight) } } })}
+                onSaveProcedure={() => updateMutation.mutate({ id: detail._id, data: { rndDoc: form.rndDoc, researchGuide: form.researchGuide, procedure: form.procedure } })}
+                onAttach={(file, kind) => attachMutation.mutate({ id: detail._id, file, kind })}
+                onRemoveAttach={(kind, attachmentId) => removeAttachMutation.mutate({ id: detail._id, kind, attachmentId })}
+                versionActions={{
+                  onCreateVersion: () => createVersionMutation.mutate({ id: detail._id, changeNotes: '' }),
+                  onUpdateVersion: (versionId, data) => updateVersionMutation.mutate({ id: detail._id, versionId, data }),
+                  onActivateVersion: (versionId) => activateVersionMutation.mutate({ id: detail._id, versionId }),
+                  onDeleteVersion: (versionId) => deleteVersionMutation.mutate({ id: detail._id, versionId }),
+                  state: { creating: createVersionMutation.isPending, updating: updateVersionMutation.isPending, activating: activateVersionMutation.isPending, deleting: deleteVersionMutation.isPending },
+                }} />}
               {activeTab === 'R&D & Overheads' && <RndOverheadsTab product={detail} form={form} setForm={setForm} onSave={() => updateMutation.mutate({ id: detail._id, data: { rnd: form.rnd, productionOverhead: form.productionOverhead, standardAssumptions: form.standardAssumptions } })} isPending={isPending} />}
-              {activeTab === 'Costing' && <CostingTab product={detail} form={form} setForm={setForm} onSave={() => updateMutation.mutate({ id: detail._id, data: { costing: form.costing } })} isPending={isPending} />}
-              {activeTab === 'Packaging' && <PackagingTab product={detail} form={form} setForm={setForm} onSave={() => updateMutation.mutate({ id: detail._id, data: { packaging: form.packaging } })} isPending={isPending} />}
+              {activeTab === 'Costing' && <CostingPackagingTab product={detail} form={form} setForm={setForm} isPending={isPending}
+                onSavePackaging={() => updateMutation.mutate({ id: detail._id, data: { packaging: form.packaging } })}
+                onSaveVariants={() => updateMutation.mutate({ id: detail._id, data: { variants: form.variants } })}
+                onSaveCosting={() => updateMutation.mutate({ id: detail._id, data: { costing: form.costing } })} />}
               {activeTab === 'Marketplace' && <MarketplaceTab product={detail} form={form} setForm={setForm} onSave={() => updateMutation.mutate({ id: detail._id, data: { marketplace: form.marketplace } })} isPending={isPending} />}
               {activeTab === 'QR Code' && <QRCodeTab product={detail} />}
-              {activeTab === 'Procedure' && <ProcedureTab product={detail} form={form} setForm={setForm} onSave={() => updateMutation.mutate({ id: detail._id, data: { rndDoc: form.rndDoc, researchGuide: form.researchGuide, procedure: form.procedure } })} isPending={isPending}
-                onAttach={(file, kind) => attachMutation.mutate({ id: detail._id, file, kind })}
-                onRemoveAttach={(kind, attachmentId) => removeAttachMutation.mutate({ id: detail._id, kind, attachmentId })} />}
               {activeTab === 'Documents' && <DocumentsTab product={detail}
                 onAttach={(file, kind) => attachMutation.mutate({ id: detail._id, file, kind })}
                 onRemoveAttach={(kind) => removeAttachMutation.mutate({ id: detail._id, kind })} />}
@@ -863,9 +919,15 @@ function IngredientCell({ row, index, rawMaterials, onUpdate }) {
 // ─── Formulation Tab ───────────────────────────────────────────────────────────
 function FormulationTab({ product, form, setForm, onSave, isPending }) {
   const [resolving, setResolving] = useState(false);
+  const [expanded, setExpanded] = useState(() => new Set());
   const rows = form.formulation?.rows || [];
+  const refWeight = Number(form.formulation?.refWeight) || 100;
+  const refUnit = form.formulation?.refUnit || 'ml';
   const totalPct = rows.reduce((s, r) => s + (Number(r.percentage) || 0), 0);
+  const totalQty = rows.reduce((s, r) => s + (refWeight * (Number(r.percentage) || 0) / 100 * (Number(r.convFactor) || 1)), 0);
   const formCost = calcFormCost({ formulation: form.formulation });
+  const totalAmount = formCost * refWeight / 1000;
+  const perUnit = refWeight > 0 ? totalAmount / refWeight : 0;
 
   const { data: rmData } = useQuery({
     queryKey: ['raw-materials-list'],
@@ -873,6 +935,14 @@ function FormulationTab({ product, form, setForm, onSave, isPending }) {
     staleTime: 60_000,
   });
   const rawMaterials = rmData || [];
+
+  function matForRow(r) {
+    if (!r.rawMaterialId) return null;
+    return rawMaterials.find(m => m._id === r.rawMaterialId || m._id?.toString() === r.rawMaterialId) || null;
+  }
+  function toggleExpand(i) {
+    setExpanded(s => { const n = new Set(s); if (n.has(i)) n.delete(i); else n.add(i); return n; });
+  }
 
   // Auto-sync: when raw materials load, update costPerKg for all linked rows
   useEffect(() => {
@@ -893,7 +963,7 @@ function FormulationTab({ product, form, setForm, onSave, isPending }) {
   }, [rawMaterials]);
 
   function addRow() {
-    setForm(f => ({ ...f, formulation: { ...f.formulation, rows: [...(f.formulation?.rows || []), { name: '', rawMaterialId: '', percentage: 0, quantity: 0, unit: 'g', costPerKg: 0 }] } }));
+    setForm(f => ({ ...f, formulation: { ...f.formulation, rows: [...(f.formulation?.rows || []), { name: '', rawMaterialId: '', percentage: 0, quantity: 0, unit: 'g', costPerKg: 0, phase: '', convFactor: 1, notes: '' }] } }));
   }
   function updateRow(i, fields) {
     setForm(f => {
@@ -938,10 +1008,14 @@ function FormulationTab({ product, form, setForm, onSave, isPending }) {
   }
 
   const linkedCount = rows.filter(r => r.rawMaterialId).length;
+  const pctDiff = totalPct - 100;
+  const alertBanner = Math.abs(pctDiff) < 0.1 ? null : pctDiff > 0
+    ? { cls: 'bg-red-50 text-red-700 border-red-200', text: '⚠ Total percentage exceeds 100%' }
+    : { cls: 'bg-amber-50 text-amber-700 border-amber-200', text: `ℹ Total percentage is ${numF(totalPct, 2)}% (should be 100%)` };
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-4 flex-wrap">
         <div><label className="label">Ref. Batch Weight</label>
           <div className="flex gap-2">
             <input type="number" value={form.formulation?.refWeight || ''} onChange={e => setForm(f => ({ ...f, formulation: { ...f.formulation, refWeight: Number(e.target.value) } }))} className="input w-24" />
@@ -955,44 +1029,101 @@ function FormulationTab({ product, form, setForm, onSave, isPending }) {
             <span className="text-emerald-600 dark:text-emerald-400 font-semibold">{linkedCount}</span>/{rows.length} linked to inventory
           </div>
         )}
-        <div className="ml-auto text-right">
-          <p className="text-xs text-gray-400">Total %</p>
-          <p className={clsx('text-xl font-bold', Math.abs(totalPct - 100) < 0.1 ? 'text-green-600' : 'text-red-500')}>{numF(totalPct, 1)}%</p>
-        </div>
-        <div className="text-right">
-          <p className="text-xs text-gray-400">Form. Cost / kg</p>
-          <p className="text-xl font-bold text-blue-600">₹{numF(formCost)}</p>
-        </div>
+      </div>
+
+      {/* ── Formulation Dashboard (4 metric cards) ── */}
+      <div className="grid grid-cols-4 gap-3">
+        <MetricCard label="Total Ingredients" value={rows.length} icon="🧪" iconBg="bg-blue-100" />
+        <MetricCard label="Total Percentage" value={`${numF(totalPct, 2)}%`} icon="📊" iconBg="bg-emerald-100" />
+        <MetricCard label="Total Quantity" value={numF(totalQty, 2)} icon="⚖️" iconBg="bg-orange-100" />
+        <MetricCard label="Reference Weight" value={`${refWeight} ${refUnit}`} icon="📐" iconBg="bg-purple-100" />
       </div>
 
       <div className="overflow-x-auto rounded-xl border border-gray-200 dark:border-[#1b2e4a]">
         <table className="w-full text-xs">
           <thead className="bg-gray-50 dark:bg-[#0f1a2e]">
             <tr>
-              {['Ingredient', '%', 'Qty (g)', 'Cost/kg (₹)', 'Cost Contrib.', ''].map(h => (
-                <th key={h} className="px-3 py-2 text-left font-semibold text-gray-500 dark:text-gray-400">{h}</th>
+              {['', '#', 'Code', 'Ingredient', '%', 'Qty', 'Conv. Factor', 'Unit', 'Phase', 'Notes', 'Cost/kg (₹)', 'Cost Contrib.', ''].map((h, idx) => (
+                <th key={idx} className="px-3 py-2 text-left font-semibold text-gray-500 dark:text-gray-400">{h}</th>
               ))}
             </tr>
           </thead>
           <tbody>
-            {rows.map((r, i) => (
-              <tr key={i} className="border-t border-gray-100 dark:border-[#1b2e4a]">
-                <td className="px-3 py-1.5">
-                  <IngredientCell row={r} index={i} rawMaterials={rawMaterials} onUpdate={updateRow} />
-                </td>
-                <td className="px-3 py-1.5"><input type="number" value={r.percentage} onChange={e => updateRow(i, { percentage: e.target.value })} className="input text-xs w-16" /></td>
-                <td className="px-3 py-1.5"><span className="text-gray-500">{numF((form.formulation?.refWeight || 100) * (r.percentage || 0) / 100, 2)}</span></td>
-                <td className="px-3 py-1.5"><input type="number" value={r.costPerKg} onChange={e => updateRow(i, { costPerKg: e.target.value })} className="input text-xs w-20" /></td>
-                <td className="px-3 py-1.5 text-blue-600 font-mono">₹{numF((r.costPerKg || 0) * (r.percentage || 0) / 100)}</td>
-                <td className="px-3 py-1.5"><button onClick={() => removeRow(i)} className="text-red-400 hover:text-red-600">✕</button></td>
-              </tr>
-            ))}
+            {rows.map((r, i) => {
+              const mat = matForRow(r);
+              const isOpen = expanded.has(i);
+              const conv = Number(r.convFactor) || 1;
+              const qty = refWeight * (Number(r.percentage) || 0) / 100 * conv;
+              return (
+                <React.Fragment key={i}>
+                  <tr className="border-t border-gray-100 dark:border-[#1b2e4a]">
+                    <td className="px-2 py-1.5">
+                      <button onClick={() => toggleExpand(i)} className="text-gray-400 hover:text-gray-700 transition-transform" style={{ transform: isOpen ? 'rotate(90deg)' : 'none' }} title="Details">▶</button>
+                    </td>
+                    <td className="px-2 py-1.5 text-gray-400">{i + 1}</td>
+                    <td className="px-3 py-1.5"><span className="font-mono text-[11px] text-gray-500">{mat?.code || mat?.sku || '—'}</span></td>
+                    <td className="px-3 py-1.5">
+                      <IngredientCell row={r} index={i} rawMaterials={rawMaterials} onUpdate={updateRow} />
+                    </td>
+                    <td className="px-3 py-1.5"><input type="number" value={r.percentage} onChange={e => updateRow(i, { percentage: e.target.value })} className="input text-xs w-16" /></td>
+                    <td className="px-3 py-1.5"><span className="text-gray-500">{numF(qty, 2)}</span></td>
+                    <td className="px-3 py-1.5"><input type="number" step="0.01" value={r.convFactor ?? 1} onChange={e => updateRow(i, { convFactor: e.target.value })} className="input text-xs w-16" /></td>
+                    <td className="px-3 py-1.5">
+                      <select value={r.unit || 'g'} onChange={e => updateRow(i, { unit: e.target.value })} className="input text-xs w-16">
+                        {UNITS.map(u => <option key={u}>{u}</option>)}
+                      </select>
+                    </td>
+                    <td className="px-3 py-1.5"><input type="text" value={r.phase || ''} onChange={e => updateRow(i, { phase: e.target.value })} placeholder="A/B/C" className="input text-xs w-16" /></td>
+                    <td className="px-3 py-1.5"><input type="text" value={r.notes || ''} onChange={e => updateRow(i, { notes: e.target.value })} placeholder="Notes" className="input text-xs w-24" /></td>
+                    <td className="px-3 py-1.5"><input type="number" value={r.costPerKg} onChange={e => updateRow(i, { costPerKg: e.target.value })} className="input text-xs w-20" /></td>
+                    <td className="px-3 py-1.5 text-blue-600 font-mono">₹{numF((r.costPerKg || 0) * (r.percentage || 0) / 100 * conv)}</td>
+                    <td className="px-3 py-1.5"><button onClick={() => removeRow(i)} className="text-red-400 hover:text-red-600">✕</button></td>
+                  </tr>
+                  {isOpen && (
+                    <tr className="border-t border-gray-100 dark:border-[#1b2e4a] bg-gray-50/60 dark:bg-[#0f1a2e]/60">
+                      <td colSpan={13} className="px-4 py-3">
+                        {mat ? (
+                          <div className="grid grid-cols-4 gap-x-6 gap-y-2">
+                            <InfoRow label="Category" value={mat.category} />
+                            <InfoRow label="HSN Code" value={mat.hsnCode} mono />
+                            <InfoRow label="Supplier" value={mat.supplier} />
+                            <InfoRow label="Location" value={mat.location} />
+                            <InfoRow label="GST Rate" value={mat.gstRate != null ? `${mat.gstRate}%` : null} />
+                            <InfoRow label="Min Stock Level" value={mat.minStockLevel != null ? `${mat.minStockLevel} ${mat.unit || ''}` : null} />
+                            <InfoRow label="QC Checker" value={mat.qcChecker} />
+                            <InfoRow label="QC Number" value={mat.qcNumber} />
+                            <InfoRow label="Ref Check #" value={mat.refCheckNumber} />
+                            <InfoRow label="QC Result" value={mat.qcPassed ? 'PASS' : (mat.qcChecker ? 'FAIL / Pending' : null)} badge={mat.qcPassed ? 'green' : mat.qcChecker ? 'yellow' : undefined} />
+                            <InfoRow label="QC Notes" value={mat.qcNotes} />
+                          </div>
+                        ) : (
+                          <p className="text-[11px] text-gray-400">Link this ingredient to a raw material to see category, HSN, supplier, location and QC details here.</p>
+                        )}
+                      </td>
+                    </tr>
+                  )}
+                </React.Fragment>
+              );
+            })}
             {rows.length === 0 && (
-              <tr><td colSpan={6} className="px-3 py-6 text-center text-gray-400">No ingredients yet. Click "+ Add Ingredient" to start.</td></tr>
+              <tr><td colSpan={13} className="px-3 py-6 text-center text-gray-400">No ingredients yet. Click "+ Add Ingredient" to start.</td></tr>
             )}
           </tbody>
         </table>
       </div>
+
+      {alertBanner && (
+        <div className={clsx('px-4 py-2.5 rounded-lg text-xs font-semibold border', alertBanner.cls)}>{alertBanner.text}</div>
+      )}
+
+      {rows.length > 0 && (
+        <div className="grid grid-cols-3 gap-4 bg-slate-900 text-white rounded-2xl px-6 py-4">
+          <div><p className="text-[11px] text-slate-300">Total Formulation Cost</p><p className="text-lg font-bold">₹{numF(totalAmount)}</p></div>
+          <div><p className="text-[11px] text-slate-300">Reference Weight</p><p className="text-lg font-bold">{refWeight} {refUnit}</p></div>
+          <div><p className="text-[11px] text-slate-300">Cost Per Unit</p><p className="text-lg font-bold">₹{numF(perUnit, 4)}</p></div>
+        </div>
+      )}
+
       <div className="flex items-center gap-3 flex-wrap">
         <button onClick={addRow} className="btn-secondary text-sm">+ Add Ingredient</button>
         <div className="text-[11px] text-gray-400 flex items-center gap-3">
@@ -1007,12 +1138,193 @@ function FormulationTab({ product, form, setForm, onSave, isPending }) {
   );
 }
 
+// ─── Formulation & Procedure (merged) ───────────────────────────────────────────
+function FormulationProcedureTab({ product, form, setForm, isPending, onSaveFormulation, onSaveProcedure, onAttach, onRemoveAttach, versionActions }) {
+  return (
+    <div className="space-y-8">
+      <div>
+        <p className="text-sm font-bold text-gray-700 dark:text-gray-200 mb-3">🧪 Product Formulation</p>
+        <FormulationVersionsPanel product={product} versionActions={versionActions} />
+        <FormulationTab product={product} form={form} setForm={setForm} onSave={onSaveFormulation} isPending={isPending} />
+      </div>
+      <hr className="border-gray-100 dark:border-[#1b2e4a]" />
+      <div>
+        <p className="text-sm font-bold text-gray-700 dark:text-gray-200 mb-3">📝 R&D Documentation &amp; Manufacturing Procedure</p>
+        <ProcedureTab product={product} form={form} setForm={setForm} onSave={onSaveProcedure} isPending={isPending} onAttach={onAttach} onRemoveAttach={onRemoveAttach} />
+      </div>
+    </div>
+  );
+}
+
+// ─── Formula Versions Panel ─────────────────────────────────────────────────────
+// Versioning workspace for the formulation: browse V1…Vn, branch a new draft, iterate
+// on it independently, then "Set Active" to promote it into the product's live formulation
+// (the one FormulationTab above edits). Locked/archived versions render read-only.
+const FORM_VERSION_STATUS = {
+  draft: { label: 'Draft', cls: 'bg-amber-100 text-amber-700' },
+  testing: { label: 'In Testing', cls: 'bg-blue-100 text-blue-700' },
+  locked: { label: 'Active', cls: 'bg-emerald-100 text-emerald-700' },
+  archived: { label: 'Archived', cls: 'bg-slate-100 text-slate-500' },
+};
+
+function FormulationVersionsPanel({ product, versionActions }) {
+  const { onCreateVersion, onUpdateVersion, onActivateVersion, onDeleteVersion, state } = versionActions;
+  const [selectedId, setSelectedId] = useState(null); // null = the live/active formulation (edited via FormulationTab below)
+  const [draftRows, setDraftRows] = useState([]);
+  const [draftMeta, setDraftMeta] = useState({ refWeight: 100, refUnit: 'ml' });
+  const [changeNotes, setChangeNotes] = useState('');
+
+  const realVersions = product?.formulationVersions || [];
+  const list = realVersions.length
+    ? [...realVersions].sort((a, b) => a.versionLabel.localeCompare(b.versionLabel, undefined, { numeric: true }))
+    : [{ _id: null, versionLabel: 'V1', status: 'locked', changeNotes: 'Initial formulation', synthetic: true }];
+
+  const selected = selectedId ? realVersions.find(v => v._id === selectedId) : null;
+  const editable = selected && ['draft', 'testing'].includes(selected.status);
+
+  useEffect(() => {
+    if (selected) {
+      setDraftRows(selected.rows || []);
+      setDraftMeta({ refWeight: selected.refWeight || 100, refUnit: selected.refUnit || 'ml' });
+      setChangeNotes(selected.changeNotes || '');
+    }
+  }, [selectedId]);
+
+  const { data: rmData } = useQuery({
+    queryKey: ['raw-materials-list'],
+    queryFn: () => api.get('/inventory/raw-materials').then(r => r.data.materials || []),
+    staleTime: 60_000,
+  });
+  const rawMaterials = rmData || [];
+
+  function updateDraftRow(i, fields) { setDraftRows(rows => { const copy = [...rows]; copy[i] = { ...copy[i], ...fields }; return copy; }); }
+  function addDraftRow() { setDraftRows(rows => [...rows, { name: '', rawMaterialId: '', percentage: 0, quantity: 0, unit: 'g', costPerKg: 0, phase: '', convFactor: 1 }]); }
+  function removeDraftRow(i) { setDraftRows(rows => rows.filter((_, idx) => idx !== i)); }
+
+  return (
+    <div className="rounded-xl border border-slate-200 dark:border-[#1b2e4a] p-4 mb-4">
+      <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+        <p className="text-xs font-bold text-slate-600 dark:text-gray-300">📚 Formula Versions</p>
+        <button onClick={() => onCreateVersion()} disabled={state.creating}
+          className="text-xs px-3 py-1.5 rounded-lg bg-slate-900 text-white font-semibold hover:bg-slate-700 disabled:opacity-50 transition-colors">
+          {state.creating ? 'Creating…' : '➕ New Version'}
+        </button>
+      </div>
+
+      <div className="flex gap-2 flex-wrap mb-3">
+        {list.map(v => {
+          const isActiveView = v.synthetic || v.status === 'locked' ? !selectedId : selectedId === v._id;
+          const badge = FORM_VERSION_STATUS[v.status] || FORM_VERSION_STATUS.draft;
+          return (
+            <button key={v._id || 'synthetic'} onClick={() => setSelectedId(v.synthetic || v.status === 'locked' ? null : v._id)}
+              className={clsx('px-3 py-2 rounded-lg border text-left text-xs min-w-[120px] transition-colors',
+                isActiveView ? 'border-slate-900 bg-slate-50 dark:bg-[#0f1a2e]' : 'border-slate-200 dark:border-[#1b2e4a] hover:bg-slate-50 dark:hover:bg-[#0f1a2e]')}>
+              <div className="flex items-center gap-1.5 font-bold text-slate-800 dark:text-gray-100">
+                {v.versionLabel}
+                <span className={clsx('text-[10px] font-bold px-2 py-0.5 rounded-full', badge.cls)}>{badge.label}</span>
+              </div>
+              {v.changeNotes && <div className="text-[10px] text-slate-400 truncate max-w-[140px] mt-0.5">{v.changeNotes}</div>}
+            </button>
+          );
+        })}
+      </div>
+
+      {selected && (
+        <div className="border-t border-slate-100 dark:border-[#1b2e4a] pt-3 space-y-3">
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold text-slate-700 dark:text-gray-200">{selected.versionLabel}</span>
+              <span className={clsx('text-[10px] font-bold px-2 py-0.5 rounded-full', (FORM_VERSION_STATUS[selected.status] || FORM_VERSION_STATUS.draft).cls)}>
+                {(FORM_VERSION_STATUS[selected.status] || FORM_VERSION_STATUS.draft).label}
+              </span>
+            </div>
+            {editable && (
+              <div className="flex gap-2">
+                <button onClick={() => onUpdateVersion(selected._id, { rows: withComputedQuantity(draftRows, draftMeta.refWeight), refWeight: draftMeta.refWeight, refUnit: draftMeta.refUnit, changeNotes })}
+                  disabled={state.updating} className="text-xs px-3 py-1.5 rounded-lg border border-slate-200 dark:border-[#1b2e4a] hover:bg-slate-50 dark:hover:bg-[#0f1a2e] font-semibold disabled:opacity-50 transition-colors">
+                  {state.updating ? 'Saving…' : '💾 Save'}
+                </button>
+                {selected.status === 'draft' && (
+                  <button onClick={() => onUpdateVersion(selected._id, { status: 'testing' })} disabled={state.updating}
+                    className="text-xs px-3 py-1.5 rounded-lg border border-blue-200 text-blue-600 hover:bg-blue-50 font-semibold disabled:opacity-50 transition-colors">
+                    🧪 Mark In Testing
+                  </button>
+                )}
+                <button onClick={() => onActivateVersion(selected._id)} disabled={state.activating}
+                  className="text-xs px-3 py-1.5 rounded-lg bg-emerald-600 text-white font-semibold hover:bg-emerald-700 disabled:opacity-50 transition-colors">
+                  {state.activating ? 'Activating…' : '✅ Set Active'}
+                </button>
+                <button onClick={() => { if (window.confirm(`Delete ${selected.versionLabel}?`)) { onDeleteVersion(selected._id); setSelectedId(null); } }} disabled={state.deleting}
+                  className="text-xs px-2 py-1.5 rounded-lg text-red-500 hover:bg-red-50 disabled:opacity-50 transition-colors">🗑️</button>
+              </div>
+            )}
+          </div>
+
+          {editable ? (
+            <>
+              <div className="flex items-center gap-3">
+                <div><label className="text-[10px] text-gray-400">Ref. Weight</label>
+                  <input type="number" value={draftMeta.refWeight} onChange={e => setDraftMeta(m => ({ ...m, refWeight: Number(e.target.value) }))} className="input text-xs w-20" />
+                </div>
+                <div><label className="text-[10px] text-gray-400">Unit</label>
+                  <select value={draftMeta.refUnit} onChange={e => setDraftMeta(m => ({ ...m, refUnit: e.target.value }))} className="input text-xs w-16">
+                    {UNITS.map(u => <option key={u}>{u}</option>)}
+                  </select>
+                </div>
+                <div className="flex-1"><label className="text-[10px] text-gray-400">Change Note</label>
+                  <input value={changeNotes} onChange={e => setChangeNotes(e.target.value)} placeholder="e.g. Reduced tack, added ferulic 0.5%" className="input text-xs w-full" />
+                </div>
+              </div>
+              <VersionRowsTable rows={draftRows} refWeight={draftMeta.refWeight} rawMaterials={rawMaterials} onUpdate={updateDraftRow} onAdd={addDraftRow} onRemove={removeDraftRow} editable />
+            </>
+          ) : (
+            <>
+              {selected.changeNotes && <p className="text-xs text-slate-400 italic">{selected.changeNotes}</p>}
+              <VersionRowsTable rows={selected.rows || []} refWeight={selected.refWeight} editable={false} />
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function VersionRowsTable({ rows, refWeight, rawMaterials, onUpdate, onAdd, onRemove, editable }) {
+  const headers = editable ? ['Ingredient', '%', 'Qty (g)', 'Conv. Factor', 'Phase', 'Cost/kg (₹)', ''] : ['Ingredient', '%', 'Qty (g)', 'Conv. Factor', 'Phase', 'Cost/kg (₹)'];
+  return (
+    <div>
+      <div className="overflow-x-auto rounded-xl border border-gray-200 dark:border-[#1b2e4a]">
+        <table className="w-full text-xs">
+          <thead className="bg-gray-50 dark:bg-[#0f1a2e]">
+            <tr>{headers.map(h => <th key={h} className="px-3 py-2 text-left font-semibold text-gray-500 dark:text-gray-400">{h}</th>)}</tr>
+          </thead>
+          <tbody>
+            {rows.map((r, i) => (
+              <tr key={i} className="border-t border-gray-100 dark:border-[#1b2e4a]">
+                <td className="px-3 py-1.5">{editable ? <IngredientCell row={r} index={i} rawMaterials={rawMaterials} onUpdate={onUpdate} /> : <span className="text-gray-700 dark:text-gray-300">{r.name}</span>}</td>
+                <td className="px-3 py-1.5">{editable ? <input type="number" value={r.percentage} onChange={e => onUpdate(i, { percentage: e.target.value })} className="input text-xs w-16" /> : `${numF(r.percentage, 1)}%`}</td>
+                <td className="px-3 py-1.5 text-gray-500">{numF((refWeight || 100) * (r.percentage || 0) / 100 * (Number(r.convFactor) || 1), 2)}</td>
+                <td className="px-3 py-1.5">{editable ? <input type="number" step="0.01" value={r.convFactor ?? 1} onChange={e => onUpdate(i, { convFactor: e.target.value })} className="input text-xs w-16" /> : (r.convFactor ?? 1)}</td>
+                <td className="px-3 py-1.5">{editable ? <input value={r.phase || ''} onChange={e => onUpdate(i, { phase: e.target.value })} placeholder="A/B/C" className="input text-xs w-16" /> : (r.phase || '—')}</td>
+                <td className="px-3 py-1.5">{editable ? <input type="number" value={r.costPerKg} onChange={e => onUpdate(i, { costPerKg: e.target.value })} className="input text-xs w-20" /> : `₹${numF(r.costPerKg)}`}</td>
+                {editable && <td className="px-3 py-1.5"><button onClick={() => onRemove(i)} className="text-red-400 hover:text-red-600">✕</button></td>}
+              </tr>
+            ))}
+            {!rows.length && <tr><td colSpan={headers.length} className="px-3 py-6 text-center text-gray-400">No ingredients in this version</td></tr>}
+          </tbody>
+        </table>
+      </div>
+      {editable && <button onClick={onAdd} className="btn-secondary text-xs mt-2">+ Add Ingredient</button>}
+    </div>
+  );
+}
+
 // ─── Variants Tab ──────────────────────────────────────────────────────────────
 function VariantsTab({ product, form, setForm, onSave, isPending }) {
   const variants = form.variants || [];
 
   function addVariant() {
-    setForm(f => ({ ...f, variants: [...(f.variants || []), { name: '', weight: 0, unit: product.unit || 'ml', stock: 0, stockUnit: 'pcs', mrp: 0, sellingPrice: 0, b2bPrice: 0, costPrice: 0 }] }));
+    setForm(f => ({ ...f, variants: [...(f.variants || []), { name: '', weight: 0, unit: product.unit || 'ml', stock: 0, stockUnit: 'pcs', mrp: 0, sellingPrice: 0, b2bPrice: 0, costPrice: 0, size: 0, moq: 0, moqUnit: 'pcs' }] }));
   }
   function updateV(i, field, val) {
     setForm(f => { const v = [...(f.variants || [])]; v[i] = { ...v[i], [field]: val }; return { ...f, variants: v }; });
@@ -1025,7 +1337,7 @@ function VariantsTab({ product, form, setForm, onSave, isPending }) {
         <table className="w-full text-xs">
           <thead className="bg-gray-50 dark:bg-[#0f1a2e]">
             <tr>
-              {['Variant', 'Weight', 'Unit', 'Stock', 'MRP (₹)', 'Selling (₹)', 'B2B (₹)', ''].map(h => (
+              {['Variant', 'Weight', 'Unit', 'Size', 'Stock', 'MOQ', 'MOQ Unit', 'MRP (₹)', 'Selling (₹)', 'B2B (₹)', ''].map(h => (
                 <th key={h} className="px-3 py-2 text-left font-semibold text-gray-500 dark:text-gray-400">{h}</th>
               ))}
             </tr>
@@ -1040,7 +1352,10 @@ function VariantsTab({ product, form, setForm, onSave, isPending }) {
                     {UNITS.map(u => <option key={u}>{u}</option>)}
                   </select>
                 </td>
+                <td className="px-2 py-1.5"><input type="number" value={v.size ?? 0} onChange={e => updateV(i, 'size', e.target.value)} className="input text-xs w-16" placeholder="Size" /></td>
                 <td className="px-2 py-1.5"><input type="number" value={v.stock} onChange={e => updateV(i, 'stock', e.target.value)} className="input text-xs w-16" /></td>
+                <td className="px-2 py-1.5"><input type="number" value={v.moq ?? 0} onChange={e => updateV(i, 'moq', e.target.value)} className="input text-xs w-16" placeholder="MOQ" /></td>
+                <td className="px-2 py-1.5"><input value={v.moqUnit ?? 'pcs'} onChange={e => updateV(i, 'moqUnit', e.target.value)} className="input text-xs w-16" placeholder="pcs" /></td>
                 <td className="px-2 py-1.5"><input type="number" value={v.mrp} onChange={e => updateV(i, 'mrp', e.target.value)} className="input text-xs w-20" /></td>
                 <td className="px-2 py-1.5"><input type="number" value={v.sellingPrice} onChange={e => updateV(i, 'sellingPrice', e.target.value)} className="input text-xs w-20" /></td>
                 <td className="px-2 py-1.5"><input type="number" value={v.b2bPrice} onChange={e => updateV(i, 'b2bPrice', e.target.value)} className="input text-xs w-20" /></td>
@@ -1072,10 +1387,11 @@ function CostingTab({ product, form, setForm, onSave, isPending }) {
 
   function setMargin(f, v) { setForm(prev => ({ ...prev, costing: { ...prev.costing, margins: { ...prev.costing?.margins, [f]: Number(v) } } })); }
 
-  // Chained margin chain, matching product-catalog.html renderVariantPricing()
+  // Chained margin chain, matching product-catalog.html renderVariantPricing() — Size (not
+  // Weight) drives the ratio; falls back to 1 (full reference cost) when Size is unset/zero.
   function computeVariantPricing(v) {
     const refW = b.refW || 1;
-    const sizeRatio = refW > 0 && Number(v.weight) > 0 ? Number(v.weight) / refW : 1;
+    const sizeRatio = refW > 0 && Number(v.size) > 0 ? Number(v.size) / refW : 1;
     const productionCost = costPerUnit * sizeRatio;
     const exFactory = productionCost * (1 + (Number(margins.exFactory) || 0) / 100);
     const dealer = exFactory * (1 + (Number(margins.dealer) || 0) / 100);
@@ -1141,16 +1457,19 @@ function CostingTab({ product, form, setForm, onSave, isPending }) {
       <div className="overflow-x-auto rounded-xl border border-gray-200 dark:border-[#1b2e4a]">
         <table className="w-full text-xs">
           <thead className="bg-gray-50 dark:bg-[#0f1a2e]">
-            <tr>{['Variant', 'Weight', 'Prod. Cost', 'Ex-Factory', 'Dealer', 'Dist.', 'Retail', 'Selling', 'B2B', 'B2C'].map(h => <th key={h} className="px-3 py-2 text-left font-semibold text-gray-500 dark:text-gray-400 whitespace-nowrap">{h}</th>)}</tr>
+            <tr>{['Variant', 'Size', 'Unit', 'MOQ', 'MOQ Unit', 'Prod. Cost', 'Ex-Factory', 'Dealer', 'Dist.', 'Retail', 'Selling', 'B2B', 'B2C'].map(h => <th key={h} className="px-3 py-2 text-left font-semibold text-gray-500 dark:text-gray-400 whitespace-nowrap">{h}</th>)}</tr>
           </thead>
           <tbody>
             {variants.map((v, i) => {
               const p = computeVariantPricing(v);
-              const isRef = Math.abs(Number(v.weight) - b.refW) < 0.001;
+              const isRef = Math.abs(Number(v.size) - b.refW) < 0.001;
               return (
                 <tr key={i} className={clsx('border-t border-gray-100 dark:border-[#1b2e4a]', isRef && 'bg-amber-50/60 dark:bg-amber-500/5')}>
                   <td className="px-3 py-1.5 font-semibold whitespace-nowrap">{v.name || '—'}{isRef && <span className="ml-1 text-amber-500" title="Reference weight">⭐</span>}</td>
-                  <td className="px-3 py-1.5 whitespace-nowrap">{v.weight} {v.unit}</td>
+                  <td className="px-3 py-1.5 whitespace-nowrap">{v.size ?? 0}</td>
+                  <td className="px-3 py-1.5 whitespace-nowrap">{v.unit}</td>
+                  <td className="px-3 py-1.5 whitespace-nowrap">{v.moq ?? 0}</td>
+                  <td className="px-3 py-1.5 whitespace-nowrap">{v.moqUnit || 'pcs'}</td>
                   <td className="px-3 py-1.5 font-mono">₹{numF(p.productionCost)}</td>
                   <td className="px-3 py-1.5 font-mono">₹{numF(p.exFactory)}</td>
                   <td className="px-3 py-1.5 font-mono">₹{numF(p.dealer)}</td>
@@ -1162,7 +1481,7 @@ function CostingTab({ product, form, setForm, onSave, isPending }) {
                 </tr>
               );
             })}
-            {!variants.length && <tr><td colSpan={10} className="px-3 py-6 text-center text-gray-400">No variants. Add sizes in the Variants tab.</td></tr>}
+            {!variants.length && <tr><td colSpan={13} className="px-3 py-6 text-center text-gray-400">No variants. Add sizes in the Variants tab.</td></tr>}
           </tbody>
         </table>
       </div>
@@ -1228,6 +1547,28 @@ function PackagingTab({ product, form, setForm, onSave, isPending }) {
       <div className="flex gap-3">
         <button onClick={addItem} className="btn-secondary text-sm">+ Add Item</button>
         <button onClick={onSave} disabled={isPending} className="btn-primary text-sm disabled:opacity-50 ml-auto">{isPending ? 'Saving…' : '💾 Save Packaging'}</button>
+      </div>
+    </div>
+  );
+}
+
+// ─── Costing (with Packaging & Variant Pricing merged in) ───────────────────────
+function CostingPackagingTab({ product, form, setForm, isPending, onSavePackaging, onSaveVariants, onSaveCosting }) {
+  return (
+    <div className="space-y-8">
+      <div>
+        <p className="text-sm font-bold text-gray-700 dark:text-gray-200 mb-3">📦 Packaging & Labeling</p>
+        <PackagingTab product={product} form={form} setForm={setForm} onSave={onSavePackaging} isPending={isPending} />
+      </div>
+      <hr className="border-gray-100 dark:border-[#1b2e4a]" />
+      <div>
+        <p className="text-sm font-bold text-gray-700 dark:text-gray-200 mb-3">📐 Variants</p>
+        <VariantsTab product={product} form={form} setForm={setForm} onSave={onSaveVariants} isPending={isPending} />
+      </div>
+      <hr className="border-gray-100 dark:border-[#1b2e4a]" />
+      <div>
+        <p className="text-sm font-bold text-gray-700 dark:text-gray-200 mb-3">📊 Costing &amp; Variant Pricing</p>
+        <CostingTab product={product} form={form} setForm={setForm} onSave={onSaveCosting} isPending={isPending} />
       </div>
     </div>
   );
@@ -1682,24 +2023,49 @@ function HistoryTab({ product: p }) {
   if (p.marketplace?.lastUpdated) events.push({ action: 'Marketplace updated', date: p.marketplace.lastUpdated, detail: 'Platform fees & margins' });
   events.sort((a, b) => new Date(b.date) - new Date(a.date));
 
+  const docSlots = [['coa', 'COA (Certificate of Analysis)'], ['msds', 'MSDS'], ['registration', 'Product Registration'], ['brochure', 'Marketing Brochure']];
+  const certEvents = docSlots
+    .map(([key, label]) => ({ key, label, doc: p.documents?.[key] }))
+    .filter(e => e.doc?.uploadedAt);
+
   return (
-    <div className="space-y-4">
-      <p className="text-sm font-bold text-gray-700 dark:text-gray-200">🕐 Activity History</p>
-      {!events.length ? (
-        <p className="text-xs text-gray-400 bg-gray-50 dark:bg-[#0f1a2e] rounded-lg px-4 py-3">No activity history recorded yet. Changes to R&D, overhead, procedures, and documents will be tracked automatically.</p>
-      ) : (
-        <div className="space-y-2">
-          {events.map((e, i) => (
-            <div key={i} className="flex items-start gap-3 px-3 py-2 rounded-lg border border-gray-100 dark:border-[#1b2e4a] text-xs">
-              <span className="text-gray-400 whitespace-nowrap">{fmtDate(e.date)}</span>
-              <div>
-                <p className="font-semibold text-gray-700 dark:text-gray-200">{e.action}</p>
-                {e.detail && <p className="text-gray-400">{e.detail}</p>}
+    <div className="space-y-6">
+      <div className="space-y-4">
+        <p className="text-sm font-bold text-gray-700 dark:text-gray-200">📜 Certificate History</p>
+        {!certEvents.length ? (
+          <p className="text-xs text-gray-400 bg-gray-50 dark:bg-[#0f1a2e] rounded-lg px-4 py-3">No certificates uploaded yet. Upload COA, MSDS, Registration or Brochure in the Documents tab.</p>
+        ) : (
+          <div className="space-y-2">
+            {certEvents.map(e => (
+              <div key={e.key} className="flex items-start gap-3 px-3 py-2 rounded-lg border border-gray-100 dark:border-[#1b2e4a] text-xs">
+                <span className="text-gray-400 whitespace-nowrap">{fmtDate(e.doc.uploadedAt)}</span>
+                <div>
+                  <p className="font-semibold text-gray-700 dark:text-gray-200">{e.label} uploaded</p>
+                  {e.doc.name && <p className="text-gray-400">{e.doc.name}</p>}
+                </div>
               </div>
-            </div>
-          ))}
-        </div>
-      )}
+            ))}
+          </div>
+        )}
+      </div>
+      <div className="space-y-4">
+        <p className="text-sm font-bold text-gray-700 dark:text-gray-200">🕐 Activity History</p>
+        {!events.length ? (
+          <p className="text-xs text-gray-400 bg-gray-50 dark:bg-[#0f1a2e] rounded-lg px-4 py-3">No activity history recorded yet. Changes to R&D, overhead, procedures, and documents will be tracked automatically.</p>
+        ) : (
+          <div className="space-y-2">
+            {events.map((e, i) => (
+              <div key={i} className="flex items-start gap-3 px-3 py-2 rounded-lg border border-gray-100 dark:border-[#1b2e4a] text-xs">
+                <span className="text-gray-400 whitespace-nowrap">{fmtDate(e.date)}</span>
+                <div>
+                  <p className="font-semibold text-gray-700 dark:text-gray-200">{e.action}</p>
+                  {e.detail && <p className="text-gray-400">{e.detail}</p>}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

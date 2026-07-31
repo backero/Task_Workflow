@@ -19,6 +19,10 @@ router.delete('/products/:id',   authorizeCatalogDelete,  ctrl.deleteProduct);
 router.post('/products/:id/image', authorizeManagerOrAbove, imgUpload.single('image'), ctrl.uploadImage);
 router.post('/products/:id/attachment',   authorizeManagerOrAbove, fileUpload.single('file'), ctrl.uploadAttachment);
 router.delete('/products/:id/attachment', authorizeManagerOrAbove, ctrl.removeAttachment);
+router.post('/products/:id/formulation-versions',            authorizeManagerOrAbove, ctrl.createFormulationVersion);
+router.put('/products/:id/formulation-versions/:versionId',  authorizeManagerOrAbove, ctrl.updateFormulationVersion);
+router.post('/products/:id/formulation-versions/:versionId/activate', authorizeManagerOrAbove, ctrl.activateFormulationVersion);
+router.delete('/products/:id/formulation-versions/:versionId', authorizeManagerOrAbove, ctrl.deleteFormulationVersion);
 router.post('/import',           authorizeAdminOrAbove,   ctrl.importProducts);
 router.post('/resolve-ingredients', authorizeManagerOrAbove, ctrl.resolveIngredients);
 

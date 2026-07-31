@@ -287,6 +287,8 @@ exports.updateSampleDetails = asyncHandler(async (req, res) => {
   const {
     product, quantity, sentDate, courier, chargeAmount, chargeBy,
     paymentStatus, advanceAmount, paymentMode, preparationDays, startedAt,
+    // R&D/sampling payment audit trail
+    paymentTxnRef, paidAt, receivedBy, paymentNotes,
     // Rich intake form fields
     discussion, sampleProducts, shippingAddress, outerCartonRequired, outerCartonSize,
     // Work tracking
@@ -303,6 +305,10 @@ exports.updateSampleDetails = asyncHandler(async (req, res) => {
   if (paymentStatus !== undefined)        $set['sampleDetails.paymentStatus']        = paymentStatus;
   if (advanceAmount !== undefined)        $set['sampleDetails.advanceAmount']        = Number(advanceAmount) || 0;
   if (paymentMode !== undefined)          $set['sampleDetails.paymentMode']          = paymentMode;
+  if (paymentTxnRef !== undefined)        $set['sampleDetails.paymentTxnRef']        = paymentTxnRef;
+  if (paidAt !== undefined)               $set['sampleDetails.paidAt']               = paidAt || null;
+  if (receivedBy !== undefined)           $set['sampleDetails.receivedBy']           = receivedBy;
+  if (paymentNotes !== undefined)         $set['sampleDetails.paymentNotes']         = paymentNotes;
   if (preparationDays !== undefined)      $set['sampleDetails.preparationDays']      = Number(preparationDays) || 0;
   if (startedAt !== undefined)            $set['sampleDetails.startedAt']            = startedAt || new Date();
   if (discussion !== undefined)           $set['sampleDetails.discussion']           = discussion;
@@ -394,7 +400,7 @@ exports.updateSampleSubStage = asyncHandler(async (req, res) => {
 // — and cost/unit is computed from them, same math as CatalogProduct.formulation. A manual
 // costPerUnit is only used as a fallback when no rows are given.
 exports.createFormula = asyncHandler(async (req, res) => {
-  const { name, productLink, refWeight, refUnit, rows, costPerUnit, status, procedure } = req.body;
+  const { name, productLink, catalogProductId, refWeight, refUnit, rows, costPerUnit, status, procedure } = req.body;
   if (!name?.trim()) return sendError(res, 'Formula name is required.', 400);
 
   const lead = await Lead.findOne({ _id: req.params.id, organizationId: req.user.organizationId });
@@ -408,10 +414,11 @@ exports.createFormula = asyncHandler(async (req, res) => {
     formulaId,
     name: name.trim(),
     productLink: productLink || '',
+    catalogProductId: catalogProductId || undefined,
     refWeight: Number(refWeight) || 100,
     refUnit: refUnit || 'g',
     currentVersion: 1,
-    versions: [{ version: 1, status: status || 'In Testing', costPerUnit: computedCost, rows: rows || [], procedure: procedure || undefined }],
+    versions: [{ version: 1, status: status || 'Draft', costPerUnit: computedCost, rows: rows || [], procedure: procedure || undefined }],
     createdBy: req.user._id,
   });
   lead.updatedBy = req.user._id;
@@ -419,24 +426,26 @@ exports.createFormula = asyncHandler(async (req, res) => {
   sendSuccess(res, { lead }, 'Formula created', 201);
 });
 
-// PUT /api/crm/leads/:id/formulas/:formulaId  { status?, costPerUnit?, rows?, bumpVersion?, version?, refUnit?, procedure? }
+// PUT /api/crm/leads/:id/formulas/:formulaId  { status?, costPerUnit?, rows?, bumpVersion?, version?, refUnit?, refWeight?, procedure?, changeNote? }
 // `version` (optional) targets a specific version to edit instead of the latest — used e.g.
-// to archive an older Draft/In Testing version without disturbing the current one.
+// to archive an older Draft/In Testing version without disturbing the current one, or to save
+// edits made while viewing a non-latest version in the Formula Editor's version sidebar.
 exports.updateFormula = asyncHandler(async (req, res) => {
-  const { status, costPerUnit, rows, bumpVersion, version, refUnit, procedure } = req.body;
+  const { status, costPerUnit, rows, bumpVersion, version, refUnit, refWeight, procedure, changeNote } = req.body;
   const lead = await Lead.findOne({ _id: req.params.id, organizationId: req.user.organizationId });
   if (!lead) return sendError(res, 'Lead not found.', 404);
 
   const formula = (lead.customFormulas || []).find((f) => f.formulaId === req.params.formulaId);
   if (!formula) return sendError(res, 'Formula not found.', 404);
   if (refUnit) formula.refUnit = refUnit;
+  if (refWeight !== undefined) formula.refWeight = Number(refWeight) || formula.refWeight;
 
   if (bumpVersion) {
     const prev = formula.versions[formula.versions.length - 1];
     const newRows = rows || prev?.rows || [];
     const newCost = newRows.length ? computeFormulaCost(newRows) : (costPerUnit !== undefined ? Number(costPerUnit) || 0 : prev?.costPerUnit || 0);
     formula.currentVersion += 1;
-    formula.versions.push({ version: formula.currentVersion, status: status || 'In Testing', costPerUnit: newCost, rows: newRows, procedure: procedure || prev?.procedure });
+    formula.versions.push({ version: formula.currentVersion, status: status || 'Draft', costPerUnit: newCost, rows: newRows, procedure: procedure !== undefined ? procedure : prev?.procedure, changeNote: changeNote || undefined });
   } else {
     const target = version !== undefined
       ? formula.versions.find((v) => v.version === Number(version))
@@ -446,15 +455,19 @@ exports.updateFormula = asyncHandler(async (req, res) => {
     if (rows) { target.rows = rows; target.costPerUnit = computeFormulaCost(rows); }
     else if (costPerUnit !== undefined) target.costPerUnit = Number(costPerUnit) || 0;
     if (procedure !== undefined) target.procedure = procedure;
+    if (changeNote !== undefined) target.changeNote = changeNote;
   }
   lead.updatedBy = req.user._id;
   await lead.save();
   sendSuccess(res, { lead }, 'Formula updated');
 });
 
-// POST /api/crm/leads/:id/products  { productId?, catalogProductId?, name, basis?, approxPrice? }
+// POST /api/crm/leads/:id/products  { productId?, catalogProductId?, name, basis?, notes? }
+// Pricing is deliberately NOT set here — it flows separately via the row's 💰 Quote Price ->
+// ✓ Accept Price actions (updateProductPricing below), same as the reference's Product Link
+// modal + Quote Price mini-modal split.
 exports.linkProductPricing = asyncHandler(async (req, res) => {
-  const { productId, catalogProductId, name, basis, approxPrice } = req.body;
+  const { productId, catalogProductId, name, basis, notes } = req.body;
   if (!name?.trim()) return sendError(res, 'Product name is required.', 400);
 
   const lead = await Lead.findOne({ _id: req.params.id, organizationId: req.user.organizationId });
@@ -466,8 +479,8 @@ exports.linkProductPricing = asyncHandler(async (req, res) => {
     productId: productId?.trim() || `PROD-${String(lead._id).slice(-4).toUpperCase()}-${lead.productLinks.length + 1}`,
     catalogProductId: catalogProductId || undefined,
     name: name.trim(),
-    basis: catalogProductId ? 'Catalog SKU' : (basis || 'House Formula'),
-    approxPrice: Number(approxPrice) || 0,
+    basis: basis || 'House Formula',
+    notes: notes || undefined,
     createdBy: req.user._id,
   });
   lead.updatedBy = req.user._id;
@@ -475,9 +488,9 @@ exports.linkProductPricing = asyncHandler(async (req, res) => {
   sendSuccess(res, { lead }, 'Product linked', 201);
 });
 
-// PUT /api/crm/leads/:id/products/:productId  { priceStatus?, paymentStatus?, approxPrice? }
+// PUT /api/crm/leads/:id/products/:productId  { priceStatus?, paymentStatus?, approxPrice?, name?, basis?, notes? }
 exports.updateProductPricing = asyncHandler(async (req, res) => {
-  const { priceStatus, paymentStatus, approxPrice } = req.body;
+  const { priceStatus, paymentStatus, approxPrice, name, basis, notes } = req.body;
   const lead = await Lead.findOne({ _id: req.params.id, organizationId: req.user.organizationId });
   if (!lead) return sendError(res, 'Lead not found.', 404);
 
@@ -487,6 +500,9 @@ exports.updateProductPricing = asyncHandler(async (req, res) => {
   if (priceStatus) link.priceStatus = priceStatus;
   if (paymentStatus) link.paymentStatus = paymentStatus;
   if (approxPrice !== undefined) link.approxPrice = Number(approxPrice) || 0;
+  if (name !== undefined) link.name = name;
+  if (basis !== undefined) link.basis = basis;
+  if (notes !== undefined) link.notes = notes;
   lead.updatedBy = req.user._id;
   await lead.save();
   sendSuccess(res, { lead }, 'Product pricing updated');
@@ -506,13 +522,29 @@ exports.deleteProductLink = asyncHandler(async (req, res) => {
   sendSuccess(res, { lead }, 'Product link removed');
 });
 
-// POST /api/crm/leads/:id/samples  { formulaId?, chainedFrom?, queryId? }
+// POST /api/crm/leads/:id/samples  { formulaId?, formulaVersionNo?, productId?, chainedFrom?, queryId?, notes? }
 // Creates a versioned, chainable sample record. Rejecting a sample (see updateVersionedSampleStatus)
 // doesn't auto-create the next version — the team calls this again with chainedFrom to do that explicitly.
 exports.createVersionedSample = asyncHandler(async (req, res) => {
-  const { formulaId, chainedFrom, queryId, notes } = req.body;
+  const { formulaId, formulaVersionNo, productId, chainedFrom, queryId, notes } = req.body;
   const lead = await Lead.findOne({ _id: req.params.id, organizationId: req.user.organizationId });
   if (!lead) return sendError(res, 'Lead not found.', 404);
+
+  // Samples can only be drawn from a Draft / In Testing formula version — a Locked/Archived
+  // version is frozen history, and Accepted/Rejected already went through this gate once.
+  let targetVersion = null;
+  if (formulaId) {
+    const formula = (lead.customFormulas || []).find((f) => f.formulaId === formulaId);
+    if (!formula) return sendError(res, 'Formula not found.', 404);
+    targetVersion = formulaVersionNo !== undefined
+      ? formula.versions.find((v) => v.version === Number(formulaVersionNo))
+      : formula.versions.find((v) => v.version === formula.currentVersion);
+    if (!targetVersion) return sendError(res, 'Formula version not found.', 404);
+    if (!['Draft', 'In Testing'].includes(targetVersion.status)) {
+      return sendError(res, 'Samples can only be made from Draft / In Testing formula versions.', 400);
+    }
+  }
+
   await promoteToSampleIfNeeded(lead, req);
 
   lead.samples = lead.samples || [];
@@ -525,6 +557,8 @@ exports.createVersionedSample = asyncHandler(async (req, res) => {
   lead.samples.push({
     sampleId,
     formulaId: formulaId || undefined,
+    formulaVersionNo: targetVersion ? targetVersion.version : undefined,
+    productId: productId || undefined,
     version,
     chainedFrom: chainedFrom || undefined,
     queryId: queryId || undefined,
@@ -533,6 +567,11 @@ exports.createVersionedSample = asyncHandler(async (req, res) => {
     timeline: [{ event: chainedFrom ? `Follow-up sample requested (chained from ${chainedFrom})` : 'Sample created' }],
     createdBy: req.user._id,
   });
+
+  // Making a sample from a formula version is itself evidence it's being tested, not just
+  // drafted — flip Draft -> In Testing so the version status reflects that automatically.
+  if (targetVersion?.status === 'Draft') targetVersion.status = 'In Testing';
+
   lead.updatedBy = req.user._id;
   await lead.save();
   sendSuccess(res, { lead }, 'Sample created', 201);
@@ -1133,7 +1172,7 @@ exports.deleteLead = asyncHandler(async (req, res) => {
 // POST /api/crm/leads/:id/query
 exports.raiseQuery = asyncHandler(async (req, res) => {
   const io = req.app.get('io');
-  const { title, description, urgency, assignedTo, contactName, contactEmail, linkedCatalogProductId, targetPrice, benchmarkNotes, packagingIntent, internalNotes } = req.body;
+  const { title, description, urgency, topic, assignedTo, contactName, contactEmail, linkedCatalogProductId, targetPrice, benchmarkNotes, packagingIntent, internalNotes } = req.body;
   if (!title || !description) return sendError(res, 'Title and description are required', 400);
 
   const lead = await Lead.findOne({ _id: req.params.id, organizationId: req.user.organizationId });
@@ -1149,6 +1188,7 @@ exports.raiseQuery = asyncHandler(async (req, res) => {
     title,
     description,
     urgency: urgency || 'medium',
+    topic: topic || 'General',
     preQueryStatus: lead.status,
     contactName: contactName || undefined,
     contactEmail: contactEmail || undefined,
@@ -1275,6 +1315,38 @@ exports.answerQuery = asyncHandler(async (req, res) => {
   }, io);
 
   sendSuccess(res, { query }, 'Query answered');
+});
+
+// PUT /api/crm/queries/:queryId/status  { status: 'in_progress' | 'closed' }
+// Plain status flips that don't need an answer — Open → In Progress (start working on it) and
+// Answered → Closed (customer satisfied). Answering itself goes through answerQuery above.
+exports.updateQueryStatus = asyncHandler(async (req, res) => {
+  const { status } = req.body;
+  const ProductionQuery = require('../models/ProductionQuery');
+  const query = await ProductionQuery.findOne({ _id: req.params.queryId, organizationId: req.user.organizationId });
+  if (!query) return sendError(res, 'Query not found.', 404);
+
+  if (status === 'in_progress' && query.status === 'pending') query.status = 'in_progress';
+  else if (status === 'closed' && query.status === 'answered') query.status = 'closed';
+  else return sendError(res, 'Invalid status transition.', 400);
+
+  await query.save();
+  sendSuccess(res, { query }, 'Query status updated');
+});
+
+// PUT /api/crm/queries/:queryId/link  { productLinkId?, convertedTo? }
+// Stamps the "product first" gate and/or the conversion badge onto a query once the Q&A tab's
+// convert-to-action icons (🆕/🔗/🧪/🧬) actually create/link something for it.
+exports.linkQuery = asyncHandler(async (req, res) => {
+  const { productLinkId, convertedTo } = req.body;
+  const ProductionQuery = require('../models/ProductionQuery');
+  const query = await ProductionQuery.findOne({ _id: req.params.queryId, organizationId: req.user.organizationId });
+  if (!query) return sendError(res, 'Query not found.', 404);
+
+  if (productLinkId) query.linkedProductLinkId = productLinkId;
+  if (convertedTo) query.convertedTo = convertedTo;
+  await query.save();
+  sendSuccess(res, { query }, 'Query updated');
 });
 
 // POST /api/crm/leads/:id/comm-log  (multipart/form-data — images optional)

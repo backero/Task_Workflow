@@ -10,6 +10,9 @@ const variantSchema = new mongoose.Schema({
   sellingPrice: { type: Number, default: 0 },
   b2bPrice: { type: Number, default: 0 },
   costPrice: { type: Number, default: 0 },
+  size: { type: Number, default: 0 },
+  moq: { type: Number, default: 0 },
+  moqUnit: { type: String, default: 'pcs' },
 }, { _id: true });
 
 const formulationRowSchema = new mongoose.Schema({
@@ -19,6 +22,21 @@ const formulationRowSchema = new mongoose.Schema({
   quantity: { type: Number, default: 0 },
   unit: { type: String, default: 'g' },
   costPerKg: { type: Number, default: 0 },
+  phase: { type: String, default: '' },
+  convFactor: { type: Number, default: 1 },
+  notes: { type: String, default: '' },
+}, { _id: true });
+
+const formulationVersionSchema = new mongoose.Schema({
+  versionLabel: { type: String, required: true },
+  status: { type: String, enum: ['draft', 'testing', 'locked', 'archived'], default: 'draft' },
+  refWeight: { type: Number, default: 100 },
+  refUnit: { type: String, default: 'ml' },
+  rows: [formulationRowSchema],
+  changeNotes: String,
+  createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+  createdAt: { type: Date, default: Date.now },
+  activatedAt: Date,
 }, { _id: true });
 
 const packagingItemSchema = new mongoose.Schema({
@@ -69,6 +87,8 @@ const catalogProductSchema = new mongoose.Schema({
   },
 
   variants: [variantSchema],
+
+  formulationVersions: [formulationVersionSchema],
 
   standardAssumptions: {
     equipmentPct:    { type: Number, default: 3 },

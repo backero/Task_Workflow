@@ -9,7 +9,8 @@ const productionQuerySchema = new mongoose.Schema({
   title: { type: String, required: true, trim: true },
   description: { type: String, required: true },
   urgency: { type: String, enum: ['low', 'medium', 'high'], default: 'medium' },
-  status: { type: String, enum: ['pending', 'answered', 'closed'], default: 'pending', index: true },
+  topic: { type: String, enum: ['General', 'Product', 'Packaging', 'Formula', 'Designing', 'Pricing'], default: 'General' },
+  status: { type: String, enum: ['pending', 'in_progress', 'answered', 'closed'], default: 'pending', index: true },
   contactName: { type: String },
   contactEmail: { type: String },
   linkedCatalogProductId: { type: mongoose.Schema.Types.ObjectId, ref: 'CatalogProduct' },
@@ -21,6 +22,13 @@ const productionQuerySchema = new mongoose.Schema({
   answer: { type: String },
   answeredBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   answeredAt: { type: Date },
+  // Product-first gating for the Q&A tab's convert-to-action icons (🧪 Sample / 🧬 Formula stay
+  // locked until a product has been created/connected for this specific query) — points at a
+  // subdocument _id inside Lead.productLinks, not a separate collection.
+  linkedProductLinkId: { type: mongoose.Schema.Types.ObjectId },
+  // Freeform label shown as the "→ converted" badge on the query card once it became a
+  // product/sample/formula, e.g. "🧪 SMPL-F498-3".
+  convertedTo: { type: String },
 }, { timestamps: true });
 
 productionQuerySchema.index({ organizationId: 1, status: 1 });

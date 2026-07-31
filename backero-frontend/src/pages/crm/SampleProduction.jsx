@@ -44,7 +44,7 @@ function computeKycPercent(lead) {
   return Math.round((filled / (KYC_FIELDS.length + 1)) * 100);
 }
 
-function StatCard({ emoji, iconTone, label, value, hint, valueTone = 'text-[#2e241b]' }) {
+export function StatCard({ emoji, iconTone, label, value, hint, valueTone = 'text-[#2e241b]' }) {
   return (
     <Card className="flex items-start justify-between gap-3 hover:-translate-y-0.5 hover:shadow-[0_10px_40px_rgba(46,36,27,0.16)] transition-transform">
       <div className="min-w-0">
@@ -135,6 +135,15 @@ export default function SampleProduction() {
   const [batchSizeKg, setBatchSizeKg] = useState(10);
   const [sampleStageFilter, setSampleStageFilter] = useState('');
   const [sortState, setSortState] = useState({ col: null, dir: 'asc' });
+
+  // Payment confirm — captures the same audit-trail fields (mode/txn-ref/date/received-by/notes)
+  // as the per-lead Payments tab, so confirming from this quick queue action doesn't skip them.
+  const [payConfirmFor, setPayConfirmFor] = useState(null);
+  const [payMode, setPayMode] = useState('upi');
+  const [payTxnRef, setPayTxnRef] = useState('');
+  const [payDate, setPayDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [payReceivedBy, setPayReceivedBy] = useState('');
+  const [payNotes, setPayNotes] = useState('');
   const [showCreateLead, setShowCreateLead] = useState(false);
   const [qaSortKey, setQaSortKey] = useState('aging');
   const [qaSortDir, setQaSortDir] = useState('desc');
@@ -207,10 +216,28 @@ export default function SampleProduction() {
 
   const sampleLeadIds = new Set(sampleLeads.map((l) => l._id));
   const relevantQueries = (sampleQueries || []).filter((q) => sampleLeadIds.has(q.leadId?._id));
-  const activeQueries = relevantQueries.filter((q) => q.status === 'pending').length;
+  const activeQueries = relevantQueries.filter((q) => q.status === 'pending' || q.status === 'in_progress').length;
 
-  const samplesInLab = sampleLeads.filter((l) => l.sampleDetails?.subStage === 'In Lab').length;
-  const awaitingFeedback = sampleLeads.filter((l) => l.sampleDetails?.subStage === 'Feedback').length;
+  // Days since the lead entered its *current* sub-stage — used for the "aging" warnings below.
+  // Falls back to createdAt if subStageHistory has no matching entry (e.g. still at the default
+  // Requested stage it was created in).
+  function daysInStage(l) {
+    const current = l.sampleDetails?.subStage || 'Requested';
+    const hist = l.sampleDetails?.subStageHistory || [];
+    const entry = [...hist].reverse().find((h) => h.subStage === current);
+    const enteredAt = entry?.enteredAt || l.createdAt;
+    return Math.floor((Date.now() - new Date(enteredAt).getTime()) / 86400000);
+  }
+
+  const inLabLeads = sampleLeads.filter((l) => ['Requested', 'In Lab'].includes(l.sampleDetails?.subStage || 'Requested'));
+  const samplesInLab = inLabLeads.length;
+  const samplesInLabAging = inLabLeads.filter((l) => daysInStage(l) > 7);
+
+  const awaitingFeedbackLeads = sampleLeads.filter((l) => ['Sent', 'Feedback'].includes(l.sampleDetails?.subStage));
+  const awaitingFeedback = awaitingFeedbackLeads.length;
+  const awaitingFeedbackAging = awaitingFeedbackLeads.filter((l) => daysInStage(l) > 7);
+
+  const agingLeads = [...samplesInLabAging, ...awaitingFeedbackAging];
 
   const now = new Date();
   const approvedMTD = sampleLeads.filter((l) =>
@@ -333,10 +360,12 @@ export default function SampleProduction() {
   });
 
   const confirmPayment = useMutation({
-    mutationFn: (leadId) => api.put(`/crm/leads/${leadId}/sample`, { paymentStatus: 'full_paid' }),
+    mutationFn: ({ leadId, ...body }) => api.put(`/crm/leads/${leadId}/sample`, { paymentStatus: 'full_paid', ...body }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['sample-production'] });
       toast.success('Payment confirmed');
+      setPayConfirmFor(null);
+      setPayMode('upi'); setPayTxnRef(''); setPayDate(new Date().toISOString().slice(0, 10)); setPayReceivedBy(''); setPayNotes('');
     },
     onError: (e) => toast.error(e.response?.data?.message || 'Failed to confirm payment'),
   });
@@ -425,7 +454,7 @@ export default function SampleProduction() {
   });
 
   function agingBadge(q) {
-    if (q.status !== 'pending') return null;
+    if (q.status !== 'pending' && q.status !== 'in_progress') return null;
     const hours = (Date.now() - new Date(q.createdAt).getTime()) / 3600000;
     const tone = hours > 48 ? PILL.danger : hours > 24 ? PILL.warning : PILL.gray;
     return <span className={clsx('text-[10px] font-semibold px-1.5 py-0.5 rounded-full', tone)}>{formatDistanceToNowStrict(new Date(q.createdAt))} old</span>;
@@ -458,10 +487,19 @@ export default function SampleProduction() {
         </button>
       </Card>
 
+      {agingLeads.length > 0 && (
+        <div className="p-3 rounded-[10px] border border-[#e3b3ab] bg-[#f6e3e0] flex items-start gap-2">
+          <span className="text-base leading-none">⚠️</span>
+          <div className="text-xs text-[#8c3a30]">
+            <span className="font-semibold">{agingLeads.length} sample{agingLeads.length === 1 ? '' : 's'} stalled over 7 days</span> — {agingLeads.map((l) => l.name).join(', ')}
+          </div>
+        </div>
+      )}
+
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
         <StatCard emoji="💬" iconTone="info" label="Active Queries" value={activeQueries} hint={`${activeQueries} open of ${relevantQueries.length} total`} />
-        <StatCard emoji="🧪" iconTone="purple" label="Samples In Lab" value={samplesInLab} />
-        <StatCard emoji="🔖" iconTone="warning" label="Awaiting Feedback" value={awaitingFeedback} valueTone="text-[#7a5a10]" />
+        <StatCard emoji="🧪" iconTone="purple" label="Samples In Lab" value={samplesInLab} hint={samplesInLabAging.length > 0 ? `⚠️ ${samplesInLabAging.length} aging > 7d` : null} />
+        <StatCard emoji="🔖" iconTone="warning" label="Awaiting Feedback" value={awaitingFeedback} valueTone="text-[#7a5a10]" hint={awaitingFeedbackAging.length > 0 ? `⚠️ ${awaitingFeedbackAging.length} aging > 7d` : null} />
         <StatCard emoji="✅" iconTone="success" label="Approved (MTD)" value={approvedMTD} valueTone="text-[#3a5f3c]" />
         <StatCard emoji="💳" iconTone="danger" label="R&D Payment Pending" value={paymentPendingLeads.length} hint={paymentPendingValue > 0 ? `₹${paymentPendingValue.toLocaleString('en-IN')} pending` : null} valueTone="text-[#8c3a30]" />
       </div>
@@ -686,7 +724,7 @@ export default function SampleProduction() {
                 <div key={q._id} className="p-4 space-y-2">
                   <div className="flex items-center justify-between flex-wrap gap-2">
                     <div className="flex items-center gap-2 flex-wrap text-[11px]">
-                      <span className={clsx('px-2 py-0.5 rounded-full font-semibold', q.status === 'pending' ? PILL.warning : PILL.success)}>{q.status}</span>
+                      <span className={clsx('px-2 py-0.5 rounded-full font-semibold', q.status === 'pending' ? PILL.warning : q.status === 'in_progress' ? PILL.info : PILL.success)}>{q.status.replace('_', ' ')}</span>
                       {agingBadge(q)}
                       <span className="font-semibold text-[#4a3a29]">{q.leadId?.name || 'Unknown lead'}</span>
                       <span className="text-[#968871]">{q.leadId?.company || ''}</span>
@@ -820,9 +858,8 @@ export default function SampleProduction() {
                           l.sampleDetails?.paymentStatus === 'full_paid'
                             ? <span className="text-xs text-[#3a5f3c] font-semibold mr-3">✓ Paid</span>
                             : (
-                              <button onClick={() => confirmPayment.mutate(l._id)} disabled={confirmPayment.isPending}
-                                className={clsx(textLink, 'disabled:opacity-50 mr-3')}>
-                                {confirmPayment.isPending ? 'Confirming…' : 'Confirm Payment'}
+                              <button onClick={() => setPayConfirmFor(l)} className={clsx(textLink, 'mr-3')}>
+                                Confirm Payment
                               </button>
                             )
                         )}
@@ -936,6 +973,51 @@ export default function SampleProduction() {
       )}
 
       {editKycLead && <EditKycModal lead={editKycLead} onClose={() => setEditKycLead(null)} />}
+
+      {payConfirmFor && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4" style={bodyFont}>
+          <style>{FONT_IMPORT}</style>
+          <div className="absolute inset-0 bg-[#2e241b]/50 backdrop-blur-sm" onClick={() => setPayConfirmFor(null)} />
+          <div className="relative bg-[#f0eadd] rounded-2xl shadow-[0_10px_40px_rgba(46,36,27,0.16)] w-full max-w-md border border-[#d3c9b4]">
+            <div className="p-5 border-b border-[#e2dac8] bg-[#e7dfce] rounded-t-2xl">
+              <h3 className="font-bold text-[#2e241b]" style={displayFont}>💳 Confirm R&D Payment</h3>
+              <p className="text-xs text-[#6d5f4c] mt-0.5">{payConfirmFor.name} — ₹{(payConfirmFor.sampleDetails?.chargeAmount || 0).toLocaleString('en-IN')}</p>
+            </div>
+            <div className="p-5 space-y-2">
+              <div className="grid grid-cols-2 gap-2">
+                <select value={payMode} onChange={(e) => setPayMode(e.target.value)}
+                  className="px-3 py-2 text-sm rounded-[10px] border-[1.5px] border-[#d3c9b4] bg-white text-[#2e241b] focus:outline-none focus:border-[#968871]">
+                  <option value="upi">UPI</option>
+                  <option value="cash">Cash</option>
+                  <option value="bank_transfer">Bank Transfer</option>
+                </select>
+                <input value={payTxnRef} onChange={(e) => setPayTxnRef(e.target.value)} placeholder="Txn / Ref No."
+                  className="px-3 py-2 text-sm rounded-[10px] border-[1.5px] border-[#d3c9b4] bg-white text-[#2e241b] focus:outline-none focus:border-[#968871]" />
+                <input type="date" value={payDate} onChange={(e) => setPayDate(e.target.value)}
+                  className="px-3 py-2 text-sm rounded-[10px] border-[1.5px] border-[#d3c9b4] bg-white text-[#2e241b] focus:outline-none focus:border-[#968871]" />
+                <input value={payReceivedBy} onChange={(e) => setPayReceivedBy(e.target.value)} placeholder="Received by"
+                  className="px-3 py-2 text-sm rounded-[10px] border-[1.5px] border-[#d3c9b4] bg-white text-[#2e241b] focus:outline-none focus:border-[#968871]" />
+              </div>
+              <textarea value={payNotes} onChange={(e) => setPayNotes(e.target.value)} placeholder="Notes (optional)…" rows={2}
+                className="w-full px-3 py-2 text-sm rounded-[10px] border-[1.5px] border-[#d3c9b4] bg-white text-[#2e241b] focus:outline-none focus:border-[#968871]" />
+              <div className="flex gap-3 pt-1">
+                <button type="button" onClick={() => setPayConfirmFor(null)} className={clsx(outlineBtn, 'flex-1 justify-center')}>Cancel</button>
+                <button
+                  onClick={() => confirmPayment.mutate({
+                    leadId: payConfirmFor._id, paymentMode: payMode,
+                    paymentTxnRef: payTxnRef.trim() || undefined, paidAt: payDate || undefined,
+                    receivedBy: payReceivedBy.trim() || undefined, paymentNotes: payNotes.trim() || undefined,
+                  })}
+                  disabled={confirmPayment.isPending}
+                  className={clsx(accentBtn, 'flex-1 justify-center')}
+                >
+                  {confirmPayment.isPending ? 'Confirming…' : 'Confirm'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {openOrderLead && (
         <div className="fixed inset-0 z-[70] flex items-center justify-center p-4" style={bodyFont}>
