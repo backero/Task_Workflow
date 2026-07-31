@@ -10,6 +10,7 @@ import {
   ArrowLeftIcon, UserIcon, ChatBubbleLeftEllipsisIcon,
   ExclamationTriangleIcon, CheckBadgeIcon, ClockIcon,
 } from '@heroicons/react/24/outline';
+import ReactDOMServer from 'react-dom/server';
 import QRCode from 'react-qr-code';
 import api from '../../api/axios';
 import backeroLogo from '../../assets/Backero.png';
@@ -98,7 +99,12 @@ function printInvoice(inv, org, user) {
   const grandTotal = inv.totalAmount || 0;
   const payAmt = inv.balanceAmount > 0 ? inv.balanceAmount : grandTotal;
   const upiUri = bd.upiId ? `upi://pay?pa=${bd.upiId}&pn=${encodeURIComponent(bd.accountName || BACKERO.name)}&am=${payAmt.toFixed(2)}&tn=${inv.invoiceNumber}&cu=INR` : null;
-  const qrUrl = upiUri ? `https://chart.googleapis.com/chart?chs=100x100&cht=qr&chl=${encodeURIComponent(upiUri)}` : null;
+  // Rendered locally via react-qr-code — the old chart.googleapis.com QR endpoint was
+  // deprecated by Google and no longer returns images, which is why the QR was blank on print/download.
+  // Prefer the org's uploaded UPI QR image (Settings → Invoice) when set, else auto-generate from the UPI ID.
+  const qrMarkup = bd.upiQrUrl
+    ? `<img src="${bd.upiQrUrl}" width="82" height="82" style="object-fit:contain"/>`
+    : (upiUri ? ReactDOMServer.renderToStaticMarkup(<QRCode value={upiUri} size={82} />) : null);
 
   const rows = (inv.lineItems || []).map((it, i) => {
     const taxable = (Number(it.quantity) * Number(it.unitPrice)) - Number(it.discount || 0);
@@ -276,6 +282,7 @@ function printInvoice(inv, org, user) {
     ${intra
       ? `<div class="tr"><span class="tl">CGST</span><span class="tv">${INR(totalCgst)}</span></div><div class="tr"><span class="tl">SGST</span><span class="tv">${INR(totalSgst)}</span></div>`
       : `<div class="tr"><span class="tl">IGST</span><span class="tv">${INR(totalIgst)}</span></div>`}
+    ${inv.roundOff ? `<div class="tr"><span class="tl">Round Off</span><span class="tv">${inv.roundOff > 0 ? '+' : '-'}${INR(Math.abs(inv.roundOff))}</span></div>` : ''}
     <div class="tgrand"><span>Grand Total</span><span>${INR(grandTotal)}</span></div>
     ${inv.paidAmount > 0 ? `<div class="tpaid"><span>Amount Paid</span><span>${INR(inv.paidAmount)}</span></div>` : ''}
     ${inv.balanceAmount > 0 ? `<div class="tbal"><span>Balance Due</span><span>${INR(inv.balanceAmount)}</span></div>` : ''}
@@ -293,7 +300,7 @@ function printInvoice(inv, org, user) {
     ${bd.upiId ? `<div class="brow">UPI: <b>${bd.upiId}</b></div>` : ''}
     ` : '<p style="font-size:8.5px;color:#94a3b8;font-style:italic">No bank details configured.</p>'}
   </div>
-  ${qrUrl ? `<div style="text-align:center"><img src="${qrUrl}" width="88" height="88" style="border:1px solid #e2e8f0;border-radius:5px;padding:3px;background:#fff"/><p style="font-size:7.5px;color:#64748b;margin-top:2px;font-weight:600">Scan to Pay via UPI</p></div>` : ''}
+  ${qrMarkup ? `<div style="text-align:center"><div style="display:inline-block;border:1px solid #e2e8f0;border-radius:5px;padding:3px;background:#fff;line-height:0">${qrMarkup}</div><p style="font-size:7.5px;color:#64748b;margin-top:2px;font-weight:600">Scan to Pay via UPI</p></div>` : ''}
   <div class="sig">
     ${org?.signatureUrl
       ? `<img src="${org.signatureUrl}" alt="Sig" style="max-height:55px;max-width:150px;object-fit:contain;display:block;margin:0 auto 3px"/>`
@@ -324,7 +331,10 @@ function useTotals(control) {
       totalGst += gst;
       totalDiscount += disc;
     });
-    return { subtotal, totalGst, totalDiscount, total: subtotal + totalGst };
+    const rawTotal = subtotal + totalGst;
+    const total = Math.round(rawTotal);
+    const roundOff = +(total - rawTotal).toFixed(2);
+    return { subtotal, totalGst, totalDiscount, roundOff, total };
   }, [JSON.stringify(items)]);
 }
 
@@ -617,6 +627,11 @@ function InvoiceForm({ existingInv, prefillLead, orgData, onClose, onSaved }) {
                 <div className="flex justify-between text-gray-600 dark:text-gray-400">
                   <span>GST</span><span className="font-medium">{INR(totals.totalGst)}</span>
                 </div>
+                {totals.roundOff !== 0 && (
+                  <div className="flex justify-between text-gray-600 dark:text-gray-400">
+                    <span>Round Off</span><span className="font-medium">{totals.roundOff > 0 ? '+' : '-'}{INR(Math.abs(totals.roundOff))}</span>
+                  </div>
+                )}
                 <div className="flex justify-between font-bold text-base text-gray-900 dark:text-white border-t border-gray-200 dark:border-[#1b2e4a] pt-2 mt-1">
                   <span>Total</span><span>{INR(totals.total)}</span>
                 </div>
@@ -1021,6 +1036,11 @@ function InvoicePreview({ inv, orgData, onEdit, onClose }) {
                         <span>IGST</span><span className="font-medium">{INR(totalIgst)}</span>
                       </div>
                     )}
+                    {inv.roundOff !== 0 && inv.roundOff != null && (
+                      <div className="flex justify-between px-3 py-1.5 text-xs text-gray-600 border-b border-gray-100">
+                        <span>Round Off</span><span className="font-medium">{inv.roundOff > 0 ? '+' : '-'}{INR(Math.abs(inv.roundOff))}</span>
+                      </div>
+                    )}
                     <div className="flex justify-between px-3 py-2.5 bg-gray-800 text-white font-bold text-sm">
                       <span>Grand Total</span><span>{INR(inv.totalAmount)}</span>
                     </div>
@@ -1095,13 +1115,15 @@ function InvoicePreview({ inv, orgData, onEdit, onClose }) {
               </div>
               {(() => {
                 const bd = org?.bankDetails || {};
-                if (!bd.upiId) return null;
+                if (!bd.upiId && !bd.upiQrUrl) return null;
                 const payAmt = inv.balanceAmount > 0 ? inv.balanceAmount : inv.totalAmount;
-                const upiUri = `upi://pay?pa=${bd.upiId}&pn=${encodeURIComponent(bd.accountName || BACKERO.name)}&am=${payAmt}&tn=${inv.invoiceNumber}&cu=INR`;
+                const upiUri = bd.upiId ? `upi://pay?pa=${bd.upiId}&pn=${encodeURIComponent(bd.accountName || BACKERO.name)}&am=${payAmt}&tn=${inv.invoiceNumber}&cu=INR` : null;
                 return (
                   <div className="text-center flex-shrink-0">
                     <div className="border border-gray-200 rounded-lg p-1.5 bg-white inline-block">
-                      <QRCode value={upiUri} size={96} />
+                      {bd.upiQrUrl
+                        ? <img src={bd.upiQrUrl} alt="UPI QR" className="w-24 h-24 object-contain" />
+                        : <QRCode value={upiUri} size={96} />}
                     </div>
                     <p className="text-xs text-gray-400 mt-1 font-medium">Scan to Pay via UPI</p>
                   </div>

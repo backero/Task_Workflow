@@ -38,6 +38,7 @@ const invoiceSchema = new mongoose.Schema({
   subtotal: { type: Number, default: 0 },
   totalDiscount: { type: Number, default: 0 },
   totalGst: { type: Number, default: 0 },
+  roundOff: { type: Number, default: 0 },
   totalAmount: { type: Number, default: 0 },
   paidAmount: { type: Number, default: 0 },
   balanceAmount: { type: Number, default: 0 },

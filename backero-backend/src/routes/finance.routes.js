@@ -92,7 +92,9 @@ router.post('/invoices', asyncHandler(async (req, res) => {
     return { ...item, gstAmount: gstAmt, total: itemTotal + gstAmt };
   });
 
-  const totalAmount = subtotal + totalGst;
+  const rawTotal = subtotal + totalGst;
+  const totalAmount = Math.round(rawTotal);
+  const roundOff = +(totalAmount - rawTotal).toFixed(2);
 
   const invoice = await Invoice.create({
     ...rest,
@@ -100,6 +102,7 @@ router.post('/invoices', asyncHandler(async (req, res) => {
     subtotal,
     totalGst,
     totalDiscount,
+    roundOff,
     totalAmount,
     balanceAmount: totalAmount,
     invoiceNumber,
@@ -166,13 +169,16 @@ router.put('/invoices/:id', asyncHandler(async (req, res) => {
     return { ...item, gstAmount: gstAmt, total: itemSubtotal + gstAmt };
   });
 
-  const totalAmount = subtotal + totalGst;
+  const rawTotal = subtotal + totalGst;
+  const totalAmount = Math.round(rawTotal);
+  const roundOff = +(totalAmount - rawTotal).toFixed(2);
   Object.assign(invoice, {
     ...rest,
     lineItems: processedItems,
     subtotal,
     totalGst,
     totalDiscount,
+    roundOff,
     totalAmount,
     balanceAmount: totalAmount - (invoice.paidAmount || 0),
     updatedBy: req.user._id,
