@@ -27,6 +27,16 @@ const formulationRowSchema = new mongoose.Schema({
   notes: { type: String, default: '' },
 }, { _id: true });
 
+const attachmentSchema = new mongoose.Schema({
+  name: String,
+  url: String,
+  type: String, // 'document' | 'video' | 'audio'
+  createdAt: { type: Date, default: Date.now },
+}, { _id: true });
+
+// R&D Documentation & Research Guide is scoped per formulation version (not product-level) —
+// each version gets its own fresh notes/attachments, and cloning a version carries them
+// forward, mirroring the reference design's per-version rndDoc/rndAttachments.
 const formulationVersionSchema = new mongoose.Schema({
   versionLabel: { type: String, required: true },
   status: { type: String, enum: ['draft', 'testing', 'locked', 'archived'], default: 'draft' },
@@ -34,6 +44,8 @@ const formulationVersionSchema = new mongoose.Schema({
   refUnit: { type: String, default: 'ml' },
   rows: [formulationRowSchema],
   changeNotes: String,
+  rndDoc: { text: String, attachments: [attachmentSchema] },
+  researchGuide: { text: String },
   createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   createdAt: { type: Date, default: Date.now },
   activatedAt: Date,
@@ -45,13 +57,6 @@ const packagingItemSchema = new mongoose.Schema({
   rate: { type: Number, default: 0 },
   amount: { type: Number, default: 0 },
   optional: { type: Boolean, default: false },
-}, { _id: true });
-
-const attachmentSchema = new mongoose.Schema({
-  name: String,
-  url: String,
-  type: String, // 'document' | 'video' | 'audio'
-  createdAt: { type: Date, default: Date.now },
 }, { _id: true });
 
 const documentSlotSchema = new mongoose.Schema({

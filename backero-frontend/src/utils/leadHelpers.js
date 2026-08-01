@@ -7,3 +7,10 @@ export function customerId(lead) {
   const id = lead?._id;
   return id ? `CUST-${String(id).slice(-4).toUpperCase()}` : '';
 }
+
+// Same derivation as customerId(), scoped to a ProductionQuery — the "QRY-XXXX" id the
+// reference design's Q&A Inbox shows as a clickable code-cell next to the Customer ID.
+export function queryId(query) {
+  const id = query?._id;
+  return id ? `QRY-${String(id).slice(-4).toUpperCase()}` : '';
+}

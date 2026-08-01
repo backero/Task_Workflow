@@ -60,7 +60,11 @@ exports.getLeads = asyncHandler(async (req, res) => {
     Lead.find(filter)
       .populate('assignedTo', 'firstName lastName avatar')
       .populate('assignedBy', 'firstName lastName')
-      .populate('productionOrderId', 'orderNumber batch stage status deliveryDate')
+      .populate({
+        path: 'productionOrderId',
+        select: 'orderNumber batch batchSizeKg unit stage status deliveryDate catalogProduct',
+        populate: { path: 'catalogProduct', select: 'name code' },
+      })
       .sort(sortOrder)
       .skip(skip)
       .limit(parseInt(limit))
@@ -431,7 +435,7 @@ exports.createFormula = asyncHandler(async (req, res) => {
 // to archive an older Draft/In Testing version without disturbing the current one, or to save
 // edits made while viewing a non-latest version in the Formula Editor's version sidebar.
 exports.updateFormula = asyncHandler(async (req, res) => {
-  const { status, costPerUnit, rows, bumpVersion, version, refUnit, refWeight, procedure, changeNote } = req.body;
+  const { status, costPerUnit, rows, bumpVersion, version, refUnit, refWeight, procedure, changeNote, researchNotes } = req.body;
   const lead = await Lead.findOne({ _id: req.params.id, organizationId: req.user.organizationId });
   if (!lead) return sendError(res, 'Lead not found.', 404);
 
@@ -439,6 +443,7 @@ exports.updateFormula = asyncHandler(async (req, res) => {
   if (!formula) return sendError(res, 'Formula not found.', 404);
   if (refUnit) formula.refUnit = refUnit;
   if (refWeight !== undefined) formula.refWeight = Number(refWeight) || formula.refWeight;
+  if (researchNotes !== undefined) formula.researchNotes = researchNotes;
 
   if (bumpVersion) {
     const prev = formula.versions[formula.versions.length - 1];
@@ -460,6 +465,44 @@ exports.updateFormula = asyncHandler(async (req, res) => {
   lead.updatedBy = req.user._id;
   await lead.save();
   sendSuccess(res, { lead }, 'Formula updated');
+});
+
+// POST /api/crm/leads/:id/formulas/:formulaId/attachment  (multipart: file)
+exports.uploadFormulaAttachment = asyncHandler(async (req, res) => {
+  const lead = await Lead.findOne({ _id: req.params.id, organizationId: req.user.organizationId });
+  if (!lead) return sendError(res, 'Lead not found.', 404);
+  const formula = (lead.customFormulas || []).find((f) => f.formulaId === req.params.formulaId);
+  if (!formula) return sendError(res, 'Formula not found.', 404);
+  if (!req.file) return sendError(res, 'No file uploaded', 400);
+
+  const { uploadBuffer } = require('../utils/cloudinary');
+  const mime = req.file.mimetype || '';
+  const resourceType = mime.startsWith('video/') || mime.startsWith('audio/') ? 'video' : mime.startsWith('image/') ? 'image' : 'raw';
+  const result = await uploadBuffer(req.file.buffer, { folder: `backero/crm-formulas/${req.user.organizationId}`, resourceType, filename: req.file.originalname });
+
+  formula.attachments = formula.attachments || [];
+  formula.attachments.push({
+    name: req.file.originalname,
+    url: result.secure_url,
+    type: mime.startsWith('video/') ? 'video' : mime.startsWith('audio/') ? 'audio' : mime.startsWith('image/') ? 'image' : 'document',
+  });
+  lead.updatedBy = req.user._id;
+  await lead.save();
+  sendSuccess(res, { lead }, 'Attachment uploaded');
+});
+
+// DELETE /api/crm/leads/:id/formulas/:formulaId/attachment  (body: { attachmentId })
+exports.removeFormulaAttachment = asyncHandler(async (req, res) => {
+  const { attachmentId } = req.body;
+  const lead = await Lead.findOne({ _id: req.params.id, organizationId: req.user.organizationId });
+  if (!lead) return sendError(res, 'Lead not found.', 404);
+  const formula = (lead.customFormulas || []).find((f) => f.formulaId === req.params.formulaId);
+  if (!formula) return sendError(res, 'Formula not found.', 404);
+
+  formula.attachments = (formula.attachments || []).filter((a) => String(a._id) !== String(attachmentId));
+  lead.updatedBy = req.user._id;
+  await lead.save();
+  sendSuccess(res, { lead }, 'Attachment removed');
 });
 
 // POST /api/crm/leads/:id/products  { productId?, catalogProductId?, name, basis?, notes? }
@@ -1172,11 +1215,16 @@ exports.deleteLead = asyncHandler(async (req, res) => {
 // POST /api/crm/leads/:id/query
 exports.raiseQuery = asyncHandler(async (req, res) => {
   const io = req.app.get('io');
-  const { title, description, urgency, topic, assignedTo, contactName, contactEmail, linkedCatalogProductId, targetPrice, benchmarkNotes, packagingIntent, internalNotes } = req.body;
-  if (!title || !description) return sendError(res, 'Title and description are required', 400);
+  const { title, description, askedVia, urgency, topic, assignedTo, contactName, contactEmail, linkedCatalogProductId, targetPrice, benchmarkNotes, packagingIntent, internalNotes, answer } = req.body;
+  if (!description) return sendError(res, 'Question is required', 400);
 
   const lead = await Lead.findOne({ _id: req.params.id, organizationId: req.user.organizationId });
   if (!lead) return sendError(res, 'Lead not found.', 404);
+
+  // No separate "title" field in the raise-query composer (matches the reference design's
+  // single Question box) — derive a short label for list/summary views from the question itself.
+  const derivedTitle = (title || description).trim().slice(0, 80);
+  const answeredNow = (answer || '').trim();
 
   const ProductionQuery = require('../models/ProductionQuery');
   const query = await ProductionQuery.create({
@@ -1185,8 +1233,9 @@ exports.raiseQuery = asyncHandler(async (req, res) => {
     leadName: lead.name,
     raisedBy: req.user._id,
     assignedTo: assignedTo || undefined,
-    title,
+    title: derivedTitle,
     description,
+    askedVia: askedVia || 'Phone Call',
     urgency: urgency || 'medium',
     topic: topic || 'General',
     preQueryStatus: lead.status,
@@ -1197,6 +1246,12 @@ exports.raiseQuery = asyncHandler(async (req, res) => {
     benchmarkNotes: benchmarkNotes || undefined,
     packagingIntent: packagingIntent || undefined,
     internalNotes: internalNotes || undefined,
+    // Logging the answer in the same step (reference design's "log Q&A in one shot") resolves
+    // the query immediately instead of leaving it open for a separate reply.
+    status: answeredNow ? 'answered' : 'pending',
+    answer: answeredNow || undefined,
+    answeredBy: answeredNow ? req.user._id : undefined,
+    answeredAt: answeredNow ? new Date() : undefined,
   });
 
   // Sample/Production stage leads keep their status — "Query Pending" isn't a pipeline
@@ -1204,33 +1259,37 @@ exports.raiseQuery = asyncHandler(async (req, res) => {
   // view for as long as the query stays open. New Lead/Follow-up leads instead promote
   // straight to Sample (via promoteToSampleIfNeeded) — raising a query is real Sample
   // Production activity too, and "Query Pending" isn't shown in the New Leads tab either,
-  // so leaving it there would strand the lead nowhere visible.
+  // so leaving it there would strand the lead nowhere visible. A query answered in the same
+  // step never needs the Query Pending detour at all.
   if ([LEAD_STATUS.NEW, LEAD_STATUS.FOLLOWUP].includes(lead.status)) {
     await promoteToSampleIfNeeded(lead, req);
-  } else if (![LEAD_STATUS.SAMPLE, LEAD_STATUS.IN_PROGRESS].includes(lead.status)) {
+  } else if (!answeredNow && ![LEAD_STATUS.SAMPLE, LEAD_STATUS.IN_PROGRESS].includes(lead.status)) {
     lead.status = LEAD_STATUS.QUERY_PENDING;
   }
   lead.updatedBy = req.user._id;
   await lead.save();
 
-  // Notify only the assigned person; if none, notify all production members
-  const recipientIds = assignedTo
-    ? [assignedTo]
-    : (await User.find({ organizationId: req.user.organizationId, department: 'Production' }).select('_id')).map(u => u._id);
+  // Already answered in the same step — nobody needs to be paged to go answer it.
+  if (!answeredNow) {
+    // Notify only the assigned person; if none, notify all production members
+    const recipientIds = assignedTo
+      ? [assignedTo]
+      : (await User.find({ organizationId: req.user.organizationId, department: 'Production' }).select('_id')).map(u => u._id);
 
-  for (const recipientId of recipientIds) {
-    await createNotification({
-      organizationId: req.user.organizationId,
-      recipient: recipientId,
-      title: 'Technical Query from Sales',
-      message: `"${title}" — Lead: ${lead.name}. Urgency: ${urgency || 'medium'}`,
-      type: 'crm',
-      priority: urgency === 'high' ? 'high' : 'medium',
-      actionUrl: '/crm/queries',
-      reference: { model: 'ProductionQuery', id: query._id },
-      channels: { inApp: true, whatsapp: true },
-      createdBy: req.user._id,
-    }, io);
+    for (const recipientId of recipientIds) {
+      await createNotification({
+        organizationId: req.user.organizationId,
+        recipient: recipientId,
+        title: 'Technical Query from Sales',
+        message: `"${derivedTitle}" — Lead: ${lead.name}. Urgency: ${urgency || 'medium'}`,
+        type: 'crm',
+        priority: urgency === 'high' ? 'high' : 'medium',
+        actionUrl: '/crm/queries',
+        reference: { model: 'ProductionQuery', id: query._id },
+        channels: { inApp: true, whatsapp: true },
+        createdBy: req.user._id,
+      }, io);
+    }
   }
 
   sendSuccess(res, { query }, 'Query raised', 201);

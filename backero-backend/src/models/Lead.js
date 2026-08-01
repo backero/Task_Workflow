@@ -170,6 +170,16 @@ const leadSchema = new mongoose.Schema({
       }],
       createdAt: { type: Date, default: Date.now },
     }],
+    // R&D documentation for this formula — research notes text plus uploaded reference files
+    // (lab reports, benchmark scans, supplier spec sheets), mirroring Product Catalog's
+    // rndDoc/researchGuide but scoped to this one custom formula instead of a catalog product.
+    researchNotes: { type: String },
+    attachments: [{
+      name: { type: String },
+      url: { type: String },
+      type: { type: String, enum: ['document', 'image', 'video', 'audio'], default: 'document' },
+      createdAt: { type: Date, default: Date.now },
+    }],
     createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
     createdAt: { type: Date, default: Date.now },
   }],

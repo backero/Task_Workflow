@@ -10,6 +10,7 @@ import {
   QuestionMarkCircleIcon, CheckCircleIcon, ClockIcon,
   ExclamationTriangleIcon, XMarkIcon, ArrowTopRightOnSquareIcon,
 } from '@heroicons/react/24/outline';
+import { customerId } from '../../utils/leadHelpers';
 
 const URGENCY_BADGE = {
   low: 'bg-gray-100 text-gray-600',
@@ -124,10 +125,12 @@ export default function TechnicalQueries() {
                   {q.leadId && (
                     <button
                       onClick={() => navigate(`/crm/leads/${q.leadId._id}`)}
+                      title={`Open ${customerId(q.leadId)}`}
                       className="mt-2 flex items-center gap-1 text-xs text-brand-600 hover:text-brand-700 font-medium"
                     >
                       <ArrowTopRightOnSquareIcon className="w-3.5 h-3.5" />
-                      Lead: {q.leadId.name}
+                      <span className="font-mono font-bold">{customerId(q.leadId)}</span>
+                      <span>· {q.leadId.name}</span>
                       {q.leadId.phone && <span className="text-gray-400 font-normal">· {q.leadId.phone}</span>}
                     </button>
                   )}

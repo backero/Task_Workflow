@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Fragment } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Link, useSearchParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
@@ -7,7 +7,7 @@ import api from '../../api/axios';
 import { format, formatDistanceToNowStrict } from 'date-fns';
 import SampleLeadDetail from './SampleLeadDetail';
 import EditKycModal from './EditKycModal';
-import { customerId } from '../../utils/leadHelpers';
+import { customerId, queryId } from '../../utils/leadHelpers';
 
 // Cross-customer work queue over the CRM's existing "Sample" pipeline stage —
 // no new data model. Everything here reads/writes the same Lead record that
@@ -38,12 +38,6 @@ export const PILL = {
   gray: 'bg-[#e2dac8] text-[#5a4d3a]',
 };
 
-const KYC_FIELDS = ['name', 'phone', 'email', 'company', 'city', 'businessType'];
-function computeKycPercent(lead) {
-  const filled = KYC_FIELDS.filter((f) => lead[f]).length + ((lead.productInterest || []).length > 0 ? 1 : 0);
-  return Math.round((filled / (KYC_FIELDS.length + 1)) * 100);
-}
-
 export function StatCard({ emoji, iconTone, label, value, hint, valueTone = 'text-[#2e241b]' }) {
   return (
     <Card className="flex items-start justify-between gap-3 hover:-translate-y-0.5 hover:shadow-[0_10px_40px_rgba(46,36,27,0.16)] transition-transform">
@@ -57,6 +51,8 @@ export function StatCard({ emoji, iconTone, label, value, hint, valueTone = 'tex
   );
 }
 
+const QA_TOPIC_PILL = { General: PILL.gray, Product: PILL.info, Packaging: PILL.warning, Formula: PILL.purple, Designing: PILL.info, Pricing: PILL.success };
+
 export const SUB_STAGE_PILL = {
   Requested: PILL.gray,
   'In Lab': PILL.info,
@@ -68,7 +64,6 @@ export const SUB_STAGE_PILL = {
 
 const TABS = [
   { key: 'new', label: 'New Leads', emoji: '🆕', hint: 'Brand-new leads — no CRM stage move needed. Add a product, formula, or sample here and the lead promotes to Sample automatically.' },
-  { key: 'kyc', label: 'KYC', emoji: '🪪', hint: 'Every lead currently in the Sample stage — the same records as CRM & Sales → Lead Pipeline.' },
   { key: 'qa', label: 'Q&A Inbox', emoji: '📥', hint: 'Every technical query raised for a lead currently in Sample — reply here or from the lead’s own Q&A tab.' },
   { key: 'sample', label: 'Samples', emoji: '🧪', hint: 'Leads currently being sampled — dispatch, feedback, invoicing happens on the lead itself.' },
   { key: 'payments', label: 'Payments', emoji: '💳', hint: 'R&D / sampling fee confirmation — a sample stays locked at "Requested" until this is confirmed.' },
@@ -251,7 +246,7 @@ export default function SampleProduction() {
   const paymentPendingLeads = sampleLeads.filter((l) => l.sampleDetails?.paymentStatus !== 'full_paid');
   const paymentPendingValue = paymentPendingLeads.reduce((sum, l) => sum + (l.sampleDetails?.chargeAmount || 0), 0);
 
-  const rows = tab === 'sample' ? sampleLeads : tab === 'payments' ? sampleLeads : tab === 'kyc' ? sampleLeads : tab === 'new' ? newLeads : tab === 'awaiting' ? awaiting : linked;
+  const rows = tab === 'sample' ? sampleLeads : tab === 'payments' ? sampleLeads : tab === 'new' ? newLeads : tab === 'awaiting' ? awaiting : linked;
   const filtered = search
     ? rows.filter((l) => (l.name || '').toLowerCase().includes(search.toLowerCase()) || (l.company || '').toLowerCase().includes(search.toLowerCase()))
     : rows;
@@ -268,12 +263,16 @@ export default function SampleProduction() {
     kyc: {
       customerId: (l) => customerId(l), name: (l) => l.name || '', phone: (l) => l.phone || '', city: (l) => l.city || '',
       businessType: (l) => l.businessType || '', productInterest: (l) => (l.productInterest || []).join(', '),
-      kyc: (l) => computeKycPercent(l),
     },
     shared: {
       name: (l) => l.name || '',
       stage: (l) => l.sampleDetails?.subStage || 'Requested',
       payment: (l) => (l.sampleDetails?.paymentStatus === 'full_paid' ? 1 : 0),
+      custId: (l) => customerId(l),
+      orderId: (l) => l.productionOrderId?.orderNumber || '',
+      product: (l) => l.productionOrderId?.catalogProduct?.name || '',
+      qty: (l) => l.productionOrderId?.batchSizeKg || 0,
+      delivery: (l) => l.productionOrderId?.deliveryDate || '',
     },
   };
   const sortedKycRows = applySort(filtered, sortAccessors.kyc, sortState);
@@ -462,10 +461,22 @@ export default function SampleProduction() {
 
   const qaSortAccessors = {
     aging: (q) => new Date(q.createdAt).getTime(),
+    qid: (q) => queryId(q),
+    custId: (q) => customerId(q.leadId),
     customer: (q) => q.leadId?.name || '',
+    topic: (q) => q.topic || 'General',
+    question: (q) => (q.title || '').toLowerCase(),
+    asked: (q) => new Date(q.createdAt).getTime(),
+    via: (q) => q.askedVia || '',
     status: (q) => q.status || '',
   };
   const sortedQueries = applySort(filteredQueries, qaSortAccessors, { col: qaSortKey, dir: qaSortDir });
+  const qaSortState = { col: qaSortKey, dir: qaSortDir };
+  const setQaSortState = (updater) => {
+    const next = typeof updater === 'function' ? updater(qaSortState) : updater;
+    setQaSortKey(next.col);
+    setQaSortDir(next.dir);
+  };
 
   const accentBtn = 'inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-[#f2b23e] text-[#2e241b] text-xs font-bold hover:brightness-95 transition disabled:opacity-50';
   const outlineBtn = 'inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full border-[1.5px] border-[#d3c9b4] text-[#6d5f4c] text-xs font-semibold hover:bg-[#e7dfce] hover:border-[#968871] hover:text-[#2e241b] transition';
@@ -539,7 +550,7 @@ export default function SampleProduction() {
               <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search customer, company…"
                 className="pl-9 pr-3 py-2 text-sm border-[1.5px] border-[#d3c9b4] rounded-full focus:outline-none focus:border-[#968871] w-full bg-[#e7dfce] text-[#2e241b] placeholder:text-[#968871]" />
             </div>
-            {(tab === 'kyc' || tab === 'new') && <button onClick={() => setShowCreateLead(true)} className={accentBtn}>+ New Lead</button>}
+            {tab === 'new' && <button onClick={() => setShowCreateLead(true)} className={accentBtn}>+ New Lead</button>}
           </div>
 
           {tab === 'sample' && (
@@ -638,59 +649,147 @@ export default function SampleProduction() {
             </div>
           )}
 
-          {tab === 'kyc' && (
+          {tab === 'qa' && (
             <div className="overflow-x-auto rounded-[10px] border border-[#e2dac8]">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-[#d3c9b4] text-left text-[11px] uppercase tracking-wide text-[#6d5f4c] bg-[#e7dfce]">
-                    <SortableTh label="Customer ID" sortKey="customerId" sortState={sortState} setSortState={setSortState} />
-                    <SortableTh label="Customer" sortKey="name" sortState={sortState} setSortState={setSortState} />
-                    <SortableTh label="Phone" sortKey="phone" sortState={sortState} setSortState={setSortState} />
-                    <SortableTh label="City" sortKey="city" sortState={sortState} setSortState={setSortState} />
-                    <SortableTh label="Business Type" sortKey="businessType" sortState={sortState} setSortState={setSortState} />
-                    <SortableTh label="Product Interest" sortKey="productInterest" sortState={sortState} setSortState={setSortState} />
-                    <SortableTh label="KYC %" sortKey="kyc" sortState={sortState} setSortState={setSortState} />
-                    <th className="px-4 py-2.5"></th>
+                    <SortableTh label="Aging" sortKey="aging" sortState={qaSortState} setSortState={setQaSortState} />
+                    <SortableTh label="Query ID" sortKey="qid" sortState={qaSortState} setSortState={setQaSortState} />
+                    <SortableTh label="Client ID" sortKey="custId" sortState={qaSortState} setSortState={setQaSortState} />
+                    <SortableTh label="Customer" sortKey="customer" sortState={qaSortState} setSortState={setQaSortState} />
+                    <SortableTh label="Topic" sortKey="topic" sortState={qaSortState} setSortState={setQaSortState} />
+                    <SortableTh label="Question" sortKey="question" sortState={qaSortState} setSortState={setQaSortState} />
+                    <SortableTh label="Asked" sortKey="asked" sortState={qaSortState} setSortState={setQaSortState} />
+                    <SortableTh label="Via" sortKey="via" sortState={qaSortState} setSortState={setQaSortState} />
+                    <SortableTh label="Status" sortKey="status" sortState={qaSortState} setSortState={setQaSortState} />
+                    <th className="px-4 py-2.5">Quick Actions</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {isLoading && <tr><td colSpan={8} className="px-4 py-8 text-center text-[#968871] text-xs">Loading…</td></tr>}
-                  {!isLoading && sortedKycRows.length === 0 && <tr><td colSpan={8} className="px-4 py-8 text-center text-[#968871] text-xs">Nothing here right now.</td></tr>}
-                  {sortedKycRows.map((l) => {
-                    const kyc = computeKycPercent(l);
+                  {sortedQueries.length === 0 && (
+                    <tr><td colSpan={10} className="px-4 py-8 text-center text-[#968871] text-xs">No queries for any Sample-stage lead right now.</td></tr>
+                  )}
+                  {sortedQueries.map((q) => {
+                    const relatedLead = leadsById.get(q.leadId?._id);
+                    const hasProduct = (relatedLead?.productLinks?.length || 0) > 0;
                     return (
-                      <tr key={l._id} className="border-b border-[#e2dac8] hover:bg-[#e7dfce]/60">
-                        <td className="px-4 py-2.5 font-mono text-xs text-[#4a3a29] font-semibold">{customerId(l)}</td>
-                        <td className="px-4 py-2.5">
-                          <p className="text-[#2e241b] font-medium">{l.name}</p>
-                          <p className="text-[#968871] text-xs">{l.company || '—'}</p>
-                        </td>
-                        <td className="px-4 py-2.5 text-[#6d5f4c] text-xs">{l.phone}</td>
-                        <td className="px-4 py-2.5 text-[#6d5f4c] text-xs">{l.city || '—'}</td>
-                        <td className="px-4 py-2.5 text-[#6d5f4c] text-xs">{l.businessType || '—'}</td>
-                        <td className="px-4 py-2.5 text-[#6d5f4c] text-xs">{(l.productInterest || []).join(', ') || '—'}</td>
-                        <td className="px-4 py-2.5">
-                          <span className={clsx('text-[10px] font-semibold px-2 py-0.5 rounded-full', kyc >= 80 ? PILL.success : kyc >= 50 ? PILL.warning : PILL.gray)}>
-                            {kyc}%
-                          </span>
-                        </td>
-                        <td className="px-4 py-2.5 text-right whitespace-nowrap">
-                          <button
-                            onClick={() => setEditKycLead(l)}
-                            className={clsx(textLink, 'mr-3')}
-                          >
-                            Edit KYC
-                          </button>
-                          <button onClick={() => { setOpenLeadId(l._id); setOpenLeadInitialTab(null); }} className={clsx(textLink, 'mr-3')}>Open ▸</button>
-                          <button
-                            onClick={() => { if (window.confirm(`Delete lead "${l.name}"? This cannot be undone.`)) deleteLeadMutation.mutate(l._id); }}
-                            disabled={deleteLeadMutation.isPending}
-                            className="text-xs font-semibold text-[#8c3a30] hover:text-[#6b2c24] disabled:opacity-50"
-                          >
-                            Delete
-                          </button>
-                        </td>
-                      </tr>
+                      <Fragment key={q._id}>
+                        <tr className="border-b border-[#e2dac8] hover:bg-[#e7dfce]/60 align-top">
+                          <td className="px-4 py-2.5 whitespace-nowrap">{agingBadge(q)}</td>
+                          <td className="px-4 py-2.5 whitespace-nowrap">
+                            <button
+                              onClick={() => { setOpenLeadId(q.leadId?._id); setOpenLeadInitialTab('Q&A'); }}
+                              title={`Open in ${customerId(q.leadId)} Q&A`}
+                              className="font-mono font-bold text-[#4a3a29] hover:underline"
+                            >
+                              {queryId(q)}
+                            </button>
+                          </td>
+                          <td className="px-4 py-2.5 whitespace-nowrap">
+                            <button
+                              onClick={() => { setOpenLeadId(q.leadId?._id); setOpenLeadInitialTab(null); }}
+                              title={`Open ${customerId(q.leadId)}`}
+                              className="font-mono font-bold text-[#4a3a29] hover:underline"
+                            >
+                              {customerId(q.leadId)}
+                            </button>
+                          </td>
+                          <td className="px-4 py-2.5">
+                            <p className="text-[#2e241b] font-medium whitespace-nowrap">{q.leadId?.name || 'Unknown lead'}</p>
+                            <p className="text-[#968871] text-xs whitespace-nowrap">{q.leadId?.company || ''}</p>
+                          </td>
+                          <td className="px-4 py-2.5 whitespace-nowrap">
+                            <span className={clsx('px-2 py-0.5 rounded-full font-semibold text-[11px]', QA_TOPIC_PILL[q.topic] || PILL.gray)}>{q.topic || 'General'}</span>
+                          </td>
+                          <td className="px-4 py-2.5 min-w-[260px] max-w-[360px]">
+                            <p className="text-[#2e241b] font-medium">{q.title}</p>
+                            {q.description && q.description !== q.title && <p className="text-[#6d5f4c] text-xs mt-0.5">{q.description}</p>}
+                            {q.answer ? (
+                              <div className={clsx('mt-1.5 p-2 rounded-lg text-xs text-[#2e241b]', PILL.success)}>
+                                <p className="text-[10px] text-[#3a5f3c] font-semibold mb-0.5">{q.answeredBy ? `${q.answeredBy.firstName} ${q.answeredBy.lastName}` : 'Answered'}</p>
+                                {q.answer}
+                              </div>
+                            ) : (
+                              <div className="mt-1.5 flex items-center gap-1.5">
+                                <input
+                                  value={qaReplyDrafts[q._id] || ''}
+                                  onChange={(e) => setQaReplyDrafts((d) => ({ ...d, [q._id]: e.target.value }))}
+                                  placeholder="Type a reply…"
+                                  className="px-2.5 py-1.5 text-xs rounded-[8px] border-[1.5px] border-[#d3c9b4] bg-[#f0eadd] flex-1 min-w-[120px] focus:outline-none focus:border-[#968871]"
+                                />
+                                <button
+                                  onClick={() => {
+                                    const answer = (qaReplyDrafts[q._id] || '').trim();
+                                    if (!answer) { toast.error('Reply cannot be empty'); return; }
+                                    answerQueryMutation.mutate({ queryId: q._id, answer });
+                                  }}
+                                  disabled={answerQueryMutation.isPending}
+                                  className="px-3 py-1.5 rounded-full bg-[#f2b23e] text-[#2e241b] text-xs font-bold hover:brightness-95 transition disabled:opacity-50 whitespace-nowrap"
+                                >
+                                  Reply
+                                </button>
+                              </div>
+                            )}
+                          </td>
+                          <td className="px-4 py-2.5 text-[#968871] text-xs whitespace-nowrap">{format(new Date(q.createdAt), 'dd MMM, hh:mm a')}</td>
+                          <td className="px-4 py-2.5 text-[#968871] text-xs whitespace-nowrap">{q.askedVia || '—'}</td>
+                          <td className="px-4 py-2.5 whitespace-nowrap">
+                            <span className={clsx('px-2 py-0.5 rounded-full font-semibold text-[11px]', q.status === 'pending' ? PILL.warning : q.status === 'in_progress' ? PILL.info : PILL.success)}>{q.status.replace('_', ' ')}</span>
+                            {q.convertedTo && <span className="ml-1 px-2 py-0.5 rounded-full font-semibold text-[11px] bg-[#e7dfce] text-[#4a3a29]">→ {q.convertedTo}</span>}
+                          </td>
+                          <td className="px-4 py-2.5">
+                            <div className="flex flex-col items-start gap-1 whitespace-nowrap">
+                              <button onClick={() => { setOpenLeadId(q.leadId?._id); setOpenLeadInitialTab('Products'); }} className={textLink}>🆕 Create Product</button>
+                              <button onClick={() => { setConnectingQueryId((id) => id === q._id ? null : q._id); setConnectCatalogSearch(''); }} className={textLink}>🔗 Connect Existing</button>
+                              <button
+                                disabled={!hasProduct}
+                                title={hasProduct ? '' : 'Link a product to this lead first'}
+                                onClick={() => { setOpenLeadId(q.leadId?._id); setOpenLeadInitialTab('Formulas'); }}
+                                className={clsx(textLink, !hasProduct && 'opacity-40 cursor-not-allowed')}
+                              >
+                                🧬 Create Formula
+                              </button>
+                              <button
+                                disabled={!hasProduct}
+                                title={hasProduct ? '' : 'Link a product to this lead first'}
+                                onClick={() => { setOpenLeadId(q.leadId?._id); setOpenLeadInitialTab('Samples'); }}
+                                className={clsx(textLink, !hasProduct && 'opacity-40 cursor-not-allowed')}
+                              >
+                                🧪 Create Sample
+                              </button>
+                              <button onClick={() => { setOpenLeadId(q.leadId?._id); setOpenLeadInitialTab(null); }} className={textLink}>Open lead ▸</button>
+                            </div>
+                          </td>
+                        </tr>
+                        {connectingQueryId === q._id && (
+                          <tr className="border-b border-[#e2dac8]">
+                            <td colSpan={10} className="p-2">
+                              <div className="p-2 rounded-lg border-[1.5px] border-dashed border-[#d3c9b4] bg-[#e7dfce]">
+                                <input
+                                  value={connectCatalogSearch}
+                                  onChange={(e) => setConnectCatalogSearch(e.target.value)}
+                                  placeholder="Search catalog products to connect…"
+                                  className={clsx(modalInputCls, 'w-full')}
+                                />
+                                {connectCatalogSearch && (
+                                  <div className="mt-1 rounded-[10px] border border-[#d3c9b4] bg-white max-h-32 overflow-y-auto">
+                                    {connectCatalogMatches.length === 0 && <div className="px-3 py-2 text-xs text-[#968871]">No products found</div>}
+                                    {connectCatalogMatches.slice(0, 8).map((p) => (
+                                      <button key={p._id} type="button"
+                                        onClick={() => connectProductMutation.mutate({ leadId: q.leadId?._id, product: p })}
+                                        className="w-full text-left px-3 py-2 text-xs hover:bg-[#e7dfce] flex justify-between">
+                                        <span className="text-[#2e241b]">{p.name}</span>
+                                        <span className="text-[#968871] font-mono">{p.code}</span>
+                                      </button>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        )}
+                      </Fragment>
                     );
                   })}
                 </tbody>
@@ -698,129 +797,16 @@ export default function SampleProduction() {
             </div>
           )}
 
-          {tab === 'qa' && (
-            <div className="space-y-2">
-              <div className="flex items-center gap-2 text-xs text-[#6d5f4c]">
-                <span className="uppercase tracking-wide text-[#968871] font-semibold">Sort:</span>
-                {[['aging', 'Aging'], ['customer', 'Customer'], ['status', 'Status']].map(([key, label]) => (
-                  <button
-                    key={key}
-                    onClick={() => {
-                      if (qaSortKey === key) setQaSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
-                      else { setQaSortKey(key); setQaSortDir('desc'); }
-                    }}
-                    className={clsx('px-2.5 py-1 rounded-full border-[1.5px]', qaSortKey === key ? 'border-[#2e241b] bg-[#2e241b] text-white' : 'border-[#d3c9b4] bg-[#e7dfce]')}
-                  >
-                    {label}{qaSortKey === key && (qaSortDir === 'asc' ? ' ▲' : ' ▼')}
-                  </button>
-                ))}
-              </div>
-              <div className="rounded-[10px] border border-[#e2dac8] divide-y divide-[#e2dac8]">
-              {sortedQueries.length === 0 && <p className="px-4 py-8 text-center text-[#968871] text-xs">No queries for any Sample-stage lead right now.</p>}
-              {sortedQueries.map((q) => {
-                const relatedLead = leadsById.get(q.leadId?._id);
-                const hasProduct = (relatedLead?.productLinks?.length || 0) > 0;
-                return (
-                <div key={q._id} className="p-4 space-y-2">
-                  <div className="flex items-center justify-between flex-wrap gap-2">
-                    <div className="flex items-center gap-2 flex-wrap text-[11px]">
-                      <span className={clsx('px-2 py-0.5 rounded-full font-semibold', q.status === 'pending' ? PILL.warning : q.status === 'in_progress' ? PILL.info : PILL.success)}>{q.status.replace('_', ' ')}</span>
-                      {agingBadge(q)}
-                      <span className="font-semibold text-[#4a3a29]">{q.leadId?.name || 'Unknown lead'}</span>
-                      <span className="text-[#968871]">{q.leadId?.company || ''}</span>
-                      <span className="text-[#968871]">· {format(new Date(q.createdAt), 'dd MMM, hh:mm a')}</span>
-                      <span className="text-[#968871]">· {q.urgency} urgency</span>
-                    </div>
-                    <div className="flex items-center gap-3 flex-wrap">
-                      <button onClick={() => { setOpenLeadId(q.leadId?._id); setOpenLeadInitialTab('Products'); }} className={textLink}>🆕 Create Product</button>
-                      <button onClick={() => { setConnectingQueryId((id) => id === q._id ? null : q._id); setConnectCatalogSearch(''); }} className={textLink}>🔗 Connect Existing</button>
-                      <button
-                        disabled={!hasProduct}
-                        title={hasProduct ? '' : 'Link a product to this lead first'}
-                        onClick={() => { setOpenLeadId(q.leadId?._id); setOpenLeadInitialTab('Formulas'); }}
-                        className={clsx(textLink, !hasProduct && 'opacity-40 cursor-not-allowed')}
-                      >
-                        🧬 Create Formula
-                      </button>
-                      <button
-                        disabled={!hasProduct}
-                        title={hasProduct ? '' : 'Link a product to this lead first'}
-                        onClick={() => { setOpenLeadId(q.leadId?._id); setOpenLeadInitialTab('Samples'); }}
-                        className={clsx(textLink, !hasProduct && 'opacity-40 cursor-not-allowed')}
-                      >
-                        🧪 Create Sample
-                      </button>
-                      <button onClick={() => { setOpenLeadId(q.leadId?._id); setOpenLeadInitialTab(null); }} className={textLink}>Open lead ▸</button>
-                    </div>
-                  </div>
-                  {connectingQueryId === q._id && (
-                    <div className="p-2 rounded-lg border-[1.5px] border-dashed border-[#d3c9b4] bg-[#e7dfce]">
-                      <input
-                        value={connectCatalogSearch}
-                        onChange={(e) => setConnectCatalogSearch(e.target.value)}
-                        placeholder="Search catalog products to connect…"
-                        className={clsx(modalInputCls, 'w-full')}
-                      />
-                      {connectCatalogSearch && (
-                        <div className="mt-1 rounded-[10px] border border-[#d3c9b4] bg-white max-h-32 overflow-y-auto">
-                          {connectCatalogMatches.length === 0 && <div className="px-3 py-2 text-xs text-[#968871]">No products found</div>}
-                          {connectCatalogMatches.slice(0, 8).map((p) => (
-                            <button key={p._id} type="button"
-                              onClick={() => connectProductMutation.mutate({ leadId: q.leadId?._id, product: p })}
-                              className="w-full text-left px-3 py-2 text-xs hover:bg-[#e7dfce] flex justify-between">
-                              <span className="text-[#2e241b]">{p.name}</span>
-                              <span className="text-[#968871] font-mono">{p.code}</span>
-                            </button>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  )}
-                  <p className="text-sm font-semibold text-[#2e241b]">{q.title}</p>
-                  <p className="text-sm text-[#6d5f4c]">{q.description}</p>
-                  {q.answer ? (
-                    <div className={clsx('p-2 rounded-lg text-sm text-[#2e241b]', PILL.success)}>
-                      <p className="text-[11px] text-[#3a5f3c] font-semibold mb-0.5">{q.answeredBy ? `${q.answeredBy.firstName} ${q.answeredBy.lastName}` : 'Answered'}</p>
-                      {q.answer}
-                    </div>
-                  ) : (
-                    <div className="flex items-center gap-2">
-                      <input
-                        value={qaReplyDrafts[q._id] || ''}
-                        onChange={(e) => setQaReplyDrafts((d) => ({ ...d, [q._id]: e.target.value }))}
-                        placeholder="Type a reply…"
-                        className="px-3 py-2 text-sm rounded-[10px] border-[1.5px] border-[#d3c9b4] bg-[#f0eadd] flex-1 focus:outline-none focus:border-[#968871]"
-                      />
-                      <button
-                        onClick={() => {
-                          const answer = (qaReplyDrafts[q._id] || '').trim();
-                          if (!answer) { toast.error('Reply cannot be empty'); return; }
-                          answerQueryMutation.mutate({ queryId: q._id, answer });
-                        }}
-                        disabled={answerQueryMutation.isPending}
-                        className={accentBtn}
-                      >
-                        Reply
-                      </button>
-                    </div>
-                  )}
-                </div>
-                );
-              })}
-              </div>
-            </div>
-          )}
-
-          {tab !== 'kyc' && tab !== 'qa' && tab !== 'new' && (
+          {(tab === 'sample' || tab === 'payments') && (
             <div className="overflow-x-auto rounded-[10px] border border-[#e2dac8]">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-[#d3c9b4] text-left text-[11px] uppercase tracking-wide text-[#6d5f4c] bg-[#e7dfce]">
                     <SortableTh label="Customer" sortKey="name" sortState={sortState} setSortState={setSortState} />
                     <th className="px-4 py-2.5">Product Interest</th>
-                    {(tab === 'sample' || tab === 'payments') && <SortableTh label="Sample Stage" sortKey="stage" sortState={sortState} setSortState={setSortState} />}
+                    <SortableTh label="Sample Stage" sortKey="stage" sortState={sortState} setSortState={setSortState} />
                     <SortableTh label="Payment" sortKey="payment" sortState={sortState} setSortState={setSortState} />
-                    {tab !== 'payments' && <th className="px-4 py-2.5">{tab === 'linked' ? 'Batch Order' : 'Assigned To'}</th>}
+                    {tab !== 'payments' && <th className="px-4 py-2.5">Assigned To</th>}
                     <th className="px-4 py-2.5"></th>
                   </tr>
                 </thead>
@@ -834,13 +820,11 @@ export default function SampleProduction() {
                         <p className="text-[#968871] text-xs">{l.company || '—'}</p>
                       </td>
                       <td className="px-4 py-2.5 text-[#6d5f4c] text-xs">{(l.productInterest || []).join(', ') || '—'}</td>
-                      {(tab === 'sample' || tab === 'payments') && (
-                        <td className="px-4 py-2.5">
-                          <span className={clsx('text-[10px] font-semibold px-2 py-0.5 rounded-full', SUB_STAGE_PILL[l.sampleDetails?.subStage] || SUB_STAGE_PILL.Requested)}>
-                            {l.sampleDetails?.subStage || 'Requested'}
-                          </span>
-                        </td>
-                      )}
+                      <td className="px-4 py-2.5">
+                        <span className={clsx('text-[10px] font-semibold px-2 py-0.5 rounded-full', SUB_STAGE_PILL[l.sampleDetails?.subStage] || SUB_STAGE_PILL.Requested)}>
+                          {l.sampleDetails?.subStage || 'Requested'}
+                        </span>
+                      </td>
                       <td className="px-4 py-2.5">
                         <span className={clsx('text-[10px] font-semibold px-2 py-0.5 rounded-full', l.sampleDetails?.paymentStatus === 'full_paid' ? PILL.success : PILL.warning)}>
                           {l.sampleDetails?.paymentStatus === 'full_paid' ? 'Paid' : 'Pending'}
@@ -848,9 +832,7 @@ export default function SampleProduction() {
                       </td>
                       {tab !== 'payments' && (
                         <td className="px-4 py-2.5 text-xs">
-                          {tab === 'linked'
-                            ? <span className="font-mono text-[#4a3a29]">{l.productionOrderId?.orderNumber || '—'}</span>
-                            : <span className="text-[#6d5f4c]">{l.assignedTo ? `${l.assignedTo.firstName || ''} ${l.assignedTo.lastName || ''}`.trim() : 'Unassigned'}</span>}
+                          <span className="text-[#6d5f4c]">{l.assignedTo ? `${l.assignedTo.firstName || ''} ${l.assignedTo.lastName || ''}`.trim() : 'Unassigned'}</span>
                         </td>
                       )}
                       <td className="px-4 py-2.5 text-right whitespace-nowrap">
@@ -863,13 +845,68 @@ export default function SampleProduction() {
                               </button>
                             )
                         )}
+                        <button onClick={() => { setOpenLeadId(l._id); setOpenLeadInitialTab(null); }} className={textLink}>Open ▸</button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {/* Awaiting Production / Orders — column set mirrors the reference design's single
+              "Orders — Master Ledger" table (Customer ID, Order ID, Product, Qty, Delivery), split
+              across our two tabs since Send to Production is a real manual step here (no order
+              exists yet for "awaiting" rows), and Cost/Price-per-unit dropped since our real
+              ProductionOrder/Batch Tracker record doesn't track those the way the static mock did. */}
+          {(tab === 'awaiting' || tab === 'linked') && (
+            <div className="overflow-x-auto rounded-[10px] border border-[#e2dac8]">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-[#d3c9b4] text-left text-[11px] uppercase tracking-wide text-[#6d5f4c] bg-[#e7dfce]">
+                    <SortableTh label="Customer ID" sortKey="custId" sortState={sortState} setSortState={setSortState} />
+                    <SortableTh label="Order ID" sortKey="orderId" sortState={sortState} setSortState={setSortState} />
+                    <SortableTh label="Customer" sortKey="name" sortState={sortState} setSortState={setSortState} />
+                    <SortableTh label="Product" sortKey="product" sortState={sortState} setSortState={setSortState} />
+                    <SortableTh label="Qty" sortKey="qty" sortState={sortState} setSortState={setSortState} />
+                    <SortableTh label="Delivery" sortKey="delivery" sortState={sortState} setSortState={setSortState} />
+                    <th className="px-4 py-2.5"></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {isLoading && <tr><td colSpan={7} className="px-4 py-8 text-center text-[#968871] text-xs">Loading…</td></tr>}
+                  {!isLoading && sortedRows.length === 0 && <tr><td colSpan={7} className="px-4 py-8 text-center text-[#968871] text-xs">Nothing here right now.</td></tr>}
+                  {sortedRows.map((l) => (
+                    <tr key={l._id} className="border-b border-[#e2dac8] hover:bg-[#e7dfce]/60">
+                      <td className="px-4 py-2.5 whitespace-nowrap">
+                        <button
+                          onClick={() => { setOpenLeadId(l._id); setOpenLeadInitialTab(null); }}
+                          title={`Open ${customerId(l)}`}
+                          className="font-mono font-bold text-[#4a3a29] hover:underline"
+                        >
+                          {customerId(l)}
+                        </button>
+                      </td>
+                      <td className="px-4 py-2.5 whitespace-nowrap">
+                        {l.productionOrderId?.orderNumber
+                          ? <span className="font-mono font-bold text-[#4a3a29]">{l.productionOrderId.orderNumber}</span>
+                          : <span className="text-[#968871]">—</span>}
+                      </td>
+                      <td className="px-4 py-2.5">
+                        <p className="text-[#2e241b] font-medium whitespace-nowrap">{l.name}</p>
+                        <p className="text-[#968871] text-xs whitespace-nowrap">{l.company || '—'}</p>
+                      </td>
+                      <td className="px-4 py-2.5 text-[#6d5f4c] text-xs whitespace-nowrap">{l.productionOrderId?.catalogProduct?.name || '—'}</td>
+                      <td className="px-4 py-2.5 text-[#6d5f4c] text-xs whitespace-nowrap">{l.productionOrderId?.batchSizeKg ? `${l.productionOrderId.batchSizeKg} kg` : '—'}</td>
+                      <td className="px-4 py-2.5 text-[#6d5f4c] text-xs whitespace-nowrap">{l.productionOrderId?.deliveryDate || '—'}</td>
+                      <td className="px-4 py-2.5 text-right whitespace-nowrap">
                         {tab === 'awaiting' && (
                           <button onClick={() => { setSendLead(l); setSelectedCatalogProduct(null); setCatalogSearch(''); setBatchSizeKg(10); }}
                             className={clsx(textLink, 'disabled:opacity-50 mr-3')}>
                             Send to Production →
                           </button>
                         )}
-                        {tab === 'linked' ? (
+                        {tab === 'linked' && (
                           <>
                             <button
                               onClick={() => { setOpenOrderLead(l); setOrderQty(''); setOrderDeliveryDate(''); setOrderMarginPct(30); }}
@@ -891,9 +928,8 @@ export default function SampleProduction() {
                               </button>
                             )}
                           </>
-                        ) : (
-                          <button onClick={() => { setOpenLeadId(l._id); setOpenLeadInitialTab(null); }} className={textLink}>Open ▸</button>
                         )}
+                        <button onClick={() => { setOpenLeadId(l._id); setOpenLeadInitialTab(null); }} className={clsx(textLink, 'ml-3')}>Open ▸</button>
                       </td>
                     </tr>
                   ))}

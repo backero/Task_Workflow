@@ -7,6 +7,7 @@ import api from '../../api/axios';
 import { FONT_IMPORT, PILL, SUB_STAGE_PILL, StatCard } from './SampleProduction';
 import { customerId } from '../../utils/leadHelpers';
 import EditKycModal from './EditKycModal';
+import { CATEGORIES as CATALOG_CATEGORIES, UNITS as CATALOG_UNITS, PRODUCT_TYPES as CATALOG_PRODUCT_TYPES, GST_RATES as CATALOG_GST_RATES, STATUSES as CATALOG_STATUSES } from '../inventory/ProductCatalogPage';
 
 // Full per-lead "Sample Development" window — mirrors the reference design's 7-tab customer
 // window (Overview / Q&A / Products / Formulas / Samples / Payments / Approvals). Everything
@@ -16,7 +17,7 @@ import EditKycModal from './EditKycModal';
 // SampleProduction.jsx's cream palette, imported from there so both stay in sync.
 
 const SUB_STAGES = ['Requested', 'In Lab', 'Sent', 'Feedback', 'Approved', 'Rejected'];
-const TABS = ['Overview', 'Q&A', 'Products', 'Formulas', 'Samples', 'Payments', 'Approvals'];
+const TABS = ['Overview', 'Q&A', 'Products', 'Formulas', 'Payments', 'Samples', 'Approvals'];
 const bodyFont = { fontFamily: "'Inter', -apple-system, sans-serif" };
 const displayFont = { fontFamily: "'Fraunces', Georgia, serif" };
 const inputCls = 'px-3 py-2 text-sm rounded-[10px] border-[1.5px] border-[#d3c9b4] bg-[#f0eadd] text-[#2e241b] focus:outline-none focus:border-[#968871] placeholder:text-[#968871]';
@@ -56,6 +57,7 @@ function formulaVersionPillCls(status) {
 }
 
 const QA_TOPICS = ['General', 'Product', 'Packaging', 'Formula', 'Designing', 'Pricing'];
+const QA_VIA = ['Phone Call', 'WhatsApp', 'Email', 'In-person', 'Other'];
 const QA_STATUS_LABEL = { pending: 'Open', in_progress: 'In Progress', answered: 'Answered', closed: 'Closed' };
 
 function qaTopicPillCls(topic) {
@@ -288,6 +290,169 @@ function ProductLinkModal({ product, catalogProducts, saving, onClose, onSave, o
   );
 }
 
+// "Create Product" from a Q&A query — unlike ProductLinkModal (which can create a lead-only
+// "shadow" link that never appears anywhere else), this creates a real Product Catalog entry
+// via POST /catalog/products, so it shows up in the actual Product Catalog too. Mirrors the
+// exact Basic Info field set of the catalog's own "Add New Product" form (Formulation/Costing/
+// Marketplace/etc. only unlock after the product exists there too, so they're out of scope here).
+// The caller then links the newly created catalog product to this lead/query.
+function CreateCatalogProductModal({ nextCode, defaultName, saving, onClose, onSave }) {
+  const [code, setCode] = useState(nextCode);
+  const [name, setName] = useState(defaultName || '');
+  const [category, setCategory] = useState('');
+  const [subCategory, setSubCategory] = useState('');
+  const [type, setType] = useState('');
+  const [status, setStatus] = useState('Active');
+  const [unit, setUnit] = useState('ml');
+  const [weight, setWeight] = useState('');
+  const [gstRate, setGstRate] = useState(18);
+  const [hsnCode, setHsnCode] = useState('');
+  const [shelfLife, setShelfLife] = useState('');
+  const [description, setDescription] = useState('');
+  const [storage, setStorage] = useState('');
+  const [certifications, setCertifications] = useState('');
+  const [barcode, setBarcode] = useState('');
+  const [imagePreview, setImagePreview] = useState(null);
+
+  function onImageChange(e) {
+    const f = e.target.files[0]; if (!f) return;
+    const r = new FileReader();
+    r.onload = (ev) => setImagePreview(ev.target.result);
+    r.readAsDataURL(f);
+  }
+
+  return (
+    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
+      <div className="bg-[#f0eadd] rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col border border-[#d3c9b4]" style={bodyFont} onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between px-5 py-4 border-b border-[#e2dac8] bg-[#e7dfce] rounded-t-2xl flex-shrink-0">
+          <h3 className="font-bold text-[#2e241b]" style={displayFont}>🆕 Create Product</h3>
+          <button onClick={onClose} className="text-[#968871] hover:text-[#2e241b] text-xl leading-none">&times;</button>
+        </div>
+        <div className="p-5 space-y-3 overflow-y-auto">
+          <p className="text-[11px] text-[#6d5f4c] -mt-1">Creates a real entry in the Product Catalog (same fields as Product Catalog's own Add Product) and links it to this customer &amp; query.</p>
+
+          <div className="grid grid-cols-3 gap-2">
+            <div>
+              <label className="text-xs font-semibold text-[#968871] uppercase tracking-wide mb-1 block">SKU Code <span className="text-[#b6453a]">*</span></label>
+              <input value={code} onChange={(e) => setCode(e.target.value.toUpperCase())} placeholder="e.g., FG-0007" className={clsx(inputCls, 'w-full')} />
+            </div>
+            <div className="col-span-2">
+              <label className="text-xs font-semibold text-[#968871] uppercase tracking-wide mb-1 block">Product Name <span className="text-[#b6453a]">*</span></label>
+              <input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g., Vitamin C Serum" className={clsx(inputCls, 'w-full')} />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-3 gap-2">
+            <div>
+              <label className="text-xs font-semibold text-[#968871] uppercase tracking-wide mb-1 block">Category <span className="text-[#b6453a]">*</span></label>
+              <select value={category} onChange={(e) => setCategory(e.target.value)} className={clsx(inputCls, 'w-full')}>
+                <option value="">Select…</option>
+                {CATALOG_CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="text-xs font-semibold text-[#968871] uppercase tracking-wide mb-1 block">Sub-Category</label>
+              <input value={subCategory} onChange={(e) => setSubCategory(e.target.value)} placeholder="e.g., Shampoo, Serum" className={clsx(inputCls, 'w-full')} />
+            </div>
+            <div>
+              <label className="text-xs font-semibold text-[#968871] uppercase tracking-wide mb-1 block">Product Type</label>
+              <select value={type} onChange={(e) => setType(e.target.value)} className={clsx(inputCls, 'w-full')}>
+                <option value="">Select…</option>
+                {CATALOG_PRODUCT_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
+              </select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-3 gap-2">
+            <div>
+              <label className="text-xs font-semibold text-[#968871] uppercase tracking-wide mb-1 block">Status</label>
+              <select value={status} onChange={(e) => setStatus(e.target.value)} className={clsx(inputCls, 'w-full')}>
+                {CATALOG_STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="text-xs font-semibold text-[#968871] uppercase tracking-wide mb-1 block">Base Unit</label>
+              <select value={unit} onChange={(e) => setUnit(e.target.value)} className={clsx(inputCls, 'w-full')}>
+                {CATALOG_UNITS.map((u) => <option key={u} value={u}>{u}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="text-xs font-semibold text-[#968871] uppercase tracking-wide mb-1 block">Ref Weight/Volume</label>
+              <input type="number" value={weight} onChange={(e) => setWeight(e.target.value)} placeholder="e.g., 200" className={clsx(inputCls, 'w-full')} />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-3 gap-2">
+            <div>
+              <label className="text-xs font-semibold text-[#968871] uppercase tracking-wide mb-1 block">GST Rate</label>
+              <select value={gstRate} onChange={(e) => setGstRate(Number(e.target.value))} className={clsx(inputCls, 'w-full')}>
+                {CATALOG_GST_RATES.map((r) => <option key={r} value={r}>{r}%</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="text-xs font-semibold text-[#968871] uppercase tracking-wide mb-1 block">HSN Code</label>
+              <input value={hsnCode} onChange={(e) => setHsnCode(e.target.value)} placeholder="e.g., 3305" className={clsx(inputCls, 'w-full')} />
+            </div>
+            <div>
+              <label className="text-xs font-semibold text-[#968871] uppercase tracking-wide mb-1 block">Shelf Life (months)</label>
+              <input type="number" value={shelfLife} onChange={(e) => setShelfLife(e.target.value)} placeholder="e.g., 36" className={clsx(inputCls, 'w-full')} />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-3 gap-2 items-start">
+            <div className="col-span-2">
+              <label className="text-xs font-semibold text-[#968871] uppercase tracking-wide mb-1 block">Description</label>
+              <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={2} placeholder="Product description, key claims, benefits…" className={clsx(inputCls, 'w-full')} />
+            </div>
+            <div>
+              <label className="text-xs font-semibold text-[#968871] uppercase tracking-wide mb-1 block">Image</label>
+              <label className="w-16 h-16 border-2 border-dashed border-[#d3c9b4] rounded-lg flex items-center justify-center cursor-pointer overflow-hidden hover:border-[#968871] transition-colors bg-white">
+                {imagePreview ? <img src={imagePreview} alt="Product" className="w-full h-full object-cover" /> : <span className="text-[#968871] text-[10px] text-center px-1">📷 Upload</span>}
+                <input type="file" accept="image/*" className="hidden" onChange={onImageChange} />
+              </label>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-3 gap-2">
+            <div>
+              <label className="text-xs font-semibold text-[#968871] uppercase tracking-wide mb-1 block">Storage</label>
+              <input value={storage} onChange={(e) => setStorage(e.target.value)} placeholder="Cool, dry place" className={clsx(inputCls, 'w-full')} />
+            </div>
+            <div>
+              <label className="text-xs font-semibold text-[#968871] uppercase tracking-wide mb-1 block">Certifications</label>
+              <input value={certifications} onChange={(e) => setCertifications(e.target.value)} placeholder="Organic, Cruelty-Free…" className={clsx(inputCls, 'w-full')} />
+            </div>
+            <div>
+              <label className="text-xs font-semibold text-[#968871] uppercase tracking-wide mb-1 block">Barcode</label>
+              <input value={barcode} onChange={(e) => setBarcode(e.target.value)} placeholder="8901234567890" className={clsx(inputCls, 'w-full')} />
+            </div>
+          </div>
+        </div>
+        <div className="flex items-center gap-3 px-5 py-4 border-t border-[#e2dac8] flex-shrink-0">
+          <button type="button" onClick={onClose} className={clsx(outlineBtn, 'flex-1 justify-center')}>Cancel</button>
+          <button
+            onClick={() => {
+              if (!code.trim() || !name.trim() || !category) { toast.error('SKU code, name and category are required'); return; }
+              onSave({
+                code: code.trim(), name: name.trim(), category, subCategory: subCategory.trim() || undefined,
+                type: type || undefined, status, unit, weight: weight ? Number(weight) : undefined,
+                gstRate, hsnCode: hsnCode.trim() || undefined, shelfLife: shelfLife ? Number(shelfLife) : undefined,
+                description: description.trim() || undefined, storage: storage.trim() || undefined,
+                certifications: certifications.trim() || undefined, barcode: barcode.trim() || undefined,
+                image: imagePreview || undefined,
+              });
+            }}
+            disabled={saving}
+            className={clsx(accentBtn, 'flex-1 justify-center')}
+          >
+            {saving ? 'Creating…' : '💾 Create in Catalog'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // "New Formula" popup — mirrors the reference's formulaModal. The reference's Type
 // (Standard/Custom) and Customer ID fields don't apply here: this tab only ever creates
 // formulas scoped to the customer whose window is already open, i.e. always "Custom" for an
@@ -349,9 +514,6 @@ function NewSampleModal({ formulas, isPaid, saving, onClose, onSave, onGoToPayme
     const versions = (f?.versions || []).filter((v) => ['Draft', 'In Testing'].includes(v.status));
     return versions.length ? String(versions[versions.length - 1].version) : '';
   });
-  const [productId, setProductId] = useState('');
-  const [notes, setNotes] = useState('');
-
   const formula = formulas.find((f) => f.formulaId === formulaId);
   const openVersions = (formula?.versions || []).filter((v) => ['Draft', 'In Testing'].includes(v.status));
 
@@ -396,21 +558,13 @@ function NewSampleModal({ formulas, isPaid, saving, onClose, onSave, onGoToPayme
                 : openVersions.map((v) => <option key={v.version} value={v.version}>V{v.version} — {v.status}</option>)}
             </select>
           </div>
-          <div>
-            <label className="text-xs font-semibold text-[#968871] uppercase tracking-wide mb-1 block">Linked Product <span className="font-normal normal-case">(optional)</span></label>
-            <input value={productId} onChange={(e) => setProductId(e.target.value)} placeholder="e.g., FG-SC-001" className={clsx(inputCls, 'w-full')} />
-          </div>
-          <div>
-            <label className="text-xs font-semibold text-[#968871] uppercase tracking-wide mb-1 block">Lab Notes</label>
-            <input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="e.g., 100g lab batch for panel test" className={clsx(inputCls, 'w-full')} />
-          </div>
           <div className="flex gap-3 pt-1">
             <button type="button" onClick={onClose} className={clsx(outlineBtn, 'flex-1 justify-center')}>Cancel</button>
             <button
               onClick={() => {
                 if (!isPaid) { toast.error("🔒 Sampling is locked — confirm this customer's R&D/sampling payment in the Payments tab first"); onGoToPayments(); return; }
                 if (!formulaId || !versionNo) { toast.error('Select a formula and version'); return; }
-                onSave({ formulaId, formulaVersionNo: Number(versionNo), productId: productId.trim() || undefined, notes: notes.trim() || undefined, chainedFrom: chainedFrom || undefined });
+                onSave({ formulaId, formulaVersionNo: Number(versionNo), chainedFrom: chainedFrom || undefined });
               }}
               disabled={saving}
               className={clsx(accentBtn, 'flex-1 justify-center')}
@@ -472,81 +626,30 @@ function QuotePriceModal({ product, saving, onClose, onSave }) {
 // per-version Archive), a "Clone to V(n+1)" action, Ref Weight/Unit + Change Note meta fields,
 // and an ingredient table with no per-row QC/HSN expand panel (that lives in Product Catalog's
 // own Formulation tab, not here).
-function FormulaEditorModal({ formula, samples, rawMaterials, saving, onClose, onSaveVersion, onArchiveVersion, onCloneVersion }) {
+// Read-only viewer — editing a formula's ingredients/versions/R&D docs happens in Product
+// Catalog now; this modal exists only to inspect what's already on the lead's custom formula.
+function FormulaEditorModal({ formula, samples, rawMaterials, onClose }) {
   const versions = formula.versions || [];
   const [selectedVersion, setSelectedVersion] = useState(formula.currentVersion);
-  const versionsLenRef = useRef(versions.length);
-
-  useEffect(() => {
-    if (versions.length !== versionsLenRef.current) {
-      versionsLenRef.current = versions.length;
-      setSelectedVersion(formula.currentVersion);
-    }
-  }, [versions.length, formula.currentVersion]);
 
   const versionObj = versions.find((v) => v.version === selectedVersion) || versions[versions.length - 1];
-  const locked = versionObj && (versionObj.status === 'Accepted' || versionObj.status === 'Archived');
+  const refWeight = Number(formula.refWeight) || 100;
+  const rows = (versionObj?.rows || []).map((r) => ({ ...r, percent: refWeight ? (((Number(r.quantity) || 0) / refWeight) * 100).toFixed(2) : '', conv: r.conv ?? 1 }));
 
-  const [rows, setRows] = useState([]);
-  const [refWeight, setRefWeight] = useState(formula.refWeight || 100);
-  const [refUnit, setRefUnit] = useState(formula.refUnit || 'g');
-  const [changeNote, setChangeNote] = useState('');
-  const [procedure, setProcedure] = useState('');
-  const [showAddSearch, setShowAddSearch] = useState(false);
-  const [addSearch, setAddSearch] = useState('');
-
-  useEffect(() => {
-    if (!versionObj) return;
-    const rw = formula.refWeight || 100;
-    setRows((versionObj.rows || []).map((r) => ({ ...r, percent: rw ? (((Number(r.quantity) || 0) / rw) * 100).toFixed(2) : '', conv: r.conv ?? 1 })));
-    setRefWeight(rw);
-    setRefUnit(formula.refUnit || 'g');
-    setChangeNote(versionObj.changeNote || '');
-    setProcedure(versionObj.procedure || '');
-    setShowAddSearch(false);
-    setAddSearch('');
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedVersion, formula.formulaId]);
-
-  function updateRow(i, patch) { setRows((rs) => rs.map((r, ri) => (ri === i ? { ...r, ...patch } : r))); }
-  function removeRow(i) { setRows((rs) => rs.filter((_, ri) => ri !== i)); }
-  function onPercentChange(i, val) {
-    const conv = Number(rows[i]?.conv) || 1;
-    const qty = ((Number(val) || 0) / 100) * (Number(refWeight) || 0) * conv;
-    updateRow(i, { percent: val, quantity: qty.toFixed(3) });
-  }
-  function onConvChange(i, val) {
-    const percent = Number(rows[i]?.percent) || 0;
-    const qty = (percent / 100) * (Number(refWeight) || 0) * (Number(val) || 1);
-    updateRow(i, { conv: val, quantity: qty.toFixed(3) });
-  }
-  function addRow(m) {
-    setRows((rs) => [...rs, { rawMaterialId: m._id, name: m.name, quantity: 0, percent: '', conv: 1, phase: '', notes: '', unit: m.unit || 'g', costPerUnit: m.costPrice || 0 }]);
-    setAddSearch('');
-  }
-
-  const addMatches = addSearch ? (rawMaterials || []).filter((m) => (m.name || '').toLowerCase().includes(addSearch.toLowerCase())) : [];
   const totalPct = rows.reduce((s, r) => s + (Number(r.percent) || 0), 0);
   const totalQty = rows.reduce((s, r) => s + (Number(r.quantity) || 0), 0);
   const totalAmount = rows.reduce((s, r) => s + (Number(r.quantity) || 0) * (Number(r.costPerUnit) || 0), 0);
-  const costPerUnit = Number(refWeight) > 0 ? totalAmount / Number(refWeight) : 0;
-  const pctWarning = totalPct > 100
-    ? { cls: PILL.danger, text: `⚠ Total percentage exceeds 100% (${totalPct.toFixed(2)}%) — check composition before saving.` }
-    : (totalPct > 0 && totalPct < 100)
-      ? { cls: PILL.warning, text: `ℹ Total percentage is ${totalPct.toFixed(2)}% (target 100%).` }
-      : null;
+  const costPerUnit = refWeight > 0 ? totalAmount / refWeight : 0;
 
   function matFor(rawMaterialId) { return (rawMaterials || []).find((m) => m._id === rawMaterialId) || null; }
   function samplesForVersion(v) { return (samples || []).filter((s) => s.formulaId === formula.formulaId && s.formulaVersionNo === v); }
-
-  const nextNo = Math.max(0, ...versions.map((v) => v.version)) + 1;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
       <div className="bg-[#f7f3ea] rounded-2xl shadow-2xl w-full max-w-6xl h-[90vh] flex flex-col" style={bodyFont} onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between px-5 py-4 border-b border-[#d3c9b4] flex-shrink-0">
           <h2 className="text-base font-bold text-[#2e241b]" style={displayFont}>
-            🧬 {formula.formulaId} — {formula.name} · V{selectedVersion}
+            🧬 {formula.formulaId} — {formula.name} · V{selectedVersion} <span className="text-xs font-normal text-[#968871]">(view only — edit in Product Catalog)</span>
           </h2>
           <button onClick={onClose} className="text-[#968871] hover:text-[#2e241b] text-xl leading-none">&times;</button>
         </div>
@@ -556,7 +659,6 @@ function FormulaEditorModal({ formula, samples, rawMaterials, saving, onClose, o
           <div className="w-64 flex-shrink-0 border-r border-[#d3c9b4] p-3 overflow-y-auto space-y-2">
             <p className="text-[10px] font-bold text-[#968871] uppercase tracking-wide px-1">Versions</p>
             {[...versions].sort((a, b) => a.version - b.version).map((v) => {
-              const canArchive = ['Draft', 'In Testing'].includes(v.status) && v.version !== formula.currentVersion;
               const linked = samplesForVersion(v.version);
               return (
                 <div key={v.version} onClick={() => setSelectedVersion(v.version)}
@@ -574,39 +676,22 @@ function FormulaEditorModal({ formula, samples, rawMaterials, saving, onClose, o
                       {linked.map((s) => <div key={s.sampleId} className="text-[10px] text-[#6d5f4c]">🧪 {s.sampleId} — {s.status}</div>)}
                     </div>
                   )}
-                  {canArchive && (
-                    <button onClick={(e) => { e.stopPropagation(); onArchiveVersion(v.version); }} className="mt-1.5 text-[10px] font-semibold text-[#8c3a30] hover:opacity-70">🗄 Archive</button>
-                  )}
                 </div>
               );
             })}
-            <button
-              onClick={() => onCloneVersion({ rows: versionObj?.rows || [], refUnit: formula.refUnit, procedure: versionObj?.procedure, changeNote: `Cloned from V${selectedVersion}` })}
-              disabled={saving}
-              className="w-full text-xs px-3 py-2 rounded-lg border border-[#d3c9b4] text-[#4a3a29] font-semibold hover:bg-[#e7dfce] disabled:opacity-50 transition-colors">
-              ➕ Clone to V{nextNo}
-            </button>
           </div>
 
-          {/* Editor main */}
+          {/* Viewer main */}
           <div className="flex-1 min-w-0 p-4 overflow-y-auto space-y-3">
-            {locked && (
-              <div className={clsx('px-3 py-2 rounded-lg text-xs font-semibold', versionObj.status === 'Accepted' ? PILL.success : PILL.gray)}>
-                {versionObj.status === 'Accepted' ? '🔒 LOCKED — this version is Accepted. Use "Clone to V(n+1)" to iterate.' : '🗄 ARCHIVED — read-only historical version. Use "Clone to V(n+1)" to iterate.'}
-              </div>
-            )}
-
             <div className="grid grid-cols-4 gap-3">
               <div><label className="text-[10px] text-[#968871]">Ref Weight</label>
-                <input type="number" min="0" disabled={locked} value={refWeight} onChange={(e) => setRefWeight(e.target.value)} className={clsx(inputCls, 'w-full disabled:opacity-50')} />
+                <p className="text-sm text-[#2e241b] px-3 py-2 rounded-[10px] bg-[#e7dfce]">{refWeight}</p>
               </div>
               <div><label className="text-[10px] text-[#968871]">Ref Unit</label>
-                <select disabled={locked} value={refUnit} onChange={(e) => setRefUnit(e.target.value)} className={clsx(inputCls, 'w-full disabled:opacity-50')}>
-                  <option value="g">g</option><option value="kg">kg</option><option value="ml">ml</option><option value="L">L</option>
-                </select>
+                <p className="text-sm text-[#2e241b] px-3 py-2 rounded-[10px] bg-[#e7dfce]">{formula.refUnit || 'g'}</p>
               </div>
               <div className="col-span-2"><label className="text-[10px] text-[#968871]">Change Note</label>
-                <input disabled={locked} value={changeNote} onChange={(e) => setChangeNote(e.target.value)} placeholder="e.g., Reduced tack, added ferulic 0.5%" className={clsx(inputCls, 'w-full disabled:opacity-50')} />
+                <p className="text-sm text-[#2e241b] px-3 py-2 rounded-[10px] bg-[#e7dfce] truncate">{versionObj?.changeNote || '—'}</p>
               </div>
             </div>
 
@@ -618,7 +703,6 @@ function FormulaEditorModal({ formula, samples, rawMaterials, saving, onClose, o
                     <th className="px-2 py-2">%</th><th className="px-2 py-2">Conv</th><th className="px-2 py-2">Unit</th>
                     <th className="px-2 py-2">Phase</th><th className="px-2 py-2">Notes</th>
                     <th className="px-2 py-2">Unit Price ₹</th><th className="px-2 py-2">Amount ₹</th>
-                    {!locked && <th className="px-2 py-2"></th>}
                   </tr>
                 </thead>
                 <tbody>
@@ -630,89 +714,58 @@ function FormulaEditorModal({ formula, samples, rawMaterials, saving, onClose, o
                         <td className="px-2 py-1.5 text-[#968871]">{i + 1}</td>
                         <td className="px-2 py-1.5 font-mono text-[10px] text-[#968871]">{mat?.sku || mat?.code || '—'}</td>
                         <td className="px-3 py-1.5 text-[#2e241b]">{r.name}</td>
-                        <td className="px-2 py-1.5">
-                          <input type="number" disabled={locked} value={r.percent ?? ''} placeholder="%" onChange={(e) => onPercentChange(i, e.target.value)}
-                            className="w-14 px-1.5 py-1 rounded border border-[#d3c9b4] bg-white disabled:opacity-50" />
-                        </td>
-                        <td className="px-2 py-1.5">
-                          <input type="number" step="0.01" disabled={locked} value={r.conv ?? 1} onChange={(e) => onConvChange(i, e.target.value)}
-                            className="w-14 px-1.5 py-1 rounded border border-[#d3c9b4] bg-white disabled:opacity-50" />
-                        </td>
+                        <td className="px-2 py-1.5 text-[#2e241b]">{r.percent}%</td>
+                        <td className="px-2 py-1.5 text-[#2e241b]">{r.conv}</td>
                         <td className="px-2 py-1.5 text-[#968871]">{r.unit}</td>
-                        <td className="px-2 py-1.5">
-                          <input disabled={locked} value={r.phase || ''} placeholder="A/B/C" onChange={(e) => updateRow(i, { phase: e.target.value })}
-                            className="w-14 px-1.5 py-1 rounded border border-[#d3c9b4] bg-white disabled:opacity-50" />
-                        </td>
-                        <td className="px-2 py-1.5">
-                          <input disabled={locked} value={r.notes || ''} placeholder="Notes" onChange={(e) => updateRow(i, { notes: e.target.value })}
-                            className="w-20 px-1.5 py-1 rounded border border-[#d3c9b4] bg-white disabled:opacity-50" />
-                        </td>
-                        <td className="px-2 py-1.5">
-                          <input type="number" disabled={locked} value={r.costPerUnit || 0} onChange={(e) => updateRow(i, { costPerUnit: e.target.value })}
-                            className="w-16 px-1.5 py-1 rounded border border-[#d3c9b4] bg-white disabled:opacity-50" />
-                        </td>
+                        <td className="px-2 py-1.5 text-[#2e241b]">{r.phase || '—'}</td>
+                        <td className="px-2 py-1.5 text-[#2e241b]">{r.notes || '—'}</td>
+                        <td className="px-2 py-1.5 text-[#2e241b]">₹{(Number(r.costPerUnit) || 0).toFixed(2)}</td>
                         <td className="px-2 py-1.5 text-[#33526b] font-mono">₹{amount.toFixed(2)}</td>
-                        {!locked && <td className="px-2 py-1.5"><button type="button" onClick={() => removeRow(i)} className="text-[#8c3a30] hover:opacity-70">✕</button></td>}
                       </tr>
                     );
                   })}
-                  {rows.length === 0 && <tr><td colSpan={locked ? 10 : 11} className="px-3 py-6 text-center text-[#968871]">No ingredients yet.</td></tr>}
+                  {rows.length === 0 && <tr><td colSpan={10} className="px-3 py-6 text-center text-[#968871]">No ingredients yet.</td></tr>}
                 </tbody>
               </table>
             </div>
 
-            {!locked && (
-              <div>
-                <button type="button" onClick={() => setShowAddSearch((v) => !v)} className={outlineBtn}>➕ Add Ingredient Row</button>
-                {showAddSearch && (
-                  <div className="mt-1.5">
-                    <input value={addSearch} onChange={(e) => setAddSearch(e.target.value)} placeholder="Search raw materials to add…" autoFocus className={clsx(inputCls, 'w-full')} />
-                    <div className="mt-1 rounded-[10px] border border-[#d3c9b4] bg-white max-h-32 overflow-y-auto">
-                      {addMatches.length === 0 && <div className="px-3 py-2 text-xs text-[#968871]">No raw material found.</div>}
-                      {addMatches.slice(0, 8).map((m) => (
-                        <button key={m._id} type="button" onClick={() => addRow(m)} className="w-full text-left px-3 py-2 text-xs hover:bg-[#e7dfce] flex justify-between">
-                          <span className="text-[#2e241b]">{m.name}</span>
-                          <span className="text-[#968871]">₹{m.costPrice || 0}/{m.unit}</span>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {pctWarning && <div className={clsx('px-3 py-2 rounded-lg text-xs font-semibold', pctWarning.cls)}>{pctWarning.text}</div>}
-
             <div className="grid grid-cols-4 gap-3 bg-[#2e241b] text-[#f0eadd] rounded-2xl px-5 py-3">
               <div><p className="text-[10px] text-[#c9bfae]">Total %</p><p className="text-sm font-bold">{totalPct.toFixed(2)}%</p></div>
-              <div><p className="text-[10px] text-[#c9bfae]">Total Qty</p><p className="text-sm font-bold">{totalQty.toFixed(2)} {refUnit}</p></div>
+              <div><p className="text-[10px] text-[#c9bfae]">Total Qty</p><p className="text-sm font-bold">{totalQty.toFixed(2)} {formula.refUnit || 'g'}</p></div>
               <div><p className="text-[10px] text-[#c9bfae]">Batch Amount</p><p className="text-sm font-bold">₹{totalAmount.toFixed(2)}</p></div>
               <div><p className="text-[10px] text-[#c9bfae]">Cost / Unit</p><p className="text-sm font-bold">₹{costPerUnit.toFixed(4)}</p></div>
             </div>
 
             <div>
               <label className="text-[10px] text-[#968871]">Manufacturing Procedure</label>
-              <textarea disabled={locked} value={procedure} onChange={(e) => setProcedure(e.target.value)} rows={4}
-                placeholder="Phase-wise manufacturing procedure, temperatures, mixing times..." className={clsx(inputCls, 'w-full disabled:opacity-50')} />
+              <p className="text-sm text-[#2e241b] whitespace-pre-wrap px-3 py-2 rounded-[10px] bg-[#e7dfce] min-h-[3rem]">{versionObj?.procedure || '—'}</p>
+            </div>
+
+            {/* R&D Documentation — read-only view of research notes + reference files. */}
+            <div className="border-t border-[#d3c9b4] pt-3 space-y-2">
+              <p className="text-xs font-bold text-[#4a3a29]">📝 R&amp;D Documentation</p>
+              <div>
+                <label className="text-[10px] text-[#968871]">Research Notes</label>
+                <p className="text-sm text-[#2e241b] whitespace-pre-wrap px-3 py-2 rounded-[10px] bg-[#e7dfce] min-h-[3rem]">{formula.researchNotes || '—'}</p>
+              </div>
+              <div>
+                <label className="text-[10px] text-[#968871] block mb-1">Reference Files</label>
+                <div className="space-y-1">
+                  {(formula.attachments || []).map((a) => (
+                    <a key={a._id} href={a.url} target="_blank" rel="noreferrer"
+                      className="flex items-center px-2.5 py-1.5 rounded-lg border border-[#d3c9b4] bg-white text-xs text-[#4a3a29] font-semibold hover:underline">
+                      📎 {a.name}
+                    </a>
+                  ))}
+                  {(formula.attachments || []).length === 0 && <p className="text-[11px] text-[#968871]">No files attached.</p>}
+                </div>
+              </div>
             </div>
           </div>
         </div>
 
         <div className="flex items-center justify-end gap-2 px-5 py-3 border-t border-[#d3c9b4] flex-shrink-0">
           <button onClick={onClose} className={outlineBtn}>Close</button>
-          {!locked && (
-            <button
-              onClick={() => onSaveVersion({
-                version: selectedVersion,
-                refUnit, refWeight: Number(refWeight) || 100, procedure: procedure.trim() || undefined, changeNote: changeNote.trim() || undefined,
-                rows: rows.map((r) => ({ rawMaterialId: r.rawMaterialId, name: r.name, quantity: Number(r.quantity) || 0, unit: r.unit, costPerUnit: Number(r.costPerUnit) || 0, phase: r.phase || undefined, notes: r.notes || undefined, conv: Number(r.conv) || 1 })),
-              })}
-              disabled={saving}
-              className={accentBtn}
-            >
-              {saving ? 'Saving…' : '💾 Save Version'}
-            </button>
-          )}
         </div>
       </div>
     </div>
@@ -723,18 +776,13 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab }) {
   const qc = useQueryClient();
   const [tab, setTab] = useState(initialTab || 'Overview');
 
-  // Q&A
+  // Q&A — a lean composer mirroring the reference design: one Question box, Asked Via, Topic,
+  // an optional catalog product link, and an optional Answer to log Q&A in one shot.
   const [showRaiseForm, setShowRaiseForm] = useState(false);
-  const [queryTitle, setQueryTitle] = useState('');
   const [queryDesc, setQueryDesc] = useState('');
-  const [queryUrgency, setQueryUrgency] = useState('medium');
+  const [queryAskedVia, setQueryAskedVia] = useState('Phone Call');
   const [queryTopic, setQueryTopic] = useState('General');
-  const [queryContactName, setQueryContactName] = useState('');
-  const [queryContactEmail, setQueryContactEmail] = useState('');
-  const [queryTargetPrice, setQueryTargetPrice] = useState('');
-  const [queryBenchmarkNotes, setQueryBenchmarkNotes] = useState('');
-  const [queryPackagingIntent, setQueryPackagingIntent] = useState('');
-  const [queryInternalNotes, setQueryInternalNotes] = useState('');
+  const [queryAnswerNow, setQueryAnswerNow] = useState('');
   const [queryCatalogSearch, setQueryCatalogSearch] = useState('');
   const [querySelectedCatalogProduct, setQuerySelectedCatalogProduct] = useState(null);
   const [replyDrafts, setReplyDrafts] = useState({});
@@ -749,16 +797,14 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab }) {
   const [productModalOpen, setProductModalOpen] = useState(false);
   const [productModalEditing, setProductModalEditing] = useState(null);
   const [quoteModalFor, setQuoteModalFor] = useState(null);
+  // "🆕 Create Product" from a Q&A query — creates a real Product Catalog entry (unlike the
+  // ProductLinkModal above, which can only search/attach an existing one or a lead-only shadow link).
+  const [quickCreateOpen, setQuickCreateOpen] = useState(false);
 
   // Formulas — a dedicated "New Formula" popup (name + product link only); ingredients are
   // added afterwards in the dedicated Formula Editor modal (editorFormulaId), not inline here.
   const [showFormulaForm, setShowFormulaForm] = useState(false);
   const [editorFormulaId, setEditorFormulaId] = useState(null);
-
-  // Link Formula — one-time copy of a real Product Catalog product's Formulation & Procedure
-  // into a new editable custom formula (not a live sync).
-  const [showLinkFormulaPicker, setShowLinkFormulaPicker] = useState(false);
-  const [linkFormulaSearch, setLinkFormulaSearch] = useState('');
 
   const [showEditKyc, setShowEditKyc] = useState(false);
 
@@ -772,7 +818,7 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab }) {
   const { data: catalogProducts } = useQuery({
     queryKey: ['catalog', 'products', 'all'],
     queryFn: () => api.get('/catalog/products').then((r) => r.data.products || []),
-    enabled: productModalOpen || showMoveModal || showRaiseForm || showLinkFormulaPicker,
+    enabled: productModalOpen || showMoveModal || showRaiseForm || quickCreateOpen,
     staleTime: 5 * 60 * 1000,
   });
   const moveCatalogMatches = moveCatalogSearch
@@ -780,9 +826,6 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab }) {
     : (catalogProducts || []);
   const queryCatalogMatches = queryCatalogSearch
     ? (catalogProducts || []).filter((p) => (p.name || '').toLowerCase().includes(queryCatalogSearch.toLowerCase()) || (p.code || '').toLowerCase().includes(queryCatalogSearch.toLowerCase()))
-    : (catalogProducts || []);
-  const linkFormulaMatches = linkFormulaSearch
-    ? (catalogProducts || []).filter((p) => (p.name || '').toLowerCase().includes(linkFormulaSearch.toLowerCase()) || (p.code || '').toLowerCase().includes(linkFormulaSearch.toLowerCase()))
     : (catalogProducts || []);
 
   const { data: rawMaterials } = useQuery({
@@ -844,8 +887,7 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab }) {
     mutationFn: (body) => api.post(`/crm/leads/${leadId}/query`, body),
     onSuccess: () => {
       toast.success('Query raised');
-      setQueryTitle(''); setQueryDesc(''); setQueryTopic('General'); setQueryContactName(''); setQueryContactEmail('');
-      setQueryTargetPrice(''); setQueryBenchmarkNotes(''); setQueryPackagingIntent(''); setQueryInternalNotes('');
+      setQueryDesc(''); setQueryAskedVia('Phone Call'); setQueryTopic('General'); setQueryAnswerNow('');
       setQueryCatalogSearch(''); setQuerySelectedCatalogProduct(null);
       setShowRaiseForm(false); invalidate();
     },
@@ -885,18 +927,31 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab }) {
   });
 
   const linkProductMutation = useMutation({
-    mutationFn: (body) => api.post(`/crm/leads/${leadId}/products`, body).then((r) => r.data.lead),
-    onSuccess: (updatedLead) => {
+    mutationFn: ({ convertIcon, ...body }) => api.post(`/crm/leads/${leadId}/products`, body).then((r) => r.data.lead),
+    onSuccess: (updatedLead, variables) => {
       toast.success('Product linked');
       setProductModalOpen(false);
       if (qaConvertQueryId) {
         const created = updatedLead.productLinks[updatedLead.productLinks.length - 1];
-        if (created) linkQueryMutation.mutate({ queryId: qaConvertQueryId, productLinkId: created._id, convertedTo: `🔗 ${created.productId}` });
+        if (created) linkQueryMutation.mutate({ queryId: qaConvertQueryId, productLinkId: created._id, convertedTo: `${variables?.convertIcon || '🔗'} ${created.productId}` });
         setQaConvertQueryId(null);
       }
       invalidate();
     },
     onError: (e) => toast.error(e.response?.data?.message || 'Failed to link product'),
+  });
+
+  // Creates a real Product Catalog entry (POST /catalog/products) — not just a lead-local
+  // "shadow" link — then links it to this lead/query via the mutation above so it shows up
+  // both here and in the actual Product Catalog.
+  const createCatalogProductMutation = useMutation({
+    mutationFn: (body) => api.post('/catalog/products', body).then((r) => r.data.product),
+    onSuccess: (created) => {
+      setQuickCreateOpen(false);
+      qc.invalidateQueries({ queryKey: ['catalog'] });
+      linkProductMutation.mutate({ productId: created.code, name: created.name, basis: 'House Formula', catalogProductId: created._id, convertIcon: '🆕' });
+    },
+    onError: (e) => toast.error(e.response?.data?.message || 'Failed to create product'),
   });
 
   const updateProductMutation = useMutation({
@@ -927,37 +982,6 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab }) {
     onError: (e) => toast.error(e.response?.data?.message || 'Failed to create formula'),
   });
 
-  // "Link from Catalog" — fetches the full catalog product (list queries omit formulation/procedure
-  // for payload size), copies its current Formulation & Procedure into a brand-new custom formula
-  // (a one-time copy, same clone-then-diverge pattern as Product Catalog's own versioning), then
-  // opens the Formula Editor modal on V1 so the user can keep refining it for this customer.
-  const linkFormulaMutation = useMutation({
-    mutationFn: async (product) => {
-      const detail = await api.get(`/catalog/products/${product._id}`).then((r) => r.data.product);
-      const mapped = mapCatalogFormulationToRows(detail);
-      const updatedLead = await api.post(`/crm/leads/${leadId}/formulas`, {
-        name: detail.name,
-        productLink: detail.code,
-        catalogProductId: detail._id,
-        refWeight: mapped.refWeight,
-        refUnit: mapped.refUnit,
-        procedure: mapped.procedure || undefined,
-        rows: mapped.rows.length ? mapped.rows.map((r) => ({ rawMaterialId: r.rawMaterialId, name: r.name, quantity: Number(r.quantity) || 0, unit: r.unit, costPerUnit: r.costPerUnit, phase: r.phase || undefined, notes: r.notes || undefined, conv: Number(r.conv) || 1 })) : undefined,
-      }).then((r) => r.data.lead);
-      return { updatedLead, code: detail.code };
-    },
-    onSuccess: ({ updatedLead, code }) => {
-      toast.success(`Loaded formulation from ${code}`);
-      setShowLinkFormulaPicker(false);
-      setLinkFormulaSearch('');
-      const created = updatedLead.customFormulas[updatedLead.customFormulas.length - 1];
-      qc.setQueryData(['crm', 'lead', leadId], (old) => (old ? { ...old, ...updatedLead } : updatedLead));
-      if (created) setEditorFormulaId(created.formulaId);
-      invalidate();
-    },
-    onError: () => toast.error('Failed to load catalog formulation'),
-  });
-
   // Products tab auto-link: when a real catalog SKU is linked there, silently copy its
   // Formulation & Procedure into a new formula too — same mapping as "Link from Catalog"
   // above, but fired from the Products tab so it must NOT touch the Formulas tab's form state.
@@ -977,17 +1001,6 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab }) {
     },
     onSuccess: () => { toast.success('Formula copied from catalog'); invalidate(); },
     onError: () => toast.error('Product linked, but failed to copy its formula'),
-  });
-
-  const updateFormulaMutation = useMutation({
-    mutationFn: ({ formulaId, ...body }) => api.put(`/crm/leads/${leadId}/formulas/${formulaId}`, body),
-    onSuccess: (_data, vars) => {
-      if (vars.bumpVersion) toast.success('Cloned to a new version');
-      else if (vars.status === 'Archived') toast.success('Version archived');
-      else toast.success('Formula version saved');
-      invalidate();
-    },
-    onError: (e) => toast.error(e.response?.data?.message || 'Failed to update formula'),
   });
 
   const createSampleMutation = useMutation({
@@ -1198,17 +1211,20 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab }) {
 
               {showRaiseForm && (
                 <div className="p-3 rounded-[10px] border-[1.5px] border-dashed border-[#d3c9b4] bg-[#e7dfce] space-y-2">
-                  <input value={queryTitle} onChange={(e) => setQueryTitle(e.target.value)} placeholder="Query title" className={clsx(inputCls, 'w-full')} />
-                  <textarea value={queryDesc} onChange={(e) => setQueryDesc(e.target.value)} placeholder="Describe the question…" rows={2} className={clsx(inputCls, 'w-full')} />
+                  <textarea value={queryDesc} onChange={(e) => setQueryDesc(e.target.value)} placeholder="What did the customer ask?" rows={2} className={clsx(inputCls, 'w-full')} />
                   <div className="grid grid-cols-2 gap-2">
-                    <input value={queryContactName} onChange={(e) => setQueryContactName(e.target.value)} placeholder="Contact person name" className={inputCls} />
-                    <input value={queryContactEmail} onChange={(e) => setQueryContactEmail(e.target.value)} placeholder="Contact email" className={inputCls} />
+                    <select value={queryAskedVia} onChange={(e) => setQueryAskedVia(e.target.value)} className={inputCls}>
+                      {QA_VIA.map((v) => <option key={v} value={v}>{v}</option>)}
+                    </select>
+                    <select value={queryTopic} onChange={(e) => setQueryTopic(e.target.value)} className={inputCls}>
+                      {QA_TOPICS.map((t) => <option key={t} value={t}>{t}</option>)}
+                    </select>
                   </div>
                   <div>
                     <input
                       value={querySelectedCatalogProduct ? querySelectedCatalogProduct.name : queryCatalogSearch}
                       onChange={(e) => { setQueryCatalogSearch(e.target.value); setQuerySelectedCatalogProduct(null); }}
-                      placeholder="Link a catalog product (optional)…"
+                      placeholder="Linked product (optional)…"
                       className={clsx(inputCls, 'w-full')}
                     />
                     {queryCatalogSearch && !querySelectedCatalogProduct && (
@@ -1225,42 +1241,24 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab }) {
                       </div>
                     )}
                   </div>
-                  <div className="grid grid-cols-2 gap-2">
-                    <input value={queryTargetPrice} onChange={(e) => setQueryTargetPrice(e.target.value)} type="number" placeholder="Target price (₹/unit)" className={inputCls} />
-                    <input value={queryPackagingIntent} onChange={(e) => setQueryPackagingIntent(e.target.value)} placeholder="Packaging intent" className={inputCls} />
-                  </div>
-                  <textarea value={queryBenchmarkNotes} onChange={(e) => setQueryBenchmarkNotes(e.target.value)} placeholder="Benchmark / reference notes…" rows={2} className={clsx(inputCls, 'w-full')} />
-                  <textarea value={queryInternalNotes} onChange={(e) => setQueryInternalNotes(e.target.value)} placeholder="Internal notes (not shared with customer)…" rows={2} className={clsx(inputCls, 'w-full')} />
+                  <textarea value={queryAnswerNow} onChange={(e) => setQueryAnswerNow(e.target.value)} placeholder="Answer (optional — leave blank to keep it Open)…" rows={2} className={clsx(inputCls, 'w-full')} />
                   <div className="flex items-center gap-2">
-                    <select value={queryUrgency} onChange={(e) => setQueryUrgency(e.target.value)} className={inputCls}>
-                      <option value="low">Low</option>
-                      <option value="medium">Medium</option>
-                      <option value="high">High</option>
-                    </select>
-                    <select value={queryTopic} onChange={(e) => setQueryTopic(e.target.value)} className={inputCls}>
-                      {QA_TOPICS.map((t) => <option key={t} value={t}>{t}</option>)}
-                    </select>
+                    <button type="button" onClick={() => setShowRaiseForm(false)} className={outlineBtn}>Cancel</button>
                     <button
                       onClick={() => {
-                        if (!queryTitle.trim() || !queryDesc.trim()) { toast.error('Title and description required'); return; }
+                        if (!queryDesc.trim()) { toast.error('Question is required'); return; }
                         raiseMutation.mutate({
-                          title: queryTitle.trim(),
                           description: queryDesc.trim(),
-                          urgency: queryUrgency,
+                          askedVia: queryAskedVia,
                           topic: queryTopic,
-                          contactName: queryContactName.trim() || undefined,
-                          contactEmail: queryContactEmail.trim() || undefined,
                           linkedCatalogProductId: querySelectedCatalogProduct?._id,
-                          targetPrice: queryTargetPrice ? Number(queryTargetPrice) : undefined,
-                          benchmarkNotes: queryBenchmarkNotes.trim() || undefined,
-                          packagingIntent: queryPackagingIntent.trim() || undefined,
-                          internalNotes: queryInternalNotes.trim() || undefined,
+                          answer: queryAnswerNow.trim() || undefined,
                         });
                       }}
                       disabled={raiseMutation.isPending}
                       className={clsx(accentBtn, 'ml-auto')}
                     >
-                      {raiseMutation.isPending ? 'Raising…' : 'Submit'}
+                      {raiseMutation.isPending ? 'Saving…' : '💾 Save Query'}
                     </button>
                   </div>
                 </div>
@@ -1284,11 +1282,11 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab }) {
                       <span className={clsx('px-2 py-0.5 rounded-full font-semibold', qaTopicPillCls(q.topic || 'General'))}>{q.topic || 'General'}</span>
                       {q.convertedTo && <span className="px-2 py-0.5 rounded-full font-semibold bg-[#e7dfce] text-[#4a3a29]">→ {q.convertedTo}</span>}
                       <span className="text-[#968871]">{format(new Date(q.createdAt), 'dd MMM, hh:mm a')}</span>
-                      <span className="text-[#968871]">· {q.urgency} urgency</span>
+                      {q.askedVia && <span className="text-[#968871]">· 📞 {q.askedVia}</span>}
                       <span className="flex-1" />
                       {isOpen && (
                         <div className="flex items-center gap-1">
-                          <button title="🆕 Create Product — make a new product for this query" onClick={() => { setQaConvertQueryId(q._id); setTab('Products'); setProductModalEditing(null); setProductModalOpen(true); }} className="w-6 h-6 rounded-full hover:bg-[#e7dfce] flex items-center justify-center">🆕</button>
+                          <button title="🆕 Create Product — add a new Product Catalog entry for this query" onClick={() => { setQaConvertQueryId(q._id); setQuickCreateOpen(true); }} className="w-6 h-6 rounded-full hover:bg-[#e7dfce] flex items-center justify-center">🆕</button>
                           <button title="🔗 Connect Existing — attach a catalog product to this query" onClick={() => { setQaConvertQueryId(q._id); setTab('Products'); setProductModalEditing(null); setProductModalOpen(true); }} className="w-6 h-6 rounded-full hover:bg-[#e7dfce] flex items-center justify-center">🔗</button>
                           <button
                             title={hasProduct ? '🧪 Create Sample' : '🔒 Create Sample — attach a product first (🆕 or 🔗)'}
@@ -1310,7 +1308,7 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab }) {
                       )}
                     </div>
                     <p className="text-sm font-semibold text-[#2e241b]">{q.title}</p>
-                    <p className="text-sm text-[#6d5f4c]">{q.description}</p>
+                    {q.description && q.description !== q.title && <p className="text-sm text-[#6d5f4c]">{q.description}</p>}
                     {(q.contactName || q.contactEmail || q.targetPrice || q.benchmarkNotes || q.packagingIntent || q.internalNotes) && (
                       <div className="text-[11px] text-[#6d5f4c] bg-[#e7dfce] rounded-lg p-2 space-y-0.5">
                         {q.contactName && <p>Contact: <span className="text-[#2e241b] font-medium">{q.contactName}</span>{q.contactEmail && ` · ${q.contactEmail}`}</p>}
@@ -1355,7 +1353,7 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab }) {
               <QaConversationSummary
                 queries={queries}
                 leadName={lead?.name || 'This customer'}
-                onCreateProduct={() => { setTab('Products'); setProductModalEditing(null); setProductModalOpen(true); }}
+                onCreateProduct={() => { setQaConvertQueryId(null); setQuickCreateOpen(true); }}
                 onMakeSample={() => { setTab('Samples'); setShowSampleForm(true); }}
                 onStartFormula={() => { setTab('Formulas'); setShowFormulaForm(true); }}
               />
@@ -1420,35 +1418,8 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab }) {
             <div className="space-y-3">
               <div className="flex items-center justify-between gap-2">
                 <p className="text-xs font-semibold text-[#968871] uppercase tracking-wide">{formulas.length} custom formula(s)</p>
-                <div className="flex items-center gap-2">
-                  <button onClick={() => { setShowLinkFormulaPicker((v) => !v); setShowFormulaForm(false); }} className={outlineBtn}>🔗 Link from Catalog</button>
-                  <button onClick={() => { setShowFormulaForm((v) => !v); setShowLinkFormulaPicker(false); }} className={outlineBtn}>+ New Custom Formula</button>
-                </div>
+                <p className="text-[11px] text-[#968871]">View only — create/edit formulas in Product Catalog.</p>
               </div>
-
-              {showLinkFormulaPicker && (
-                <div className="p-3 rounded-[10px] border-[1.5px] border-dashed border-[#d3c9b4] bg-[#e7dfce] space-y-2">
-                  <input
-                    value={linkFormulaSearch}
-                    onChange={(e) => setLinkFormulaSearch(e.target.value)}
-                    placeholder="Search Product Catalog…"
-                    className={clsx(inputCls, 'w-full')}
-                  />
-                  <div className="rounded-[10px] border border-[#d3c9b4] bg-[#f0eadd] max-h-40 overflow-y-auto">
-                    {linkFormulaMatches.length === 0 && <div className="px-3 py-2 text-xs text-[#968871]">No catalog product found.</div>}
-                    {linkFormulaMatches.slice(0, 8).map((p) => (
-                      <button key={p._id} type="button"
-                        onClick={() => linkFormulaMutation.mutate(p)}
-                        disabled={linkFormulaMutation.isPending}
-                        className="w-full text-left px-3 py-2 text-xs hover:bg-[#e7dfce] flex justify-between disabled:opacity-50">
-                        <span className="text-[#2e241b]">{p.name}</span>
-                        <span className="text-[#968871] font-mono">{p.code}</span>
-                      </button>
-                    ))}
-                  </div>
-                  <p className="text-[11px] text-[#968871]">Copies the catalog product's current Formulation &amp; Procedure into a new editable custom formula (V1), then opens the Formula Editor — a one-time copy, won't stay synced if the catalog formula changes later.</p>
-                </div>
-              )}
 
               {formulas.length === 0 && <p className="text-sm text-[#968871] text-center py-6">No custom formulas yet.</p>}
 
@@ -1481,7 +1452,7 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab }) {
                               {latest?.rows?.length > 0 && <p className="text-[10px] text-[#968871]">{latest.rows.length} ingredient(s)</p>}
                             </td>
                             <td className="px-3 py-2 text-right">
-                              <button onClick={(e) => { e.stopPropagation(); setEditorFormulaId(f.formulaId); }} className={textLink}>✏️ Open Editor</button>
+                              <button onClick={(e) => { e.stopPropagation(); setEditorFormulaId(f.formulaId); }} className={textLink}>👁️ View</button>
                             </td>
                           </tr>
                         );
@@ -1497,11 +1468,7 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab }) {
                   formula={formulas.find((f) => f.formulaId === editorFormulaId)}
                   samples={samples}
                   rawMaterials={rawMaterials}
-                  saving={updateFormulaMutation.isPending}
                   onClose={() => setEditorFormulaId(null)}
-                  onSaveVersion={(payload) => updateFormulaMutation.mutate({ formulaId: editorFormulaId, ...payload })}
-                  onArchiveVersion={(version) => updateFormulaMutation.mutate({ formulaId: editorFormulaId, version, status: 'Archived' })}
-                  onCloneVersion={(payload) => updateFormulaMutation.mutate({ formulaId: editorFormulaId, bumpVersion: true, ...payload })}
                 />
               )}
             </div>
@@ -1822,6 +1789,15 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab }) {
               });
             }
           }}
+        />
+      )}
+
+      {quickCreateOpen && (
+        <CreateCatalogProductModal
+          nextCode={`FG-${String((catalogProducts?.length || 0) + 1).padStart(4, '0')}`}
+          saving={createCatalogProductMutation.isPending}
+          onClose={() => { setQuickCreateOpen(false); setQaConvertQueryId(null); }}
+          onSave={(payload) => createCatalogProductMutation.mutate(payload)}
         />
       )}
 

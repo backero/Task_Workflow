@@ -175,6 +175,10 @@ exports.removeAttachment = asyncHandler(async (req, res) => {
 // Creates a new draft version cloned from the currently active (locked) formulation.
 // Lazily seeds a "V1" locked version from the product's current `formulation` field
 // the first time versioning is used, so pre-existing products need no migration.
+// POST /api/catalog/products/:id/formulation-versions  (body: { changeNotes?, cloneFrom? })
+// cloneFrom: a formulationVersions _id to clone rows/R&D docs from, or omitted to clone the
+// live `formulation` + product-level rndDoc/researchGuide (the reference design's single
+// "Clone to V(n+1)" action, which always clones whatever is currently selected/active).
 exports.createFormulationVersion = asyncHandler(async (req, res) => {
   const p = await CatalogProduct.findOne({ _id: req.params.id, organizationId: req.user.organizationId });
   if (!p) return sendError(res, 'Product not found', 404);
@@ -187,31 +191,37 @@ exports.createFormulationVersion = asyncHandler(async (req, res) => {
       refUnit: p.formulation?.refUnit || 'ml',
       rows: p.formulation?.rows || [],
       changeNotes: 'Initial formulation',
+      rndDoc: { text: p.rndDoc?.text || '', attachments: p.rndDoc?.attachments || [] },
+      researchGuide: { text: p.researchGuide?.text || '' },
       createdBy: req.user._id,
       activatedAt: p.createdAt || new Date(),
     });
   }
 
-  // Clone from the live `formulation` field, not the stored "locked" version snapshot —
-  // the main Formulation tab saves directly to `p.formulation` without touching the
-  // formulationVersions array, so a locked version's stored rows go stale the moment
-  // the active formulation is edited again. `p.formulation` is always current.
+  const { cloneFrom } = req.body;
+  const source = cloneFrom ? p.formulationVersions.id(cloneFrom) : null;
+  const sourceLabel = source ? source.versionLabel : 'Live';
+
   const label = `V${p.formulationVersions.length + 1}`;
   p.formulationVersions.push({
     versionLabel: label,
     status: 'draft',
-    refWeight: p.formulation?.refWeight ?? 100,
-    refUnit: p.formulation?.refUnit ?? 'ml',
-    rows: p.formulation?.rows || [],
-    changeNotes: req.body.changeNotes || '',
+    refWeight: source ? source.refWeight : (p.formulation?.refWeight ?? 100),
+    refUnit: source ? source.refUnit : (p.formulation?.refUnit ?? 'ml'),
+    rows: source ? source.rows : (p.formulation?.rows || []),
+    rndDoc: source
+      ? { text: source.rndDoc?.text || '', attachments: source.rndDoc?.attachments || [] }
+      : { text: p.rndDoc?.text || '', attachments: p.rndDoc?.attachments || [] },
+    researchGuide: source ? { text: source.researchGuide?.text || '' } : { text: p.researchGuide?.text || '' },
+    changeNotes: req.body.changeNotes || `Cloned from ${sourceLabel}`,
     createdBy: req.user._id,
   });
-  p.history.push({ action: 'Formulation version created', detail: label });
+  p.history.push({ action: 'Formulation version created', detail: `${label} (cloned from ${sourceLabel})` });
   await p.save();
   sendSuccess(res, { product: p }, `${label} created`);
 });
 
-// PUT /api/catalog/products/:id/formulation-versions/:versionId  (body: { rows, refWeight, refUnit, changeNotes, status })
+// PUT /api/catalog/products/:id/formulation-versions/:versionId  (body: { rows, refWeight, refUnit, changeNotes, status, rndDoc, researchGuide })
 // Editing is only allowed while a version is draft/testing — locked/archived versions are frozen history.
 exports.updateFormulationVersion = asyncHandler(async (req, res) => {
   const p = await CatalogProduct.findOne({ _id: req.params.id, organizationId: req.user.organizationId });
@@ -220,12 +230,14 @@ exports.updateFormulationVersion = asyncHandler(async (req, res) => {
   if (!version) return sendError(res, 'Version not found', 404);
   if (['locked', 'archived'].includes(version.status)) return sendError(res, 'Cannot edit a locked/archived version', 400);
 
-  const { rows, refWeight, refUnit, changeNotes, status } = req.body;
+  const { rows, refWeight, refUnit, changeNotes, status, rndDoc, researchGuide } = req.body;
   if (rows) version.rows = rows;
   if (refWeight !== undefined) version.refWeight = refWeight;
   if (refUnit) version.refUnit = refUnit;
   if (changeNotes !== undefined) version.changeNotes = changeNotes;
   if (status && ['draft', 'testing'].includes(status)) version.status = status;
+  if (rndDoc !== undefined) version.rndDoc = { text: rndDoc.text ?? version.rndDoc?.text, attachments: version.rndDoc?.attachments || [] };
+  if (researchGuide !== undefined) version.researchGuide = { text: researchGuide.text ?? version.researchGuide?.text };
   await p.save();
   sendSuccess(res, { product: p }, 'Version updated');
 });
@@ -244,6 +256,8 @@ exports.activateFormulationVersion = asyncHandler(async (req, res) => {
   version.status = 'locked';
   version.activatedAt = new Date();
   p.formulation = { refWeight: version.refWeight, refUnit: version.refUnit, rows: version.rows };
+  if (version.rndDoc) p.rndDoc = { text: version.rndDoc.text, attachments: version.rndDoc.attachments, lastUpdated: new Date() };
+  if (version.researchGuide) p.researchGuide = { text: version.researchGuide.text, lastUpdated: new Date() };
   p.history.push({ action: 'Formulation version activated', detail: version.versionLabel });
   await p.save();
   sendSuccess(res, { product: p }, `${version.versionLabel} activated`);
@@ -259,6 +273,40 @@ exports.deleteFormulationVersion = asyncHandler(async (req, res) => {
   version.deleteOne();
   await p.save();
   sendSuccess(res, { product: p }, 'Version deleted');
+});
+
+// POST /api/catalog/products/:id/formulation-versions/:versionId/rnd-attachment  (multipart: file)
+exports.uploadFormulationVersionRndAttachment = asyncHandler(async (req, res) => {
+  const p = await CatalogProduct.findOne({ _id: req.params.id, organizationId: req.user.organizationId });
+  if (!p) return sendError(res, 'Product not found', 404);
+  const version = p.formulationVersions.id(req.params.versionId);
+  if (!version) return sendError(res, 'Version not found', 404);
+  if (['locked', 'archived'].includes(version.status)) return sendError(res, `${version.versionLabel} is ${version.status} — clone to a new version to attach documents`, 400);
+  if (!req.file) return sendError(res, 'No file uploaded', 400);
+
+  const mime = req.file.mimetype || '';
+  const resourceType = mime.startsWith('video/') || mime.startsWith('audio/') ? 'video' : mime.startsWith('image/') ? 'image' : 'raw';
+  const result = await uploadBuffer(req.file.buffer, { folder: `backero/catalog/${req.user.organizationId}/attachments`, resourceType, filename: req.file.originalname });
+  const attachment = { name: req.file.originalname, url: result.secure_url, type: mime.startsWith('video/') ? 'video' : mime.startsWith('audio/') ? 'audio' : 'document' };
+
+  if (!version.rndDoc) version.rndDoc = { text: '', attachments: [] };
+  version.rndDoc.attachments.push(attachment);
+  p.history.push({ action: 'R&D attachment uploaded', detail: `${version.versionLabel}: ${req.file.originalname}` });
+  await p.save();
+  sendSuccess(res, { product: p }, 'Attachment uploaded');
+});
+
+// DELETE /api/catalog/products/:id/formulation-versions/:versionId/rnd-attachment  (body: { attachmentId })
+exports.removeFormulationVersionRndAttachment = asyncHandler(async (req, res) => {
+  const p = await CatalogProduct.findOne({ _id: req.params.id, organizationId: req.user.organizationId });
+  if (!p) return sendError(res, 'Product not found', 404);
+  const version = p.formulationVersions.id(req.params.versionId);
+  if (!version) return sendError(res, 'Version not found', 404);
+  if (['locked', 'archived'].includes(version.status)) return sendError(res, `${version.versionLabel} is ${version.status} — read-only`, 400);
+
+  version.rndDoc.attachments = (version.rndDoc?.attachments || []).filter((a) => String(a._id) !== String(req.body.attachmentId));
+  await p.save();
+  sendSuccess(res, { product: p }, 'Attachment removed');
 });
 
 // POST /api/catalog/import  — bulk import from localStorage JSON dump

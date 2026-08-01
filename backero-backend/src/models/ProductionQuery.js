@@ -8,6 +8,7 @@ const productionQuerySchema = new mongoose.Schema({
   assignedTo: { type: mongoose.Schema.Types.ObjectId, ref: 'User', index: true },
   title: { type: String, required: true, trim: true },
   description: { type: String, required: true },
+  askedVia: { type: String, enum: ['Phone Call', 'WhatsApp', 'Email', 'In-person', 'Other'], default: 'Phone Call' },
   urgency: { type: String, enum: ['low', 'medium', 'high'], default: 'medium' },
   topic: { type: String, enum: ['General', 'Product', 'Packaging', 'Formula', 'Designing', 'Pricing'], default: 'General' },
   status: { type: String, enum: ['pending', 'in_progress', 'answered', 'closed'], default: 'pending', index: true },

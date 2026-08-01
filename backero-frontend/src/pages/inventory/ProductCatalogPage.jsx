@@ -6,11 +6,11 @@ import { clsx } from 'clsx';
 import QRCode from 'react-qr-code';
 import api from '../../api/axios';
 
-const CATEGORIES = ['Hair Care', 'Skin Care', 'Face Care', 'Body Care', 'Oral Care', "Men's Care", 'Baby Care', 'Sun Care', 'Makeup', 'Fragrance', 'Wellness', 'Professional', 'Other'];
-const PRODUCT_TYPES = ['Shampoo', 'Conditioner', 'Hair Oil', 'Serum', 'Cream', 'Lotion', 'Face Wash', 'Mask', 'Scrub', 'Toner', 'Moisturizer', 'Cleanser', 'Soap', 'Body Wash', 'Sunscreen', 'Lip Balm', 'Deodorant', 'Perfume', 'Other'];
-const UNITS = ['ml', 'g', 'kg', 'L', 'pcs', 'oz'];
-const GST_RATES = [0, 5, 12, 18, 28];
-const STATUSES = ['Active', 'Inactive', 'Draft', 'Archived'];
+export const CATEGORIES = ['Hair Care', 'Skin Care', 'Face Care', 'Body Care', 'Oral Care', "Men's Care", 'Baby Care', 'Sun Care', 'Makeup', 'Fragrance', 'Wellness', 'Professional', 'Other'];
+export const PRODUCT_TYPES = ['Shampoo', 'Conditioner', 'Hair Oil', 'Serum', 'Cream', 'Lotion', 'Face Wash', 'Mask', 'Scrub', 'Toner', 'Moisturizer', 'Cleanser', 'Soap', 'Body Wash', 'Sunscreen', 'Lip Balm', 'Deodorant', 'Perfume', 'Other'];
+export const UNITS = ['ml', 'g', 'kg', 'L', 'pcs', 'oz'];
+export const GST_RATES = [0, 5, 12, 18, 28];
+export const STATUSES = ['Active', 'Inactive', 'Draft', 'Archived'];
 const TABS = ['Overview', 'Formulation & Procedure', 'R&D & Overheads', 'Costing', 'Marketplace', 'QR Code', 'Documents', 'History'];
 
 const ASSUMPTION_FIELDS = [
@@ -257,15 +257,39 @@ export default function ProductCatalogPage() {
   });
 
   const createVersionMutation = useMutation({
-    mutationFn: ({ id, changeNotes }) => api.post(`/catalog/products/${id}/formulation-versions`, { changeNotes }),
-    onSuccess: (_, { id }) => { qc.invalidateQueries({ queryKey: ['catalog-detail', id] }); toast.success('New version created'); },
+    mutationFn: ({ id, changeNotes, cloneFrom }) => api.post(`/catalog/products/${id}/formulation-versions`, { changeNotes, cloneFrom }),
+    onSuccess: (res, { id, onCreated }) => {
+      const p = res?.data?.product;
+      // Write the fresh product (including the just-created version) into the cache
+      // synchronously, in the same tick as onCreated's selection change below — otherwise
+      // BranchedFormulationEditor can select the new version before the invalidated query's
+      // background refetch resolves, and its data-sync effect (keyed on selectedVersionId)
+      // won't re-run once the data does arrive, leaving it stuck on the previous version's rows.
+      if (p) qc.setQueryData(['catalog-detail', id], (old) => (old ? { ...old, product: p } : old));
+      qc.invalidateQueries({ queryKey: ['catalog-detail', id] });
+      toast.success('New version created');
+      const newest = p?.formulationVersions?.[p.formulationVersions.length - 1];
+      if (newest && onCreated) onCreated(newest._id);
+    },
     onError: (e) => toast.error(e?.response?.data?.message || 'Failed to create version'),
   });
 
   const updateVersionMutation = useMutation({
     mutationFn: ({ id, versionId, data }) => api.put(`/catalog/products/${id}/formulation-versions/${versionId}`, data),
-    onSuccess: (_, { id }) => { qc.invalidateQueries({ queryKey: ['catalog-detail', id] }); toast.success('Version saved'); },
+    onSuccess: (_, { id, silent }) => { qc.invalidateQueries({ queryKey: ['catalog-detail', id] }); if (!silent) toast.success('Version saved'); },
     onError: (e) => toast.error(e?.response?.data?.message || 'Failed to save version'),
+  });
+
+  const uploadVersionRndAttachmentMutation = useMutation({
+    mutationFn: ({ id, versionId, file }) => { const fd = new FormData(); fd.append('file', file); return api.post(`/catalog/products/${id}/formulation-versions/${versionId}/rnd-attachment`, fd); },
+    onSuccess: (_, { id }) => { qc.invalidateQueries({ queryKey: ['catalog-detail', id] }); toast.success('Attachment uploaded'); },
+    onError: (e) => toast.error(e?.response?.data?.message || 'Upload failed'),
+  });
+
+  const removeVersionRndAttachmentMutation = useMutation({
+    mutationFn: ({ id, versionId, attachmentId }) => api.delete(`/catalog/products/${id}/formulation-versions/${versionId}/rnd-attachment`, { data: { attachmentId } }),
+    onSuccess: (_, { id }) => { qc.invalidateQueries({ queryKey: ['catalog-detail', id] }); toast.success('Attachment removed'); },
+    onError: (e) => toast.error(e?.response?.data?.message || 'Failed to remove attachment'),
   });
 
   const activateVersionMutation = useMutation({
@@ -705,11 +729,15 @@ export default function ProductCatalogPage() {
               {activeTab === 'Overview' && <BasicInfoTab product={detail} />}
               {activeTab === 'Formulation & Procedure' && <FormulationProcedureTab product={detail} form={form} setForm={setForm} isPending={isPending}
                 onSaveFormulation={() => updateMutation.mutate({ id: detail._id, data: { formulation: { ...form.formulation, rows: withComputedQuantity(form.formulation?.rows, form.formulation?.refWeight) } } })}
-                onSaveProcedure={() => updateMutation.mutate({ id: detail._id, data: { rndDoc: form.rndDoc, researchGuide: form.researchGuide, procedure: form.procedure } })}
+                onSaveRnd={() => updateMutation.mutate({ id: detail._id, data: { rndDoc: form.rndDoc, researchGuide: form.researchGuide } })}
+                onSaveProcedure={() => updateMutation.mutate({ id: detail._id, data: { procedure: form.procedure } })}
                 onAttach={(file, kind) => attachMutation.mutate({ id: detail._id, file, kind })}
                 onRemoveAttach={(kind, attachmentId) => removeAttachMutation.mutate({ id: detail._id, kind, attachmentId })}
+                onSaveVersionRnd={(versionId, data) => updateVersionMutation.mutate({ id: detail._id, versionId, data, silent: true })}
+                onAttachVersionRnd={(versionId, file) => uploadVersionRndAttachmentMutation.mutate({ id: detail._id, versionId, file })}
+                onRemoveAttachVersionRnd={(versionId, attachmentId) => removeVersionRndAttachmentMutation.mutate({ id: detail._id, versionId, attachmentId })}
                 versionActions={{
-                  onCreateVersion: () => createVersionMutation.mutate({ id: detail._id, changeNotes: '' }),
+                  onCreateVersion: (opts) => createVersionMutation.mutate({ id: detail._id, ...opts }),
                   onUpdateVersion: (versionId, data) => updateVersionMutation.mutate({ id: detail._id, versionId, data }),
                   onActivateVersion: (versionId) => activateVersionMutation.mutate({ id: detail._id, versionId }),
                   onDeleteVersion: (versionId) => deleteVersionMutation.mutate({ id: detail._id, versionId }),
@@ -1139,27 +1167,40 @@ function FormulationTab({ product, form, setForm, onSave, isPending }) {
 }
 
 // ─── Formulation & Procedure (merged) ───────────────────────────────────────────
-function FormulationProcedureTab({ product, form, setForm, isPending, onSaveFormulation, onSaveProcedure, onAttach, onRemoveAttach, versionActions }) {
+// Layout mirrors the reference design: a left version sidebar next to the main formulation
+// panel (fv-side/fv-main), instead of a horizontal chip strip stacked above it.
+function FormulationProcedureTab({ product, form, setForm, isPending, onSaveFormulation, onSaveRnd, onSaveProcedure, onAttach, onRemoveAttach, onSaveVersionRnd, onAttachVersionRnd, onRemoveAttachVersionRnd, versionActions }) {
+  const [selectedVersionId, setSelectedVersionId] = useState(null); // null = the live/active formulation
+
   return (
     <div className="space-y-8">
+      {/* R&D Documentation & Research Guide comes first (reference design's doc-panel-first
+          layout) and tracks whichever version is selected below. */}
+      <RndResearchGuidePanel
+        product={product} selectedVersionId={selectedVersionId} form={form} setForm={setForm}
+        onSaveLive={onSaveRnd} onAttachLive={(file) => onAttach(file, 'rndDoc')} onRemoveAttachLive={(id) => onRemoveAttach('rndDoc', id)}
+        onSaveVersionRnd={onSaveVersionRnd} onAttachVersionRnd={onAttachVersionRnd} onRemoveAttachVersionRnd={onRemoveAttachVersionRnd}
+      />
+      <hr className="border-gray-100 dark:border-[#1b2e4a]" />
       <div>
         <p className="text-sm font-bold text-gray-700 dark:text-gray-200 mb-3">🧪 Product Formulation</p>
-        <FormulationVersionsPanel product={product} versionActions={versionActions} />
-        <FormulationTab product={product} form={form} setForm={setForm} onSave={onSaveFormulation} isPending={isPending} />
+        <div className="flex gap-4 items-start">
+          <FormulationVersionSidebar product={product} selectedVersionId={selectedVersionId} setSelectedVersionId={setSelectedVersionId} versionActions={versionActions} />
+          <div className="flex-1 min-w-0">
+            {selectedVersionId
+              ? <BranchedFormulationEditor product={product} selectedVersionId={selectedVersionId} setSelectedVersionId={setSelectedVersionId} versionActions={versionActions} />
+              : <FormulationTab product={product} form={form} setForm={setForm} onSave={onSaveFormulation} isPending={isPending} />}
+          </div>
+        </div>
       </div>
       <hr className="border-gray-100 dark:border-[#1b2e4a]" />
       <div>
-        <p className="text-sm font-bold text-gray-700 dark:text-gray-200 mb-3">📝 R&D Documentation &amp; Manufacturing Procedure</p>
-        <ProcedureTab product={product} form={form} setForm={setForm} onSave={onSaveProcedure} isPending={isPending} onAttach={onAttach} onRemoveAttach={onRemoveAttach} />
+        <ManufacturingProcedureTab product={product} form={form} setForm={setForm} onSave={onSaveProcedure} isPending={isPending} onAttach={onAttach} onRemoveAttach={onRemoveAttach} />
       </div>
     </div>
   );
 }
 
-// ─── Formula Versions Panel ─────────────────────────────────────────────────────
-// Versioning workspace for the formulation: browse V1…Vn, branch a new draft, iterate
-// on it independently, then "Set Active" to promote it into the product's live formulation
-// (the one FormulationTab above edits). Locked/archived versions render read-only.
 const FORM_VERSION_STATUS = {
   draft: { label: 'Draft', cls: 'bg-amber-100 text-amber-700' },
   testing: { label: 'In Testing', cls: 'bg-blue-100 text-blue-700' },
@@ -1167,20 +1208,59 @@ const FORM_VERSION_STATUS = {
   archived: { label: 'Archived', cls: 'bg-slate-100 text-slate-500' },
 };
 
-function FormulationVersionsPanel({ product, versionActions }) {
-  const { onCreateVersion, onUpdateVersion, onActivateVersion, onDeleteVersion, state } = versionActions;
-  const [selectedId, setSelectedId] = useState(null); // null = the live/active formulation (edited via FormulationTab below)
+// ─── Formulation Version Sidebar ────────────────────────────────────────────────
+// "Live" is the product's always-current formulation (edited via FormulationTab in the main
+// panel); branched Draft/In Testing/Archived/Locked versions live in product.formulationVersions
+// and are edited via BranchedFormulationEditor.
+function FormulationVersionSidebar({ product, selectedVersionId, setSelectedVersionId, versionActions }) {
+  const versions = product?.formulationVersions || [];
+  const sorted = [...versions].sort((a, b) => a.versionLabel.localeCompare(b.versionLabel, undefined, { numeric: true }));
+
+  return (
+    <div className="w-52 flex-shrink-0 space-y-2">
+      <button onClick={() => setSelectedVersionId(null)}
+        className={clsx('w-full text-left px-3 py-2.5 rounded-lg border text-xs transition-colors',
+          !selectedVersionId ? 'border-slate-900 bg-slate-50 dark:bg-[#0f1a2e]' : 'border-slate-200 dark:border-[#1b2e4a] hover:bg-slate-50 dark:hover:bg-[#0f1a2e]')}>
+        <div className="flex items-center gap-1.5 font-bold text-slate-800 dark:text-gray-100">
+          Live <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">Active</span>
+        </div>
+        <div className="text-[10px] text-slate-400 mt-0.5">The product's current formulation</div>
+      </button>
+
+      {sorted.map((v) => {
+        const badge = FORM_VERSION_STATUS[v.status] || FORM_VERSION_STATUS.draft;
+        return (
+          <button key={v._id} onClick={() => setSelectedVersionId(v._id)}
+            className={clsx('w-full text-left px-3 py-2.5 rounded-lg border text-xs transition-colors',
+              selectedVersionId === v._id ? 'border-slate-900 bg-slate-50 dark:bg-[#0f1a2e]' : 'border-slate-200 dark:border-[#1b2e4a] hover:bg-slate-50 dark:hover:bg-[#0f1a2e]')}>
+            <div className="flex items-center gap-1.5 font-bold text-slate-800 dark:text-gray-100">
+              {v.versionLabel}
+              <span className={clsx('text-[10px] font-bold px-2 py-0.5 rounded-full', badge.cls)}>{badge.label}</span>
+            </div>
+            {v.changeNotes && <div className="text-[10px] text-slate-400 truncate mt-0.5">{v.changeNotes}</div>}
+          </button>
+        );
+      })}
+
+      <button onClick={() => versionActions.onCreateVersion({ cloneFrom: selectedVersionId, onCreated: setSelectedVersionId })} disabled={versionActions.state.creating}
+        className="w-full text-xs px-3 py-2 rounded-lg bg-slate-900 text-white font-semibold hover:bg-slate-700 disabled:opacity-50 transition-colors">
+        {versionActions.state.creating ? 'Cloning…' : '📋 Clone to V(n+1)'}
+      </button>
+    </div>
+  );
+}
+
+// ─── Branched Formulation Editor ────────────────────────────────────────────────
+// Right-hand panel for a selected Draft/In Testing/Locked/Archived branch — Save/Mark In
+// Testing/Approve & Lock/Delete pinned at the top of the panel (mirroring the reference's
+// always-visible lock banner + action bar), rather than nested inside the version picker.
+function BranchedFormulationEditor({ product, selectedVersionId, setSelectedVersionId, versionActions }) {
+  const { onUpdateVersion, onActivateVersion, onDeleteVersion, state } = versionActions;
+  const versions = product?.formulationVersions || [];
+  const selected = versions.find((v) => v._id === selectedVersionId);
   const [draftRows, setDraftRows] = useState([]);
   const [draftMeta, setDraftMeta] = useState({ refWeight: 100, refUnit: 'ml' });
   const [changeNotes, setChangeNotes] = useState('');
-
-  const realVersions = product?.formulationVersions || [];
-  const list = realVersions.length
-    ? [...realVersions].sort((a, b) => a.versionLabel.localeCompare(b.versionLabel, undefined, { numeric: true }))
-    : [{ _id: null, versionLabel: 'V1', status: 'locked', changeNotes: 'Initial formulation', synthetic: true }];
-
-  const selected = selectedId ? realVersions.find(v => v._id === selectedId) : null;
-  const editable = selected && ['draft', 'testing'].includes(selected.status);
 
   useEffect(() => {
     if (selected) {
@@ -1188,7 +1268,7 @@ function FormulationVersionsPanel({ product, versionActions }) {
       setDraftMeta({ refWeight: selected.refWeight || 100, refUnit: selected.refUnit || 'ml' });
       setChangeNotes(selected.changeNotes || '');
     }
-  }, [selectedId]);
+  }, [selectedVersionId]);
 
   const { data: rmData } = useQuery({
     queryKey: ['raw-materials-list'],
@@ -1201,89 +1281,85 @@ function FormulationVersionsPanel({ product, versionActions }) {
   function addDraftRow() { setDraftRows(rows => [...rows, { name: '', rawMaterialId: '', percentage: 0, quantity: 0, unit: 'g', costPerKg: 0, phase: '', convFactor: 1 }]); }
   function removeDraftRow(i) { setDraftRows(rows => rows.filter((_, idx) => idx !== i)); }
 
+  if (!selected) return null;
+  const badge = FORM_VERSION_STATUS[selected.status] || FORM_VERSION_STATUS.draft;
+  const editable = ['draft', 'testing'].includes(selected.status);
+
+  const dashRows = editable ? draftRows : (selected.rows || []);
+  const dashRefWeight = Number(editable ? draftMeta.refWeight : selected.refWeight) || 100;
+  const dashRefUnit = editable ? draftMeta.refUnit : (selected.refUnit || 'ml');
+  const dashTotalPct = dashRows.reduce((s, r) => s + (Number(r.percentage) || 0), 0);
+  const dashTotalQty = dashRows.reduce((s, r) => s + (dashRefWeight * (Number(r.percentage) || 0) / 100 * (Number(r.convFactor) || 1)), 0);
+
   return (
-    <div className="rounded-xl border border-slate-200 dark:border-[#1b2e4a] p-4 mb-4">
-      <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
-        <p className="text-xs font-bold text-slate-600 dark:text-gray-300">📚 Formula Versions</p>
-        <button onClick={() => onCreateVersion()} disabled={state.creating}
-          className="text-xs px-3 py-1.5 rounded-lg bg-slate-900 text-white font-semibold hover:bg-slate-700 disabled:opacity-50 transition-colors">
-          {state.creating ? 'Creating…' : '➕ New Version'}
-        </button>
-      </div>
+    <div className="space-y-3">
+      {!editable && (
+        <div className={clsx('px-3 py-2 rounded-lg text-xs font-semibold',
+          selected.status === 'locked' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-slate-100 text-slate-500 border border-slate-200')}>
+          {selected.status === 'locked' ? '🔒 LOCKED — this version is Active. Create a new version to iterate.' : '🗄 ARCHIVED — read-only historical version.'}
+        </div>
+      )}
 
-      <div className="flex gap-2 flex-wrap mb-3">
-        {list.map(v => {
-          const isActiveView = v.synthetic || v.status === 'locked' ? !selectedId : selectedId === v._id;
-          const badge = FORM_VERSION_STATUS[v.status] || FORM_VERSION_STATUS.draft;
-          return (
-            <button key={v._id || 'synthetic'} onClick={() => setSelectedId(v.synthetic || v.status === 'locked' ? null : v._id)}
-              className={clsx('px-3 py-2 rounded-lg border text-left text-xs min-w-[120px] transition-colors',
-                isActiveView ? 'border-slate-900 bg-slate-50 dark:bg-[#0f1a2e]' : 'border-slate-200 dark:border-[#1b2e4a] hover:bg-slate-50 dark:hover:bg-[#0f1a2e]')}>
-              <div className="flex items-center gap-1.5 font-bold text-slate-800 dark:text-gray-100">
-                {v.versionLabel}
-                <span className={clsx('text-[10px] font-bold px-2 py-0.5 rounded-full', badge.cls)}>{badge.label}</span>
-              </div>
-              {v.changeNotes && <div className="text-[10px] text-slate-400 truncate max-w-[140px] mt-0.5">{v.changeNotes}</div>}
+      <div className="flex items-center justify-between flex-wrap gap-2">
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-bold text-slate-800 dark:text-gray-100">{selected.versionLabel}</span>
+          <span className={clsx('text-[10px] font-bold px-2 py-0.5 rounded-full', badge.cls)}>{badge.label}</span>
+        </div>
+        <div className="flex gap-2">
+          {editable && (
+            <button onClick={() => onUpdateVersion(selected._id, { rows: withComputedQuantity(draftRows, draftMeta.refWeight), refWeight: draftMeta.refWeight, refUnit: draftMeta.refUnit, changeNotes })}
+              disabled={state.updating} className="text-xs px-3 py-1.5 rounded-lg border border-slate-200 dark:border-[#1b2e4a] hover:bg-slate-50 dark:hover:bg-[#0f1a2e] font-semibold disabled:opacity-50 transition-colors">
+              {state.updating ? 'Saving…' : '💾 Save'}
             </button>
-          );
-        })}
-      </div>
-
-      {selected && (
-        <div className="border-t border-slate-100 dark:border-[#1b2e4a] pt-3 space-y-3">
-          <div className="flex items-center justify-between flex-wrap gap-2">
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-bold text-slate-700 dark:text-gray-200">{selected.versionLabel}</span>
-              <span className={clsx('text-[10px] font-bold px-2 py-0.5 rounded-full', (FORM_VERSION_STATUS[selected.status] || FORM_VERSION_STATUS.draft).cls)}>
-                {(FORM_VERSION_STATUS[selected.status] || FORM_VERSION_STATUS.draft).label}
-              </span>
-            </div>
-            {editable && (
-              <div className="flex gap-2">
-                <button onClick={() => onUpdateVersion(selected._id, { rows: withComputedQuantity(draftRows, draftMeta.refWeight), refWeight: draftMeta.refWeight, refUnit: draftMeta.refUnit, changeNotes })}
-                  disabled={state.updating} className="text-xs px-3 py-1.5 rounded-lg border border-slate-200 dark:border-[#1b2e4a] hover:bg-slate-50 dark:hover:bg-[#0f1a2e] font-semibold disabled:opacity-50 transition-colors">
-                  {state.updating ? 'Saving…' : '💾 Save'}
-                </button>
-                {selected.status === 'draft' && (
-                  <button onClick={() => onUpdateVersion(selected._id, { status: 'testing' })} disabled={state.updating}
-                    className="text-xs px-3 py-1.5 rounded-lg border border-blue-200 text-blue-600 hover:bg-blue-50 font-semibold disabled:opacity-50 transition-colors">
-                    🧪 Mark In Testing
-                  </button>
-                )}
-                <button onClick={() => onActivateVersion(selected._id)} disabled={state.activating}
-                  className="text-xs px-3 py-1.5 rounded-lg bg-emerald-600 text-white font-semibold hover:bg-emerald-700 disabled:opacity-50 transition-colors">
-                  {state.activating ? 'Activating…' : '✅ Set Active'}
-                </button>
-                <button onClick={() => { if (window.confirm(`Delete ${selected.versionLabel}?`)) { onDeleteVersion(selected._id); setSelectedId(null); } }} disabled={state.deleting}
-                  className="text-xs px-2 py-1.5 rounded-lg text-red-500 hover:bg-red-50 disabled:opacity-50 transition-colors">🗑️</button>
-              </div>
-            )}
-          </div>
-
-          {editable ? (
-            <>
-              <div className="flex items-center gap-3">
-                <div><label className="text-[10px] text-gray-400">Ref. Weight</label>
-                  <input type="number" value={draftMeta.refWeight} onChange={e => setDraftMeta(m => ({ ...m, refWeight: Number(e.target.value) }))} className="input text-xs w-20" />
-                </div>
-                <div><label className="text-[10px] text-gray-400">Unit</label>
-                  <select value={draftMeta.refUnit} onChange={e => setDraftMeta(m => ({ ...m, refUnit: e.target.value }))} className="input text-xs w-16">
-                    {UNITS.map(u => <option key={u}>{u}</option>)}
-                  </select>
-                </div>
-                <div className="flex-1"><label className="text-[10px] text-gray-400">Change Note</label>
-                  <input value={changeNotes} onChange={e => setChangeNotes(e.target.value)} placeholder="e.g. Reduced tack, added ferulic 0.5%" className="input text-xs w-full" />
-                </div>
-              </div>
-              <VersionRowsTable rows={draftRows} refWeight={draftMeta.refWeight} rawMaterials={rawMaterials} onUpdate={updateDraftRow} onAdd={addDraftRow} onRemove={removeDraftRow} editable />
-            </>
-          ) : (
-            <>
-              {selected.changeNotes && <p className="text-xs text-slate-400 italic">{selected.changeNotes}</p>}
-              <VersionRowsTable rows={selected.rows || []} refWeight={selected.refWeight} editable={false} />
-            </>
+          )}
+          {selected.status === 'draft' && (
+            <button onClick={() => onUpdateVersion(selected._id, { status: 'testing' })} disabled={state.updating}
+              className="text-xs px-3 py-1.5 rounded-lg border border-blue-200 text-blue-600 hover:bg-blue-50 font-semibold disabled:opacity-50 transition-colors">
+              🧪 Mark In Testing
+            </button>
+          )}
+          {editable && (
+            <button onClick={() => onActivateVersion(selected._id)} disabled={state.activating}
+              className="text-xs px-3 py-1.5 rounded-lg bg-emerald-600 text-white font-semibold hover:bg-emerald-700 disabled:opacity-50 transition-colors">
+              {state.activating ? 'Activating…' : '🔒 Approve & Lock'}
+            </button>
+          )}
+          {editable && (
+            <button onClick={() => { if (window.confirm(`Delete ${selected.versionLabel}?`)) { onDeleteVersion(selected._id); setSelectedVersionId(null); } }} disabled={state.deleting}
+              className="text-xs px-2 py-1.5 rounded-lg text-red-500 hover:bg-red-50 disabled:opacity-50 transition-colors">🗑️</button>
           )}
         </div>
+      </div>
+
+      <div className="grid grid-cols-4 gap-3">
+        <MetricCard label="Total Ingredients" value={dashRows.length} icon="🧪" iconBg="bg-blue-100" />
+        <MetricCard label="Total Percentage" value={`${numF(dashTotalPct, 2)}%`} icon="📊" iconBg="bg-emerald-100" />
+        <MetricCard label="Total Quantity" value={numF(dashTotalQty, 2)} icon="⚖️" iconBg="bg-orange-100" />
+        <MetricCard label="Reference Weight" value={`${dashRefWeight} ${dashRefUnit}`} icon="📐" iconBg="bg-purple-100" />
+      </div>
+
+      {editable ? (
+        <>
+          <div className="flex items-center gap-3">
+            <div><label className="text-[10px] text-gray-400">Ref. Weight</label>
+              <input type="number" value={draftMeta.refWeight} onChange={e => setDraftMeta(m => ({ ...m, refWeight: Number(e.target.value) }))} className="input text-xs w-20" />
+            </div>
+            <div><label className="text-[10px] text-gray-400">Unit</label>
+              <select value={draftMeta.refUnit} onChange={e => setDraftMeta(m => ({ ...m, refUnit: e.target.value }))} className="input text-xs w-16">
+                {UNITS.map(u => <option key={u}>{u}</option>)}
+              </select>
+            </div>
+            <div className="flex-1"><label className="text-[10px] text-gray-400">Change Note</label>
+              <input value={changeNotes} onChange={e => setChangeNotes(e.target.value)} placeholder="e.g. Reduced tack, added ferulic 0.5%" className="input text-xs w-full" />
+            </div>
+          </div>
+          <VersionRowsTable rows={draftRows} refWeight={draftMeta.refWeight} rawMaterials={rawMaterials} onUpdate={updateDraftRow} onAdd={addDraftRow} onRemove={removeDraftRow} editable />
+        </>
+      ) : (
+        <>
+          {selected.changeNotes && <p className="text-xs text-slate-400 italic">{selected.changeNotes}</p>}
+          <VersionRowsTable rows={selected.rows || []} refWeight={selected.refWeight} editable={false} />
+        </>
       )}
     </div>
   );
@@ -1883,8 +1959,71 @@ function AttachmentList({ attachments, onRemove }) {
   );
 }
 
-// ─── Procedure Tab ───────────────────────────────────────────────────────────────
-function ProcedureTab({ product, form, setForm, onSave, isPending, onAttach, onRemoveAttach }) {
+// ─── R&D Documentation & Research Guide (version-aware) ─────────────────────────
+// Sits above the Product Formulation panel (mirrors the reference design's doc-panel-first
+// layout) and shows/edits whichever entry is selected in the sidebar: the product-level
+// fields for "Live", or that specific formulation version's own rndDoc/researchGuide.
+// Autosaves on blur (no explicit Save button), matching the reference design exactly —
+// cloning a version carries these fields forward so each branch keeps its own fresh notes.
+function RndResearchGuidePanel({ product, selectedVersionId, form, setForm, onSaveLive, onAttachLive, onRemoveAttachLive, onSaveVersionRnd, onAttachVersionRnd, onRemoveAttachVersionRnd }) {
+  const version = selectedVersionId ? (product?.formulationVersions || []).find(v => v._id === selectedVersionId) : null;
+  const locked = version && ['locked', 'archived'].includes(version.status);
+
+  const [vRnd, setVRnd] = useState('');
+  const [vGuide, setVGuide] = useState('');
+  useEffect(() => {
+    if (version) { setVRnd(version.rndDoc?.text || ''); setVGuide(version.researchGuide?.text || ''); }
+  }, [selectedVersionId]);
+
+  function onFile(e) {
+    const f = e.target.files[0]; if (!f) return;
+    if (version) onAttachVersionRnd(selectedVersionId, f); else onAttachLive(f);
+    e.target.value = '';
+  }
+  function handleBlur() {
+    if (version) onSaveVersionRnd(selectedVersionId, { rndDoc: { text: vRnd }, researchGuide: { text: vGuide } });
+    else onSaveLive();
+  }
+
+  const rndText = version ? vRnd : (form.rndDoc?.text || '');
+  const guideText = version ? vGuide : (form.researchGuide?.text || '');
+  const attachments = version ? version.rndDoc?.attachments : product?.rndDoc?.attachments;
+
+  return (
+    <div className="space-y-4">
+      <div>
+        <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
+          <p className="text-sm font-bold text-gray-700 dark:text-gray-200">
+            📝 R&amp;D Documentation &amp; Research Guide
+            <span className="ml-2 text-[11px] font-semibold text-gray-400">
+              · {version ? `${version.versionLabel} (${(FORM_VERSION_STATUS[version.status] || {}).label || version.status})` : 'Live'}
+            </span>
+          </p>
+          <div>
+            <input type="file" id="rndDocFile" accept=".pdf,.doc,.docx,.xlsx,.jpg,.png" className="hidden" onChange={onFile} disabled={locked} />
+            <button onClick={() => document.getElementById('rndDocFile').click()} disabled={locked} className="btn-secondary text-xs disabled:opacity-50">📎 Attach R&amp;D Doc</button>
+          </div>
+        </div>
+        <textarea
+          value={rndText} disabled={locked} onBlur={handleBlur}
+          onChange={e => version ? setVRnd(e.target.value) : setForm(prev => ({ ...prev, rndDoc: { ...prev.rndDoc, text: e.target.value } }))}
+          rows={4} className="input resize-none text-xs w-full disabled:opacity-50" placeholder="Research notes, formulation history, test results, stability studies…" />
+        <AttachmentList attachments={attachments} onRemove={(id) => version ? onRemoveAttachVersionRnd(selectedVersionId, id) : onRemoveAttachLive(id)} />
+      </div>
+
+      <div>
+        <p className="text-sm font-bold text-gray-700 dark:text-gray-200 mb-2">🔬 Research Guide</p>
+        <textarea
+          value={guideText} disabled={locked} onBlur={handleBlur}
+          onChange={e => version ? setVGuide(e.target.value) : setForm(prev => ({ ...prev, researchGuide: { ...prev.researchGuide, text: e.target.value } }))}
+          rows={3} className="input resize-none text-xs w-full disabled:opacity-50" placeholder="Literature sources, patent references, regulatory guidelines, safety assessments…" />
+      </div>
+    </div>
+  );
+}
+
+// ─── Manufacturing Procedure Tab ─────────────────────────────────────────────────
+function ManufacturingProcedureTab({ product, form, setForm, onSave, isPending, onAttach, onRemoveAttach }) {
   const [recording, setRecording] = useState(false);
   const [recSeconds, setRecSeconds] = useState(0);
   const mediaRecorderRef = useRef(null);
@@ -1928,23 +2067,6 @@ function ProcedureTab({ product, form, setForm, onSave, isPending, onAttach, onR
 
   return (
     <div className="space-y-6">
-      <div>
-        <div className="flex items-center justify-between mb-2">
-          <p className="text-sm font-bold text-gray-700 dark:text-gray-200">📝 R&D Documentation</p>
-          <div>
-            <input type="file" id="rndDocFile" accept=".pdf,.doc,.docx,.xlsx,.jpg,.png" className="hidden" onChange={onFile('rndDoc')} />
-            <button onClick={() => document.getElementById('rndDocFile').click()} className="btn-secondary text-xs">📎 Attach R&D Doc</button>
-          </div>
-        </div>
-        <textarea value={form.rndDoc?.text || ''} onChange={e => setText('rndDoc', e.target.value)} rows={4} className="input resize-none text-xs w-full" placeholder="Research notes, formulation history, test results, stability studies…" />
-        <AttachmentList attachments={product.rndDoc?.attachments} onRemove={(id) => onRemoveAttach('rndDoc', id)} />
-      </div>
-
-      <div>
-        <p className="text-sm font-bold text-gray-700 dark:text-gray-200 mb-2">🔬 Research Guide</p>
-        <textarea value={form.researchGuide?.text || ''} onChange={e => setText('researchGuide', e.target.value)} rows={3} className="input resize-none text-xs w-full" placeholder="Literature sources, patent references, regulatory guidelines, safety assessments…" />
-      </div>
-
       <div>
         <div className="flex items-center justify-between flex-wrap gap-2 mb-2">
           <p className="text-sm font-bold text-gray-700 dark:text-gray-200">🏭 Manufacturing Procedure</p>

@@ -7,6 +7,7 @@ const { asyncHandler, sendSuccess, sendError } = require('../utils/helpers');
 const multer = require('multer');
 const imageUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 }, fileFilter: (_, f, cb) => cb(null, f.mimetype.startsWith('image/')) });
 const commLogUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 100 * 1024 * 1024 }, fileFilter: (_, f, cb) => cb(null, f.mimetype.startsWith('image/') || f.mimetype.startsWith('audio/') || f.mimetype.startsWith('video/')) });
+const docUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 25 * 1024 * 1024 } });
 const Organization = require('../models/Organization');
 const { syncLeadsFromSheet, previewSheet, hasWriteCredentials } = require('../services/googleSheets.service');
 
@@ -102,6 +103,8 @@ router.put('/leads/:id/sample', authorizeManagerOrAbove, ctrl.updateSampleDetail
 router.put('/leads/:id/sample/stage', authorizeManagerOrAbove, ctrl.updateSampleSubStage);
 router.post('/leads/:id/formulas', authorizeManagerOrAbove, ctrl.createFormula);
 router.put('/leads/:id/formulas/:formulaId', authorizeManagerOrAbove, ctrl.updateFormula);
+router.post('/leads/:id/formulas/:formulaId/attachment', authorizeManagerOrAbove, docUpload.single('file'), ctrl.uploadFormulaAttachment);
+router.delete('/leads/:id/formulas/:formulaId/attachment', authorizeManagerOrAbove, ctrl.removeFormulaAttachment);
 router.post('/leads/:id/products', authorizeManagerOrAbove, ctrl.linkProductPricing);
 router.put('/leads/:id/products/:productId', authorizeManagerOrAbove, ctrl.updateProductPricing);
 router.delete('/leads/:id/products/:productId', authorizeManagerOrAbove, ctrl.deleteProductLink);
