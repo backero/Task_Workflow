@@ -65,7 +65,6 @@ export default function EditKycModal({ lead, onClose }) {
   });
   const set = (field) => (e) => setForm((f) => ({ ...f, [field]: e.target.value }));
 
-  const [newQueryTitle, setNewQueryTitle] = useState('');
   const [newQueryDesc, setNewQueryDesc] = useState('');
   const [replyDrafts, setReplyDrafts] = useState({});
 
@@ -97,7 +96,6 @@ export default function EditKycModal({ lead, onClose }) {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['crm', 'leads', lead._id, 'queries'] });
       qc.invalidateQueries({ queryKey: ['sample-production'] });
-      setNewQueryTitle('');
       setNewQueryDesc('');
       toast.success('Query added');
     },
@@ -324,13 +322,12 @@ export default function EditKycModal({ lead, onClose }) {
             </div>
 
             <div className="rounded-[10px] border-[1.5px] border-dashed border-[#d3c9b4] p-3 space-y-2">
-              <input value={newQueryTitle} onChange={(e) => setNewQueryTitle(e.target.value)} placeholder="New query title" className={fieldCls} />
               <textarea value={newQueryDesc} onChange={(e) => setNewQueryDesc(e.target.value)} rows={2} placeholder="Describe the question…" className={fieldCls} />
               <button
                 type="button"
                 onClick={() => {
-                  if (!newQueryTitle.trim() || !newQueryDesc.trim()) { toast.error('Title and description are required'); return; }
-                  raiseQueryMutation.mutate({ title: newQueryTitle.trim(), description: newQueryDesc.trim() });
+                  if (!newQueryDesc.trim()) { toast.error('Question is required'); return; }
+                  raiseQueryMutation.mutate({ description: newQueryDesc.trim() });
                 }}
                 disabled={raiseQueryMutation.isPending}
                 className={outlineBtn}
