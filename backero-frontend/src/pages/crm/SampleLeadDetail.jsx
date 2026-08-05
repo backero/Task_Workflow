@@ -808,6 +808,14 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab }) {
 
   const [showEditKyc, setShowEditKyc] = useState(false);
 
+  // Follow-ups — logged from here only (Sample Production is the single place lead
+  // touchpoints happen); each save also pings the client with a WhatsApp acknowledgment.
+  const [showFollowUpModal, setShowFollowUpModal] = useState(false);
+  const [fuType, setFuType] = useState('call');
+  const [fuNotes, setFuNotes] = useState('');
+  const [fuNextAction, setFuNextAction] = useState('');
+  const [fuScheduledAt, setFuScheduledAt] = useState('');
+
   // Move to Production — creates the Batch Tracker order in the same step, no separate
   // "Send to Production" visit required.
   const [showMoveModal, setShowMoveModal] = useState(false);
@@ -898,6 +906,16 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab }) {
     mutationFn: ({ queryId, answer }) => api.put(`/crm/queries/${queryId}/reply`, { answer }),
     onSuccess: (_r, vars) => { toast.success('Reply sent'); setReplyDrafts((d) => ({ ...d, [vars.queryId]: '' })); invalidate(); },
     onError: (e) => toast.error(e.response?.data?.message || 'Failed to reply'),
+  });
+
+  const followUpMutation = useMutation({
+    mutationFn: (body) => api.post(`/crm/leads/${leadId}/followup`, body),
+    onSuccess: () => {
+      toast.success('Follow-up logged');
+      setShowFollowUpModal(false); setFuNotes(''); setFuNextAction(''); setFuScheduledAt('');
+      invalidate();
+    },
+    onError: (e) => toast.error(e.response?.data?.message || 'Failed to save follow-up'),
   });
 
   const startQueryMutation = useMutation({
@@ -1197,6 +1215,36 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab }) {
                   <p className="text-sm text-[#4a3a29] whitespace-pre-wrap">{lead.notes}</p>
                 </div>
               )}
+
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-xs font-semibold text-[#968871] uppercase tracking-wide">
+                    Follow-ups {(lead?.followUps || []).length > 0 && `(${lead.followUps.length})`}
+                  </p>
+                  <button
+                    onClick={() => { setFuType('call'); setFuNotes(''); setFuNextAction(''); setFuScheduledAt(''); setShowFollowUpModal(true); }}
+                    className={outlineBtn}
+                  >
+                    + Log Follow-up
+                  </button>
+                </div>
+                {(lead?.followUps || []).length === 0 ? (
+                  <p className="text-xs text-[#968871]">No follow-ups logged yet.</p>
+                ) : (
+                  <div className="space-y-1.5">
+                    {[...lead.followUps].reverse().slice(0, 5).map((fu, i) => (
+                      <div key={i} className="text-xs rounded-[10px] border border-[#e2dac8] bg-[#f0eadd] px-3 py-2">
+                        <div className="flex items-center justify-between">
+                          <span className="font-semibold text-[#2e241b] capitalize">{fu.type || 'call'}</span>
+                          <span className="text-[#968871]">{fu.scheduledAt ? format(new Date(fu.scheduledAt), 'dd MMM, h:mm a') : ''}</span>
+                        </div>
+                        {fu.notes && <p className="text-[#4a3a29] mt-0.5">{fu.notes}</p>}
+                        {fu.nextAction && <p className="text-[#968871] mt-0.5">Next: {fu.nextAction}</p>}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
           )}
 
@@ -1768,6 +1816,62 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab }) {
       </div>
 
       {showEditKyc && lead && <EditKycModal lead={lead} onClose={() => { setShowEditKyc(false); invalidate(); }} />}
+
+      {showFollowUpModal && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/40 p-4" onClick={() => setShowFollowUpModal(false)}>
+          <div className="bg-[#f0eadd] rounded-2xl shadow-2xl w-full max-w-lg border border-[#d3c9b4]" style={bodyFont} onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-5 py-4 border-b border-[#e2dac8] bg-[#e7dfce] rounded-t-2xl">
+              <div>
+                <h3 className="font-bold text-[#2e241b]" style={displayFont}>📞 Log Follow-up</h3>
+                <p className="text-[11px] text-[#968871] mt-0.5">The client gets a WhatsApp acknowledgment when you save this.</p>
+              </div>
+              <button onClick={() => setShowFollowUpModal(false)} className="text-[#968871] hover:text-[#2e241b] text-xl leading-none">&times;</button>
+            </div>
+            <div className="p-5 space-y-3">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-semibold text-[#968871] uppercase tracking-wide mb-1 block">Type</label>
+                  <select value={fuType} onChange={(e) => setFuType(e.target.value)} className={clsx(inputCls, 'w-full')}>
+                    {['call', 'whatsapp', 'meeting', 'email', 'demo', 'other'].map((t) => <option key={t} value={t}>{t.charAt(0).toUpperCase() + t.slice(1)}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-[#968871] uppercase tracking-wide mb-1 block">Date & Time</label>
+                  <input type="datetime-local" value={fuScheduledAt} onChange={(e) => setFuScheduledAt(e.target.value)} className={clsx(inputCls, 'w-full')} />
+                </div>
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-[#968871] uppercase tracking-wide mb-1 block">Notes / Outcome</label>
+                <textarea value={fuNotes} onChange={(e) => setFuNotes(e.target.value)} rows={4} placeholder="What was discussed, how the client responded…" className={clsx(inputCls, 'w-full')} autoFocus />
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-[#968871] uppercase tracking-wide mb-1 block">Next action (optional — shared with the client)</label>
+                <input value={fuNextAction} onChange={(e) => setFuNextAction(e.target.value)} placeholder="e.g. Share product catalog and pricing" className={clsx(inputCls, 'w-full')} />
+              </div>
+              <div className="flex gap-2 pt-1">
+                <button type="button" onClick={() => setShowFollowUpModal(false)} className={outlineBtn}>Cancel</button>
+                <span className="flex-1" />
+                <button
+                  onClick={() => {
+                    if (!fuNotes.trim()) { toast.error('Add a note about this follow-up'); return; }
+                    followUpMutation.mutate({
+                      scheduledAt: fuScheduledAt ? new Date(fuScheduledAt).toISOString() : new Date().toISOString(),
+                      type: fuType,
+                      notes: fuNotes,
+                      outcome: fuNotes,
+                      nextAction: fuNextAction,
+                    });
+                  }}
+                  disabled={followUpMutation.isPending}
+                  className={accentBtn}
+                >
+                  {followUpMutation.isPending ? 'Saving…' : 'Save Follow-up'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {productModalOpen && (
         <ProductLinkModal

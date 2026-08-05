@@ -3,7 +3,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import {
-  PlusIcon, PhoneIcon, XMarkIcon,
+  PhoneIcon, XMarkIcon,
   CurrencyRupeeIcon, ClockIcon, CheckCircleIcon,
   ArrowRightIcon, TableCellsIcon, ArrowTopRightOnSquareIcon,
   ChartBarIcon, SparklesIcon,
@@ -435,7 +435,6 @@ function VelocityView() {
 
 // ── Main Pipeline Page ────────────────────────────────────────────────────────
 export default function LeadPipeline() {
-  const [showForm, setShowForm] = useState(false);
   const [stageModal, setStageModal] = useState(null);
   const [editKycLead, setEditKycLead] = useState(null);
   const [activeView, setActiveView] = useState('pipeline');
@@ -483,13 +482,6 @@ export default function LeadPipeline() {
             className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-sm font-semibold border border-gray-200 dark:border-[#1b2e4a] text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-[#17263d] transition-all"
           >
             <TableCellsIcon className="w-4 h-4" /> Table
-          </button>
-          <button
-            onClick={() => setShowForm(true)}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold text-white shadow-lg hover:shadow-xl transition-all duration-200 active:scale-95"
-            style={{ background: 'linear-gradient(135deg, #112270 0%, #1a3a8a 100%)' }}
-          >
-            <PlusIcon className="w-4 h-4" /> Add Lead
           </button>
         </div>
       </div>
@@ -629,9 +621,7 @@ export default function LeadPipeline() {
         )}
       </AnimatePresence>
 
-      {showForm && <EditKycModal onClose={() => setShowForm(false)} />}
-
-      {editKycLead && <EditKycModal lead={editKycLead} onClose={() => setEditKycLead(null)} />}
+      {editKycLead && <EditKycModal lead={editKycLead} onClose={() => setEditKycLead(null)} readOnly />}
 
     </div>
   );

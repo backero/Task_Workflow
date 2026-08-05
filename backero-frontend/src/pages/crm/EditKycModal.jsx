@@ -10,7 +10,7 @@ const bodyFont = { fontFamily: "'Inter', -apple-system, sans-serif" };
 const outlineBtn = 'inline-flex items-center gap-1.5 px-4 py-2 rounded-full border-[1.5px] border-[#d3c9b4] text-[#6d5f4c] text-[13px] font-semibold hover:bg-[#e7dfce] hover:border-[#968871] hover:text-[#2e241b] transition';
 const successBtn = 'inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-[#4d7c4f] text-white text-[13px] font-semibold hover:brightness-95 transition disabled:opacity-50';
 const extractBtn = 'inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-[#2e241b] text-white text-xs font-semibold hover:brightness-125 transition';
-const fieldCls = 'w-full px-3.5 py-2.5 text-[13px] rounded-[10px] border-[1.5px] border-[#d3c9b4] bg-[#f0eadd] text-[#2e241b] focus:outline-none focus:border-[#2e241b] focus:shadow-[0_0_0_3px_rgba(46,36,27,0.08)] placeholder:text-[#968871]';
+const fieldCls = 'w-full px-3.5 py-2.5 text-[13px] rounded-[10px] border-[1.5px] border-[#d3c9b4] bg-[#f0eadd] text-[#2e241b] focus:outline-none focus:border-[#2e241b] focus:shadow-[0_0_0_3px_rgba(46,36,27,0.08)] placeholder:text-[#968871] disabled:opacity-60 disabled:cursor-not-allowed';
 const labelCls = 'text-xs font-semibold text-[#2e241b] mb-1 block';
 
 const LANGUAGES = ['English', 'Hindi', 'Marathi', 'Tamil', 'Telugu', 'Other'];
@@ -51,7 +51,7 @@ function StepSection({ emoji, title, sub, children }) {
 // "kContact" = our contact-person `name`, reference's "kName" (brand/company) = our `company`.
 // Omitting `lead` switches the modal into create mode (POST instead of PUT) — same form,
 // same styling, no pre-fill — used for the "➕ New Lead" / "Add Lead" buttons.
-export default function EditKycModal({ lead, onClose }) {
+export default function EditKycModal({ lead, onClose, readOnly = false }) {
   const isCreate = !lead;
   const qc = useQueryClient();
   const [autofillOpen, setAutofillOpen] = useState(false);
@@ -150,11 +150,18 @@ export default function EditKycModal({ lead, onClose }) {
       <div className="absolute inset-0 bg-[#2e241b]/50 backdrop-blur-sm" onClick={onClose} />
       <div className="relative bg-[#f0eadd] rounded-2xl shadow-[0_10px_40px_rgba(46,36,27,0.16)] w-full border border-[#d3c9b4] flex flex-col" style={{ maxWidth: '700px', maxHeight: '92vh' }}>
         <div className="px-6 py-5 border-b border-[#e2dac8] bg-[#e7dfce] rounded-t-2xl flex items-center justify-between flex-shrink-0">
-          <h3 className="text-base font-bold text-[#2e241b]" style={displayFont}>🪪 Customer KYC — {isCreate ? 'New Lead' : (lead.customerId || lead.name)}</h3>
+          <h3 className="text-base font-bold text-[#2e241b]" style={displayFont}>🪪 Customer KYC — {isCreate ? 'New Lead' : (lead.customerId || lead.name)}{readOnly && ' (View Only)'}</h3>
           <button onClick={onClose} className="w-9 h-9 rounded-[10px] hover:bg-[#ddd3be] flex items-center justify-center text-[#968871] hover:text-[#2e241b] text-lg transition-colors">✕</button>
         </div>
 
         <div className="flex-1 overflow-y-auto p-6">
+          {readOnly && (
+            <div className="flex items-start gap-2.5 rounded-[10px] border-[1.5px] border-[#d9c08a] bg-[#f5ecd2] text-[#7a5c1e] text-[13px] font-medium px-4 py-3 mb-3.5">
+              <span className="text-base leading-[1.4]">👁️</span>
+              <span>CRM Pipeline is view-only. To edit details, log a follow-up, or raise a query, open this lead from <strong>Sample Production</strong>.</span>
+            </div>
+          )}
+        <fieldset disabled={readOnly} className="contents">
           <div className="flex items-start gap-2.5 rounded-[10px] border-[1.5px] border-[#a9bfcb] bg-[#dde5ea] text-[#33526b] text-[13px] font-medium px-4 py-3 mb-3.5">
             <span className="text-base leading-[1.4]">🪪</span>
             {isCreate ? (
@@ -343,12 +350,14 @@ export default function EditKycModal({ lead, onClose }) {
             </>
             )}
           </div>
+        </fieldset>
         </div>
 
         <div className="flex items-center gap-2.5 px-6 py-4 border-t border-[#e2dac8] flex-shrink-0 flex-wrap">
-          <button type="button" onClick={onClose} className={outlineBtn}>Cancel</button>
+          <button type="button" onClick={onClose} className={outlineBtn}>{readOnly ? 'Close' : 'Cancel'}</button>
           <span className="flex-1" />
-          <span className="text-[11px] text-[#968871]">All sections on one page — scroll &amp; fill</span>
+          {!readOnly && <span className="text-[11px] text-[#968871]">All sections on one page — scroll &amp; fill</span>}
+          {!readOnly && (
           <button
             onClick={() => {
               if (!form.name.trim() || !form.company.trim()) { toast.error('We need at least your name and the brand/company to save the KYC'); return; }
@@ -363,6 +372,7 @@ export default function EditKycModal({ lead, onClose }) {
           >
             {saveKycMutation.isPending ? 'Saving…' : '✅ Save KYC'}
           </button>
+          )}
         </div>
       </div>
     </div>

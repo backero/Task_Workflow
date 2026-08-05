@@ -34,8 +34,6 @@ const STAGE_BADGE = {
   'Lost': 'bg-red-100 text-red-700',
 };
 
-const URGENCY_OPTIONS = ['low', 'medium', 'high'];
-
 const MILESTONE_MESSAGES = [
   'Raw materials have been purchased ✅',
   'Production has started ✅',
@@ -59,14 +57,7 @@ export default function LeadDetails() {
   const [piInput, setPiInput] = useState('');
 
   const { register: regEdit, handleSubmit: handleEditSubmit, reset: resetEdit } = useForm();
-  const { register: regQuery, handleSubmit: handleQuerySubmit, reset: resetQuery } = useForm();
-  const [queryMode, setQueryMode] = useState(false);
   const [updateMode, setUpdateMode] = useState(false);
-  const [showFollowUpModal, setShowFollowUpModal] = useState(false);
-  const [fuType, setFuType] = useState('call');
-  const [fuNotes, setFuNotes] = useState('');
-  const [fuNextAction, setFuNextAction] = useState('');
-  const [fuScheduledAt, setFuScheduledAt] = useState('');
   const [pendingStage, setPendingStage] = useState(null);
   const [stageShiftReason, setStageShiftReason] = useState('');
   const [showLostModal, setShowLostModal] = useState(false);
@@ -111,17 +102,6 @@ export default function LeadDetails() {
     },
   });
 
-  const followUpMutation = useMutation({
-    mutationFn: (data) => api.post(`/crm/leads/${id}/followup`, data),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['crm', 'lead', id] });
-      qc.invalidateQueries({ queryKey: ['crm'] });
-      toast.success('Follow-up logged');
-      setShowFollowUpModal(false);
-    },
-    onError: () => toast.error('Failed to save follow-up'),
-  });
-
   const editMutation = useMutation({
     mutationFn: (data) => api.put(`/crm/leads/${id}`, data),
     onSuccess: () => {
@@ -148,19 +128,6 @@ export default function LeadDetails() {
     queryKey: ['crm', 'lead', id, 'queries'],
     queryFn: () => api.get(`/crm/leads/${id}/queries`).then(r => r.data.queries),
     enabled: !!id,
-  });
-
-  const queryMutation = useMutation({
-    mutationFn: (data) => api.post(`/crm/leads/${id}/query`, data),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['crm', 'lead', id] });
-      qc.invalidateQueries({ queryKey: ['crm', 'lead', id, 'queries'] });
-      qc.invalidateQueries({ queryKey: ['crm'] });
-      toast.success('Query raised — Production team has been notified');
-      setQueryMode(false);
-      resetQuery();
-    },
-    onError: () => toast.error('Failed to raise query'),
   });
 
   const updateMutation = useMutation({
@@ -520,20 +487,12 @@ export default function LeadDetails() {
 
               return (
                 <>
-                  <div className="flex items-center justify-between mb-4">
-                    <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider flex items-center gap-2">
-                      Activity Timeline
-                      {events.length > 0 && (
-                        <span className="font-bold text-brand-600">({events.length})</span>
-                      )}
-                    </p>
-                    <button
-                      onClick={() => { setFuType('call'); setFuNotes(''); setFuNextAction(''); setFuScheduledAt(''); setShowFollowUpModal(true); }}
-                      className="text-xs px-2.5 py-1 rounded-lg bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 hover:bg-amber-100 font-medium flex items-center gap-1 transition-colors"
-                    >
-                      + Log Follow-up
-                    </button>
-                  </div>
+                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-4 flex items-center gap-2">
+                    Activity Timeline
+                    {events.length > 0 && (
+                      <span className="font-bold text-brand-600">({events.length})</span>
+                    )}
+                  </p>
 
                   {events.length === 0 ? (
                     <div className="text-center py-6">
@@ -625,20 +584,13 @@ export default function LeadDetails() {
                 Technical Queries
                 {leadQueries?.length > 0 && <span className="ml-2 text-amber-600">({leadQueries.length})</span>}
               </p>
-              <button
-                onClick={() => setQueryMode(true)}
-                className="text-xs px-2.5 py-1 rounded-lg bg-amber-50 text-amber-700 hover:bg-amber-100 font-medium flex items-center gap-1 transition-colors"
-              >
-                <QuestionMarkCircleIcon className="w-3.5 h-3.5" />
-                Raise Query
-              </button>
             </div>
 
             {!leadQueries?.length ? (
               <div className="text-center py-6">
                 <QuestionMarkCircleIcon className="w-8 h-8 mx-auto text-gray-300 mb-2" />
                 <p className="text-sm text-gray-400">No queries raised yet</p>
-                <p className="text-xs text-gray-300 mt-1">Use "Raise Query" to ask Production team a technical question</p>
+                <p className="text-xs text-gray-300 mt-1">Queries are raised from Sample Production</p>
               </div>
             ) : (
               <div className="space-y-4">
@@ -781,69 +733,6 @@ export default function LeadDetails() {
           </div>
         </div>
       </div>
-
-      {/* Raise Production Query Modal */}
-      {queryMode && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-gray-900/60 backdrop-blur-sm" onClick={() => setQueryMode(false)} />
-          <div className="relative card w-full max-w-lg shadow-modal">
-            <div className="p-5 border-b border-gray-200 dark:border-[#1b2e4a] flex items-center justify-between">
-              <div>
-                <h3 className="font-bold text-gray-900 dark:text-white">Raise Technical Query</h3>
-                <p className="text-sm text-gray-500 mt-0.5">Assign to a Production team member for a technical answer</p>
-              </div>
-              <button onClick={() => setQueryMode(false)} className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-[#17263d]">
-                <XMarkIcon className="w-5 h-5 text-gray-500" />
-              </button>
-            </div>
-            <form onSubmit={handleQuerySubmit(data => queryMutation.mutate(data))} className="p-5 space-y-4">
-              <div>
-                <label className="label">Query Title *</label>
-                <input
-                  {...regQuery('title', { required: true })}
-                  className="input"
-                  placeholder="e.g. Formulation details for Product X"
-                />
-              </div>
-              <div>
-                <label className="label">Detailed Question *</label>
-                <textarea
-                  {...regQuery('description', { required: true })}
-                  rows={4}
-                  className="input resize-none"
-                  placeholder="Describe exactly what the customer asked or what technical information you need..."
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="label">Assign To *</label>
-                  <select {...regQuery('assignedTo', { required: true })} className="input">
-                    <option value="">Select person</option>
-                    {(usersData?.data || []).map(u => (
-                      <option key={u._id} value={u._id}>
-                        {u.firstName} {u.lastName}{u.department ? ` (${u.department})` : ''}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="label">Urgency</label>
-                  <select {...regQuery('urgency')} defaultValue="medium" className="input">
-                    {URGENCY_OPTIONS.map(u => <option key={u} value={u}>{u.charAt(0).toUpperCase() + u.slice(1)}</option>)}
-                  </select>
-                </div>
-              </div>
-              <p className="text-xs text-gray-400">The assigned person will be notified via WhatsApp and in-app.</p>
-              <div className="flex gap-3">
-                <button type="button" onClick={() => setQueryMode(false)} className="btn-secondary flex-1 justify-center">Cancel</button>
-                <button type="submit" disabled={queryMutation.isPending} className="btn-primary flex-1 justify-center disabled:opacity-50">
-                  {queryMutation.isPending ? 'Sending…' : 'Send Query'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
 
       {/* Send WhatsApp Update Modal */}
       {updateMode && (
@@ -1188,83 +1077,6 @@ export default function LeadDetails() {
                   className="btn-primary flex-1 justify-center disabled:opacity-50"
                 >
                   {commLogMutation.isPending ? 'Uploading…' : 'Save Log'}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {showFollowUpModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-gray-900/60 backdrop-blur-sm" onClick={() => setShowFollowUpModal(false)} />
-          <div className="relative card w-full max-w-lg shadow-modal max-h-[90vh] overflow-y-auto">
-            <div className="p-5 border-b border-gray-200 dark:border-[#1b2e4a] flex items-center justify-between sticky top-0 bg-white dark:bg-[#0d1b2e] z-10">
-              <div>
-                <h3 className="font-bold text-gray-900 dark:text-white">Log Follow-up</h3>
-                <p className="text-sm text-gray-500 mt-0.5">Record this touchpoint — the client gets a WhatsApp acknowledgment</p>
-              </div>
-              <button onClick={() => setShowFollowUpModal(false)} className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-[#17263d]">
-                <XMarkIcon className="w-5 h-5 text-gray-500" />
-              </button>
-            </div>
-            <div className="p-5 space-y-4">
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="label">Type</label>
-                  <select value={fuType} onChange={e => setFuType(e.target.value)} className="input">
-                    {FOLLOWUP_TYPES.map(t => (
-                      <option key={t} value={t}>{FOLLOWUP_ICONS[t]} {t.charAt(0).toUpperCase() + t.slice(1)}</option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="label">Date & Time</label>
-                  <input
-                    type="datetime-local"
-                    value={fuScheduledAt}
-                    onChange={e => setFuScheduledAt(e.target.value)}
-                    className="input"
-                  />
-                </div>
-              </div>
-              <div>
-                <label className="label">Notes / Outcome</label>
-                <textarea
-                  value={fuNotes}
-                  onChange={e => setFuNotes(e.target.value)}
-                  rows={4}
-                  className="input resize-none"
-                  placeholder="What was discussed, how the client responded…"
-                  autoFocus
-                />
-              </div>
-              <div>
-                <label className="label">Next action (optional — shared with the client)</label>
-                <input
-                  value={fuNextAction}
-                  onChange={e => setFuNextAction(e.target.value)}
-                  className="input"
-                  placeholder="e.g. Share product catalog and pricing"
-                />
-              </div>
-              <div className="flex gap-3 pt-1">
-                <button type="button" onClick={() => setShowFollowUpModal(false)} className="btn-secondary flex-1 justify-center">Cancel</button>
-                <button
-                  onClick={() => {
-                    if (!fuNotes.trim()) { toast.error('Add a note about this follow-up'); return; }
-                    followUpMutation.mutate({
-                      scheduledAt: fuScheduledAt ? new Date(fuScheduledAt).toISOString() : new Date().toISOString(),
-                      type: fuType,
-                      notes: fuNotes,
-                      outcome: fuNotes,
-                      nextAction: fuNextAction,
-                    });
-                  }}
-                  disabled={followUpMutation.isPending}
-                  className="btn-primary flex-1 justify-center disabled:opacity-50"
-                >
-                  {followUpMutation.isPending ? 'Saving…' : 'Save Follow-up'}
                 </button>
               </div>
             </div>
