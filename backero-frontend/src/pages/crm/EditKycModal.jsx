@@ -56,6 +56,7 @@ export default function EditKycModal({ lead, onClose }) {
   const qc = useQueryClient();
   const [autofillOpen, setAutofillOpen] = useState(false);
   const [kycPaste, setKycPaste] = useState('');
+  const [piText, setPiText] = useState((lead?.productInterest || []).join(', '));
   const [form, setForm] = useState({
     name: lead?.name || '', company: lead?.company || '', designation: lead?.designation || '', preferredName: lead?.preferredName || '',
     language: lead?.language || '', bestTime: lead?.bestTime || '',
@@ -159,7 +160,7 @@ export default function EditKycModal({ lead, onClose }) {
             {isCreate ? (
               <span>Customer ID is <strong>auto-assigned</strong> on save — never typed by hand. It is the golden thread across Q&amp;A, samples, formulas &amp; handoffs.</span>
             ) : (
-              <span>Updating <strong>{lead.customerId || lead.name}</strong> — pre-filled from the existing record; the Customer ID stays unchanged. KYC completion: <strong>{kycCompletion({ ...lead, ...form })}%</strong>.</span>
+              <span>Updating <strong>{lead.customerId || lead.name}</strong> — pre-filled from the existing record; the Customer ID stays unchanged. KYC completion: <strong>{kycCompletion({ ...lead, ...form, productInterest: piText.split(',').map((s) => s.trim()).filter(Boolean) })}%</strong>.</span>
             )}
           </div>
 
@@ -251,6 +252,10 @@ export default function EditKycModal({ lead, onClose }) {
                 {(productionTeam || []).map((u) => <option key={u._id} value={u._id}>{u.firstName} {u.lastName}</option>)}
               </select>
             </Field>
+            <div className="col-span-2">
+              <label className={labelCls}>"What product(s) are you interested in?"</label>
+              <input value={piText} onChange={(e) => setPiText(e.target.value)} placeholder="e.g., Herbal Face Wash, Vitamin C Serum (comma-separated)" className={fieldCls} />
+            </div>
           </StepSection>
 
           <StepSection emoji="🤝" title="Rapport" sub="Almost done — this bit is just for rapport.">
@@ -348,7 +353,9 @@ export default function EditKycModal({ lead, onClose }) {
             onClick={() => {
               if (!form.name.trim() || !form.company.trim()) { toast.error('We need at least your name and the brand/company to save the KYC'); return; }
               if (isCreate && !form.phone.trim()) { toast.error('Phone number is required to create a lead'); return; }
-              const payload = isCreate ? Object.fromEntries(Object.entries(form).filter(([, v]) => v !== '')) : form;
+              const productInterest = piText.split(',').map((s) => s.trim()).filter(Boolean);
+              const formWithPi = { ...form, productInterest };
+              const payload = isCreate ? Object.fromEntries(Object.entries(formWithPi).filter(([, v]) => v !== '')) : formWithPi;
               saveKycMutation.mutate(payload);
             }}
             disabled={saveKycMutation.isPending}

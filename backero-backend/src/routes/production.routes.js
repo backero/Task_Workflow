@@ -29,7 +29,8 @@ async function notifyClientMilestone(order, milestoneText) {
     if (!lead) return;
     const phone = lead.whatsapp || lead.phone;
     if (!phone) return;
-    await sendActiveClientStageUpdate(phone, { name: lead.name, stage: lead.status, lastUpdate: milestoneText });
+    const fullUpdate = order.deliveryDate ? `${milestoneText} Expected delivery: ${order.deliveryDate}.` : milestoneText;
+    await sendActiveClientStageUpdate(phone, { name: lead.name, stage: lead.status, lastUpdate: fullUpdate });
   } catch (err) {
     require('../utils/logger').error(`[ProductionMilestone] notify failed: ${err.message}`);
   }

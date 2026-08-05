@@ -58,11 +58,15 @@ export default function LeadDetails() {
   const [editProductInterest, setEditProductInterest] = useState([]);
   const [piInput, setPiInput] = useState('');
 
-  const { register: regFollowUp, handleSubmit: handleFollowUpSubmit, reset: resetFollowUp, formState: { errors: fuErrors } } = useForm();
   const { register: regEdit, handleSubmit: handleEditSubmit, reset: resetEdit } = useForm();
   const { register: regQuery, handleSubmit: handleQuerySubmit, reset: resetQuery } = useForm();
   const [queryMode, setQueryMode] = useState(false);
   const [updateMode, setUpdateMode] = useState(false);
+  const [showFollowUpModal, setShowFollowUpModal] = useState(false);
+  const [fuType, setFuType] = useState('call');
+  const [fuNotes, setFuNotes] = useState('');
+  const [fuNextAction, setFuNextAction] = useState('');
+  const [fuScheduledAt, setFuScheduledAt] = useState('');
   const [pendingStage, setPendingStage] = useState(null);
   const [stageShiftReason, setStageShiftReason] = useState('');
   const [showLostModal, setShowLostModal] = useState(false);
@@ -113,7 +117,7 @@ export default function LeadDetails() {
       qc.invalidateQueries({ queryKey: ['crm', 'lead', id] });
       qc.invalidateQueries({ queryKey: ['crm'] });
       toast.success('Follow-up logged');
-      resetFollowUp();
+      setShowFollowUpModal(false);
     },
     onError: () => toast.error('Failed to save follow-up'),
   });
@@ -170,21 +174,6 @@ export default function LeadDetails() {
     },
     onError: () => toast.error('Failed to send update'),
   });
-
-  const onSubmitFollowUp = (data) => {
-    followUpMutation.mutate({
-      scheduledAt: data.scheduledAt || new Date().toISOString(),
-      type: data.type || 'call',
-      notes: data.notes || '',
-      outcome: data.notes || '',
-      nextAction: '',
-    });
-    if (data.nextFollowUpAt) {
-      api.put(`/crm/leads/${id}`, { nextFollowUpAt: data.nextFollowUpAt }).then(() => {
-        qc.invalidateQueries({ queryKey: ['crm', 'lead', id] });
-      }).catch(() => {});
-    }
-  };
 
   const onSubmitEdit = (data) => {
     editMutation.mutate({
@@ -531,12 +520,20 @@ export default function LeadDetails() {
 
               return (
                 <>
-                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-4 flex items-center gap-2">
-                    Activity Timeline
-                    {events.length > 0 && (
-                      <span className="font-bold text-brand-600">({events.length})</span>
-                    )}
-                  </p>
+                  <div className="flex items-center justify-between mb-4">
+                    <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider flex items-center gap-2">
+                      Activity Timeline
+                      {events.length > 0 && (
+                        <span className="font-bold text-brand-600">({events.length})</span>
+                      )}
+                    </p>
+                    <button
+                      onClick={() => { setFuType('call'); setFuNotes(''); setFuNextAction(''); setFuScheduledAt(''); setShowFollowUpModal(true); }}
+                      className="text-xs px-2.5 py-1 rounded-lg bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 hover:bg-amber-100 font-medium flex items-center gap-1 transition-colors"
+                    >
+                      + Log Follow-up
+                    </button>
+                  </div>
 
                   {events.length === 0 ? (
                     <div className="text-center py-6">
@@ -1191,6 +1188,83 @@ export default function LeadDetails() {
                   className="btn-primary flex-1 justify-center disabled:opacity-50"
                 >
                   {commLogMutation.isPending ? 'Uploading…' : 'Save Log'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showFollowUpModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-gray-900/60 backdrop-blur-sm" onClick={() => setShowFollowUpModal(false)} />
+          <div className="relative card w-full max-w-lg shadow-modal max-h-[90vh] overflow-y-auto">
+            <div className="p-5 border-b border-gray-200 dark:border-[#1b2e4a] flex items-center justify-between sticky top-0 bg-white dark:bg-[#0d1b2e] z-10">
+              <div>
+                <h3 className="font-bold text-gray-900 dark:text-white">Log Follow-up</h3>
+                <p className="text-sm text-gray-500 mt-0.5">Record this touchpoint — the client gets a WhatsApp acknowledgment</p>
+              </div>
+              <button onClick={() => setShowFollowUpModal(false)} className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-[#17263d]">
+                <XMarkIcon className="w-5 h-5 text-gray-500" />
+              </button>
+            </div>
+            <div className="p-5 space-y-4">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="label">Type</label>
+                  <select value={fuType} onChange={e => setFuType(e.target.value)} className="input">
+                    {FOLLOWUP_TYPES.map(t => (
+                      <option key={t} value={t}>{FOLLOWUP_ICONS[t]} {t.charAt(0).toUpperCase() + t.slice(1)}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="label">Date & Time</label>
+                  <input
+                    type="datetime-local"
+                    value={fuScheduledAt}
+                    onChange={e => setFuScheduledAt(e.target.value)}
+                    className="input"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="label">Notes / Outcome</label>
+                <textarea
+                  value={fuNotes}
+                  onChange={e => setFuNotes(e.target.value)}
+                  rows={4}
+                  className="input resize-none"
+                  placeholder="What was discussed, how the client responded…"
+                  autoFocus
+                />
+              </div>
+              <div>
+                <label className="label">Next action (optional — shared with the client)</label>
+                <input
+                  value={fuNextAction}
+                  onChange={e => setFuNextAction(e.target.value)}
+                  className="input"
+                  placeholder="e.g. Share product catalog and pricing"
+                />
+              </div>
+              <div className="flex gap-3 pt-1">
+                <button type="button" onClick={() => setShowFollowUpModal(false)} className="btn-secondary flex-1 justify-center">Cancel</button>
+                <button
+                  onClick={() => {
+                    if (!fuNotes.trim()) { toast.error('Add a note about this follow-up'); return; }
+                    followUpMutation.mutate({
+                      scheduledAt: fuScheduledAt ? new Date(fuScheduledAt).toISOString() : new Date().toISOString(),
+                      type: fuType,
+                      notes: fuNotes,
+                      outcome: fuNotes,
+                      nextAction: fuNextAction,
+                    });
+                  }}
+                  disabled={followUpMutation.isPending}
+                  className="btn-primary flex-1 justify-center disabled:opacity-50"
+                >
+                  {followUpMutation.isPending ? 'Saving…' : 'Save Follow-up'}
                 </button>
               </div>
             </div>

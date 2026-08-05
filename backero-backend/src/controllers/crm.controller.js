@@ -128,7 +128,11 @@ exports.createLead = asyncHandler(async (req, res) => {
   // Welcome message to the client (async, non-blocking)
   const newLeadPhone = lead.whatsapp || lead.phone;
   if (newLeadPhone) {
-    sendActiveClientStageUpdate(newLeadPhone, { name: lead.name, stage: lead.status }).catch((err) => logger.error(err));
+    sendActiveClientStageUpdate(newLeadPhone, {
+      name: lead.name,
+      stage: lead.status,
+      lastUpdate: "Welcome to Backero! Thank you for reaching out — our team will get in touch with you shortly to understand your requirements.",
+    }).catch((err) => logger.error(err));
   }
 
   Organization.findById(req.user.organizationId).select('googleSheets').then((org) => {
@@ -213,7 +217,11 @@ async function promoteToSampleIfNeeded(lead, req) {
 
   const clientPhone = lead.whatsapp || lead.phone;
   if (clientPhone) {
-    sendActiveClientStageUpdate(clientPhone, { name: lead.name, stage: lead.status }).catch(logger.error);
+    sendActiveClientStageUpdate(clientPhone, {
+      name: lead.name,
+      stage: lead.status,
+      lastUpdate: lead.productInterest?.length ? `We're now preparing your sample for: ${lead.productInterest.join(', ')}` : undefined,
+    }).catch(logger.error);
   }
 }
 
@@ -753,6 +761,16 @@ exports.addFollowUp = asyncHandler(async (req, res) => {
   lead.updatedBy = req.user._id;
   await lead.save();
 
+  // Acknowledge the follow-up to the client (async, non-blocking)
+  const clientPhone = lead.whatsapp || lead.phone;
+  if (clientPhone) {
+    sendActiveClientStageUpdate(clientPhone, {
+      name: lead.name,
+      stage: lead.status,
+      lastUpdate: nextAction ? `Thanks for connecting with us! Next up: ${nextAction}` : "Thanks for connecting with us today — we'll follow up with more details soon.",
+    }).catch((err) => logger.error(err));
+  }
+
   sendSuccess(res, { lead }, 'Follow-up recorded');
 });
 
@@ -1290,6 +1308,18 @@ exports.raiseQuery = asyncHandler(async (req, res) => {
         createdBy: req.user._id,
       }, io);
     }
+
+    // Let the client know their question has been received (async, non-blocking) —
+    // promoteToSampleIfNeeded above already sends its own stage-change message when it
+    // fires, so this is an additional, distinct "we're on it" acknowledgment.
+    const clientPhone = lead.whatsapp || lead.phone;
+    if (clientPhone) {
+      sendActiveClientStageUpdate(clientPhone, {
+        name: lead.name,
+        stage: lead.status,
+        lastUpdate: `We've received your question — "${derivedTitle}" — our team is reviewing it and will get back to you shortly.`,
+      }).catch((err) => logger.error(err));
+    }
   }
 
   sendSuccess(res, { query }, 'Query raised', 201);
@@ -1372,6 +1402,20 @@ exports.answerQuery = asyncHandler(async (req, res) => {
     channels: { inApp: true, whatsapp: true },
     createdBy: req.user._id,
   }, io);
+
+  // Let the client know their question has been answered — reuses the already-approved
+  // client_stage_update template (free-text lastUpdate param carries the answer), same
+  // pattern as production.routes.js's notifyClientMilestone.
+  if (lead) {
+    const clientPhone = lead.whatsapp || lead.phone;
+    if (clientPhone) {
+      sendActiveClientStageUpdate(clientPhone, {
+        name: lead.name,
+        stage: lead.status,
+        lastUpdate: `We've answered your question — "${query.title}": ${answer}`,
+      }).catch(logger.error);
+    }
+  }
 
   sendSuccess(res, { query }, 'Query answered');
 });
