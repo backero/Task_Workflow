@@ -7,7 +7,7 @@ const DEPT_MODULES = {
   'Marketing':          ['tasks', 'crm', 'inventory', 'dept.marketing'],
   'Marketplace':        ['tasks', 'inventory', 'dept.marketplace'],
   'Sales':              ['tasks', 'crm', 'inventory', 'dept.sales'],
-  'Production':         ['tasks', 'production', 'inventory'],
+  'Production':         ['tasks', 'production', 'inventory', 'crm'],
   'R&D':                ['tasks', 'production', 'inventory', 'dept.rnd'],
   'Operations':         ['tasks', 'inventory', 'production', 'dept.operations'],
   'HR':                 ['tasks', 'management', 'inventory', 'dept.hr'],
@@ -40,14 +40,14 @@ export const usePermissions = () => {
     allowedModules.add('tasks.analytics');
     allowedModules.add('tasks.calendar');
   } else if (isManager) {
-    // manager gets their dept modules + all management extras
-    const deptMods = DEPT_MODULES[dept] || ['tasks'];
-    deptMods.forEach((m) => allowedModules.add(m));
+    // managers get full access across all departments and pages, like admin
+    Object.values(DEPT_MODULES).flat().forEach((m) => allowedModules.add(m));
     MANAGER_EXTRA.forEach((m) => allowedModules.add(m));
-    // managers can see all dept pages for visibility
-    Object.keys(DEPT_MODULES)
-      .filter((d) => DEPT_MODULES[d].some((m) => m.startsWith('dept.')))
-      .forEach((d) => DEPT_MODULES[d].filter((m) => m.startsWith('dept.')).forEach((m) => allowedModules.add(m)));
+    allowedModules.add('management');
+    allowedModules.add('tasks.team');
+    allowedModules.add('tasks.approvals');
+    allowedModules.add('tasks.analytics');
+    allowedModules.add('tasks.calendar');
   } else {
     // member / team_lead: only their dept modules
     const deptMods = DEPT_MODULES[dept] || ['tasks'];

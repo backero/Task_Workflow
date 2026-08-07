@@ -26,6 +26,11 @@ services:
       # MONGODB_URI
       # JWT_SECRET
       # JWT_REFRESH_SECRET
+      # WHATSAPP_CLOUD_ACCESS_TOKEN       — required, WhatsApp Cloud API sends (OTP, task alerts, CRM alerts) silently no-op without it
+      # WHATSAPP_CLOUD_PHONE_NUMBER_ID    — required
+      # WHATSAPP_CLOUD_BUSINESS_ACCOUNT_ID
+      # WHATSAPP_CLOUD_OTP_TEMPLATE
+      # WHATSAPP_WEBHOOK_VERIFY_TOKEN
     disk:
       name: wa-session-store
       mountPath: /mnt/wa_session

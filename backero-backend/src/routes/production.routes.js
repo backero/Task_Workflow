@@ -8,7 +8,6 @@ const StockMovement = require('../models/StockMovement');
 const ActivityLog = require('../models/ActivityLog');
 const { authenticate } = require('../middleware/auth.middleware');
 const { orgIsolation } = require('../middleware/orgIsolation.middleware');
-const { authorizeAdminOrAbove, authorizeManagerOrAbove } = require('../middleware/role.middleware');
 const { asyncHandler, sendSuccess, sendError, paginate, paginateResponse } = require('../utils/helpers');
 const { PRODUCTION_STATUS, STOCK_MOVEMENT_TYPES, SOCKET_EVENTS, BATCH_STAGE_TO_STATUS, BATCH_PROCESS_STEPS } = require('../utils/constants');
 const { deductFIFO, recomputeStock, nextUsageNumber } = require('../services/inventory.service');
@@ -65,7 +64,7 @@ router.get('/', asyncHandler(async (req, res) => {
 // POST create production order (manager+)
 // Accepts an optional { catalogProduct, batchSizeKg } to auto-scale the recipe
 // from the real Product Catalog formulation instead of a hand-typed BOM.
-router.post('/', authorizeManagerOrAbove, asyncHandler(async (req, res) => {
+router.post('/', asyncHandler(async (req, res) => {
   const io = req.app.get('io');
   const orgId = req.user.organizationId;
   const count = await ProductionOrder.countDocuments({ organizationId: orgId });
@@ -116,7 +115,7 @@ router.get('/:id', asyncHandler(async (req, res) => {
 }));
 
 // PATCH update production status (manager+)
-router.patch('/:id/status', authorizeManagerOrAbove, asyncHandler(async (req, res) => {
+router.patch('/:id/status', asyncHandler(async (req, res) => {
   const { status, notes } = req.body;
   const io = req.app.get('io');
 
@@ -200,7 +199,7 @@ router.patch('/:id/status', authorizeManagerOrAbove, asyncHandler(async (req, re
 }));
 
 // POST add quality check
-router.post('/:id/quality-check', authorizeManagerOrAbove, asyncHandler(async (req, res) => {
+router.post('/:id/quality-check', asyncHandler(async (req, res) => {
   const { checkType, result, notes } = req.body;
   const order = await ProductionOrder.findOne({ _id: req.params.id, organizationId: req.user.organizationId });
   if (!order) return sendError(res, 'Order not found.', 404);
@@ -212,7 +211,7 @@ router.post('/:id/quality-check', authorizeManagerOrAbove, asyncHandler(async (r
 }));
 
 // DELETE production order (manager+, only if not completed)
-router.delete('/:id', authorizeManagerOrAbove, asyncHandler(async (req, res) => {
+router.delete('/:id', asyncHandler(async (req, res) => {
   const order = await ProductionOrder.findOne({ _id: req.params.id, organizationId: req.user.organizationId });
   if (!order) return sendError(res, 'Production order not found.', 404);
   if (order.status === 'completed') return sendError(res, 'Cannot delete a completed production order.', 400);
@@ -244,7 +243,7 @@ async function loadOrder(req, res) {
 }
 
 // PATCH Stage 0 — order/CRM spec edits
-router.patch('/:id/order', authorizeManagerOrAbove, asyncHandler(async (req, res) => {
+router.patch('/:id/order', asyncHandler(async (req, res) => {
   const order = await loadOrder(req, res);
   if (!order) return;
   const { customer, contact, container, priority, deliveryDate, notes, crmSpec, batchSizeKg, plannedQuantity } = req.body;
@@ -263,7 +262,7 @@ router.patch('/:id/order', authorizeManagerOrAbove, asyncHandler(async (req, res
 }));
 
 // PATCH Stage 1 — work assignment / schedule, advance 1 -> 2
-router.patch('/:id/work-assignment', authorizeManagerOrAbove, asyncHandler(async (req, res) => {
+router.patch('/:id/work-assignment', asyncHandler(async (req, res) => {
   const order = await loadOrder(req, res);
   if (!order) return;
   order.workAssignment = { ...(order.workAssignment?.toObject?.() || order.workAssignment || {}), ...req.body };
@@ -277,7 +276,7 @@ router.patch('/:id/work-assignment', authorizeManagerOrAbove, asyncHandler(async
 }));
 
 // POST Stage 2 — confirm procurement (formula/RM availability confirmed), advance 2 -> 3
-router.post('/:id/procurement/confirm', authorizeManagerOrAbove, asyncHandler(async (req, res) => {
+router.post('/:id/procurement/confirm', asyncHandler(async (req, res) => {
   const order = await loadOrder(req, res);
   if (!order) return;
   if (order.stage !== 2) return sendError(res, 'Order is not at the Procurement stage.', 400);
@@ -353,7 +352,7 @@ router.post('/:id/process-step', asyncHandler(async (req, res) => {
 }));
 
 // POST Stage 3 -> 4 — manual advance once all ingredients are weighed and all process steps are done
-router.post('/:id/advance', authorizeManagerOrAbove, asyncHandler(async (req, res) => {
+router.post('/:id/advance', asyncHandler(async (req, res) => {
   const order = await loadOrder(req, res);
   if (!order) return;
   if (order.stage !== 3) return sendError(res, 'Only the Weighing stage can be advanced this way.', 400);
@@ -370,7 +369,7 @@ router.post('/:id/advance', authorizeManagerOrAbove, asyncHandler(async (req, re
 }));
 
 // POST Stage 4 — Bulk QC result; PASS advances 4 -> 5, FAIL holds at stage 4
-router.post('/:id/bulk-qc', authorizeManagerOrAbove, asyncHandler(async (req, res) => {
+router.post('/:id/bulk-qc', asyncHandler(async (req, res) => {
   const order = await loadOrder(req, res);
   if (!order) return;
   const result = req.body.result === 'PASS' ? 'PASS' : 'FAIL';
@@ -384,7 +383,7 @@ router.post('/:id/bulk-qc', authorizeManagerOrAbove, asyncHandler(async (req, re
 }));
 
 // POST Stage 5 — Packaging complete, advance 5 -> 6
-router.post('/:id/packaging', authorizeManagerOrAbove, asyncHandler(async (req, res) => {
+router.post('/:id/packaging', asyncHandler(async (req, res) => {
   const order = await loadOrder(req, res);
   if (!order) return;
   order.packaging = { ...req.body, completedBy: req.user._id, completedAt: new Date() };
@@ -410,7 +409,7 @@ const FQC_SPEC_TO_FIELD = {
 const isSpecRequired = (crmSpec, key) => (crmSpec?.[`${key}Status`] || 'Required') === 'Required';
 
 // POST Stage 6 — Final QC; approve advances 6 -> 7, credits finished-goods stock, notifies team
-router.post('/:id/final-qc', authorizeManagerOrAbove, asyncHandler(async (req, res) => {
+router.post('/:id/final-qc', asyncHandler(async (req, res) => {
   const order = await loadOrder(req, res);
   if (!order) return;
   const io = req.app.get('io');
@@ -474,7 +473,7 @@ router.post('/:id/final-qc', authorizeManagerOrAbove, asyncHandler(async (req, r
 }));
 
 // POST Stage 7 — dispatch record
-router.post('/:id/dispatch', authorizeManagerOrAbove, asyncHandler(async (req, res) => {
+router.post('/:id/dispatch', asyncHandler(async (req, res) => {
   const order = await loadOrder(req, res);
   if (!order) return;
   order.dispatchRecord = { ...req.body, dispatchedBy: req.user._id, dispatchedAt: new Date() };

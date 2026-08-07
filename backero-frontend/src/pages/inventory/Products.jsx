@@ -489,7 +489,7 @@ export default function Products() {
   const [search, setSearch] = useState('');
   const [lowStockOnly, setLowStockOnly] = useState(false);
   const [filterCat, setFilterCat] = useState('');
-  const { isManagerOrAbove, hasInventoryWrite } = useAuthStore();
+  const { isAdminOrAbove, hasInventoryWrite } = useAuthStore();
   const qc = useQueryClient();
 
   const { data, isLoading } = useQuery({
@@ -552,12 +552,14 @@ export default function Products() {
         </div>
         {hasInventoryWrite() && (
           <div className="flex items-center gap-2">
-            <ImportButton
-              templateUrl="/inventory/import/template"
-              importUrl="/inventory/import"
-              onSuccess={invalidate}
-              label="Import"
-            />
+            {isAdminOrAbove() && (
+              <ImportButton
+                templateUrl="/inventory/import/template"
+                importUrl="/inventory/import"
+                onSuccess={invalidate}
+                label="Import"
+              />
+            )}
             <button onClick={() => setShowForm(true)} className="btn-primary gap-2">
               + Add Product
             </button>
@@ -622,7 +624,7 @@ export default function Products() {
         <ProductTable
           products={products}
           canWrite={hasInventoryWrite()}
-          canDelete={isManagerOrAbove()}
+          canDelete={hasInventoryWrite()}
           onStock={setStockProduct}
           onEdit={setEditProduct}
           onQr={setQrProduct}

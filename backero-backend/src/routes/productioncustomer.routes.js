@@ -2,7 +2,6 @@ const router = require('express').Router();
 const ProductionCustomer = require('../models/ProductionCustomer');
 const { authenticate } = require('../middleware/auth.middleware');
 const { orgIsolation } = require('../middleware/orgIsolation.middleware');
-const { authorizeManagerOrAbove } = require('../middleware/role.middleware');
 const { asyncHandler, sendSuccess, sendError } = require('../utils/helpers');
 
 router.use(authenticate, orgIsolation);
@@ -19,8 +18,8 @@ router.get('/', asyncHandler(async (req, res) => {
   sendSuccess(res, { customers });
 }));
 
-// POST create a production customer (manager+)
-router.post('/', authorizeManagerOrAbove, asyncHandler(async (req, res) => {
+// POST create a production customer
+router.post('/', asyncHandler(async (req, res) => {
   const { name, contact, leadId, defaultContainer, savedCrmSpec } = req.body;
   if (!name?.trim()) return sendError(res, 'Customer name is required.', 400);
   const customer = await ProductionCustomer.create({
@@ -32,8 +31,8 @@ router.post('/', authorizeManagerOrAbove, asyncHandler(async (req, res) => {
   sendSuccess(res, { customer }, 'Customer saved', 201);
 }));
 
-// PATCH update a production customer's saved details / checklist (manager+)
-router.patch('/:id', authorizeManagerOrAbove, asyncHandler(async (req, res) => {
+// PATCH update a production customer's saved details / checklist
+router.patch('/:id', asyncHandler(async (req, res) => {
   const customer = await ProductionCustomer.findOne({ _id: req.params.id, organizationId: req.user.organizationId });
   if (!customer) return sendError(res, 'Customer not found.', 404);
   const { name, contact, defaultContainer, savedCrmSpec } = req.body;

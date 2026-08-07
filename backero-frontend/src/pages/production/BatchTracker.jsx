@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, Fragment } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
@@ -8,6 +8,15 @@ import {
   PlusIcon, MagnifyingGlassIcon, XMarkIcon, ArrowLeftIcon, TrashIcon,
   BeakerIcon, LockClosedIcon, TruckIcon,
 } from '@heroicons/react/24/outline';
+import { customerId } from '../../utils/leadHelpers';
+
+// Days between today and the order's delivery date — mirrors the reference design's
+// calcLeadDays(), used for the Lead Days column (red <=3d, amber <=7d).
+function calcLeadDays(deliveryDate) {
+  if (!deliveryDate) return null;
+  const diffMs = new Date(deliveryDate).setHours(0, 0, 0, 0) - new Date().setHours(0, 0, 0, 0);
+  return Math.round(diffMs / 86400000);
+}
 
 const STAGE_NAMES = ['Order', 'Work Assignment', 'Procurement', 'Weighing', 'Bulk QC', 'Packaging', 'Final QC', 'Dispatch'];
 const PROCESS_STEPS = ['Water Phase Heating', 'Oil Phase Heating', 'Emulsification', 'Cooling Phase', 'Add Heat-Sensitives', 'In-Process QC Check', 'Final Mix', 'Transfer to Holding'];
@@ -141,11 +150,24 @@ function Dashboard({ onOpen, onNew }) {
     if (stageFilter !== '' && o.stage !== Number(stageFilter)) return false;
     if (!search) return true;
     const s = search.toLowerCase();
-    return (o.orderNumber || '').toLowerCase().includes(s) || (o.customer || '').toLowerCase().includes(s) || (o.catalogProduct?.name || '').toLowerCase().includes(s);
+    const cid = o.leadId ? customerId({ _id: o.leadId }) : '';
+    return (o.orderNumber || '').toLowerCase().includes(s) || (o.customer || '').toLowerCase().includes(s) || (o.catalogProduct?.name || '').toLowerCase().includes(s) || cid.toLowerCase().includes(s);
   });
 
   const stageCounts = STAGE_NAMES.map((_, i) => orders.filter((o) => o.stage === i).length);
   const active = orders.filter((o) => o.status !== 'Completed' && o.status !== 'Cancelled').length;
+
+  // Groups orders under a customer sub-header, same as the reference design's dashboard table —
+  // one customer can hold several product orders, each with its own Order ID.
+  const groups = {};
+  const groupKeys = [];
+  filtered.forEach((o) => {
+    const cid = o.leadId ? customerId({ _id: o.leadId }) : null;
+    const key = cid ? `A-${cid}` : `Z-${o.customer || 'Unlinked'}`;
+    if (!groups[key]) { groups[key] = { cid, name: o.customer || 'Unlinked', items: [] }; groupKeys.push(key); }
+    groups[key].items.push(o);
+  });
+  groupKeys.sort();
 
   return (
     <div className="space-y-5">
@@ -164,11 +186,12 @@ function Dashboard({ onOpen, onNew }) {
         </button>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <Card><p className="text-2xl font-bold text-gray-900 dark:text-white">{orders.length}</p><p className="text-[11px] text-gray-500 dark:text-gray-400 font-medium">Total Orders</p></Card>
-        <Card><p className="text-2xl font-bold text-blue-600">{active}</p><p className="text-[11px] text-gray-500 dark:text-gray-400 font-medium">Active</p></Card>
-        <Card><p className="text-2xl font-bold text-purple-600">{stageCounts[4]}</p><p className="text-[11px] text-gray-500 dark:text-gray-400 font-medium">In Bulk QC</p></Card>
-        <Card><p className="text-2xl font-bold text-green-600">{stageCounts[7]}</p><p className="text-[11px] text-gray-500 dark:text-gray-400 font-medium">Dispatched</p></Card>
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+        <Card><p className="text-2xl font-bold text-gray-900 dark:text-white">{orders.length}</p><p className="text-[11px] text-gray-500 dark:text-gray-400 font-medium">Total Orders</p><p className="text-[10px] text-gray-400">All time</p></Card>
+        <Card><p className="text-2xl font-bold text-amber-600">{active}</p><p className="text-[11px] text-gray-500 dark:text-gray-400 font-medium">Active Pipeline</p><p className="text-[10px] text-gray-400">In progress</p></Card>
+        <Card><p className="text-2xl font-bold text-gray-900 dark:text-white">{stageCounts[2]}</p><p className="text-[11px] text-gray-500 dark:text-gray-400 font-medium">Procurement</p><p className="text-[10px] text-gray-400">RM / Packaging</p></Card>
+        <Card><p className="text-2xl font-bold text-gray-900 dark:text-white">{stageCounts[1] + stageCounts[3]}</p><p className="text-[11px] text-gray-500 dark:text-gray-400 font-medium">Weighing / Mfg</p><p className="text-[10px] text-gray-400">Production floor</p></Card>
+        <Card><p className="text-2xl font-bold text-red-600">{stageCounts[4] + stageCounts[6]}</p><p className="text-[11px] text-gray-500 dark:text-gray-400 font-medium">QC Pending</p><p className="text-[10px] text-gray-400">Bulk + Final</p></Card>
       </div>
 
       <div className="grid grid-cols-4 md:grid-cols-8 gap-2">
@@ -185,7 +208,7 @@ function Dashboard({ onOpen, onNew }) {
       <div className="flex items-center gap-2 flex-wrap">
         <div className="relative flex-1 min-w-[200px]">
           <MagnifyingGlassIcon className="absolute left-2.5 top-2.5 w-3.5 h-3.5 text-gray-400" />
-          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search order #, customer, product…"
+          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search order #, customer ID, customer, product…"
             className="pl-8 pr-3 py-2 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500 w-full bg-gray-50 dark:bg-[#0f1a2e] dark:border-[#1b2e4a]" />
         </div>
         {stageFilter !== '' && (
@@ -198,24 +221,47 @@ function Dashboard({ onOpen, onNew }) {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-gray-100 dark:border-[#1b2e4a] text-left text-[10px] uppercase tracking-wide text-gray-400">
-                <th className="px-4 py-2.5">Order</th><th className="px-4 py-2.5">Product</th><th className="px-4 py-2.5">Customer</th>
-                <th className="px-4 py-2.5">Priority</th><th className="px-4 py-2.5">Stage</th><th className="px-4 py-2.5">Delivery</th><th className="px-4 py-2.5"></th>
+                <th className="px-4 py-2.5">Customer ID</th><th className="px-4 py-2.5">Order ID</th><th className="px-4 py-2.5">Product</th>
+                <th className="px-4 py-2.5">Lead Days</th><th className="px-4 py-2.5">Priority</th><th className="px-4 py-2.5">Qty</th>
+                <th className="px-4 py-2.5">Container</th><th className="px-4 py-2.5">Stage</th><th className="px-4 py-2.5">Delivery</th>
               </tr>
             </thead>
             <tbody>
-              {isLoading && <tr><td colSpan={7} className="px-4 py-8 text-center text-gray-400 text-xs">Loading…</td></tr>}
-              {!isLoading && filtered.length === 0 && <tr><td colSpan={7} className="px-4 py-8 text-center text-gray-400 text-xs">No orders match. Click "+ New Order" to create one.</td></tr>}
-              {filtered.map((o) => (
-                <tr key={o._id} onClick={() => onOpen(o._id)} className="border-b border-gray-50 dark:border-[#111b2e] cursor-pointer hover:bg-gray-50 dark:hover:bg-[#0f1a2e]">
-                  <td className="px-4 py-2.5 font-mono text-xs text-gray-700 dark:text-gray-300">{o.orderNumber}</td>
-                  <td className="px-4 py-2.5 text-gray-900 dark:text-white">{o.catalogProduct?.name || '—'}</td>
-                  <td className="px-4 py-2.5 text-gray-600 dark:text-gray-400">{o.customer || '—'}</td>
-                  <td className="px-4 py-2.5"><span className={clsx('text-[10px] font-semibold px-2 py-0.5 rounded-full', PRIORITY_STYLE[o.priority] || PRIORITY_STYLE.Normal)}>{o.priority || 'Normal'}</span></td>
-                  <td className="px-4 py-2.5"><span className={clsx('text-[10px] font-semibold px-2 py-0.5 rounded-full', STAGE_BUCKET_COLOR(o.stage))}>{STAGE_NAMES[o.stage]}</span></td>
-                  <td className="px-4 py-2.5 text-gray-500 dark:text-gray-400 text-xs">{o.deliveryDate || '—'}</td>
-                  <td className="px-4 py-2.5 text-right"><span className="text-brand-600 text-xs font-semibold">Open →</span></td>
-                </tr>
-              ))}
+              {isLoading && <tr><td colSpan={9} className="px-4 py-8 text-center text-gray-400 text-xs">Loading…</td></tr>}
+              {!isLoading && filtered.length === 0 && <tr><td colSpan={9} className="px-4 py-8 text-center text-gray-400 text-xs">No orders match. Click "+ New Order" to create one.</td></tr>}
+              {groupKeys.map((gk) => {
+                const g = groups[gk];
+                return (
+                  <Fragment key={gk}>
+                    <tr className="bg-gray-50 dark:bg-[#0f1a2e]">
+                      <td colSpan={9} className="px-4 py-1.5 text-xs text-gray-500 dark:text-gray-400">
+                        👤 {g.cid
+                          ? <span className="font-mono font-bold text-gray-700 dark:text-gray-200">{g.cid}</span>
+                          : <span>{g.name} <span className="text-amber-600">(no Customer ID — link one)</span></span>}
+                        {g.cid && <span> — {g.name}</span>}
+                        <span> · <strong>{g.items.length} order{g.items.length === 1 ? '' : 's'}</strong></span>
+                      </td>
+                    </tr>
+                    {g.items.map((o) => {
+                      const leadDays = calcLeadDays(o.deliveryDate);
+                      const leadDaysCls = leadDays == null ? 'text-gray-400' : leadDays <= 3 ? 'text-red-600 font-semibold' : leadDays <= 7 ? 'text-amber-600 font-semibold' : 'text-gray-600 dark:text-gray-400';
+                      return (
+                        <tr key={o._id} onClick={() => onOpen(o._id)} className="border-b border-gray-50 dark:border-[#111b2e] cursor-pointer hover:bg-gray-50 dark:hover:bg-[#0f1a2e]">
+                          <td className="px-4 py-2.5"></td>
+                          <td className="px-4 py-2.5 font-mono text-xs text-gray-700 dark:text-gray-300">{o.orderNumber}</td>
+                          <td className="px-4 py-2.5 text-gray-900 dark:text-white">{o.catalogProduct?.name || '—'}</td>
+                          <td className={clsx('px-4 py-2.5 text-xs', leadDaysCls)}>{leadDays == null ? '—' : `${leadDays}d`}</td>
+                          <td className="px-4 py-2.5"><span className={clsx('text-[10px] font-semibold px-2 py-0.5 rounded-full', PRIORITY_STYLE[o.priority] || PRIORITY_STYLE.Normal)}>{o.priority || 'Normal'}</span></td>
+                          <td className="px-4 py-2.5 text-gray-600 dark:text-gray-400 text-xs">{o.plannedQuantity ? `${o.plannedQuantity} ${o.unit || ''}` : '—'}</td>
+                          <td className="px-4 py-2.5 text-gray-600 dark:text-gray-400 text-xs">{o.container || '—'}</td>
+                          <td className="px-4 py-2.5"><span className={clsx('text-[10px] font-semibold px-2 py-0.5 rounded-full', STAGE_BUCKET_COLOR(o.stage))}>{STAGE_NAMES[o.stage]}</span></td>
+                          <td className="px-4 py-2.5 text-gray-500 dark:text-gray-400 text-xs">{o.deliveryDate || '—'}</td>
+                        </tr>
+                      );
+                    })}
+                  </Fragment>
+                );
+              })}
             </tbody>
           </table>
         </div>

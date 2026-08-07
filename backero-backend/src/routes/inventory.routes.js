@@ -2,7 +2,7 @@ const router = require('express').Router();
 const ctrl = require('../controllers/inventory.controller');
 const { authenticate } = require('../middleware/auth.middleware');
 const { orgIsolation } = require('../middleware/orgIsolation.middleware');
-const { authorizeAdminOrAbove, authorizeManagerOrAbove, authorizeInventoryWrite } = require('../middleware/role.middleware');
+const { authorizeAdminOrAbove } = require('../middleware/role.middleware');
 const { asyncHandler, sendSuccess, sendError } = require('../utils/helpers');
 const upload = require('../middleware/upload.middleware');
 const { buildProductTemplate, importProducts } = require('../services/import.service');
@@ -30,11 +30,11 @@ router.post('/import', authorizeAdminOrAbove, upload.single('file'), asyncHandle
 // Raw Materials
 router.get('/raw-materials/stats', ctrl.getRawMaterialStats);
 router.get('/raw-materials', ctrl.getRawMaterials);
-router.post('/raw-materials', authorizeInventoryWrite, ctrl.createRawMaterial);
-router.put('/raw-materials/:id', authorizeInventoryWrite, ctrl.updateRawMaterial);
-router.delete('/raw-materials/:id', authorizeManagerOrAbove, ctrl.deleteProduct);
-router.post('/raw-materials/:id/batches', authorizeInventoryWrite, ctrl.addRawMaterialBatch);
-router.put('/raw-materials/:id/batches/:batchId', authorizeInventoryWrite, ctrl.updateRawMaterialBatch);
+router.post('/raw-materials', ctrl.createRawMaterial);
+router.put('/raw-materials/:id', ctrl.updateRawMaterial);
+router.delete('/raw-materials/:id', ctrl.deleteProduct);
+router.post('/raw-materials/:id/batches', ctrl.addRawMaterialBatch);
+router.put('/raw-materials/:id/batches/:batchId', ctrl.updateRawMaterialBatch);
 
 router.get('/products', ctrl.getProducts);
 router.get('/movements', ctrl.getMovements);
@@ -53,11 +53,11 @@ router.get('/products/:id/qr', asyncHandler(async (req, res) => {
 }));
 
 router.get('/products/:id', ctrl.getProduct);
-router.post('/products', authorizeInventoryWrite, ctrl.createProduct);
-router.put('/products/:id', authorizeInventoryWrite, ctrl.updateProduct);
-router.delete('/products/:id', authorizeManagerOrAbove, ctrl.deleteProduct);
-router.post('/stock-in', authorizeInventoryWrite, ctrl.stockIn);
-router.post('/stock-out', authorizeInventoryWrite, ctrl.stockOut);
-router.post('/adjustment', authorizeInventoryWrite, ctrl.stockAdjustment);
+router.post('/products', ctrl.createProduct);
+router.put('/products/:id', ctrl.updateProduct);
+router.delete('/products/:id', ctrl.deleteProduct);
+router.post('/stock-in', ctrl.stockIn);
+router.post('/stock-out', ctrl.stockOut);
+router.post('/adjustment', ctrl.stockAdjustment);
 
 module.exports = router;

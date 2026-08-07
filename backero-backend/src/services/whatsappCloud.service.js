@@ -18,7 +18,7 @@ function toWhatsAppId(phone) {
 // template's dynamic document header. Required before sending daily-report PDFs.
 async function uploadMedia(buffer, filename, mimetype) {
   if (!isConfigured()) {
-    logger.warn('[WhatsApp Cloud] Not configured — skipping media upload');
+    logger.error('[WhatsApp Cloud] Not configured (missing WHATSAPP_CLOUD_ACCESS_TOKEN / WHATSAPP_CLOUD_PHONE_NUMBER_ID) — skipping media upload');
     return null;
   }
   const phoneNumberId = process.env.WHATSAPP_CLOUD_PHONE_NUMBER_ID;
@@ -48,7 +48,7 @@ async function uploadMedia(buffer, filename, mimetype) {
 // message payload shape (body/button parameters) — see callers below for examples.
 async function sendTemplate(phone, templateName, components) {
   if (!isConfigured()) {
-    logger.warn(`[WhatsApp Cloud] Not configured — skipping ${templateName} send`);
+    logger.error(`[WhatsApp Cloud] Not configured (missing WHATSAPP_CLOUD_ACCESS_TOKEN / WHATSAPP_CLOUD_PHONE_NUMBER_ID) — skipping ${templateName} send`);
     return false;
   }
   const to = toWhatsAppId(phone);

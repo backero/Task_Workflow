@@ -37,12 +37,14 @@ export const useAuthStore = create(
         return user ? (hierarchyMap[user.role] || 0) >= 5 : false;
       },
 
-      hasInventoryWrite: () => {
+      isAdminOrAbove: () => {
         const hierarchyMap = { super_admin: 7, chairman: 6, founder: 5, admin: 4, manager: 3, team_lead: 2, member: 1 };
         const user = get().user;
-        if (!user) return false;
-        return (hierarchyMap[user.role] || 0) >= 3 || (user.permissions || []).includes('inventory:write');
+        return user ? (hierarchyMap[user.role] || 0) >= 4 : false;
       },
+
+      // Inventory create/update/delete is open to any authenticated user (backend no longer restricts it to manager+).
+      hasInventoryWrite: () => !!get().user,
     }),
     {
       name: 'backero-auth',
