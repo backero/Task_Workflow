@@ -19,6 +19,10 @@ const userSchema = new mongoose.Schema({
   },
   department: { type: String },
   designation: { type: String },
+  // Production Kitchen scheduling — not used for filtering in v1 (support-picking is by
+  // availability + fairness only), stored now so v2's skills-aware auto-assign doesn't
+  // need a migration later.
+  skills: { type: [String], enum: ['weighing', 'vessel', 'filling', 'packing'], default: [] },
   employeeId: { type: String },
   avatar: { type: String },
   avatarPublicId: { type: String, select: false },

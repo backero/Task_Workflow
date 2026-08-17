@@ -1,6 +1,6 @@
 import { useState, useEffect, Fragment } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Link, useSearchParams } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import clsx from 'clsx';
 import api from '../../api/axios';
@@ -8,6 +8,11 @@ import { format, formatDistanceToNowStrict } from 'date-fns';
 import SampleLeadDetail from './SampleLeadDetail';
 import EditKycModal from './EditKycModal';
 import { customerId, queryId } from '../../utils/leadHelpers';
+import { FONT_IMPORT, Card, PILL, StatCard, SUB_STAGE_PILL } from './sampleTheme';
+import {
+  StageBar, StageOrder, StageWorkAssignment, StageProcurement, StageWeighing,
+  StageBulkQC, StagePackaging, StageFinalQC, StageDispatch, STAGE_NAMES,
+} from './production/StageSteps';
 
 // Cross-customer work queue over the CRM's existing "Sample" pipeline stage —
 // no new data model. Everything here reads/writes the same Lead record that
@@ -21,46 +26,39 @@ import { customerId, queryId } from '../../utils/leadHelpers';
 // the rest of the app's blue theme, scoped entirely to this page via the
 // FONT_IMPORT + hardcoded hex classes below (nothing global is touched).
 
-export const FONT_IMPORT = "@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Fraunces:wght@500;600;700&display=swap');";
+export { FONT_IMPORT, Card, PILL, StatCard, SUB_STAGE_PILL, PROD_STAGE_TABS };
 const displayFont = { fontFamily: "'Fraunces', Georgia, serif" };
 const bodyFont = { fontFamily: "'Inter', -apple-system, sans-serif" };
 
-export function Card({ children, className = '' }) {
-  return <div className={clsx('bg-[#f0eadd] rounded-2xl border border-[#e2dac8] shadow-[0_1px_3px_rgba(46,36,27,0.05),0_4px_12px_rgba(46,36,27,0.08)] p-4', className)} style={bodyFont}>{children}</div>;
-}
-
-export const PILL = {
-  success: 'bg-[#dce9d4] text-[#3a5f3c]',
-  warning: 'bg-[#f3e3c2] text-[#7a5a10]',
-  danger: 'bg-[#f0d8d2] text-[#8c3a30]',
-  info: 'bg-[#dde5ea] text-[#33526b]',
-  purple: 'bg-[#e6dce9] text-[#5d4470]',
-  gray: 'bg-[#e2dac8] text-[#5a4d3a]',
-};
-
-export function StatCard({ emoji, iconTone, label, value, hint, valueTone = 'text-[#2e241b]' }) {
-  return (
-    <Card className="flex items-start justify-between gap-3 hover:-translate-y-0.5 hover:shadow-[0_10px_40px_rgba(46,36,27,0.16)] transition-transform">
-      <div className="min-w-0">
-        <p className="text-xs text-[#6d5f4c] font-medium mb-1.5">{label}</p>
-        <p className={clsx('text-2xl font-bold tracking-tight', valueTone)}>{value}</p>
-        {hint && <p className="text-[11px] text-[#968871] mt-1">{hint}</p>}
-      </div>
-      <div className={clsx('w-11 h-11 rounded-xl flex items-center justify-center text-lg flex-shrink-0', PILL[iconTone] || PILL.gray)}>{emoji}</div>
-    </Card>
-  );
-}
-
 const QA_TOPIC_PILL = { General: PILL.gray, Product: PILL.info, Packaging: PILL.warning, Formula: PILL.purple, Designing: PILL.info, Pricing: PILL.success };
 
-export const SUB_STAGE_PILL = {
-  Requested: PILL.gray,
-  'In Lab': PILL.info,
-  Sent: PILL.warning,
-  Feedback: PILL.purple,
-  Approved: PILL.success,
-  Rejected: PILL.danger,
+// The 6 production-floor stages, broken out of the old combined "Track Production" board into
+// their own top-level tabs — each just the orders currently sitting at that stage (STAGE_NAMES
+// indices 2-7; Order/Work Assignment stay covered by Awaiting Production & Orders above).
+const PROD_STAGE_TABS = [
+  { key: 'procurement', label: 'Procurement', emoji: '📦', stage: 2, hint: 'Orders at Procurement — raw material availability check against the scaled formula.' },
+  { key: 'weighing', label: 'Ready for Product Approval', emoji: '⚖️', stage: 3, hint: 'Orders at Ready for Product Approval (Weighing) — ingredient weigh-off and process steps, then a manager approves the batch to move on.' },
+  { key: 'bulkqc', label: 'Bulk QC', emoji: '🧫', stage: 4, hint: 'Orders at Bulk QC — pass/fail against the locked Job Sheet specs.' },
+  { key: 'packing', label: 'Packing', emoji: '🎁', stage: 5, hint: 'Orders at Packaging — fill, reject count, labeling.' },
+  { key: 'finalqc', label: 'Final QC', emoji: '✅', stage: 6, hint: 'Orders at Final QC — release checks before dispatch.' },
+  { key: 'dispatch', label: 'Dispatch', emoji: '🚚', stage: 7, hint: 'Orders at Dispatch — ready to ship or already shipped.' },
+];
+
+// Each stage tab's own function component — "Open" from that tab jumps straight to just this,
+// no lead tabs, no cross-stage nav, since every order listed under a stage tab is guaranteed to
+// currently be at that exact stage.
+const PROD_STAGE_COMPONENT = {
+  procurement: StageProcurement,
+  weighing: StageWeighing,
+  bulkqc: StageBulkQC,
+  packing: StagePackaging,
+  finalqc: StageFinalQC,
+  dispatch: StageDispatch,
 };
+
+// Orders tab's "Edit" action — opens just the Order/Job Sheet function via StageFocusPanel,
+// same as the stage tabs above, since there's no top-level tab for it anymore.
+const ORDER_EDIT_TAB = { key: 'order', label: 'Edit Order', emoji: '✏️' };
 
 const TABS = [
   { key: 'new', label: 'New Leads', emoji: '🆕', hint: 'Brand-new leads — no CRM stage move needed. Add a product, formula, or sample here and the lead promotes to Sample automatically.' },
@@ -69,6 +67,7 @@ const TABS = [
   { key: 'payments', label: 'Payments', emoji: '💳', hint: 'R&D / sampling fee confirmation — a sample stays locked at "Requested" until this is confirmed.' },
   { key: 'awaiting', label: 'Awaiting Production', emoji: '⏳', hint: 'Sample approved (moved to In Progress) but not yet linked to a Batch Tracker order.' },
   { key: 'linked', label: 'Orders', emoji: '🧾', hint: 'Already handed off — tracked in Batch Tracker from here on.' },
+  ...PROD_STAGE_TABS,
 ];
 
 const FLOW_STEPS = ['Add customer (KYC)', 'Answer questions', 'Confirm payment', 'Make & track samples', 'Order to production'];
@@ -143,6 +142,9 @@ export default function SampleProduction() {
   const [qaSortKey, setQaSortKey] = useState('aging');
   const [qaSortDir, setQaSortDir] = useState('desc');
 
+  // "Open"/"Edit" from a production-stage tab or the Orders tab — { orderId, stageTab, StageComponent }.
+  const [focusStageOrder, setFocusStageOrder] = useState(null);
+
   // KYC edit modal — covers the fields the "Sample Development" reference keeps on this page
   // (not just name/phone/email, but preferredName/language/bestTime/teamSize/rapportNote too),
   // saved via the existing generic PUT /crm/leads/:id endpoint (applies whatever fields are sent).
@@ -154,6 +156,9 @@ export default function SampleProduction() {
 
   // Orders tab detail modal
   const [openOrderLead, setOpenOrderLead] = useState(null);
+  // Production orders created directly (no CRM lead attached) — tracked here too, opened
+  // through a lead-less stage panel since there's no lead to show tabs for.
+  const [openOrderId, setOpenOrderId] = useState(null);
   const [orderQty, setOrderQty] = useState('');
   const [orderDeliveryDate, setOrderDeliveryDate] = useState('');
   const [orderMarginPct, setOrderMarginPct] = useState(30);
@@ -164,14 +169,18 @@ export default function SampleProduction() {
   const [dispatchFile, setDispatchFile] = useState(null);
 
   const qc = useQueryClient();
+  const navigate = useNavigate();
 
   // Arriving from CRM Pipeline's "move to Sample" / "move to Production" actions
-  // (?open=<leadId>) — jump straight into that lead's detail instead of the list.
+  // (?open=<leadId>) — jump straight into that lead's detail instead of the list. Also
+  // ?tab=<key> from the Dashboard's production stage strip — jump straight to that tab.
   const [searchParams, setSearchParams] = useSearchParams();
   useEffect(() => {
     const openId = searchParams.get('open');
-    if (openId) {
-      setOpenLeadId(openId);
+    const tabParam = searchParams.get('tab');
+    if (openId || tabParam) {
+      if (openId) setOpenLeadId(openId);
+      if (tabParam && TABS.some((t) => t.key === tabParam)) setTab(tabParam);
       setSearchParams({}, { replace: true });
     }
   }, [searchParams]);
@@ -191,6 +200,23 @@ export default function SampleProduction() {
   const [sampleLeads, inProgressLeads, readyToDispatchLeads] = data || [[], [], []];
   const awaiting = inProgressLeads.filter((l) => !l.productionOrderId);
   const linked = [...inProgressLeads.filter((l) => l.productionOrderId), ...(readyToDispatchLeads || [])];
+
+  // Orders created directly against Batch Tracker's old standalone flow (no CRM lead) — the
+  // Orders tab's main table is lead-driven, so these need their own list underneath it. Also
+  // backs each production-stage tab's list (every order at that stage, across all leads).
+  const currentProdStageTab = PROD_STAGE_TABS.find((t) => t.key === tab);
+  const { data: allProductionOrders } = useQuery({
+    queryKey: ['production-orders'],
+    queryFn: () => api.get('/production', { params: { limit: 200 } }).then((r) => r.data.data || []),
+    enabled: tab === 'linked' || !!currentProdStageTab,
+    refetchInterval: 60 * 1000,
+  });
+  const orphanOrders = (allProductionOrders || []).filter((o) => !o.leadId);
+
+  const productionOrders = search
+    ? (allProductionOrders || []).filter((o) => (o.orderNumber || '').toLowerCase().includes(search.toLowerCase()) || (o.customer || '').toLowerCase().includes(search.toLowerCase()) || (o.catalogProduct?.name || '').toLowerCase().includes(search.toLowerCase()))
+    : (allProductionOrders || []);
+  const currentProdStageOrders = currentProdStageTab ? productionOrders.filter((o) => o.stage === currentProdStageTab.stage) : [];
 
   const { data: newLeadsData } = useQuery({
     queryKey: ['sample-production', 'new-leads'],
@@ -349,11 +375,15 @@ export default function SampleProduction() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['sample-production'] });
       qc.invalidateQueries({ queryKey: ['crm'] });
-      toast.success('Sent to Production — batch order created');
+      qc.invalidateQueries({ queryKey: ['production-schedule'] });
+      toast.success('Sent to Production — schedule it in Kitchen Schedule');
       setSendLead(null);
       setSelectedCatalogProduct(null);
       setCatalogSearch('');
       setBatchSizeKg(10);
+      // The new order sits at Work Assignment (stage 1) — Kitchen Schedule's Tray is where
+      // it gets a leader/support/date now, instead of the old inline Work Assignment form.
+      navigate('/production/kitchen');
     },
     onError: (e) => toast.error(e.response?.data?.message || 'Failed to send to production'),
   });
@@ -484,7 +514,7 @@ export default function SampleProduction() {
   const modalInputCls = 'px-3 py-2 text-sm rounded-[10px] border-[1.5px] border-[#d3c9b4] bg-white text-[#2e241b] focus:outline-none focus:border-[#968871] placeholder:text-[#968871]';
 
   return (
-    <div className="space-y-5 -m-4 sm:-m-6 p-4 sm:p-6 bg-[#c9c0ae] min-h-[calc(100vh-4rem)]" style={bodyFont}>
+    <div className="space-y-5 -m-4 sm:-m-6 p-4 sm:p-6 bg-white min-h-[calc(100vh-4rem)]" style={bodyFont}>
       <style>{FONT_IMPORT}</style>
 
       <Card className="flex items-center gap-3">
@@ -633,6 +663,11 @@ export default function SampleProduction() {
                         >
                           Edit KYC
                         </button>
+                        {l.productionOrderId && (
+                          <button onClick={() => { setOpenLeadId(l._id); setOpenLeadInitialTab('Production'); }} className={clsx(textLink, 'mr-3')}>
+                            🏭 Track Production →
+                          </button>
+                        )}
                         <button onClick={() => { setOpenLeadId(l._id); setOpenLeadInitialTab(null); }} className={clsx(textLink, 'mr-3')}>Open ▸</button>
                         <button
                           onClick={() => { if (window.confirm(`Delete lead "${l.name}"? This cannot be undone.`)) deleteLeadMutation.mutate(l._id); }}
@@ -758,6 +793,9 @@ export default function SampleProduction() {
                               >
                                 🧪 Create Sample
                               </button>
+                              {relatedLead?.productionOrderId && (
+                                <button onClick={() => { setOpenLeadId(q.leadId?._id); setOpenLeadInitialTab('Production'); }} className={textLink}>🏭 Track Production →</button>
+                              )}
                               <button onClick={() => { setOpenLeadId(q.leadId?._id); setOpenLeadInitialTab(null); }} className={textLink}>Open lead ▸</button>
                             </div>
                           </td>
@@ -845,6 +883,11 @@ export default function SampleProduction() {
                               </button>
                             )
                         )}
+                        {l.productionOrderId && (
+                          <button onClick={() => { setOpenLeadId(l._id); setOpenLeadInitialTab('Production'); }} className={clsx(textLink, 'mr-3')}>
+                            🏭 Track Production →
+                          </button>
+                        )}
                         <button onClick={() => { setOpenLeadId(l._id); setOpenLeadInitialTab(null); }} className={textLink}>Open ▸</button>
                       </td>
                     </tr>
@@ -906,17 +949,33 @@ export default function SampleProduction() {
                             Send to Production →
                           </button>
                         )}
+                        {tab === 'awaiting' && l.productionOrderId && (
+                          <button onClick={() => { setOpenLeadId(l._id); setOpenLeadInitialTab('Production'); }} className={clsx(textLink, 'mr-3')}>
+                            🏭 Track Production →
+                          </button>
+                        )}
                         {tab === 'linked' && (
                           <>
+                            {l.productionOrderId && (
+                              <button
+                                onClick={() => setFocusStageOrder({ orderId: l.productionOrderId._id, stageTab: ORDER_EDIT_TAB, StageComponent: StageOrder })}
+                                className={clsx(textLink, 'mr-3')}
+                              >
+                                ✏️ Edit
+                              </button>
+                            )}
                             <button
                               onClick={() => { setOpenOrderLead(l); setOrderQty(''); setOrderDeliveryDate(''); setOrderMarginPct(30); }}
                               className={clsx(textLink, 'mr-3')}
                             >
                               Order Detail
                             </button>
-                            <Link to="/production/batch-tracker" className={clsx(textLink, 'inline-flex items-center gap-1 mr-3')}>
-                              Open in Batch Tracker ↗
-                            </Link>
+                            <button
+                              onClick={() => { setOpenLeadId(l._id); setOpenLeadInitialTab('Production'); }}
+                              className={clsx(textLink, 'mr-3')}
+                            >
+                              🏭 Track Production →
+                            </button>
                             {l.status === 'Dispatched' ? (
                               <span className="text-xs text-[#3a5f3c] font-semibold">✓ Dispatched</span>
                             ) : (
@@ -937,8 +996,94 @@ export default function SampleProduction() {
               </table>
             </div>
           )}
+
+          {tab === 'linked' && orphanOrders.length > 0 && (
+            <div className="mt-5">
+              <p className="text-xs font-semibold text-[#6d5f4c] uppercase tracking-wide mb-2">Orders without a linked lead</p>
+              <div className="overflow-x-auto rounded-[10px] border border-[#e2dac8]">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-[#d3c9b4] text-left text-[11px] uppercase tracking-wide text-[#6d5f4c] bg-[#e7dfce]">
+                      <th className="px-4 py-2.5">Order ID</th>
+                      <th className="px-4 py-2.5">Customer</th>
+                      <th className="px-4 py-2.5">Product</th>
+                      <th className="px-4 py-2.5">Qty</th>
+                      <th className="px-4 py-2.5">Delivery</th>
+                      <th className="px-4 py-2.5">Stage</th>
+                      <th className="px-4 py-2.5"></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {orphanOrders.map((o) => (
+                      <tr key={o._id} className="border-b border-[#e2dac8] hover:bg-[#e7dfce]/60">
+                        <td className="px-4 py-2.5 font-mono font-bold text-[#4a3a29] whitespace-nowrap">{o.orderNumber}</td>
+                        <td className="px-4 py-2.5 text-[#2e241b] whitespace-nowrap">{o.customer || '—'}</td>
+                        <td className="px-4 py-2.5 text-[#6d5f4c] text-xs whitespace-nowrap">{o.catalogProduct?.name || '—'}</td>
+                        <td className="px-4 py-2.5 text-[#6d5f4c] text-xs whitespace-nowrap">{o.batchSizeKg ? `${o.batchSizeKg} kg` : '—'}</td>
+                        <td className="px-4 py-2.5 text-[#6d5f4c] text-xs whitespace-nowrap">{o.deliveryDate || '—'}</td>
+                        <td className="px-4 py-2.5 text-xs whitespace-nowrap">{STAGE_NAMES[o.stage]}</td>
+                        <td className="px-4 py-2.5 text-right whitespace-nowrap">
+                          <button onClick={() => setOpenOrderId(o._id)} className={clsx(textLink)}>Track Production →</button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {currentProdStageTab && (
+            <div className="overflow-x-auto rounded-[10px] border border-[#e2dac8]">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-[#d3c9b4] text-left text-[11px] uppercase tracking-wide text-[#6d5f4c] bg-[#e7dfce]">
+                    <th className="px-4 py-2.5">Order ID</th>
+                    <th className="px-4 py-2.5">Customer</th>
+                    <th className="px-4 py-2.5">Product</th>
+                    <th className="px-4 py-2.5">Qty</th>
+                    <th className="px-4 py-2.5">Delivery</th>
+                    <th className="px-4 py-2.5"></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {!allProductionOrders && <tr><td colSpan={6} className="px-4 py-8 text-center text-[#968871] text-xs">Loading…</td></tr>}
+                  {allProductionOrders && currentProdStageOrders.length === 0 && <tr><td colSpan={6} className="px-4 py-8 text-center text-[#968871] text-xs">No orders at {currentProdStageTab.label} right now.</td></tr>}
+                  {currentProdStageOrders.map((o) => (
+                    <tr
+                      key={o._id}
+                      onClick={() => setFocusStageOrder({ orderId: o._id, stageTab: currentProdStageTab, StageComponent: PROD_STAGE_COMPONENT[currentProdStageTab.key] })}
+                      className="border-b border-[#e2dac8] hover:bg-[#e7dfce]/60 cursor-pointer"
+                    >
+                      <td className="px-4 py-2.5 font-mono font-bold text-[#4a3a29] whitespace-nowrap">{o.orderNumber}</td>
+                      <td className="px-4 py-2.5 text-[#2e241b] whitespace-nowrap">{o.customer || '—'}</td>
+                      <td className="px-4 py-2.5 text-[#6d5f4c] text-xs whitespace-nowrap">{o.catalogProduct?.name || '—'}</td>
+                      <td className="px-4 py-2.5 text-[#6d5f4c] text-xs whitespace-nowrap">{o.batchSizeKg ? `${o.batchSizeKg} kg` : '—'}</td>
+                      <td className="px-4 py-2.5 text-[#6d5f4c] text-xs whitespace-nowrap">{o.deliveryDate || '—'}</td>
+                      <td className="px-4 py-2.5 text-right whitespace-nowrap">
+                        <span className={textLink}>Open →</span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       </Card>
+
+      {openOrderId && (
+        <OrphanOrderPanel orderId={openOrderId} onClose={() => setOpenOrderId(null)} />
+      )}
+
+      {focusStageOrder && (
+        <StageFocusPanel
+          orderId={focusStageOrder.orderId}
+          stageTab={focusStageOrder.stageTab}
+          StageComponent={focusStageOrder.StageComponent}
+          onClose={() => setFocusStageOrder(null)}
+        />
+      )}
 
       {openLeadId && (
         <SampleLeadDetail
@@ -954,7 +1099,7 @@ export default function SampleProduction() {
         <div className="fixed inset-0 z-[70] flex items-center justify-center p-4" style={bodyFont}>
           <style>{FONT_IMPORT}</style>
           <div className="absolute inset-0 bg-[#2e241b]/50 backdrop-blur-sm" onClick={() => setSendLead(null)} />
-          <div className="relative bg-[#f0eadd] rounded-2xl shadow-[0_10px_40px_rgba(46,36,27,0.16)] w-full max-w-md border border-[#d3c9b4]">
+          <div className="relative bg-white rounded-2xl shadow-[0_10px_40px_rgba(46,36,27,0.16)] w-full max-w-md border border-[#d3c9b4]">
             <div className="p-5 border-b border-[#e2dac8] bg-[#e7dfce] rounded-t-2xl">
               <h3 className="font-bold text-[#2e241b]" style={displayFont}>🏭 Send to Production</h3>
               <p className="text-xs text-[#6d5f4c] mt-0.5">{sendLead.name} — creates a Batch Tracker order pre-filled from this lead.</p>
@@ -1014,7 +1159,7 @@ export default function SampleProduction() {
         <div className="fixed inset-0 z-[70] flex items-center justify-center p-4" style={bodyFont}>
           <style>{FONT_IMPORT}</style>
           <div className="absolute inset-0 bg-[#2e241b]/50 backdrop-blur-sm" onClick={() => setPayConfirmFor(null)} />
-          <div className="relative bg-[#f0eadd] rounded-2xl shadow-[0_10px_40px_rgba(46,36,27,0.16)] w-full max-w-md border border-[#d3c9b4]">
+          <div className="relative bg-white rounded-2xl shadow-[0_10px_40px_rgba(46,36,27,0.16)] w-full max-w-md border border-[#d3c9b4]">
             <div className="p-5 border-b border-[#e2dac8] bg-[#e7dfce] rounded-t-2xl">
               <h3 className="font-bold text-[#2e241b]" style={displayFont}>💳 Confirm R&D Payment</h3>
               <p className="text-xs text-[#6d5f4c] mt-0.5">{payConfirmFor.name} — ₹{(payConfirmFor.sampleDetails?.chargeAmount || 0).toLocaleString('en-IN')}</p>
@@ -1059,7 +1204,7 @@ export default function SampleProduction() {
         <div className="fixed inset-0 z-[70] flex items-center justify-center p-4" style={bodyFont}>
           <style>{FONT_IMPORT}</style>
           <div className="absolute inset-0 bg-[#2e241b]/50 backdrop-blur-sm" onClick={() => setOpenOrderLead(null)} />
-          <div className="relative bg-[#f0eadd] rounded-2xl shadow-[0_10px_40px_rgba(46,36,27,0.16)] w-full max-w-md border border-[#d3c9b4]">
+          <div className="relative bg-white rounded-2xl shadow-[0_10px_40px_rgba(46,36,27,0.16)] w-full max-w-md border border-[#d3c9b4]">
             <div className="p-5 border-b border-[#e2dac8] bg-[#e7dfce] rounded-t-2xl">
               <h3 className="font-bold text-[#2e241b]" style={displayFont}>🧾 Order Detail</h3>
               <p className="text-xs text-[#6d5f4c] mt-0.5">{openOrderLead.name} — {openOrderLead.productionOrderId?.orderNumber}</p>
@@ -1133,7 +1278,7 @@ export default function SampleProduction() {
         <div className="fixed inset-0 z-[70] flex items-center justify-center p-4" style={bodyFont}>
           <style>{FONT_IMPORT}</style>
           <div className="absolute inset-0 bg-[#2e241b]/50 backdrop-blur-sm" onClick={() => setDispatchLead(null)} />
-          <div className="relative bg-[#f0eadd] rounded-2xl shadow-[0_10px_40px_rgba(46,36,27,0.16)] w-full max-w-md border border-[#d3c9b4]">
+          <div className="relative bg-white rounded-2xl shadow-[0_10px_40px_rgba(46,36,27,0.16)] w-full max-w-md border border-[#d3c9b4]">
             <div className="p-5 border-b border-[#e2dac8] bg-[#e7dfce] rounded-t-2xl">
               <h3 className="font-bold text-[#2e241b]" style={displayFont}>🚚 Confirm Dispatch</h3>
               <p className="text-xs text-[#6d5f4c] mt-0.5">{dispatchLead.name} — {dispatchLead.productionOrderId?.orderNumber}</p>
@@ -1172,6 +1317,101 @@ export default function SampleProduction() {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+// Lead-less order view — same StageBar + stage forms as the Production tab inside
+// SampleLeadDetail, minus the lead-side tabs since there's no Lead record behind this order.
+function OrphanOrderPanel({ orderId, onClose }) {
+  const qc = useQueryClient();
+  const [viewStage, setViewStage] = useState(null);
+
+  const { data: order, isLoading } = useQuery({
+    queryKey: ['production-order', orderId],
+    queryFn: () => api.get(`/production/${orderId}`).then((r) => r.data.order),
+    refetchInterval: 15 * 1000,
+  });
+
+  const invalidateOrder = () => {
+    qc.invalidateQueries({ queryKey: ['production-order', orderId] });
+    qc.invalidateQueries({ queryKey: ['production-orders'] });
+  };
+
+  const stage = viewStage ?? order?.stage ?? 0;
+
+  return (
+    <div className="fixed inset-0 z-[70] flex items-center justify-center p-4" style={bodyFont}>
+      <style>{FONT_IMPORT}</style>
+      <div className="absolute inset-0 bg-[#2e241b]/50 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative bg-white rounded-2xl shadow-[0_10px_40px_rgba(46,36,27,0.16)] w-full max-w-4xl border border-[#d3c9b4] flex flex-col" style={{ maxHeight: '90vh' }}>
+        <div className="p-5 border-b border-[#e2dac8] bg-[#e7dfce] flex items-center justify-between flex-shrink-0 rounded-t-2xl">
+          <div>
+            <h3 className="font-bold text-[#2e241b]" style={displayFont}>{order?.orderNumber || 'Loading…'}</h3>
+            <p className="text-xs text-[#6d5f4c]">{order?.customer || 'No linked CRM lead'} · {order?.catalogProduct?.name || '—'}</p>
+          </div>
+          <button onClick={onClose} className="w-9 h-9 rounded-lg hover:bg-[#ddd3be] flex items-center justify-center text-[#968871] hover:text-[#2e241b] text-lg">✕</button>
+        </div>
+        <div className="flex-1 overflow-y-auto p-5 space-y-4">
+          {isLoading || !order ? (
+            <p className="text-sm text-[#968871] text-center py-8">Loading order…</p>
+          ) : (
+            <>
+              <StageBar order={order} viewStage={stage} setViewStage={setViewStage} />
+              {stage === 0 && <StageOrder order={order} onSaved={invalidateOrder} />}
+              {stage === 1 && <StageWorkAssignment order={order} onSaved={invalidateOrder} />}
+              {stage === 2 && <StageProcurement order={order} onAdvanced={invalidateOrder} />}
+              {stage === 3 && <StageWeighing order={order} onSaved={invalidateOrder} />}
+              {stage === 4 && <StageBulkQC order={order} onSaved={invalidateOrder} />}
+              {stage === 5 && <StagePackaging order={order} onSaved={invalidateOrder} />}
+              {stage === 6 && <StageFinalQC order={order} onSaved={invalidateOrder} />}
+              {stage === 7 && <StageDispatch order={order} onSaved={invalidateOrder} />}
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Opened from a production-stage tab (Procurement..Dispatch) — shows just that one stage's
+// function, no lead tabs, no cross-stage StageBar. Every order listed under a stage tab is
+// guaranteed to currently be at that exact stage, so there's nothing else to navigate to here.
+function StageFocusPanel({ orderId, stageTab, StageComponent, onClose }) {
+  const qc = useQueryClient();
+
+  const { data: order, isLoading } = useQuery({
+    queryKey: ['production-order', orderId],
+    queryFn: () => api.get(`/production/${orderId}`).then((r) => r.data.order),
+    refetchInterval: 15 * 1000,
+  });
+
+  const invalidateOrder = () => {
+    qc.invalidateQueries({ queryKey: ['production-order', orderId] });
+    qc.invalidateQueries({ queryKey: ['production-orders'] });
+    qc.invalidateQueries({ queryKey: ['sample-production'] });
+  };
+
+  return (
+    <div className="fixed inset-0 z-[70] flex items-center justify-center p-4" style={bodyFont}>
+      <style>{FONT_IMPORT}</style>
+      <div className="absolute inset-0 bg-[#2e241b]/50 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative bg-white rounded-2xl shadow-[0_10px_40px_rgba(46,36,27,0.16)] w-full max-w-3xl border border-[#d3c9b4] flex flex-col" style={{ maxHeight: '90vh' }}>
+        <div className="p-5 border-b border-[#e2dac8] bg-[#e7dfce] flex items-center justify-between flex-shrink-0 rounded-t-2xl">
+          <div>
+            <h3 className="font-bold text-[#2e241b]" style={displayFont}>{stageTab?.emoji} {stageTab?.label} — {order?.orderNumber || 'Loading…'}</h3>
+            <p className="text-xs text-[#6d5f4c]">{order?.customer || 'No linked CRM lead'} · {order?.catalogProduct?.name || '—'}</p>
+          </div>
+          <button onClick={onClose} className="w-9 h-9 rounded-lg hover:bg-[#ddd3be] flex items-center justify-center text-[#968871] hover:text-[#2e241b] text-lg">✕</button>
+        </div>
+        <div className="flex-1 overflow-y-auto p-5">
+          {isLoading || !order ? (
+            <p className="text-sm text-[#968871] text-center py-8">Loading order…</p>
+          ) : (
+            <StageComponent order={order} onSaved={invalidateOrder} onAdvanced={invalidateOrder} />
+          )}
+        </div>
+      </div>
     </div>
   );
 }

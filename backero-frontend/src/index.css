@@ -3,7 +3,7 @@
 @tailwind utilities;
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   BACKERO  —  "Prism"  |  Single Light Mode  |  Unified Emerald Accent
+   BACKERO  —  "Prism"  |  Single Light Mode  |  Unified Blue/Slate Accent
    One accent color across the whole app — calm, neutral canvas, single brand hue.
 ═══════════════════════════════════════════════════════════════════════════ */
 
@@ -25,21 +25,21 @@
   --t-sub:       #475569;
   --t-muted:     #94a3b8;
 
-  /* Brand (emerald) */
-  --brand:       #059669;
-  --grad-brand:  linear-gradient(135deg,#047857 0%,#059669 50%,#10b981 100%);
-  --grad-glow:   rgba(5,150,105,0.22);
+  /* Brand (blue) */
+  --brand:       #2563eb;
+  --grad-brand:  linear-gradient(135deg,#1d4ed8 0%,#2563eb 50%,#3b82f6 100%);
+  --grad-glow:   rgba(37,99,235,0.22);
 
-  /* Zone — unified emerald accent, same everywhere */
-  --zone:          #059669;
-  --zone-mid:      #10b981;
+  /* Zone — unified blue accent, same everywhere */
+  --zone:          #2563eb;
+  --zone-mid:      #3b82f6;
   --zone-bg:       #f5f6f8;
   --zone-dot:      rgba(15,23,42,0.045);
-  --zone-glow:     rgba(5,150,105,0.14);
-  --zone-card:     rgba(5,150,105,0.045);
-  --zone-link:         #6ee7b7;
-  --zone-link-bg:      rgba(16,185,129,0.12);
-  --zone-link-border:  #34d399;
+  --zone-glow:     rgba(37,99,235,0.14);
+  --zone-card:     rgba(37,99,235,0.045);
+  --zone-link:         #93c5fd;
+  --zone-link-bg:      rgba(59,130,246,0.12);
+  --zone-link-border:  #3b82f6;
 
   /* Radii */
   --r-sm: 10px;
@@ -73,7 +73,7 @@
   ::-webkit-scrollbar       { width: 5px; height: 5px; }
   ::-webkit-scrollbar-track { background: transparent; }
   ::-webkit-scrollbar-thumb { background: rgba(15,23,42,0.12); border-radius: 99px; }
-  ::-webkit-scrollbar-thumb:hover { background: var(--zone, #10b981); }
+  ::-webkit-scrollbar-thumb:hover { background: var(--zone, #2563eb); }
 
   h1,h2,h3,h4,h5,h6 { @apply tracking-tight; }
   ::selection { background: var(--zone-card, rgba(16,185,129,0.15)); color: inherit; }
@@ -416,7 +416,7 @@
 
   .gradient-brand { background: var(--grad-brand); }
   .gradient-text {
-    background: linear-gradient(135deg, #047857, #10b981);
+    background: linear-gradient(135deg, #1d4ed8, #3b82f6);
     -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
   }
   .gradient-text-green {
@@ -442,7 +442,7 @@
   .glow-green   { box-shadow: 0 0 24px rgba(16,185,129,0.2);   }
   .glow-red     { box-shadow: 0 0 24px rgba(220,38,38,0.22);   }
   .glow-amber   { box-shadow: 0 0 24px rgba(245,158,11,0.24);  }
-  .glow-brand   { box-shadow: 0 0 32px rgba(16,185,129,0.35);  }
+  .glow-brand   { box-shadow: 0 0 32px rgba(37,99,235,0.35);  }
   .glow-emerald { box-shadow: 0 0 24px rgba(16,185,129,0.3);   }
   .glow-zone    { box-shadow: 0 0 28px var(--zone-glow, rgba(16,185,129,0.2)); }
 

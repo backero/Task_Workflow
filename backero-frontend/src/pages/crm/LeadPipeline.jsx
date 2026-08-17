@@ -34,7 +34,7 @@ const STAGE_META = {
 const STAGE_DISPLAY = { 'In Progress': 'Production' };
 const stageLabel = (s) => STAGE_DISPLAY[s] || s;
 
-const BATCH_STAGE_NAMES = ['Order', 'Work Assignment', 'Procurement', 'Weighing', 'Bulk QC', 'Packaging', 'Final QC', 'Dispatch'];
+const BATCH_STAGE_NAMES = ['Order', 'Work Assignment', 'Procurement', 'Ready for Product Approval', 'Bulk QC', 'Packaging', 'Final QC', 'Dispatch'];
 
 // ── Lead Card ────────────────────────────────────────────────────────────────
 const PRIORITY_CFG = {

@@ -453,7 +453,7 @@ export default function ProductCatalogPage() {
           <button onClick={importFromLocalStorage} disabled={importing} className="text-xs px-3 py-1.5 rounded-full text-slate-400 hover:text-slate-600 hover:bg-slate-50 font-semibold transition-all disabled:opacity-50">{importing ? 'Syncing…' : '☁️ Sync LS'}</button>
           <button onClick={exportCSV} disabled={products.length === 0} className="text-sm px-4 py-2 rounded-full border border-slate-200 text-slate-600 hover:bg-slate-50 font-semibold transition-all disabled:opacity-40">📥 Export CSV</button>
           <button onClick={importCSVFile} disabled={importing} className="text-sm px-4 py-2 rounded-full border border-slate-200 text-slate-600 hover:bg-slate-50 font-semibold transition-all disabled:opacity-50">📤 Import CSV</button>
-          <button onClick={openCreate} className="text-sm px-4 py-2 rounded-full font-semibold text-slate-900 hover:brightness-95 transition-all" style={{ background: '#e5ff00' }}>➕ Add Product</button>
+          <button onClick={openCreate} className="text-sm px-4 py-2 rounded-full font-semibold text-white hover:brightness-95 transition-all" style={{ background: '#2563eb' }}>➕ Add Product</button>
         </div>
       </div>
 
@@ -676,7 +676,7 @@ export default function ProductCatalogPage() {
 
             <div className="flex gap-3 px-6 py-4 border-t border-slate-100 bg-slate-50 rounded-b-2xl">
               <button onClick={closeForm} className="px-5 py-2.5 rounded-xl text-sm font-semibold border border-slate-200 text-slate-500 hover:bg-slate-100 transition-colors">Cancel</button>
-              <button onClick={saveBasicInfo} disabled={isPending} className="flex-1 py-2.5 rounded-xl text-sm font-bold text-slate-900 disabled:opacity-60 transition-all hover:brightness-95" style={{ background: '#e5ff00' }}>
+              <button onClick={saveBasicInfo} disabled={isPending} className="flex-1 py-2.5 rounded-xl text-sm font-bold text-white disabled:opacity-60 transition-all hover:brightness-95" style={{ background: '#2563eb' }}>
                 {isPending ? 'Saving…' : editingProduct ? '💾 Save Changes' : '✅ Create Product'}
               </button>
             </div>

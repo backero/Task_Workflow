@@ -4,6 +4,7 @@ import { usePermissions } from '../../store/usePermissions';
 
 export default function PermissionRoute({ module, children }) {
   const { can } = usePermissions();
-  if (!can(module)) return <Navigate to="/" replace />;
+  const modules = Array.isArray(module) ? module : [module];
+  if (!modules.some((m) => can(m))) return <Navigate to="/" replace />;
   return children;
 }

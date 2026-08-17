@@ -63,7 +63,8 @@ import TeamRewards from './pages/management/TeamRewards';
 // Production
 import RecordUsage from './pages/production/RecordUsage';
 import RecordUsageForm from './pages/production/RecordUsageForm';
-import BatchTracker from './pages/production/BatchTracker';
+import RDPriceCalculator from './pages/production/RDPriceCalculator';
+import KitchenSchedule from './pages/production/KitchenSchedule';
 
 // Settings
 import Settings from './pages/settings/Settings';
@@ -142,7 +143,7 @@ export default function App() {
           <Route path="/crm/leads" element={<PermissionRoute module="crm"><LeadPipeline /></PermissionRoute>} />
           <Route path="/crm/leads/:id" element={<PermissionRoute module="crm"><LeadDetails /></PermissionRoute>} />
           <Route path="/crm/queries" element={<TechnicalQueries />} />
-          <Route path="/samples" element={<PermissionRoute module="crm"><SampleProduction /></PermissionRoute>} />
+          <Route path="/samples" element={<PermissionRoute module={['crm', 'inventory']}><SampleProduction /></PermissionRoute>} />
 
           {/* Inventory */}
           <Route path="/inventory/products" element={<PermissionRoute module="inventory"><Products /></PermissionRoute>} />
@@ -154,7 +155,9 @@ export default function App() {
           {/* Production */}
           <Route path="/production/usage" element={<RecordUsage />} />
           <Route path="/production/usage/:id" element={<RecordUsageForm />} />
-          <Route path="/production/batch-tracker" element={<BatchTracker />} />
+          <Route path="/production/batch-tracker" element={<Navigate to="/samples" replace />} />
+          <Route path="/production/rd-price-calculator" element={<RDPriceCalculator />} />
+          <Route path="/production/kitchen" element={<KitchenSchedule />} />
 
           {/* Finance */}
           <Route path="/finance/ledger" element={<PermissionRoute module="finance"><Ledger /></PermissionRoute>} />

@@ -14,6 +14,7 @@ import {
   QuestionMarkCircleIcon,
 } from '@heroicons/react/24/outline';
 import api from '../../api/axios';
+import { PROD_STAGE_TABS } from '../crm/SampleProduction';
 import { useAuthStore } from '../../store/useAuthStore';
 import { formatDistanceToNow, format } from 'date-fns';
 import { clsx } from 'clsx';
@@ -66,6 +67,30 @@ function SectionHeader({ title, sub, to, toLabel }) {
           {toLabel || 'View all'} <ArrowRightIcon className="w-3 h-3" />
         </Link>
       )}
+    </div>
+  );
+}
+
+// ── Production Stage Strip ──────────────────────────────────────────────────
+// Breaks "Active Production" down by shop-floor stage — mirrors Sample Production's
+// Procurement..Dispatch tabs (/samples) so a click lands directly on that stage's list.
+function ProductionStageStrip({ stageCounts }) {
+  return (
+    <div className="card p-4">
+      <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-3">Production Pipeline</p>
+      <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
+        {PROD_STAGE_TABS.map((t) => (
+          <Link
+            key={t.key}
+            to={`/samples?tab=${t.key}`}
+            className="flex flex-col items-center gap-1 px-2 py-2.5 rounded-xl border border-gray-100 dark:border-[#1b2e4a] hover:border-brand-300 hover:bg-brand-50 dark:hover:bg-brand-900/10 transition-colors text-center"
+          >
+            <span className="text-lg leading-none">{t.emoji}</span>
+            <span className="text-base font-bold text-gray-900 dark:text-white">{stageCounts[t.stage] || 0}</span>
+            <span className="text-[10px] text-gray-500 dark:text-gray-400 leading-tight">{t.label}</span>
+          </Link>
+        ))}
+      </div>
     </div>
   );
 }
@@ -242,7 +267,7 @@ export default function FounderDashboard() {
           icon={BoltIcon} color="orange"
           label="Active Production" value={d.production?.activeOrders || 0}
           sub="Orders in progress"
-          to="/production/orders"
+          to="/samples"
         />
         <StatCard
           icon={QuestionMarkCircleIcon} color="rose"
@@ -252,6 +277,8 @@ export default function FounderDashboard() {
           to="/crm/queries"
         />
       </div>
+
+      <ProductionStageStrip stageCounts={d.production?.stageCounts || {}} />
 
       {/* ── Row 3: Finance + Task Chart ──────────────────────────────────────── */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

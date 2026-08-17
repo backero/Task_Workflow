@@ -120,9 +120,10 @@ export default function Sidebar({ collapsed, onToggle }) {
     const productionChildren = [
       { label: 'Dashboard',      to: '/departments/rnd' },
       { label: 'Record Usage',   to: '/production/usage' },
-      { label: 'Batch Tracker',  to: '/production/batch-tracker' },
     ];
-    if (canCRM) productionChildren.push({ label: 'Sample Production', to: '/samples' });
+    productionChildren.push({ label: 'Sample Production', to: '/samples' });
+    productionChildren.push({ label: 'R&D Price Calculator', to: '/production/rd-price-calculator' });
+    productionChildren.push({ label: 'Kitchen Schedule', to: '/production/kitchen' });
     opsItems.push({ label: 'Production', icon: BeakerIcon, children: productionChildren });
   }
   if (opsItems.length > 0) groups.push({ label: 'Operations', items: opsItems });

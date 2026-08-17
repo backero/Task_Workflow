@@ -42,6 +42,7 @@ exports.getFounderDashboard = asyncHandler(async (req, res) => {
     catalogProductCount,
     inventoryValue,
     activeProductionOrders,
+    productionStageCounts,
     todayTransactions,
     monthTransactions,
     totalRevenue,
@@ -76,6 +77,12 @@ exports.getFounderDashboard = asyncHandler(async (req, res) => {
       { $group: { _id: null, totalValue: { $sum: { $multiply: ['$currentStock', '$costPrice'] } }, totalStock: { $sum: '$currentStock' } } },
     ])),
     safe(ProductionOrder.countDocuments({ organizationId: orgId, status: { $in: ['In Production', 'Quality Check', 'Packaging'] } })),
+    // Production-floor stages only (2=Procurement .. 7=Dispatch) — mirrors the Sample
+    // Production page's per-stage tabs, skips Order/Work Assignment (back-office setup).
+    safe(ProductionOrder.aggregate([
+      { $match: { organizationId: orgId, stage: { $gte: 2, $lte: 7 } } },
+      { $group: { _id: '$stage', count: { $sum: 1 } } },
+    ])),
     safe(Transaction.aggregate([
       { $match: { organizationId: orgId, date: { $gte: today, $lte: todayEnd } } },
       { $group: { _id: '$type', total: { $sum: '$amount' } } },
@@ -174,7 +181,10 @@ exports.getFounderDashboard = asyncHandler(async (req, res) => {
         totalStockValue: inventoryValue?.[0]?.totalValue || 0,
         totalStockUnits: inventoryValue?.[0]?.totalStock || 0,
       },
-      production: { activeOrders: activeProductionOrders },
+      production: {
+        activeOrders: activeProductionOrders,
+        stageCounts: (productionStageCounts || []).reduce((acc, s) => { acc[s._id] = s.count; return acc; }, {}),
+      },
       finance: {
         todayIncome: incomeToday,
         todayExpense: expenseToday,

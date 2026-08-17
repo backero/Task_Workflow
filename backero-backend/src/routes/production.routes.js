@@ -14,26 +14,8 @@ const { deductFIFO, recomputeStock, nextUsageNumber } = require('../services/inv
 const User = require('../models/User');
 const Lead = require('../models/Lead');
 const { createNotification } = require('../services/notification.service');
-const { sendActiveClientStageUpdate } = require('../services/whatsappCloud.service');
 const { buildIngredientsFromCatalogProduct } = require('../utils/productionHelpers');
-
-// If this batch order is linked to a CRM lead, ping the client with a short
-// milestone update — reuses the already-approved client_stage_update template
-// (its free-text `lastUpdate` param carries the specific milestone), so this
-// works immediately without needing a new Meta template approval.
-async function notifyClientMilestone(order, milestoneText) {
-  if (!order.leadId) return;
-  try {
-    const lead = await Lead.findById(order.leadId).select('name phone whatsapp status');
-    if (!lead) return;
-    const phone = lead.whatsapp || lead.phone;
-    if (!phone) return;
-    const fullUpdate = order.deliveryDate ? `${milestoneText} Expected delivery: ${order.deliveryDate}.` : milestoneText;
-    await sendActiveClientStageUpdate(phone, { name: lead.name, stage: lead.status, lastUpdate: fullUpdate });
-  } catch (err) {
-    require('../utils/logger').error(`[ProductionMilestone] notify failed: ${err.message}`);
-  }
-}
+const { notifyClientMilestone, notifyStageChange, applyWorkAssignment } = require('../services/productionWorkflow.service');
 
 router.use(authenticate, orgIsolation);
 
@@ -232,10 +214,6 @@ router.get('/stats/overview', asyncHandler(async (req, res) => {
 
 // ── Batch Tracker — 8-stage detailed lifecycle ──────────────────────────────
 
-const notifyStageChange = (req, order) => {
-  req.app.get('io')?.to(`org:${req.user.organizationId}`).emit('production_updated', { orderId: order._id, stage: order.stage, status: order.status });
-};
-
 async function loadOrder(req, res) {
   const order = await ProductionOrder.findOne({ _id: req.params.id, organizationId: req.user.organizationId });
   if (!order) { sendError(res, 'Production order not found.', 404); return null; }
@@ -265,10 +243,7 @@ router.patch('/:id/order', asyncHandler(async (req, res) => {
 router.patch('/:id/work-assignment', asyncHandler(async (req, res) => {
   const order = await loadOrder(req, res);
   if (!order) return;
-  order.workAssignment = { ...(order.workAssignment?.toObject?.() || order.workAssignment || {}), ...req.body };
-  const advanced = order.stage === 1;
-  if (advanced) { order.stage = 2; order.status = BATCH_STAGE_TO_STATUS[2]; }
-  order.updatedBy = req.user._id;
+  const advanced = applyWorkAssignment(order, req.body, req.user._id);
   await order.save();
   notifyStageChange(req, order);
   if (advanced) notifyClientMilestone(order, 'Your order has been scheduled with our production team — raw materials are now being procured 🧾');
@@ -352,6 +327,7 @@ router.post('/:id/process-step', asyncHandler(async (req, res) => {
 }));
 
 // POST Stage 3 -> 4 — manual advance once all ingredients are weighed and all process steps are done
+// (this is the "Ready for Product Approval" milestone — notify Production managers to approve)
 router.post('/:id/advance', asyncHandler(async (req, res) => {
   const order = await loadOrder(req, res);
   if (!order) return;
@@ -365,6 +341,23 @@ router.post('/:id/advance', asyncHandler(async (req, res) => {
   await order.save();
   notifyStageChange(req, order);
   notifyClientMilestone(order, 'Your product formulation is complete and is now undergoing quality testing 🔬');
+
+  const io = req.app.get('io');
+  const approveManagerIds = new Set();
+  if (order.assignedTo) approveManagerIds.add(String(order.assignedTo));
+  const approveManagers = await User.find({
+    organizationId: req.user.organizationId, department: 'Production', role: { $in: ['manager', 'admin', 'founder'] }, isActive: true,
+  }).select('_id');
+  approveManagers.forEach((m) => approveManagerIds.add(String(m._id)));
+  for (const recipientId of approveManagerIds) {
+    await createNotification({
+      organizationId: req.user.organizationId, recipient: recipientId,
+      title: '⚖️ Ready for Product Approval', message: `Batch ${order.batch} (Order ${order.orderNumber}) has cleared weighing (Ready for Product Approval) and moved to Bulk QC.`,
+      type: 'production', priority: 'high', actionUrl: '/samples?tab=bulkqc',
+      reference: { model: 'ProductionOrder', id: order._id }, channels: { inApp: true, whatsapp: true },
+    }, io);
+  }
+
   sendSuccess(res, { order }, 'Advanced to Bulk QC');
 }));
 

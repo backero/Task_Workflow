@@ -1,13 +1,18 @@
 import { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { format, formatDistanceToNowStrict } from 'date-fns';
 import clsx from 'clsx';
 import toast from 'react-hot-toast';
 import api from '../../api/axios';
-import { FONT_IMPORT, PILL, SUB_STAGE_PILL, StatCard } from './SampleProduction';
+import { FONT_IMPORT, PILL, SUB_STAGE_PILL, StatCard } from './sampleTheme';
 import { customerId } from '../../utils/leadHelpers';
 import EditKycModal from './EditKycModal';
 import { CATEGORIES as CATALOG_CATEGORIES, UNITS as CATALOG_UNITS, PRODUCT_TYPES as CATALOG_PRODUCT_TYPES, GST_RATES as CATALOG_GST_RATES, STATUSES as CATALOG_STATUSES } from '../inventory/ProductCatalogPage';
+import {
+  StageBar, StageOrder, StageWorkAssignment, StageProcurement, StageWeighing,
+  StageBulkQC, StagePackaging, StageFinalQC, StageDispatch, STAGE_NAMES,
+} from './production/StageSteps';
 
 // Full per-lead "Sample Development" window — mirrors the reference design's 7-tab customer
 // window (Overview / Q&A / Products / Formulas / Samples / Payments / Approvals). Everything
@@ -774,6 +779,7 @@ function FormulaEditorModal({ formula, samples, rawMaterials, onClose }) {
 
 export default function SampleLeadDetail({ leadId, onClose, initialTab }) {
   const qc = useQueryClient();
+  const navigate = useNavigate();
   const [tab, setTab] = useState(initialTab || 'Overview');
 
   // Q&A — a lean composer mirroring the reference design: one Question box, Asked Via, Topic,
@@ -816,12 +822,14 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab }) {
   const [fuNextAction, setFuNextAction] = useState('');
   const [fuScheduledAt, setFuScheduledAt] = useState('');
 
-  // Move to Production — creates the Batch Tracker order in the same step, no separate
-  // "Send to Production" visit required.
+  // Move to Production — creates the production order in the same step and switches this same
+  // panel straight into its stage board (no separate Batch Tracker page/visit required).
   const [showMoveModal, setShowMoveModal] = useState(false);
   const [moveCatalogSearch, setMoveCatalogSearch] = useState('');
   const [moveSelectedCatalogProduct, setMoveSelectedCatalogProduct] = useState(null);
   const [moveBatchSizeKg, setMoveBatchSizeKg] = useState(10);
+  const [viewStage, setViewStage] = useState(null);
+  const autoJumpedToProductionRef = useRef(false);
 
   const { data: catalogProducts } = useQuery({
     queryKey: ['catalog', 'products', 'all'],
@@ -885,10 +893,35 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab }) {
     enabled: !!leadId,
   });
 
+  // Once a lead is linked to production, its 8-stage order board renders right here in the
+  // Production tab — reusing the same endpoints Batch Tracker used, just inline in this panel.
+  const productionOrderId = lead?.productionOrderId?._id || lead?.productionOrderId || null;
+  const { data: productionOrder, isLoading: productionOrderLoading } = useQuery({
+    queryKey: ['production-order', productionOrderId],
+    queryFn: () => api.get(`/production/${productionOrderId}`).then((r) => r.data.order),
+    enabled: !!productionOrderId,
+    refetchInterval: 15 * 1000,
+  });
+
+  // Leads opened later that already have a linked order land straight on the Production tab
+  // instead of Overview — jump once per mount, don't fight the user if they navigate away.
+  useEffect(() => {
+    if (!autoJumpedToProductionRef.current && productionOrderId && !initialTab) {
+      setTab('Production');
+      autoJumpedToProductionRef.current = true;
+    }
+  }, [productionOrderId, initialTab]);
+
   const invalidate = () => {
     qc.invalidateQueries({ queryKey: ['crm', 'lead', leadId] });
     qc.invalidateQueries({ queryKey: ['crm', 'lead', leadId, 'queries'] });
     qc.invalidateQueries({ queryKey: ['sample-production'] });
+  };
+
+  const invalidateOrder = () => {
+    qc.invalidateQueries({ queryKey: ['production-order', productionOrderId] });
+    qc.invalidateQueries({ queryKey: ['production-orders'] });
+    invalidate();
   };
 
   const raiseMutation = useMutation({
@@ -1106,14 +1139,18 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab }) {
       return api.post(`/crm/leads/${leadId}/link-production`, { mode: 'create', catalogProduct, batchSizeKg });
     },
     onSuccess: () => {
-      toast.success('Moved to Production — batch order created in Batch Tracker');
+      toast.success('Moved to Production — schedule it in Kitchen Schedule');
       qc.invalidateQueries({ queryKey: ['crm'] });
       qc.invalidateQueries({ queryKey: ['sample-production'] });
-      invalidate();
+      qc.invalidateQueries({ queryKey: ['production-schedule'] });
       setShowMoveModal(false);
       setMoveSelectedCatalogProduct(null);
       setMoveCatalogSearch('');
       setMoveBatchSizeKg(10);
+      // The new order sits at Work Assignment (stage 1) — Kitchen Schedule's Tray is where
+      // it gets a leader/support/date now, instead of the old inline Work Assignment form.
+      onClose?.();
+      navigate('/production/kitchen');
     },
     onError: (e) => toast.error(e.response?.data?.message || 'Failed to move to Production'),
   });
@@ -1146,7 +1183,7 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab }) {
         </div>
 
         <div className="flex gap-1 px-5 pt-3 border-b border-[#e2dac8] flex-shrink-0 overflow-x-auto">
-          {TABS.map((t) => {
+          {(productionOrderId ? [...TABS, 'Production'] : TABS).map((t) => {
             const count = t === 'Q&A' ? (queries || []).length : t === 'Products' ? products.length : t === 'Formulas' ? formulas.length : t === 'Samples' ? samples.length : t === 'Approvals' ? approvedSamples.length : null;
             return (
               <button
@@ -1157,9 +1194,10 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab }) {
                   tab === t ? 'border-[#f2b23e] text-[#2e241b]' : 'border-transparent text-[#6d5f4c] hover:text-[#2e241b]'
                 )}
               >
-                {t}
+                {t === 'Production' ? '🏭 Production' : t}
                 {t === 'Q&A' && pendingQueries > 0 && <span className={clsx('ml-1.5 px-1.5 py-0.5 rounded-full text-[10px]', PILL.warning)}>{pendingQueries}</span>}
                 {count !== null && t !== 'Q&A' && <span className={clsx('ml-1.5 px-1.5 py-0.5 rounded-full text-[10px]', PILL.gray)}>{count}</span>}
+                {t === 'Production' && productionOrder && <span className={clsx('ml-1.5 px-1.5 py-0.5 rounded-full text-[10px]', PILL.info)}>{STAGE_NAMES[productionOrder.stage]}</span>}
               </button>
             );
           })}
@@ -1186,9 +1224,9 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab }) {
                 {lead?.productionOrderId && (
                   <>
                     <span className="text-[#968871]">→</span>
-                    <span className={clsx('px-2.5 py-1 rounded-full font-semibold', PILL.info)}>
+                    <button onClick={() => setTab('Production')} className={clsx('px-2.5 py-1 rounded-full font-semibold', PILL.info)}>
                       {lead.productionOrderId.orderNumber || 'Linked to Production'}
-                    </span>
+                    </button>
                   </>
                 )}
               </div>
@@ -1196,7 +1234,7 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab }) {
               {approvedSamples.length > 0 && !lead?.productionOrderId && (
                 <div className={clsx('p-3 rounded-[10px] border', 'bg-[#dce9d4] border-[#b9d2af]')}>
                   <p className="text-sm font-semibold text-[#3a5f3c]">✓ {approvedSamples.length} sample(s) approved — ready to send to production</p>
-                  <p className="text-xs text-[#3a5f3c]/80 mt-0.5">Open the Approvals tab and move this lead to Production — the Batch Tracker order gets created in the same step.</p>
+                  <p className="text-xs text-[#3a5f3c]/80 mt-0.5">Open the Approvals tab and move this lead to Production — the order opens right here in the Production tab.</p>
                 </div>
               )}
 
@@ -1245,6 +1283,29 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab }) {
                   </div>
                 )}
               </div>
+            </div>
+          )}
+
+          {!isLoading && tab === 'Production' && productionOrderId && (
+            <div className="space-y-4">
+              {(productionOrderLoading || !productionOrder) ? (
+                <p className="text-sm text-[#968871] text-center py-8">Loading order…</p>
+              ) : (() => {
+                const stage = viewStage ?? productionOrder.stage;
+                return (
+                  <>
+                    <StageBar order={productionOrder} viewStage={stage} setViewStage={setViewStage} />
+                    {stage === 0 && <StageOrder order={productionOrder} onSaved={invalidateOrder} />}
+                    {stage === 1 && <StageWorkAssignment order={productionOrder} onSaved={invalidateOrder} />}
+                    {stage === 2 && <StageProcurement order={productionOrder} onAdvanced={invalidateOrder} />}
+                    {stage === 3 && <StageWeighing order={productionOrder} onSaved={invalidateOrder} />}
+                    {stage === 4 && <StageBulkQC order={productionOrder} onSaved={invalidateOrder} />}
+                    {stage === 5 && <StagePackaging order={productionOrder} onSaved={invalidateOrder} />}
+                    {stage === 6 && <StageFinalQC order={productionOrder} onSaved={invalidateOrder} />}
+                    {stage === 7 && <StageDispatch order={productionOrder} onSaved={invalidateOrder} />}
+                  </>
+                );
+              })()}
             </div>
           )}
 
@@ -1788,7 +1849,7 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab }) {
               )}
               {approvedSamples.length > 0 && !lead?.productionOrderId && (
                 <div className="p-3 rounded-[10px] border bg-[#dce9d4] border-[#b9d2af] flex items-center justify-between gap-3">
-                  <p className="text-xs text-[#3a5f3c]">Ready to hand off — pick the catalog product and this moves the lead to Production and creates the Batch Tracker order in one step.</p>
+                  <p className="text-xs text-[#3a5f3c]">Ready to hand off — pick the catalog product and this moves the lead to Production, right here in this panel.</p>
                   <button
                     onClick={() => { setShowMoveModal(true); setMoveSelectedCatalogProduct(null); setMoveCatalogSearch(''); setMoveBatchSizeKg(10); }}
                     className={clsx(accentBtn, 'flex-shrink-0')}
@@ -1948,7 +2009,7 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab }) {
           <div className="relative bg-[#f0eadd] rounded-2xl shadow-[0_10px_40px_rgba(46,36,27,0.16)] w-full max-w-md border border-[#d3c9b4]">
             <div className="p-5 border-b border-[#e2dac8] bg-[#e7dfce] rounded-t-2xl">
               <h3 className="font-bold text-[#2e241b]" style={displayFont}>🏭 Move to Production</h3>
-              <p className="text-xs text-[#6d5f4c] mt-0.5">{lead?.name} — moves the lead to Production and creates the Batch Tracker order together.</p>
+              <p className="text-xs text-[#6d5f4c] mt-0.5">{lead?.name} — moves the lead to Production and opens the order's stage board right here.</p>
             </div>
             <div className="p-5 space-y-3">
               <div>
