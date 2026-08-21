@@ -45,6 +45,10 @@ const workAssignmentSchema = new mongoose.Schema({
 const bulkQCSchema = new mongoose.Schema({
   ph: Number, viscosity: Number, density: Number, appearance: String, color: String, odor: String, texture: String,
   tpc: String, ym: String, pathogen: String, wld: Number, heavy: String, preservative: String, stability: String, docs: String,
+  // Every other Sensory/Physicochemical/QC-Plan spec key (qcAssay, labFreezeThaw, ...) that
+  // doesn't have its own named column above — keyed by the same crmSpec key it was fetched
+  // from, so the field list here can grow with Customer Details without another migration.
+  extra: { type: mongoose.Schema.Types.Mixed, default: {} },
   result: { type: String, enum: ['PASS', 'FAIL'] },
   checkedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   checkedAt: Date,
@@ -65,6 +69,8 @@ const finalQCSchema = new mongoose.Schema({
   leakCheck: { type: String, enum: ['PASS', 'FAIL'] },
   printCheck: { type: String, enum: ['PASS', 'FAIL'] },
   cartonCheck: { type: String, enum: ['PASS', 'FAIL'] },
+  // fqcRelease + any custom Final QC entries — same reasoning as bulkQCSchema.extra above.
+  extra: { type: mongoose.Schema.Types.Mixed, default: {} },
   comment: String,
   checkedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   checkedAt: Date,
@@ -79,6 +85,14 @@ const dispatchRecordSchema = new mongoose.Schema({
 const productionOrderSchema = new mongoose.Schema({
   organizationId: { type: mongoose.Schema.Types.ObjectId, ref: 'Organization', required: true, index: true },
   orderNumber: { type: String, required: true },
+  // Per-stage traceability IDs — {orderNumber}-{SUFFIX}, assigned the moment the order enters
+  // that stage (see stageId() in productionWorkflow.service.js). Independent of `stage`/`status`
+  // so a QC/paperwork reference stays fixed even if the order is later held or reworked.
+  procurementId: { type: String },
+  weighingId: { type: String },
+  bulkQCId: { type: String },
+  packagingId: { type: String },
+  finalQCId: { type: String },
   finishedProduct: { type: mongoose.Schema.Types.ObjectId, ref: 'Product' },
   plannedQuantity: { type: Number, default: 0 },
   completedQuantity: { type: Number, default: 0 },
@@ -89,6 +103,10 @@ const productionOrderSchema = new mongoose.Schema({
 
   // CRM origin — set when this batch was created from (or linked to) a Lead
   leadId: { type: mongoose.Schema.Types.ObjectId, ref: 'Lead', index: true },
+  // Denormalized from the originating sample's quotation/invoice (per-product flow only) — lets
+  // the work-assignment route check the ≥50% advance-payment gate in one lookup instead of
+  // searching every lead's samples[] for the one pointing back at this order.
+  invoiceId: { type: mongoose.Schema.Types.ObjectId, ref: 'Invoice' },
 
   // Batch Tracker (8-stage detailed lifecycle) ────────────────────────────────
   catalogProduct: { type: mongoose.Schema.Types.ObjectId, ref: 'CatalogProduct' },

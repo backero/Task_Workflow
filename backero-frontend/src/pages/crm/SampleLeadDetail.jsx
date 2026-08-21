@@ -8,10 +8,10 @@ import api from '../../api/axios';
 import { FONT_IMPORT, PILL, SUB_STAGE_PILL, StatCard } from './sampleTheme';
 import { customerId } from '../../utils/leadHelpers';
 import EditKycModal from './EditKycModal';
-import { CATEGORIES as CATALOG_CATEGORIES, UNITS as CATALOG_UNITS, PRODUCT_TYPES as CATALOG_PRODUCT_TYPES, GST_RATES as CATALOG_GST_RATES, STATUSES as CATALOG_STATUSES } from '../inventory/ProductCatalogPage';
+import { CreateCatalogProductModal } from './CreateCatalogProductModal';
 import {
   StageBar, StageOrder, StageWorkAssignment, StageProcurement, StageWeighing,
-  StageBulkQC, StagePackaging, StageFinalQC, StageDispatch, STAGE_NAMES,
+  StageBulkQC, StagePackaging, StageFinalQC, StageDispatch,
 } from './production/StageSteps';
 
 // Full per-lead "Sample Development" window — mirrors the reference design's 7-tab customer
@@ -23,6 +23,22 @@ import {
 
 const SUB_STAGES = ['Requested', 'In Lab', 'Sent', 'Feedback', 'Approved', 'Rejected'];
 const TABS = ['Overview', 'Q&A', 'Products', 'Formulas', 'Payments', 'Samples', 'Approvals'];
+
+// Overview tab's status chain, and the modal's own top-level tabs, continue into the production
+// floor once a lead is linked to an order — same stages as SampleProduction.jsx's
+// PROD_STAGE_TABS, plus the SPEC/QC sheet itself (stage 0, "Customer Details") positioned first,
+// before Procurement. Work Assignment (stage 1) stays off this list, same as it's excluded from
+// PROD_STAGE_TABS — still reachable via the StageBar inside a stage tab, just not its own
+// top-level tab.
+const ORDER_JOURNEY_STAGES = [
+  { stage: 0, label: 'Customer Details', emoji: '🪪' },
+  { stage: 2, label: 'Procurement', emoji: '📦' },
+  { stage: 3, label: 'Weighing', emoji: '⚖️' },
+  { stage: 4, label: 'Bulk QC', emoji: '🧫' },
+  { stage: 5, label: 'Packaging', emoji: '🎁' },
+  { stage: 6, label: 'Final QC', emoji: '✅' },
+  { stage: 7, label: 'Dispatch', emoji: '🚚' },
+];
 const bodyFont = { fontFamily: "'Inter', -apple-system, sans-serif" };
 const displayFont = { fontFamily: "'Fraunces', Georgia, serif" };
 const inputCls = 'px-3 py-2 text-sm rounded-[10px] border-[1.5px] border-[#d3c9b4] bg-[#f0eadd] text-[#2e241b] focus:outline-none focus:border-[#968871] placeholder:text-[#968871]';
@@ -90,25 +106,19 @@ function truncText(s, n) {
   return s.length > n ? s.slice(0, n - 1).trimEnd() + '…' : s;
 }
 
-// Deterministic narrative paragraph (no external/AI calls) — mirrors the reference's
-// aiSummaryParagraph(): chronological walk through every query, noting what was asked and
-// (if answered) who answered it, closing with an open-questions nudge or an all-clear.
+// Deterministic short summary (no external/AI calls) — a couple of clear sentences regardless of
+// how many queries exist, instead of narrating every single one (that grew unreadable once a
+// lead had more than a handful of questions).
 function qaSummaryParagraph(queries, leadName) {
   const chron = [...queries].sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
   if (!chron.length) return 'No conversation yet — add the first query above.';
-  let out = `Since ${format(new Date(chron[0].createdAt), 'dd MMM yyyy')}, ${leadName} has raised ${chron.length} quer${chron.length === 1 ? 'y' : 'ies'}.`;
-  chron.forEach((q, i) => {
-    const when = i === chron.length - 1 ? `Most recently (${format(new Date(q.createdAt), 'dd MMM yyyy')})` : `On ${format(new Date(q.createdAt), 'dd MMM yyyy')}`;
-    if (q.answer) {
-      const by = q.answeredBy ? `${q.answeredBy.firstName} ${q.answeredBy.lastName}` : 'the team';
-      out += ` ${when} they asked about "${truncText(q.title, 90)}" — answered by ${by}: "${truncText(q.answer, 110)}".`;
-    } else {
-      out += ` ${when} they asked "${truncText(q.title, 90)}" — this is still awaiting a reply.`;
-    }
-  });
-  const openCount = chron.filter((q) => q.status === 'pending' || q.status === 'in_progress').length;
-  if (openCount > 0) out += ` ${openCount} question${openCount === 1 ? ' is' : 's are'} still open — a quick follow-up would keep the momentum.`;
-  else out += ' All questions answered — the lead is warm for the next step.';
+  const answered = chron.filter((q) => q.answer).length;
+  const open = chron.length - answered;
+  const latest = chron[chron.length - 1];
+
+  let out = `${leadName} has raised ${chron.length} quer${chron.length === 1 ? 'y' : 'ies'} since ${format(new Date(chron[0].createdAt), 'dd MMM')} — ${answered} answered, ${open} open.`;
+  out += ` Most recent: "${truncText(latest.title, 70)}"${latest.answer ? ' — answered.' : ' — awaiting a reply.'}`;
+  out += open > 0 ? ` ${open} question${open === 1 ? ' is' : 's are'} still open.` : ' All caught up.';
   return out;
 }
 
@@ -215,6 +225,7 @@ function ProductLinkModal({ product, catalogProducts, saving, onClose, onSave, o
   const [name, setName] = useState(product?.name || '');
   const [basis, setBasis] = useState(product?.basis || 'House Formula');
   const [notes, setNotes] = useState(product?.notes || '');
+  const [maximized, setMaximized] = useState(false);
 
   const matches = search
     ? (catalogProducts || []).filter((p) => (p.name || '').toLowerCase().includes(search.toLowerCase()) || (p.code || '').toLowerCase().includes(search.toLowerCase()))
@@ -228,13 +239,17 @@ function ProductLinkModal({ product, catalogProducts, saving, onClose, onSave, o
   }
 
   return (
-    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
-      <div className="bg-[#f0eadd] rounded-2xl shadow-2xl w-full max-w-lg border border-[#d3c9b4]" style={bodyFont} onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center justify-between px-5 py-4 border-b border-[#e2dac8] bg-[#e7dfce] rounded-t-2xl">
+    <div className={clsx('fixed inset-0 z-[70] flex items-center justify-center bg-black/40', maximized ? 'p-0' : 'p-4')} onClick={onClose}>
+      <div className={clsx('bg-[#f0eadd] shadow-2xl border border-[#d3c9b4] flex flex-col',
+        maximized ? 'w-screen h-screen max-w-none rounded-none' : 'w-full max-w-lg rounded-2xl')} style={bodyFont} onClick={(e) => e.stopPropagation()}>
+        <div className={clsx('flex items-center justify-between px-5 py-4 border-b border-[#e2dac8] bg-[#e7dfce] flex-shrink-0', !maximized && 'rounded-t-2xl')}>
           <h3 className="font-bold text-[#2e241b]" style={displayFont}>{product ? `🧴 Edit Product Link — ${product.productId}` : '➕ Link Product'}</h3>
-          <button onClick={onClose} className="text-[#968871] hover:text-[#2e241b] text-xl leading-none">&times;</button>
+          <div className="flex items-center gap-1.5">
+            <button onClick={() => setMaximized((m) => !m)} title={maximized ? 'Restore' : 'Maximize'} className="w-8 h-8 rounded-lg hover:bg-[#ddd3be] flex items-center justify-center text-[#968871] hover:text-[#2e241b] text-sm">{maximized ? '🗗' : '🗖'}</button>
+            <button onClick={onClose} className="text-[#968871] hover:text-[#2e241b] text-xl leading-none">&times;</button>
+          </div>
         </div>
-        <div className="p-5 space-y-3">
+        <div className={clsx('p-5 space-y-3', maximized && 'flex-1 overflow-y-auto')}>
           <div>
             <label className="text-xs font-semibold text-[#968871] uppercase tracking-wide mb-1 block">
               Product ID <span className="text-[#b6453a]">*</span> <span className="font-normal normal-case">(catalogue mirror)</span>
@@ -295,168 +310,10 @@ function ProductLinkModal({ product, catalogProducts, saving, onClose, onSave, o
   );
 }
 
-// "Create Product" from a Q&A query — unlike ProductLinkModal (which can create a lead-only
-// "shadow" link that never appears anywhere else), this creates a real Product Catalog entry
-// via POST /catalog/products, so it shows up in the actual Product Catalog too. Mirrors the
-// exact Basic Info field set of the catalog's own "Add New Product" form (Formulation/Costing/
-// Marketplace/etc. only unlock after the product exists there too, so they're out of scope here).
-// The caller then links the newly created catalog product to this lead/query.
-function CreateCatalogProductModal({ nextCode, defaultName, saving, onClose, onSave }) {
-  const [code, setCode] = useState(nextCode);
-  const [name, setName] = useState(defaultName || '');
-  const [category, setCategory] = useState('');
-  const [subCategory, setSubCategory] = useState('');
-  const [type, setType] = useState('');
-  const [status, setStatus] = useState('Active');
-  const [unit, setUnit] = useState('ml');
-  const [weight, setWeight] = useState('');
-  const [gstRate, setGstRate] = useState(18);
-  const [hsnCode, setHsnCode] = useState('');
-  const [shelfLife, setShelfLife] = useState('');
-  const [description, setDescription] = useState('');
-  const [storage, setStorage] = useState('');
-  const [certifications, setCertifications] = useState('');
-  const [barcode, setBarcode] = useState('');
-  const [imagePreview, setImagePreview] = useState(null);
-
-  function onImageChange(e) {
-    const f = e.target.files[0]; if (!f) return;
-    const r = new FileReader();
-    r.onload = (ev) => setImagePreview(ev.target.result);
-    r.readAsDataURL(f);
-  }
-
-  return (
-    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
-      <div className="bg-[#f0eadd] rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col border border-[#d3c9b4]" style={bodyFont} onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center justify-between px-5 py-4 border-b border-[#e2dac8] bg-[#e7dfce] rounded-t-2xl flex-shrink-0">
-          <h3 className="font-bold text-[#2e241b]" style={displayFont}>🆕 Create Product</h3>
-          <button onClick={onClose} className="text-[#968871] hover:text-[#2e241b] text-xl leading-none">&times;</button>
-        </div>
-        <div className="p-5 space-y-3 overflow-y-auto">
-          <p className="text-[11px] text-[#6d5f4c] -mt-1">Creates a real entry in the Product Catalog (same fields as Product Catalog's own Add Product) and links it to this customer &amp; query.</p>
-
-          <div className="grid grid-cols-3 gap-2">
-            <div>
-              <label className="text-xs font-semibold text-[#968871] uppercase tracking-wide mb-1 block">SKU Code <span className="text-[#b6453a]">*</span></label>
-              <input value={code} onChange={(e) => setCode(e.target.value.toUpperCase())} placeholder="e.g., FG-0007" className={clsx(inputCls, 'w-full')} />
-            </div>
-            <div className="col-span-2">
-              <label className="text-xs font-semibold text-[#968871] uppercase tracking-wide mb-1 block">Product Name <span className="text-[#b6453a]">*</span></label>
-              <input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g., Vitamin C Serum" className={clsx(inputCls, 'w-full')} />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-3 gap-2">
-            <div>
-              <label className="text-xs font-semibold text-[#968871] uppercase tracking-wide mb-1 block">Category <span className="text-[#b6453a]">*</span></label>
-              <select value={category} onChange={(e) => setCategory(e.target.value)} className={clsx(inputCls, 'w-full')}>
-                <option value="">Select…</option>
-                {CATALOG_CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
-              </select>
-            </div>
-            <div>
-              <label className="text-xs font-semibold text-[#968871] uppercase tracking-wide mb-1 block">Sub-Category</label>
-              <input value={subCategory} onChange={(e) => setSubCategory(e.target.value)} placeholder="e.g., Shampoo, Serum" className={clsx(inputCls, 'w-full')} />
-            </div>
-            <div>
-              <label className="text-xs font-semibold text-[#968871] uppercase tracking-wide mb-1 block">Product Type</label>
-              <select value={type} onChange={(e) => setType(e.target.value)} className={clsx(inputCls, 'w-full')}>
-                <option value="">Select…</option>
-                {CATALOG_PRODUCT_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
-              </select>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-3 gap-2">
-            <div>
-              <label className="text-xs font-semibold text-[#968871] uppercase tracking-wide mb-1 block">Status</label>
-              <select value={status} onChange={(e) => setStatus(e.target.value)} className={clsx(inputCls, 'w-full')}>
-                {CATALOG_STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
-              </select>
-            </div>
-            <div>
-              <label className="text-xs font-semibold text-[#968871] uppercase tracking-wide mb-1 block">Base Unit</label>
-              <select value={unit} onChange={(e) => setUnit(e.target.value)} className={clsx(inputCls, 'w-full')}>
-                {CATALOG_UNITS.map((u) => <option key={u} value={u}>{u}</option>)}
-              </select>
-            </div>
-            <div>
-              <label className="text-xs font-semibold text-[#968871] uppercase tracking-wide mb-1 block">Ref Weight/Volume</label>
-              <input type="number" value={weight} onChange={(e) => setWeight(e.target.value)} placeholder="e.g., 200" className={clsx(inputCls, 'w-full')} />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-3 gap-2">
-            <div>
-              <label className="text-xs font-semibold text-[#968871] uppercase tracking-wide mb-1 block">GST Rate</label>
-              <select value={gstRate} onChange={(e) => setGstRate(Number(e.target.value))} className={clsx(inputCls, 'w-full')}>
-                {CATALOG_GST_RATES.map((r) => <option key={r} value={r}>{r}%</option>)}
-              </select>
-            </div>
-            <div>
-              <label className="text-xs font-semibold text-[#968871] uppercase tracking-wide mb-1 block">HSN Code</label>
-              <input value={hsnCode} onChange={(e) => setHsnCode(e.target.value)} placeholder="e.g., 3305" className={clsx(inputCls, 'w-full')} />
-            </div>
-            <div>
-              <label className="text-xs font-semibold text-[#968871] uppercase tracking-wide mb-1 block">Shelf Life (months)</label>
-              <input type="number" value={shelfLife} onChange={(e) => setShelfLife(e.target.value)} placeholder="e.g., 36" className={clsx(inputCls, 'w-full')} />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-3 gap-2 items-start">
-            <div className="col-span-2">
-              <label className="text-xs font-semibold text-[#968871] uppercase tracking-wide mb-1 block">Description</label>
-              <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={2} placeholder="Product description, key claims, benefits…" className={clsx(inputCls, 'w-full')} />
-            </div>
-            <div>
-              <label className="text-xs font-semibold text-[#968871] uppercase tracking-wide mb-1 block">Image</label>
-              <label className="w-16 h-16 border-2 border-dashed border-[#d3c9b4] rounded-lg flex items-center justify-center cursor-pointer overflow-hidden hover:border-[#968871] transition-colors bg-white">
-                {imagePreview ? <img src={imagePreview} alt="Product" className="w-full h-full object-cover" /> : <span className="text-[#968871] text-[10px] text-center px-1">📷 Upload</span>}
-                <input type="file" accept="image/*" className="hidden" onChange={onImageChange} />
-              </label>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-3 gap-2">
-            <div>
-              <label className="text-xs font-semibold text-[#968871] uppercase tracking-wide mb-1 block">Storage</label>
-              <input value={storage} onChange={(e) => setStorage(e.target.value)} placeholder="Cool, dry place" className={clsx(inputCls, 'w-full')} />
-            </div>
-            <div>
-              <label className="text-xs font-semibold text-[#968871] uppercase tracking-wide mb-1 block">Certifications</label>
-              <input value={certifications} onChange={(e) => setCertifications(e.target.value)} placeholder="Organic, Cruelty-Free…" className={clsx(inputCls, 'w-full')} />
-            </div>
-            <div>
-              <label className="text-xs font-semibold text-[#968871] uppercase tracking-wide mb-1 block">Barcode</label>
-              <input value={barcode} onChange={(e) => setBarcode(e.target.value)} placeholder="8901234567890" className={clsx(inputCls, 'w-full')} />
-            </div>
-          </div>
-        </div>
-        <div className="flex items-center gap-3 px-5 py-4 border-t border-[#e2dac8] flex-shrink-0">
-          <button type="button" onClick={onClose} className={clsx(outlineBtn, 'flex-1 justify-center')}>Cancel</button>
-          <button
-            onClick={() => {
-              if (!code.trim() || !name.trim() || !category) { toast.error('SKU code, name and category are required'); return; }
-              onSave({
-                code: code.trim(), name: name.trim(), category, subCategory: subCategory.trim() || undefined,
-                type: type || undefined, status, unit, weight: weight ? Number(weight) : undefined,
-                gstRate, hsnCode: hsnCode.trim() || undefined, shelfLife: shelfLife ? Number(shelfLife) : undefined,
-                description: description.trim() || undefined, storage: storage.trim() || undefined,
-                certifications: certifications.trim() || undefined, barcode: barcode.trim() || undefined,
-                image: imagePreview || undefined,
-              });
-            }}
-            disabled={saving}
-            className={clsx(accentBtn, 'flex-1 justify-center')}
-          >
-            {saving ? 'Creating…' : '💾 Create in Catalog'}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
+// "Create Product" from a Q&A query — moved to its own leaf file (CreateCatalogProductModal.jsx)
+// so StageSteps.jsx's Stage 0 panel can use it too without an import cycle (StageSteps.jsx is
+// itself imported by this file). Re-imported here under the same name so every existing call
+// site below keeps working unchanged.
 
 // "New Formula" popup — mirrors the reference's formulaModal. The reference's Type
 // (Standard/Custom) and Customer ID fields don't apply here: this tab only ever creates
@@ -466,15 +323,20 @@ function CreateCatalogProductModal({ nextCode, defaultName, saving, onClose, onS
 function NewFormulaModal({ saving, onClose, onSave }) {
   const [name, setName] = useState('');
   const [productLink, setProductLink] = useState('');
+  const [maximized, setMaximized] = useState(false);
 
   return (
-    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
-      <div className="bg-[#f0eadd] rounded-2xl shadow-2xl w-full max-w-lg border border-[#d3c9b4]" style={bodyFont} onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center justify-between px-5 py-4 border-b border-[#e2dac8] bg-[#e7dfce] rounded-t-2xl">
+    <div className={clsx('fixed inset-0 z-[70] flex items-center justify-center bg-black/40', maximized ? 'p-0' : 'p-4')} onClick={onClose}>
+      <div className={clsx('bg-[#f0eadd] shadow-2xl border border-[#d3c9b4] flex flex-col',
+        maximized ? 'w-screen h-screen max-w-none rounded-none' : 'w-full max-w-lg rounded-2xl')} style={bodyFont} onClick={(e) => e.stopPropagation()}>
+        <div className={clsx('flex items-center justify-between px-5 py-4 border-b border-[#e2dac8] bg-[#e7dfce] flex-shrink-0', !maximized && 'rounded-t-2xl')}>
           <h3 className="font-bold text-[#2e241b]" style={displayFont}>➕ New Formula</h3>
-          <button onClick={onClose} className="text-[#968871] hover:text-[#2e241b] text-xl leading-none">&times;</button>
+          <div className="flex items-center gap-1.5">
+            <button onClick={() => setMaximized((m) => !m)} title={maximized ? 'Restore' : 'Maximize'} className="w-8 h-8 rounded-lg hover:bg-[#ddd3be] flex items-center justify-center text-[#968871] hover:text-[#2e241b] text-sm">{maximized ? '🗗' : '🗖'}</button>
+            <button onClick={onClose} className="text-[#968871] hover:text-[#2e241b] text-xl leading-none">&times;</button>
+          </div>
         </div>
-        <div className="p-5 space-y-3">
+        <div className={clsx('p-5 space-y-3', maximized && 'flex-1 overflow-y-auto')}>
           <div>
             <label className="text-xs font-semibold text-[#968871] uppercase tracking-wide mb-1 block">Formula Name <span className="text-[#b6453a]">*</span></label>
             <input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g., Vitamin C Serum 15% + Ferulic" className={clsx(inputCls, 'w-full')} autoFocus />
@@ -529,14 +391,20 @@ function NewSampleModal({ formulas, isPaid, saving, onClose, onSave, onGoToPayme
     setVersionNo(versions.length ? String(versions[versions.length - 1].version) : '');
   }
 
+  const [maximized, setMaximized] = useState(false);
+
   return (
-    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
-      <div className="bg-[#f0eadd] rounded-2xl shadow-2xl w-full max-w-lg border border-[#d3c9b4]" style={bodyFont} onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center justify-between px-5 py-4 border-b border-[#e2dac8] bg-[#e7dfce] rounded-t-2xl">
+    <div className={clsx('fixed inset-0 z-[70] flex items-center justify-center bg-black/40', maximized ? 'p-0' : 'p-4')} onClick={onClose}>
+      <div className={clsx('bg-[#f0eadd] shadow-2xl border border-[#d3c9b4] flex flex-col',
+        maximized ? 'w-screen h-screen max-w-none rounded-none' : 'w-full max-w-lg rounded-2xl')} style={bodyFont} onClick={(e) => e.stopPropagation()}>
+        <div className={clsx('flex items-center justify-between px-5 py-4 border-b border-[#e2dac8] bg-[#e7dfce] flex-shrink-0', !maximized && 'rounded-t-2xl')}>
           <h3 className="font-bold text-[#2e241b]" style={displayFont}>➕ Request New Sample</h3>
-          <button onClick={onClose} className="text-[#968871] hover:text-[#2e241b] text-xl leading-none">&times;</button>
+          <div className="flex items-center gap-1.5">
+            <button onClick={() => setMaximized((m) => !m)} title={maximized ? 'Restore' : 'Maximize'} className="w-8 h-8 rounded-lg hover:bg-[#ddd3be] flex items-center justify-center text-[#968871] hover:text-[#2e241b] text-sm">{maximized ? '🗗' : '🗖'}</button>
+            <button onClick={onClose} className="text-[#968871] hover:text-[#2e241b] text-xl leading-none">&times;</button>
+          </div>
         </div>
-        <div className="p-5 space-y-3">
+        <div className={clsx('p-5 space-y-3', maximized && 'flex-1 overflow-y-auto')}>
           {!isPaid && (
             <div className="p-2.5 rounded-lg bg-[#f0d8d2] text-[#8c3a30] text-[11px] flex gap-2">
               <span>🔒</span>
@@ -588,15 +456,20 @@ function NewSampleModal({ formulas, isPaid, saving, onClose, onSave, onGoToPayme
 function QuotePriceModal({ product, saving, onClose, onSave }) {
   const [price, setPrice] = useState(product.approxPrice || '');
   const [note, setNote] = useState('');
+  const [maximized, setMaximized] = useState(false);
 
   return (
-    <div className="fixed inset-0 z-[75] flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
-      <div className="bg-[#f0eadd] rounded-2xl shadow-2xl w-full max-w-sm border border-[#d3c9b4]" style={bodyFont} onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center justify-between px-5 py-4 border-b border-[#e2dac8] bg-[#e7dfce] rounded-t-2xl">
+    <div className={clsx('fixed inset-0 z-[75] flex items-center justify-center bg-black/40', maximized ? 'p-0' : 'p-4')} onClick={onClose}>
+      <div className={clsx('bg-[#f0eadd] shadow-2xl border border-[#d3c9b4] flex flex-col',
+        maximized ? 'w-screen h-screen max-w-none rounded-none' : 'w-full max-w-sm rounded-2xl')} style={bodyFont} onClick={(e) => e.stopPropagation()}>
+        <div className={clsx('flex items-center justify-between px-5 py-4 border-b border-[#e2dac8] bg-[#e7dfce] flex-shrink-0', !maximized && 'rounded-t-2xl')}>
           <h3 className="font-bold text-[#2e241b]" style={displayFont}>💰 Quote Price — {product.productId}</h3>
-          <button onClick={onClose} className="text-[#968871] hover:text-[#2e241b] text-xl leading-none">&times;</button>
+          <div className="flex items-center gap-1.5">
+            <button onClick={() => setMaximized((m) => !m)} title={maximized ? 'Restore' : 'Maximize'} className="w-8 h-8 rounded-lg hover:bg-[#ddd3be] flex items-center justify-center text-[#968871] hover:text-[#2e241b] text-sm">{maximized ? '🗗' : '🗖'}</button>
+            <button onClick={onClose} className="text-[#968871] hover:text-[#2e241b] text-xl leading-none">&times;</button>
+          </div>
         </div>
-        <div className="p-5 space-y-3">
+        <div className={clsx('p-5 space-y-3', maximized && 'flex-1 overflow-y-auto')}>
           <div>
             <label className="text-xs font-semibold text-[#968871] uppercase tracking-wide mb-1 block">Approx Price (₹/unit) <span className="text-[#b6453a]">*</span></label>
             <input type="number" min="0" step="0.01" value={price} onChange={(e) => setPrice(e.target.value)} placeholder="e.g., 140" className={clsx(inputCls, 'w-full')} />
@@ -636,6 +509,7 @@ function QuotePriceModal({ product, saving, onClose, onSave }) {
 function FormulaEditorModal({ formula, samples, rawMaterials, onClose }) {
   const versions = formula.versions || [];
   const [selectedVersion, setSelectedVersion] = useState(formula.currentVersion);
+  const [maximized, setMaximized] = useState(false);
 
   const versionObj = versions.find((v) => v.version === selectedVersion) || versions[versions.length - 1];
   const refWeight = Number(formula.refWeight) || 100;
@@ -650,13 +524,17 @@ function FormulaEditorModal({ formula, samples, rawMaterials, onClose }) {
   function samplesForVersion(v) { return (samples || []).filter((s) => s.formulaId === formula.formulaId && s.formulaVersionNo === v); }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
-      <div className="bg-[#f7f3ea] rounded-2xl shadow-2xl w-full max-w-6xl h-[90vh] flex flex-col" style={bodyFont} onClick={(e) => e.stopPropagation()}>
+    <div className={clsx('fixed inset-0 z-50 flex items-center justify-center bg-black/40', maximized ? 'p-0' : 'p-4')} onClick={onClose}>
+      <div className={clsx('bg-[#f7f3ea] shadow-2xl w-full flex flex-col',
+        maximized ? 'max-w-none rounded-none h-screen' : 'max-w-6xl rounded-2xl h-[90vh]')} style={bodyFont} onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between px-5 py-4 border-b border-[#d3c9b4] flex-shrink-0">
           <h2 className="text-base font-bold text-[#2e241b]" style={displayFont}>
-            🧬 {formula.formulaId} — {formula.name} · V{selectedVersion} <span className="text-xs font-normal text-[#968871]">(view only — edit in Product Catalog)</span>
+            🧬 {formula.formulaId} — {formula.name} · V{selectedVersion} <span className="text-xs font-normal text-[#968871]">(view only)</span>
           </h2>
-          <button onClick={onClose} className="text-[#968871] hover:text-[#2e241b] text-xl leading-none">&times;</button>
+          <div className="flex items-center gap-1.5">
+            <button onClick={() => setMaximized((m) => !m)} title={maximized ? 'Restore' : 'Maximize'} className="w-8 h-8 rounded-lg hover:bg-[#e7dfce] flex items-center justify-center text-[#968871] hover:text-[#2e241b] text-sm">{maximized ? '🗗' : '🗖'}</button>
+            <button onClick={onClose} className="text-[#968871] hover:text-[#2e241b] text-xl leading-none">&times;</button>
+          </div>
         </div>
 
         <div className="flex-1 flex min-h-0">
@@ -780,7 +658,11 @@ function FormulaEditorModal({ formula, samples, rawMaterials, onClose }) {
 export default function SampleLeadDetail({ leadId, onClose, initialTab }) {
   const qc = useQueryClient();
   const navigate = useNavigate();
-  const [tab, setTab] = useState(initialTab || 'Overview');
+  // 'Production' is a generic sentinel from callers that want "wherever this order currently is"
+  // without knowing the exact stage — resolved to the real stage tab by the auto-jump effect below
+  // once the order loads, so it can't be used as the starting tab itself.
+  const [tab, setTab] = useState(initialTab && initialTab !== 'Production' ? initialTab : 'Overview');
+  const [maximized, setMaximized] = useState(false);
 
   // Q&A — a lean composer mirroring the reference design: one Question box, Asked Via, Topic,
   // an optional catalog product link, and an optional Answer to log Q&A in one shot.
@@ -792,6 +674,14 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab }) {
   const [queryCatalogSearch, setQueryCatalogSearch] = useState('');
   const [querySelectedCatalogProduct, setQuerySelectedCatalogProduct] = useState(null);
   const [replyDrafts, setReplyDrafts] = useState({});
+  // Editing an existing query in place — mirrors the raise-form fields, seeded from the query
+  // being edited, id-keyed so only one card shows its edit form at a time.
+  const [editingQueryId, setEditingQueryId] = useState(null);
+  const [editQueryDesc, setEditQueryDesc] = useState('');
+  const [editQueryAskedVia, setEditQueryAskedVia] = useState('Phone Call');
+  const [editQueryTopic, setEditQueryTopic] = useState('General');
+  const questionFileInputs = useRef({});
+  const replyFileInputs = useRef({});
   // Which query (if any) is being converted into a product/sample/formula right now — set when
   // a 🆕/🔗/🧪/🧬 convert-icon is clicked, consumed (and cleared) once the resulting
   // create-product/create-formula/create-sample mutation succeeds, to stamp the query's
@@ -817,6 +707,7 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab }) {
   // Follow-ups — logged from here only (Sample Production is the single place lead
   // touchpoints happen); each save also pings the client with a WhatsApp acknowledgment.
   const [showFollowUpModal, setShowFollowUpModal] = useState(false);
+  const [followUpMaximized, setFollowUpMaximized] = useState(false);
   const [fuType, setFuType] = useState('call');
   const [fuNotes, setFuNotes] = useState('');
   const [fuNextAction, setFuNextAction] = useState('');
@@ -831,14 +722,26 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab }) {
   const [viewStage, setViewStage] = useState(null);
   const autoJumpedToProductionRef = useRef(false);
 
+  // Per-product quotation → payment → production (Approvals tab) — each approved sample gets
+  // its own quotation/invoice and its own "send to production" gate, independent of every other
+  // product on the same lead, instead of the whole-lead Move to Production flow above.
+  const [sendSampleFor, setSendSampleFor] = useState(null);
+  const [sendSampleCatalogSearch, setSendSampleCatalogSearch] = useState('');
+  const [sendSampleSelectedCatalog, setSendSampleSelectedCatalog] = useState(null);
+  const [sendSampleBatchSizeKg, setSendSampleBatchSizeKg] = useState(10);
+  const [sendSampleMaximized, setSendSampleMaximized] = useState(false);
+
   const { data: catalogProducts } = useQuery({
     queryKey: ['catalog', 'products', 'all'],
     queryFn: () => api.get('/catalog/products').then((r) => r.data.products || []),
-    enabled: productModalOpen || showMoveModal || showRaiseForm || quickCreateOpen,
+    enabled: productModalOpen || showMoveModal || showRaiseForm || quickCreateOpen || !!sendSampleFor,
     staleTime: 5 * 60 * 1000,
   });
   const moveCatalogMatches = moveCatalogSearch
     ? (catalogProducts || []).filter((p) => (p.name || '').toLowerCase().includes(moveCatalogSearch.toLowerCase()) || (p.code || '').toLowerCase().includes(moveCatalogSearch.toLowerCase()))
+    : (catalogProducts || []);
+  const sendSampleCatalogMatches = sendSampleCatalogSearch
+    ? (catalogProducts || []).filter((p) => (p.name || '').toLowerCase().includes(sendSampleCatalogSearch.toLowerCase()) || (p.code || '').toLowerCase().includes(sendSampleCatalogSearch.toLowerCase()))
     : (catalogProducts || []);
   const queryCatalogMatches = queryCatalogSearch
     ? (catalogProducts || []).filter((p) => (p.name || '').toLowerCase().includes(queryCatalogSearch.toLowerCase()) || (p.code || '').toLowerCase().includes(queryCatalogSearch.toLowerCase()))
@@ -881,6 +784,13 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab }) {
   const [rejectCloneFollowUp, setRejectCloneFollowUp] = useState(true);
   const [rejectContactName, setRejectContactName] = useState('');
 
+  // Maximize/restore toggles for the stage-transition modals below.
+  const [moveMaximized, setMoveMaximized] = useState(false);
+  const [courierMaximized, setCourierMaximized] = useState(false);
+  const [feedbackMaximized, setFeedbackMaximized] = useState(false);
+  const [approveMaximized, setApproveMaximized] = useState(false);
+  const [rejectMaximized, setRejectMaximized] = useState(false);
+
   const { data: lead, isLoading } = useQuery({
     queryKey: ['crm', 'lead', leadId],
     queryFn: () => api.get(`/crm/leads/${leadId}`).then((r) => r.data.lead),
@@ -895,7 +805,13 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab }) {
 
   // Once a lead is linked to production, its 8-stage order board renders right here in the
   // Production tab — reusing the same endpoints Batch Tracker used, just inline in this panel.
-  const productionOrderId = lead?.productionOrderId?._id || lead?.productionOrderId || null;
+  // Falls back to a sample's own productionOrderId (the newer per-product gated flow) when the
+  // lead-wide field was never set — otherwise this tab strip goes blank for orders created via
+  // "Send to Production" on an individual approved sample instead of the old whole-lead flow.
+  const sampleProductionOrderId = (lead?.samples || [])
+    .map((s) => s.productionOrderId?._id || s.productionOrderId)
+    .find(Boolean);
+  const productionOrderId = lead?.productionOrderId?._id || lead?.productionOrderId || sampleProductionOrderId || null;
   const { data: productionOrder, isLoading: productionOrderLoading } = useQuery({
     queryKey: ['production-order', productionOrderId],
     queryFn: () => api.get(`/production/${productionOrderId}`).then((r) => r.data.order),
@@ -903,14 +819,18 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab }) {
     refetchInterval: 15 * 1000,
   });
 
-  // Leads opened later that already have a linked order land straight on the Production tab
-  // instead of Overview — jump once per mount, don't fight the user if they navigate away.
+  // Leads opened later that already have a linked order land straight on its current production
+  // stage tab instead of Overview — jump once per mount, don't fight the user if they navigate
+  // away. Work Assignment (stage 1) has no top-level tab of its own, so it falls back to Order.
   useEffect(() => {
-    if (!autoJumpedToProductionRef.current && productionOrderId && !initialTab) {
-      setTab('Production');
+    if (!autoJumpedToProductionRef.current && productionOrderId && productionOrder && (!initialTab || initialTab === 'Production')) {
+      const reached = ORDER_JOURNEY_STAGES.filter((s) => s.stage <= productionOrder.stage);
+      const target = reached[reached.length - 1] || ORDER_JOURNEY_STAGES[0];
+      setTab(target.label);
+      setViewStage(productionOrder.stage);
       autoJumpedToProductionRef.current = true;
     }
-  }, [productionOrderId, initialTab]);
+  }, [productionOrderId, productionOrder, initialTab]);
 
   const invalidate = () => {
     qc.invalidateQueries({ queryKey: ['crm', 'lead', leadId] });
@@ -961,6 +881,50 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab }) {
     mutationFn: (queryId) => api.put(`/crm/queries/${queryId}/status`, { status: 'closed' }),
     onSuccess: () => { toast.success('Query closed'); invalidate(); },
     onError: (e) => toast.error(e.response?.data?.message || 'Failed to close query'),
+  });
+
+  const editQueryMutation = useMutation({
+    mutationFn: ({ queryId, body }) => api.put(`/crm/queries/${queryId}`, body),
+    onSuccess: () => { toast.success('Query updated'); setEditingQueryId(null); invalidate(); },
+    onError: (e) => toast.error(e.response?.data?.message || 'Failed to update query'),
+  });
+
+  const deleteQueryMutation = useMutation({
+    mutationFn: ({ queryId, deleted }) => api.put(`/crm/queries/${queryId}/delete`, { deleted }),
+    onSuccess: (_r, vars) => { toast.success(vars.deleted ? 'Question struck through' : 'Question restored'); invalidate(); },
+    onError: (e) => toast.error(e.response?.data?.message || 'Failed to update query'),
+  });
+
+  const uploadQueryAttachmentMutation = useMutation({
+    mutationFn: ({ queryId, file }) => {
+      const fd = new FormData();
+      fd.append('file', file);
+      return api.post(`/crm/queries/${queryId}/attachment`, fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+    },
+    onSuccess: () => { toast.success('Attachment added'); invalidate(); },
+    onError: (e) => toast.error(e.response?.data?.message || 'Failed to upload attachment'),
+  });
+
+  const removeQueryAttachmentMutation = useMutation({
+    mutationFn: ({ queryId, attachmentId }) => api.delete(`/crm/queries/${queryId}/attachment`, { data: { attachmentId } }),
+    onSuccess: () => invalidate(),
+    onError: (e) => toast.error(e.response?.data?.message || 'Failed to remove attachment'),
+  });
+
+  const uploadReplyAttachmentMutation = useMutation({
+    mutationFn: ({ queryId, file }) => {
+      const fd = new FormData();
+      fd.append('file', file);
+      return api.post(`/crm/queries/${queryId}/reply-attachment`, fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+    },
+    onSuccess: () => { toast.success('Attachment added'); invalidate(); },
+    onError: (e) => toast.error(e.response?.data?.message || 'Failed to upload attachment'),
+  });
+
+  const removeReplyAttachmentMutation = useMutation({
+    mutationFn: ({ queryId, attachmentId }) => api.delete(`/crm/queries/${queryId}/reply-attachment`, { data: { attachmentId } }),
+    onSuccess: () => invalidate(),
+    onError: (e) => toast.error(e.response?.data?.message || 'Failed to remove attachment'),
   });
 
   // Stamps a query with the product it was linked to (unlocks the 🧪/🧬 icons) and/or the
@@ -1155,6 +1119,50 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab }) {
     onError: (e) => toast.error(e.response?.data?.message || 'Failed to move to Production'),
   });
 
+  const createQuotationMutation = useMutation({
+    mutationFn: (sampleId) => api.post(`/crm/leads/${leadId}/samples/${sampleId}/quotation`),
+    onSuccess: (res) => {
+      toast.success('Quotation created — opening it in Finance to fill in the price and send it');
+      invalidate();
+      const invoiceId = res.data.invoice?._id || res.data.data?.invoice?._id;
+      const returnTo = encodeURIComponent(`/samples?open=${leadId}&leadTab=Approvals`);
+      navigate(`/finance/invoices?open=${invoiceId}&returnTo=${returnTo}`);
+    },
+    onError: (e) => toast.error(e.response?.data?.message || 'Failed to create quotation'),
+  });
+
+  const createInvoiceMutation = useMutation({
+    mutationFn: (sampleId) => api.post(`/crm/leads/${leadId}/samples/${sampleId}/invoice`),
+    onSuccess: (res) => {
+      toast.success('Final invoice created');
+      invalidate();
+      const invoiceId = res.data.invoice?._id || res.data.data?.invoice?._id;
+      const returnTo = encodeURIComponent(`/samples?open=${leadId}&leadTab=Approvals`);
+      navigate(`/finance/invoices?open=${invoiceId}&returnTo=${returnTo}`);
+    },
+    onError: (e) => toast.error(e.response?.data?.message || 'Failed to create invoice'),
+  });
+
+  const linkSampleProductionMutation = useMutation({
+    mutationFn: ({ sampleId, catalogProduct, batchSizeKg }) => api.post(`/crm/leads/${leadId}/samples/${sampleId}/link-production`, { catalogProduct, batchSizeKg }),
+    onSuccess: () => {
+      toast.success('Sent to production — opening Customer Details');
+      qc.invalidateQueries({ queryKey: ['crm'] });
+      qc.invalidateQueries({ queryKey: ['sample-production'] });
+      qc.invalidateQueries({ queryKey: ['production-schedule'] });
+      invalidate();
+      setSendSampleFor(null);
+      setSendSampleSelectedCatalog(null);
+      setSendSampleCatalogSearch('');
+      setSendSampleBatchSizeKg(10);
+      // Land directly on Customer Details for the order that was just created — no separate
+      // "go find it in Orders" step.
+      setTab('Customer Details');
+      setViewStage(0);
+    },
+    onError: (e) => toast.error(e.response?.data?.message || 'Failed to send to production'),
+  });
+
   if (!leadId) return null;
 
   const sd = lead?.sampleDetails || {};
@@ -1167,11 +1175,13 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab }) {
   const openSample = samples.find((s) => s.sampleId === openSampleId);
 
   return (
-    <div className="fixed inset-0 z-[70] flex items-center justify-center p-4" style={bodyFont}>
+    <div className={clsx('fixed inset-0 z-[70] flex items-center justify-center', maximized ? 'p-0' : 'p-4')} style={bodyFont}>
       <style>{FONT_IMPORT}</style>
       <div className="absolute inset-0 bg-[#2e241b]/50 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative bg-[#f0eadd] rounded-2xl shadow-[0_10px_40px_rgba(46,36,27,0.16)] w-full max-w-4xl border border-[#d3c9b4] flex flex-col" style={{ maxHeight: '90vh' }}>
-        <div className="p-5 border-b border-[#e2dac8] bg-[#e7dfce] flex items-center justify-between flex-shrink-0 rounded-t-2xl">
+      <div className={clsx('relative bg-[#f0eadd] shadow-[0_10px_40px_rgba(46,36,27,0.16)] border border-[#d3c9b4] flex flex-col',
+        maximized ? 'w-screen h-screen max-w-none rounded-none' : 'w-full max-w-4xl rounded-2xl')}
+        style={maximized ? undefined : { maxHeight: '90vh' }}>
+        <div className={clsx('p-5 border-b border-[#e2dac8] bg-[#e7dfce] flex items-center justify-between flex-shrink-0', !maximized && 'rounded-t-2xl')}>
           <div>
             <div className="flex items-center gap-2">
               <h3 className="font-bold text-[#2e241b]" style={displayFont}>{lead?.name || 'Loading…'}</h3>
@@ -1179,25 +1189,37 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab }) {
             </div>
             <p className="text-xs text-[#6d5f4c]">{lead?.company || '—'} · {lead?.phone}</p>
           </div>
-          <button onClick={onClose} className="w-9 h-9 rounded-lg hover:bg-[#ddd3be] flex items-center justify-center text-[#968871] hover:text-[#2e241b] text-lg">✕</button>
+          <div className="flex items-center gap-1.5">
+            <button onClick={() => setMaximized((m) => !m)} title={maximized ? 'Restore' : 'Maximize'} className="w-9 h-9 rounded-lg hover:bg-[#ddd3be] flex items-center justify-center text-[#968871] hover:text-[#2e241b] text-base">{maximized ? '🗗' : '🗖'}</button>
+            <button onClick={onClose} className="w-9 h-9 rounded-lg hover:bg-[#ddd3be] flex items-center justify-center text-[#968871] hover:text-[#2e241b] text-lg">✕</button>
+          </div>
         </div>
 
         <div className="flex gap-1 px-5 pt-3 border-b border-[#e2dac8] flex-shrink-0 overflow-x-auto">
-          {(productionOrderId ? [...TABS, 'Production'] : TABS).map((t) => {
+          {[...TABS, ...ORDER_JOURNEY_STAGES.map((s) => s.label)].map((t) => {
+            const stageMeta = ORDER_JOURNEY_STAGES.find((s) => s.label === t);
+            const actualStage = productionOrder?.stage;
+            // Order (stage 0) is never locked — it's the entry point that shows the "Create
+            // Order" button when no order exists yet. Every other stage still waits until the
+            // order actually exists and has reached it.
+            const locked = !!stageMeta && stageMeta.stage > 0 && (!productionOrderId || actualStage === undefined || stageMeta.stage > actualStage);
             const count = t === 'Q&A' ? (queries || []).length : t === 'Products' ? products.length : t === 'Formulas' ? formulas.length : t === 'Samples' ? samples.length : t === 'Approvals' ? approvedSamples.length : null;
             return (
               <button
                 key={t}
-                onClick={() => setTab(t)}
+                disabled={locked}
+                onClick={() => { setTab(t); if (stageMeta) setViewStage(stageMeta.stage); }}
+                title={locked ? `${t} — not reached yet` : undefined}
                 className={clsx(
                   'px-3 py-2 text-sm font-semibold border-b-[2.5px] -mb-px transition-colors whitespace-nowrap',
+                  locked ? 'border-transparent text-[#c2b9a3] cursor-not-allowed' :
                   tab === t ? 'border-[#f2b23e] text-[#2e241b]' : 'border-transparent text-[#6d5f4c] hover:text-[#2e241b]'
                 )}
               >
-                {t === 'Production' ? '🏭 Production' : t}
+                {stageMeta ? `${stageMeta.emoji} ${t}` : t}
                 {t === 'Q&A' && pendingQueries > 0 && <span className={clsx('ml-1.5 px-1.5 py-0.5 rounded-full text-[10px]', PILL.warning)}>{pendingQueries}</span>}
                 {count !== null && t !== 'Q&A' && <span className={clsx('ml-1.5 px-1.5 py-0.5 rounded-full text-[10px]', PILL.gray)}>{count}</span>}
-                {t === 'Production' && productionOrder && <span className={clsx('ml-1.5 px-1.5 py-0.5 rounded-full text-[10px]', PILL.info)}>{STAGE_NAMES[productionOrder.stage]}</span>}
+                {!locked && stageMeta && actualStage === stageMeta.stage && <span className={clsx('ml-1.5 px-1.5 py-0.5 rounded-full text-[10px]', PILL.info)}>current</span>}
               </button>
             );
           })}
@@ -1213,25 +1235,7 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab }) {
                 <button onClick={() => setShowEditKyc(true)} className={outlineBtn}>✏️ Edit KYC</button>
               </div>
 
-              <div className="flex items-center gap-2 flex-wrap text-xs">
-                <span className={clsx('px-2.5 py-1 rounded-full font-semibold', PILL.gray)}>{lead?.status}</span>
-                <span className="text-[#968871]">→</span>
-                <span className={clsx('px-2.5 py-1 rounded-full font-semibold', SUB_STAGE_PILL[sd.subStage] || SUB_STAGE_PILL.Requested)}>{sd.subStage || 'Requested'}</span>
-                <span className="text-[#968871]">→</span>
-                <span className={clsx('px-2.5 py-1 rounded-full font-semibold', isPaid ? PILL.success : PILL.warning)}>
-                  {isPaid ? 'Paid' : 'Payment Pending'}
-                </span>
-                {lead?.productionOrderId && (
-                  <>
-                    <span className="text-[#968871]">→</span>
-                    <button onClick={() => setTab('Production')} className={clsx('px-2.5 py-1 rounded-full font-semibold', PILL.info)}>
-                      {lead.productionOrderId.orderNumber || 'Linked to Production'}
-                    </button>
-                  </>
-                )}
-              </div>
-
-              {approvedSamples.length > 0 && !lead?.productionOrderId && (
+              {approvedSamples.length > 0 && !productionOrderId && (
                 <div className={clsx('p-3 rounded-[10px] border', 'bg-[#dce9d4] border-[#b9d2af]')}>
                   <p className="text-sm font-semibold text-[#3a5f3c]">✓ {approvedSamples.length} sample(s) approved — ready to send to production</p>
                   <p className="text-xs text-[#3a5f3c]/80 mt-0.5">Open the Approvals tab and move this lead to Production — the order opens right here in the Production tab.</p>
@@ -1245,6 +1249,35 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab }) {
                 <div><p className="text-xs text-[#968871] mb-0.5">Estimated value</p><p className="text-[#2e241b]">₹{(lead?.estimatedValue || 0).toLocaleString('en-IN')}</p></div>
                 <div><p className="text-xs text-[#968871] mb-0.5">Assigned to</p><p className="text-[#2e241b]">{lead?.assignedTo ? `${lead.assignedTo.firstName} ${lead.assignedTo.lastName}` : 'Unassigned'}</p></div>
                 <div><p className="text-xs text-[#968871] mb-0.5">Queries · Products · Formulas · Samples</p><p className="text-[#2e241b]">{(queries || []).length} · {products.length} · {formulas.length} · {samples.length}</p></div>
+              </div>
+
+              {/* End-to-end at a glance — every query ever asked for this customer, right here
+                  next to their KYC fields, so "View Order" from a sample doesn't need further
+                  digging into the Q&A tab to see the full history. */}
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-xs font-semibold text-[#968871] uppercase tracking-wide">
+                    Q&amp;A History {(queries || []).length > 0 && `(${queries.length})`}
+                  </p>
+                  {(queries || []).length > 0 && <button onClick={() => setTab('Q&A')} className={textLink}>Open full Q&amp;A ▸</button>}
+                </div>
+                {(queries || []).length === 0 ? (
+                  <p className="text-xs text-[#968871]">No queries raised yet.</p>
+                ) : (
+                  <div className="space-y-1.5">
+                    {[...queries].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)).map((q) => (
+                      <div key={q._id} className={clsx('text-xs rounded-[10px] border border-[#e2dac8] bg-[#f0eadd] px-3 py-2', q.deleted && 'opacity-60')}>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className={clsx('px-1.5 py-0.5 rounded-full font-semibold', qaStatusPillCls(q.status))}>{QA_STATUS_LABEL[q.status] || q.status}</span>
+                          <span className={clsx('px-1.5 py-0.5 rounded-full font-semibold', qaTopicPillCls(q.topic || 'General'))}>{q.topic || 'General'}</span>
+                          <span className="text-[#968871]">{format(new Date(q.createdAt), 'dd MMM, hh:mm a')}</span>
+                        </div>
+                        <p className={clsx('text-[#2e241b] font-medium mt-1', q.deleted && 'line-through')}>{q.title}</p>
+                        {q.answer && <p className={clsx('text-[#3a5f3c] mt-0.5', q.deleted && 'line-through')}>↳ {q.answer}</p>}
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
 
               {lead?.notes && (
@@ -1286,7 +1319,28 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab }) {
             </div>
           )}
 
-          {!isLoading && tab === 'Production' && productionOrderId && (
+          {!isLoading && ORDER_JOURNEY_STAGES.some((s) => s.label === tab) && !productionOrderId && (
+            <div className="p-6 rounded-[10px] border border-dashed border-[#d3c9b4] bg-[#e7dfce] text-center space-y-3">
+              <div>
+                <p className="text-sm font-semibold text-[#6d5f4c]">🏭 Not sent to production yet</p>
+                <p className="text-xs text-[#968871] mt-1">
+                  {tab === 'Customer Details'
+                    ? 'Create the production order below — its formulation and raw materials flow straight into Procurement automatically.'
+                    : 'Approve a sample in the Samples tab, then create the order from the Customer Details tab to unlock this view.'}
+                </p>
+              </div>
+              {tab === 'Customer Details' && (
+                <button
+                  onClick={() => { setShowMoveModal(true); setMoveSelectedCatalogProduct(null); setMoveCatalogSearch(''); setMoveBatchSizeKg(10); }}
+                  className={accentBtn}
+                >
+                  🏭 Create Order
+                </button>
+              )}
+            </div>
+          )}
+
+          {!isLoading && ORDER_JOURNEY_STAGES.some((s) => s.label === tab) && productionOrderId && (
             <div className="space-y-4">
               {(productionOrderLoading || !productionOrder) ? (
                 <p className="text-sm text-[#968871] text-center py-8">Loading order…</p>
@@ -1294,7 +1348,11 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab }) {
                 const stage = viewStage ?? productionOrder.stage;
                 return (
                   <>
-                    <StageBar order={productionOrder} viewStage={stage} setViewStage={setViewStage} />
+                    <StageBar order={productionOrder} viewStage={stage} setViewStage={(i) => {
+                      setViewStage(i);
+                      const match = ORDER_JOURNEY_STAGES.find((s) => s.stage === i);
+                      if (match) setTab(match.label);
+                    }} />
                     {stage === 0 && <StageOrder order={productionOrder} onSaved={invalidateOrder} />}
                     {stage === 1 && <StageWorkAssignment order={productionOrder} onSaved={invalidateOrder} />}
                     {stage === 2 && <StageProcurement order={productionOrder} onAdvanced={invalidateOrder} />}
@@ -1377,13 +1435,16 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab }) {
                 <p className="text-sm text-[#968871] text-center py-6">No queries raised for this lead yet.</p>
               )}
 
-              {(queries || []).map((q) => {
+              {/* Newest first — most recent question/activity on top, older ones settle toward the bottom. */}
+              {[...(queries || [])].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)).map((q) => {
                 const isOpen = q.status === 'pending' || q.status === 'in_progress';
                 const hasProduct = !!q.linkedProductLinkId;
                 const aging = qaAging(q);
+                const isEditing = editingQueryId === q._id;
                 return (
-                  <div key={q._id} className="p-3 rounded-[10px] border border-[#e2dac8] space-y-2">
+                  <div key={q._id} className={clsx('p-3 rounded-[10px] border border-[#e2dac8] space-y-2', q.deleted && 'opacity-60 bg-[#f0eadd]/60')}>
                     <div className="flex items-center gap-2 flex-wrap text-[11px]">
+                      {q.deleted && <span className="px-2 py-0.5 rounded-full font-semibold bg-[#f0d8d2] text-[#8c3a30]">Deleted</span>}
                       <span className={clsx('px-2 py-0.5 rounded-full font-semibold', qaStatusPillCls(q.status))}>
                         {QA_STATUS_LABEL[q.status] || q.status}
                       </span>
@@ -1391,6 +1452,7 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab }) {
                       <span className={clsx('px-2 py-0.5 rounded-full font-semibold', qaTopicPillCls(q.topic || 'General'))}>{q.topic || 'General'}</span>
                       {q.convertedTo && <span className="px-2 py-0.5 rounded-full font-semibold bg-[#e7dfce] text-[#4a3a29]">→ {q.convertedTo}</span>}
                       <span className="text-[#968871]">{format(new Date(q.createdAt), 'dd MMM, hh:mm a')}</span>
+                      {q.editedAt && <span className="text-[#968871] italic">(edited)</span>}
                       {q.askedVia && <span className="text-[#968871]">· 📞 {q.askedVia}</span>}
                       <span className="flex-1" />
                       {isOpen && (
@@ -1415,9 +1477,50 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab }) {
                       {q.status === 'answered' && (
                         <button title="🔒 Customer satisfied — close this query" onClick={() => closeQueryMutation.mutate(q._id)} className="w-6 h-6 rounded-full hover:bg-[#e7dfce] flex items-center justify-center">✔️</button>
                       )}
+                      <button
+                        title="✏️ Edit question"
+                        onClick={() => { setEditingQueryId(q._id); setEditQueryDesc(q.description || q.title || ''); setEditQueryAskedVia(q.askedVia || 'Phone Call'); setEditQueryTopic(q.topic || 'General'); }}
+                        className="w-6 h-6 rounded-full hover:bg-[#e7dfce] flex items-center justify-center"
+                      >✏️</button>
+                      <button
+                        title={q.deleted ? '↺ Restore question' : '🗑️ Delete question (strikes it through, reversible)'}
+                        onClick={() => deleteQueryMutation.mutate({ queryId: q._id, deleted: !q.deleted })}
+                        className="w-6 h-6 rounded-full hover:bg-[#f6e3e0] flex items-center justify-center"
+                      >{q.deleted ? '↺' : '🗑️'}</button>
                     </div>
-                    <p className="text-sm font-semibold text-[#2e241b]">{q.title}</p>
-                    {q.description && q.description !== q.title && <p className="text-sm text-[#6d5f4c]">{q.description}</p>}
+
+                    {isEditing ? (
+                      <div className="p-2 rounded-lg border-[1.5px] border-dashed border-[#d3c9b4] bg-[#e7dfce] space-y-2">
+                        <textarea value={editQueryDesc} onChange={(e) => setEditQueryDesc(e.target.value)} rows={2} className={clsx(inputCls, 'w-full')} />
+                        <div className="grid grid-cols-2 gap-2">
+                          <select value={editQueryAskedVia} onChange={(e) => setEditQueryAskedVia(e.target.value)} className={inputCls}>
+                            {QA_VIA.map((v) => <option key={v} value={v}>{v}</option>)}
+                          </select>
+                          <select value={editQueryTopic} onChange={(e) => setEditQueryTopic(e.target.value)} className={inputCls}>
+                            {QA_TOPICS.map((t) => <option key={t} value={t}>{t}</option>)}
+                          </select>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <button type="button" onClick={() => setEditingQueryId(null)} className={outlineBtn}>Cancel</button>
+                          <button
+                            onClick={() => {
+                              if (!editQueryDesc.trim()) { toast.error('Question is required'); return; }
+                              editQueryMutation.mutate({ queryId: q._id, body: { description: editQueryDesc.trim(), askedVia: editQueryAskedVia, topic: editQueryTopic } });
+                            }}
+                            disabled={editQueryMutation.isPending}
+                            className={clsx(accentBtn, 'ml-auto')}
+                          >
+                            {editQueryMutation.isPending ? 'Saving…' : '💾 Save'}
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <>
+                        <p className={clsx('text-sm font-semibold text-[#2e241b]', q.deleted && 'line-through')}>{q.title}</p>
+                        {q.description && q.description !== q.title && <p className={clsx('text-sm text-[#6d5f4c]', q.deleted && 'line-through')}>{q.description}</p>}
+                      </>
+                    )}
+
                     {(q.contactName || q.contactEmail || q.targetPrice || q.benchmarkNotes || q.packagingIntent || q.internalNotes) && (
                       <div className="text-[11px] text-[#6d5f4c] bg-[#e7dfce] rounded-lg p-2 space-y-0.5">
                         {q.contactName && <p>Contact: <span className="text-[#2e241b] font-medium">{q.contactName}</span>{q.contactEmail && ` · ${q.contactEmail}`}</p>}
@@ -1427,8 +1530,33 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab }) {
                         {q.internalNotes && <p className="italic">Internal: {q.internalNotes}</p>}
                       </div>
                     )}
+
+                    {/* Question attachments */}
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      {(q.attachments || []).map((a) => (
+                        <span key={a._id} className="inline-flex items-center gap-1 px-2 py-1 rounded-lg border border-[#d3c9b4] bg-white text-[11px] text-[#4a3a29] font-semibold">
+                          <a href={a.url} target="_blank" rel="noreferrer" className="hover:underline">📎 {a.name}</a>
+                          <button title="Remove attachment" onClick={() => removeQueryAttachmentMutation.mutate({ queryId: q._id, attachmentId: a._id })} className="text-[#968871] hover:text-[#8c3a30]">✕</button>
+                        </span>
+                      ))}
+                      <input
+                        type="file"
+                        ref={(el) => { questionFileInputs.current[q._id] = el; }}
+                        className="hidden"
+                        onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadQueryAttachmentMutation.mutate({ queryId: q._id, file: f }); e.target.value = ''; }}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => questionFileInputs.current[q._id]?.click()}
+                        disabled={uploadQueryAttachmentMutation.isPending}
+                        className="text-[11px] font-semibold text-[#968871] hover:text-[#4a3a29] disabled:opacity-50"
+                      >
+                        📎 Attach file
+                      </button>
+                    </div>
+
                     {q.answer ? (
-                      <div className={clsx('p-2 rounded-lg text-sm text-[#2e241b]', PILL.success)}>
+                      <div className={clsx('p-2 rounded-lg text-sm text-[#2e241b]', PILL.success, q.deleted && 'line-through')}>
                         <p className="text-[11px] text-[#3a5f3c] font-semibold mb-0.5">
                           {q.answeredBy ? `${q.answeredBy.firstName} ${q.answeredBy.lastName}` : 'Answered'}
                         </p>
@@ -1455,6 +1583,30 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab }) {
                         </button>
                       </div>
                     )}
+
+                    {/* Reply attachments — independent of whether the text answer has been sent yet. */}
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      {(q.answerAttachments || []).map((a) => (
+                        <span key={a._id} className="inline-flex items-center gap-1 px-2 py-1 rounded-lg border border-[#d3c9b4] bg-white text-[11px] text-[#4a3a29] font-semibold">
+                          <a href={a.url} target="_blank" rel="noreferrer" className="hover:underline">📎 {a.name}</a>
+                          <button title="Remove attachment" onClick={() => removeReplyAttachmentMutation.mutate({ queryId: q._id, attachmentId: a._id })} className="text-[#968871] hover:text-[#8c3a30]">✕</button>
+                        </span>
+                      ))}
+                      <input
+                        type="file"
+                        ref={(el) => { replyFileInputs.current[q._id] = el; }}
+                        className="hidden"
+                        onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadReplyAttachmentMutation.mutate({ queryId: q._id, file: f }); e.target.value = ''; }}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => replyFileInputs.current[q._id]?.click()}
+                        disabled={uploadReplyAttachmentMutation.isPending}
+                        className="text-[11px] font-semibold text-[#968871] hover:text-[#4a3a29] disabled:opacity-50"
+                      >
+                        📎 Attach to reply
+                      </button>
+                    </div>
                   </div>
                 );
               })}
@@ -1473,7 +1625,10 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab }) {
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <p className="text-xs font-semibold text-[#968871] uppercase tracking-wide">{products.length} linked</p>
-                <button onClick={() => { setProductModalEditing(null); setProductModalOpen(true); }} className={outlineBtn}>➕ Link Product</button>
+                <div className="flex items-center gap-2">
+                  <button onClick={() => { setQaConvertQueryId(null); setQuickCreateOpen(true); }} className={outlineBtn}>🆕 Create Product</button>
+                  <button onClick={() => { setProductModalEditing(null); setProductModalOpen(true); }} className={outlineBtn}>➕ Link Product</button>
+                </div>
               </div>
 
               {products.length === 0 && <p className="text-sm text-[#968871] text-center py-6">No products linked yet — link a catalogue product, pricing then flows Quote → Accept.</p>}
@@ -1527,7 +1682,7 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab }) {
             <div className="space-y-3">
               <div className="flex items-center justify-between gap-2">
                 <p className="text-xs font-semibold text-[#968871] uppercase tracking-wide">{formulas.length} custom formula(s)</p>
-                <p className="text-[11px] text-[#968871]">View only — create/edit formulas in Product Catalog.</p>
+                <p className="text-[11px] text-[#968871]">View only here. Start a new formula from the Products tab.</p>
               </div>
 
               {formulas.length === 0 && <p className="text-sm text-[#968871] text-center py-6">No custom formulas yet.</p>}
@@ -1637,7 +1792,10 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab }) {
 
           {!isLoading && tab === 'Samples' && openSample && (
             <div className="space-y-4">
-              <button onClick={() => setOpenSampleId(null)} className={textLink}>← Back to samples</button>
+              <div className="flex items-center justify-between">
+                <button onClick={() => setOpenSampleId(null)} className={textLink}>← Back to samples</button>
+                <button onClick={() => setTab('Overview')} className={outlineBtn}>🧾 View Order — full KYC &amp; Q&amp;A history</button>
+              </div>
 
               <div>
                 <p className="text-xs font-semibold text-[#968871] uppercase tracking-wide mb-1">Traceability Chain</p>
@@ -1847,7 +2005,7 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab }) {
                   <p className="text-xs text-[#968871] mt-1">Approve a sample in the Samples tab to unlock the move to Production.</p>
                 </div>
               )}
-              {approvedSamples.length > 0 && !lead?.productionOrderId && (
+              {approvedSamples.length > 0 && !productionOrderId && (
                 <div className="p-3 rounded-[10px] border bg-[#dce9d4] border-[#b9d2af] flex items-center justify-between gap-3">
                   <p className="text-xs text-[#3a5f3c]">Ready to hand off — pick the catalog product and this moves the lead to Production, right here in this panel.</p>
                   <button
@@ -1858,19 +2016,81 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab }) {
                   </button>
                 </div>
               )}
-              {approvedSamples.map((s) => (
-                <div key={s.sampleId} className={clsx('flex items-center justify-between p-3 rounded-[10px] border', 'bg-[#dce9d4] border-[#b9d2af]')}>
-                  <div>
-                    <p className="text-sm font-semibold text-[#2e241b]">{s.sampleId}{s.formulaVersionNo && <span className="text-xs text-[#968871]"> V{s.formulaVersionNo}</span>}</p>
-                    <p className="text-xs text-[#6d5f4c]">{s.formulaId || 'No formula linked'}</p>
+              <p className="text-[11px] text-[#968871] -mt-1">Each product below gets its own quotation → payment → production gate. Only a product paid at least 50% can be sent to production — the rest stay held even if this same customer has other products already moving.</p>
+              {approvedSamples.map((s) => {
+                const inv = s.invoiceId;
+                const paidPct = inv && inv.totalAmount > 0 ? Math.round((inv.paidAmount / inv.totalAmount) * 100) : 0;
+                // No payment wait here anymore — as soon as the final invoice exists (quotation
+                // confirmed + invoiced), this product can move straight to Customer Details. The
+                // ≥50% advance-payment gate now sits later, at Work Assignment → Procurement.
+                const canSendToProduction = !!s.finalInvoiceId && !s.productionOrderId;
+                return (
+                  <div key={s.sampleId} className="p-3 rounded-[10px] border bg-[#dce9d4] border-[#b9d2af] space-y-2">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <p className="text-sm font-semibold text-[#2e241b]">{s.sampleId}{s.formulaVersionNo && <span className="text-xs text-[#968871]"> V{s.formulaVersionNo}</span>}</p>
+                        <p className="text-xs text-[#6d5f4c]">{s.formulaId || 'No formula linked'}</p>
+                      </div>
+                      {s.productionOrderId ? (
+                        <span className="text-xs font-semibold text-[#33526b]">{s.productionOrderId.orderNumber}</span>
+                      ) : (
+                        <span className="text-xs text-[#3a5f3c] font-semibold">Approved</span>
+                      )}
+                    </div>
+                    <div className="flex items-center justify-between gap-3 flex-wrap pt-2 border-t border-[#b9d2af]">
+                      {!inv && (
+                        <button onClick={() => createQuotationMutation.mutate(s._id)} disabled={createQuotationMutation.isPending} className={accentBtn}>
+                          📄 {createQuotationMutation.isPending ? 'Creating…' : 'Create Quotation'}
+                        </button>
+                      )}
+                      {inv && (
+                        <>
+                          <div className="text-xs text-[#6d5f4c] flex items-center gap-2 flex-wrap">
+                            <span className={clsx('font-semibold px-2 py-0.5 rounded-full text-[10px]', inv.status === 'paid' ? PILL.success : paidPct >= 50 ? PILL.warning : PILL.gray)}>
+                              {inv.invoiceNumber} — {paidPct}% paid
+                            </span>
+                            <span>₹{(inv.paidAmount || 0).toLocaleString('en-IN')} / ₹{(inv.totalAmount || 0).toLocaleString('en-IN')}</span>
+                          </div>
+                          <div className="flex items-center gap-3 flex-wrap">
+                            {!s.productionOrderId && (
+                              <button
+                                onClick={() => navigate(`/finance/invoices?open=${inv._id}&returnTo=${encodeURIComponent(`/samples?open=${leadId}&leadTab=Approvals`)}`)}
+                                className={textLink}
+                              >
+                                ✏️ Rework Quotation
+                              </button>
+                            )}
+                            {inv.status === 'draft' && !s.finalInvoiceId && (
+                              <span className="text-[10px] text-[#8c3a30] font-semibold">Send the quotation to the customer first (Rework Quotation → Send)</span>
+                            )}
+                            {inv.status !== 'draft' && inv.status !== 'cancelled' && !s.finalInvoiceId && (
+                              <button onClick={() => createInvoiceMutation.mutate(s._id)} disabled={createInvoiceMutation.isPending} className={accentBtn}>
+                                🧾 {createInvoiceMutation.isPending ? 'Creating…' : 'Create Invoice'}
+                              </button>
+                            )}
+                            {s.finalInvoiceId && (
+                              <button
+                                onClick={() => navigate(`/finance/invoices?open=${s.finalInvoiceId._id}&returnTo=${encodeURIComponent(`/samples?open=${leadId}&leadTab=Approvals`)}`)}
+                                className={textLink}
+                              >
+                                🧾 {s.finalInvoiceId.invoiceNumber}
+                              </button>
+                            )}
+                            {canSendToProduction && (
+                              <button
+                                onClick={() => { setSendSampleFor(s); setSendSampleSelectedCatalog(null); setSendSampleCatalogSearch(''); setSendSampleBatchSizeKg(10); }}
+                                className={accentBtn}
+                              >
+                                🏭 Send to Production →
+                              </button>
+                            )}
+                          </div>
+                        </>
+                      )}
+                    </div>
                   </div>
-                  {lead?.productionOrderId ? (
-                    <span className="text-xs font-semibold text-[#33526b]">{lead.productionOrderId.orderNumber}</span>
-                  ) : (
-                    <span className="text-xs text-[#3a5f3c] font-semibold">{lead?.status === 'In Progress' ? 'In Production queue' : 'Approved'}</span>
-                  )}
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
@@ -1879,16 +2099,20 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab }) {
       {showEditKyc && lead && <EditKycModal lead={lead} onClose={() => { setShowEditKyc(false); invalidate(); }} />}
 
       {showFollowUpModal && (
-        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/40 p-4" onClick={() => setShowFollowUpModal(false)}>
-          <div className="bg-[#f0eadd] rounded-2xl shadow-2xl w-full max-w-lg border border-[#d3c9b4]" style={bodyFont} onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between px-5 py-4 border-b border-[#e2dac8] bg-[#e7dfce] rounded-t-2xl">
+        <div className={clsx('fixed inset-0 z-[70] flex items-center justify-center bg-black/40', followUpMaximized ? 'p-0' : 'p-4')} onClick={() => setShowFollowUpModal(false)}>
+          <div className={clsx('bg-[#f0eadd] shadow-2xl border border-[#d3c9b4] flex flex-col',
+            followUpMaximized ? 'w-screen h-screen max-w-none rounded-none' : 'w-full max-w-lg rounded-2xl')} style={bodyFont} onClick={(e) => e.stopPropagation()}>
+            <div className={clsx('flex items-center justify-between px-5 py-4 border-b border-[#e2dac8] bg-[#e7dfce] flex-shrink-0', !followUpMaximized && 'rounded-t-2xl')}>
               <div>
                 <h3 className="font-bold text-[#2e241b]" style={displayFont}>📞 Log Follow-up</h3>
                 <p className="text-[11px] text-[#968871] mt-0.5">The client gets a WhatsApp acknowledgment when you save this.</p>
               </div>
-              <button onClick={() => setShowFollowUpModal(false)} className="text-[#968871] hover:text-[#2e241b] text-xl leading-none">&times;</button>
+              <div className="flex items-center gap-1.5">
+                <button onClick={() => setFollowUpMaximized((m) => !m)} title={followUpMaximized ? 'Restore' : 'Maximize'} className="w-8 h-8 rounded-lg hover:bg-[#ddd3be] flex items-center justify-center text-[#968871] hover:text-[#2e241b] text-sm">{followUpMaximized ? '🗗' : '🗖'}</button>
+                <button onClick={() => setShowFollowUpModal(false)} className="text-[#968871] hover:text-[#2e241b] text-xl leading-none">&times;</button>
+              </div>
             </div>
-            <div className="p-5 space-y-3">
+            <div className={clsx('p-5 space-y-3', followUpMaximized && 'flex-1 overflow-y-auto')}>
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="text-xs font-semibold text-[#968871] uppercase tracking-wide mb-1 block">Type</label>
@@ -2004,14 +2228,21 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab }) {
       )}
 
       {showMoveModal && (
-        <div className="fixed inset-0 z-[80] flex items-center justify-center p-4" style={bodyFont}>
+        <div className={clsx('fixed inset-0 z-[80] flex items-center justify-center', moveMaximized ? 'p-0' : 'p-4')} style={bodyFont}>
           <div className="absolute inset-0 bg-[#2e241b]/50 backdrop-blur-sm" onClick={() => setShowMoveModal(false)} />
-          <div className="relative bg-[#f0eadd] rounded-2xl shadow-[0_10px_40px_rgba(46,36,27,0.16)] w-full max-w-md border border-[#d3c9b4]">
-            <div className="p-5 border-b border-[#e2dac8] bg-[#e7dfce] rounded-t-2xl">
-              <h3 className="font-bold text-[#2e241b]" style={displayFont}>🏭 Move to Production</h3>
-              <p className="text-xs text-[#6d5f4c] mt-0.5">{lead?.name} — moves the lead to Production and opens the order's stage board right here.</p>
+          <div className={clsx('relative bg-[#f0eadd] shadow-[0_10px_40px_rgba(46,36,27,0.16)] border border-[#d3c9b4]',
+            moveMaximized ? 'w-screen h-screen max-w-none rounded-none flex flex-col' : 'w-full max-w-md rounded-2xl')}>
+            <div className={clsx('p-5 border-b border-[#e2dac8] bg-[#e7dfce] flex items-center justify-between flex-shrink-0', !moveMaximized && 'rounded-t-2xl')}>
+              <div>
+                <h3 className="font-bold text-[#2e241b]" style={displayFont}>🏭 Move to Production</h3>
+                <p className="text-xs text-[#6d5f4c] mt-0.5">{lead?.name} — moves the lead to Production and opens the order's stage board right here.</p>
+              </div>
+              <div className="flex items-center gap-1.5 flex-shrink-0">
+                <button onClick={() => setMoveMaximized((m) => !m)} title={moveMaximized ? 'Restore' : 'Maximize'} className="w-9 h-9 rounded-lg hover:bg-[#ddd3be] flex items-center justify-center text-[#968871] hover:text-[#2e241b] text-base">{moveMaximized ? '🗗' : '🗖'}</button>
+                <button onClick={() => setShowMoveModal(false)} className="w-9 h-9 rounded-lg hover:bg-[#ddd3be] flex items-center justify-center text-[#968871] hover:text-[#2e241b] text-lg">✕</button>
+              </div>
             </div>
-            <div className="p-5 space-y-3">
+            <div className={clsx('p-5 space-y-3', moveMaximized && 'flex-1 overflow-y-auto')}>
               <div>
                 <label className="text-xs font-semibold text-[#968871] uppercase tracking-wide mb-1 block">Catalog product</label>
                 <input
@@ -2060,15 +2291,86 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab }) {
         </div>
       )}
 
-      {courierModalFor && (
-        <div className="fixed inset-0 z-[80] flex items-center justify-center p-4" style={bodyFont}>
-          <div className="absolute inset-0 bg-[#2e241b]/50 backdrop-blur-sm" onClick={() => setCourierModalFor(null)} />
-          <div className="relative bg-[#f0eadd] rounded-2xl shadow-[0_10px_40px_rgba(46,36,27,0.16)] w-full max-w-md border border-[#d3c9b4]">
-            <div className="p-5 border-b border-[#e2dac8] bg-[#e7dfce] rounded-t-2xl">
-              <h3 className="font-bold text-[#2e241b]" style={displayFont}>🚚 Dispatch Sample</h3>
-              <p className="text-xs text-[#6d5f4c] mt-0.5">{courierModalFor} — record courier details to mark this sample Sent.</p>
+      {sendSampleFor && (
+        <div className={clsx('fixed inset-0 z-[80] flex items-center justify-center', sendSampleMaximized ? 'p-0' : 'p-4')} style={bodyFont}>
+          <div className="absolute inset-0 bg-[#2e241b]/50 backdrop-blur-sm" onClick={() => setSendSampleFor(null)} />
+          <div className={clsx('relative bg-[#f0eadd] shadow-[0_10px_40px_rgba(46,36,27,0.16)] border border-[#d3c9b4]',
+            sendSampleMaximized ? 'w-screen h-screen max-w-none rounded-none flex flex-col' : 'w-full max-w-md rounded-2xl')}>
+            <div className={clsx('p-5 border-b border-[#e2dac8] bg-[#e7dfce] flex items-center justify-between flex-shrink-0', !sendSampleMaximized && 'rounded-t-2xl')}>
+              <div>
+                <h3 className="font-bold text-[#2e241b]" style={displayFont}>🏭 Send Product to Production</h3>
+                <p className="text-xs text-[#6d5f4c] mt-0.5">{sendSampleFor.sampleId} — invoiced; pick the catalog product this one is made from. Customer Details opens right after — the ≥50% advance is checked later, before Procurement starts.</p>
+              </div>
+              <div className="flex items-center gap-1.5 flex-shrink-0">
+                <button onClick={() => setSendSampleMaximized((m) => !m)} title={sendSampleMaximized ? 'Restore' : 'Maximize'} className="w-9 h-9 rounded-lg hover:bg-[#ddd3be] flex items-center justify-center text-[#968871] hover:text-[#2e241b] text-base">{sendSampleMaximized ? '🗗' : '🗖'}</button>
+                <button onClick={() => setSendSampleFor(null)} className="w-9 h-9 rounded-lg hover:bg-[#ddd3be] flex items-center justify-center text-[#968871] hover:text-[#2e241b] text-lg">✕</button>
+              </div>
             </div>
-            <div className="p-5 space-y-3">
+            <div className={clsx('p-5 space-y-3', sendSampleMaximized && 'flex-1 overflow-y-auto')}>
+              <div>
+                <label className="text-xs font-semibold text-[#968871] uppercase tracking-wide mb-1 block">Catalog product</label>
+                <input
+                  value={sendSampleSelectedCatalog ? sendSampleSelectedCatalog.name : sendSampleCatalogSearch}
+                  onChange={(e) => { setSendSampleCatalogSearch(e.target.value); setSendSampleSelectedCatalog(null); }}
+                  placeholder="Search catalog products…"
+                  className={clsx(inputCls, 'w-full bg-white')}
+                />
+                {sendSampleCatalogSearch && !sendSampleSelectedCatalog && (
+                  <div className="mt-1 rounded-[10px] border border-[#d3c9b4] bg-white max-h-32 overflow-y-auto">
+                    {sendSampleCatalogMatches.length === 0 && <div className="px-3 py-2 text-xs text-[#968871]">No products found</div>}
+                    {sendSampleCatalogMatches.slice(0, 8).map((p) => (
+                      <button key={p._id} type="button" onClick={() => { setSendSampleSelectedCatalog(p); setSendSampleCatalogSearch(''); }}
+                        className="w-full text-left px-3 py-2 text-xs hover:bg-[#e7dfce] flex justify-between">
+                        <span className="text-[#2e241b]">{p.name}</span>
+                        <span className="text-[#968871] font-mono">{p.code}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+                {sendSampleSelectedCatalog && (
+                  <p className="text-[11px] text-[#968871] mt-1">{sendSampleSelectedCatalog.formulation?.rows?.length || 0} ingredient(s) in formulation</p>
+                )}
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-[#968871] uppercase tracking-wide mb-1 block">Batch size (kg)</label>
+                <input type="number" min="0.1" step="0.1" value={sendSampleBatchSizeKg} onChange={(e) => setSendSampleBatchSizeKg(e.target.value)}
+                  className={clsx(inputCls, 'w-full bg-white')} />
+              </div>
+              <div className="flex gap-3 pt-1">
+                <button type="button" onClick={() => setSendSampleFor(null)} className={clsx(outlineBtn, 'flex-1 justify-center')}>Cancel</button>
+                <button
+                  onClick={() => {
+                    if (!sendSampleSelectedCatalog) { toast.error('Select a catalog product'); return; }
+                    if (!sendSampleBatchSizeKg || Number(sendSampleBatchSizeKg) <= 0) { toast.error('Enter a valid batch size'); return; }
+                    linkSampleProductionMutation.mutate({ sampleId: sendSampleFor._id, catalogProduct: sendSampleSelectedCatalog._id, batchSizeKg: Number(sendSampleBatchSizeKg) });
+                  }}
+                  disabled={linkSampleProductionMutation.isPending}
+                  className={clsx(accentBtn, 'flex-1 justify-center')}
+                >
+                  {linkSampleProductionMutation.isPending ? 'Sending…' : 'Confirm'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {courierModalFor && (
+        <div className={clsx('fixed inset-0 z-[80] flex items-center justify-center', courierMaximized ? 'p-0' : 'p-4')} style={bodyFont}>
+          <div className="absolute inset-0 bg-[#2e241b]/50 backdrop-blur-sm" onClick={() => setCourierModalFor(null)} />
+          <div className={clsx('relative bg-[#f0eadd] shadow-[0_10px_40px_rgba(46,36,27,0.16)] border border-[#d3c9b4]',
+            courierMaximized ? 'w-screen h-screen max-w-none rounded-none flex flex-col' : 'w-full max-w-md rounded-2xl')}>
+            <div className={clsx('p-5 border-b border-[#e2dac8] bg-[#e7dfce] flex items-center justify-between flex-shrink-0', !courierMaximized && 'rounded-t-2xl')}>
+              <div>
+                <h3 className="font-bold text-[#2e241b]" style={displayFont}>🚚 Dispatch Sample</h3>
+                <p className="text-xs text-[#6d5f4c] mt-0.5">{courierModalFor} — record courier details to mark this sample Sent.</p>
+              </div>
+              <div className="flex items-center gap-1.5 flex-shrink-0">
+                <button onClick={() => setCourierMaximized((m) => !m)} title={courierMaximized ? 'Restore' : 'Maximize'} className="w-9 h-9 rounded-lg hover:bg-[#ddd3be] flex items-center justify-center text-[#968871] hover:text-[#2e241b] text-base">{courierMaximized ? '🗗' : '🗖'}</button>
+                <button onClick={() => setCourierModalFor(null)} className="w-9 h-9 rounded-lg hover:bg-[#ddd3be] flex items-center justify-center text-[#968871] hover:text-[#2e241b] text-lg">✕</button>
+              </div>
+            </div>
+            <div className={clsx('p-5 space-y-3', courierMaximized && 'flex-1 overflow-y-auto')}>
               <div>
                 <label className="text-xs font-semibold text-[#968871] uppercase tracking-wide mb-1 block">Courier name</label>
                 <input value={courierName} onChange={(e) => setCourierName(e.target.value)} placeholder="BlueDart / Delhivery…" className={clsx(inputCls, 'w-full bg-white')} />
@@ -2100,14 +2402,21 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab }) {
       )}
 
       {feedbackModalFor && (
-        <div className="fixed inset-0 z-[80] flex items-center justify-center p-4" style={bodyFont}>
+        <div className={clsx('fixed inset-0 z-[80] flex items-center justify-center', feedbackMaximized ? 'p-0' : 'p-4')} style={bodyFont}>
           <div className="absolute inset-0 bg-[#2e241b]/50 backdrop-blur-sm" onClick={() => setFeedbackModalFor(null)} />
-          <div className="relative bg-[#f0eadd] rounded-2xl shadow-[0_10px_40px_rgba(46,36,27,0.16)] w-full max-w-md border border-[#d3c9b4]">
-            <div className="p-5 border-b border-[#e2dac8] bg-[#e7dfce] rounded-t-2xl">
-              <h3 className="font-bold text-[#2e241b]" style={displayFont}>💬 Log Customer Feedback</h3>
-              <p className="text-xs text-[#6d5f4c] mt-0.5">{feedbackModalFor} — moves this sample to "Feedback".</p>
+          <div className={clsx('relative bg-[#f0eadd] shadow-[0_10px_40px_rgba(46,36,27,0.16)] border border-[#d3c9b4]',
+            feedbackMaximized ? 'w-screen h-screen max-w-none rounded-none flex flex-col' : 'w-full max-w-md rounded-2xl')}>
+            <div className={clsx('p-5 border-b border-[#e2dac8] bg-[#e7dfce] flex items-center justify-between flex-shrink-0', !feedbackMaximized && 'rounded-t-2xl')}>
+              <div>
+                <h3 className="font-bold text-[#2e241b]" style={displayFont}>💬 Log Customer Feedback</h3>
+                <p className="text-xs text-[#6d5f4c] mt-0.5">{feedbackModalFor} — moves this sample to "Feedback".</p>
+              </div>
+              <div className="flex items-center gap-1.5 flex-shrink-0">
+                <button onClick={() => setFeedbackMaximized((m) => !m)} title={feedbackMaximized ? 'Restore' : 'Maximize'} className="w-9 h-9 rounded-lg hover:bg-[#ddd3be] flex items-center justify-center text-[#968871] hover:text-[#2e241b] text-base">{feedbackMaximized ? '🗗' : '🗖'}</button>
+                <button onClick={() => setFeedbackModalFor(null)} className="w-9 h-9 rounded-lg hover:bg-[#ddd3be] flex items-center justify-center text-[#968871] hover:text-[#2e241b] text-lg">✕</button>
+              </div>
             </div>
-            <div className="p-5 space-y-3">
+            <div className={clsx('p-5 space-y-3', feedbackMaximized && 'flex-1 overflow-y-auto')}>
               <textarea value={feedbackModalText} onChange={(e) => setFeedbackModalText(e.target.value)} rows={4} placeholder="What did the customer say?" className={clsx(inputCls, 'w-full bg-white')} />
               <div className="flex gap-3 pt-1">
                 <button type="button" onClick={() => setFeedbackModalFor(null)} className={clsx(outlineBtn, 'flex-1 justify-center')}>Cancel</button>
@@ -2128,17 +2437,24 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab }) {
       )}
 
       {approveModalFor && (
-        <div className="fixed inset-0 z-[80] flex items-center justify-center p-4" style={bodyFont}>
+        <div className={clsx('fixed inset-0 z-[80] flex items-center justify-center', approveMaximized ? 'p-0' : 'p-4')} style={bodyFont}>
           <div className="absolute inset-0 bg-[#2e241b]/50 backdrop-blur-sm" onClick={() => setApproveModalFor(null)} />
-          <div className="relative bg-[#f0eadd] rounded-2xl shadow-[0_10px_40px_rgba(46,36,27,0.16)] w-full max-w-md border border-[#d3c9b4]">
-            <div className="p-5 border-b border-[#e2dac8] bg-[#e7dfce] rounded-t-2xl">
-              <h3 className="font-bold text-[#2e241b]" style={displayFont}>✅ Approve Sample</h3>
-              <p className="text-xs text-[#6d5f4c] mt-0.5">
-                {approveModalFor}
-                {samples.find((s) => s.sampleId === approveModalFor)?.formulaId ? ' — the linked formula version will be marked Accepted.' : ''}
-              </p>
+          <div className={clsx('relative bg-[#f0eadd] shadow-[0_10px_40px_rgba(46,36,27,0.16)] border border-[#d3c9b4]',
+            approveMaximized ? 'w-screen h-screen max-w-none rounded-none flex flex-col' : 'w-full max-w-md rounded-2xl')}>
+            <div className={clsx('p-5 border-b border-[#e2dac8] bg-[#e7dfce] flex items-center justify-between flex-shrink-0', !approveMaximized && 'rounded-t-2xl')}>
+              <div>
+                <h3 className="font-bold text-[#2e241b]" style={displayFont}>✅ Approve Sample</h3>
+                <p className="text-xs text-[#6d5f4c] mt-0.5">
+                  {approveModalFor}
+                  {samples.find((s) => s.sampleId === approveModalFor)?.formulaId ? ' — the linked formula version will be marked Accepted.' : ''}
+                </p>
+              </div>
+              <div className="flex items-center gap-1.5 flex-shrink-0">
+                <button onClick={() => setApproveMaximized((m) => !m)} title={approveMaximized ? 'Restore' : 'Maximize'} className="w-9 h-9 rounded-lg hover:bg-[#ddd3be] flex items-center justify-center text-[#968871] hover:text-[#2e241b] text-base">{approveMaximized ? '🗗' : '🗖'}</button>
+                <button onClick={() => setApproveModalFor(null)} className="w-9 h-9 rounded-lg hover:bg-[#ddd3be] flex items-center justify-center text-[#968871] hover:text-[#2e241b] text-lg">✕</button>
+              </div>
             </div>
-            <div className="p-5 space-y-3">
+            <div className={clsx('p-5 space-y-3', approveMaximized && 'flex-1 overflow-y-auto')}>
               <div>
                 <label className="text-xs font-semibold text-[#968871] uppercase tracking-wide mb-1 block">Approved by (customer contact, optional)</label>
                 <input value={approveContactName} onChange={(e) => setApproveContactName(e.target.value)} placeholder="e.g. Priya Menon (Nykaa)" className={clsx(inputCls, 'w-full bg-white')} />
@@ -2166,14 +2482,21 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab }) {
       )}
 
       {rejectModalFor && (
-        <div className="fixed inset-0 z-[80] flex items-center justify-center p-4" style={bodyFont}>
+        <div className={clsx('fixed inset-0 z-[80] flex items-center justify-center', rejectMaximized ? 'p-0' : 'p-4')} style={bodyFont}>
           <div className="absolute inset-0 bg-[#2e241b]/50 backdrop-blur-sm" onClick={() => setRejectModalFor(null)} />
-          <div className="relative bg-[#f0eadd] rounded-2xl shadow-[0_10px_40px_rgba(46,36,27,0.16)] w-full max-w-md border border-[#d3c9b4]">
-            <div className="p-5 border-b border-[#e2dac8] bg-[#e7dfce] rounded-t-2xl">
-              <h3 className="font-bold text-[#2e241b]" style={displayFont}>✕ Reject Sample</h3>
-              <p className="text-xs text-[#6d5f4c] mt-0.5">{rejectModalFor}</p>
+          <div className={clsx('relative bg-[#f0eadd] shadow-[0_10px_40px_rgba(46,36,27,0.16)] border border-[#d3c9b4]',
+            rejectMaximized ? 'w-screen h-screen max-w-none rounded-none flex flex-col' : 'w-full max-w-md rounded-2xl')}>
+            <div className={clsx('p-5 border-b border-[#e2dac8] bg-[#e7dfce] flex items-center justify-between flex-shrink-0', !rejectMaximized && 'rounded-t-2xl')}>
+              <div>
+                <h3 className="font-bold text-[#2e241b]" style={displayFont}>✕ Reject Sample</h3>
+                <p className="text-xs text-[#6d5f4c] mt-0.5">{rejectModalFor}</p>
+              </div>
+              <div className="flex items-center gap-1.5 flex-shrink-0">
+                <button onClick={() => setRejectMaximized((m) => !m)} title={rejectMaximized ? 'Restore' : 'Maximize'} className="w-9 h-9 rounded-lg hover:bg-[#ddd3be] flex items-center justify-center text-[#968871] hover:text-[#2e241b] text-base">{rejectMaximized ? '🗗' : '🗖'}</button>
+                <button onClick={() => setRejectModalFor(null)} className="w-9 h-9 rounded-lg hover:bg-[#ddd3be] flex items-center justify-center text-[#968871] hover:text-[#2e241b] text-lg">✕</button>
+              </div>
             </div>
-            <div className="p-5 space-y-3">
+            <div className={clsx('p-5 space-y-3', rejectMaximized && 'flex-1 overflow-y-auto')}>
               <div>
                 <label className="text-xs font-semibold text-[#968871] uppercase tracking-wide mb-1 block">Rejection reason</label>
                 <textarea value={rejectReasonModal} onChange={(e) => setRejectReasonModal(e.target.value)} rows={3} placeholder="Why was this sample rejected?" className={clsx(inputCls, 'w-full bg-white')} />

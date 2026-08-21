@@ -114,12 +114,12 @@ const PRODUCTION_STATUS = {
 };
 
 // Batch Tracker (production.routes.js) — 8-stage detailed lifecycle, layered on top of ProductionOrder
-const BATCH_STAGE_NAMES = ['Order', 'Work Assignment', 'Procurement', 'Ready for Product Approval', 'Bulk QC', 'Packaging', 'Final QC', 'Dispatch'];
+const BATCH_STAGE_NAMES = ['Order', 'Work Assignment', 'Procurement', 'Weighing', 'Bulk QC', 'Packaging', 'Final QC', 'Dispatch'];
 const BATCH_STAGE_TO_STATUS = [
   PRODUCTION_STATUS.PLANNED,             // 0 Order
   PRODUCTION_STATUS.PLANNED,             // 1 Work Assignment (not yet scheduled)
   PRODUCTION_STATUS.MATERIAL_ALLOCATED,  // 2 Procurement (work assignment just confirmed)
-  PRODUCTION_STATUS.IN_PRODUCTION,       // 3 Weighing / Ready for Product Approval
+  PRODUCTION_STATUS.IN_PRODUCTION,       // 3 Weighing
   PRODUCTION_STATUS.QUALITY_CHECK,       // 4 Bulk QC
   PRODUCTION_STATUS.PACKAGING,           // 5 Packaging
   PRODUCTION_STATUS.QUALITY_CHECK,       // 6 Final QC

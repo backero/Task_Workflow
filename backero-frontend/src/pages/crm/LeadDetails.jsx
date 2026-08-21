@@ -77,6 +77,15 @@ export default function LeadDetails() {
   const [commImagePreviews, setCommImagePreviews] = useState([]);
   const [lightboxImg, setLightboxImg] = useState(null);
   const [samplePiList, setSamplePiList] = useState([]);
+
+  // Maximize/restore toggles — one per modal instance below.
+  const [editMaximized, setEditMaximized] = useState(false);
+  const [updateMaximized, setUpdateMaximized] = useState(false);
+  const [pendingStageMaximized, setPendingStageMaximized] = useState(false);
+  const [lostMaximized, setLostMaximized] = useState(false);
+  const [dealValueMaximized, setDealValueMaximized] = useState(false);
+  const [commMaximized, setCommMaximized] = useState(false);
+  const [sampleMaximized, setSampleMaximized] = useState(false);
   const [samplePiInput, setSamplePiInput] = useState('');
   const [sampleEstValue, setSampleEstValue] = useState('');
 
@@ -736,21 +745,26 @@ export default function LeadDetails() {
 
       {/* Send WhatsApp Update Modal */}
       {updateMode && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div className={clsx('fixed inset-0 z-50 flex items-center justify-center', updateMaximized ? 'p-0' : 'p-4')}>
           <div className="absolute inset-0 bg-gray-900/60 backdrop-blur-sm" onClick={() => setUpdateMode(false)} />
-          <div className="relative card w-full max-w-md shadow-modal">
-            <div className="p-5 border-b border-gray-200 dark:border-[#1b2e4a] flex items-center justify-between">
+          <div className={clsx('relative card w-full shadow-modal flex flex-col', updateMaximized ? 'h-screen max-w-none rounded-none' : 'max-w-md')}>
+            <div className="p-5 border-b border-gray-200 dark:border-[#1b2e4a] flex items-center justify-between flex-shrink-0">
               <div>
                 <h3 className="font-bold text-gray-900 dark:text-white">Send WhatsApp Update</h3>
                 <p className="text-sm text-gray-500 mt-0.5">
                   Sending to: {lead.whatsapp || lead.phone}
                 </p>
               </div>
-              <button onClick={() => setUpdateMode(false)} className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-[#17263d]">
-                <XMarkIcon className="w-5 h-5 text-gray-500" />
-              </button>
+              <div className="flex items-center gap-1">
+                <button onClick={() => setUpdateMaximized((m) => !m)} title={updateMaximized ? 'Restore' : 'Maximize'} className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-[#17263d] text-gray-500 text-sm leading-none">
+                  {updateMaximized ? '🗗' : '🗖'}
+                </button>
+                <button onClick={() => setUpdateMode(false)} className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-[#17263d]">
+                  <XMarkIcon className="w-5 h-5 text-gray-500" />
+                </button>
+              </div>
             </div>
-            <div className="p-5 space-y-4">
+            <div className={clsx('p-5 space-y-4', updateMaximized && 'flex-1 overflow-y-auto')}>
               <div>
                 <label className="label">Select Update</label>
                 <select
@@ -809,19 +823,24 @@ export default function LeadDetails() {
 
       {/* Stage Shift Confirmation (New Lead → any other stage) */}
       {pendingStage && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div className={clsx('fixed inset-0 z-50 flex items-center justify-center', pendingStageMaximized ? 'p-0' : 'p-4')}>
           <div className="absolute inset-0 bg-gray-900/60 backdrop-blur-sm" onClick={() => setPendingStage(null)} />
-          <div className="relative card w-full max-w-md shadow-modal">
-            <div className="p-5 border-b border-gray-200 dark:border-[#1b2e4a] flex items-center justify-between">
+          <div className={clsx('relative card w-full shadow-modal flex flex-col', pendingStageMaximized ? 'h-screen max-w-none rounded-none' : 'max-w-md')}>
+            <div className="p-5 border-b border-gray-200 dark:border-[#1b2e4a] flex items-center justify-between flex-shrink-0">
               <div>
                 <h3 className="font-bold text-gray-900 dark:text-white">Move Lead to "{pendingStage}"</h3>
                 <p className="text-sm text-gray-500 mt-0.5">Please tell us why you're shifting this lead</p>
               </div>
-              <button onClick={() => setPendingStage(null)} className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-[#17263d]">
-                <XMarkIcon className="w-5 h-5 text-gray-500" />
-              </button>
+              <div className="flex items-center gap-1">
+                <button onClick={() => setPendingStageMaximized((m) => !m)} title={pendingStageMaximized ? 'Restore' : 'Maximize'} className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-[#17263d] text-gray-500 text-sm leading-none">
+                  {pendingStageMaximized ? '🗗' : '🗖'}
+                </button>
+                <button onClick={() => setPendingStage(null)} className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-[#17263d]">
+                  <XMarkIcon className="w-5 h-5 text-gray-500" />
+                </button>
+              </div>
             </div>
-            <div className="p-5 space-y-4">
+            <div className={clsx('p-5 space-y-4', pendingStageMaximized && 'flex-1 overflow-y-auto')}>
               <div>
                 <label className="label">Reason for shifting *</label>
                 <textarea
@@ -857,19 +876,24 @@ export default function LeadDetails() {
 
       {/* Lost Reason Modal */}
       {showLostModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div className={clsx('fixed inset-0 z-50 flex items-center justify-center', lostMaximized ? 'p-0' : 'p-4')}>
           <div className="absolute inset-0 bg-gray-900/60 backdrop-blur-sm" onClick={() => setShowLostModal(false)} />
-          <div className="relative card w-full max-w-md shadow-modal">
-            <div className="p-5 border-b border-gray-200 dark:border-[#1b2e4a] flex items-center justify-between">
+          <div className={clsx('relative card w-full shadow-modal flex flex-col', lostMaximized ? 'h-screen max-w-none rounded-none' : 'max-w-md')}>
+            <div className="p-5 border-b border-gray-200 dark:border-[#1b2e4a] flex items-center justify-between flex-shrink-0">
               <div>
                 <h3 className="font-bold text-gray-900 dark:text-white">Mark as Lost</h3>
                 <p className="text-sm text-gray-500 mt-0.5">Why is this lead being closed?</p>
               </div>
-              <button onClick={() => setShowLostModal(false)} className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-[#17263d]">
-                <XMarkIcon className="w-5 h-5 text-gray-500" />
-              </button>
+              <div className="flex items-center gap-1">
+                <button onClick={() => setLostMaximized((m) => !m)} title={lostMaximized ? 'Restore' : 'Maximize'} className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-[#17263d] text-gray-500 text-sm leading-none">
+                  {lostMaximized ? '🗗' : '🗖'}
+                </button>
+                <button onClick={() => setShowLostModal(false)} className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-[#17263d]">
+                  <XMarkIcon className="w-5 h-5 text-gray-500" />
+                </button>
+              </div>
             </div>
-            <div className="p-5 space-y-4">
+            <div className={clsx('p-5 space-y-4', lostMaximized && 'flex-1 overflow-y-auto')}>
               <div>
                 <label className="label">Reason *</label>
                 <select value={lostReason} onChange={e => setLostReason(e.target.value)} className="input">
@@ -902,19 +926,24 @@ export default function LeadDetails() {
 
       {/* Deal Value Modal (→ Payment Pending) */}
       {showDealValueModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div className={clsx('fixed inset-0 z-50 flex items-center justify-center', dealValueMaximized ? 'p-0' : 'p-4')}>
           <div className="absolute inset-0 bg-gray-900/60 backdrop-blur-sm" onClick={() => setShowDealValueModal(false)} />
-          <div className="relative card w-full max-w-md shadow-modal">
-            <div className="p-5 border-b border-gray-200 dark:border-[#1b2e4a] flex items-center justify-between">
+          <div className={clsx('relative card w-full shadow-modal flex flex-col', dealValueMaximized ? 'h-screen max-w-none rounded-none' : 'max-w-md')}>
+            <div className="p-5 border-b border-gray-200 dark:border-[#1b2e4a] flex items-center justify-between flex-shrink-0">
               <div>
                 <h3 className="font-bold text-gray-900 dark:text-white">Confirm Deal Value</h3>
                 <p className="text-sm text-gray-500 mt-0.5">Enter the final confirmed deal amount</p>
               </div>
-              <button onClick={() => setShowDealValueModal(false)} className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-[#17263d]">
-                <XMarkIcon className="w-5 h-5 text-gray-500" />
-              </button>
+              <div className="flex items-center gap-1">
+                <button onClick={() => setDealValueMaximized((m) => !m)} title={dealValueMaximized ? 'Restore' : 'Maximize'} className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-[#17263d] text-gray-500 text-sm leading-none">
+                  {dealValueMaximized ? '🗗' : '🗖'}
+                </button>
+                <button onClick={() => setShowDealValueModal(false)} className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-[#17263d]">
+                  <XMarkIcon className="w-5 h-5 text-gray-500" />
+                </button>
+              </div>
             </div>
-            <div className="p-5 space-y-4">
+            <div className={clsx('p-5 space-y-4', dealValueMaximized && 'flex-1 overflow-y-auto')}>
               <div>
                 <label className="label">Deal Value (₹) *</label>
                 <div className="relative">
@@ -966,17 +995,23 @@ export default function LeadDetails() {
 
       {/* Add Communication Log Modal */}
       {showCommModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div className={clsx('fixed inset-0 z-50 flex items-center justify-center', commMaximized ? 'p-0' : 'p-4')}>
           <div className="absolute inset-0 bg-gray-900/60 backdrop-blur-sm" onClick={() => setShowCommModal(false)} />
-          <div className="relative card w-full max-w-lg shadow-modal max-h-[90vh] overflow-y-auto">
+          <div className={clsx('relative card w-full shadow-modal overflow-y-auto',
+            commMaximized ? 'h-screen max-w-none max-h-screen rounded-none' : 'max-w-lg max-h-[90vh]')}>
             <div className="p-5 border-b border-gray-200 dark:border-[#1b2e4a] flex items-center justify-between sticky top-0 bg-white dark:bg-[#0d1b2e] z-10">
               <div>
                 <h3 className="font-bold text-gray-900 dark:text-white">Add Communication Log</h3>
                 <p className="text-sm text-gray-500 mt-0.5">Record a call, paste a chat, or add meeting notes</p>
               </div>
-              <button onClick={() => setShowCommModal(false)} className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-[#17263d]">
-                <XMarkIcon className="w-5 h-5 text-gray-500" />
-              </button>
+              <div className="flex items-center gap-1">
+                <button onClick={() => setCommMaximized((m) => !m)} title={commMaximized ? 'Restore' : 'Maximize'} className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-[#17263d] text-gray-500 text-sm leading-none">
+                  {commMaximized ? '🗗' : '🗖'}
+                </button>
+                <button onClick={() => setShowCommModal(false)} className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-[#17263d]">
+                  <XMarkIcon className="w-5 h-5 text-gray-500" />
+                </button>
+              </div>
             </div>
             <div className="p-5 space-y-4">
               <div className="grid grid-cols-2 gap-3">
@@ -1086,19 +1121,24 @@ export default function LeadDetails() {
 
       {/* Sample Stage Modal — collect product interest + estimated value */}
       {showSampleModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div className={clsx('fixed inset-0 z-50 flex items-center justify-center', sampleMaximized ? 'p-0' : 'p-4')}>
           <div className="absolute inset-0 bg-gray-900/60 backdrop-blur-sm" onClick={() => setShowSampleModal(false)} />
-          <div className="relative card w-full max-w-md shadow-modal">
-            <div className="p-5 border-b border-gray-200 dark:border-[#1b2e4a] flex items-center justify-between">
+          <div className={clsx('relative card w-full shadow-modal flex flex-col', sampleMaximized ? 'h-screen max-w-none rounded-none' : 'max-w-md')}>
+            <div className="p-5 border-b border-gray-200 dark:border-[#1b2e4a] flex items-center justify-between flex-shrink-0">
               <div>
                 <h3 className="font-bold text-gray-900 dark:text-white">Move to Sample</h3>
                 <p className="text-sm text-gray-500 mt-0.5">Confirm the products and value before sending a sample</p>
               </div>
-              <button onClick={() => setShowSampleModal(false)} className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-[#17263d]">
-                <XMarkIcon className="w-5 h-5 text-gray-500" />
-              </button>
+              <div className="flex items-center gap-1">
+                <button onClick={() => setSampleMaximized((m) => !m)} title={sampleMaximized ? 'Restore' : 'Maximize'} className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-[#17263d] text-gray-500 text-sm leading-none">
+                  {sampleMaximized ? '🗗' : '🗖'}
+                </button>
+                <button onClick={() => setShowSampleModal(false)} className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-[#17263d]">
+                  <XMarkIcon className="w-5 h-5 text-gray-500" />
+                </button>
+              </div>
             </div>
-            <div className="p-5 space-y-4">
+            <div className={clsx('p-5 space-y-4', sampleMaximized && 'flex-1 overflow-y-auto')}>
               <div>
                 <label className="label">Product Interest *</label>
                 <div className="flex flex-wrap gap-1.5 mb-2">
@@ -1179,14 +1219,20 @@ export default function LeadDetails() {
 
       {/* Edit Modal */}
       {editMode && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div className={clsx('fixed inset-0 z-50 flex items-center justify-center', editMaximized ? 'p-0' : 'p-4')}>
           <div className="absolute inset-0 bg-gray-900/60 backdrop-blur-sm" onClick={() => setEditMode(false)} />
-          <div className="relative card w-full max-w-lg shadow-modal max-h-[90vh] overflow-y-auto">
+          <div className={clsx('relative card w-full shadow-modal overflow-y-auto',
+            editMaximized ? 'h-screen max-w-none max-h-screen rounded-none' : 'max-w-lg max-h-[90vh]')}>
             <div className="p-5 border-b border-gray-200 dark:border-[#1b2e4a] flex items-center justify-between">
               <h3 className="font-bold text-gray-900 dark:text-white">Edit Lead</h3>
-              <button onClick={() => setEditMode(false)} className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-[#17263d]">
-                <XMarkIcon className="w-5 h-5 text-gray-500" />
-              </button>
+              <div className="flex items-center gap-1">
+                <button onClick={() => setEditMaximized((m) => !m)} title={editMaximized ? 'Restore' : 'Maximize'} className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-[#17263d] text-gray-500 text-sm leading-none">
+                  {editMaximized ? '🗗' : '🗖'}
+                </button>
+                <button onClick={() => setEditMode(false)} className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-[#17263d]">
+                  <XMarkIcon className="w-5 h-5 text-gray-500" />
+                </button>
+              </div>
             </div>
             <form onSubmit={handleEditSubmit(onSubmitEdit)} className="p-5 space-y-4">
               <div className="grid grid-cols-2 gap-3">

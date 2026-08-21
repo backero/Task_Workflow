@@ -59,6 +59,7 @@ exports.getLeads = asyncHandler(async (req, res) => {
   const [leads, total] = await Promise.all([
     Lead.find(filter)
       .populate('assignedTo', 'firstName lastName avatar')
+      .populate('inCharge', 'firstName lastName avatar')
       .populate('assignedBy', 'firstName lastName')
       .populate({
         path: 'productionOrderId',
@@ -156,9 +157,13 @@ exports.getLeadByTask = asyncHandler(async (req, res) => {
 exports.getLead = asyncHandler(async (req, res) => {
   const lead = await Lead.findOne({ _id: req.params.id, organizationId: req.user.organizationId })
     .populate('assignedTo', 'firstName lastName avatar phone')
+    .populate('inCharge', 'firstName lastName avatar phone')
     .populate('assignedBy', 'firstName lastName')
     .populate('convertedToTask', 'title status')
     .populate('productionOrderId', 'orderNumber batch stage status deliveryDate priority')
+    .populate('samples.invoiceId', 'invoiceNumber type status totalAmount paidAmount balanceAmount')
+    .populate('samples.finalInvoiceId', 'invoiceNumber type status totalAmount paidAmount balanceAmount')
+    .populate('samples.productionOrderId', 'orderNumber batch stage status')
     .populate('createdBy', 'firstName lastName')
     .populate('followUps.performedBy', 'firstName lastName')
     .populate('sampleDetails.teamUpdates.postedBy', 'firstName lastName')
@@ -225,6 +230,32 @@ async function promoteToSampleIfNeeded(lead, req) {
   }
 }
 
+// Mirrors promoteToSampleIfNeeded above, one stage later: once a sample is Approved the lead
+// should show up in Approvals (status In Progress, no productionOrderId yet) instead of staying
+// stuck under Sample — otherwise it never leaves the Sample tab since nothing else flips status.
+async function promoteToInProgressIfApproved(lead, req) {
+  if (lead.status !== LEAD_STATUS.SAMPLE) return;
+
+  const now = new Date();
+  const prevHistory = (lead.stageHistory || []).map((h) => ({
+    stage: h.stage, enteredAt: h.enteredAt, exitedAt: h.exitedAt, movedBy: h.movedBy,
+  }));
+  if (prevHistory.length) prevHistory[prevHistory.length - 1].exitedAt = now;
+  prevHistory.push({ stage: LEAD_STATUS.IN_PROGRESS, enteredAt: now, movedBy: req.user._id });
+
+  lead.status = LEAD_STATUS.IN_PROGRESS;
+  lead.stageHistory = prevHistory;
+
+  const clientPhone = lead.whatsapp || lead.phone;
+  if (clientPhone) {
+    sendActiveClientStageUpdate(clientPhone, {
+      name: lead.name,
+      stage: lead.status,
+      lastUpdate: 'Your sample was approved — we\'re moving it toward production.',
+    }).catch(logger.error);
+  }
+}
+
 // PUT /api/crm/leads/:id
 exports.updateLead = asyncHandler(async (req, res) => {
   const existing = await Lead.findOne({ _id: req.params.id, organizationId: req.user.organizationId });
@@ -239,6 +270,7 @@ exports.updateLead = asyncHandler(async (req, res) => {
   const setFields = { ...updates, updatedBy: req.user._id };
   // "Unassigned" in the Edit Lead form submits an empty string, which Mongoose can't cast to ObjectId.
   if (setFields.assignedTo === '') setFields.assignedTo = null;
+  if (setFields.inCharge === '') setFields.inCharge = null;
 
   if (updates.status === LEAD_STATUS.WON && existing.status !== LEAD_STATUS.WON) setFields.convertedAt = new Date();
   if (updates.status === LEAD_STATUS.LOST && existing.status !== LEAD_STATUS.LOST) setFields.lostAt = new Date();
@@ -285,6 +317,21 @@ exports.updateLead = asyncHandler(async (req, res) => {
     const clientPhone = lead.whatsapp || lead.phone;
     if (clientPhone) {
       sendActiveClientStageUpdate(clientPhone, { name: lead.name, stage: lead.status }).catch(logger.error);
+    }
+  }
+
+  // Changing In-charge takes effect immediately, not just on production orders created after
+  // this point — update the owner on whatever's already linked to this lead too (the lead-wide
+  // order, and every per-product sample order). Doesn't touch the per-stage Team Assignment
+  // names (weighPerson etc.) — those reflect who's actually doing that stage's work already.
+  if ('inCharge' in updates && String(updates.inCharge || '') !== String(existing.inCharge || '')) {
+    const ProductionOrder = require('../models/ProductionOrder');
+    const orderIds = [lead.productionOrderId, ...(lead.samples || []).map((s) => s.productionOrderId)].filter(Boolean);
+    if (orderIds.length) {
+      await ProductionOrder.updateMany(
+        { _id: { $in: orderIds }, organizationId: req.user.organizationId },
+        { $set: { assignedTo: lead.inCharge || null, updatedBy: req.user._id } }
+      );
     }
   }
 
@@ -362,6 +409,23 @@ exports.updateSampleDetails = asyncHandler(async (req, res) => {
     );
   }
 
+  // Notify the client's end-to-end owner (Lead.assignedTo) once the R&D/sampling fee is
+  // confirmed — this and sample approval (below) previously notified nobody, leaving the
+  // person actually in charge of this client to find out only by checking back manually.
+  if (paymentStatus === 'full_paid' && lead.sampleDetails?.paymentStatus !== 'full_paid' && lead.assignedTo) {
+    await createNotification({
+      organizationId: req.user.organizationId,
+      recipient: lead.assignedTo,
+      title: '💳 R&D Payment Confirmed',
+      message: `${lead.name}'s R&D/sampling payment has been confirmed — sampling can proceed.`,
+      type: 'crm',
+      priority: 'medium',
+      actionUrl: `/samples?open=${lead._id}`,
+      reference: { model: 'Lead', id: lead._id },
+      channels: { inApp: true, whatsapp: true },
+    }, req.app.get('io'));
+  }
+
   // Notify client when sample is dispatched for the first time (sentDate newly set)
   if (sentDate && !lead.sampleDetails?.sentDate) {
     const clientPhone = lead.whatsapp || lead.phone;
@@ -401,6 +465,9 @@ exports.updateSampleSubStage = asyncHandler(async (req, res) => {
   lead.sampleDetails.rejectionReason = subStage === 'Rejected' ? rejectionReason.trim() : undefined;
   lead.sampleDetails.subStageHistory = lead.sampleDetails.subStageHistory || [];
   lead.sampleDetails.subStageHistory.push({ subStage, movedBy: req.user._id });
+
+  if (subStage === 'Approved') await promoteToInProgressIfApproved(lead, req);
+
   lead.updatedBy = req.user._id;
   await lead.save();
 
@@ -464,6 +531,13 @@ exports.updateFormula = asyncHandler(async (req, res) => {
       ? formula.versions.find((v) => v.version === Number(version))
       : formula.versions[formula.versions.length - 1];
     if (!target) return sendError(res, 'Formula version not found.', 404);
+    // Locked once Accepted — content (rows/cost/procedure) shouldn't silently change under an
+    // already-approved formula. Rework goes through bumpVersion instead, which keeps this
+    // version's accepted content intact and starts a new one to revise.
+    const editingContent = rows !== undefined || costPerUnit !== undefined || procedure !== undefined;
+    if (target.status === 'Accepted' && editingContent && status !== 'Accepted') {
+      return sendError(res, 'This formula version is Accepted and locked — bump a new version to make changes.', 400);
+    }
     if (status) target.status = status;
     if (rows) { target.rows = rows; target.costPerUnit = computeFormulaCost(rows); }
     else if (costPerUnit !== undefined) target.costPerUnit = Number(costPerUnit) || 0;
@@ -680,8 +754,27 @@ exports.updateVersionedSampleStatus = asyncHandler(async (req, res) => {
   lead.sampleDetails.subStageHistory = lead.sampleDetails.subStageHistory || [];
   lead.sampleDetails.subStageHistory.push({ subStage: status, movedBy: req.user._id });
 
+  if (status === 'Approved') await promoteToInProgressIfApproved(lead, req);
+
   lead.updatedBy = req.user._id;
   await lead.save();
+
+  if ((status === 'Approved' || status === 'Rejected') && lead.assignedTo) {
+    await createNotification({
+      organizationId: req.user.organizationId,
+      recipient: lead.assignedTo,
+      title: status === 'Approved' ? '✅ Sample Approved' : '↻ Sample Rejected',
+      message: status === 'Approved'
+        ? `${lead.name}'s sample (${sample.sampleId}) was approved — create its quotation in Approvals to move it toward production.`
+        : `${lead.name}'s sample (${sample.sampleId}) was rejected: ${sample.rejectionReason || 'no reason given'}.`,
+      type: 'crm',
+      priority: status === 'Approved' ? 'medium' : 'high',
+      actionUrl: `/samples?open=${lead._id}&leadTab=Approvals`,
+      reference: { model: 'Lead', id: lead._id },
+      channels: { inApp: true, whatsapp: true },
+    }, req.app.get('io'));
+  }
+
   sendSuccess(res, { lead }, 'Sample status updated');
 });
 
@@ -775,13 +868,14 @@ exports.addFollowUp = asyncHandler(async (req, res) => {
 });
 
 // POST /api/crm/leads/:id/assign
+// Open to any authenticated team member (not manager-gated) — the real workflow is a rep
+// making first contact on a new KYC lead, then handing it off to whoever should own that
+// client end-to-end; requiring a manager for that handoff would just push people back onto
+// the ungated generic PUT /leads/:id, which skips the notification and assignedBy/assignedAt
+// audit trail this endpoint exists to provide.
 exports.assignLead = asyncHandler(async (req, res) => {
   const io = req.app.get('io');
   const { assignedTo } = req.body;
-
-  if (ROLE_HIERARCHY[req.user.role] < ROLE_HIERARCHY['manager']) {
-    return sendError(res, 'Only managers can assign leads.', 403);
-  }
 
   const lead = await Lead.findOne({ _id: req.params.id, organizationId: req.user.organizationId });
   if (!lead) return sendError(res, 'Lead not found.', 404);
@@ -797,14 +891,22 @@ exports.assignLead = asyncHandler(async (req, res) => {
   await createNotification({
     organizationId: req.user.organizationId,
     recipient: assignedTo,
-    title: 'Lead Assigned',
-    message: `Lead "${lead.name}" has been assigned to you`,
+    title: 'Lead Assigned — you\'re now the end-to-end owner',
+    message: `"${lead.name}" has been assigned to you — you're in charge of this client through to production dispatch.`,
     type: 'crm',
     priority: 'medium',
     actionUrl: `/crm/leads/${lead._id}`,
     reference: { model: 'Lead', id: lead._id },
     channels: { inApp: true, whatsapp: true },
   }, io);
+
+  // Carry the handoff into Q&A too — any of this lead's queries still open/unresolved follow
+  // the client to its new owner instead of staying with the person who's no longer in charge.
+  const ProductionQuery = require('../models/ProductionQuery');
+  await ProductionQuery.updateMany(
+    { organizationId: req.user.organizationId, leadId: lead._id, status: { $in: ['pending', 'in_progress'] } },
+    { $set: { assignedTo } }
+  );
 
   sendSuccess(res, { lead }, 'Lead assigned');
 });
@@ -900,6 +1002,11 @@ exports.linkProduction = asyncHandler(async (req, res) => {
       customer: lead.name,
       contact: lead.whatsapp || lead.phone,
       priority: lead.priority === 'critical' ? 'Urgent' : lead.priority === 'high' ? 'High' : lead.priority === 'low' ? 'Low' : 'Normal',
+      // The lead's KYC in-charge (whole Production dept) stays the production order's owner too,
+      // so every stage notification (procurement, bulk QC, final QC, ...) reaches the one person
+      // responsible for this client end-to-end, and Team Assignment pre-fills to them. Falls
+      // back to assignedTo (the narrower intake-rep field) if in-charge was never set.
+      assignedTo: lead.inCharge || lead.assignedTo || undefined,
       deliveryDate: lead.inProgressAt && lead.leadTime
         ? new Date(new Date(lead.inProgressAt).getTime() + lead.leadTime * 86400000).toISOString().slice(0, 10)
         : undefined,
@@ -919,6 +1026,189 @@ exports.linkProduction = asyncHandler(async (req, res) => {
   req.app.get('io')?.to(`org:${orgId}`).emit('production_updated', { orderId: order._id, stage: order.stage, status: order.status });
 
   sendSuccess(res, { lead, order }, mode === 'link' ? 'Linked to existing batch order' : 'Batch order created and linked');
+});
+
+// POST /api/crm/leads/:id/samples/:sampleId/quotation
+// Creates a draft Invoice (type: 'quotation') scoped to ONE approved sample/product on this
+// lead, so a multi-product lead gets an independent quotation — and later, independent payment
+// and production gate — per product instead of one invoice covering the whole lead.
+exports.createSampleQuotation = asyncHandler(async (req, res) => {
+  const orgId = req.user.organizationId;
+  const lead = await Lead.findOne({ _id: req.params.id, organizationId: orgId });
+  if (!lead) return sendError(res, 'Lead not found.', 404);
+
+  const sample = lead.samples.id(req.params.sampleId);
+  if (!sample) return sendError(res, 'Sample not found.', 404);
+  if (sample.invoiceId) return sendError(res, 'This product already has a quotation — rework the existing one instead.', 400);
+
+  const productLink = (lead.productLinks || []).find((p) => p.productId === sample.productId);
+  const formula = (lead.customFormulas || []).find((f) => f.formulaId === sample.formulaId);
+  const description = productLink?.name || formula?.name || sample.productId || `Sample ${sample.sampleId}`;
+  const unitPrice = productLink?.approxPrice || 0;
+  const gstAmt = (unitPrice * 18) / 100;
+  const totalAmount = Math.round(unitPrice + gstAmt);
+
+  const invoice = await Invoice.create({
+    organizationId: orgId,
+    invoiceNumber: generateInvoiceNumber(),
+    type: 'quotation',
+    status: 'draft',
+    lead: lead._id,
+    sampleId: sample._id,
+    client: { name: lead.name, email: lead.email, phone: lead.whatsapp || lead.phone, address: lead.company, state: lead.state },
+    lineItems: [{ description, quantity: 1, unit: 'pcs', unitPrice, gstRate: 18, gstAmount: gstAmt, discount: 0, total: unitPrice + gstAmt }],
+    subtotal: unitPrice,
+    totalGst: gstAmt,
+    totalAmount,
+    balanceAmount: totalAmount,
+    createdBy: req.user._id,
+  });
+
+  sample.invoiceId = invoice._id;
+  lead.updatedBy = req.user._id;
+  await lead.save();
+
+  sendSuccess(res, { lead, invoice }, 'Quotation created', 201);
+});
+
+// POST /api/crm/leads/:id/samples/:sampleId/invoice
+// "Create Invoice" in Approvals — once this sample's quotation (sample.invoiceId) is fully
+// paid, generates the formal tax invoice (type: 'invoice') as its own document, copied from
+// the quotation's line items/amounts, rather than mutating the quotation in place — Finance
+// keeps both the negotiation record (quotation) and the final billed document (invoice).
+exports.createSampleFinalInvoice = asyncHandler(async (req, res) => {
+  const orgId = req.user.organizationId;
+  const lead = await Lead.findOne({ _id: req.params.id, organizationId: orgId });
+  if (!lead) return sendError(res, 'Lead not found.', 404);
+
+  const sample = lead.samples.id(req.params.sampleId);
+  if (!sample) return sendError(res, 'Sample not found.', 404);
+  if (!sample.invoiceId) return sendError(res, 'Create a quotation for this product first.', 400);
+  if (sample.finalInvoiceId) return sendError(res, 'A final invoice already exists for this product.', 400);
+
+  const quotation = await Invoice.findOne({ _id: sample.invoiceId, organizationId: orgId });
+  if (!quotation) return sendError(res, 'Linked quotation not found.', 404);
+  if (quotation.status === 'draft') return sendError(res, 'Send the quotation to the customer before creating the final invoice.', 422);
+  if (quotation.status === 'cancelled') return sendError(res, 'This quotation was cancelled — rework it before invoicing.', 422);
+
+  const invoice = await Invoice.create({
+    organizationId: orgId,
+    invoiceNumber: generateInvoiceNumber(),
+    type: 'invoice',
+    // Mirrors the quotation's real payment state as of right now — it isn't necessarily fully
+    // paid just because the quotation was sent/confirmed.
+    status: quotation.status,
+    lead: lead._id,
+    sampleId: sample._id,
+    client: quotation.client,
+    lineItems: quotation.lineItems,
+    subtotal: quotation.subtotal,
+    totalGst: quotation.totalGst,
+    totalDiscount: quotation.totalDiscount,
+    roundOff: quotation.roundOff,
+    totalAmount: quotation.totalAmount,
+    paidAmount: quotation.paidAmount,
+    balanceAmount: quotation.totalAmount - quotation.paidAmount,
+    paidDate: quotation.paidDate || undefined,
+    notes: `Final invoice for quotation ${quotation.invoiceNumber}`,
+    createdBy: req.user._id,
+  });
+
+  sample.finalInvoiceId = invoice._id;
+  lead.updatedBy = req.user._id;
+  await lead.save();
+
+  // Let the client know their invoice is ready (async, non-blocking) — same pattern as every
+  // other client-facing milestone in this file.
+  const clientPhone = lead.whatsapp || lead.phone;
+  if (clientPhone) {
+    sendActiveClientStageUpdate(clientPhone, {
+      name: lead.name,
+      stage: lead.status,
+      lastUpdate: `Your invoice ${invoice.invoiceNumber} for ₹${invoice.totalAmount.toLocaleString('en-IN')} is ready — we'll share the details shortly.`,
+    }).catch(logger.error);
+  }
+
+  sendSuccess(res, { lead, invoice }, 'Invoice created', 201);
+});
+
+// POST /api/crm/leads/:id/samples/:sampleId/link-production  { catalogProduct, batchSizeKg }
+// Per-product production hand-off, gated on THIS sample's own quotation being at least 50%
+// paid — independent of every other product on the same lead. Creates its own ProductionOrder
+// (a lead can now have several, one per paid product) rather than reusing the lead-wide
+// productionOrderId, which stays reserved for the older whole-lead hand-off flow.
+exports.linkSampleProduction = asyncHandler(async (req, res) => {
+  const orgId = req.user.organizationId;
+  const { catalogProduct, batchSizeKg } = req.body;
+
+  const lead = await Lead.findOne({ _id: req.params.id, organizationId: orgId });
+  if (!lead) return sendError(res, 'Lead not found.', 404);
+
+  const sample = lead.samples.id(req.params.sampleId);
+  if (!sample) return sendError(res, 'Sample not found.', 404);
+  if (sample.status !== 'Approved') return sendError(res, 'Only an approved sample can be sent to production.', 400);
+  if (sample.productionOrderId) return sendError(res, 'This product is already linked to a production order.', 400);
+  if (!catalogProduct) return sendError(res, 'Select a catalog product for this batch order.', 400);
+
+  if (!sample.invoiceId) return sendError(res, 'Create a quotation for this product first.', 400);
+  const invoice = await Invoice.findOne({ _id: sample.invoiceId, organizationId: orgId });
+  if (!invoice) return sendError(res, 'Linked quotation not found.', 404);
+  if (invoice.status === 'draft') return sendError(res, 'Send the quotation to the customer before sending this product to production.', 400);
+  if (invoice.status === 'cancelled') return sendError(res, 'This quotation was cancelled — rework it before sending to production.', 400);
+  // No advance-payment requirement here anymore — Customer Details (this order's stage 0) is
+  // always freely editable regardless of stage/payment. The ≥50% gate now sits at the
+  // Work Assignment save (stage 1 -> 2), which is the point real raw materials get committed —
+  // see the '/:id/work-assignment' route in production.routes.js.
+
+  const ProductionOrder = require('../models/ProductionOrder');
+  const CatalogProduct = require('../models/CatalogProduct');
+  const { PRODUCTION_STATUS, BATCH_PROCESS_STEPS } = require('../utils/constants');
+
+  const catalogDoc = await CatalogProduct.findOne({ _id: catalogProduct, organizationId: orgId });
+  if (!catalogDoc) return sendError(res, 'Catalog product not found.', 404);
+  const ingredients = buildIngredientsFromCatalogProduct(catalogDoc, batchSizeKg);
+
+  const count = await ProductionOrder.countDocuments({ organizationId: orgId });
+  const order = await ProductionOrder.create({
+    organizationId: orgId,
+    orderNumber: `PO-${new Date().getFullYear()}-${String(count + 1).padStart(4, '0')}`,
+    batch: `BATCH-${Date.now()}`,
+    status: PRODUCTION_STATUS.PLANNED,
+    stage: 1,
+    customer: lead.name,
+    contact: lead.whatsapp || lead.phone,
+    priority: lead.priority === 'critical' ? 'Urgent' : lead.priority === 'high' ? 'High' : lead.priority === 'low' ? 'Low' : 'Normal',
+    // Same client-owner propagation, delivery estimate, and product-interest note as the
+    // whole-lead link-production flow — see comments there. This per-product flow had fallen
+    // out of parity with it (Customer Details showing blank instead of the KYC data already on
+    // the lead), even though it's the one actually used from Approvals now.
+    assignedTo: lead.inCharge || lead.assignedTo || undefined,
+    deliveryDate: lead.inProgressAt && lead.leadTime
+      ? new Date(new Date(lead.inProgressAt).getTime() + lead.leadTime * 86400000).toISOString().slice(0, 10)
+      : undefined,
+    notes: lead.productInterest?.length ? `Interest: ${lead.productInterest.join(', ')}` : undefined,
+    batchSizeKg,
+    leadId: lead._id,
+    invoiceId: invoice._id,
+    catalogProduct: catalogDoc._id,
+    ingredients,
+    processSteps: BATCH_PROCESS_STEPS.map((name) => ({ name, done: false })),
+    createdBy: req.user._id,
+  });
+
+  sample.productionOrderId = order._id;
+  // Mirrors linkProduction's lead.productionOrderId — the Approvals-tab filter and the
+  // Orders table's "Order ID" column both key off this lead-level field, so without it a lead
+  // stays stuck showing "awaiting" (and a blank Order ID) even after its first product's real
+  // production order exists. First product linked wins; later products on the same lead keep
+  // their own sample.productionOrderId regardless.
+  if (!lead.productionOrderId) lead.productionOrderId = order._id;
+  lead.updatedBy = req.user._id;
+  await lead.save();
+
+  req.app.get('io')?.to(`org:${orgId}`).emit('production_updated', { orderId: order._id, stage: order.stage, status: order.status });
+
+  sendSuccess(res, { lead, order }, 'Product sent to production');
 });
 
 // GET /api/crm/production-orders/unlinked — for the "link existing order" picker
@@ -1245,12 +1535,15 @@ exports.raiseQuery = asyncHandler(async (req, res) => {
   const answeredNow = (answer || '').trim();
 
   const ProductionQuery = require('../models/ProductionQuery');
+  // No explicit assignee on the query itself → default to the lead's production in-charge
+  // (falling back to the narrower intake-rep assignedTo if in-charge was never set), so it
+  // lands in the actual owner's Q&A Inbox instead of going out unassigned.
   const query = await ProductionQuery.create({
     organizationId: req.user.organizationId,
     leadId: lead._id,
     leadName: lead.name,
     raisedBy: req.user._id,
-    assignedTo: assignedTo || undefined,
+    assignedTo: assignedTo || lead.inCharge || lead.assignedTo || undefined,
     title: derivedTitle,
     description,
     askedVia: askedVia || 'Phone Call',
@@ -1289,9 +1582,11 @@ exports.raiseQuery = asyncHandler(async (req, res) => {
 
   // Already answered in the same step — nobody needs to be paged to go answer it.
   if (!answeredNow) {
-    // Notify only the assigned person; if none, notify all production members
-    const recipientIds = assignedTo
-      ? [assignedTo]
+    // Notify only the assigned person (explicit, or the lead's production in-charge); if
+    // neither, notify all production members
+    const resolvedAssignee = assignedTo || lead.inCharge || lead.assignedTo;
+    const recipientIds = resolvedAssignee
+      ? [resolvedAssignee]
       : (await User.find({ organizationId: req.user.organizationId, department: 'Production' }).select('_id')).map(u => u._id);
 
     for (const recipientId of recipientIds) {
@@ -1377,6 +1672,13 @@ exports.answerQuery = asyncHandler(async (req, res) => {
   const query = await ProductionQuery.findOne({ _id: req.params.queryId, organizationId: req.user.organizationId });
   if (!query) return sendError(res, 'Query not found.', 404);
 
+  // Only the person this query is assigned to (its in-charge/owner) or a manager+ can reply —
+  // an unassigned query stays open to anyone so it doesn't get stuck with nobody able to answer.
+  const level = ROLE_HIERARCHY[req.user.role] || 1;
+  if (query.assignedTo && String(query.assignedTo) !== String(req.user._id) && level < 3) {
+    return sendError(res, 'Only the person this query is assigned to (or a manager) can reply.', 403);
+  }
+
   query.status = 'answered';
   query.answer = answer;
   query.answeredBy = req.user._id;
@@ -1418,6 +1720,109 @@ exports.answerQuery = asyncHandler(async (req, res) => {
   }
 
   sendSuccess(res, { query }, 'Query answered');
+});
+
+// PUT /api/crm/queries/:queryId  { title?, description?, topic?, askedVia? }
+// Edits the question itself after the fact — typos, more context, wrong topic/channel. Doesn't
+// touch status/answer; that's answerQuery/updateQueryStatus's job.
+exports.updateQuery = asyncHandler(async (req, res) => {
+  const { title, description, topic, askedVia } = req.body;
+  const ProductionQuery = require('../models/ProductionQuery');
+  const query = await ProductionQuery.findOne({ _id: req.params.queryId, organizationId: req.user.organizationId });
+  if (!query) return sendError(res, 'Query not found.', 404);
+
+  if (description !== undefined) {
+    if (!description.trim()) return sendError(res, 'Question is required', 400);
+    query.description = description;
+    if (title === undefined) query.title = description.trim().slice(0, 80);
+  }
+  if (title !== undefined) query.title = title.trim().slice(0, 80) || query.title;
+  if (topic !== undefined) query.topic = topic;
+  if (askedVia !== undefined) query.askedVia = askedVia;
+  query.editedAt = new Date();
+
+  await query.save();
+  sendSuccess(res, { query }, 'Query updated');
+});
+
+// PUT /api/crm/queries/:queryId/delete  { deleted: boolean }
+// Soft delete only — strikes the query through in the UI instead of removing the record, and is
+// reversible (deleted: false) by clicking the same action again.
+exports.setQueryDeleted = asyncHandler(async (req, res) => {
+  const ProductionQuery = require('../models/ProductionQuery');
+  const query = await ProductionQuery.findOne({ _id: req.params.queryId, organizationId: req.user.organizationId });
+  if (!query) return sendError(res, 'Query not found.', 404);
+  query.deleted = !!req.body.deleted;
+  await query.save();
+  sendSuccess(res, { query }, query.deleted ? 'Query deleted' : 'Query restored');
+});
+
+// POST /api/crm/queries/:queryId/attachment  (multipart 'file') — attaches to the question itself.
+exports.uploadQueryAttachment = asyncHandler(async (req, res) => {
+  const ProductionQuery = require('../models/ProductionQuery');
+  const query = await ProductionQuery.findOne({ _id: req.params.queryId, organizationId: req.user.organizationId });
+  if (!query) return sendError(res, 'Query not found.', 404);
+  if (!req.file) return sendError(res, 'No file uploaded', 400);
+
+  const { uploadBuffer } = require('../utils/cloudinary');
+  const mime = req.file.mimetype || '';
+  const resourceType = mime.startsWith('video/') || mime.startsWith('audio/') ? 'video' : mime.startsWith('image/') ? 'image' : 'raw';
+  const result = await uploadBuffer(req.file.buffer, { folder: `backero/crm-queries/${req.user.organizationId}`, resourceType, filename: req.file.originalname });
+
+  query.attachments = query.attachments || [];
+  query.attachments.push({
+    name: req.file.originalname,
+    url: result.secure_url,
+    type: mime.startsWith('video/') ? 'video' : mime.startsWith('audio/') ? 'audio' : mime.startsWith('image/') ? 'image' : 'document',
+  });
+  await query.save();
+  sendSuccess(res, { query }, 'Attachment uploaded');
+});
+
+// DELETE /api/crm/queries/:queryId/attachment  (body: { attachmentId })
+exports.removeQueryAttachment = asyncHandler(async (req, res) => {
+  const { attachmentId } = req.body;
+  const ProductionQuery = require('../models/ProductionQuery');
+  const query = await ProductionQuery.findOne({ _id: req.params.queryId, organizationId: req.user.organizationId });
+  if (!query) return sendError(res, 'Query not found.', 404);
+
+  query.attachments = (query.attachments || []).filter((a) => String(a._id) !== String(attachmentId));
+  await query.save();
+  sendSuccess(res, { query }, 'Attachment removed');
+});
+
+// POST /api/crm/queries/:queryId/reply-attachment  (multipart 'file') — attaches to the reply/answer.
+exports.uploadQueryReplyAttachment = asyncHandler(async (req, res) => {
+  const ProductionQuery = require('../models/ProductionQuery');
+  const query = await ProductionQuery.findOne({ _id: req.params.queryId, organizationId: req.user.organizationId });
+  if (!query) return sendError(res, 'Query not found.', 404);
+  if (!req.file) return sendError(res, 'No file uploaded', 400);
+
+  const { uploadBuffer } = require('../utils/cloudinary');
+  const mime = req.file.mimetype || '';
+  const resourceType = mime.startsWith('video/') || mime.startsWith('audio/') ? 'video' : mime.startsWith('image/') ? 'image' : 'raw';
+  const result = await uploadBuffer(req.file.buffer, { folder: `backero/crm-queries/${req.user.organizationId}`, resourceType, filename: req.file.originalname });
+
+  query.answerAttachments = query.answerAttachments || [];
+  query.answerAttachments.push({
+    name: req.file.originalname,
+    url: result.secure_url,
+    type: mime.startsWith('video/') ? 'video' : mime.startsWith('audio/') ? 'audio' : mime.startsWith('image/') ? 'image' : 'document',
+  });
+  await query.save();
+  sendSuccess(res, { query }, 'Attachment uploaded');
+});
+
+// DELETE /api/crm/queries/:queryId/reply-attachment  (body: { attachmentId })
+exports.removeQueryReplyAttachment = asyncHandler(async (req, res) => {
+  const { attachmentId } = req.body;
+  const ProductionQuery = require('../models/ProductionQuery');
+  const query = await ProductionQuery.findOne({ _id: req.params.queryId, organizationId: req.user.organizationId });
+  if (!query) return sendError(res, 'Query not found.', 404);
+
+  query.answerAttachments = (query.answerAttachments || []).filter((a) => String(a._id) !== String(attachmentId));
+  await query.save();
+  sendSuccess(res, { query }, 'Attachment removed');
 });
 
 // PUT /api/crm/queries/:queryId/status  { status: 'in_progress' | 'closed' }

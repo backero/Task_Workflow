@@ -13,6 +13,7 @@ import {
   StageBar, StageOrder, StageWorkAssignment, StageProcurement, StageWeighing,
   StageBulkQC, StagePackaging, StageFinalQC, StageDispatch, STAGE_NAMES,
 } from './production/StageSteps';
+import NewOrderModal from './production/NewOrderModal';
 
 // Cross-customer work queue over the CRM's existing "Sample" pipeline stage —
 // no new data model. Everything here reads/writes the same Lead record that
@@ -37,12 +38,23 @@ const QA_TOPIC_PILL = { General: PILL.gray, Product: PILL.info, Packaging: PILL.
 // indices 2-7; Order/Work Assignment stay covered by Awaiting Production & Orders above).
 const PROD_STAGE_TABS = [
   { key: 'procurement', label: 'Procurement', emoji: '📦', stage: 2, hint: 'Orders at Procurement — raw material availability check against the scaled formula.' },
-  { key: 'weighing', label: 'Ready for Product Approval', emoji: '⚖️', stage: 3, hint: 'Orders at Ready for Product Approval (Weighing) — ingredient weigh-off and process steps, then a manager approves the batch to move on.' },
+  { key: 'weighing', label: 'Weighing', emoji: '⚖️', stage: 3, hint: 'Orders at Weighing — ingredient weigh-off and process steps, then a manager approves the batch to move on.' },
   { key: 'bulkqc', label: 'Bulk QC', emoji: '🧫', stage: 4, hint: 'Orders at Bulk QC — pass/fail against the locked Job Sheet specs.' },
-  { key: 'packing', label: 'Packing', emoji: '🎁', stage: 5, hint: 'Orders at Packaging — fill, reject count, labeling.' },
+  { key: 'packing', label: 'Packaging', emoji: '🎁', stage: 5, hint: 'Orders at Packaging — fill, reject count, labeling.' },
   { key: 'finalqc', label: 'Final QC', emoji: '✅', stage: 6, hint: 'Orders at Final QC — release checks before dispatch.' },
   { key: 'dispatch', label: 'Dispatch', emoji: '🚚', stage: 7, hint: 'Orders at Dispatch — ready to ship or already shipped.' },
 ];
+
+// Per-stage traceability ID field on the order (assigned server-side the moment the order
+// enters that stage — see stageId() in productionWorkflow.service.js) — no entry for Dispatch,
+// there's no separate ID for it.
+const STAGE_ID_FIELD = {
+  procurement: 'procurementId',
+  weighing: 'weighingId',
+  bulkqc: 'bulkQCId',
+  packing: 'packagingId',
+  finalqc: 'finalQCId',
+};
 
 // Each stage tab's own function component — "Open" from that tab jumps straight to just this,
 // no lead tabs, no cross-stage nav, since every order listed under a stage tab is guaranteed to
@@ -58,19 +70,18 @@ const PROD_STAGE_COMPONENT = {
 
 // Orders tab's "Edit" action — opens just the Order/Job Sheet function via StageFocusPanel,
 // same as the stage tabs above, since there's no top-level tab for it anymore.
-const ORDER_EDIT_TAB = { key: 'order', label: 'Edit Order', emoji: '✏️' };
+const ORDER_EDIT_TAB = { key: 'order', label: 'Customer Details', emoji: '🪪' };
 
 const TABS = [
-  { key: 'new', label: 'New Leads', emoji: '🆕', hint: 'Brand-new leads — no CRM stage move needed. Add a product, formula, or sample here and the lead promotes to Sample automatically.' },
+  { key: 'new', label: 'KYC', emoji: '🆕', hint: 'Brand-new leads — no CRM stage move needed. Add a product, formula, or sample here and the lead promotes to Sample automatically.' },
   { key: 'qa', label: 'Q&A Inbox', emoji: '📥', hint: 'Every technical query raised for a lead currently in Sample — reply here or from the lead’s own Q&A tab.' },
-  { key: 'sample', label: 'Samples', emoji: '🧪', hint: 'Leads currently being sampled — dispatch, feedback, invoicing happens on the lead itself.' },
-  { key: 'payments', label: 'Payments', emoji: '💳', hint: 'R&D / sampling fee confirmation — a sample stays locked at "Requested" until this is confirmed.' },
-  { key: 'awaiting', label: 'Awaiting Production', emoji: '⏳', hint: 'Sample approved (moved to In Progress) but not yet linked to a Batch Tracker order.' },
+  { key: 'payments', label: "RND's Payments", emoji: '💳', hint: 'R&D / sampling fee confirmation — a sample stays locked at "Requested" until this is confirmed.' },
+  { key: 'sample', label: 'Sample', emoji: '🧪', hint: 'Leads currently being sampled — dispatch, feedback, invoicing happens on the lead itself.' },
+  { key: 'awaiting', label: 'Approvals', emoji: '⏳', hint: 'Sample approved (moved to In Progress) but not yet linked to a Batch Tracker order.' },
   { key: 'linked', label: 'Orders', emoji: '🧾', hint: 'Already handed off — tracked in Batch Tracker from here on.' },
   ...PROD_STAGE_TABS,
 ];
 
-const FLOW_STEPS = ['Add customer (KYC)', 'Answer questions', 'Confirm payment', 'Make & track samples', 'Order to production'];
 const SAMPLE_SUB_STAGES = ['Requested', 'In Lab', 'Sent', 'Feedback', 'Approved', 'Rejected'];
 
 function toCsv(rows, columns) {
@@ -139,6 +150,7 @@ export default function SampleProduction() {
   const [payReceivedBy, setPayReceivedBy] = useState('');
   const [payNotes, setPayNotes] = useState('');
   const [showCreateLead, setShowCreateLead] = useState(false);
+  const [showNewOrder, setShowNewOrder] = useState(false);
   const [qaSortKey, setQaSortKey] = useState('aging');
   const [qaSortDir, setQaSortDir] = useState('desc');
 
@@ -168,19 +180,29 @@ export default function SampleProduction() {
   const [dispatchNote, setDispatchNote] = useState('');
   const [dispatchFile, setDispatchFile] = useState(null);
 
+  // Maximize/restore toggles — one per modal instance below.
+  const [sendMaximized, setSendMaximized] = useState(false);
+  const [payMaximized, setPayMaximized] = useState(false);
+  const [orderMaximized, setOrderMaximized] = useState(false);
+  const [dispatchMaximized, setDispatchMaximized] = useState(false);
+
   const qc = useQueryClient();
   const navigate = useNavigate();
 
   // Arriving from CRM Pipeline's "move to Sample" / "move to Production" actions
-  // (?open=<leadId>) — jump straight into that lead's detail instead of the list. Also
-  // ?tab=<key> from the Dashboard's production stage strip — jump straight to that tab.
+  // (?open=<leadId>) — jump straight into that lead's detail instead of the list. ?tab=<key>
+  // from the Dashboard's production stage strip jumps this page's own top tab; ?leadTab=<name>
+  // (from e.g. Finance's post-invoice redirect) jumps the opened lead MODAL's own internal tab
+  // (Overview/Q&A/.../Order/Procurement/...) instead — the two are separate tab sets.
   const [searchParams, setSearchParams] = useSearchParams();
   useEffect(() => {
     const openId = searchParams.get('open');
     const tabParam = searchParams.get('tab');
+    const leadTabParam = searchParams.get('leadTab');
     if (openId || tabParam) {
       if (openId) setOpenLeadId(openId);
       if (tabParam && TABS.some((t) => t.key === tabParam)) setTab(tabParam);
+      if (openId && leadTabParam) setOpenLeadInitialTab(leadTabParam);
       setSearchParams({}, { replace: true });
     }
   }, [searchParams]);
@@ -208,10 +230,13 @@ export default function SampleProduction() {
   const { data: allProductionOrders } = useQuery({
     queryKey: ['production-orders'],
     queryFn: () => api.get('/production', { params: { limit: 200 } }).then((r) => r.data.data || []),
-    enabled: tab === 'linked' || !!currentProdStageTab,
     refetchInterval: 60 * 1000,
   });
   const orphanOrders = (allProductionOrders || []).filter((o) => !o.leadId);
+  const prodStageCounts = PROD_STAGE_TABS.reduce((acc, t) => {
+    acc[t.key] = (allProductionOrders || []).filter((o) => o.stage === t.stage).length;
+    return acc;
+  }, {});
 
   const productionOrders = search
     ? (allProductionOrders || []).filter((o) => (o.orderNumber || '').toLowerCase().includes(search.toLowerCase()) || (o.customer || '').toLowerCase().includes(search.toLowerCase()) || (o.catalogProduct?.name || '').toLowerCase().includes(search.toLowerCase()))
@@ -237,7 +262,6 @@ export default function SampleProduction() {
 
   const sampleLeadIds = new Set(sampleLeads.map((l) => l._id));
   const relevantQueries = (sampleQueries || []).filter((q) => sampleLeadIds.has(q.leadId?._id));
-  const activeQueries = relevantQueries.filter((q) => q.status === 'pending' || q.status === 'in_progress').length;
 
   // Days since the lead entered its *current* sub-stage — used for the "aging" warnings below.
   // Falls back to createdAt if subStageHistory has no matching entry (e.g. still at the default
@@ -250,27 +274,9 @@ export default function SampleProduction() {
     return Math.floor((Date.now() - new Date(enteredAt).getTime()) / 86400000);
   }
 
-  const inLabLeads = sampleLeads.filter((l) => ['Requested', 'In Lab'].includes(l.sampleDetails?.subStage || 'Requested'));
-  const samplesInLab = inLabLeads.length;
-  const samplesInLabAging = inLabLeads.filter((l) => daysInStage(l) > 7);
-
-  const awaitingFeedbackLeads = sampleLeads.filter((l) => ['Sent', 'Feedback'].includes(l.sampleDetails?.subStage));
-  const awaitingFeedback = awaitingFeedbackLeads.length;
-  const awaitingFeedbackAging = awaitingFeedbackLeads.filter((l) => daysInStage(l) > 7);
-
-  const agingLeads = [...samplesInLabAging, ...awaitingFeedbackAging];
-
-  const now = new Date();
-  const approvedMTD = sampleLeads.filter((l) =>
-    (l.sampleDetails?.subStageHistory || []).some((h) => {
-      if (h.subStage !== 'Approved') return false;
-      const d = new Date(h.enteredAt);
-      return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
-    })
-  ).length;
-
-  const paymentPendingLeads = sampleLeads.filter((l) => l.sampleDetails?.paymentStatus !== 'full_paid');
-  const paymentPendingValue = paymentPendingLeads.reduce((sum, l) => sum + (l.sampleDetails?.chargeAmount || 0), 0);
+  const agingLeads = sampleLeads.filter((l) =>
+    ['Requested', 'In Lab', 'Sent', 'Feedback'].includes(l.sampleDetails?.subStage || 'Requested') && daysInStage(l) > 7
+  );
 
   const rows = tab === 'sample' ? sampleLeads : tab === 'payments' ? sampleLeads : tab === 'new' ? newLeads : tab === 'awaiting' ? awaiting : linked;
   const filtered = search
@@ -428,16 +434,6 @@ export default function SampleProduction() {
     onError: (e) => toast.error(e.response?.data?.message || 'Failed to reply'),
   });
 
-  const updateLeadStatusMutation = useMutation({
-    mutationFn: ({ leadId, status }) => api.put(`/crm/leads/${leadId}`, { status }),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['sample-production'] });
-      qc.invalidateQueries({ queryKey: ['crm'] });
-      toast.success('Stage updated');
-    },
-    onError: (e) => toast.error(e.response?.data?.message || 'Failed to update stage'),
-  });
-
   const deleteLeadMutation = useMutation({
     mutationFn: (leadId) => api.delete(`/crm/leads/${leadId}`),
     onSuccess: () => {
@@ -447,6 +443,53 @@ export default function SampleProduction() {
       toast.success('Lead deleted');
     },
     onError: (e) => toast.error(e.response?.data?.message || 'Failed to delete lead'),
+  });
+
+  // Whoever picks up a fresh KYC lead hands it off, after first contact, to the person who'll
+  // own that client end-to-end (through Q&A, samples, payment, production, dispatch) — this is
+  // the dedicated /assign endpoint (proper notification + assignedBy/assignedAt audit trail),
+  // not the generic lead PUT.
+  const { data: orgUsers } = useQuery({
+    queryKey: ['users', 'org', 'all'],
+    queryFn: () => api.get('/users', { params: { limit: 200 } }).then((r) => r.data.data || []),
+    staleTime: 5 * 60 * 1000,
+  });
+  // A brand-new KYC lead can only be handed to the two intake reps who do first contact —
+  // In-charge (below) is the separate, wider field for who actually executes production.
+  const INTAKE_NAME_HINTS = ['naven', 'vignesh'];
+  const intakeAssignees = (orgUsers || []).filter((u) => INTAKE_NAME_HINTS.some((h) => (u.firstName || '').toLowerCase().startsWith(h)));
+  const assignLeadMutation = useMutation({
+    mutationFn: ({ leadId, assignedTo }) => api.post(`/crm/leads/${leadId}/assign`, { assignedTo }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['sample-production'] });
+      qc.invalidateQueries({ queryKey: ['crm'] });
+      toast.success('Client assigned — they\'re now in charge end-to-end');
+    },
+    onError: (e) => toast.error(e.response?.data?.message || 'Failed to assign'),
+  });
+  // The dedicated endpoint requires a real user (it looks the assignee up), so clearing back to
+  // "Unassigned" goes through the plain lead update instead, same as it already coerces ''->null.
+  const unassignLeadMutation = useMutation({
+    mutationFn: (leadId) => api.put(`/crm/leads/${leadId}`, { assignedTo: '' }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['sample-production'] });
+      qc.invalidateQueries({ queryKey: ['crm'] });
+      toast.success('Unassigned');
+    },
+    onError: (e) => toast.error(e.response?.data?.message || 'Failed to unassign'),
+  });
+
+  // In-charge — set at KYC, from the whole Production department — carries through as the
+  // production order's owner and pre-fills Team Assignment once this lead reaches production
+  // (see lead.inCharge in Lead.js / crm.controller.js's linkProduction & linkSampleProduction).
+  const productionInCharge = (orgUsers || []).filter((u) => u.department === 'Production' && u.isActive !== false);
+  const inChargeMutation = useMutation({
+    mutationFn: ({ leadId, inCharge }) => api.put(`/crm/leads/${leadId}`, { inCharge }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['sample-production'] });
+      qc.invalidateQueries({ queryKey: ['crm'] });
+    },
+    onError: (e) => toast.error(e.response?.data?.message || 'Failed to set in-charge'),
   });
 
   const connectProductMutation = useMutation({
@@ -482,25 +525,47 @@ export default function SampleProduction() {
     onError: (e) => toast.error(e.response?.data?.message || 'Failed to update order'),
   });
 
-  function agingBadge(q) {
-    if (q.status !== 'pending' && q.status !== 'in_progress') return null;
-    const hours = (Date.now() - new Date(q.createdAt).getTime()) / 3600000;
-    const tone = hours > 48 ? PILL.danger : hours > 24 ? PILL.warning : PILL.gray;
-    return <span className={clsx('text-[10px] font-semibold px-1.5 py-0.5 rounded-full', tone)}>{formatDistanceToNowStrict(new Date(q.createdAt))} old</span>;
+  // Last-update time — whichever is more recent of "answered" or "asked" — shown as one relative
+  // "X ago" pill instead of separate absolute Asked/Answered timestamps. Only colored as
+  // stale/overdue while the query is still open (pending/in_progress); answered/closed queries
+  // get a neutral tag since there's nothing left to chase.
+  function lastUpdateBadge(q) {
+    const lastUpdate = q.answeredAt || q.createdAt;
+    const isOpen = q.status === 'pending' || q.status === 'in_progress';
+    const hours = (Date.now() - new Date(lastUpdate).getTime()) / 3600000;
+    const tone = isOpen ? (hours > 48 ? PILL.danger : hours > 24 ? PILL.warning : PILL.gray) : PILL.gray;
+    return <span className={clsx('text-[10px] font-semibold px-1.5 py-0.5 rounded-full', tone)}>{formatDistanceToNowStrict(new Date(lastUpdate))} ago</span>;
+  }
+
+  // Consistent color per client — same client always gets the same swatch, so every query row
+  // for that client (even scattered across a search/sort) reads as one visual group at a glance.
+  const CLIENT_COLOR_PALETTE = ['#f2b23e', '#7fa8c9', '#c98cae', '#8cc98f', '#c9a05c', '#a08cc9', '#c98c8c', '#6fb3ad'];
+  function clientColorFor(cid) {
+    let hash = 0;
+    for (let i = 0; i < (cid || '').length; i++) hash = (hash * 31 + cid.charCodeAt(i)) >>> 0;
+    return CLIENT_COLOR_PALETTE[hash % CLIENT_COLOR_PALETTE.length];
   }
 
   const qaSortAccessors = {
-    aging: (q) => new Date(q.createdAt).getTime(),
     qid: (q) => queryId(q),
     custId: (q) => customerId(q.leadId),
     customer: (q) => q.leadId?.name || '',
     topic: (q) => q.topic || 'General',
     question: (q) => (q.title || '').toLowerCase(),
-    asked: (q) => new Date(q.createdAt).getTime(),
+    aging: (q) => new Date(q.answeredAt || q.createdAt).getTime(),
     via: (q) => q.askedVia || '',
     status: (q) => q.status || '',
   };
   const sortedQueries = applySort(filteredQueries, qaSortAccessors, { col: qaSortKey, dir: qaSortDir });
+  // Same-client queries always sit together — group by Client ID while keeping whatever order
+  // sortedQueries already settled on (both across groups and within each one).
+  const qaGroups = new Map();
+  sortedQueries.forEach((q) => {
+    const cid = customerId(q.leadId);
+    if (!qaGroups.has(cid)) qaGroups.set(cid, []);
+    qaGroups.get(cid).push(q);
+  });
+  const groupedQueries = [...qaGroups.values()].flat();
   const qaSortState = { col: qaSortKey, dir: qaSortDir };
   const setQaSortState = (updater) => {
     const next = typeof updater === 'function' ? updater(qaSortState) : updater;
@@ -513,6 +578,22 @@ export default function SampleProduction() {
   const textLink = 'text-xs font-semibold text-[#4a3a29] hover:text-[#2e241b]';
   const modalInputCls = 'px-3 py-2 text-sm rounded-[10px] border-[1.5px] border-[#d3c9b4] bg-white text-[#2e241b] focus:outline-none focus:border-[#968871] placeholder:text-[#968871]';
 
+  // One stat card per tab above, in the same order — labels/emojis pulled straight from TABS so
+  // the dashboard and the tab bar can never drift out of sync with each other.
+  const statTones = ['info', 'purple', 'warning', 'danger', 'gray', 'success'];
+  const tabCounts = {
+    new: newLeads.length,
+    qa: relevantQueries.length,
+    sample: sampleLeads.length,
+    payments: sampleLeads.length,
+    awaiting: awaiting.length,
+    linked: linked.length,
+    ...prodStageCounts,
+  };
+  const dashboardStats = TABS.map((t, i) => ({
+    key: t.key, emoji: t.emoji, label: t.label, value: tabCounts[t.key] || 0, tone: statTones[i % statTones.length],
+  }));
+
   return (
     <div className="space-y-5 -m-4 sm:-m-6 p-4 sm:p-6 bg-white min-h-[calc(100vh-4rem)]" style={bodyFont}>
       <style>{FONT_IMPORT}</style>
@@ -521,7 +602,7 @@ export default function SampleProduction() {
         <div className="w-10 h-10 rounded-xl bg-[#f2b23e] flex items-center justify-center shadow-sm flex-shrink-0 text-lg">🧪</div>
         <div className="flex-1 min-w-0">
           <h1 className="text-lg font-bold text-[#2e241b] leading-tight" style={displayFont}>Sample Development</h1>
-          <p className="text-xs text-[#6d5f4c]">{sampleLeads.length} in sampling · {awaiting.length} awaiting production · {linked.length} linked</p>
+          <p className="text-xs text-[#6d5f4c]">{sampleLeads.length} in sampling · {awaiting.length} in approvals · {linked.length} linked</p>
         </div>
         <button onClick={exportCSV} className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full border-[1.5px] border-[#d3c9b4] text-[#6d5f4c] text-xs font-semibold hover:bg-[#e7dfce] hover:border-[#968871] hover:text-[#2e241b] transition flex-shrink-0">
           📥 Export CSV
@@ -537,36 +618,34 @@ export default function SampleProduction() {
         </div>
       )}
 
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-        <StatCard emoji="💬" iconTone="info" label="Active Queries" value={activeQueries} hint={`${activeQueries} open of ${relevantQueries.length} total`} />
-        <StatCard emoji="🧪" iconTone="purple" label="Samples In Lab" value={samplesInLab} hint={samplesInLabAging.length > 0 ? `⚠️ ${samplesInLabAging.length} aging > 7d` : null} />
-        <StatCard emoji="🔖" iconTone="warning" label="Awaiting Feedback" value={awaitingFeedback} valueTone="text-[#7a5a10]" hint={awaitingFeedbackAging.length > 0 ? `⚠️ ${awaitingFeedbackAging.length} aging > 7d` : null} />
-        <StatCard emoji="✅" iconTone="success" label="Approved (MTD)" value={approvedMTD} valueTone="text-[#3a5f3c]" />
-        <StatCard emoji="💳" iconTone="danger" label="R&D Payment Pending" value={paymentPendingLeads.length} hint={paymentPendingValue > 0 ? `₹${paymentPendingValue.toLocaleString('en-IN')} pending` : null} valueTone="text-[#8c3a30]" />
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3">
+        {dashboardStats.map((s) => (
+          <StatCard
+            key={s.key}
+            emoji={s.emoji}
+            iconTone={s.tone}
+            label={s.label}
+            value={s.value}
+            onClick={() => { setTab(s.key); setSortState({ col: null, dir: 'asc' }); }}
+          />
+        ))}
       </div>
 
       <Card className="p-0 overflow-hidden">
-        <div className="flex items-center gap-2 flex-wrap px-5 py-3 border-b border-[#e2dac8] bg-[#e7dfce] text-[11px] text-[#6d5f4c] font-semibold">
-          <span className="uppercase tracking-wide text-[#968871]">How work flows:</span>
-          {FLOW_STEPS.map((s, i) => (
-            <span key={s} className="flex items-center gap-2">
-              <span className="px-3 py-1 rounded-full border-[1.5px] border-[#d3c9b4] bg-[#f0eadd]">{s}</span>
-              {i < FLOW_STEPS.length - 1 && <span className="text-[#968871]">→</span>}
-            </span>
-          ))}
-        </div>
-
-        <div className="flex gap-1 px-5 border-b border-[#e2dac8] flex-wrap">
+        <div className="flex gap-1 px-5 border-b border-[#e2dac8] flex-nowrap overflow-x-auto">
           {TABS.map((t) => (
             <button
               key={t.key}
               onClick={() => { setTab(t.key); setSortState({ col: null, dir: 'asc' }); }}
               className={clsx(
-                'px-4 py-3 text-[13px] font-semibold border-b-[2.5px] transition-colors flex items-center gap-1.5',
+                'px-4 py-3 text-[13px] font-semibold border-b-[2.5px] transition-colors flex items-center gap-1.5 whitespace-nowrap flex-shrink-0',
                 tab === t.key ? 'border-[#f2b23e] text-[#2e241b]' : 'border-transparent text-[#6d5f4c] hover:text-[#2e241b]'
               )}
             >
               <span>{t.emoji}</span>{t.label}
+              <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-[#f2b23e] text-[#2e241b] text-[10px] font-bold">
+                {dashboardStats.find((s) => s.key === t.key)?.value ?? 0}
+              </span>
             </button>
           ))}
         </div>
@@ -581,6 +660,7 @@ export default function SampleProduction() {
                 className="pl-9 pr-3 py-2 text-sm border-[1.5px] border-[#d3c9b4] rounded-full focus:outline-none focus:border-[#968871] w-full bg-[#e7dfce] text-[#2e241b] placeholder:text-[#968871]" />
             </div>
             {tab === 'new' && <button onClick={() => setShowCreateLead(true)} className={accentBtn}>+ New Lead</button>}
+            {tab === 'linked' && <button onClick={() => setShowNewOrder(true)} className={accentBtn}>🆕 New Order</button>}
           </div>
 
           {tab === 'sample' && (
@@ -618,7 +698,7 @@ export default function SampleProduction() {
                     <SortableTh label="Product Interest" sortKey="productInterest" sortState={sortState} setSortState={setSortState} />
                     <th className="px-4 py-2.5">Payment</th>
                     <th className="px-4 py-2.5">Assigned To</th>
-                    <th className="px-4 py-2.5">Status</th>
+                    <th className="px-4 py-2.5">In-charge</th>
                     <th className="px-4 py-2.5"></th>
                   </tr>
                 </thead>
@@ -626,7 +706,11 @@ export default function SampleProduction() {
                   {isLoading && <tr><td colSpan={10} className="px-4 py-8 text-center text-[#968871] text-xs">Loading…</td></tr>}
                   {!isLoading && sortedKycRows.length === 0 && <tr><td colSpan={10} className="px-4 py-8 text-center text-[#968871] text-xs">No new leads right now.</td></tr>}
                   {sortedKycRows.map((l) => (
-                    <tr key={l._id} className="border-b border-[#e2dac8] hover:bg-[#e7dfce]/60">
+                    <tr
+                      key={l._id}
+                      onClick={(e) => { if (e.target.closest('button, select, a, input')) return; setOpenLeadId(l._id); setOpenLeadInitialTab(null); }}
+                      className="border-b border-[#e2dac8] hover:bg-[#e7dfce]/60 cursor-pointer"
+                    >
                       <td className="px-4 py-2.5 font-mono text-xs text-[#4a3a29] font-semibold">{customerId(l)}</td>
                       <td className="px-4 py-2.5">
                         <p className="text-[#2e241b] font-medium">{l.name}</p>
@@ -641,19 +725,35 @@ export default function SampleProduction() {
                           {l.sampleDetails?.paymentStatus === 'full_paid' ? 'Paid' : 'Pending'}
                         </span>
                       </td>
-                      <td className="px-4 py-2.5 text-[#6d5f4c] text-xs">
-                        {l.assignedTo ? `${l.assignedTo.firstName || ''} ${l.assignedTo.lastName || ''}`.trim() : 'Unassigned'}
+                      <td className="px-4 py-2.5">
+                        <select
+                          value={l.assignedTo?._id || l.assignedTo || ''}
+                          onChange={(e) => {
+                            if (!e.target.value) { unassignLeadMutation.mutate(l._id); return; }
+                            assignLeadMutation.mutate({ leadId: l._id, assignedTo: e.target.value });
+                          }}
+                          disabled={assignLeadMutation.isPending || unassignLeadMutation.isPending}
+                          title="Assign this client to an intake rep"
+                          className="text-[11px] text-[#6d5f4c] border border-[#d3c9b4] rounded-lg px-1.5 py-1 bg-white disabled:opacity-50 max-w-[140px]"
+                        >
+                          <option value="">Unassigned</option>
+                          {intakeAssignees.map((u) => (
+                            <option key={u._id} value={u._id}>{`${u.firstName || ''} ${u.lastName || ''}`.trim() || u.email}</option>
+                          ))}
+                        </select>
                       </td>
                       <td className="px-4 py-2.5">
                         <select
-                          value={l.status}
-                          onChange={(e) => updateLeadStatusMutation.mutate({ leadId: l._id, status: e.target.value })}
-                          disabled={updateLeadStatusMutation.isPending}
-                          className={clsx('text-[10px] font-semibold px-2 py-1 rounded-full border-0 cursor-pointer disabled:opacity-50',
-                            l.status === 'Follow-up' ? PILL.warning : PILL.gray)}
+                          value={l.inCharge?._id || l.inCharge || ''}
+                          onChange={(e) => inChargeMutation.mutate({ leadId: l._id, inCharge: e.target.value })}
+                          disabled={inChargeMutation.isPending}
+                          title="Owns this client end-to-end through Dispatch"
+                          className="text-[11px] text-[#6d5f4c] border border-[#d3c9b4] rounded-lg px-1.5 py-1 bg-white disabled:opacity-50 max-w-[140px]"
                         >
-                          <option value="New Lead">New Lead</option>
-                          <option value="Follow-up">Follow-up</option>
+                          <option value="">Unassigned</option>
+                          {productionInCharge.map((u) => (
+                            <option key={u._id} value={u._id}>{`${u.firstName || ''} ${u.lastName || ''}`.trim() || u.email}</option>
+                          ))}
                         </select>
                       </td>
                       <td className="px-4 py-2.5 text-right whitespace-nowrap">
@@ -689,29 +789,38 @@ export default function SampleProduction() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-[#d3c9b4] text-left text-[11px] uppercase tracking-wide text-[#6d5f4c] bg-[#e7dfce]">
-                    <SortableTh label="Aging" sortKey="aging" sortState={qaSortState} setSortState={setQaSortState} />
-                    <SortableTh label="Query ID" sortKey="qid" sortState={qaSortState} setSortState={setQaSortState} />
                     <SortableTh label="Client ID" sortKey="custId" sortState={qaSortState} setSortState={setQaSortState} />
+                    <SortableTh label="Query ID" sortKey="qid" sortState={qaSortState} setSortState={setQaSortState} />
                     <SortableTh label="Customer" sortKey="customer" sortState={qaSortState} setSortState={setQaSortState} />
                     <SortableTh label="Topic" sortKey="topic" sortState={qaSortState} setSortState={setQaSortState} />
                     <SortableTh label="Question" sortKey="question" sortState={qaSortState} setSortState={setQaSortState} />
-                    <SortableTh label="Asked" sortKey="asked" sortState={qaSortState} setSortState={setQaSortState} />
+                    <SortableTh label="Aging" sortKey="aging" sortState={qaSortState} setSortState={setQaSortState} />
                     <SortableTh label="Via" sortKey="via" sortState={qaSortState} setSortState={setQaSortState} />
                     <SortableTh label="Status" sortKey="status" sortState={qaSortState} setSortState={setQaSortState} />
                     <th className="px-4 py-2.5">Quick Actions</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {sortedQueries.length === 0 && (
-                    <tr><td colSpan={10} className="px-4 py-8 text-center text-[#968871] text-xs">No queries for any Sample-stage lead right now.</td></tr>
+                  {groupedQueries.length === 0 && (
+                    <tr><td colSpan={9} className="px-4 py-8 text-center text-[#968871] text-xs">No queries for any Sample-stage lead right now.</td></tr>
                   )}
-                  {sortedQueries.map((q) => {
+                  {groupedQueries.map((q) => {
                     const relatedLead = leadsById.get(q.leadId?._id);
                     const hasProduct = (relatedLead?.productLinks?.length || 0) > 0;
+                    const clientColor = clientColorFor(customerId(q.leadId));
                     return (
                       <Fragment key={q._id}>
-                        <tr className="border-b border-[#e2dac8] hover:bg-[#e7dfce]/60 align-top">
-                          <td className="px-4 py-2.5 whitespace-nowrap">{agingBadge(q)}</td>
+                        <tr className="border-b border-[#e2dac8] hover:bg-[#e7dfce]/60 align-top" style={{ borderLeft: `4px solid ${clientColor}` }}>
+                          <td className="px-4 py-2.5 whitespace-nowrap">
+                            <button
+                              onClick={() => { setOpenLeadId(q.leadId?._id); setOpenLeadInitialTab(null); }}
+                              title={`Open ${customerId(q.leadId)}`}
+                              className="font-mono font-bold hover:underline"
+                              style={{ color: clientColor }}
+                            >
+                              ● {customerId(q.leadId)}
+                            </button>
+                          </td>
                           <td className="px-4 py-2.5 whitespace-nowrap">
                             <button
                               onClick={() => { setOpenLeadId(q.leadId?._id); setOpenLeadInitialTab('Q&A'); }}
@@ -719,15 +828,6 @@ export default function SampleProduction() {
                               className="font-mono font-bold text-[#4a3a29] hover:underline"
                             >
                               {queryId(q)}
-                            </button>
-                          </td>
-                          <td className="px-4 py-2.5 whitespace-nowrap">
-                            <button
-                              onClick={() => { setOpenLeadId(q.leadId?._id); setOpenLeadInitialTab(null); }}
-                              title={`Open ${customerId(q.leadId)}`}
-                              className="font-mono font-bold text-[#4a3a29] hover:underline"
-                            >
-                              {customerId(q.leadId)}
                             </button>
                           </td>
                           <td className="px-4 py-2.5">
@@ -767,7 +867,7 @@ export default function SampleProduction() {
                               </div>
                             )}
                           </td>
-                          <td className="px-4 py-2.5 text-[#968871] text-xs whitespace-nowrap">{format(new Date(q.createdAt), 'dd MMM, hh:mm a')}</td>
+                          <td className="px-4 py-2.5 text-[#968871] text-xs whitespace-nowrap">{lastUpdateBadge(q)}</td>
                           <td className="px-4 py-2.5 text-[#968871] text-xs whitespace-nowrap">{q.askedVia || '—'}</td>
                           <td className="px-4 py-2.5 whitespace-nowrap">
                             <span className={clsx('px-2 py-0.5 rounded-full font-semibold text-[11px]', q.status === 'pending' ? PILL.warning : q.status === 'in_progress' ? PILL.info : PILL.success)}>{q.status.replace('_', ' ')}</span>
@@ -802,7 +902,7 @@ export default function SampleProduction() {
                         </tr>
                         {connectingQueryId === q._id && (
                           <tr className="border-b border-[#e2dac8]">
-                            <td colSpan={10} className="p-2">
+                            <td colSpan={9} className="p-2">
                               <div className="p-2 rounded-lg border-[1.5px] border-dashed border-[#d3c9b4] bg-[#e7dfce]">
                                 <input
                                   value={connectCatalogSearch}
@@ -852,7 +952,11 @@ export default function SampleProduction() {
                   {isLoading && <tr><td colSpan={6} className="px-4 py-8 text-center text-[#968871] text-xs">Loading…</td></tr>}
                   {!isLoading && sortedRows.length === 0 && <tr><td colSpan={6} className="px-4 py-8 text-center text-[#968871] text-xs">Nothing here right now.</td></tr>}
                   {sortedRows.map((l) => (
-                    <tr key={l._id} className="border-b border-[#e2dac8] hover:bg-[#e7dfce]/60">
+                    <tr
+                      key={l._id}
+                      onClick={(e) => { if (e.target.closest('button, select, a, input')) return; setOpenLeadId(l._id); setOpenLeadInitialTab(null); }}
+                      className="border-b border-[#e2dac8] hover:bg-[#e7dfce]/60 cursor-pointer"
+                    >
                       <td className="px-4 py-2.5">
                         <p className="text-[#2e241b] font-medium">{l.name}</p>
                         <p className="text-[#968871] text-xs">{l.company || '—'}</p>
@@ -920,7 +1024,11 @@ export default function SampleProduction() {
                   {isLoading && <tr><td colSpan={7} className="px-4 py-8 text-center text-[#968871] text-xs">Loading…</td></tr>}
                   {!isLoading && sortedRows.length === 0 && <tr><td colSpan={7} className="px-4 py-8 text-center text-[#968871] text-xs">Nothing here right now.</td></tr>}
                   {sortedRows.map((l) => (
-                    <tr key={l._id} className="border-b border-[#e2dac8] hover:bg-[#e7dfce]/60">
+                    <tr
+                      key={l._id}
+                      onClick={(e) => { if (e.target.closest('button, select, a, input')) return; setOpenLeadId(l._id); setOpenLeadInitialTab(null); }}
+                      className="border-b border-[#e2dac8] hover:bg-[#e7dfce]/60 cursor-pointer"
+                    >
                       <td className="px-4 py-2.5 whitespace-nowrap">
                         <button
                           onClick={() => { setOpenLeadId(l._id); setOpenLeadInitialTab(null); }}
@@ -943,6 +1051,17 @@ export default function SampleProduction() {
                       <td className="px-4 py-2.5 text-[#6d5f4c] text-xs whitespace-nowrap">{l.productionOrderId?.batchSizeKg ? `${l.productionOrderId.batchSizeKg} kg` : '—'}</td>
                       <td className="px-4 py-2.5 text-[#6d5f4c] text-xs whitespace-nowrap">{l.productionOrderId?.deliveryDate || '—'}</td>
                       <td className="px-4 py-2.5 text-right whitespace-nowrap">
+                        {tab === 'awaiting' && (
+                          <button
+                            onClick={() => {
+                              const returnTo = encodeURIComponent(`/samples?open=${l._id}&tab=awaiting`);
+                              navigate(`/finance/invoices?fromLead=${l._id}&returnTo=${returnTo}`);
+                            }}
+                            title="Create an invoice for this customer before sending the order to production"
+                            className={clsx(textLink, 'mr-3')}>
+                            📄 Create Invoice
+                          </button>
+                        )}
                         {tab === 'awaiting' && (
                           <button onClick={() => { setSendLead(l); setSelectedCatalogProduct(null); setCatalogSearch(''); setBatchSizeKg(10); }}
                             className={clsx(textLink, 'disabled:opacity-50 mr-3')}>
@@ -1039,6 +1158,7 @@ export default function SampleProduction() {
                 <thead>
                   <tr className="border-b border-[#d3c9b4] text-left text-[11px] uppercase tracking-wide text-[#6d5f4c] bg-[#e7dfce]">
                     <th className="px-4 py-2.5">Order ID</th>
+                    <th className="px-4 py-2.5">{currentProdStageTab.label} ID</th>
                     <th className="px-4 py-2.5">Customer</th>
                     <th className="px-4 py-2.5">Product</th>
                     <th className="px-4 py-2.5">Qty</th>
@@ -1047,8 +1167,8 @@ export default function SampleProduction() {
                   </tr>
                 </thead>
                 <tbody>
-                  {!allProductionOrders && <tr><td colSpan={6} className="px-4 py-8 text-center text-[#968871] text-xs">Loading…</td></tr>}
-                  {allProductionOrders && currentProdStageOrders.length === 0 && <tr><td colSpan={6} className="px-4 py-8 text-center text-[#968871] text-xs">No orders at {currentProdStageTab.label} right now.</td></tr>}
+                  {!allProductionOrders && <tr><td colSpan={7} className="px-4 py-8 text-center text-[#968871] text-xs">Loading…</td></tr>}
+                  {allProductionOrders && currentProdStageOrders.length === 0 && <tr><td colSpan={7} className="px-4 py-8 text-center text-[#968871] text-xs">No orders at {currentProdStageTab.label} right now.</td></tr>}
                   {currentProdStageOrders.map((o) => (
                     <tr
                       key={o._id}
@@ -1056,6 +1176,7 @@ export default function SampleProduction() {
                       className="border-b border-[#e2dac8] hover:bg-[#e7dfce]/60 cursor-pointer"
                     >
                       <td className="px-4 py-2.5 font-mono font-bold text-[#4a3a29] whitespace-nowrap">{o.orderNumber}</td>
+                      <td className="px-4 py-2.5 font-mono text-[#6d5f4c] whitespace-nowrap">{o[STAGE_ID_FIELD[currentProdStageTab.key]] || '—'}</td>
                       <td className="px-4 py-2.5 text-[#2e241b] whitespace-nowrap">{o.customer || '—'}</td>
                       <td className="px-4 py-2.5 text-[#6d5f4c] text-xs whitespace-nowrap">{o.catalogProduct?.name || '—'}</td>
                       <td className="px-4 py-2.5 text-[#6d5f4c] text-xs whitespace-nowrap">{o.batchSizeKg ? `${o.batchSizeKg} kg` : '—'}</td>
@@ -1095,16 +1216,35 @@ export default function SampleProduction() {
 
       {showCreateLead && <EditKycModal onClose={() => setShowCreateLead(false)} />}
 
+      {showNewOrder && (
+        <NewOrderModal
+          onClose={() => setShowNewOrder(false)}
+          onCreated={(created) => {
+            setShowNewOrder(false);
+            qc.invalidateQueries({ queryKey: ['production-orders'] });
+            qc.invalidateQueries({ queryKey: ['sample-production'] });
+            if (created?.[0]?._id) setOpenOrderId(created[0]._id);
+          }}
+        />
+      )}
+
       {sendLead && (
-        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4" style={bodyFont}>
+        <div className={clsx('fixed inset-0 z-[70] flex items-center justify-center', sendMaximized ? 'p-0' : 'p-4')} style={bodyFont}>
           <style>{FONT_IMPORT}</style>
           <div className="absolute inset-0 bg-[#2e241b]/50 backdrop-blur-sm" onClick={() => setSendLead(null)} />
-          <div className="relative bg-white rounded-2xl shadow-[0_10px_40px_rgba(46,36,27,0.16)] w-full max-w-md border border-[#d3c9b4]">
-            <div className="p-5 border-b border-[#e2dac8] bg-[#e7dfce] rounded-t-2xl">
-              <h3 className="font-bold text-[#2e241b]" style={displayFont}>🏭 Send to Production</h3>
-              <p className="text-xs text-[#6d5f4c] mt-0.5">{sendLead.name} — creates a Batch Tracker order pre-filled from this lead.</p>
+          <div className={clsx('relative bg-white shadow-[0_10px_40px_rgba(46,36,27,0.16)] border border-[#d3c9b4]',
+            sendMaximized ? 'w-screen h-screen max-w-none rounded-none flex flex-col' : 'w-full max-w-md rounded-2xl')}>
+            <div className={clsx('p-5 border-b border-[#e2dac8] bg-[#e7dfce] flex items-center justify-between flex-shrink-0', !sendMaximized && 'rounded-t-2xl')}>
+              <div>
+                <h3 className="font-bold text-[#2e241b]" style={displayFont}>🏭 Send to Production</h3>
+                <p className="text-xs text-[#6d5f4c] mt-0.5">{sendLead.name} — creates a Batch Tracker order pre-filled from this lead.</p>
+              </div>
+              <div className="flex items-center gap-1.5 flex-shrink-0">
+                <button onClick={() => setSendMaximized((m) => !m)} title={sendMaximized ? 'Restore' : 'Maximize'} className="w-9 h-9 rounded-lg hover:bg-[#ddd3be] flex items-center justify-center text-[#968871] hover:text-[#2e241b] text-base">{sendMaximized ? '🗗' : '🗖'}</button>
+                <button onClick={() => setSendLead(null)} className="w-9 h-9 rounded-lg hover:bg-[#ddd3be] flex items-center justify-center text-[#968871] hover:text-[#2e241b] text-lg">✕</button>
+              </div>
             </div>
-            <div className="p-5 space-y-3">
+            <div className={clsx('p-5 space-y-3', sendMaximized && 'flex-1 overflow-y-auto')}>
               <div>
                 <label className="text-xs font-semibold text-[#968871] uppercase tracking-wide mb-1 block">Catalog product</label>
                 <input
@@ -1156,15 +1296,22 @@ export default function SampleProduction() {
       {editKycLead && <EditKycModal lead={editKycLead} onClose={() => setEditKycLead(null)} />}
 
       {payConfirmFor && (
-        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4" style={bodyFont}>
+        <div className={clsx('fixed inset-0 z-[70] flex items-center justify-center', payMaximized ? 'p-0' : 'p-4')} style={bodyFont}>
           <style>{FONT_IMPORT}</style>
           <div className="absolute inset-0 bg-[#2e241b]/50 backdrop-blur-sm" onClick={() => setPayConfirmFor(null)} />
-          <div className="relative bg-white rounded-2xl shadow-[0_10px_40px_rgba(46,36,27,0.16)] w-full max-w-md border border-[#d3c9b4]">
-            <div className="p-5 border-b border-[#e2dac8] bg-[#e7dfce] rounded-t-2xl">
-              <h3 className="font-bold text-[#2e241b]" style={displayFont}>💳 Confirm R&D Payment</h3>
-              <p className="text-xs text-[#6d5f4c] mt-0.5">{payConfirmFor.name} — ₹{(payConfirmFor.sampleDetails?.chargeAmount || 0).toLocaleString('en-IN')}</p>
+          <div className={clsx('relative bg-white shadow-[0_10px_40px_rgba(46,36,27,0.16)] border border-[#d3c9b4]',
+            payMaximized ? 'w-screen h-screen max-w-none rounded-none flex flex-col' : 'w-full max-w-md rounded-2xl')}>
+            <div className={clsx('p-5 border-b border-[#e2dac8] bg-[#e7dfce] flex items-center justify-between flex-shrink-0', !payMaximized && 'rounded-t-2xl')}>
+              <div>
+                <h3 className="font-bold text-[#2e241b]" style={displayFont}>💳 Confirm R&D Payment</h3>
+                <p className="text-xs text-[#6d5f4c] mt-0.5">{payConfirmFor.name} — ₹{(payConfirmFor.sampleDetails?.chargeAmount || 0).toLocaleString('en-IN')}</p>
+              </div>
+              <div className="flex items-center gap-1.5 flex-shrink-0">
+                <button onClick={() => setPayMaximized((m) => !m)} title={payMaximized ? 'Restore' : 'Maximize'} className="w-9 h-9 rounded-lg hover:bg-[#ddd3be] flex items-center justify-center text-[#968871] hover:text-[#2e241b] text-base">{payMaximized ? '🗗' : '🗖'}</button>
+                <button onClick={() => setPayConfirmFor(null)} className="w-9 h-9 rounded-lg hover:bg-[#ddd3be] flex items-center justify-center text-[#968871] hover:text-[#2e241b] text-lg">✕</button>
+              </div>
             </div>
-            <div className="p-5 space-y-2">
+            <div className={clsx('p-5 space-y-2', payMaximized && 'flex-1 overflow-y-auto')}>
               <div className="grid grid-cols-2 gap-2">
                 <select value={payMode} onChange={(e) => setPayMode(e.target.value)}
                   className="px-3 py-2 text-sm rounded-[10px] border-[1.5px] border-[#d3c9b4] bg-white text-[#2e241b] focus:outline-none focus:border-[#968871]">
@@ -1201,15 +1348,22 @@ export default function SampleProduction() {
       )}
 
       {openOrderLead && (
-        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4" style={bodyFont}>
+        <div className={clsx('fixed inset-0 z-[70] flex items-center justify-center', orderMaximized ? 'p-0' : 'p-4')} style={bodyFont}>
           <style>{FONT_IMPORT}</style>
           <div className="absolute inset-0 bg-[#2e241b]/50 backdrop-blur-sm" onClick={() => setOpenOrderLead(null)} />
-          <div className="relative bg-white rounded-2xl shadow-[0_10px_40px_rgba(46,36,27,0.16)] w-full max-w-md border border-[#d3c9b4]">
-            <div className="p-5 border-b border-[#e2dac8] bg-[#e7dfce] rounded-t-2xl">
-              <h3 className="font-bold text-[#2e241b]" style={displayFont}>🧾 Order Detail</h3>
-              <p className="text-xs text-[#6d5f4c] mt-0.5">{openOrderLead.name} — {openOrderLead.productionOrderId?.orderNumber}</p>
+          <div className={clsx('relative bg-white shadow-[0_10px_40px_rgba(46,36,27,0.16)] border border-[#d3c9b4]',
+            orderMaximized ? 'w-screen h-screen max-w-none rounded-none flex flex-col' : 'w-full max-w-md rounded-2xl')}>
+            <div className={clsx('p-5 border-b border-[#e2dac8] bg-[#e7dfce] flex items-center justify-between flex-shrink-0', !orderMaximized && 'rounded-t-2xl')}>
+              <div>
+                <h3 className="font-bold text-[#2e241b]" style={displayFont}>🧾 Order Detail</h3>
+                <p className="text-xs text-[#6d5f4c] mt-0.5">{openOrderLead.name} — {openOrderLead.productionOrderId?.orderNumber}</p>
+              </div>
+              <div className="flex items-center gap-1.5 flex-shrink-0">
+                <button onClick={() => setOrderMaximized((m) => !m)} title={orderMaximized ? 'Restore' : 'Maximize'} className="w-9 h-9 rounded-lg hover:bg-[#ddd3be] flex items-center justify-center text-[#968871] hover:text-[#2e241b] text-base">{orderMaximized ? '🗗' : '🗖'}</button>
+                <button onClick={() => setOpenOrderLead(null)} className="w-9 h-9 rounded-lg hover:bg-[#ddd3be] flex items-center justify-center text-[#968871] hover:text-[#2e241b] text-lg">✕</button>
+              </div>
             </div>
-            <div className="p-5 space-y-3">
+            <div className={clsx('p-5 space-y-3', orderMaximized && 'flex-1 overflow-y-auto')}>
               <div>
                 <label className="text-xs font-semibold text-[#968871] uppercase tracking-wide mb-1 block">Quantity</label>
                 <input type="number" value={orderQty} onChange={(e) => setOrderQty(e.target.value)} className={clsx(modalInputCls, 'w-full')} />
@@ -1275,15 +1429,22 @@ export default function SampleProduction() {
       )}
 
       {dispatchLead && (
-        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4" style={bodyFont}>
+        <div className={clsx('fixed inset-0 z-[70] flex items-center justify-center', dispatchMaximized ? 'p-0' : 'p-4')} style={bodyFont}>
           <style>{FONT_IMPORT}</style>
           <div className="absolute inset-0 bg-[#2e241b]/50 backdrop-blur-sm" onClick={() => setDispatchLead(null)} />
-          <div className="relative bg-white rounded-2xl shadow-[0_10px_40px_rgba(46,36,27,0.16)] w-full max-w-md border border-[#d3c9b4]">
-            <div className="p-5 border-b border-[#e2dac8] bg-[#e7dfce] rounded-t-2xl">
-              <h3 className="font-bold text-[#2e241b]" style={displayFont}>🚚 Confirm Dispatch</h3>
-              <p className="text-xs text-[#6d5f4c] mt-0.5">{dispatchLead.name} — {dispatchLead.productionOrderId?.orderNumber}</p>
+          <div className={clsx('relative bg-white shadow-[0_10px_40px_rgba(46,36,27,0.16)] border border-[#d3c9b4]',
+            dispatchMaximized ? 'w-screen h-screen max-w-none rounded-none flex flex-col' : 'w-full max-w-md rounded-2xl')}>
+            <div className={clsx('p-5 border-b border-[#e2dac8] bg-[#e7dfce] flex items-center justify-between flex-shrink-0', !dispatchMaximized && 'rounded-t-2xl')}>
+              <div>
+                <h3 className="font-bold text-[#2e241b]" style={displayFont}>🚚 Confirm Dispatch</h3>
+                <p className="text-xs text-[#6d5f4c] mt-0.5">{dispatchLead.name} — {dispatchLead.productionOrderId?.orderNumber}</p>
+              </div>
+              <div className="flex items-center gap-1.5 flex-shrink-0">
+                <button onClick={() => setDispatchMaximized((m) => !m)} title={dispatchMaximized ? 'Restore' : 'Maximize'} className="w-9 h-9 rounded-lg hover:bg-[#ddd3be] flex items-center justify-center text-[#968871] hover:text-[#2e241b] text-base">{dispatchMaximized ? '🗗' : '🗖'}</button>
+                <button onClick={() => setDispatchLead(null)} className="w-9 h-9 rounded-lg hover:bg-[#ddd3be] flex items-center justify-center text-[#968871] hover:text-[#2e241b] text-lg">✕</button>
+              </div>
             </div>
-            <div className="p-5 space-y-3">
+            <div className={clsx('p-5 space-y-3', dispatchMaximized && 'flex-1 overflow-y-auto')}>
               <div>
                 <label className="text-xs font-semibold text-[#968871] uppercase tracking-wide mb-1 block">Note to client (optional)</label>
                 <textarea
@@ -1326,6 +1487,7 @@ export default function SampleProduction() {
 function OrphanOrderPanel({ orderId, onClose }) {
   const qc = useQueryClient();
   const [viewStage, setViewStage] = useState(null);
+  const [maximized, setMaximized] = useState(false);
 
   const { data: order, isLoading } = useQuery({
     queryKey: ['production-order', orderId],
@@ -1341,16 +1503,21 @@ function OrphanOrderPanel({ orderId, onClose }) {
   const stage = viewStage ?? order?.stage ?? 0;
 
   return (
-    <div className="fixed inset-0 z-[70] flex items-center justify-center p-4" style={bodyFont}>
+    <div className={clsx('fixed inset-0 z-[70] flex items-center justify-center', maximized ? 'p-0' : 'p-4')} style={bodyFont}>
       <style>{FONT_IMPORT}</style>
       <div className="absolute inset-0 bg-[#2e241b]/50 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative bg-white rounded-2xl shadow-[0_10px_40px_rgba(46,36,27,0.16)] w-full max-w-4xl border border-[#d3c9b4] flex flex-col" style={{ maxHeight: '90vh' }}>
-        <div className="p-5 border-b border-[#e2dac8] bg-[#e7dfce] flex items-center justify-between flex-shrink-0 rounded-t-2xl">
+      <div className={clsx('relative bg-white shadow-[0_10px_40px_rgba(46,36,27,0.16)] border border-[#d3c9b4] flex flex-col',
+        maximized ? 'w-screen h-screen max-w-none rounded-none' : 'w-full max-w-4xl rounded-2xl')}
+        style={maximized ? undefined : { maxHeight: '90vh' }}>
+        <div className={clsx('p-5 border-b border-[#e2dac8] bg-[#e7dfce] flex items-center justify-between flex-shrink-0', !maximized && 'rounded-t-2xl')}>
           <div>
             <h3 className="font-bold text-[#2e241b]" style={displayFont}>{order?.orderNumber || 'Loading…'}</h3>
             <p className="text-xs text-[#6d5f4c]">{order?.customer || 'No linked CRM lead'} · {order?.catalogProduct?.name || '—'}</p>
           </div>
-          <button onClick={onClose} className="w-9 h-9 rounded-lg hover:bg-[#ddd3be] flex items-center justify-center text-[#968871] hover:text-[#2e241b] text-lg">✕</button>
+          <div className="flex items-center gap-1.5">
+            <button onClick={() => setMaximized((m) => !m)} title={maximized ? 'Restore' : 'Maximize'} className="w-9 h-9 rounded-lg hover:bg-[#ddd3be] flex items-center justify-center text-[#968871] hover:text-[#2e241b] text-base">{maximized ? '🗗' : '🗖'}</button>
+            <button onClick={onClose} className="w-9 h-9 rounded-lg hover:bg-[#ddd3be] flex items-center justify-center text-[#968871] hover:text-[#2e241b] text-lg">✕</button>
+          </div>
         </div>
         <div className="flex-1 overflow-y-auto p-5 space-y-4">
           {isLoading || !order ? (
@@ -1379,6 +1546,7 @@ function OrphanOrderPanel({ orderId, onClose }) {
 // guaranteed to currently be at that exact stage, so there's nothing else to navigate to here.
 function StageFocusPanel({ orderId, stageTab, StageComponent, onClose }) {
   const qc = useQueryClient();
+  const [maximized, setMaximized] = useState(false);
 
   const { data: order, isLoading } = useQuery({
     queryKey: ['production-order', orderId],
@@ -1393,16 +1561,24 @@ function StageFocusPanel({ orderId, stageTab, StageComponent, onClose }) {
   };
 
   return (
-    <div className="fixed inset-0 z-[70] flex items-center justify-center p-4" style={bodyFont}>
+    <div className={clsx('fixed inset-0 z-[70] flex items-center justify-center', maximized ? 'p-0' : 'p-4')} style={bodyFont}>
       <style>{FONT_IMPORT}</style>
       <div className="absolute inset-0 bg-[#2e241b]/50 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative bg-white rounded-2xl shadow-[0_10px_40px_rgba(46,36,27,0.16)] w-full max-w-3xl border border-[#d3c9b4] flex flex-col" style={{ maxHeight: '90vh' }}>
-        <div className="p-5 border-b border-[#e2dac8] bg-[#e7dfce] flex items-center justify-between flex-shrink-0 rounded-t-2xl">
+      <div className={clsx('relative bg-white shadow-[0_10px_40px_rgba(46,36,27,0.16)] border border-[#d3c9b4] flex flex-col',
+        maximized ? 'w-screen h-screen max-w-none rounded-none' : 'w-full max-w-3xl rounded-2xl')}
+        style={maximized ? undefined : { maxHeight: '90vh' }}>
+        <div className={clsx('p-5 border-b border-[#e2dac8] bg-[#e7dfce] flex items-center justify-between flex-shrink-0', !maximized && 'rounded-t-2xl')}>
           <div>
             <h3 className="font-bold text-[#2e241b]" style={displayFont}>{stageTab?.emoji} {stageTab?.label} — {order?.orderNumber || 'Loading…'}</h3>
-            <p className="text-xs text-[#6d5f4c]">{order?.customer || 'No linked CRM lead'} · {order?.catalogProduct?.name || '—'}</p>
+            <p className="text-xs text-[#6d5f4c]">
+              {order?.customer || 'No linked CRM lead'} · {order?.catalogProduct?.name || '—'}
+              {order?.[STAGE_ID_FIELD[stageTab?.key]] && <> · <span className="font-mono">{order[STAGE_ID_FIELD[stageTab.key]]}</span></>}
+            </p>
           </div>
-          <button onClick={onClose} className="w-9 h-9 rounded-lg hover:bg-[#ddd3be] flex items-center justify-center text-[#968871] hover:text-[#2e241b] text-lg">✕</button>
+          <div className="flex items-center gap-1.5">
+            <button onClick={() => setMaximized((m) => !m)} title={maximized ? 'Restore' : 'Maximize'} className="w-9 h-9 rounded-lg hover:bg-[#ddd3be] flex items-center justify-center text-[#968871] hover:text-[#2e241b] text-base">{maximized ? '🗗' : '🗖'}</button>
+            <button onClick={onClose} className="w-9 h-9 rounded-lg hover:bg-[#ddd3be] flex items-center justify-center text-[#968871] hover:text-[#2e241b] text-lg">✕</button>
+          </div>
         </div>
         <div className="flex-1 overflow-y-auto p-5">
           {isLoading || !order ? (

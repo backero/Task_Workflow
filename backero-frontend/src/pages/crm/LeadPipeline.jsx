@@ -34,7 +34,7 @@ const STAGE_META = {
 const STAGE_DISPLAY = { 'In Progress': 'Production' };
 const stageLabel = (s) => STAGE_DISPLAY[s] || s;
 
-const BATCH_STAGE_NAMES = ['Order', 'Work Assignment', 'Procurement', 'Ready for Product Approval', 'Bulk QC', 'Packaging', 'Final QC', 'Dispatch'];
+const BATCH_STAGE_NAMES = ['Order', 'Work Assignment', 'Procurement', 'Weighing', 'Bulk QC', 'Packaging', 'Final QC', 'Dispatch'];
 
 // ── Lead Card ────────────────────────────────────────────────────────────────
 const PRIORITY_CFG = {
@@ -177,6 +177,7 @@ function LeadCard({ lead, stage, onClick, onAddLog }) {
 // ── Stage Leads Modal ────────────────────────────────────────────────────────
 function StageLeadsModal({ stage, onClose, onSelectLead }) {
   const [search, setSearch] = useState('');
+  const [maximized, setMaximized] = useState(false);
   const meta = STAGE_META[stage] || STAGE_META['New Lead'];
 
   const { data, isLoading } = useQuery({
@@ -194,14 +195,15 @@ function StageLeadsModal({ stage, onClose, onSelectLead }) {
   });
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
+    <div className={clsx('fixed inset-0 z-50 flex items-end sm:items-center justify-center', maximized ? 'p-0' : 'p-0 sm:p-4')}>
       <div className="absolute inset-0 bg-gray-900/60 backdrop-blur-sm" onClick={onClose} />
       <motion.div
         initial={{ y: 60, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         exit={{ y: 60, opacity: 0 }}
         transition={{ type: 'spring', damping: 28, stiffness: 300 }}
-        className="relative bg-white dark:bg-[#070c17] rounded-t-3xl sm:rounded-2xl w-full sm:max-w-lg max-h-[85vh] flex flex-col shadow-2xl border border-gray-100 dark:border-[#1b2e4a] overflow-hidden"
+        className={clsx('relative bg-white dark:bg-[#070c17] w-full flex flex-col shadow-2xl border border-gray-100 dark:border-[#1b2e4a] overflow-hidden',
+          maximized ? 'max-w-none h-screen sm:h-screen rounded-none' : 'rounded-t-3xl sm:rounded-2xl sm:max-w-lg max-h-[85vh]')}
       >
         {/* Gradient header */}
         <div className="flex-shrink-0 px-5 pt-5 pb-4" style={{ background: meta.grad }}>
@@ -210,9 +212,14 @@ function StageLeadsModal({ stage, onClose, onSelectLead }) {
               <h3 className="text-base font-bold text-white">{stage}</h3>
               <p className="text-xs text-white/60 mt-0.5">{data?.pagination?.total || leads.length} leads in this stage</p>
             </div>
-            <button onClick={onClose} className="p-2 rounded-xl bg-white/20 hover:bg-white/30 transition-colors">
-              <XMarkIcon className="w-4 h-4 text-white" />
-            </button>
+            <div className="flex items-center gap-1.5">
+              <button onClick={() => setMaximized((m) => !m)} title={maximized ? 'Restore' : 'Maximize'} className="p-2 rounded-xl bg-white/20 hover:bg-white/30 transition-colors text-white text-xs leading-none">
+                {maximized ? '🗗' : '🗖'}
+              </button>
+              <button onClick={onClose} className="p-2 rounded-xl bg-white/20 hover:bg-white/30 transition-colors">
+                <XMarkIcon className="w-4 h-4 text-white" />
+              </button>
+            </div>
           </div>
           {/* Search */}
           <div className="relative">

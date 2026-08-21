@@ -54,6 +54,7 @@ function StepSection({ emoji, title, sub, children }) {
 export default function EditKycModal({ lead, onClose, readOnly = false }) {
   const isCreate = !lead;
   const qc = useQueryClient();
+  const [maximized, setMaximized] = useState(false);
   const [autofillOpen, setAutofillOpen] = useState(false);
   const [kycPaste, setKycPaste] = useState('');
   const [piText, setPiText] = useState((lead?.productInterest || []).join(', '));
@@ -69,13 +70,33 @@ export default function EditKycModal({ lead, onClose, readOnly = false }) {
   const [newQueryDesc, setNewQueryDesc] = useState('');
   const [replyDrafts, setReplyDrafts] = useState({});
 
-  const { data: productionTeam } = useQuery({
-    queryKey: ['users', 'production-team'],
-    queryFn: () => api.get('/users', { params: { department: 'Production', limit: 100 } }).then((r) => r.data.data || []),
+  const { data: orgUsers } = useQuery({
+    queryKey: ['users', 'org', 'all'],
+    queryFn: () => api.get('/users', { params: { limit: 200 } }).then((r) => r.data.data || []),
   });
+  // A brand-new lead (still New Lead/Follow-up, or being created here) can only go to the two
+  // intake reps who do first contact; once it's moved on, the handoff is Production-dept only.
+  const isNewIntake = isCreate || !lead?.status || ['New Lead', 'Follow-up'].includes(lead.status);
+  const INTAKE_NAME_HINTS = ['naven', 'vignesh'];
+  const assignableUsers = isNewIntake
+    ? (orgUsers || []).filter((u) => INTAKE_NAME_HINTS.some((h) => (u.firstName || '').toLowerCase().includes(h)))
+    : (orgUsers || []).filter((u) => u.department === 'Production');
+
+  const originalAssignedTo = lead?.assignedTo?._id || lead?.assignedTo || '';
 
   const saveKycMutation = useMutation({
-    mutationFn: (body) => (isCreate ? api.post('/crm/leads', body) : api.put(`/crm/leads/${lead._id}`, body)),
+    mutationFn: async (body) => {
+      const res = isCreate ? await api.post('/crm/leads', body) : await api.put(`/crm/leads/${lead._id}`, body);
+      // The generic update above already persists assignedTo, but only the dedicated /assign
+      // endpoint sends the "you're now in charge" notification and hands off this lead's open
+      // Q&A queries to the new owner — so route a real reassignment through it too, same as the
+      // KYC-tab dropdown does, instead of letting it silently happen with no handoff.
+      if (!isCreate && body.assignedTo !== originalAssignedTo) {
+        if (body.assignedTo) await api.post(`/crm/leads/${lead._id}/assign`, { assignedTo: body.assignedTo });
+        else await api.put(`/crm/leads/${lead._id}`, { assignedTo: '' });
+      }
+      return res;
+    },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['sample-production'] });
       qc.invalidateQueries({ queryKey: ['crm'] });
@@ -145,13 +166,18 @@ export default function EditKycModal({ lead, onClose, readOnly = false }) {
   };
 
   return (
-    <div className="fixed inset-0 z-[70] flex items-center justify-center p-4" style={bodyFont}>
+    <div className={clsx('fixed inset-0 z-[70] flex items-center justify-center', maximized ? 'p-0' : 'p-4')} style={bodyFont}>
       <style>{FONT_IMPORT}</style>
       <div className="absolute inset-0 bg-[#2e241b]/50 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative bg-[#f0eadd] rounded-2xl shadow-[0_10px_40px_rgba(46,36,27,0.16)] w-full border border-[#d3c9b4] flex flex-col" style={{ maxWidth: '700px', maxHeight: '92vh' }}>
-        <div className="px-6 py-5 border-b border-[#e2dac8] bg-[#e7dfce] rounded-t-2xl flex items-center justify-between flex-shrink-0">
+      <div className={clsx('relative bg-[#f0eadd] shadow-[0_10px_40px_rgba(46,36,27,0.16)] w-full border border-[#d3c9b4] flex flex-col',
+        maximized ? 'w-screen h-screen max-w-none rounded-none' : 'rounded-2xl')}
+        style={maximized ? undefined : { maxWidth: '700px', maxHeight: '92vh' }}>
+        <div className={clsx('px-6 py-5 border-b border-[#e2dac8] bg-[#e7dfce] flex items-center justify-between flex-shrink-0', !maximized && 'rounded-t-2xl')}>
           <h3 className="text-base font-bold text-[#2e241b]" style={displayFont}>🪪 Customer KYC — {isCreate ? 'New Lead' : (lead.customerId || lead.name)}{readOnly && ' (View Only)'}</h3>
-          <button onClick={onClose} className="w-9 h-9 rounded-[10px] hover:bg-[#ddd3be] flex items-center justify-center text-[#968871] hover:text-[#2e241b] text-lg transition-colors">✕</button>
+          <div className="flex items-center gap-1.5">
+            <button onClick={() => setMaximized((m) => !m)} title={maximized ? 'Restore' : 'Maximize'} className="w-9 h-9 rounded-[10px] hover:bg-[#ddd3be] flex items-center justify-center text-[#968871] hover:text-[#2e241b] text-base transition-colors">{maximized ? '🗗' : '🗖'}</button>
+            <button onClick={onClose} className="w-9 h-9 rounded-[10px] hover:bg-[#ddd3be] flex items-center justify-center text-[#968871] hover:text-[#2e241b] text-lg transition-colors">✕</button>
+          </div>
         </div>
 
         <div className="flex-1 overflow-y-auto p-6">
@@ -256,8 +282,13 @@ export default function EditKycModal({ lead, onClose, readOnly = false }) {
             <Field label="Assigned to">
               <select value={form.assignedTo} onChange={set('assignedTo')} className={fieldCls}>
                 <option value="">Unassigned</option>
-                {(productionTeam || []).map((u) => <option key={u._id} value={u._id}>{u.firstName} {u.lastName}</option>)}
+                {assignableUsers.map((u) => <option key={u._id} value={u._id}>{u.firstName} {u.lastName}</option>)}
               </select>
+              <p className="text-[10px] text-[#968871] mt-1">
+                {isNewIntake
+                  ? 'New leads can only go to the intake reps — once shifted to Production below, that person becomes the end-to-end owner through to dispatch.'
+                  : 'Production-dept only from here — whoever\'s set becomes this client\'s end-to-end owner: Q&A, samples, payment, production, dispatch.'}
+              </p>
             </Field>
             <div className="col-span-2">
               <label className={labelCls}>"What product(s) are you interested in?"</label>

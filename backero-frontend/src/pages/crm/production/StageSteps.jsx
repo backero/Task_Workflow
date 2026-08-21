@@ -1,17 +1,23 @@
-import { useState } from 'react';
+﻿import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import clsx from 'clsx';
 import api from '../../../api/axios';
 import { LockClosedIcon, TruckIcon } from '@heroicons/react/24/outline';
 import { Card, PILL } from '../sampleTheme';
+import OrderSpecTabs, {
+  Field, inputCls, primaryBtn, secondaryBtn,
+  QC_SPECS, LAB_SPECS, FQC_SPECS, PKG_SPEC_FIELDS,
+  SENSORY_KEYS, PHYSICO_KEYS, MICRO_KEYS, STABILITY_KEYS, byKeys,
+} from './orderSpecFields';
+import NewOrderModal from './NewOrderModal';
 
 // The 8-stage production board, ported from the standalone Batch Tracker page so it can render
 // inline inside SampleLeadDetail's Production tab — same API calls, same onSaved/onAdvanced ->
 // invalidate pattern as before, restyled from Batch Tracker's gray/blue+dark-mode theme onto
 // SampleProduction's cream/amber palette so the merged lead+order panel reads as one page.
 
-export const STAGE_NAMES = ['Order', 'Work Assignment', 'Procurement', 'Ready for Product Approval', 'Bulk QC', 'Packaging', 'Final QC', 'Dispatch'];
+export const STAGE_NAMES = ['Customer Details', 'Work Assignment', 'Procurement', 'Weighing', 'Bulk QC', 'Packaging', 'Final QC', 'Dispatch'];
 
 export const STAGE_BUCKET_COLOR = (stage) => {
   if (stage <= 1) return PILL.gray;
@@ -26,167 +32,18 @@ const PRIORITY_STYLE = {
   Urgent: PILL.danger, High: PILL.warning, Normal: PILL.info, Low: PILL.gray,
 };
 
-// Job Creation Sheet — each spec has a Required/Not Required toggle + a target spec value.
-// Once confirmed & locked, Bulk QC / Final QC only render the fields marked Required.
-const QC_SPECS = [
-  { key: 'qcPhysico', label: 'Physicochemical Tests', defaultSpec: 'As per IS standard' },
-  { key: 'qcPh', label: 'pH Testing', defaultSpec: '4.5 - 6.0' },
-  { key: 'qcViscosity', label: 'Viscosity', defaultSpec: '2000 - 8000 cP' },
-  { key: 'qcDensity', label: 'Density', defaultSpec: '0.95 - 1.05 g/ml' },
-  { key: 'qcMicrobial', label: 'Microbial Testing', defaultSpec: 'USP <61>' },
-  { key: 'qcTpc', label: 'TPC (CFU/g)', defaultSpec: '< 1000' },
-  { key: 'qcYm', label: 'Yeast & Mold', defaultSpec: '< 100' },
-  { key: 'qcPathogen', label: 'Pathogen Test', defaultSpec: 'Absent' },
-  { key: 'qcSensory', label: 'Sensory Evaluation', defaultSpec: 'As per standard' },
-  { key: 'qcColor', label: 'Color Check', defaultSpec: 'Standard / Off' },
-  { key: 'qcOdor', label: 'Odor Check', defaultSpec: 'Standard / Off' },
-  { key: 'qcTexture', label: 'Texture Check', defaultSpec: 'Smooth / Lumpy' },
-];
-const LAB_SPECS = [
-  { key: 'labStability', label: 'Stability Testing', defaultSpec: '40C / 75% RH' },
-  { key: 'labAccelerated', label: 'Accelerated Stability', defaultSpec: '25C / 60% RH' },
-  { key: 'labDuration', label: 'Stability Duration', defaultSpec: '6 months' },
-  { key: 'labPreservative', label: 'Preservative Efficacy', defaultSpec: 'Pass USP <51>' },
-  { key: 'labHeavyMetal', label: 'Heavy Metal Testing', defaultSpec: '< 10 ppm' },
-  { key: 'labDermatological', label: 'Dermatological Test', defaultSpec: 'HRIPT Pass' },
-  { key: 'labDocumentation', label: 'Lab Documentation', defaultSpec: 'Complete COA' },
-  { key: 'labCoa', label: 'Certificate of Analysis', defaultSpec: 'Required per batch' },
-  { key: 'labMethod', label: 'Test Method', defaultSpec: 'In-house + BP/USP' },
-];
-const FQC_SPECS = [
-  { key: 'fqcWeight', label: 'Weight Check', defaultSpec: '+-5%' },
-  { key: 'fqcSeal', label: 'Seal Integrity', defaultSpec: 'No leakage' },
-  { key: 'fqcLeak', label: 'Leak Test', defaultSpec: 'Pass inverted 24h' },
-  { key: 'fqcLabel', label: 'Label Verification', defaultSpec: '100% match to artwork' },
-  { key: 'fqcPrint', label: 'Print Quality', defaultSpec: 'No smudge/cut' },
-  { key: 'fqcCarton', label: 'Carton Condition', defaultSpec: 'No dent/crush' },
-  { key: 'fqcAppearance', label: 'Appearance Check', defaultSpec: 'As per standard' },
-  { key: 'fqcRelease', label: 'Release Criteria', defaultSpec: 'All tests pass' },
-];
-
 // Backward/forward-safe: a spec with no explicit status is treated as Required (matches the HTML reference).
 const isRequired = (crmSpec, key) => (crmSpec?.[key + 'Status'] || 'Required') === 'Required';
 const specValue = (crmSpec, key, fallback) => crmSpec?.[key + 'Spec'] || fallback;
 
-const PKG_CONTAINER_FIELDS = [
-  { key: 'pkgContainerType', label: 'Bottle/Container Type', placeholder: 'e.g. 50ml Amber Glass Jar' },
-  { key: 'pkgCapacity', label: 'Capacity', placeholder: 'e.g. 50ml' },
-  { key: 'pkgCap', label: 'Cap/Closure', placeholder: 'e.g. Gold Aluminium Wad Cap' },
-  { key: 'pkgSeal', label: 'Seal Type', placeholder: 'e.g. Induction Seal' },
-  { key: 'pkgLabel', label: 'Label Spec', placeholder: 'e.g. 50x30mm Digital Foil' },
-  { key: 'pkgFillWeight', label: 'Net Fill Weight', placeholder: 'e.g. 50g +-2%' },
-];
-const PKG_PRIMARY_FIELDS = [
-  { key: 'pkgMonoCarton', label: 'Mono Carton', placeholder: 'e.g. Matte Finish' },
-  { key: 'pkgIndShrinkWrap', label: 'Individual Shrink Wrap', placeholder: 'e.g. PVC Film 40 micron' },
-  { key: 'pkgLeaflet', label: 'Leaflet/Insert', placeholder: 'e.g. Product info leaflet' },
-  { key: 'pkgInnerPacking', label: 'Inner Packing', placeholder: 'e.g. Individual silk pouch' },
-];
-const PKG_SECONDARY_FIELDS = [
-  { key: 'pkgOuterCarton', label: 'Outer Carton (Master)', placeholder: 'e.g. 5-ply Corrugated' },
-  { key: 'pkgUnitsPerCarton', label: 'Units per Carton', placeholder: 'e.g. 24' },
-  { key: 'pkgOuterShrinkWrap', label: 'Shrink Wrap (Outer)', placeholder: 'e.g. Stretch Film 23 micron' },
-  { key: 'pkgPalletInfo', label: 'Pallet Info', placeholder: 'e.g. 48 cartons per pallet' },
-  { key: 'pkgSpecialHandling', label: 'Special Handling', placeholder: 'e.g. Fragile, This Side Up' },
-];
-const PAYMENT_FIELDS = [
-  { key: 'paymentTerms', label: 'Payment Terms', placeholder: 'e.g. 30% Advance / 40% on QC / 30% on Dispatch' },
-  { key: 'paymentMode', label: 'Payment Mode', placeholder: 'e.g. NEFT' },
-  { key: 'creditPeriod', label: 'Credit Period', placeholder: 'e.g. Net 30 Days' },
-  { key: 'gstTreatment', label: 'GST Treatment', placeholder: 'e.g. Regular GST (18%)' },
-];
-
-function Field({ label, children }) {
-  return <div><label className="text-xs font-semibold text-[#968871] uppercase tracking-wide mb-1 block">{label}</label>{children}</div>;
-}
-
-// Job Sheet spec sections (QC/Lab/Final QC/Packaging/Payment) are long lists — collapsed by
-// default so the stage 0 form isn't one giant always-expanded page; click the header to open.
-function CollapsibleSection({ title, defaultOpen = false, children }) {
-  const [open, setOpen] = useState(defaultOpen);
-  return (
-    <div>
-      <button
-        type="button"
-        onClick={() => setOpen((o) => !o)}
-        className="w-full flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-[#6d5f4c] mb-2 hover:text-[#2e241b]"
-      >
-        <span className={clsx('text-[10px] transition-transform', open && 'rotate-90')}>▸</span>
-        {title}
-      </button>
-      {open && children}
-    </div>
-  );
-}
-
-const inputCls = 'w-full px-3 py-2 text-sm rounded-[10px] border-[1.5px] border-[#d3c9b4] bg-[#f0eadd] text-[#2e241b] focus:outline-none focus:border-[#968871] placeholder:text-[#968871] disabled:opacity-50';
-const primaryBtn = 'px-4 py-2 bg-[#f2b23e] hover:brightness-95 text-[#2e241b] text-sm font-semibold rounded-xl disabled:opacity-50 transition';
-const secondaryBtn = 'px-4 py-2 bg-[#e2dac8] hover:bg-[#d3c9b4] text-[#4a3a29] text-sm font-semibold rounded-xl disabled:opacity-50 transition';
-
-function PlainSpecRow({ field, crmSpec, onChange, locked }) {
-  return (
-    <div className="py-1.5 border-b border-[#e2dac8] last:border-none">
-      <label className="block text-xs text-[#6d5f4c] mb-1">{field.label}</label>
-      <input disabled={locked} value={crmSpec[field.key] || ''} placeholder={field.placeholder} onChange={(e) => onChange(field.key, e.target.value)}
-        className="w-full text-xs border border-[#d3c9b4] rounded-lg px-2 py-1.5 bg-[#f0eadd] disabled:opacity-50" />
-    </div>
-  );
-}
-
-function SpecSectionRow({ spec, crmSpec, onChange, locked }) {
-  const status = crmSpec[spec.key + 'Status'] || 'Required';
-  const value = crmSpec[spec.key + 'Spec'] ?? spec.defaultSpec;
-  return (
-    <div className="py-1.5 border-b border-[#e2dac8] last:border-none">
-      <div className="flex items-center justify-between gap-2 mb-1">
-        <span className="text-xs text-[#6d5f4c]">{spec.label}</span>
-        <select disabled={locked} value={status} onChange={(e) => onChange(spec.key + 'Status', e.target.value)}
-          className="text-xs border border-[#d3c9b4] rounded-lg px-2 py-1 bg-[#f0eadd] disabled:opacity-50 flex-shrink-0">
-          <option value="Required">Required</option>
-          <option value="Not Required">Not Required</option>
-        </select>
-      </div>
-      <input disabled={locked || status === 'Not Required'} value={value} onChange={(e) => onChange(spec.key + 'Spec', e.target.value)}
-        className="w-full text-xs border border-[#d3c9b4] rounded-lg px-2 py-1.5 bg-[#f0eadd] disabled:opacity-40" />
-    </div>
-  );
-}
-
-function DynamicSpecFields({ category, crmSpec, onChange, locked }) {
-  const list = crmSpec[category + 'Extra'] || [];
-  const update = (list2) => onChange(category + 'Extra', list2);
-  return (
-    <div className="mt-2 space-y-2">
-      {list.map((f, i) => (
-        <div key={i} className="p-2 rounded-lg bg-[#e7dfce] space-y-1.5">
-          <div className="flex items-center gap-2">
-            <input disabled={locked} value={f.label} onChange={(e) => { const l = [...list]; l[i] = { ...l[i], label: e.target.value }; update(l); }}
-              placeholder="Field label" className="text-xs border border-[#d3c9b4] rounded-lg px-2 py-1.5 bg-[#f0eadd] flex-1 min-w-0" />
-            <select disabled={locked} value={f.status || 'Required'} onChange={(e) => { const l = [...list]; l[i] = { ...l[i], status: e.target.value }; update(l); }}
-              className="text-xs border border-[#d3c9b4] rounded-lg px-2 py-1.5 bg-[#f0eadd] flex-shrink-0">
-              <option value="Required">Required</option>
-              <option value="Not Required">Not Required</option>
-            </select>
-            {!locked && <button onClick={() => update(list.filter((_, idx) => idx !== i))} className="text-red-500 text-sm flex-shrink-0 px-1">×</button>}
-          </div>
-          <input disabled={locked} value={f.spec} onChange={(e) => { const l = [...list]; l[i] = { ...l[i], spec: e.target.value }; update(l); }}
-            placeholder="Spec value" className="w-full text-xs border border-[#d3c9b4] rounded-lg px-2 py-1.5 bg-[#f0eadd]" />
-        </div>
-      ))}
-      {!locked && (
-        <button onClick={() => update([...list, { label: '', status: 'Required', spec: '' }])} className="text-xs font-semibold text-[#7a5a10]">+ Add More Spec</button>
-      )}
-    </div>
-  );
-}
-
 // ── STAGE BAR ─────────────────────────────────────────────────────────────────
 
-// Order (0) and Work Assignment (1) are back-office setup steps, not shop-floor tracking —
-// hidden from this bar so it only navigates the 6 production-floor stages. If the order's
-// actual current stage is still 0/1, that stage's form still renders below (see callers)
-// even without a nav button for it, since it can't be skipped.
-const TRACKED_STAGES = STAGE_NAMES.map((name, i) => ({ name, i })).filter(({ i }) => i >= 2);
+// Customer Details (0) is shown in this bar — always unlocked once an order exists, sitting
+// before Procurement — so the SPEC/QC sheet stays reachable for every order, not just brand-new
+// ones. Work Assignment (1) stays a back-office setup step, hidden from this bar; if the order's
+// actual current stage is still 1, that stage's form still renders below (see callers) even
+// without a nav button for it, since it can't be skipped.
+const TRACKED_STAGES = STAGE_NAMES.map((name, i) => ({ name, i })).filter(({ i }) => i === 0 || i >= 2);
 
 export function StageBar({ order, viewStage, setViewStage }) {
   return (
@@ -223,6 +80,7 @@ export function StageOrder({ order, onSaved }) {
   });
   const [crmSpec, setCrmSpec] = useState(order.crmSpec || {});
   const [busy, setBusy] = useState(false);
+  const [showAddProduct, setShowAddProduct] = useState(false);
   const locked = !!crmSpec.specsConfirmed;
 
   const patchSpec = (key, val) => setCrmSpec((c) => ({ ...c, [key]: val }));
@@ -243,75 +101,73 @@ export function StageOrder({ order, onSaved }) {
     save({ specsConfirmed: true, specsConfirmedAt: new Date().toISOString() });
   };
 
+  const unlockJobSheet = () => {
+    if (!window.confirm('Unlock this job sheet for editing? Bulk QC / Final QC already recorded under the previous specs are not affected — this only re-opens the fields for edits.')) return;
+    setCrmSpec((c) => ({ ...c, specsConfirmed: false }));
+    save({ specsConfirmed: false });
+  };
+
   return (
-    <div className="space-y-4">
-      {locked && (
-        <Card className="border-[#b9d2af] bg-[#dce9d4]">
-          <p className="text-sm font-bold text-[#3a5f3c]">🔒 Job Sheet Confirmed & Locked</p>
-          <p className="text-xs text-[#6d5f4c]">Confirmed {crmSpec.specsConfirmedAt ? new Date(crmSpec.specsConfirmedAt).toLocaleString('en-IN') : ''}</p>
-        </Card>
-      )}
-
-      <Card>
-        <h3 className="text-sm font-bold text-[#2e241b] mb-3">Client Profile</h3>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <Field label="Customer"><input disabled={locked} value={form.customer} onChange={(e) => setForm((f) => ({ ...f, customer: e.target.value }))} className={inputCls} /></Field>
-          <Field label="Contact"><input disabled={locked} value={form.contact} onChange={(e) => setForm((f) => ({ ...f, contact: e.target.value }))} className={inputCls} /></Field>
-          <Field label="Container"><input disabled={locked} value={form.container} onChange={(e) => setForm((f) => ({ ...f, container: e.target.value }))} className={inputCls} /></Field>
-          <Field label="Priority">
-            <select disabled={locked} value={form.priority} onChange={(e) => setForm((f) => ({ ...f, priority: e.target.value }))} className={inputCls}>
-              {['Low', 'Normal', 'High', 'Urgent'].map((p) => <option key={p} value={p}>{p}</option>)}
-            </select>
-          </Field>
-          <Field label="Delivery Date"><input disabled={locked} type="date" value={form.deliveryDate} onChange={(e) => setForm((f) => ({ ...f, deliveryDate: e.target.value }))} className={inputCls} /></Field>
+    <div className="flex gap-4 items-start">
+      <div className="w-52 flex-shrink-0">
+        <p className="text-[10px] font-bold uppercase tracking-wide text-[#968871] mb-2">Products (from catalogue)</p>
+        <div className="rounded-lg border-[1.5px] border-[#f2b23e] bg-[#f3e3c2] px-2.5 py-2">
+          <p className="text-xs font-bold text-[#2e241b] truncate">{order.catalogProduct?.name || order.orderNumber}</p>
+          <p className="text-[10px] text-[#968871] truncate">{order.catalogProduct?.code || order.batch}{order.batchSizeKg ? ` · ${order.batchSizeKg} kg` : ''}</p>
         </div>
-        <div className="mt-3"><Field label="Notes"><textarea disabled={locked} rows={2} value={form.notes} onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))} className={inputCls} /></Field></div>
-      </Card>
-
-      <CollapsibleSection title="🎯 QC Requirements">
-        <Card>
-          {QC_SPECS.map((s) => <SpecSectionRow key={s.key} spec={s} crmSpec={crmSpec} onChange={patchSpec} locked={locked} />)}
-          <DynamicSpecFields category="qc" crmSpec={crmSpec} onChange={patchSpec} locked={locked} />
-        </Card>
-      </CollapsibleSection>
-
-      <CollapsibleSection title="🔬 Laboratory & Testing Requirements">
-        <Card>
-          {LAB_SPECS.map((s) => <SpecSectionRow key={s.key} spec={s} crmSpec={crmSpec} onChange={patchSpec} locked={locked} />)}
-          <DynamicSpecFields category="lab" crmSpec={crmSpec} onChange={patchSpec} locked={locked} />
-        </Card>
-      </CollapsibleSection>
-
-      <CollapsibleSection title="✅ Final QC Requirements">
-        <Card>
-          {FQC_SPECS.map((s) => <SpecSectionRow key={s.key} spec={s} crmSpec={crmSpec} onChange={patchSpec} locked={locked} />)}
-          <DynamicSpecFields category="fqc" crmSpec={crmSpec} onChange={patchSpec} locked={locked} />
-        </Card>
-      </CollapsibleSection>
-
-      <CollapsibleSection title="📦 Packaging & Label Specifications">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          <Card><p className="text-[10px] font-bold text-[#968871] uppercase mb-1">🧴 Container</p>{PKG_CONTAINER_FIELDS.map((f) => <PlainSpecRow key={f.key} field={f} crmSpec={crmSpec} onChange={patchSpec} locked={locked} />)}</Card>
-          <Card><p className="text-[10px] font-bold text-[#968871] uppercase mb-1">📦 Primary Packaging</p>{PKG_PRIMARY_FIELDS.map((f) => <PlainSpecRow key={f.key} field={f} crmSpec={crmSpec} onChange={patchSpec} locked={locked} />)}</Card>
-          <Card><p className="text-[10px] font-bold text-[#968871] uppercase mb-1">📦 Secondary Packaging</p>{PKG_SECONDARY_FIELDS.map((f) => <PlainSpecRow key={f.key} field={f} crmSpec={crmSpec} onChange={patchSpec} locked={locked} />)}</Card>
-        </div>
-      </CollapsibleSection>
-
-      <CollapsibleSection title="💰 Payment Specifications">
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <Card>{PAYMENT_FIELDS.slice(0, 2).map((f) => <PlainSpecRow key={f.key} field={f} crmSpec={crmSpec} onChange={patchSpec} locked={locked} />)}</Card>
-          <Card>{PAYMENT_FIELDS.slice(2).map((f) => <PlainSpecRow key={f.key} field={f} crmSpec={crmSpec} onChange={patchSpec} locked={locked} />)}</Card>
-        </div>
-      </CollapsibleSection>
-
-      <div className="flex items-center gap-3">
-        <button onClick={() => save()} disabled={busy || locked} className={secondaryBtn}>{busy ? 'Saving…' : 'Save Draft'}</button>
-        {!locked ? (
-          <button onClick={confirmJobSheet} disabled={busy} className={primaryBtn}>✅ Confirm Job Sheet & Lock Specs</button>
-        ) : (
-          <span className="text-xs text-[#968871]">Changes to locked specs require a manager to re-open this order.</span>
-        )}
+        <button onClick={() => setShowAddProduct(true)} className="w-full mt-2 border-2 border-dashed border-[#968871] text-[#7a5a10] rounded-lg py-2 text-xs font-bold hover:bg-[#f3e3c2]">+ Add product</button>
+        <p className="text-[9.5px] text-[#968871] mt-2 leading-relaxed">Adds a new product for {order.customer || 'this customer'} — becomes its own order &amp; job sheet, linked by the same order group.</p>
       </div>
+
+      <div className="flex-1 min-w-0 space-y-4">
+        {locked && (
+          <Card className="border-[#b9d2af] bg-[#dce9d4] flex items-center justify-between gap-3 flex-wrap">
+            <div>
+              <p className="text-sm font-bold text-[#3a5f3c]">🔒 Job Sheet Confirmed &amp; Locked</p>
+              <p className="text-xs text-[#6d5f4c]">Confirmed {crmSpec.specsConfirmedAt ? new Date(crmSpec.specsConfirmedAt).toLocaleString('en-IN') : ''}</p>
+            </div>
+            <button onClick={unlockJobSheet} disabled={busy} className={secondaryBtn}>🔓 Unlock &amp; Edit</button>
+          </Card>
+        )}
+
+        <OrderSpecTabs
+          crmSpec={crmSpec}
+          onChange={patchSpec}
+          locked={locked}
+          detailsContent={
+            <Card>
+              <h3 className="text-sm font-bold text-[#2e241b] mb-3">Client Profile</h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <Field label="Customer"><input disabled={locked} value={form.customer} onChange={(e) => setForm((f) => ({ ...f, customer: e.target.value }))} className={inputCls} /></Field>
+                <Field label="Contact"><input disabled={locked} value={form.contact} onChange={(e) => setForm((f) => ({ ...f, contact: e.target.value }))} className={inputCls} /></Field>
+                <Field label="Container"><input disabled={locked} value={form.container} onChange={(e) => setForm((f) => ({ ...f, container: e.target.value }))} className={inputCls} /></Field>
+                <Field label="Priority">
+                  <select disabled={locked} value={form.priority} onChange={(e) => setForm((f) => ({ ...f, priority: e.target.value }))} className={inputCls}>
+                    {['Low', 'Normal', 'High', 'Urgent'].map((p) => <option key={p} value={p}>{p}</option>)}
+                  </select>
+                </Field>
+                <Field label="Delivery Date"><input disabled={locked} type="date" value={form.deliveryDate} onChange={(e) => setForm((f) => ({ ...f, deliveryDate: e.target.value }))} className={inputCls} /></Field>
+              </div>
+              <div className="mt-3"><Field label="Notes"><textarea disabled={locked} rows={2} value={form.notes} onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))} className={inputCls} /></Field></div>
+            </Card>
+          }
+        />
+
+        <div className="flex items-center gap-3">
+          <button onClick={() => save()} disabled={busy || locked} className={secondaryBtn}>{busy ? 'Saving…' : 'Save Draft'}</button>
+          {!locked && (
+            <button onClick={confirmJobSheet} disabled={busy} className={primaryBtn}>✅ Confirm Job Sheet & Lock Specs</button>
+          )}
+        </div>
+      </div>
+
+      {showAddProduct && (
+        <NewOrderModal
+          initialCustomerSearch={order.customer || ''}
+          onClose={() => setShowAddProduct(false)}
+          onCreated={() => { setShowAddProduct(false); toast.success('Added — new order created for this customer'); onSaved(); }}
+        />
+      )}
     </div>
   );
 }
@@ -320,11 +176,33 @@ export function StageOrder({ order, onSaved }) {
 
 export function StageWorkAssignment({ order, onSaved }) {
   const wa = order.workAssignment || {};
+  // Whoever this client is assigned to end-to-end (order.assignedTo, inherited from
+  // Lead.assignedTo — set back at KYC) is the default in-charge for every stage below, so the
+  // KYC assignee carries through to Dispatch with no extra picking — each field still stays
+  // individually editable for the odd case where a different person covers just one stage.
+  const ownerName = order.assignedTo ? `${order.assignedTo.firstName || ''} ${order.assignedTo.lastName || ''}`.trim() : '';
   const [form, setForm] = useState({
     startDate: wa.startDate || '', endDate: wa.endDate || '', weighDate: wa.weighDate || '', prodDate: wa.prodDate || '', packDate: wa.packDate || '', qcDate: wa.qcDate || '', dispatchDate: wa.dispatchDate || order.deliveryDate || '',
-    weighPerson: wa.weighPerson || '', prodPerson: wa.prodPerson || '', qcPerson: wa.qcPerson || '', packPerson: wa.packPerson || '', dispatchPerson: wa.dispatchPerson || '', supervisor: wa.supervisor || '',
+    weighPerson: wa.weighPerson || ownerName, prodPerson: wa.prodPerson || ownerName, qcPerson: wa.qcPerson || ownerName, packPerson: wa.packPerson || ownerName, dispatchPerson: wa.dispatchPerson || ownerName, supervisor: wa.supervisor || ownerName,
   });
   const [busy, setBusy] = useState(false);
+
+  // ≥50% advance-payment gate — backend enforces this too (production.routes.js), this is just
+  // the inline warning so staff see it before hitting Save instead of only after a 400 comes back.
+  const inv = order.invoiceId;
+  const paidPct = inv && inv.totalAmount > 0 ? Math.round((inv.paidAmount / inv.totalAmount) * 100) : 0;
+  const paymentBlocked = order.stage === 1 && !!inv && paidPct < 50;
+
+  // Team Assignment picks from real Production-department accounts instead of free text, so a
+  // typo can't silently assign work to nobody — same "department: 'Production'" people Kitchen
+  // Schedule's leader/support pickers already draw from.
+  const { data: orgUsers } = useQuery({
+    queryKey: ['users', 'org', 'all'],
+    queryFn: () => api.get('/users', { params: { limit: 200 } }).then((r) => r.data.data || []),
+    staleTime: 5 * 60 * 1000,
+  });
+  const productionUsers = (orgUsers || []).filter((u) => u.department === 'Production' && u.isActive !== false);
+  const productionNames = new Set(productionUsers.map((u) => `${u.firstName || ''} ${u.lastName || ''}`.trim()));
 
   const save = async () => {
     setBusy(true);
@@ -334,7 +212,23 @@ export function StageWorkAssignment({ order, onSaved }) {
   };
 
   const dateField = (key, label) => <Field label={label}><input type="date" value={form[key]} onChange={(e) => setForm((f) => ({ ...f, [key]: e.target.value }))} className={inputCls} /></Field>;
-  const personField = (key, label) => <Field label={label}><input value={form[key]} onChange={(e) => setForm((f) => ({ ...f, [key]: e.target.value }))} className={inputCls} placeholder="Name" /></Field>;
+  // If the saved value isn't a current Production account (legacy free-typed name, or someone
+  // deactivated/moved departments since), keep it selectable so saving doesn't silently wipe it.
+  const personField = (key, label) => {
+    const current = form[key];
+    return (
+      <Field label={label}>
+        <select value={current} onChange={(e) => setForm((f) => ({ ...f, [key]: e.target.value }))} className={inputCls}>
+          <option value="">— Unassigned —</option>
+          {current && !productionNames.has(current) && <option value={current}>{current} (not in Production)</option>}
+          {productionUsers.map((u) => {
+            const name = `${u.firstName || ''} ${u.lastName || ''}`.trim();
+            return <option key={u._id} value={name}>{name}</option>;
+          })}
+        </select>
+      </Field>
+    );
+  };
 
   return (
     <Card>
@@ -348,7 +242,12 @@ export function StageWorkAssignment({ order, onSaved }) {
         {personField('weighPerson', 'Weighing In-charge')}{personField('prodPerson', 'Production In-charge')}{personField('qcPerson', 'QC In-charge')}
         {personField('packPerson', 'Packaging In-charge')}{personField('dispatchPerson', 'Dispatch In-charge')}{personField('supervisor', 'Supervisor')}
       </div>
-      <button onClick={save} disabled={busy} className={clsx(primaryBtn, 'mt-4')}>{busy ? 'Saving…' : 'Confirm Schedule → Procurement'}</button>
+      {paymentBlocked && (
+        <p className="text-xs text-[#8c3a30] font-semibold mt-3 bg-[#f0d8d2] border border-[#e0b6ab] rounded-xl px-3 py-2">
+          ⚠ Needs ≥50% advance payment confirmed before Procurement can start ({paidPct}% paid so far — {inv.invoiceNumber}).
+        </p>
+      )}
+      <button onClick={save} disabled={busy || paymentBlocked} className={clsx(primaryBtn, 'mt-4')}>{busy ? 'Saving…' : paymentBlocked ? 'Awaiting Payment' : 'Confirm Schedule → Procurement'}</button>
     </Card>
   );
 }
@@ -365,7 +264,8 @@ export function StageProcurement({ order, onAdvanced }) {
   const rows = order.ingredients.map((ing) => {
     const mat = materials.find((m) => m._id === ing.rawMaterialId);
     const stock = mat?.currentStock ?? 0;
-    return { ...ing, stock, short: stock < ing.targetQty };
+    const shortfall = Math.max(0, ing.targetQty - stock);
+    return { ...ing, stock, shortfall, short: shortfall > 0 };
   });
   const shortRows = rows.filter((r) => r.short);
 
@@ -385,7 +285,7 @@ export function StageProcurement({ order, onAdvanced }) {
       ) : (
         <table className="w-full text-xs">
           <thead><tr className="text-left text-[10px] uppercase text-[#968871] border-b border-[#e2dac8]">
-            <th className="py-1.5">Material</th><th className="py-1.5">Required</th><th className="py-1.5">In Stock</th><th className="py-1.5">Status</th>
+            <th className="py-1.5">Material</th><th className="py-1.5">Required</th><th className="py-1.5">In Stock</th><th className="py-1.5">To Procure</th><th className="py-1.5">Status</th>
           </tr></thead>
           <tbody>
             {rows.map((r, i) => (
@@ -393,6 +293,7 @@ export function StageProcurement({ order, onAdvanced }) {
                 <td className="py-1.5 text-[#2e241b]">{r.name}</td>
                 <td className="py-1.5 font-mono">{r.targetQty} {r.unit}</td>
                 <td className="py-1.5 font-mono">{r.stock} {r.unit}</td>
+                <td className="py-1.5 font-mono">{r.short ? <span className="text-red-600 font-semibold">{r.shortfall} {r.unit}</span> : '—'}</td>
                 <td className="py-1.5">{r.short ? <span className="text-red-600 font-semibold">Order More</span> : <span className="text-[#3a5f3c] font-semibold">OK</span>}</td>
               </tr>
             ))}
@@ -400,10 +301,15 @@ export function StageProcurement({ order, onAdvanced }) {
         </table>
       )}
       {shortRows.length > 0 && (
-        <div className="mt-3 bg-[#f0d8d2] border border-[#e0b6ab] rounded-xl px-3 py-2 text-xs text-[#8c3a30]">⚠ {shortRows.length} material(s) below required quantity — procure before proceeding.</div>
+        <div className="mt-3 bg-[#f0d8d2] border border-[#e0b6ab] rounded-xl px-3 py-2 text-xs text-[#8c3a30]">
+          ⚠ {shortRows.length} material(s) below required quantity — procure before proceeding, this blocks confirming until resolved:
+          <ul className="mt-1 ml-4 list-disc">
+            {shortRows.map((r, i) => <li key={i}>{r.name}: need {r.shortfall} {r.unit} more (have {r.stock}, need {r.targetQty})</li>)}
+          </ul>
+        </div>
       )}
-      <button onClick={confirm} disabled={busy} className={clsx(primaryBtn, 'mt-4')}>
-        {busy ? 'Confirming…' : 'Formula Correct & Materials Available → Weighing'}
+      <button onClick={confirm} disabled={busy || shortRows.length > 0} title={shortRows.length > 0 ? 'Resolve the stock shortage above first' : undefined} className={clsx(primaryBtn, 'mt-4')}>
+        {busy ? 'Confirming…' : shortRows.length > 0 ? 'Materials Short — Cannot Proceed' : 'Formula Correct & Materials Available → Weighing'}
       </button>
     </Card>
   );
@@ -504,20 +410,44 @@ export function StageWeighing({ order, onSaved }) {
 
 // ── STAGE 4: BULK QC ──────────────────────────────────────────────────────────
 
-// One text/number field, shown only if the matching Job Sheet spec is Required.
-function SpecDrivenField({ crmSpec, specKey, label, formKey, form, setForm, type = 'text' }) {
-  if (!isRequired(crmSpec, specKey)) return null;
+// Bulk QC is entirely fetched from Customer Details' Sensory Targets, Physicochemical, and QC
+// Plan — Micro & Stability sections — no separate hand-maintained field list here anymore, so
+// nothing can drift out of sync with what those sections actually contain. Fields with a
+// `legacy` name keep writing to that existing ProductionOrder.bulkQC column (unchanged data
+// shape for anything already saved); everything else goes into bulkQC.extra, keyed by its
+// crmSpec key.
+const BULK_QC_FIELDS = [
+  ...byKeys(QC_SPECS, SENSORY_KEYS).map((s) => ({ spec: s, legacy: { qcColor: 'color', qcOdor: 'odor', qcTexture: 'texture', qcAppearance: 'appearance' }[s.key] })),
+  ...byKeys(QC_SPECS, PHYSICO_KEYS).map((s) => ({ spec: s, legacy: { qcPh: 'ph', qcViscosity: 'viscosity', qcDensity: 'density' }[s.key] })),
+  ...byKeys(QC_SPECS, MICRO_KEYS).map((s) => ({ spec: s, legacy: { qcTpc: 'tpc', qcYm: 'ym', qcPathogen: 'pathogen' }[s.key] })),
+  ...byKeys(LAB_SPECS, STABILITY_KEYS).map((s) => ({ spec: s, legacy: { labStability: 'stability', labPreservative: 'preservative', labHeavyMetal: 'heavy' }[s.key] })),
+];
+
+function BulkQCField({ spec, legacy, crmSpec, form, setForm }) {
+  const value = legacy ? (form[legacy] ?? '') : (form.extra?.[spec.key] ?? '');
+  const onChange = (v) => {
+    if (legacy) setForm((f) => ({ ...f, [legacy]: v }));
+    else setForm((f) => ({ ...f, extra: { ...f.extra, [spec.key]: v } }));
+  };
   return (
-    <Field label={<>{label} <span className="text-[#7a5a10] font-normal">· Spec: {specValue(crmSpec, specKey, '—')}</span></>}>
-      <input type={type} step={type === 'number' ? '0.1' : undefined} value={form[formKey]}
-        onChange={(e) => setForm((f) => ({ ...f, [formKey]: e.target.value }))} className={inputCls} />
-    </Field>
+    <div className="rounded-lg border border-[#d3c9b4] bg-[#f0eadd] p-2.5">
+      <label className="text-xs font-semibold text-[#968871] uppercase tracking-wide mb-1 block">
+        {spec.label} <span className="text-[#7a5a10] normal-case font-normal">· Spec: {specValue(crmSpec, spec.key, '—')}</span>
+      </label>
+      <input value={value} onChange={(e) => onChange(e.target.value)} className={clsx(inputCls, 'bg-white')} />
+    </div>
   );
 }
 
 export function StageBulkQC({ order, onSaved }) {
   const crmSpec = order.crmSpec || {};
-  const [form, setForm] = useState({ ph: '', viscosity: '', density: '', appearance: '', color: '', odor: '', texture: '', tpc: '', ym: '', pathogen: '', heavy: '', preservative: '', stability: '', docs: '' });
+  const bq = order.bulkQC || {};
+  const [form, setForm] = useState({
+    ph: bq.ph ?? '', viscosity: bq.viscosity ?? '', density: bq.density ?? '', appearance: bq.appearance || '',
+    color: bq.color || '', odor: bq.odor || '', texture: bq.texture || '', tpc: bq.tpc || '', ym: bq.ym || '',
+    pathogen: bq.pathogen || '', heavy: bq.heavy || '', preservative: bq.preservative || '', stability: bq.stability || '',
+    extra: bq.extra || {},
+  });
   const [busy, setBusy] = useState(false);
 
   const submit = async (result) => {
@@ -534,22 +464,11 @@ export function StageBulkQC({ order, onSaved }) {
   return (
     <Card>
       <h3 className="text-sm font-bold text-[#2e241b] mb-1">Bulk Quality Control</h3>
-      <p className="text-xs text-[#6d5f4c] mb-3">Fields shown are driven by the Job Sheet locked on Stage 0.</p>
+      <p className="text-xs text-[#6d5f4c] mb-3">Fetched from Customer Details — Sensory Targets, Physicochemical, and QC Plan (Micro &amp; Stability). Spec values shown are the reference to cross-check the actual reading against.</p>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-        <SpecDrivenField crmSpec={crmSpec} specKey="qcPh" label="pH Value" formKey="ph" form={form} setForm={setForm} type="number" />
-        <SpecDrivenField crmSpec={crmSpec} specKey="qcViscosity" label="Viscosity (cP)" formKey="viscosity" form={form} setForm={setForm} type="number" />
-        <SpecDrivenField crmSpec={crmSpec} specKey="qcDensity" label="Density (g/ml)" formKey="density" form={form} setForm={setForm} type="number" />
-        <Field label="Appearance"><input value={form.appearance} onChange={(e) => setForm((f) => ({ ...f, appearance: e.target.value }))} className={inputCls} placeholder="Uniform / Hazy" /></Field>
-        <SpecDrivenField crmSpec={crmSpec} specKey="qcColor" label="Color" formKey="color" form={form} setForm={setForm} />
-        <SpecDrivenField crmSpec={crmSpec} specKey="qcOdor" label="Odor" formKey="odor" form={form} setForm={setForm} />
-        <SpecDrivenField crmSpec={crmSpec} specKey="qcTexture" label="Texture" formKey="texture" form={form} setForm={setForm} />
-        <SpecDrivenField crmSpec={crmSpec} specKey="qcTpc" label="TPC (CFU/g)" formKey="tpc" form={form} setForm={setForm} />
-        <SpecDrivenField crmSpec={crmSpec} specKey="qcYm" label="Yeast & Mold" formKey="ym" form={form} setForm={setForm} />
-        <SpecDrivenField crmSpec={crmSpec} specKey="qcPathogen" label="Pathogens" formKey="pathogen" form={form} setForm={setForm} />
-        <SpecDrivenField crmSpec={crmSpec} specKey="labHeavyMetal" label="Heavy Metals (ppm)" formKey="heavy" form={form} setForm={setForm} />
-        <SpecDrivenField crmSpec={crmSpec} specKey="labPreservative" label="Preservative Efficacy" formKey="preservative" form={form} setForm={setForm} />
-        <SpecDrivenField crmSpec={crmSpec} specKey="labStability" label="Stability" formKey="stability" form={form} setForm={setForm} />
-        <SpecDrivenField crmSpec={crmSpec} specKey="labDocumentation" label="Documentation" formKey="docs" form={form} setForm={setForm} />
+        {BULK_QC_FIELDS.map(({ spec, legacy }) => (
+          <BulkQCField key={spec.key} spec={spec} legacy={legacy} crmSpec={crmSpec} form={form} setForm={setForm} />
+        ))}
       </div>
       <div className="flex gap-3 mt-4">
         <button onClick={() => submit('PASS')} disabled={busy} className="px-4 py-2 bg-[#5c8a5f] hover:brightness-95 text-white text-sm font-semibold rounded-xl disabled:opacity-50">Pass → Packaging</button>
@@ -563,6 +482,10 @@ export function StageBulkQC({ order, onSaved }) {
 
 export function StagePackaging({ order, onSaved }) {
   const p = order.packaging || {};
+  const crmSpec = order.crmSpec || {};
+  const pkgSpecRows = PKG_SPEC_FIELDS.filter((f) => crmSpec[f.key]);
+  const pkgCustomRows = (crmSpec.pkgExtra || []).filter((c) => c.label || c.spec);
+  const pkgAttachments = crmSpec.pkgAttachments || [];
   const batchGrams = (order.batchSizeKg || 0) * 1000;
   const [form, setForm] = useState({
     mrp: p.mrp || '', fillWeight: p.fillWeight || '', filled: p.filled || 0, rejected: p.rejected || 0,
@@ -585,7 +508,35 @@ export function StagePackaging({ order, onSaved }) {
   };
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+    <div className="space-y-4">
+      <Card>
+        <h3 className="text-sm font-bold text-[#2e241b] mb-3">📦 Packaging Specification <span className="text-xs font-normal text-[#968871]">— fetched from Customer Details</span></h3>
+        {pkgSpecRows.length === 0 && pkgCustomRows.length === 0 ? (
+          <p className="text-xs text-[#968871]">No packaging spec set in Customer Details yet.</p>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            {pkgSpecRows.map((f) => (
+              <div key={f.key} className="rounded-lg border border-[#d3c9b4] bg-[#f0eadd] p-2.5">
+                <p className="text-[10px] font-semibold text-[#968871] uppercase tracking-wide mb-1">{f.label}</p>
+                <p className="text-xs font-semibold text-[#2e241b]">{crmSpec[f.key]}</p>
+              </div>
+            ))}
+            {pkgCustomRows.map((c, i) => (
+              <div key={i} className="rounded-lg border border-[#d3c9b4] bg-[#f0eadd] p-2.5">
+                <p className="text-[10px] font-semibold text-[#968871] uppercase tracking-wide mb-1">{c.label || '—'}</p>
+                <p className="text-xs font-semibold text-[#2e241b]">{c.spec || '—'}</p>
+              </div>
+            ))}
+          </div>
+        )}
+        {pkgAttachments.length > 0 && (
+          <div className="mt-2 pt-2 border-t border-[#e2dac8]">
+            <p className="text-[10px] font-bold uppercase text-[#968871] mb-1">Attachments</p>
+            {pkgAttachments.map((f, i) => <p key={i} className="text-xs text-[#2e241b]">{f.name}</p>)}
+          </div>
+        )}
+      </Card>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
       <Card>
         <h3 className="text-sm font-bold text-[#2e241b] mb-3">Packaging Details</h3>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -616,6 +567,7 @@ export function StagePackaging({ order, onSaved }) {
           <div className="text-[8px] mt-1">Net Wt: {form.fillWeight || '—'}g</div>
         </div>
       </Card>
+      </div>
     </div>
   );
 }
@@ -635,7 +587,12 @@ const FQC_SPEC_TO_FIELD = {
 
 export function StageFinalQC({ order, onSaved }) {
   const crmSpec = order.crmSpec || {};
-  const [form, setForm] = useState({ weightCheck: '', visualCheck: '', labelCheck: '', sealCheck: '', leakCheck: '', printCheck: '', cartonCheck: '', comment: '' });
+  const fq = order.finalQC || {};
+  const [form, setForm] = useState({
+    weightCheck: fq.weightCheck || '', visualCheck: fq.visualCheck || '', labelCheck: fq.labelCheck || '',
+    sealCheck: fq.sealCheck || '', leakCheck: fq.leakCheck || '', printCheck: fq.printCheck || '', cartonCheck: fq.cartonCheck || '',
+    comment: fq.comment || '', extra: fq.extra || {},
+  });
   const [busy, setBusy] = useState(false);
   const p = order.packaging || {};
 
@@ -656,24 +613,34 @@ export function StageFinalQC({ order, onSaved }) {
     finally { setBusy(false); }
   };
 
-  const selectField = (specKey) => {
-    const { field, label } = FQC_SPEC_TO_FIELD[specKey];
-    if (!isRequired(crmSpec, specKey)) return null;
+  // Fetched straight from Customer Details' Final QC section (FQC_SPECS, all 8 items) — the
+  // 7 with a named ProductionOrder.finalQC column keep using it; the remaining one
+  // (fqcRelease) goes into finalQC.extra, same pattern as Bulk QC's extra map.
+  const selectField = (spec) => {
+    const mapped = FQC_SPEC_TO_FIELD[spec.key];
+    const value = mapped ? form[mapped.field] : (form.extra?.[spec.key] ?? '');
+    const onChange = (v) => {
+      if (mapped) setForm((f) => ({ ...f, [mapped.field]: v }));
+      else setForm((f) => ({ ...f, extra: { ...f.extra, [spec.key]: v } }));
+    };
     return (
-      <Field key={field} label={<>{label} <span className="text-[#7a5a10] font-normal">· Spec: {specValue(crmSpec, specKey, '—')}</span></>}>
-        <select value={form[field]} onChange={(e) => setForm((f) => ({ ...f, [field]: e.target.value }))} className={inputCls}>
+      <div key={spec.key} className="rounded-lg border border-[#d3c9b4] bg-[#f0eadd] p-2.5">
+        <label className="text-xs font-semibold text-[#968871] uppercase tracking-wide mb-1 block">
+          {spec.label} <span className="text-[#7a5a10] normal-case font-normal">· Spec: {specValue(crmSpec, spec.key, '—')}</span>
+        </label>
+        <select value={value} onChange={(e) => onChange(e.target.value)} className={clsx(inputCls, 'bg-white')}>
           <option value="">Select</option><option value="PASS">PASS</option><option value="FAIL">FAIL</option>
         </select>
-      </Field>
+      </div>
     );
   };
 
   return (
     <Card>
       <h3 className="text-sm font-bold text-[#2e241b] mb-1">Final Quality Control</h3>
-      <p className="text-xs text-[#6d5f4c] mb-3">Batch {order.batch} · {p.filled || 0} units filled, {p.rejected || 0} rejected · fields driven by locked Job Sheet</p>
+      <p className="text-xs text-[#6d5f4c] mb-3">Batch {order.batch} · {p.filled || 0} units filled, {p.rejected || 0} rejected · fetched from Customer Details — Final QC</p>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        {Object.keys(FQC_SPEC_TO_FIELD).map((specKey) => selectField(specKey))}
+        {FQC_SPECS.map((spec) => selectField(spec))}
       </div>
       <div className="mt-3"><Field label="Comments"><textarea rows={2} value={form.comment} onChange={(e) => setForm((f) => ({ ...f, comment: e.target.value }))} className={inputCls} /></Field></div>
       <div className="flex gap-3 mt-4">

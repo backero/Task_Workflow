@@ -31,6 +31,7 @@ export default function TechnicalQueries() {
   const [statusFilter, setStatusFilter] = useState('all');
   const [replyQuery, setReplyQuery] = useState(null);
   const [replyText, setReplyText] = useState('');
+  const [replyMaximized, setReplyMaximized] = useState(false);
 
   const isAdmin = ['admin', 'founder', 'chairman', 'super_admin', 'manager', 'team_lead'].includes(user?.role);
   const canReplyQuery = (q) => isAdmin || q.assignedTo?._id === user?._id || (!q.assignedTo && user?.department === 'Production');
@@ -180,20 +181,25 @@ export default function TechnicalQueries() {
 
       {/* Reply modal */}
       {replyQuery && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div className={clsx('fixed inset-0 z-50 flex items-center justify-center', replyMaximized ? 'p-0' : 'p-4')}>
           <div className="absolute inset-0 bg-gray-900/60 backdrop-blur-sm" onClick={() => setReplyQuery(null)} />
-          <div className="relative card w-full max-w-lg shadow-modal">
-            <div className="p-5 border-b border-gray-200 dark:border-[#1b2e4a] flex items-center justify-between">
+          <div className={clsx('relative card w-full shadow-modal flex flex-col', replyMaximized ? 'h-screen max-w-none rounded-none' : 'max-w-lg')}>
+            <div className="p-5 border-b border-gray-200 dark:border-[#1b2e4a] flex items-center justify-between flex-shrink-0">
               <div>
                 <h3 className="font-bold text-gray-900 dark:text-white">Reply to Query</h3>
                 <p className="text-sm text-gray-500 mt-0.5">{replyQuery.title}</p>
               </div>
-              <button onClick={() => setReplyQuery(null)} className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-[#17263d]">
-                <XMarkIcon className="w-5 h-5 text-gray-500" />
-              </button>
+              <div className="flex items-center gap-1">
+                <button onClick={() => setReplyMaximized((m) => !m)} title={replyMaximized ? 'Restore' : 'Maximize'} className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-[#17263d] text-gray-500 text-sm leading-none">
+                  {replyMaximized ? '🗗' : '🗖'}
+                </button>
+                <button onClick={() => setReplyQuery(null)} className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-[#17263d]">
+                  <XMarkIcon className="w-5 h-5 text-gray-500" />
+                </button>
+              </div>
             </div>
 
-            <div className="p-5 space-y-4">
+            <div className={clsx('p-5 space-y-4', replyMaximized && 'flex-1 overflow-y-auto')}>
               {/* Query context */}
               <div className="p-3 bg-gray-50 dark:bg-[#0f1a2e] rounded-lg">
                 <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1">Question</p>

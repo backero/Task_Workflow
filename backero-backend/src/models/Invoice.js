@@ -30,6 +30,10 @@ const invoiceSchema = new mongoose.Schema({
     stateCode: String,
   },
   lead: { type: mongoose.Schema.Types.ObjectId, ref: 'Lead' },
+  // Points at one entry in that Lead's samples[] array (Mongoose subdocument _id, not its own
+  // top-level collection so no `ref` model) — lets a single lead have several independent
+  // quotations/invoices, one per product/sample, instead of one invoice covering everything.
+  sampleId: { type: mongoose.Schema.Types.ObjectId },
 
   // Items
   lineItems: [lineItemSchema],

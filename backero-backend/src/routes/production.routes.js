@@ -13,9 +13,10 @@ const { PRODUCTION_STATUS, STOCK_MOVEMENT_TYPES, SOCKET_EVENTS, BATCH_STAGE_TO_S
 const { deductFIFO, recomputeStock, nextUsageNumber } = require('../services/inventory.service');
 const User = require('../models/User');
 const Lead = require('../models/Lead');
+const Invoice = require('../models/Invoice');
 const { createNotification } = require('../services/notification.service');
 const { buildIngredientsFromCatalogProduct } = require('../utils/productionHelpers');
-const { notifyClientMilestone, notifyStageChange, applyWorkAssignment } = require('../services/productionWorkflow.service');
+const { notifyClientMilestone, notifyStageChange, applyWorkAssignment, stageId, ensureScheduleSlot } = require('../services/productionWorkflow.service');
 
 router.use(authenticate, orgIsolation);
 
@@ -89,6 +90,7 @@ router.get('/:id', asyncHandler(async (req, res) => {
     .populate('bom.product', 'name sku unit currentStock')
     .populate('assignedTo', 'firstName lastName avatar')
     .populate('leadId', 'name phone status')
+    .populate('invoiceId', 'invoiceNumber status paidAmount totalAmount')
     .populate('qualityChecks.checkedBy', 'firstName lastName')
     .populate('ingredients.weighedBy', 'firstName lastName')
     .populate('processSteps.completedBy', 'firstName lastName');
@@ -243,10 +245,24 @@ router.patch('/:id/order', asyncHandler(async (req, res) => {
 router.patch('/:id/work-assignment', asyncHandler(async (req, res) => {
   const order = await loadOrder(req, res);
   if (!order) return;
+  // ≥50% advance-payment gate lives here, not at order creation — Customer Details (stage 0/1,
+  // always viewable) stays open the moment the quotation is confirmed, but real raw materials
+  // only get committed once the advance is in. Orders from the old whole-lead flow (no
+  // invoiceId) skip this — they never had a per-product payment gate to begin with.
+  if (order.stage === 1 && order.invoiceId) {
+    const invoice = await Invoice.findOne({ _id: order.invoiceId, organizationId: req.user.organizationId }).select('paidAmount totalAmount');
+    const paidRatio = invoice && invoice.totalAmount > 0 ? invoice.paidAmount / invoice.totalAmount : 0;
+    if (paidRatio < 0.5) {
+      return sendError(res, `At least 50% advance payment must be confirmed before production can start (currently ${Math.round(paidRatio * 100)}% paid).`, 400);
+    }
+  }
   const advanced = applyWorkAssignment(order, req.body, req.user._id);
   await order.save();
   notifyStageChange(req, order);
-  if (advanced) notifyClientMilestone(order, 'Your order has been scheduled with our production team — raw materials are now being procured 🧾');
+  if (advanced) {
+    notifyClientMilestone(order, 'Your order has been scheduled with our production team — raw materials are now being procured 🧾');
+    await ensureScheduleSlot(order, req.user._id);
+  }
   sendSuccess(res, { order }, 'Work assignment saved');
 }));
 
@@ -255,8 +271,23 @@ router.post('/:id/procurement/confirm', asyncHandler(async (req, res) => {
   const order = await loadOrder(req, res);
   if (!order) return;
   if (order.stage !== 2) return sendError(res, 'Order is not at the Procurement stage.', 400);
+
+  // Hard gate, not just the frontend's shortage warning — re-check real stock server-side so
+  // this can't be confirmed out from under an insufficient supply.
+  const rawMaterialIds = (order.ingredients || []).map((i) => i.rawMaterialId).filter((id) => mongoose.Types.ObjectId.isValid(id));
+  const stockById = new Map(
+    (await Product.find({ _id: { $in: rawMaterialIds }, organizationId: req.user.organizationId }).select('currentStock')).map((p) => [String(p._id), p.currentStock || 0])
+  );
+  const short = (order.ingredients || [])
+    .map((i) => ({ name: i.name, targetQty: i.targetQty, stock: stockById.get(String(i.rawMaterialId)) ?? 0 }))
+    .filter((i) => i.stock < i.targetQty);
+  if (short.length) {
+    return sendError(res, `Insufficient stock: ${short.map((s) => `${s.name} (need ${s.targetQty}, have ${s.stock})`).join(', ')}`, 422);
+  }
+
   order.stage = 3;
   order.status = BATCH_STAGE_TO_STATUS[3];
+  order.weighingId = stageId(order, 'WGH');
   order.updatedBy = req.user._id;
   await order.save();
   notifyStageChange(req, order);
@@ -327,7 +358,7 @@ router.post('/:id/process-step', asyncHandler(async (req, res) => {
 }));
 
 // POST Stage 3 -> 4 — manual advance once all ingredients are weighed and all process steps are done
-// (this is the "Ready for Product Approval" milestone — notify Production managers to approve)
+// (this is the Weighing-complete milestone — notify Production managers to approve)
 router.post('/:id/advance', asyncHandler(async (req, res) => {
   const order = await loadOrder(req, res);
   if (!order) return;
@@ -337,6 +368,7 @@ router.post('/:id/advance', asyncHandler(async (req, res) => {
   if (!allWeighed || !allStepsDone) return sendError(res, 'Complete all ingredient weighing and process steps first.', 400);
   order.stage = 4;
   order.status = BATCH_STAGE_TO_STATUS[4];
+  order.bulkQCId = stageId(order, 'BQC');
   order.updatedBy = req.user._id;
   await order.save();
   notifyStageChange(req, order);
@@ -352,7 +384,7 @@ router.post('/:id/advance', asyncHandler(async (req, res) => {
   for (const recipientId of approveManagerIds) {
     await createNotification({
       organizationId: req.user.organizationId, recipient: recipientId,
-      title: '⚖️ Ready for Product Approval', message: `Batch ${order.batch} (Order ${order.orderNumber}) has cleared weighing (Ready for Product Approval) and moved to Bulk QC.`,
+      title: '⚖️ Weighing Complete', message: `Batch ${order.batch} (Order ${order.orderNumber}) has cleared weighing and moved to Bulk QC.`,
       type: 'production', priority: 'high', actionUrl: '/samples?tab=bulkqc',
       reference: { model: 'ProductionOrder', id: order._id }, channels: { inApp: true, whatsapp: true },
     }, io);
@@ -367,7 +399,11 @@ router.post('/:id/bulk-qc', asyncHandler(async (req, res) => {
   if (!order) return;
   const result = req.body.result === 'PASS' ? 'PASS' : 'FAIL';
   order.bulkQC = { ...req.body, result, checkedBy: req.user._id, checkedAt: new Date() };
-  if (result === 'PASS') { order.stage = 5; order.status = BATCH_STAGE_TO_STATUS[5]; }
+  if (result === 'PASS') {
+    order.stage = 5;
+    order.status = BATCH_STAGE_TO_STATUS[5];
+    order.packagingId = stageId(order, 'PKG');
+  }
   order.updatedBy = req.user._id;
   await order.save();
   notifyStageChange(req, order);
@@ -382,6 +418,7 @@ router.post('/:id/packaging', asyncHandler(async (req, res) => {
   order.packaging = { ...req.body, completedBy: req.user._id, completedAt: new Date() };
   order.stage = 6;
   order.status = BATCH_STAGE_TO_STATUS[6];
+  order.finalQCId = stageId(order, 'FQC');
   order.updatedBy = req.user._id;
   await order.save();
   notifyStageChange(req, order);

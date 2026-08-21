@@ -55,6 +55,11 @@ const leadSchema = new mongoose.Schema({
   assignedTo: { type: mongoose.Schema.Types.ObjectId, ref: 'User', index: true },
   assignedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   assignedAt: { type: Date },
+  // Set at KYC intake, picked from the whole Production department (not just intake reps) —
+  // carries through as the production order's owner and pre-fills Team Assignment (Weighing/
+  // Production/QC/Packaging/Dispatch In-charge) once this lead reaches production. Distinct
+  // from `assignedTo`, which stays the narrower intake-rep field.
+  inCharge: { type: mongoose.Schema.Types.ObjectId, ref: 'User', index: true },
 
   // Campaign / Ad tracking
   campaign: { type: String },
@@ -223,6 +228,15 @@ const leadSchema = new mongoose.Schema({
     approvedByContact: { type: String },
     rejectedByContact: { type: String },
     queryId: { type: mongoose.Schema.Types.ObjectId, ref: 'ProductionQuery' },
+    // Per-product quotation → payment → production gating: this sample's own Invoice (created
+    // via "Create Quotation" in Approvals) and, once ≥50% of it is paid, its own ProductionOrder
+    // — independent of every other sample/product on this same lead, so a customer who's paid
+    // for one product doesn't unblock production for the others they haven't paid for yet.
+    invoiceId: { type: mongoose.Schema.Types.ObjectId, ref: 'Invoice' },
+    // The formal tax invoice ("Create Invoice" in Approvals), generated once invoiceId's
+    // quotation is fully paid — a separate document (type: 'invoice') from the quotation.
+    finalInvoiceId: { type: mongoose.Schema.Types.ObjectId, ref: 'Invoice' },
+    productionOrderId: { type: mongoose.Schema.Types.ObjectId, ref: 'ProductionOrder' },
     feedbackLog: [{
       by: { type: String },
       text: { type: String },

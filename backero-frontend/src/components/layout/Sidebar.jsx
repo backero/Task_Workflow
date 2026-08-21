@@ -120,6 +120,8 @@ export default function Sidebar({ collapsed, onToggle }) {
     const productionChildren = [
       { label: 'Dashboard',      to: '/departments/rnd' },
       { label: 'Record Usage',   to: '/production/usage' },
+      { label: 'Raw Materials',   to: '/inventory/rawmaterials' },
+      { label: 'Product Catalog', to: '/inventory/catalog' },
     ];
     productionChildren.push({ label: 'Sample Production', to: '/samples' });
     productionChildren.push({ label: 'R&D Price Calculator', to: '/production/rd-price-calculator' });

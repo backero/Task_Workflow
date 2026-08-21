@@ -30,6 +30,15 @@ const productionQuerySchema = new mongoose.Schema({
   // Freeform label shown as the "→ converted" badge on the query card once it became a
   // product/sample/formula, e.g. "🧪 SMPL-F498-3".
   convertedTo: { type: String },
+  // Files attached to the question itself, and separately to its reply — same shape as
+  // Lead.customFormulas[].attachments (name/url/type), kept as two arrays since a query and its
+  // answer are logged/edited at different times and a rep may want to attach evidence to either.
+  attachments: [{ name: String, url: String, type: String }],
+  answerAttachments: [{ name: String, url: String, type: String }],
+  editedAt: { type: Date },
+  // Soft delete — "Delete" strikes the card through instead of removing the record, so the
+  // conversation history stays intact and the action is reversible.
+  deleted: { type: Boolean, default: false },
 }, { timestamps: true });
 
 productionQuerySchema.index({ organizationId: 1, status: 1 });

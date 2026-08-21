@@ -1316,11 +1316,17 @@ export default function Invoices() {
   const [showPayment, setShowPayment] = useState(null);
   const [statusFilter, setStatusFilter] = useState('all');
   const [deletingId, setDeletingId] = useState(null);
+  // Where to send the user right after this pre-filled invoice is actually created — e.g. back
+  // into the CRM lead's Order tab to continue Invoice → Order → Procurement in one flow, instead
+  // of landing on this page's own invoice preview.
+  const [returnTo, setReturnTo] = useState(null);
 
   // Handle ?fromLead=xxx — fetch lead and open pre-filled form
   const fromLeadId = searchParams.get('fromLead');
   useEffect(() => {
     if (!fromLeadId) return;
+    const rt = searchParams.get('returnTo');
+    if (rt) setReturnTo(rt);
     api.get(`/crm/leads/${fromLeadId}`).then(r => {
       setPrefillLead(r.data.lead || r.data.data);
       setSelectedInv(null);
@@ -1328,6 +1334,21 @@ export default function Invoices() {
       setSearchParams({});
     }).catch(() => { toast.error('Lead not found'); setSearchParams({}); });
   }, [fromLeadId]);
+
+  // Handle ?open=xxx — fetch a specific existing invoice and open it straight into edit mode
+  // (used by the CRM Approvals tab's "Create Quotation"/"Rework Quotation" deep links).
+  const openInvoiceId = searchParams.get('open');
+  useEffect(() => {
+    if (!openInvoiceId) return;
+    const rt = searchParams.get('returnTo');
+    if (rt) setReturnTo(rt);
+    api.get(`/finance/invoices/${openInvoiceId}`).then(r => {
+      setSelectedInv(r.data.invoice || r.data.data);
+      setPrefillLead(null);
+      setView('form');
+      setSearchParams({});
+    }).catch(() => { toast.error('Invoice not found'); setSearchParams({}); });
+  }, [openInvoiceId]);
 
   const { data, isLoading } = useQuery({
     queryKey: ['finance', 'invoices', statusFilter],
@@ -1516,8 +1537,13 @@ export default function Invoices() {
           existingInv={selectedInv}
           prefillLead={prefillLead}
           orgData={orgData?.organization}
-          onClose={() => { setView('list'); setPrefillLead(null); }}
-          onSaved={(inv) => { setSelectedInv(inv); setPrefillLead(null); setView('preview'); }}
+          onClose={() => { setView('list'); setPrefillLead(null); setReturnTo(null); }}
+          onSaved={(inv) => {
+            setPrefillLead(null);
+            if (returnTo) { navigate(returnTo); setReturnTo(null); return; }
+            setSelectedInv(inv);
+            setView('preview');
+          }}
         />
       )}
 

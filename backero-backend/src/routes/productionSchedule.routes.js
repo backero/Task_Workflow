@@ -186,8 +186,11 @@ router.post('/:weekKey/slots', authorizeManagerOrAbove, asyncHandler(async (req,
   const clash = week.slots.some((s) => s.date === date && s.slot === slot && s.status !== 'Removed');
   if (clash) return sendError(res, 'That date/slot already has a batch scheduled.', 409);
 
-  // Auto-assign leader: linked Lead's assignedTo, else the order's own assignedTo, else null.
-  const leader = order.leadId?.assignedTo || order.assignedTo || null;
+  // Auto-assign leader: the order's own assignedTo (already resolved from the lead's production
+  // in-charge, falling back to the narrower intake-rep field, at order-creation time — see
+  // linkProduction/linkSampleProduction) takes priority over the raw lead field, which is stale
+  // once in-charge exists.
+  const leader = order.assignedTo || order.leadId?.assignedTo || null;
 
   // Auto-assign support: one active Production-dept user, excluding the leader, anyone
   // blocked on this date, and anyone already leader/support on another batch that day

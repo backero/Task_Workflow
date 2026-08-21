@@ -5,13 +5,14 @@ import { toast } from 'react-hot-toast';
 import { clsx } from 'clsx';
 import QRCode from 'react-qr-code';
 import api from '../../api/axios';
+import RDPriceCalculator from '../production/RDPriceCalculator';
 
 export const CATEGORIES = ['Hair Care', 'Skin Care', 'Face Care', 'Body Care', 'Oral Care', "Men's Care", 'Baby Care', 'Sun Care', 'Makeup', 'Fragrance', 'Wellness', 'Professional', 'Other'];
 export const PRODUCT_TYPES = ['Shampoo', 'Conditioner', 'Hair Oil', 'Serum', 'Cream', 'Lotion', 'Face Wash', 'Mask', 'Scrub', 'Toner', 'Moisturizer', 'Cleanser', 'Soap', 'Body Wash', 'Sunscreen', 'Lip Balm', 'Deodorant', 'Perfume', 'Other'];
 export const UNITS = ['ml', 'g', 'kg', 'L', 'pcs', 'oz'];
 export const GST_RATES = [0, 5, 12, 18, 28];
 export const STATUSES = ['Active', 'Inactive', 'Draft', 'Archived'];
-const TABS = ['Overview', 'Formulation & Procedure', 'R&D & Overheads', 'Costing', 'Marketplace', 'QR Code', 'Documents', 'History'];
+const TABS = ['Overview', 'Formulation & Procedure', 'R&D Price Calculator', 'R&D & Overheads', 'Costing', 'Marketplace', 'QR Code', 'Documents', 'History'];
 
 const ASSUMPTION_FIELDS = [
   { key: 'equipmentPct', label: 'Equipment (Mold/Tools)', max: 20, hint: '3-5% recommended' },
@@ -151,6 +152,7 @@ export default function ProductCatalogPage() {
   const [showForm, setShowForm] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
   const [activeTab, setActiveTab] = useState('Overview');
+  const [detailMaximized, setDetailMaximized] = useState(false);
   const [form, setForm] = useState(emptyForm());
   const [importing, setImporting] = useState(false);
   const [imagePreview, setImagePreview] = useState(null);
@@ -325,7 +327,7 @@ export default function ProductCatalogPage() {
   function closeForm() { setShowForm(false); setEditingProduct(null); setImagePreview(null); }
 
   function openDetail(p) { setSelectedId(p._id); setActiveTab('Overview'); }
-  function closeDetail() { setSelectedId(null); }
+  function closeDetail() { setSelectedId(null); setDetailMaximized(false); }
 
   function setF(field, val) { setForm(f => ({ ...f, [field]: val })); }
 
@@ -687,8 +689,9 @@ export default function ProductCatalogPage() {
 
       {/* ════════════ DETAIL MODAL ════════════ */}
       {selectedId && detail && createPortal(
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 overflow-y-auto">
-          <div className="bg-white rounded-2xl w-full max-w-5xl my-4 shadow-2xl border border-slate-200 flex flex-col max-h-[92vh]">
+        <div className={clsx('fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm overflow-y-auto', detailMaximized ? 'p-0' : 'p-4')}>
+          <div className={clsx('bg-white shadow-2xl border border-slate-200 flex flex-col',
+            detailMaximized ? 'w-screen h-screen max-w-none max-h-none rounded-none' : 'rounded-2xl w-full max-w-5xl my-4 max-h-[92vh]')}>
 
             {/* Detail Header */}
             <div className="flex items-center gap-4 px-6 py-4 border-b border-slate-100 bg-slate-50 rounded-t-2xl flex-shrink-0">
@@ -711,6 +714,7 @@ export default function ProductCatalogPage() {
                 <StatusBadge status={detail.status} />
                 <button onClick={() => { closeDetail(); openEdit(detail); }} className="text-xs px-3 py-1.5 rounded-lg bg-slate-100 text-slate-600 font-semibold hover:bg-slate-200 transition-colors">✏️ Edit</button>
                 <button onClick={() => { if (window.confirm('Delete ' + detail.name + '?')) { deleteMutation.mutate(detail._id); closeDetail(); }}} className="text-xs px-3 py-1.5 rounded-lg bg-red-50 text-red-500 font-semibold hover:bg-red-100 transition-colors">🗑️</button>
+                <button onClick={() => setDetailMaximized(m => !m)} title={detailMaximized ? 'Restore' : 'Maximize'} className="text-slate-400 hover:text-slate-600 p-1 text-lg">{detailMaximized ? '⤡' : '⛶'}</button>
                 <button onClick={closeDetail} className="text-slate-400 hover:text-slate-600 p-1 text-xl">✕</button>
               </div>
             </div>
@@ -718,8 +722,12 @@ export default function ProductCatalogPage() {
             {/* Tabs */}
             <div className="flex gap-0 px-6 bg-white border-b border-slate-100 overflow-x-auto flex-shrink-0">
               {TABS.map(tab => (
-                <button key={tab} onClick={() => setActiveTab(tab)} className={clsx('px-4 py-3 text-xs font-semibold whitespace-nowrap border-b-2 transition-colors', activeTab === tab ? 'border-slate-900 text-slate-900' : 'border-transparent text-slate-400 hover:text-slate-600')}>
-                  {tab}
+                <button
+                  key={tab}
+                  onClick={() => setActiveTab(tab)}
+                  className={clsx('px-4 py-3 text-xs font-semibold whitespace-nowrap border-b-2 transition-colors', activeTab === tab ? 'border-slate-900 text-slate-900' : 'border-transparent text-slate-400 hover:text-slate-600')}
+                >
+                  {tab === 'R&D Price Calculator' ? '🧮 R&D Price Calculator' : tab}
                 </button>
               ))}
             </div>
@@ -743,6 +751,11 @@ export default function ProductCatalogPage() {
                   onDeleteVersion: (versionId) => deleteVersionMutation.mutate({ id: detail._id, versionId }),
                   state: { creating: createVersionMutation.isPending, updating: updateVersionMutation.isPending, activating: activateVersionMutation.isPending, deleting: deleteVersionMutation.isPending },
                 }} />}
+              {activeTab === 'R&D Price Calculator' && (
+                <div className="-m-6">
+                  <RDPriceCalculator presetProduct={detail} />
+                </div>
+              )}
               {activeTab === 'R&D & Overheads' && <RndOverheadsTab product={detail} form={form} setForm={setForm} onSave={() => updateMutation.mutate({ id: detail._id, data: { rnd: form.rnd, productionOverhead: form.productionOverhead, standardAssumptions: form.standardAssumptions } })} isPending={isPending} />}
               {activeTab === 'Costing' && <CostingPackagingTab product={detail} form={form} setForm={setForm} isPending={isPending}
                 onSavePackaging={() => updateMutation.mutate({ id: detail._id, data: { packaging: form.packaging } })}
@@ -1794,15 +1807,10 @@ function LastUpdatedBadge({ date, onChange }) {
 
 // ─── R&D & Overheads Tab ────────────────────────────────────────────────────────
 function RndOverheadsTab({ product, form, setForm, onSave, isPending }) {
-  const rnd = form.rnd || {};
   const po = form.productionOverhead || {};
   const sa = form.standardAssumptions || {};
   const b = calcOverheadBreakdown({ ...product, ...form });
 
-  const lifecycle = rnd.lifecycle || 1000;
-
-  function setR(f, v) { setForm(prev => ({ ...prev, rnd: { ...prev.rnd, [f]: v, lastUpdated: new Date().toISOString() } })); }
-  function setRDate(v) { setForm(prev => ({ ...prev, rnd: { ...prev.rnd, lastUpdated: v } })); }
   function setPO(f, v) { setForm(prev => ({ ...prev, productionOverhead: { ...prev.productionOverhead, [f]: v, lastUpdated: new Date().toISOString() } })); }
   function setPODate(v) { setForm(prev => ({ ...prev, productionOverhead: { ...prev.productionOverhead, lastUpdated: v } })); }
   function setSA(f, v) { setForm(prev => ({ ...prev, standardAssumptions: { ...prev.standardAssumptions, [f]: v, lastUpdated: new Date().toISOString() } })); }
@@ -1816,32 +1824,6 @@ function RndOverheadsTab({ product, form, setForm, onSave, isPending }) {
 
   return (
     <div className="space-y-6">
-      {/* R&D Costing */}
-      <div>
-        <div className="flex items-center justify-between flex-wrap gap-3 mb-3">
-          <p className="text-sm font-bold text-gray-700 dark:text-gray-200">🔬 R&D Costing</p>
-          <div className="flex items-center gap-3 flex-wrap">
-            <div className="flex items-center gap-2">
-              <label className="text-xs text-gray-500 whitespace-nowrap">Lifecycle (batches)</label>
-              <input type="number" min="1" value={rnd.lifecycle || 1000} onChange={e => setR('lifecycle', Number(e.target.value) || 1)} className="input text-xs w-24" />
-            </div>
-            <LastUpdatedBadge date={rnd.lastUpdated} onChange={setRDate} />
-          </div>
-        </div>
-        <div className="grid grid-cols-3 gap-3 mb-4">
-          {[['testing', 'R&D Testing Cost (₹)'], ['consumables', 'Chemical Consumables (₹)'], ['samples', 'Sample Cost (₹)'], ['overhead', 'R&D Overhead (₹)'], ['otherOverhead', 'Other R&D Overhead (₹)'], ['qc', 'Lab QC for R&D (₹)']].map(([f, label]) => (
-            <div key={f}><label className="label">{label}</label><input type="number" min="0" step="0.01" value={rnd[f] || 0} onChange={e => setR(f, Number(e.target.value))} className="input text-xs w-full" /></div>
-          ))}
-        </div>
-        <HighlightStrip items={[
-          { label: 'Total R&D Cost', value: `₹${numF(b.rndTotal)}` },
-          { label: 'Lifecycle Batches', value: lifecycle.toLocaleString('en-IN') },
-          { label: 'R&D Cost Per Unit', value: `₹${numF(b.rndPerUnit, 4)}`, big: true },
-        ]} />
-      </div>
-
-      <hr className="border-gray-100 dark:border-[#1b2e4a]" />
-
       {/* Production Overhead */}
       <div>
         <div className="flex items-center justify-between flex-wrap gap-3 mb-3">
@@ -1902,7 +1884,6 @@ function RndOverheadsTab({ product, form, setForm, onSave, isPending }) {
       <div>
         <p className="text-sm font-bold text-gray-700 dark:text-gray-200 mb-3">📊 Total Overhead &amp; R&amp;D Cost Summary</p>
         <HighlightStrip tone="dark" items={[
-          { label: 'R&D Cost Per Unit', value: `₹${numF(b.rndPerUnit, 4)}` },
           { label: 'Production Overhead Per Unit', value: `₹${numF(b.overheadPerUnit, 4)}` },
           { label: 'Standard Assumptions Per Unit', value: `₹${numF(b.saAmount, 4)}` },
           { label: 'Total Overhead & R&D Per Unit', value: `₹${numF(b.rndPerUnit + b.overheadPerUnit + b.saAmount, 4)}`, big: true, accent: true },

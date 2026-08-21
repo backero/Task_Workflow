@@ -175,7 +175,10 @@ function loadInitialData() {
   return { settings, quotes, nextQuoteId, rawMaterials, catalogProducts, devCustomers };
 }
 
-export default function RDPriceCalculator() {
+// presetProduct: pass a Product Catalog product (e.g. from ProductCatalogPage's own detail view)
+// to skip Step 1's "who is this for / which product" setup entirely — the product is already
+// known from context, so that card is just noise there.
+export default function RDPriceCalculator({ presetProduct } = {}) {
   const [initial] = useState(loadInitialData);
 
   // ---- persisted DB ----
@@ -194,9 +197,9 @@ export default function RDPriceCalculator() {
   const [firstOrderQty, setFirstOrderQty] = useState(150);
   const [customerSelect, setCustomerSelect] = useState('');
   const [customerText, setCustomerText] = useState('');
-  const [productSelect, setProductSelect] = useState('');
+  const [productSelect, setProductSelect] = useState(presetProduct?.name || '');
   const [productText, setProductText] = useState('');
-  const [productCategory, setProductCategory] = useState('');
+  const [productCategory, setProductCategory] = useState(presetProduct?.category || '');
 
   // ---- Step 2: type of work ----
   const [tier, setTier] = useState('T0');
@@ -620,6 +623,7 @@ export default function RDPriceCalculator() {
   // ========== RENDER ==========
   return (
     <div className="rd-price-calculator">
+      {!presetProduct && (
       <div className="header">
         <div className="brand">
           <div className="brand-icon">🧮</div>
@@ -637,16 +641,23 @@ export default function RDPriceCalculator() {
           <button className="btn btn-outline" onClick={openSettings}>⚙️ Settings</button>
         </div>
       </div>
+      )}
 
       <div className="main">
+        {!presetProduct && (
+        <>
         <div className={`db-banner${!hasRmDb ? ' show' : ''}`}><span className="icon">⚠️</span><span><strong>Raw Materials DB not found</strong> — enter material costs manually (formula mode will use manual prices).</span></div>
         <div className={`db-banner${!hasCatalogDb ? ' show' : ''}`}><span className="icon">ℹ️</span><span>Product Catalogue DB not found — type the product name yourself.</span></div>
         <div className={`db-banner${!hasCustomerDb ? ' show' : ''}`}><span className="icon">ℹ️</span><span>Sample Dev DB not found — type the customer name yourself.</span></div>
+        </>
+        )}
 
         <div className="layout-grid">
           <div className="left-col">
 
-            {/* STEP 1: CUSTOMER & PRODUCT */}
+            {/* STEP 1: CUSTOMER & PRODUCT — skipped entirely when opened for a known catalog
+                product (presetProduct); nothing here would add information we don't already have. */}
+            {!presetProduct && (
             <div className="card">
               <div className="card-header"><h2><span className="step-no">1</span>Customer &amp; Product</h2><span className="tag tag-gray">{quoteNo}</span></div>
               <div className="card-body">
@@ -729,6 +740,7 @@ export default function RDPriceCalculator() {
                 </div>
               </div>
             </div>
+            )}
 
             {/* STEP 2: TYPE OF WORK */}
             <div className="card">
