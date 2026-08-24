@@ -17,7 +17,7 @@ import NewOrderModal from './NewOrderModal';
 // invalidate pattern as before, restyled from Batch Tracker's gray/blue+dark-mode theme onto
 // SampleProduction's cream/amber palette so the merged lead+order panel reads as one page.
 
-export const STAGE_NAMES = ['Customer Details', 'Work Assignment', 'Procurement', 'Weighing', 'Bulk QC', 'Packaging', 'Final QC', 'Dispatch'];
+export const STAGE_NAMES = ['Orders', 'Work Assignment', 'Procurement', 'Weighing', 'Bulk QC', 'Packaging', 'Final QC', 'Dispatch'];
 
 export const STAGE_BUCKET_COLOR = (stage) => {
   if (stage <= 1) return PILL.gray;
@@ -38,7 +38,7 @@ const specValue = (crmSpec, key, fallback) => crmSpec?.[key + 'Spec'] || fallbac
 
 // ── STAGE BAR ─────────────────────────────────────────────────────────────────
 
-// Customer Details (0) is shown in this bar — always unlocked once an order exists, sitting
+// Orders (0) is shown in this bar — always unlocked once an order exists, sitting
 // before Procurement — so the SPEC/QC sheet stays reachable for every order, not just brand-new
 // ones. Work Assignment (1) stays a back-office setup step, hidden from this bar; if the order's
 // actual current stage is still 1, that stage's form still renders below (see callers) even
@@ -73,7 +73,7 @@ export function StageBar({ order, viewStage, setViewStage }) {
 
 // ── STAGE 0: JOB CREATION SHEET (always-editable until confirmed & locked) ──
 
-export function StageOrder({ order, onSaved }) {
+export function StageOrder({ order, onSaved, hideSidebar }) {
   const [form, setForm] = useState({
     customer: order.customer || '', contact: order.contact || '', container: order.container || '',
     priority: order.priority || 'Normal', deliveryDate: order.deliveryDate || '', notes: order.notes || '',
@@ -109,15 +109,17 @@ export function StageOrder({ order, onSaved }) {
 
   return (
     <div className="flex gap-4 items-start">
-      <div className="w-52 flex-shrink-0">
-        <p className="text-[10px] font-bold uppercase tracking-wide text-[#968871] mb-2">Products (from catalogue)</p>
-        <div className="rounded-lg border-[1.5px] border-[#f2b23e] bg-[#f3e3c2] px-2.5 py-2">
-          <p className="text-xs font-bold text-[#2e241b] truncate">{order.catalogProduct?.name || order.orderNumber}</p>
-          <p className="text-[10px] text-[#968871] truncate">{order.catalogProduct?.code || order.batch}{order.batchSizeKg ? ` · ${order.batchSizeKg} kg` : ''}</p>
+      {!hideSidebar && (
+        <div className="w-52 flex-shrink-0">
+          <p className="text-[10px] font-bold uppercase tracking-wide text-[#968871] mb-2">Products (from catalogue)</p>
+          <div className="rounded-lg border-[1.5px] border-[#f2b23e] bg-[#f3e3c2] px-2.5 py-2">
+            <p className="text-xs font-bold text-[#2e241b] truncate">{order.catalogProduct?.name || order.orderNumber}</p>
+            <p className="text-[10px] text-[#968871] truncate">{order.catalogProduct?.code || order.batch}{order.batchSizeKg ? ` · ${order.batchSizeKg} kg` : ''}</p>
+          </div>
+          <button onClick={() => setShowAddProduct(true)} className="w-full mt-2 border-2 border-dashed border-[#968871] text-[#7a5a10] rounded-lg py-2 text-xs font-bold hover:bg-[#f3e3c2]">+ Add product</button>
+          <p className="text-[9.5px] text-[#968871] mt-2 leading-relaxed">Adds a new product for {order.customer || 'this customer'} — becomes its own order &amp; job sheet, linked by the same order group.</p>
         </div>
-        <button onClick={() => setShowAddProduct(true)} className="w-full mt-2 border-2 border-dashed border-[#968871] text-[#7a5a10] rounded-lg py-2 text-xs font-bold hover:bg-[#f3e3c2]">+ Add product</button>
-        <p className="text-[9.5px] text-[#968871] mt-2 leading-relaxed">Adds a new product for {order.customer || 'this customer'} — becomes its own order &amp; job sheet, linked by the same order group.</p>
-      </div>
+      )}
 
       <div className="flex-1 min-w-0 space-y-4">
         {locked && (
@@ -320,7 +322,9 @@ export function StageProcurement({ order, onAdvanced }) {
 export function StageWeighing({ order, onSaved }) {
   const [busyKey, setBusyKey] = useState(null);
   const weighedCount = order.ingredients.filter((i) => i.actualQty != null).length;
-  const allWeighed = order.ingredients.length > 0 && weighedCount === order.ingredients.length;
+  // No ingredients on the order (its catalog product's Formulation is empty) shouldn't
+  // permanently lock Process Steps — nothing to weigh means vacuously done, not stuck forever.
+  const allWeighed = order.ingredients.length === 0 || weighedCount === order.ingredients.length;
   const doneSteps = order.processSteps.filter((s) => s.done).length;
   const allSteps = order.processSteps.length > 0 && doneSteps === order.processSteps.length;
 
@@ -369,6 +373,9 @@ export function StageWeighing({ order, onSaved }) {
             ))}
           </tbody>
         </table>
+        {order.ingredients.length === 0 && (
+          <p className="text-xs text-[#8c3a30] mt-2">No ingredients found for this order — its catalog product's Formulation is empty in Product Catalog. Fill that in for future batches; Process Steps below can still proceed for this one.</p>
+        )}
       </Card>
 
       <Card>
@@ -410,7 +417,7 @@ export function StageWeighing({ order, onSaved }) {
 
 // ── STAGE 4: BULK QC ──────────────────────────────────────────────────────────
 
-// Bulk QC is entirely fetched from Customer Details' Sensory Targets, Physicochemical, and QC
+// Bulk QC is entirely fetched from Orders' Sensory Targets, Physicochemical, and QC
 // Plan — Micro & Stability sections — no separate hand-maintained field list here anymore, so
 // nothing can drift out of sync with what those sections actually contain. Fields with a
 // `legacy` name keep writing to that existing ProductionOrder.bulkQC column (unchanged data
@@ -464,7 +471,7 @@ export function StageBulkQC({ order, onSaved }) {
   return (
     <Card>
       <h3 className="text-sm font-bold text-[#2e241b] mb-1">Bulk Quality Control</h3>
-      <p className="text-xs text-[#6d5f4c] mb-3">Fetched from Customer Details — Sensory Targets, Physicochemical, and QC Plan (Micro &amp; Stability). Spec values shown are the reference to cross-check the actual reading against.</p>
+      <p className="text-xs text-[#6d5f4c] mb-3">Fetched from Orders — Sensory Targets, Physicochemical, and QC Plan (Micro &amp; Stability). Spec values shown are the reference to cross-check the actual reading against.</p>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
         {BULK_QC_FIELDS.map(({ spec, legacy }) => (
           <BulkQCField key={spec.key} spec={spec} legacy={legacy} crmSpec={crmSpec} form={form} setForm={setForm} />
@@ -510,9 +517,9 @@ export function StagePackaging({ order, onSaved }) {
   return (
     <div className="space-y-4">
       <Card>
-        <h3 className="text-sm font-bold text-[#2e241b] mb-3">📦 Packaging Specification <span className="text-xs font-normal text-[#968871]">— fetched from Customer Details</span></h3>
+        <h3 className="text-sm font-bold text-[#2e241b] mb-3">📦 Packaging Specification <span className="text-xs font-normal text-[#968871]">— fetched from Orders</span></h3>
         {pkgSpecRows.length === 0 && pkgCustomRows.length === 0 ? (
-          <p className="text-xs text-[#968871]">No packaging spec set in Customer Details yet.</p>
+          <p className="text-xs text-[#968871]">No packaging spec set in Orders yet.</p>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             {pkgSpecRows.map((f) => (
@@ -613,7 +620,7 @@ export function StageFinalQC({ order, onSaved }) {
     finally { setBusy(false); }
   };
 
-  // Fetched straight from Customer Details' Final QC section (FQC_SPECS, all 8 items) — the
+  // Fetched straight from Orders' Final QC section (FQC_SPECS, all 8 items) — the
   // 7 with a named ProductionOrder.finalQC column keep using it; the remaining one
   // (fqcRelease) goes into finalQC.extra, same pattern as Bulk QC's extra map.
   const selectField = (spec) => {
@@ -638,7 +645,7 @@ export function StageFinalQC({ order, onSaved }) {
   return (
     <Card>
       <h3 className="text-sm font-bold text-[#2e241b] mb-1">Final Quality Control</h3>
-      <p className="text-xs text-[#6d5f4c] mb-3">Batch {order.batch} · {p.filled || 0} units filled, {p.rejected || 0} rejected · fetched from Customer Details — Final QC</p>
+      <p className="text-xs text-[#6d5f4c] mb-3">Batch {order.batch} · {p.filled || 0} units filled, {p.rejected || 0} rejected · fetched from Orders — Final QC</p>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         {FQC_SPECS.map((spec) => selectField(spec))}
       </div>

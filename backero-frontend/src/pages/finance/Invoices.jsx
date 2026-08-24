@@ -1163,7 +1163,7 @@ function PaymentModal({ inv, onClose }) {
   const mutation = useMutation({
     mutationFn: (data) => api.patch(`/finance/invoices/${inv._id}/payment`, data),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['finance', 'invoices'] }); toast.success('Payment recorded'); onClose(); },
-    onError: () => toast.error('Failed to record payment'),
+    onError: (e) => toast.error(e.response?.data?.message || 'Failed to record payment'),
   });
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
@@ -1540,6 +1540,12 @@ export default function Invoices() {
           onClose={() => { setView('list'); setPrefillLead(null); setReturnTo(null); }}
           onSaved={(inv) => {
             setPrefillLead(null);
+            // Status/amount changes made here (e.g. draft -> sent) need to reach the CRM lead's
+            // Approvals tab this invoice is linked from — otherwise its cached lead data still
+            // shows the old status until its 2-minute staleTime naturally expires, and the
+            // "Create Invoice" button never appears even though the quotation was actually sent.
+            const leadId = inv?.lead?._id || inv?.lead;
+            if (leadId) qc.invalidateQueries({ queryKey: ['crm', 'lead', String(leadId)] });
             if (returnTo) { navigate(returnTo); setReturnTo(null); return; }
             setSelectedInv(inv);
             setView('preview');

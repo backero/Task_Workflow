@@ -196,32 +196,52 @@ router.delete('/invoices/:id', asyncHandler(async (req, res) => {
   sendSuccess(res, {}, 'Invoice deleted');
 }));
 
+// Lightweight status-only update — e.g. "mark this quotation as Sent" from the CRM Approvals
+// tab, without going through the full edit form (which requires re-sending lineItems and would
+// wipe them out if sent empty).
+router.patch('/invoices/:id/status', asyncHandler(async (req, res) => {
+  const { status } = req.body;
+  if (!['draft', 'sent', 'cancelled'].includes(status)) return sendError(res, 'Invalid status.', 400);
+  const invoice = await Invoice.findOne({ _id: req.params.id, organizationId: req.user.organizationId });
+  if (!invoice) return sendError(res, 'Invoice not found.', 404);
+  if (invoice.status === 'paid') return sendError(res, 'Cannot change the status of a paid invoice.', 400);
+  invoice.status = status;
+  invoice.updatedBy = req.user._id;
+  await invoice.save();
+  sendSuccess(res, { invoice }, 'Invoice status updated');
+}));
+
 router.patch('/invoices/:id/payment', asyncHandler(async (req, res) => {
   const io = req.app.get('io');
   const { amount, method, reference, notes } = req.body;
+  if (!(Number(amount) > 0)) return sendError(res, 'Enter a valid payment amount.', 400);
   const invoice = await Invoice.findOne({ _id: req.params.id, organizationId: req.user.organizationId });
   if (!invoice) return sendError(res, 'Invoice not found.', 404);
 
-  invoice.paymentHistory.push({ amount, method, date: new Date(), reference, notes });
-  invoice.paidAmount += amount;
-  invoice.balanceAmount = invoice.totalAmount - invoice.paidAmount;
-  invoice.status = invoice.balanceAmount <= 0 ? 'paid' : 'partially_paid';
-  if (invoice.status === 'paid') invoice.paidDate = new Date();
-  await invoice.save();
-
-  // Record transaction
+  // Transaction.paymentMethod is a strict lowercase/underscore enum; the invoice form's dropdown
+  // sends display labels ("Bank Transfer", "UPI") — normalize instead of failing the whole
+  // payment. Record the transaction FIRST so a bad value 400s here, before the invoice itself is
+  // ever touched, instead of leaving it marked paid with no ledger entry to show for it.
+  const paymentMethod = String(method || 'other').toLowerCase().replace(/\s+/g, '_');
   await Transaction.create({
     organizationId: req.user.organizationId,
     type: 'income',
     category: 'Invoice Payment',
     amount,
     description: `Payment for Invoice ${invoice.invoiceNumber}`,
-    paymentMethod: method,
+    paymentMethod,
     reference,
     invoiceId: invoice._id,
     date: new Date(),
     createdBy: req.user._id,
   });
+
+  invoice.paymentHistory.push({ amount, method, date: new Date(), reference, notes });
+  invoice.paidAmount += Number(amount);
+  invoice.balanceAmount = invoice.totalAmount - invoice.paidAmount;
+  invoice.status = invoice.balanceAmount <= 0 ? 'paid' : 'partially_paid';
+  if (invoice.status === 'paid') invoice.paidDate = new Date();
+  await invoice.save();
 
   if (invoice.status === 'paid') {
     io?.to(`org:${req.user.organizationId}`).emit(SOCKET_EVENTS.INVOICE_PAID, { invoiceId: invoice._id, amount: invoice.totalAmount });

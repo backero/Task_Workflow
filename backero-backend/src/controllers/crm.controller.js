@@ -479,11 +479,14 @@ exports.updateSampleSubStage = asyncHandler(async (req, res) => {
 // — and cost/unit is computed from them, same math as CatalogProduct.formulation. A manual
 // costPerUnit is only used as a fallback when no rows are given.
 exports.createFormula = asyncHandler(async (req, res) => {
-  const { name, productLink, catalogProductId, refWeight, refUnit, rows, costPerUnit, status, procedure } = req.body;
+  const { name, productId, productLink, catalogProductId, refWeight, refUnit, rows, costPerUnit, status, procedure } = req.body;
   if (!name?.trim()) return sendError(res, 'Formula name is required.', 400);
+  if (!productId) return sendError(res, 'Select which product this formula is for.', 400);
 
   const lead = await Lead.findOne({ _id: req.params.id, organizationId: req.user.organizationId });
   if (!lead) return sendError(res, 'Lead not found.', 404);
+  const product = (lead.productLinks || []).find((p) => p.productId === productId);
+  if (!product) return sendError(res, 'That product is not linked to this lead — add it in the Products tab first.', 400);
   await promoteToSampleIfNeeded(lead, req);
 
   lead.customFormulas = lead.customFormulas || [];
@@ -492,7 +495,8 @@ exports.createFormula = asyncHandler(async (req, res) => {
   lead.customFormulas.push({
     formulaId,
     name: name.trim(),
-    productLink: productLink || '',
+    productId,
+    productLink: productLink || product.name || '',
     catalogProductId: catalogProductId || undefined,
     refWeight: Number(refWeight) || 100,
     refUnit: refUnit || 'g',
@@ -510,7 +514,7 @@ exports.createFormula = asyncHandler(async (req, res) => {
 // to archive an older Draft/In Testing version without disturbing the current one, or to save
 // edits made while viewing a non-latest version in the Formula Editor's version sidebar.
 exports.updateFormula = asyncHandler(async (req, res) => {
-  const { status, costPerUnit, rows, bumpVersion, version, refUnit, refWeight, procedure, changeNote, researchNotes } = req.body;
+  const { status, costPerUnit, rows, bumpVersion, version, refUnit, refWeight, procedure, changeNote, researchNotes, productId } = req.body;
   const lead = await Lead.findOne({ _id: req.params.id, organizationId: req.user.organizationId });
   if (!lead) return sendError(res, 'Lead not found.', 404);
 
@@ -519,6 +523,12 @@ exports.updateFormula = asyncHandler(async (req, res) => {
   if (refUnit) formula.refUnit = refUnit;
   if (refWeight !== undefined) formula.refWeight = Number(refWeight) || formula.refWeight;
   if (researchNotes !== undefined) formula.researchNotes = researchNotes;
+  if (productId !== undefined) {
+    const product = (lead.productLinks || []).find((p) => p.productId === productId);
+    if (!product) return sendError(res, 'That product is not linked to this lead.', 400);
+    formula.productId = productId;
+    formula.productLink = product.name || productId;
+  }
 
   if (bumpVersion) {
     const prev = formula.versions[formula.versions.length - 1];
@@ -615,21 +625,49 @@ exports.linkProductPricing = asyncHandler(async (req, res) => {
 
 // PUT /api/crm/leads/:id/products/:productId  { priceStatus?, paymentStatus?, approxPrice?, name?, basis?, notes? }
 exports.updateProductPricing = asyncHandler(async (req, res) => {
-  const { priceStatus, paymentStatus, approxPrice, name, basis, notes } = req.body;
+  const {
+    priceStatus, paymentStatus, approxPrice, name, basis, notes,
+    // Per-product payment audit trail — mirrors the old lead-wide sampleDetails fields, see
+    // Lead.js productLinks schema comment.
+    chargeAmount, paymentMode, paymentTxnRef, paidAt, receivedBy, paymentNotes,
+  } = req.body;
   const lead = await Lead.findOne({ _id: req.params.id, organizationId: req.user.organizationId });
   if (!lead) return sendError(res, 'Lead not found.', 404);
 
   const link = (lead.productLinks || []).find((p) => p.productId === req.params.productId);
   if (!link) return sendError(res, 'Product link not found.', 404);
 
+  const wasNewlyPaid = paymentStatus === 'full_paid' && link.paymentStatus !== 'full_paid';
   if (priceStatus) link.priceStatus = priceStatus;
   if (paymentStatus) link.paymentStatus = paymentStatus;
   if (approxPrice !== undefined) link.approxPrice = Number(approxPrice) || 0;
   if (name !== undefined) link.name = name;
   if (basis !== undefined) link.basis = basis;
   if (notes !== undefined) link.notes = notes;
+  if (chargeAmount !== undefined) link.chargeAmount = Number(chargeAmount) || 0;
+  if (paymentMode !== undefined) link.paymentMode = paymentMode;
+  if (paymentTxnRef !== undefined) link.paymentTxnRef = paymentTxnRef;
+  if (receivedBy !== undefined) link.receivedBy = receivedBy;
+  if (paymentNotes !== undefined) link.paymentNotes = paymentNotes;
+  if (paidAt !== undefined) link.paidAt = paidAt || null;
+  else if (wasNewlyPaid) link.paidAt = new Date();
   lead.updatedBy = req.user._id;
   await lead.save();
+
+  if (wasNewlyPaid && lead.assignedTo) {
+    await createNotification({
+      organizationId: req.user.organizationId,
+      recipient: lead.assignedTo,
+      title: '💳 Product Payment Confirmed',
+      message: `${lead.name}'s payment for ${link.name || link.productId} has been confirmed — sampling can proceed for this product.`,
+      type: 'crm',
+      priority: 'medium',
+      actionUrl: `/samples?open=${lead._id}&leadTab=Payments`,
+      reference: { model: 'Lead', id: lead._id },
+      channels: { inApp: true, whatsapp: true },
+    }, req.app.get('io'));
+  }
+
   sendSuccess(res, { lead }, 'Product pricing updated');
 });
 
@@ -665,8 +703,10 @@ exports.createVersionedSample = asyncHandler(async (req, res) => {
       ? formula.versions.find((v) => v.version === Number(formulaVersionNo))
       : formula.versions.find((v) => v.version === formula.currentVersion);
     if (!targetVersion) return sendError(res, 'Formula version not found.', 404);
-    if (!['Draft', 'In Testing'].includes(targetVersion.status)) {
-      return sendError(res, 'Samples can only be made from Draft / In Testing formula versions.', 400);
+    // Accepted is allowed too — a formula copied from an Active catalog product starts
+    // Accepted (already a proven recipe) and still needs to produce its first sample.
+    if (!['Draft', 'In Testing', 'Accepted'].includes(targetVersion.status)) {
+      return sendError(res, 'Samples can only be made from Draft / In Testing / Accepted formula versions.', 400);
     }
   }
 
@@ -704,13 +744,17 @@ exports.createVersionedSample = asyncHandler(async (req, res) => {
 
 // PUT /api/crm/leads/:id/samples/:sampleId  { courier?, awb?, sentAt?, packagingConfirmed?, notes? }
 exports.updateVersionedSample = asyncHandler(async (req, res) => {
-  const { courier, awb, sentAt, packagingConfirmed, notes } = req.body;
+  const { courier, awb, sentAt, packagingConfirmed, notes, productId } = req.body;
   const lead = await Lead.findOne({ _id: req.params.id, organizationId: req.user.organizationId });
   if (!lead) return sendError(res, 'Lead not found.', 404);
 
   const sample = (lead.samples || []).find((s) => s.sampleId === req.params.sampleId);
   if (!sample) return sendError(res, 'Sample not found.', 404);
 
+  if (productId !== undefined) {
+    if (!(lead.productLinks || []).some((p) => p.productId === productId)) return sendError(res, 'That product is not linked to this lead.', 400);
+    sample.productId = productId;
+  }
   if (courier !== undefined) sample.courier = courier;
   if (awb !== undefined) sample.awb = awb;
   if (notes !== undefined) sample.notes = notes;
@@ -737,11 +781,23 @@ exports.updateVersionedSampleStatus = asyncHandler(async (req, res) => {
   const lead = await Lead.findOne({ _id: req.params.id, organizationId: req.user.organizationId });
   if (!lead) return sendError(res, 'Lead not found.', 404);
 
-  if (status !== 'Requested' && lead.sampleDetails?.paymentStatus !== 'full_paid') {
-    return sendError(res, 'Confirm the R&D/sampling fee payment before moving this sample forward.', 422);
-  }
   const sample = (lead.samples || []).find((s) => s.sampleId === req.params.sampleId);
   if (!sample) return sendError(res, 'Sample not found.', 404);
+
+  // Per-product payment gate: a sample tied to a specific product only unlocks once THAT
+  // product's own payment is confirmed — paying for one product on a lead no longer unblocks
+  // every other product's samples. Resolves via the sample's own productId first, then falls
+  // back to its formula's productId (covers samples/formulas made before this field existed —
+  // see updateFormula's productId re-link path); only truly unresolvable ones fall back further
+  // to the old lead-wide R&D fee gate.
+  const resolvedProductId = sample.productId || (lead.customFormulas || []).find((f) => f.formulaId === sample.formulaId)?.productId;
+  const productLink = resolvedProductId ? (lead.productLinks || []).find((p) => p.productId === resolvedProductId) : null;
+  const productPaid = productLink ? productLink.paymentStatus === 'full_paid' : lead.sampleDetails?.paymentStatus === 'full_paid';
+  if (status !== 'Requested' && !productPaid) {
+    return sendError(res, productLink
+      ? `Confirm payment for ${productLink.name || productLink.productId} in the Payments tab before moving this sample forward.`
+      : 'Confirm the R&D/sampling fee payment before moving this sample forward.', 422);
+  }
   if (status === 'Rejected' && !rejectionReason?.trim()) return sendError(res, 'Add a reason for rejecting this sample.', 400);
 
   sample.status = status;
@@ -1208,7 +1264,17 @@ exports.linkSampleProduction = asyncHandler(async (req, res) => {
 
   req.app.get('io')?.to(`org:${orgId}`).emit('production_updated', { orderId: order._id, stage: order.stage, status: order.status });
 
-  sendSuccess(res, { lead, order }, 'Product sent to production');
+  // Re-fetch populated (same shape as getLead) so the frontend can write this straight into its
+  // cache and land on the Orders tab immediately — without this, samples.productionOrderId comes
+  // back as a bare ObjectId and the newly created order's number/stage wouldn't display until a
+  // separate refetch caught up.
+  const populatedLead = await Lead.findOne({ _id: lead._id, organizationId: orgId })
+    .populate('assignedTo', 'firstName lastName avatar phone')
+    .populate('samples.invoiceId', 'invoiceNumber type status totalAmount paidAmount balanceAmount')
+    .populate('samples.finalInvoiceId', 'invoiceNumber type status totalAmount paidAmount balanceAmount')
+    .populate('samples.productionOrderId', 'orderNumber batch stage status');
+
+  sendSuccess(res, { lead: populatedLead, order }, 'Product sent to production');
 });
 
 // GET /api/crm/production-orders/unlinked — for the "link existing order" picker

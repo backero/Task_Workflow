@@ -16,6 +16,7 @@ import GoogleSheetsPanel from '../../components/crm/GoogleSheetsPanel';
 import ErrorBoundary from '../../components/common/ErrorBoundary';
 import EditKycModal from './EditKycModal';
 import { customerId } from '../../utils/leadHelpers';
+import { STAGE_NAMES } from './production/StageSteps';
 
 const PIPELINE_STAGES = ['New Lead', 'Follow-up', 'In Progress', 'Ready to Dispatch', 'Payment Pending', 'Dispatched', 'Lost'];
 
@@ -33,8 +34,6 @@ const STAGE_META = {
 // Display name overrides (internal value stays the same for MongoDB)
 const STAGE_DISPLAY = { 'In Progress': 'Production' };
 const stageLabel = (s) => STAGE_DISPLAY[s] || s;
-
-const BATCH_STAGE_NAMES = ['Order', 'Work Assignment', 'Procurement', 'Weighing', 'Bulk QC', 'Packaging', 'Final QC', 'Dispatch'];
 
 // ── Lead Card ────────────────────────────────────────────────────────────────
 const PRIORITY_CFG = {
@@ -105,7 +104,7 @@ function LeadCard({ lead, stage, onClick, onAddLog }) {
         {/* Linked batch order status */}
         {lead.productionOrderId?.orderNumber && (
           <div className="flex items-center gap-1.5 mt-2 bg-indigo-50 dark:bg-indigo-900/20 rounded-lg px-2 py-1.5 text-[10px] font-semibold text-indigo-600 dark:text-indigo-300">
-            🏭 {lead.productionOrderId.orderNumber} · {BATCH_STAGE_NAMES[lead.productionOrderId.stage] || lead.productionOrderId.status}
+            🏭 {lead.productionOrderId.orderNumber} · {STAGE_NAMES[lead.productionOrderId.stage] || lead.productionOrderId.status}
           </div>
         )}
 

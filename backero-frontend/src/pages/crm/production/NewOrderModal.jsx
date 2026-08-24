@@ -10,7 +10,7 @@ import OrderSpecTabs, { Field, inputCls } from './orderSpecFields';
 
 // New Order Sheet — manual/direct order intake (no CRM lead hand-off needed first). Ported
 // from the "New Order Sheet" reference file: same one-scrolling-page SPEC/QC/Packaging/Payment/
-// Custom-Checks layout (via OrderSpecTabs — shared with the Stage 0 "Customer Details" edit
+// Custom-Checks layout (via OrderSpecTabs — shared with the Stage 0 "Orders" edit
 // panel so both surfaces read the exact same field set) restyled onto the cream/amber theme and
 // wired to the real APIs instead of localStorage stubs. Customers
 // always come from the existing KYC/Lead directory (never typed fresh here) — pick one, then

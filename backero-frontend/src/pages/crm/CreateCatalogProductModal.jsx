@@ -5,7 +5,7 @@ import { CATEGORIES as CATALOG_CATEGORIES, UNITS as CATALOG_UNITS, PRODUCT_TYPES
 
 // Leaf module (no imports from SampleLeadDetail.jsx / StageSteps.jsx / NewOrderModal.jsx) so all
 // three can create a catalog product inline without forming an import cycle — this used to live
-// inside SampleLeadDetail.jsx, but StageSteps.jsx's Stage 0 "Customer Details" panel now also
+// inside SampleLeadDetail.jsx, but StageSteps.jsx's Stage 0 "Orders" panel now also
 // needs it (to add another product line for an existing order's customer) and StageSteps.jsx is
 // itself imported BY SampleLeadDetail.jsx, so it had to move out to its own file first.
 

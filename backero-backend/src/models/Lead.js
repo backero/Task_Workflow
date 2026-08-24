@@ -150,6 +150,10 @@ const leadSchema = new mongoose.Schema({
   customFormulas: [{
     formulaId: { type: String },
     name: { type: String },
+    // Hard reference to productLinks[].productId — required going forward so payment/sample
+    // gating can resolve exactly which product this formula (and every sample made from it)
+    // belongs to. productLink stays as the free-text display name shown alongside it.
+    productId: { type: String },
     productLink: { type: String },
     // Set when this formula was created via "Link from Catalog" — a one-time copy of a real
     // CatalogProduct's Formulation & Procedure at link time, not a live/synced reference.
@@ -202,6 +206,15 @@ const leadSchema = new mongoose.Schema({
     // Pricing flow: Not quoted -> Quoted (💰 Quote Price) -> Accepted (✓ Accept Price).
     priceStatus: { type: String, enum: ['Not quoted', 'Quoted', 'Accepted'], default: 'Not quoted' },
     paymentStatus: { type: String, enum: ['pending', 'full_paid'], default: 'pending' },
+    // Per-product payment audit trail — same shape as the old lead-wide sampleDetails fields,
+    // but scoped to this one product so paying for Product A doesn't unlock sampling/production
+    // for Product B on the same lead that hasn't been paid for yet.
+    chargeAmount: { type: Number, default: 0 },
+    paymentMode: { type: String, enum: ['cash', 'upi', 'bank_transfer'], default: 'upi' },
+    paymentTxnRef: { type: String },
+    paidAt: { type: Date },
+    receivedBy: { type: String },
+    paymentNotes: { type: String },
     createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
     createdAt: { type: Date, default: Date.now },
   }],

@@ -2,7 +2,7 @@
 import { Card } from '../sampleTheme';
 
 // Leaf module (no imports from StageSteps.jsx / NewOrderModal.jsx / SampleLeadDetail.jsx) so
-// both the Stage 0 "Customer Details" edit panel (StageSteps.jsx, existing orders) and the
+// both the Stage 0 "Orders" edit panel (StageSteps.jsx, existing orders) and the
 // New Order Sheet (NewOrderModal.jsx, order creation) can share one definition of every
 // SPEC/QC field and one section shell (OrderSpecTabs, despite the name — every section renders
 // on one continuously-scrolling page, no tab switcher, matching the "New Order Sheet" reference
@@ -221,7 +221,7 @@ export function AttachmentBox({ category, crmSpec, onChange, locked, hint }) {
 
 // ── ORDER SPEC TABS ── top-tab navigation across every SPEC/QC/Packaging/Payment/Custom
 // section, one visible at a time — mirrors the "New Order Sheet" reference file's layout.
-// Shared by StageOrder (editing an existing order's Stage 0 "Customer Details") and
+// Shared by StageOrder (editing an existing order's Stage 0 "Orders") and
 // NewOrderModal (creating a brand-new order) so both read the exact same field set.
 
 export const byKeys = (list, keys) => list.filter((s) => keys.includes(s.key));

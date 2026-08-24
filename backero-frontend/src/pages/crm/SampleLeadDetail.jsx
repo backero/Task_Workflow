@@ -9,9 +9,10 @@ import { FONT_IMPORT, PILL, SUB_STAGE_PILL, StatCard } from './sampleTheme';
 import { customerId } from '../../utils/leadHelpers';
 import EditKycModal from './EditKycModal';
 import { CreateCatalogProductModal } from './CreateCatalogProductModal';
+import NewOrderModal from './production/NewOrderModal';
 import {
-  StageBar, StageOrder, StageWorkAssignment, StageProcurement, StageWeighing,
-  StageBulkQC, StagePackaging, StageFinalQC, StageDispatch,
+  StageOrder, StageWorkAssignment, StageProcurement, StageWeighing,
+  StageBulkQC, StagePackaging, StageFinalQC, StageDispatch, STAGE_NAMES,
 } from './production/StageSteps';
 
 // Full per-lead "Sample Development" window — mirrors the reference design's 7-tab customer
@@ -22,16 +23,18 @@ import {
 // SampleProduction.jsx's cream palette, imported from there so both stay in sync.
 
 const SUB_STAGES = ['Requested', 'In Lab', 'Sent', 'Feedback', 'Approved', 'Rejected'];
-const TABS = ['Overview', 'Q&A', 'Products', 'Formulas', 'Payments', 'Samples', 'Approvals'];
+const TABS = ['Overview', 'Q&A', 'Products', 'Payments', 'Formulas', 'Samples', 'Approvals'];
 
 // Overview tab's status chain, and the modal's own top-level tabs, continue into the production
 // floor once a lead is linked to an order — same stages as SampleProduction.jsx's
-// PROD_STAGE_TABS, plus the SPEC/QC sheet itself (stage 0, "Customer Details") positioned first,
-// before Procurement. Work Assignment (stage 1) stays off this list, same as it's excluded from
-// PROD_STAGE_TABS — still reachable via the StageBar inside a stage tab, just not its own
-// top-level tab.
+// PROD_STAGE_TABS, plus the SPEC/QC sheet itself (stage 0, "Orders") and Work Assignment
+// (stage 1, excluded from PROD_STAGE_TABS elsewhere) both getting their own top-level tab here.
+// This array stays stage-ascending (0, 1, 2, ...) because the auto-jump-to-current-stage effect
+// below picks "the last one reached" by array position — ORDER_JOURNEY_TAB_ORDER, further down,
+// is the separate list that controls the actual left-to-right order shown in the tab bar.
 const ORDER_JOURNEY_STAGES = [
-  { stage: 0, label: 'Customer Details', emoji: '🪪' },
+  { stage: 0, label: 'Orders', emoji: '🪪' },
+  { stage: 1, label: 'Work Assignment', emoji: '📋' },
   { stage: 2, label: 'Procurement', emoji: '📦' },
   { stage: 3, label: 'Weighing', emoji: '⚖️' },
   { stage: 4, label: 'Bulk QC', emoji: '🧫' },
@@ -39,6 +42,9 @@ const ORDER_JOURNEY_STAGES = [
   { stage: 6, label: 'Final QC', emoji: '✅' },
   { stage: 7, label: 'Dispatch', emoji: '🚚' },
 ];
+// Work Assignment shows first in the tab bar — once payment is confirmed, filling its start
+// date/team is the actual next action, before the Orders/Client-Profile tab's own content.
+const ORDER_JOURNEY_TAB_ORDER = ['Work Assignment', 'Orders', 'Procurement', 'Weighing', 'Bulk QC', 'Packaging', 'Final QC', 'Dispatch'];
 const bodyFont = { fontFamily: "'Inter', -apple-system, sans-serif" };
 const displayFont = { fontFamily: "'Fraunces', Georgia, serif" };
 const inputCls = 'px-3 py-2 text-sm rounded-[10px] border-[1.5px] border-[#d3c9b4] bg-[#f0eadd] text-[#2e241b] focus:outline-none focus:border-[#968871] placeholder:text-[#968871]';
@@ -320,9 +326,9 @@ function ProductLinkModal({ product, catalogProducts, saving, onClose, onSave, o
 // formulas scoped to the customer whose window is already open, i.e. always "Custom" for an
 // implicit, already-known Customer ID — so those two fields are omitted rather than shown
 // disabled/redundant.
-function NewFormulaModal({ saving, onClose, onSave }) {
+function NewFormulaModal({ products, saving, onClose, onSave }) {
   const [name, setName] = useState('');
-  const [productLink, setProductLink] = useState('');
+  const [productId, setProductId] = useState('');
   const [maximized, setMaximized] = useState(false);
 
   return (
@@ -342,19 +348,25 @@ function NewFormulaModal({ saving, onClose, onSave }) {
             <input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g., Vitamin C Serum 15% + Ferulic" className={clsx(inputCls, 'w-full')} autoFocus />
           </div>
           <div>
-            <label className="text-xs font-semibold text-[#968871] uppercase tracking-wide mb-1 block">Linked House Product <span className="font-normal normal-case">(cloned from — optional)</span></label>
-            <input value={productLink} onChange={(e) => setProductLink(e.target.value)} placeholder="e.g., FG-SC-001" className={clsx(inputCls, 'w-full')} />
+            <label className="text-xs font-semibold text-[#968871] uppercase tracking-wide mb-1 block">Product <span className="text-[#b6453a]">*</span></label>
+            <select value={productId} onChange={(e) => setProductId(e.target.value)} className={clsx(inputCls, 'w-full')}>
+              <option value="">— select product —</option>
+              {(products || []).map((p) => <option key={p.productId} value={p.productId}>{p.productId} — {p.name}</option>)}
+            </select>
+            {(products || []).length === 0 && <p className="text-[11px] text-[#8c3a30] mt-1">No products linked yet — add one in the Products tab first.</p>}
+            <p className="text-[10px] text-[#968871] mt-1">This formula, and every sample made from it, stays tied to this product — its own Payments-tab confirmation is what unlocks sampling for it.</p>
           </div>
           <div className="p-2.5 rounded-lg bg-[#dde5ea] text-[#33526b] text-[11px] flex gap-2">
             <span>ℹ️</span>
-            <span>A <strong>V1 (Draft)</strong> version is created automatically. Build the ingredient composition in the formula editor, then request samples against specific versions.</span>
+            <span>A <strong>V1 (Draft)</strong> version is created automatically. Build the ingredient composition in <strong>Product Catalog</strong> (its Formulation tab) and link it here from the Products tab, then request samples against specific versions.</span>
           </div>
           <div className="flex gap-3 pt-1">
             <button type="button" onClick={onClose} className={clsx(outlineBtn, 'flex-1 justify-center')}>Cancel</button>
             <button
               onClick={() => {
                 if (!name.trim()) { toast.error('Formula name is required'); return; }
-                onSave({ name: name.trim(), productLink: productLink.trim() || undefined });
+                if (!productId) { toast.error('Select which product this formula is for'); return; }
+                onSave({ name: name.trim(), productId });
               }}
               disabled={saving}
               className={clsx(accentBtn, 'flex-1 justify-center')}
@@ -374,20 +386,24 @@ function NewFormulaModal({ saving, onClose, onSave }) {
 // via the Reject flow's "clone & follow-up" action, so there's no visible "chain from" picker
 // here either — but "+ Create next version (chained)" on a rejected sample's detail still needs
 // to seed this modal, hence the (invisible) chainedFrom/initialFormulaId props.
-function NewSampleModal({ formulas, isPaid, saving, onClose, onSave, onGoToPayments, chainedFrom, initialFormulaId }) {
+function NewSampleModal({ formulas, products, saving, onClose, onSave, onGoToPayments, chainedFrom, initialFormulaId }) {
   const [formulaId, setFormulaId] = useState(initialFormulaId || '');
   const [versionNo, setVersionNo] = useState(() => {
     const f = formulas.find((x) => x.formulaId === initialFormulaId);
-    const versions = (f?.versions || []).filter((v) => ['Draft', 'In Testing'].includes(v.status));
+    const versions = (f?.versions || []).filter((v) => ['Draft', 'In Testing', 'Accepted'].includes(v.status));
     return versions.length ? String(versions[versions.length - 1].version) : '';
   });
   const formula = formulas.find((f) => f.formulaId === formulaId);
-  const openVersions = (formula?.versions || []).filter((v) => ['Draft', 'In Testing'].includes(v.status));
+  const openVersions = (formula?.versions || []).filter((v) => ['Draft', 'In Testing', 'Accepted'].includes(v.status));
+  // Gate is per-product now — this sample inherits its formula's product, so whether it can
+  // proceed past "Requested" depends on THAT product's own payment, not the whole lead's.
+  const product = formula ? (products || []).find((p) => p.productId === formula.productId) : null;
+  const isPaid = product ? product.paymentStatus === 'full_paid' : false;
 
   function pickFormula(id) {
     setFormulaId(id);
     const f = formulas.find((x) => x.formulaId === id);
-    const versions = (f?.versions || []).filter((v) => ['Draft', 'In Testing'].includes(v.status));
+    const versions = (f?.versions || []).filter((v) => ['Draft', 'In Testing', 'Accepted'].includes(v.status));
     setVersionNo(versions.length ? String(versions[versions.length - 1].version) : '');
   }
 
@@ -405,10 +421,10 @@ function NewSampleModal({ formulas, isPaid, saving, onClose, onSave, onGoToPayme
           </div>
         </div>
         <div className={clsx('p-5 space-y-3', maximized && 'flex-1 overflow-y-auto')}>
-          {!isPaid && (
+          {formula && !isPaid && (
             <div className="p-2.5 rounded-lg bg-[#f0d8d2] text-[#8c3a30] text-[11px] flex gap-2">
               <span>🔒</span>
-              <span>This customer's <strong>R&amp;D / sampling payment is not confirmed</strong> — sampling is locked. Confirm it in the 💳 Payments tab first.</span>
+              <span><strong>Payment for {product?.name || formula.productId || 'this product'} is not confirmed</strong> — sampling is locked for it. Confirm it in the 💳 Payments tab first.</span>
             </div>
           )}
           {formulas.length === 0 && (
@@ -420,6 +436,7 @@ function NewSampleModal({ formulas, isPaid, saving, onClose, onSave, onGoToPayme
               <option value="">— select formula —</option>
               {formulas.map((f) => <option key={f.formulaId} value={f.formulaId}>{f.formulaId} — {f.name}</option>)}
             </select>
+            {formula && <p className="text-[10px] text-[#968871] mt-1">Product: {product?.name || formula.productId || '—'} {product && (product.paymentStatus === 'full_paid' ? '· ✓ paid' : '· ⏳ payment pending')}</p>}
           </div>
           <div>
             <label className="text-xs font-semibold text-[#968871] uppercase tracking-wide mb-1 block">
@@ -435,9 +452,9 @@ function NewSampleModal({ formulas, isPaid, saving, onClose, onSave, onGoToPayme
             <button type="button" onClick={onClose} className={clsx(outlineBtn, 'flex-1 justify-center')}>Cancel</button>
             <button
               onClick={() => {
-                if (!isPaid) { toast.error("🔒 Sampling is locked — confirm this customer's R&D/sampling payment in the Payments tab first"); onGoToPayments(); return; }
                 if (!formulaId || !versionNo) { toast.error('Select a formula and version'); return; }
-                onSave({ formulaId, formulaVersionNo: Number(versionNo), chainedFrom: chainedFrom || undefined });
+                if (!isPaid) { toast.error(`🔒 Sampling is locked for ${product?.name || 'this product'} — confirm its payment in the Payments tab first`); onGoToPayments(); return; }
+                onSave({ formulaId, formulaVersionNo: Number(versionNo), productId: formula?.productId || undefined, chainedFrom: chainedFrom || undefined });
               }}
               disabled={saving}
               className={clsx(accentBtn, 'flex-1 justify-center')}
@@ -499,21 +516,37 @@ function QuotePriceModal({ product, saving, onClose, onSave }) {
 }
 
 // Dedicated Formula Editor — a modal-xl popup (not an inline row-expand) with a left version
-// sidebar and a right ingredient/procedure editor, mirroring the reference design's
-// formulaEditorModal exactly: version cards (status pill, date, change note, linked samples,
-// per-version Archive), a "Clone to V(n+1)" action, Ref Weight/Unit + Change Note meta fields,
-// and an ingredient table with no per-row QC/HSN expand panel (that lives in Product Catalog's
-// own Formulation tab, not here).
-// Read-only viewer — editing a formula's ingredients/versions/R&D docs happens in Product
-// Catalog now; this modal exists only to inspect what's already on the lead's custom formula.
+// sidebar and a right ingredient/procedure viewer, mirroring the reference design's
+// formulaEditorModal exactly: version cards (status pill, date, change note, linked samples),
+// Ref Weight/Unit + Change Note meta fields, and an ingredient table with no per-row QC/HSN
+// expand panel (that lives in Product Catalog's own Formulation tab, not here).
+// Read-only, by design — building/editing ingredients happens in Product Catalog's own
+// Formulation tab. Once this formula is linked to a catalog product (catalogProductId), this
+// fetches and shows that product's CURRENT live formulation — not a one-time copy taken when it
+// was first linked — so edits made in Product Catalog show up here automatically with no
+// separate sync step. A formula not yet linked to a catalog product has nothing to show here
+// until one exists (see the "Link from Catalog" action on the Products tab).
 function FormulaEditorModal({ formula, samples, rawMaterials, onClose }) {
   const versions = formula.versions || [];
   const [selectedVersion, setSelectedVersion] = useState(formula.currentVersion);
   const [maximized, setMaximized] = useState(false);
 
   const versionObj = versions.find((v) => v.version === selectedVersion) || versions[versions.length - 1];
-  const refWeight = Number(formula.refWeight) || 100;
-  const rows = (versionObj?.rows || []).map((r) => ({ ...r, percent: refWeight ? (((Number(r.quantity) || 0) / refWeight) * 100).toFixed(2) : '', conv: r.conv ?? 1 }));
+
+  const { data: catalogProduct, isLoading: catalogLoading } = useQuery({
+    queryKey: ['catalog', 'product', formula.catalogProductId],
+    queryFn: () => api.get(`/catalog/products/${formula.catalogProductId}`).then((r) => r.data.product),
+    enabled: !!formula.catalogProductId,
+  });
+  const catalogLinked = !!formula.catalogProductId;
+
+  // Live source of truth when linked to a catalog product; otherwise this formula was never
+  // built out in Product Catalog, so there's nothing beyond the name/product-link to show.
+  const mappedFromCatalog = catalogProduct ? mapCatalogFormulationToRows(catalogProduct) : null;
+  const refWeight = Number(mappedFromCatalog?.refWeight ?? formula.refWeight) || 100;
+  const refUnit = mappedFromCatalog?.refUnit || formula.refUnit || 'g';
+  const procedure = mappedFromCatalog?.procedure || versionObj?.procedure || '';
+  const rows = (mappedFromCatalog?.rows || []).map((r) => ({ ...r, percent: refWeight ? (((Number(r.quantity) || 0) / refWeight) * 100).toFixed(2) : '', conv: r.conv ?? 1 }));
 
   const totalPct = rows.reduce((s, r) => s + (Number(r.percent) || 0), 0);
   const totalQty = rows.reduce((s, r) => s + (Number(r.quantity) || 0), 0);
@@ -566,12 +599,22 @@ function FormulaEditorModal({ formula, samples, rawMaterials, onClose }) {
 
           {/* Viewer main */}
           <div className="flex-1 min-w-0 p-4 overflow-y-auto space-y-3">
+            {!catalogLinked && (
+              <div className="p-2.5 rounded-lg bg-[#dde5ea] text-[#33526b] text-[11px] flex gap-2">
+                <span>ℹ️</span>
+                <span>Not linked to a Product Catalog item yet — the ingredient composition is built there. Use "🔗 Link from Catalog" on the Products tab, or add {formula.name} as a new Product Catalog item and build its Formulation there.</span>
+              </div>
+            )}
+            {catalogLinked && catalogLoading && (
+              <p className="text-xs text-[#968871]">Loading live formulation from Product Catalog…</p>
+            )}
+
             <div className="grid grid-cols-4 gap-3">
               <div><label className="text-[10px] text-[#968871]">Ref Weight</label>
                 <p className="text-sm text-[#2e241b] px-3 py-2 rounded-[10px] bg-[#e7dfce]">{refWeight}</p>
               </div>
               <div><label className="text-[10px] text-[#968871]">Ref Unit</label>
-                <p className="text-sm text-[#2e241b] px-3 py-2 rounded-[10px] bg-[#e7dfce]">{formula.refUnit || 'g'}</p>
+                <p className="text-sm text-[#2e241b] px-3 py-2 rounded-[10px] bg-[#e7dfce]">{refUnit}</p>
               </div>
               <div className="col-span-2"><label className="text-[10px] text-[#968871]">Change Note</label>
                 <p className="text-sm text-[#2e241b] px-3 py-2 rounded-[10px] bg-[#e7dfce] truncate">{versionObj?.changeNote || '—'}</p>
@@ -583,7 +626,7 @@ function FormulaEditorModal({ formula, samples, rawMaterials, onClose }) {
                 <thead>
                   <tr className="text-left text-[10px] uppercase tracking-wide text-[#6d5f4c] border-b border-[#d3c9b4] bg-[#e7dfce]">
                     <th className="px-2 py-2">#</th><th className="px-2 py-2">Code</th><th className="px-3 py-2">Ingredient</th>
-                    <th className="px-2 py-2">%</th><th className="px-2 py-2">Conv</th><th className="px-2 py-2">Unit</th>
+                    <th className="px-2 py-2">Qty</th><th className="px-2 py-2">%</th><th className="px-2 py-2">Conv</th><th className="px-2 py-2">Unit</th>
                     <th className="px-2 py-2">Phase</th><th className="px-2 py-2">Notes</th>
                     <th className="px-2 py-2">Unit Price ₹</th><th className="px-2 py-2">Amount ₹</th>
                   </tr>
@@ -597,6 +640,7 @@ function FormulaEditorModal({ formula, samples, rawMaterials, onClose }) {
                         <td className="px-2 py-1.5 text-[#968871]">{i + 1}</td>
                         <td className="px-2 py-1.5 font-mono text-[10px] text-[#968871]">{mat?.sku || mat?.code || '—'}</td>
                         <td className="px-3 py-1.5 text-[#2e241b]">{r.name}</td>
+                        <td className="px-2 py-1.5 text-[#2e241b]">{r.quantity}</td>
                         <td className="px-2 py-1.5 text-[#2e241b]">{r.percent}%</td>
                         <td className="px-2 py-1.5 text-[#2e241b]">{r.conv}</td>
                         <td className="px-2 py-1.5 text-[#968871]">{r.unit}</td>
@@ -614,14 +658,14 @@ function FormulaEditorModal({ formula, samples, rawMaterials, onClose }) {
 
             <div className="grid grid-cols-4 gap-3 bg-[#2e241b] text-[#f0eadd] rounded-2xl px-5 py-3">
               <div><p className="text-[10px] text-[#c9bfae]">Total %</p><p className="text-sm font-bold">{totalPct.toFixed(2)}%</p></div>
-              <div><p className="text-[10px] text-[#c9bfae]">Total Qty</p><p className="text-sm font-bold">{totalQty.toFixed(2)} {formula.refUnit || 'g'}</p></div>
+              <div><p className="text-[10px] text-[#c9bfae]">Total Qty</p><p className="text-sm font-bold">{totalQty.toFixed(2)} {refUnit}</p></div>
               <div><p className="text-[10px] text-[#c9bfae]">Batch Amount</p><p className="text-sm font-bold">₹{totalAmount.toFixed(2)}</p></div>
               <div><p className="text-[10px] text-[#c9bfae]">Cost / Unit</p><p className="text-sm font-bold">₹{costPerUnit.toFixed(4)}</p></div>
             </div>
 
             <div>
               <label className="text-[10px] text-[#968871]">Manufacturing Procedure</label>
-              <p className="text-sm text-[#2e241b] whitespace-pre-wrap px-3 py-2 rounded-[10px] bg-[#e7dfce] min-h-[3rem]">{versionObj?.procedure || '—'}</p>
+              <p className="text-sm text-[#2e241b] whitespace-pre-wrap px-3 py-2 rounded-[10px] bg-[#e7dfce] min-h-[3rem]">{procedure || '—'}</p>
             </div>
 
             {/* R&D Documentation — read-only view of research notes + reference files. */}
@@ -713,18 +757,15 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab }) {
   const [fuNextAction, setFuNextAction] = useState('');
   const [fuScheduledAt, setFuScheduledAt] = useState('');
 
-  // Move to Production — creates the production order in the same step and switches this same
-  // panel straight into its stage board (no separate Batch Tracker page/visit required).
-  const [showMoveModal, setShowMoveModal] = useState(false);
-  const [moveCatalogSearch, setMoveCatalogSearch] = useState('');
-  const [moveSelectedCatalogProduct, setMoveSelectedCatalogProduct] = useState(null);
-  const [moveBatchSizeKg, setMoveBatchSizeKg] = useState(10);
   const [viewStage, setViewStage] = useState(null);
+  const [activeProductId, setActiveProductId] = useState(null);
+  const [showAddProductInOrders, setShowAddProductInOrders] = useState(false);
   const autoJumpedToProductionRef = useRef(false);
 
   // Per-product quotation → payment → production (Approvals tab) — each approved sample gets
   // its own quotation/invoice and its own "send to production" gate, independent of every other
-  // product on the same lead, instead of the whole-lead Move to Production flow above.
+  // product on the same lead. This replaced the old whole-lead "Move to Production" flow, which
+  // skipped quotation/payment tracking entirely and dropped straight into Kitchen Schedule.
   const [sendSampleFor, setSendSampleFor] = useState(null);
   const [sendSampleCatalogSearch, setSendSampleCatalogSearch] = useState('');
   const [sendSampleSelectedCatalog, setSendSampleSelectedCatalog] = useState(null);
@@ -734,12 +775,9 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab }) {
   const { data: catalogProducts } = useQuery({
     queryKey: ['catalog', 'products', 'all'],
     queryFn: () => api.get('/catalog/products').then((r) => r.data.products || []),
-    enabled: productModalOpen || showMoveModal || showRaiseForm || quickCreateOpen || !!sendSampleFor,
+    enabled: productModalOpen || showRaiseForm || quickCreateOpen || !!sendSampleFor,
     staleTime: 5 * 60 * 1000,
   });
-  const moveCatalogMatches = moveCatalogSearch
-    ? (catalogProducts || []).filter((p) => (p.name || '').toLowerCase().includes(moveCatalogSearch.toLowerCase()) || (p.code || '').toLowerCase().includes(moveCatalogSearch.toLowerCase()))
-    : (catalogProducts || []);
   const sendSampleCatalogMatches = sendSampleCatalogSearch
     ? (catalogProducts || []).filter((p) => (p.name || '').toLowerCase().includes(sendSampleCatalogSearch.toLowerCase()) || (p.code || '').toLowerCase().includes(sendSampleCatalogSearch.toLowerCase()))
     : (catalogProducts || []);
@@ -760,6 +798,9 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab }) {
   const [payDate, setPayDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [payReceivedBy, setPayReceivedBy] = useState('');
   const [payNotes, setPayNotes] = useState('');
+  // Which product's inline payment-entry form is open — payments are per-product now, so this
+  // one shared form gets reused for whichever product row the user is currently recording.
+  const [payingProductId, setPayingProductId] = useState(null);
 
   // Samples
   const [showSampleForm, setShowSampleForm] = useState(false);
@@ -785,7 +826,6 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab }) {
   const [rejectContactName, setRejectContactName] = useState('');
 
   // Maximize/restore toggles for the stage-transition modals below.
-  const [moveMaximized, setMoveMaximized] = useState(false);
   const [courierMaximized, setCourierMaximized] = useState(false);
   const [feedbackMaximized, setFeedbackMaximized] = useState(false);
   const [approveMaximized, setApproveMaximized] = useState(false);
@@ -808,10 +848,17 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab }) {
   // Falls back to a sample's own productionOrderId (the newer per-product gated flow) when the
   // lead-wide field was never set — otherwise this tab strip goes blank for orders created via
   // "Send to Production" on an individual approved sample instead of the old whole-lead flow.
+  // activeProductId lets the Products sidebar (below) switch which product's own order is being
+  // viewed — each product has its own separate order, moving at its own pace (a 45-day soap vs.
+  // a 2-day shampoo), so without this only the first one found would ever be reachable here.
+  const activeProductOrderId = activeProductId
+    ? (lead?.samples || []).find((s) => s.productId === activeProductId && s.productionOrderId)?.productionOrderId
+    : null;
   const sampleProductionOrderId = (lead?.samples || [])
     .map((s) => s.productionOrderId?._id || s.productionOrderId)
     .find(Boolean);
-  const productionOrderId = lead?.productionOrderId?._id || lead?.productionOrderId || sampleProductionOrderId || null;
+  const productionOrderId = (activeProductOrderId?._id || activeProductOrderId)
+    || lead?.productionOrderId?._id || lead?.productionOrderId || sampleProductionOrderId || null;
   const { data: productionOrder, isLoading: productionOrderLoading } = useQuery({
     queryKey: ['production-order', productionOrderId],
     queryFn: () => api.get(`/production/${productionOrderId}`).then((r) => r.data.order),
@@ -935,12 +982,6 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab }) {
     onSuccess: () => invalidate(),
   });
 
-  const paymentMutation = useMutation({
-    mutationFn: (body) => api.put(`/crm/leads/${leadId}/sample`, body),
-    onSuccess: () => { toast.success('Payment status updated'); invalidate(); },
-    onError: (e) => toast.error(e.response?.data?.message || 'Failed to update payment'),
-  });
-
   const linkProductMutation = useMutation({
     mutationFn: ({ convertIcon, ...body }) => api.post(`/crm/leads/${leadId}/products`, body).then((r) => r.data.lead),
     onSuccess: (updatedLead, variables) => {
@@ -997,6 +1038,14 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab }) {
     onError: (e) => toast.error(e.response?.data?.message || 'Failed to create formula'),
   });
 
+  // Fixes formulas created before per-product payments existed (no productId) — a one-off
+  // manual re-link so old formulas/samples can benefit from per-product gating too.
+  const linkFormulaProductMutation = useMutation({
+    mutationFn: ({ formulaId, productId }) => api.put(`/crm/leads/${leadId}/formulas/${formulaId}`, { productId }),
+    onSuccess: () => { toast.success('Formula linked to product'); invalidate(); },
+    onError: (e) => toast.error(e.response?.data?.message || 'Failed to link product'),
+  });
+
   // Products tab auto-link: when a real catalog SKU is linked there, silently copy its
   // Formulation & Procedure into a new formula too — same mapping as "Link from Catalog"
   // above, but fired from the Products tab so it must NOT touch the Formulas tab's form state.
@@ -1006,8 +1055,12 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab }) {
       const mapped = mapCatalogFormulationToRows(detail);
       return api.post(`/crm/leads/${leadId}/formulas`, {
         name: detail.name,
-        productLink: detail.code,
+        productId: product.code,
         catalogProductId: detail._id,
+        // An Active catalog product is already a proven, established recipe — no need to
+        // re-run this lead's own Draft -> In Testing -> Accepted cycle on it. A Draft/Archived
+        // catalog product still starts fresh at Draft, same as before.
+        status: detail.status === 'Active' ? 'Accepted' : 'Draft',
         refWeight: mapped.refWeight,
         refUnit: mapped.refUnit,
         procedure: mapped.procedure || undefined,
@@ -1097,28 +1150,6 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab }) {
     onError: (e) => toast.error(e.response?.data?.message || 'Failed to remove product link'),
   });
 
-  const moveToProductionMutation = useMutation({
-    mutationFn: async ({ catalogProduct, batchSizeKg }) => {
-      await api.put(`/crm/leads/${leadId}`, { status: 'In Progress' });
-      return api.post(`/crm/leads/${leadId}/link-production`, { mode: 'create', catalogProduct, batchSizeKg });
-    },
-    onSuccess: () => {
-      toast.success('Moved to Production — schedule it in Kitchen Schedule');
-      qc.invalidateQueries({ queryKey: ['crm'] });
-      qc.invalidateQueries({ queryKey: ['sample-production'] });
-      qc.invalidateQueries({ queryKey: ['production-schedule'] });
-      setShowMoveModal(false);
-      setMoveSelectedCatalogProduct(null);
-      setMoveCatalogSearch('');
-      setMoveBatchSizeKg(10);
-      // The new order sits at Work Assignment (stage 1) — Kitchen Schedule's Tray is where
-      // it gets a leader/support/date now, instead of the old inline Work Assignment form.
-      onClose?.();
-      navigate('/production/kitchen');
-    },
-    onError: (e) => toast.error(e.response?.data?.message || 'Failed to move to Production'),
-  });
-
   const createQuotationMutation = useMutation({
     mutationFn: (sampleId) => api.post(`/crm/leads/${leadId}/samples/${sampleId}/quotation`),
     onSuccess: (res) => {
@@ -1143,10 +1174,25 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab }) {
     onError: (e) => toast.error(e.response?.data?.message || 'Failed to create invoice'),
   });
 
+  // "Send" a draft quotation right from Approvals — this was the recurring confusion: staff
+  // would create a quotation and expect Create Invoice to unlock, not realizing it still had to
+  // be marked Sent (a Status dropdown buried in Finance's full edit form) first.
+  const sendQuotationMutation = useMutation({
+    mutationFn: (invoiceId) => api.patch(`/finance/invoices/${invoiceId}/status`, { status: 'sent' }),
+    onSuccess: () => { toast.success('Quotation marked as sent — Create Invoice is now unlocked'); invalidate(); },
+    onError: (e) => toast.error(e.response?.data?.message || 'Failed to send quotation'),
+  });
+
   const linkSampleProductionMutation = useMutation({
-    mutationFn: ({ sampleId, catalogProduct, batchSizeKg }) => api.post(`/crm/leads/${leadId}/samples/${sampleId}/link-production`, { catalogProduct, batchSizeKg }),
-    onSuccess: () => {
-      toast.success('Sent to production — opening Customer Details');
+    mutationFn: ({ sampleId, catalogProduct, batchSizeKg }) => api.post(`/crm/leads/${leadId}/samples/${sampleId}/link-production`, { catalogProduct, batchSizeKg }).then((r) => r.data),
+    onSuccess: ({ lead: updatedLead, order }) => {
+      toast.success('Sent to production — opening Orders');
+      // Write the fresh lead straight into cache (it already has this sample's productionOrderId
+      // set) instead of relying on invalidate()'s refetch to land before the tab switch below —
+      // that race left the Orders tab briefly showing "not sent to production yet" right after
+      // switching, since productionOrderId was still computed from the stale cached lead.
+      if (updatedLead) qc.setQueryData(['crm', 'lead', leadId], (old) => (old ? { ...old, ...updatedLead } : updatedLead));
+      if (order) qc.setQueryData(['production-order', order._id], order);
       qc.invalidateQueries({ queryKey: ['crm'] });
       qc.invalidateQueries({ queryKey: ['sample-production'] });
       qc.invalidateQueries({ queryKey: ['production-schedule'] });
@@ -1155,9 +1201,13 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab }) {
       setSendSampleSelectedCatalog(null);
       setSendSampleCatalogSearch('');
       setSendSampleBatchSizeKg(10);
-      // Land directly on Customer Details for the order that was just created — no separate
-      // "go find it in Orders" step.
-      setTab('Customer Details');
+      // Land directly on the Client Profile (stage 0) for the order that was just created — no
+      // separate "go find it in Orders" step. New orders start internally at stage 1 (Work
+      // Assignment), so without this ref guard the auto-jump-to-current-stage effect below would
+      // immediately fire and override viewStage back to 1, showing Production Schedule instead.
+      autoJumpedToProductionRef.current = true;
+      setActiveProductId(sendSampleFor.productId || null);
+      setTab('Orders');
       setViewStage(0);
     },
     onError: (e) => toast.error(e.response?.data?.message || 'Failed to send to production'),
@@ -1166,10 +1216,32 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab }) {
   if (!leadId) return null;
 
   const sd = lead?.sampleDetails || {};
+  // Legacy lead-wide flag — kept only as a fallback for samples that predate per-product
+  // payments (no productId on the sample, e.g. its formula was never linked to a product).
   const isPaid = sd.paymentStatus === 'full_paid';
   const samples = lead?.samples || [];
   const formulas = lead?.customFormulas || [];
   const products = lead?.productLinks || [];
+  // Resolves via the sample's own productId first; falls back to its formula's productId so a
+  // sample made before its formula was linked to a product (or before this feature existed)
+  // still reflects correctly the moment the formula gets linked — no per-sample backfill needed.
+  const productForSample = (sample) => {
+    if (sample.productId) return products.find((p) => p.productId === sample.productId);
+    const formula = formulas.find((f) => f.formulaId === sample.formulaId);
+    return formula?.productId ? products.find((p) => p.productId === formula.productId) : undefined;
+  };
+  // Each product moves through production entirely on its own — a 45-day soap and a 2-day
+  // shampoo on the same lead shouldn't be tracked as one blob. Finds the one sample (if any)
+  // that carried THIS product all the way to a real production order, so the Products tab can
+  // show each product's own current stage instead of one shared status for the whole lead.
+  const productionForProduct = (productId) => {
+    const sample = samples.find((s) => s.productId === productId && s.productionOrderId);
+    return sample ? { sample, order: sample.productionOrderId } : null;
+  };
+  const isSamplePaid = (sample) => {
+    const p = productForSample(sample);
+    return p ? p.paymentStatus === 'full_paid' : isPaid;
+  };
   const pendingQueries = (queries || []).filter((q) => q.status === 'pending' || q.status === 'in_progress').length;
   const approvedSamples = samples.filter((s) => s.status === 'Approved');
   const openSample = samples.find((s) => s.sampleId === openSampleId);
@@ -1196,7 +1268,7 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab }) {
         </div>
 
         <div className="flex gap-1 px-5 pt-3 border-b border-[#e2dac8] flex-shrink-0 overflow-x-auto">
-          {[...TABS, ...ORDER_JOURNEY_STAGES.map((s) => s.label)].map((t) => {
+          {[...TABS, ...ORDER_JOURNEY_TAB_ORDER].map((t) => {
             const stageMeta = ORDER_JOURNEY_STAGES.find((s) => s.label === t);
             const actualStage = productionOrder?.stage;
             // Order (stage 0) is never locked — it's the entry point that shows the "Create
@@ -1324,19 +1396,10 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab }) {
               <div>
                 <p className="text-sm font-semibold text-[#6d5f4c]">🏭 Not sent to production yet</p>
                 <p className="text-xs text-[#968871] mt-1">
-                  {tab === 'Customer Details'
-                    ? 'Create the production order below — its formulation and raw materials flow straight into Procurement automatically.'
-                    : 'Approve a sample in the Samples tab, then create the order from the Customer Details tab to unlock this view.'}
+                  Approve a sample in the Samples tab, then create its quotation and invoice in Approvals — sending it to production from there opens this Orders/Customer Details view automatically, with the customer's KYC details already filled in.
                 </p>
               </div>
-              {tab === 'Customer Details' && (
-                <button
-                  onClick={() => { setShowMoveModal(true); setMoveSelectedCatalogProduct(null); setMoveCatalogSearch(''); setMoveBatchSizeKg(10); }}
-                  className={accentBtn}
-                >
-                  🏭 Create Order
-                </button>
-              )}
+              <button onClick={() => setTab('Approvals')} className={accentBtn}>Go to Approvals →</button>
             </div>
           )}
 
@@ -1345,23 +1408,48 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab }) {
               {(productionOrderLoading || !productionOrder) ? (
                 <p className="text-sm text-[#968871] text-center py-8">Loading order…</p>
               ) : (() => {
+                // No inner stage bar here — the main tab strip above (Orders/Procurement/
+                // Weighing/.../Dispatch) already does this exact navigation; having both was
+                // just the same buttons twice. The Products sidebar, though, needs to be visible
+                // across every stage (not just Orders) — each product moves through Orders ->
+                // Dispatch entirely on its own pace, and this is the one place to switch between
+                // them without losing your spot.
                 const stage = viewStage ?? productionOrder.stage;
                 return (
-                  <>
-                    <StageBar order={productionOrder} viewStage={stage} setViewStage={(i) => {
-                      setViewStage(i);
-                      const match = ORDER_JOURNEY_STAGES.find((s) => s.stage === i);
-                      if (match) setTab(match.label);
-                    }} />
-                    {stage === 0 && <StageOrder order={productionOrder} onSaved={invalidateOrder} />}
-                    {stage === 1 && <StageWorkAssignment order={productionOrder} onSaved={invalidateOrder} />}
-                    {stage === 2 && <StageProcurement order={productionOrder} onAdvanced={invalidateOrder} />}
-                    {stage === 3 && <StageWeighing order={productionOrder} onSaved={invalidateOrder} />}
-                    {stage === 4 && <StageBulkQC order={productionOrder} onSaved={invalidateOrder} />}
-                    {stage === 5 && <StagePackaging order={productionOrder} onSaved={invalidateOrder} />}
-                    {stage === 6 && <StageFinalQC order={productionOrder} onSaved={invalidateOrder} />}
-                    {stage === 7 && <StageDispatch order={productionOrder} onSaved={invalidateOrder} />}
-                  </>
+                  <div className="flex gap-4 items-start">
+                    <div className="w-52 flex-shrink-0">
+                      <p className="text-[10px] font-bold uppercase tracking-wide text-[#968871] mb-2">Products (from catalogue)</p>
+                      <div className="space-y-1.5">
+                        {products.map((p) => {
+                          const prodOrder = productionForProduct(p.productId)?.order;
+                          const isCurrent = prodOrder && String(prodOrder._id) === String(productionOrder._id);
+                          return (
+                            <button
+                              key={p.productId}
+                              onClick={() => { if (prodOrder && !isCurrent) { setActiveProductId(p.productId); setViewStage(null); } }}
+                              disabled={!prodOrder}
+                              className={clsx('w-full text-left rounded-lg border-[1.5px] px-2.5 py-2 transition-colors',
+                                isCurrent ? 'border-[#f2b23e] bg-[#f3e3c2]' : prodOrder ? 'border-[#d3c9b4] bg-white hover:bg-[#f0eadd]' : 'border-[#e2dac8] bg-[#f0eadd] opacity-60 cursor-not-allowed')}
+                            >
+                              <p className="text-xs font-bold text-[#2e241b] truncate">{p.name}</p>
+                              <p className="text-[10px] text-[#968871] truncate">{prodOrder ? STAGE_NAMES[prodOrder.stage] || prodOrder.status : 'Not in production'}</p>
+                            </button>
+                          );
+                        })}
+                      </div>
+                      <button onClick={() => setShowAddProductInOrders(true)} className="w-full mt-2 border-2 border-dashed border-[#968871] text-[#7a5a10] rounded-lg py-2 text-xs font-bold hover:bg-[#f3e3c2]">+ Add product</button>
+                    </div>
+                    <div className="flex-1 min-w-0 space-y-4">
+                      {stage === 0 && <StageOrder order={productionOrder} onSaved={invalidateOrder} hideSidebar />}
+                      {stage === 1 && <StageWorkAssignment order={productionOrder} onSaved={invalidateOrder} />}
+                      {stage === 2 && <StageProcurement order={productionOrder} onAdvanced={invalidateOrder} />}
+                      {stage === 3 && <StageWeighing order={productionOrder} onSaved={invalidateOrder} />}
+                      {stage === 4 && <StageBulkQC order={productionOrder} onSaved={invalidateOrder} />}
+                      {stage === 5 && <StagePackaging order={productionOrder} onSaved={invalidateOrder} />}
+                      {stage === 6 && <StageFinalQC order={productionOrder} onSaved={invalidateOrder} />}
+                      {stage === 7 && <StageDispatch order={productionOrder} onSaved={invalidateOrder} />}
+                    </div>
+                  </div>
                 );
               })()}
             </div>
@@ -1639,11 +1727,13 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab }) {
                     <thead>
                       <tr className="text-left text-[11px] uppercase tracking-wide text-[#6d5f4c] border-b border-[#d3c9b4] bg-[#e7dfce]">
                         <th className="px-3 py-2">Product ID</th><th className="px-3 py-2">Basis</th><th className="px-3 py-2">Approx Price</th>
-                        <th className="px-3 py-2">Price Status</th><th className="px-3 py-2">Payment</th><th className="px-3 py-2 w-28">Actions</th>
+                        <th className="px-3 py-2">Price Status</th><th className="px-3 py-2">Payment</th><th className="px-3 py-2">Production</th><th className="px-3 py-2 w-28">Actions</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {products.map((p) => (
+                      {products.map((p) => {
+                        const production = productionForProduct(p.productId);
+                        return (
                         <tr key={p.productId} className="border-b border-[#e2dac8]">
                           <td className="px-3 py-2 cursor-pointer" title="Edit product link" onClick={() => { setProductModalEditing(p); setProductModalOpen(true); }}>
                             <span className="font-mono text-xs text-[#6d5f4c]">{p.productId}</span><p className="text-[#2e241b] font-medium">{p.name}</p>
@@ -1661,6 +1751,19 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab }) {
                               {p.paymentStatus === 'full_paid' ? '✓ Paid' : '⏳ Pending'}
                             </span>
                           </td>
+                          <td className="px-3 py-2">
+                            {production ? (
+                              <button
+                                onClick={() => { setTab('Orders'); setViewStage(production.order.stage); }}
+                                className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-[#dde5ea] text-[#33526b] hover:brightness-95"
+                                title={`${production.order.orderNumber} — click to open`}
+                              >
+                                {STAGE_NAMES[production.order.stage] || production.order.status} ▸
+                              </button>
+                            ) : (
+                              <span className="text-[10px] text-[#968871]">Not in production</span>
+                            )}
+                          </td>
                           <td className="px-3 py-2 text-right whitespace-nowrap">
                             <button title="💰 Quote Price" onClick={() => setQuoteModalFor(p)} className="mr-2">💰</button>
                             {p.priceStatus === 'Quoted' && (
@@ -1670,7 +1773,8 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab }) {
                             <button title="Edit" onClick={() => { setProductModalEditing(p); setProductModalOpen(true); }}>✏️</button>
                           </td>
                         </tr>
-                      ))}
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>
@@ -1682,7 +1786,7 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab }) {
             <div className="space-y-3">
               <div className="flex items-center justify-between gap-2">
                 <p className="text-xs font-semibold text-[#968871] uppercase tracking-wide">{formulas.length} custom formula(s)</p>
-                <p className="text-[11px] text-[#968871]">View only here. Start a new formula from the Products tab.</p>
+                <p className="text-[11px] text-[#968871]">View only — ingredients are built in Product Catalog's Formulation tab and shown here live once linked. Start a new one from the Products tab.</p>
               </div>
 
               {formulas.length === 0 && <p className="text-sm text-[#968871] text-center py-6">No custom formulas yet.</p>}
@@ -1692,20 +1796,36 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab }) {
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="text-left text-[11px] uppercase tracking-wide text-[#6d5f4c] border-b border-[#d3c9b4] bg-[#e7dfce]">
-                        <th className="px-3 py-2">Formula ID</th><th className="px-3 py-2">Name</th><th className="px-3 py-2">Product Link</th>
+                        <th className="px-3 py-2">Formula ID</th><th className="px-3 py-2">Name</th><th className="px-3 py-2">Product</th>
                         <th className="px-3 py-2">Current V</th><th className="px-3 py-2">Version Status</th><th className="px-3 py-2">Cost/Unit</th><th className="px-3 py-2"></th>
                       </tr>
                     </thead>
                     <tbody>
                       {formulas.map((f) => {
                         const latest = f.versions[f.versions.length - 1];
+                        const linkedProduct = products.find((p) => p.productId === f.productId);
                         return (
                           <tr key={f.formulaId} className="border-b border-[#e2dac8] cursor-pointer hover:bg-[#e7dfce]/60" onClick={() => setEditorFormulaId(f.formulaId)}>
                             <td className="px-3 py-2 font-mono text-xs text-[#6d5f4c]">{f.formulaId}</td>
                             <td className="px-3 py-2 text-[#2e241b] font-medium">{f.name}</td>
-                            <td className="px-3 py-2 text-xs text-[#968871]">
-                              {f.catalogProductId && <span title="Linked from Product Catalog" className="mr-1">🔗</span>}
-                              {f.productLink || '—'}
+                            <td className="px-3 py-2 text-xs" onClick={(e) => e.stopPropagation()}>
+                              {linkedProduct ? (
+                                <span className="text-[#968871]">
+                                  {f.catalogProductId && <span title="Linked from Product Catalog" className="mr-1">🔗</span>}
+                                  {linkedProduct.name}
+                                </span>
+                              ) : products.length > 0 ? (
+                                <select
+                                  defaultValue=""
+                                  onChange={(e) => { if (e.target.value) linkFormulaProductMutation.mutate({ formulaId: f.formulaId, productId: e.target.value }); }}
+                                  className="text-[10px] border border-[#8c3a30]/40 rounded px-1 py-0.5 bg-[#f0d8d2] text-[#8c3a30]"
+                                >
+                                  <option value="">🔗 Link product…</option>
+                                  {products.map((p) => <option key={p.productId} value={p.productId}>{p.name}</option>)}
+                                </select>
+                              ) : (
+                                <span className="text-[#8c3a30] font-semibold">Not linked</span>
+                              )}
                             </td>
                             <td className="px-3 py-2 text-xs">V{f.currentVersion}</td>
                             <td className="px-3 py-2">
@@ -1745,10 +1865,6 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab }) {
                 <button onClick={() => setShowSampleForm(true)} className={outlineBtn}>➕ Request New Sample</button>
               </div>
 
-              {!isPaid && (
-                <p className="text-[11px] text-[#7a5a10]">🔒 Confirm the R&D/sampling fee in the Payments tab before this sample can move past "Requested".</p>
-              )}
-
               {samples.length === 0 && <p className="text-sm text-[#968871] text-center py-6">No samples yet.</p>}
 
               {samples.length > 0 && (
@@ -1756,7 +1872,7 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab }) {
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="text-left text-[11px] uppercase tracking-wide text-[#6d5f4c] border-b border-[#d3c9b4] bg-[#e7dfce]">
-                        <th className="px-3 py-2">Sample ID</th><th className="px-3 py-2">Formula/Version</th><th className="px-3 py-2">Status</th>
+                        <th className="px-3 py-2">Sample ID</th><th className="px-3 py-2">Formula/Version</th><th className="px-3 py-2">Product</th><th className="px-3 py-2">Status</th>
                         <th className="px-3 py-2">Days in Stage</th><th className="px-3 py-2">Courier</th><th className="px-3 py-2"></th>
                       </tr>
                     </thead>
@@ -1764,6 +1880,8 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab }) {
                       {samples.map((s) => {
                         const formula = formulas.find((f) => f.formulaId === s.formulaId);
                         const lastEvent = s.timeline?.[s.timeline.length - 1];
+                        const product = productForSample(s);
+                        const paid = isSamplePaid(s);
                         return (
                           <tr key={s.sampleId} className="border-b border-[#e2dac8]">
                             <td className="px-3 py-2">
@@ -1773,6 +1891,10 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab }) {
                             <td className="px-3 py-2 text-xs text-[#6d5f4c]">
                               {s.formulaId ? `${s.formulaId}${s.formulaVersionNo ? ` V${s.formulaVersionNo}` : ''}` : '—'}
                               {formula && <p className="text-[10px] text-[#968871]">{formula.name}</p>}
+                            </td>
+                            <td className="px-3 py-2 text-xs">
+                              <p className="text-[#6d5f4c]">{product?.name || '—'}</p>
+                              {!paid && <p className="text-[10px] text-[#8c3a30] font-semibold">🔒 payment pending</p>}
                             </td>
                             <td className="px-3 py-2"><span className={clsx('text-[10px] font-semibold px-2 py-0.5 rounded-full', SUB_STAGE_PILL[s.status])}>{s.status}</span></td>
                             <td className="px-3 py-2 text-xs">{lastEvent ? formatDistanceToNowStrict(new Date(lastEvent.at)) : '—'}</td>
@@ -1808,10 +1930,14 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab }) {
                 </div>
               </div>
 
+              {!isSamplePaid(openSample) && (
+                <p className="text-[11px] text-[#7a5a10]">🔒 Confirm payment for {productForSample(openSample)?.name || 'this product'} in the Payments tab before this sample can move past "Requested".</p>
+              )}
+
               <div className="flex items-center gap-2 flex-wrap">
                 <span className={clsx('text-xs font-semibold px-2.5 py-1 rounded-full', SUB_STAGE_PILL[openSample.status])}>{openSample.status}</span>
                 {SUB_STAGES.filter((s) => s !== openSample.status).map((s) => {
-                  const locked = s !== 'Requested' && !isPaid;
+                  const locked = s !== 'Requested' && !isSamplePaid(openSample);
                   return (
                     <button
                       key={s}
@@ -1920,79 +2046,77 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab }) {
 
           {!isLoading && tab === 'Payments' && (
             <div className="space-y-4">
-              <div>
-                <p className="text-xs font-semibold text-[#968871] uppercase tracking-wide mb-2">R&D / Sampling Payment</p>
-                <div className="flex items-center gap-2">
-                  <span className={clsx('px-2.5 py-1 rounded-full text-xs font-semibold', isPaid ? PILL.success : PILL.warning)}>
-                    {isPaid ? 'R&D fee paid' : 'R&D fee pending'}
-                  </span>
-                  <span className="text-xs text-[#968871]">₹{(sd.chargeAmount || 0).toLocaleString('en-IN')}</span>
-                  {isPaid && (
-                    <button onClick={() => paymentMutation.mutate({ paymentStatus: 'pending' })} disabled={paymentMutation.isPending}
-                      className={clsx(textLink, 'ml-auto')}>
-                      Revoke payment
-                    </button>
-                  )}
-                </div>
-                {!isPaid && <p className="text-[11px] text-[#7a5a10] mt-1">Every sample for this customer stays locked at "Requested" until this is confirmed.</p>}
-              </div>
+              <p className="text-[11px] text-[#968871]">Payment is per product — whichever product is paid for, only that product's samples unlock past "Requested". The rest stay locked until their own payment is confirmed.</p>
 
-              {!isPaid ? (
-                <div className="p-3 rounded-[10px] border-[1.5px] border-dashed border-[#d3c9b4] bg-[#e7dfce] space-y-2">
-                  <p className="text-xs font-semibold text-[#6d5f4c]">Enter payment details</p>
-                  <div className="grid grid-cols-2 gap-2">
-                    <select value={payMode} onChange={(e) => setPayMode(e.target.value)} className={inputCls}>
-                      <option value="upi">UPI</option>
-                      <option value="cash">Cash</option>
-                      <option value="bank_transfer">Bank Transfer</option>
-                    </select>
-                    <input value={payTxnRef} onChange={(e) => setPayTxnRef(e.target.value)} placeholder="Txn / Ref No." className={inputCls} />
-                    <input type="date" value={payDate} onChange={(e) => setPayDate(e.target.value)} className={inputCls} />
-                    <input value={payReceivedBy} onChange={(e) => setPayReceivedBy(e.target.value)} placeholder="Received by" className={inputCls} />
-                  </div>
-                  <textarea value={payNotes} onChange={(e) => setPayNotes(e.target.value)} placeholder="Notes (optional)…" rows={2} className={clsx(inputCls, 'w-full')} />
-                  <button
-                    onClick={() => paymentMutation.mutate({
-                      paymentStatus: 'full_paid', paymentMode: payMode,
-                      paymentTxnRef: payTxnRef.trim() || undefined, paidAt: payDate || undefined,
-                      receivedBy: payReceivedBy.trim() || undefined, paymentNotes: payNotes.trim() || undefined,
-                    })}
-                    disabled={paymentMutation.isPending}
-                    className={clsx(accentBtn, 'ml-auto')}
-                  >
-                    {paymentMutation.isPending ? 'Confirming…' : '✅ Confirm Payment'}
-                  </button>
-                </div>
-              ) : (
-                <div className="grid grid-cols-2 gap-3 text-sm p-3 rounded-[10px] bg-[#e7dfce]">
-                  <div><p className="text-xs text-[#968871] mb-0.5">Mode</p><p className="text-[#2e241b] capitalize">{(sd.paymentMode || '—').replace('_', ' ')}</p></div>
-                  <div><p className="text-xs text-[#968871] mb-0.5">Txn / Ref No.</p><p className="text-[#2e241b]">{sd.paymentTxnRef || '—'}</p></div>
-                  <div><p className="text-xs text-[#968871] mb-0.5">Paid on</p><p className="text-[#2e241b]">{sd.paidAt ? format(new Date(sd.paidAt), 'dd MMM yyyy') : '—'}</p></div>
-                  <div><p className="text-xs text-[#968871] mb-0.5">Received by</p><p className="text-[#2e241b]">{sd.receivedBy || '—'}</p></div>
-                  {sd.paymentNotes && <div className="col-span-2"><p className="text-xs text-[#968871] mb-0.5">Notes</p><p className="text-[#2e241b]">{sd.paymentNotes}</p></div>}
-                </div>
-              )}
+              {products.length === 0 && <p className="text-sm text-[#968871] text-center py-6">No products linked yet — add one in the Products tab first.</p>}
 
-              <div className="grid grid-cols-2 gap-3 text-sm">
-                <div><p className="text-xs text-[#968871] mb-0.5">Courier</p><p className="text-[#2e241b]">{sd.courier || '—'}</p></div>
-                <div><p className="text-xs text-[#968871] mb-0.5">Sent date</p><p className="text-[#2e241b]">{sd.sentDate ? format(new Date(sd.sentDate), 'dd MMM yyyy') : '—'}</p></div>
-              </div>
-
-              {products.length > 0 && (
-                <div>
-                  <p className="text-xs font-semibold text-[#968871] uppercase tracking-wide mb-2">Per-product payment</p>
-                  <div className="space-y-1.5">
-                    {products.map((p) => (
-                      <div key={p.productId} className="flex items-center justify-between text-sm p-2 rounded-lg bg-[#e7dfce]">
-                        <span className="text-[#2e241b]">{p.name} <span className="text-xs text-[#968871] font-mono">{p.productId}</span></span>
-                        <span className={clsx('text-[10px] font-semibold px-2 py-0.5 rounded-full', p.paymentStatus === 'full_paid' ? PILL.success : PILL.warning)}>
-                          {p.paymentStatus === 'full_paid' ? 'Paid' : 'Pending'}
-                        </span>
+              {products.map((p) => {
+                const paid = p.paymentStatus === 'full_paid';
+                const entering = payingProductId === p.productId;
+                return (
+                  <div key={p.productId} className="p-3 rounded-[10px] border border-[#e2dac8] bg-[#f0eadd] space-y-2">
+                    <div className="flex items-center justify-between gap-2 flex-wrap">
+                      <div>
+                        <p className="text-sm font-semibold text-[#2e241b]">{p.name} <span className="text-xs text-[#968871] font-mono font-normal">{p.productId}</span></p>
+                        <p className="text-xs text-[#968871]">₹{(p.chargeAmount || p.approxPrice || 0).toLocaleString('en-IN')}</p>
                       </div>
-                    ))}
+                      <span className={clsx('px-2.5 py-1 rounded-full text-xs font-semibold', paid ? PILL.success : PILL.warning)}>
+                        {paid ? '✓ Paid' : '⏳ Pending'}
+                      </span>
+                    </div>
+
+                    {paid ? (
+                      <div className="grid grid-cols-2 gap-3 text-sm p-2.5 rounded-lg bg-[#e7dfce]">
+                        <div><p className="text-xs text-[#968871] mb-0.5">Mode</p><p className="text-[#2e241b] capitalize">{(p.paymentMode || '—').replace('_', ' ')}</p></div>
+                        <div><p className="text-xs text-[#968871] mb-0.5">Txn / Ref No.</p><p className="text-[#2e241b]">{p.paymentTxnRef || '—'}</p></div>
+                        <div><p className="text-xs text-[#968871] mb-0.5">Paid on</p><p className="text-[#2e241b]">{p.paidAt ? format(new Date(p.paidAt), 'dd MMM yyyy') : '—'}</p></div>
+                        <div><p className="text-xs text-[#968871] mb-0.5">Received by</p><p className="text-[#2e241b]">{p.receivedBy || '—'}</p></div>
+                        {p.paymentNotes && <div className="col-span-2"><p className="text-xs text-[#968871] mb-0.5">Notes</p><p className="text-[#2e241b]">{p.paymentNotes}</p></div>}
+                        <div className="col-span-2">
+                          <button onClick={() => updateProductMutation.mutate({ productId: p.productId, paymentStatus: 'pending' })} disabled={updateProductMutation.isPending} className={textLink}>
+                            Revoke payment
+                          </button>
+                        </div>
+                      </div>
+                    ) : entering ? (
+                      <div className="p-2.5 rounded-lg border-[1.5px] border-dashed border-[#d3c9b4] bg-[#e7dfce] space-y-2">
+                        <div className="grid grid-cols-2 gap-2">
+                          <select value={payMode} onChange={(e) => setPayMode(e.target.value)} className={inputCls}>
+                            <option value="upi">UPI</option>
+                            <option value="cash">Cash</option>
+                            <option value="bank_transfer">Bank Transfer</option>
+                          </select>
+                          <input value={payTxnRef} onChange={(e) => setPayTxnRef(e.target.value)} placeholder="Txn / Ref No." className={inputCls} />
+                          <input type="date" value={payDate} onChange={(e) => setPayDate(e.target.value)} className={inputCls} />
+                          <input value={payReceivedBy} onChange={(e) => setPayReceivedBy(e.target.value)} placeholder="Received by" className={inputCls} />
+                        </div>
+                        <textarea value={payNotes} onChange={(e) => setPayNotes(e.target.value)} placeholder="Notes (optional)…" rows={2} className={clsx(inputCls, 'w-full')} />
+                        <div className="flex gap-2 justify-end">
+                          <button onClick={() => setPayingProductId(null)} className={outlineBtn}>Cancel</button>
+                          <button
+                            onClick={() => updateProductMutation.mutate({
+                              productId: p.productId, paymentStatus: 'full_paid', paymentMode: payMode,
+                              paymentTxnRef: payTxnRef.trim() || undefined, paidAt: payDate || undefined,
+                              receivedBy: payReceivedBy.trim() || undefined, paymentNotes: payNotes.trim() || undefined,
+                            }, { onSuccess: () => setPayingProductId(null) })}
+                            disabled={updateProductMutation.isPending}
+                            className={accentBtn}
+                          >
+                            {updateProductMutation.isPending ? 'Confirming…' : '✅ Confirm Payment'}
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => { setPayingProductId(p.productId); setPayMode('upi'); setPayTxnRef(''); setPayDate(new Date().toISOString().slice(0, 10)); setPayReceivedBy(''); setPayNotes(''); }}
+                        className={outlineBtn}
+                      >
+                        💳 Record Payment
+                      </button>
+                    )}
                   </div>
-                </div>
-              )}
+                );
+              })}
             </div>
           )}
 
@@ -2005,31 +2129,22 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab }) {
                   <p className="text-xs text-[#968871] mt-1">Approve a sample in the Samples tab to unlock the move to Production.</p>
                 </div>
               )}
-              {approvedSamples.length > 0 && !productionOrderId && (
-                <div className="p-3 rounded-[10px] border bg-[#dce9d4] border-[#b9d2af] flex items-center justify-between gap-3">
-                  <p className="text-xs text-[#3a5f3c]">Ready to hand off — pick the catalog product and this moves the lead to Production, right here in this panel.</p>
-                  <button
-                    onClick={() => { setShowMoveModal(true); setMoveSelectedCatalogProduct(null); setMoveCatalogSearch(''); setMoveBatchSizeKg(10); }}
-                    className={clsx(accentBtn, 'flex-shrink-0')}
-                  >
-                    Move to Production →
-                  </button>
-                </div>
+              {approvedSamples.length > 0 && (
+                <p className="text-[11px] text-[#968871]">Each product below gets its own Create Quotation → Create Invoice → Send to Production flow — independent of every other product on this lead.</p>
               )}
-              <p className="text-[11px] text-[#968871] -mt-1">Each product below gets its own quotation → payment → production gate. Only a product paid at least 50% can be sent to production — the rest stay held even if this same customer has other products already moving.</p>
               {approvedSamples.map((s) => {
                 const inv = s.invoiceId;
                 const paidPct = inv && inv.totalAmount > 0 ? Math.round((inv.paidAmount / inv.totalAmount) * 100) : 0;
                 // No payment wait here anymore — as soon as the final invoice exists (quotation
-                // confirmed + invoiced), this product can move straight to Customer Details. The
+                // confirmed + invoiced), this product can move straight to Orders. The
                 // ≥50% advance-payment gate now sits later, at Work Assignment → Procurement.
                 const canSendToProduction = !!s.finalInvoiceId && !s.productionOrderId;
                 return (
                   <div key={s.sampleId} className="p-3 rounded-[10px] border bg-[#dce9d4] border-[#b9d2af] space-y-2">
                     <div className="flex items-center justify-between gap-3">
                       <div>
-                        <p className="text-sm font-semibold text-[#2e241b]">{s.sampleId}{s.formulaVersionNo && <span className="text-xs text-[#968871]"> V{s.formulaVersionNo}</span>}</p>
-                        <p className="text-xs text-[#6d5f4c]">{s.formulaId || 'No formula linked'}</p>
+                        <p className="text-sm font-semibold text-[#2e241b]">{productForSample(s)?.name || s.sampleId}</p>
+                        <p className="text-xs text-[#6d5f4c]">{s.sampleId}{s.formulaVersionNo && ` · V${s.formulaVersionNo}`} — {s.formulaId || 'No formula linked'}</p>
                       </div>
                       {s.productionOrderId ? (
                         <span className="text-xs font-semibold text-[#33526b]">{s.productionOrderId.orderNumber}</span>
@@ -2061,7 +2176,9 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab }) {
                               </button>
                             )}
                             {inv.status === 'draft' && !s.finalInvoiceId && (
-                              <span className="text-[10px] text-[#8c3a30] font-semibold">Send the quotation to the customer first (Rework Quotation → Send)</span>
+                              <button onClick={() => sendQuotationMutation.mutate(inv._id)} disabled={sendQuotationMutation.isPending} className={accentBtn}>
+                                📤 {sendQuotationMutation.isPending ? 'Sending…' : 'Send Quotation'}
+                              </button>
                             )}
                             {inv.status !== 'draft' && inv.status !== 'cancelled' && !s.finalInvoiceId && (
                               <button onClick={() => createInvoiceMutation.mutate(s._id)} disabled={createInvoiceMutation.isPending} className={accentBtn}>
@@ -2078,7 +2195,18 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab }) {
                             )}
                             {canSendToProduction && (
                               <button
-                                onClick={() => { setSendSampleFor(s); setSendSampleSelectedCatalog(null); setSendSampleCatalogSearch(''); setSendSampleBatchSizeKg(10); }}
+                                onClick={() => {
+                                  // This sample is already tied to one specific product — no need
+                                  // to search the catalog again, just confirm it.
+                                  const linkedProduct = productForSample(s);
+                                  const catalogMatch = linkedProduct?.catalogProductId
+                                    ? (catalogProducts || []).find((p) => String(p._id) === String(linkedProduct.catalogProductId))
+                                    : null;
+                                  setSendSampleFor(s);
+                                  setSendSampleSelectedCatalog(catalogMatch || null);
+                                  setSendSampleCatalogSearch('');
+                                  setSendSampleBatchSizeKg(10);
+                                }}
                                 className={accentBtn}
                               >
                                 🏭 Send to Production →
@@ -2097,6 +2225,14 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab }) {
       </div>
 
       {showEditKyc && lead && <EditKycModal lead={lead} onClose={() => { setShowEditKyc(false); invalidate(); }} />}
+
+      {showAddProductInOrders && (
+        <NewOrderModal
+          initialCustomerSearch={lead?.name || ''}
+          onClose={() => setShowAddProductInOrders(false)}
+          onCreated={() => { setShowAddProductInOrders(false); toast.success('Added — new order created for this customer'); invalidate(); }}
+        />
+      )}
 
       {showFollowUpModal && (
         <div className={clsx('fixed inset-0 z-[70] flex items-center justify-center bg-black/40', followUpMaximized ? 'p-0' : 'p-4')} onClick={() => setShowFollowUpModal(false)}>
@@ -2208,6 +2344,7 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab }) {
 
       {showFormulaForm && (
         <NewFormulaModal
+          products={products}
           saving={createFormulaMutation.isPending}
           onClose={() => setShowFormulaForm(false)}
           onSave={(payload) => createFormulaMutation.mutate(payload)}
@@ -2217,7 +2354,7 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab }) {
       {showSampleForm && (
         <NewSampleModal
           formulas={formulas}
-          isPaid={isPaid}
+          products={products}
           saving={createSampleMutation.isPending}
           chainedFrom={sampleChainSeed?.chainedFrom}
           initialFormulaId={sampleChainSeed?.formulaId}
@@ -2225,70 +2362,6 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab }) {
           onGoToPayments={() => { setShowSampleForm(false); setSampleChainSeed(null); setTab('Payments'); }}
           onSave={(payload) => { createSampleMutation.mutate({ ...payload, queryId: qaConvertQueryId || undefined }); setSampleChainSeed(null); }}
         />
-      )}
-
-      {showMoveModal && (
-        <div className={clsx('fixed inset-0 z-[80] flex items-center justify-center', moveMaximized ? 'p-0' : 'p-4')} style={bodyFont}>
-          <div className="absolute inset-0 bg-[#2e241b]/50 backdrop-blur-sm" onClick={() => setShowMoveModal(false)} />
-          <div className={clsx('relative bg-[#f0eadd] shadow-[0_10px_40px_rgba(46,36,27,0.16)] border border-[#d3c9b4]',
-            moveMaximized ? 'w-screen h-screen max-w-none rounded-none flex flex-col' : 'w-full max-w-md rounded-2xl')}>
-            <div className={clsx('p-5 border-b border-[#e2dac8] bg-[#e7dfce] flex items-center justify-between flex-shrink-0', !moveMaximized && 'rounded-t-2xl')}>
-              <div>
-                <h3 className="font-bold text-[#2e241b]" style={displayFont}>🏭 Move to Production</h3>
-                <p className="text-xs text-[#6d5f4c] mt-0.5">{lead?.name} — moves the lead to Production and opens the order's stage board right here.</p>
-              </div>
-              <div className="flex items-center gap-1.5 flex-shrink-0">
-                <button onClick={() => setMoveMaximized((m) => !m)} title={moveMaximized ? 'Restore' : 'Maximize'} className="w-9 h-9 rounded-lg hover:bg-[#ddd3be] flex items-center justify-center text-[#968871] hover:text-[#2e241b] text-base">{moveMaximized ? '🗗' : '🗖'}</button>
-                <button onClick={() => setShowMoveModal(false)} className="w-9 h-9 rounded-lg hover:bg-[#ddd3be] flex items-center justify-center text-[#968871] hover:text-[#2e241b] text-lg">✕</button>
-              </div>
-            </div>
-            <div className={clsx('p-5 space-y-3', moveMaximized && 'flex-1 overflow-y-auto')}>
-              <div>
-                <label className="text-xs font-semibold text-[#968871] uppercase tracking-wide mb-1 block">Catalog product</label>
-                <input
-                  value={moveSelectedCatalogProduct ? moveSelectedCatalogProduct.name : moveCatalogSearch}
-                  onChange={(e) => { setMoveCatalogSearch(e.target.value); setMoveSelectedCatalogProduct(null); }}
-                  placeholder="Search catalog products…"
-                  className={clsx(inputCls, 'w-full bg-white')}
-                />
-                {moveCatalogSearch && !moveSelectedCatalogProduct && (
-                  <div className="mt-1 rounded-[10px] border border-[#d3c9b4] bg-white max-h-32 overflow-y-auto">
-                    {moveCatalogMatches.length === 0 && <div className="px-3 py-2 text-xs text-[#968871]">No products found</div>}
-                    {moveCatalogMatches.slice(0, 8).map((p) => (
-                      <button key={p._id} type="button" onClick={() => { setMoveSelectedCatalogProduct(p); setMoveCatalogSearch(''); }}
-                        className="w-full text-left px-3 py-2 text-xs hover:bg-[#e7dfce] flex justify-between">
-                        <span className="text-[#2e241b]">{p.name}</span>
-                        <span className="text-[#968871] font-mono">{p.code}</span>
-                      </button>
-                    ))}
-                  </div>
-                )}
-                {moveSelectedCatalogProduct && (
-                  <p className="text-[11px] text-[#968871] mt-1">{moveSelectedCatalogProduct.formulation?.rows?.length || 0} ingredient(s) in formulation</p>
-                )}
-              </div>
-              <div>
-                <label className="text-xs font-semibold text-[#968871] uppercase tracking-wide mb-1 block">Batch size (kg)</label>
-                <input type="number" min="0.1" step="0.1" value={moveBatchSizeKg} onChange={(e) => setMoveBatchSizeKg(e.target.value)}
-                  className={clsx(inputCls, 'w-full bg-white')} />
-              </div>
-              <div className="flex gap-3 pt-1">
-                <button type="button" onClick={() => setShowMoveModal(false)} className={clsx(outlineBtn, 'flex-1 justify-center')}>Cancel</button>
-                <button
-                  onClick={() => {
-                    if (!moveSelectedCatalogProduct) { toast.error('Select a catalog product'); return; }
-                    if (!moveBatchSizeKg || Number(moveBatchSizeKg) <= 0) { toast.error('Enter a valid batch size'); return; }
-                    moveToProductionMutation.mutate({ catalogProduct: moveSelectedCatalogProduct._id, batchSizeKg: Number(moveBatchSizeKg) });
-                  }}
-                  disabled={moveToProductionMutation.isPending}
-                  className={clsx(accentBtn, 'flex-1 justify-center')}
-                >
-                  {moveToProductionMutation.isPending ? 'Moving…' : 'Confirm'}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
       )}
 
       {sendSampleFor && (
@@ -2299,7 +2372,7 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab }) {
             <div className={clsx('p-5 border-b border-[#e2dac8] bg-[#e7dfce] flex items-center justify-between flex-shrink-0', !sendSampleMaximized && 'rounded-t-2xl')}>
               <div>
                 <h3 className="font-bold text-[#2e241b]" style={displayFont}>🏭 Send Product to Production</h3>
-                <p className="text-xs text-[#6d5f4c] mt-0.5">{sendSampleFor.sampleId} — invoiced; pick the catalog product this one is made from. Customer Details opens right after — the ≥50% advance is checked later, before Procurement starts.</p>
+                <p className="text-xs text-[#6d5f4c] mt-0.5">{sendSampleFor.sampleId} — invoiced. Orders opens right after — the ≥50% advance is checked later, before Procurement starts.</p>
               </div>
               <div className="flex items-center gap-1.5 flex-shrink-0">
                 <button onClick={() => setSendSampleMaximized((m) => !m)} title={sendSampleMaximized ? 'Restore' : 'Maximize'} className="w-9 h-9 rounded-lg hover:bg-[#ddd3be] flex items-center justify-center text-[#968871] hover:text-[#2e241b] text-base">{sendSampleMaximized ? '🗗' : '🗖'}</button>
@@ -2308,27 +2381,36 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab }) {
             </div>
             <div className={clsx('p-5 space-y-3', sendSampleMaximized && 'flex-1 overflow-y-auto')}>
               <div>
-                <label className="text-xs font-semibold text-[#968871] uppercase tracking-wide mb-1 block">Catalog product</label>
-                <input
-                  value={sendSampleSelectedCatalog ? sendSampleSelectedCatalog.name : sendSampleCatalogSearch}
-                  onChange={(e) => { setSendSampleCatalogSearch(e.target.value); setSendSampleSelectedCatalog(null); }}
-                  placeholder="Search catalog products…"
-                  className={clsx(inputCls, 'w-full bg-white')}
-                />
-                {sendSampleCatalogSearch && !sendSampleSelectedCatalog && (
-                  <div className="mt-1 rounded-[10px] border border-[#d3c9b4] bg-white max-h-32 overflow-y-auto">
-                    {sendSampleCatalogMatches.length === 0 && <div className="px-3 py-2 text-xs text-[#968871]">No products found</div>}
-                    {sendSampleCatalogMatches.slice(0, 8).map((p) => (
-                      <button key={p._id} type="button" onClick={() => { setSendSampleSelectedCatalog(p); setSendSampleCatalogSearch(''); }}
-                        className="w-full text-left px-3 py-2 text-xs hover:bg-[#e7dfce] flex justify-between">
-                        <span className="text-[#2e241b]">{p.name}</span>
-                        <span className="text-[#968871] font-mono">{p.code}</span>
-                      </button>
-                    ))}
-                  </div>
-                )}
-                {sendSampleSelectedCatalog && (
-                  <p className="text-[11px] text-[#968871] mt-1">{sendSampleSelectedCatalog.formulation?.rows?.length || 0} ingredient(s) in formulation</p>
+                <label className="text-xs font-semibold text-[#968871] uppercase tracking-wide mb-1 block">Product</label>
+                {sendSampleSelectedCatalog ? (
+                  <>
+                    <div className="w-full px-3 py-2 text-sm rounded-[10px] border-[1.5px] border-[#d3c9b4] bg-[#e7dfce] text-[#2e241b] font-semibold">
+                      {sendSampleSelectedCatalog.name} <span className="text-xs text-[#968871] font-mono font-normal">{sendSampleSelectedCatalog.code}</span>
+                    </div>
+                    <p className="text-[11px] text-[#968871] mt-1">{sendSampleSelectedCatalog.formulation?.rows?.length || 0} ingredient(s) in formulation — already linked to this sample's product, nothing to pick.</p>
+                  </>
+                ) : (
+                  <>
+                    <input
+                      value={sendSampleCatalogSearch}
+                      onChange={(e) => { setSendSampleCatalogSearch(e.target.value); setSendSampleSelectedCatalog(null); }}
+                      placeholder="Search catalog products…"
+                      className={clsx(inputCls, 'w-full bg-white')}
+                    />
+                    <p className="text-[11px] text-[#8c3a30] mt-1">This sample's product isn't linked to a real catalog entry — pick the closest match.</p>
+                    {sendSampleCatalogSearch && (
+                      <div className="mt-1 rounded-[10px] border border-[#d3c9b4] bg-white max-h-32 overflow-y-auto">
+                        {sendSampleCatalogMatches.length === 0 && <div className="px-3 py-2 text-xs text-[#968871]">No products found</div>}
+                        {sendSampleCatalogMatches.slice(0, 8).map((p) => (
+                          <button key={p._id} type="button" onClick={() => { setSendSampleSelectedCatalog(p); setSendSampleCatalogSearch(''); }}
+                            className="w-full text-left px-3 py-2 text-xs hover:bg-[#e7dfce] flex justify-between">
+                            <span className="text-[#2e241b]">{p.name}</span>
+                            <span className="text-[#968871] font-mono">{p.code}</span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
               <div>
