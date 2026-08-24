@@ -14,6 +14,8 @@ import {
   StageBulkQC, StagePackaging, StageFinalQC, StageDispatch, STAGE_NAMES,
 } from './production/StageSteps';
 import NewOrderModal from './production/NewOrderModal';
+import { useAuthStore } from '../../store/useAuthStore';
+import { canAssignLeads } from '../../utils/leadHelpers';
 
 // Cross-customer work queue over the CRM's existing "Sample" pipeline stage —
 // no new data model. Everything here reads/writes the same Lead record that
@@ -130,6 +132,8 @@ function SortableTh({ label, sortKey, sortState, setSortState, className = '' })
 }
 
 export default function SampleProduction() {
+  const { user } = useAuthStore();
+  const canAssign = canAssignLeads(user);
   const [tab, setTab] = useState('sample');
   const [search, setSearch] = useState('');
   const [openLeadId, setOpenLeadId] = useState(null);
@@ -782,18 +786,24 @@ export default function SampleProduction() {
                         </select>
                       </td>
                       <td className="px-4 py-2.5">
-                        <select
-                          value={l.inCharge?._id || l.inCharge || ''}
-                          onChange={(e) => inChargeMutation.mutate({ leadId: l._id, inCharge: e.target.value })}
-                          disabled={inChargeMutation.isPending}
-                          title="Owns this client end-to-end through Dispatch"
-                          className="text-[11px] text-[#6d5f4c] border border-[#d3c9b4] rounded-lg px-1.5 py-1 bg-white disabled:opacity-50 max-w-[140px]"
-                        >
-                          <option value="">Unassigned</option>
-                          {productionInCharge.map((u) => (
-                            <option key={u._id} value={u._id}>{`${u.firstName || ''} ${u.lastName || ''}`.trim() || u.email}</option>
-                          ))}
-                        </select>
+                        {canAssign ? (
+                          <select
+                            value={l.inCharge?._id || l.inCharge || ''}
+                            onChange={(e) => inChargeMutation.mutate({ leadId: l._id, inCharge: e.target.value })}
+                            disabled={inChargeMutation.isPending}
+                            title="Owns this client end-to-end through Dispatch"
+                            className="text-[11px] text-[#6d5f4c] border border-[#d3c9b4] rounded-lg px-1.5 py-1 bg-white disabled:opacity-50 max-w-[140px]"
+                          >
+                            <option value="">Unassigned</option>
+                            {productionInCharge.map((u) => (
+                              <option key={u._id} value={u._id}>{`${u.firstName || ''} ${u.lastName || ''}`.trim() || u.email}</option>
+                            ))}
+                          </select>
+                        ) : (
+                          <span className="text-[11px] text-[#6d5f4c]" title="Only admin, Naventhra, or Vignesh can change who is In-Charge">
+                            {l.inCharge ? `${l.inCharge.firstName || ''} ${l.inCharge.lastName || ''}`.trim() || l.inCharge.email : 'Unassigned'}
+                          </span>
+                        )}
                       </td>
                       <td className="px-4 py-2.5 text-right whitespace-nowrap">
                         <button

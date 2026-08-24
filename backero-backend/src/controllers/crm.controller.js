@@ -263,6 +263,14 @@ exports.updateLead = asyncHandler(async (req, res) => {
 
   const updates = req.body;
 
+  // inCharge (the production end-to-end owner handoff) may only be set/changed by admin or the
+  // two intake reps who actually make that handoff call — assignedTo itself stays open to
+  // whoever's doing first-contact/KYC entry, no restriction there.
+  const changingInCharge = updates.inCharge !== undefined && String(updates.inCharge || '') !== String(existing.inCharge || '');
+  if (changingInCharge && !canAssignLeads(req.user)) {
+    return sendError(res, 'Only admin, Naventhra, or Vignesh can change who is In-Charge of a client.', 403);
+  }
+
   if (updates.status && updates.status !== existing.status) {
     const gateError = validateStageTransition(existing, updates.status, updates);
     if (gateError) return sendError(res, gateError, 422);
@@ -923,12 +931,21 @@ exports.addFollowUp = asyncHandler(async (req, res) => {
   sendSuccess(res, { lead }, 'Follow-up recorded');
 });
 
+// Only admin, or the two named intake reps, may ever change a lead's In-Charge (the production
+// end-to-end owner handoff) — everyone else can still see who's In-Charge, just not change it.
+// Name-hint matching, not a dedicated role, since these are two specific people rather than a
+// role tier — same 'naven'/'vignesh' substring convention the frontend KYC/EditKyc pickers use.
+const ASSIGNER_NAME_HINTS = ['naven', 'vignesh'];
+function canAssignLeads(user) {
+  if (user.role === 'admin') return true;
+  const name = `${user.firstName || ''} ${user.lastName || ''}`.toLowerCase();
+  return ASSIGNER_NAME_HINTS.some((hint) => name.includes(hint));
+}
+exports.canAssignLeads = canAssignLeads;
+
 // POST /api/crm/leads/:id/assign
-// Open to any authenticated team member (not manager-gated) — the real workflow is a rep
-// making first contact on a new KYC lead, then handing it off to whoever should own that
-// client end-to-end; requiring a manager for that handoff would just push people back onto
-// the ungated generic PUT /leads/:id, which skips the notification and assignedBy/assignedAt
-// audit trail this endpoint exists to provide.
+// Open to whoever's doing KYC entry/first-contact — no restriction here, unlike inCharge
+// (the production handoff) in updateLead below.
 exports.assignLead = asyncHandler(async (req, res) => {
   const io = req.app.get('io');
   const { assignedTo } = req.body;

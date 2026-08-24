@@ -14,3 +14,15 @@ export function queryId(query) {
   const id = query?._id;
   return id ? `QRY-${String(id).slice(-4).toUpperCase()}` : '';
 }
+
+// Mirrors the backend's canAssignLeads() in crm.controller.js — only admin, or the two named
+// intake reps, may change who a lead/client is assigned to. Everyone else can still see who
+// owns a lead; this just decides whether the picker renders as editable or as plain text.
+// Name-hint matching (not a role) since these are two specific people, not a role tier.
+const ASSIGNER_NAME_HINTS = ['naven', 'vignesh'];
+export function canAssignLeads(user) {
+  if (!user) return false;
+  if (user.role === 'admin') return true;
+  const name = `${user.firstName || ''} ${user.lastName || ''}`.toLowerCase();
+  return ASSIGNER_NAME_HINTS.some((hint) => name.includes(hint));
+}
