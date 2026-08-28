@@ -43,7 +43,10 @@ const workAssignmentSchema = new mongoose.Schema({
 }, { _id: false });
 
 const bulkQCSchema = new mongoose.Schema({
-  ph: Number, viscosity: Number, density: Number, appearance: String, color: String, odor: String, texture: String,
+  // Every field here (including ph/viscosity/density) is a PASS/FAIL call against the Customer
+  // Details spec shown alongside it, not a raw instrument reading — these were Number before,
+  // switched to String to hold "PASS"/"FAIL" like the rest.
+  ph: String, viscosity: String, density: String, appearance: String, color: String, odor: String, texture: String,
   tpc: String, ym: String, pathogen: String, wld: Number, heavy: String, preservative: String, stability: String, docs: String,
   // Every other Sensory/Physicochemical/QC-Plan spec key (qcAssay, labFreezeThaw, ...) that
   // doesn't have its own named column above — keyed by the same crmSpec key it was fetched
@@ -78,6 +81,13 @@ const finalQCSchema = new mongoose.Schema({
 
 const dispatchRecordSchema = new mongoose.Schema({
   carrier: String, tracking: String, date: String, eta: String, notes: String,
+  // Confirmed once each box is ticked in the Dispatch stage's checklist, before Confirm Dispatch
+  // is even clickable — kept on the record afterward as an audit trail of what was verified.
+  checklist: {
+    labelReady: { type: Boolean, default: false },
+    invoiceReady: { type: Boolean, default: false },
+    documentsReady: { type: Boolean, default: false },
+  },
   dispatchedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   dispatchedAt: Date,
 }, { _id: false });

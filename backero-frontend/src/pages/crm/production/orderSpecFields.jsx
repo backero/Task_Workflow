@@ -1,4 +1,5 @@
-﻿import clsx from 'clsx';
+﻿import { useState } from 'react';
+import clsx from 'clsx';
 import { Card } from '../sampleTheme';
 
 // Leaf module (no imports from StageSteps.jsx / NewOrderModal.jsx / SampleLeadDetail.jsx) so
@@ -71,13 +72,6 @@ export const PKG_SPEC_FIELDS = [
   { key: 'pkgSpecialHandling', label: 'Special Handling / Marking', placeholder: 'e.g. Fragile, This Side Up', presets: ['Fragile, This Side Up', 'Keep Dry', 'Do Not Freeze'] },
   { key: 'pkgBatchCoding', label: 'Batch Coding Convention', placeholder: 'e.g. BATCH: M/Y/####; MFG & EXP inkjet on base' },
 ];
-export const PAYMENT_FIELDS = [
-  { key: 'paymentTerms', label: 'Payment Terms', placeholder: 'e.g. 30% Advance / 40% on QC / 30% on Dispatch' },
-  { key: 'paymentMode', label: 'Payment Mode', placeholder: 'e.g. NEFT' },
-  { key: 'creditPeriod', label: 'Credit Period', placeholder: 'e.g. Net 30 Days' },
-  { key: 'gstTreatment', label: 'GST Treatment', placeholder: 'e.g. Regular GST (18%)' },
-];
-
 export function Field({ label, children }) {
   return <div><label className="text-xs font-semibold text-[#968871] uppercase tracking-wide mb-1 block">{label}</label>{children}</div>;
 }
@@ -123,40 +117,76 @@ export function YesNoToggle({ value, onChange, disabled, className }) {
 }
 
 // Same row shape as the reference file's .spec-item (grid-template-columns: 240px 1fr 112px) —
-// label+hint, chips+input, and the Required/N/A toggle all sit on one row/line instead of
-// stacking, with the grid collapsing to a single column on narrow screens.
-const gridRowCls = 'grid grid-cols-1 sm:grid-cols-[220px_1fr_104px] gap-x-3 gap-y-1 sm:items-center py-2 border-b border-[#e2dac8] last:border-none';
+// label+hint, chips+input, and the Required/N/A toggle (+ attach button) all sit on one
+// row/line instead of stacking, collapsing to a single column on narrow screens. Widened the
+// third column from 104px to 150px to fit the Required/N-A toggle AND the attach button
+// without wrapping — the border lives on the outer wrapper (see PlainSpecRow/SpecSectionRow),
+// not here, since that wrapper also needs to contain the expandable per-field attachment box.
+const gridRowCls = 'grid grid-cols-1 sm:grid-cols-[220px_1fr_150px] gap-x-3 gap-y-1 sm:items-center';
 
-export function PlainSpecRow({ field, crmSpec, onChange, locked }) {
+// Small paperclip toggle shared by PlainSpecRow/SpecSectionRow — expands to that ONE field's
+// own AttachmentBox underneath the row instead of only having one shared attachment box per
+// whole section, so e.g. a specific shade card can sit on "Color Check" itself, not buried in
+// a general Sensory Targets attachments pile.
+function FieldAttachToggle({ fieldKey, crmSpec, onChange, locked, open, setOpen }) {
+  const count = (crmSpec[fieldKey + 'Attachments'] || []).length;
   return (
-    <div className={gridRowCls}>
-      <label className="text-xs text-[#6d5f4c] self-center">{field.label}</label>
-      <div className="min-w-0">
-        <PresetChips presets={field.presets} disabled={locked} onPick={(p) => onChange(field.key, p)} />
-        <input disabled={locked} value={crmSpec[field.key] || ''} placeholder={field.placeholder} onChange={(e) => onChange(field.key, e.target.value)}
-          className="w-full text-xs border border-[#d3c9b4] rounded-lg px-2 py-1.5 bg-[#f0eadd] disabled:opacity-50" />
+    <button
+      type="button"
+      onClick={() => setOpen((v) => !v)}
+      title={count > 0 ? `${count} attachment(s)` : 'Attach a file to this field'}
+      className={clsx('flex-shrink-0 text-xs px-1.5 py-1 rounded-md border transition-colors',
+        count > 0 ? 'border-[#f2b23e] bg-[#f3e3c2] text-[#7a5a10]' : 'border-[#d3c9b4] bg-white text-[#968871] hover:bg-[#f0eadd]')}
+    >
+      📎{count > 0 ? ` ${count}` : ''}
+    </button>
+  );
+}
+
+export function PlainSpecRow({ field, crmSpec, onChange, locked, extra }) {
+  const [attachOpen, setAttachOpen] = useState(false);
+  return (
+    <div className="py-2 border-b border-[#e2dac8] last:border-none">
+      <div className={gridRowCls}>
+        <label className="text-xs text-[#6d5f4c] self-center">{field.label}</label>
+        <div className="min-w-0">
+          <input disabled={locked} value={crmSpec[field.key] || ''} placeholder={field.placeholder} onChange={(e) => onChange(field.key, e.target.value)}
+            className="w-full text-xs border border-[#d3c9b4] rounded-lg px-2 py-1.5 bg-[#f0eadd] disabled:opacity-50" />
+        </div>
+        <div className="sm:justify-self-end flex items-center gap-1.5">
+          {extra}
+          <FieldAttachToggle fieldKey={field.key} crmSpec={crmSpec} onChange={onChange} locked={locked} open={attachOpen} setOpen={setAttachOpen} />
+        </div>
       </div>
+      {attachOpen && <AttachmentBox category={field.key} crmSpec={crmSpec} onChange={onChange} locked={locked} />}
     </div>
   );
 }
 
 export function SpecSectionRow({ spec, crmSpec, onChange, locked }) {
+  const [attachOpen, setAttachOpen] = useState(false);
   const status = crmSpec[spec.key + 'Status'] || 'Required';
   const value = crmSpec[spec.key + 'Spec'] ?? spec.defaultSpec;
   const fieldDisabled = locked || status === 'Not Required';
   return (
-    <div className={clsx(gridRowCls, fieldDisabled && 'opacity-60')}>
-      <div className="min-w-0 self-center">
-        <span className="text-xs text-[#6d5f4c]">{spec.label}</span>
-        {spec.iso && <span className="inline-block ml-1.5 bg-[#dde5ea] text-[#33526b] border border-[#4a8bc2]/30 rounded px-1 text-[9px] font-bold align-middle">{spec.iso}</span>}
-        {spec.hint && <p className="text-[10px] text-[#968871] mt-0.5">{spec.hint}</p>}
+    <div className="border-b border-[#e2dac8] last:border-none">
+      <div className={clsx(gridRowCls, 'py-2', fieldDisabled && 'opacity-60')}>
+        <div className="min-w-0 self-center">
+          <span className="text-xs text-[#6d5f4c]">{spec.label}</span>
+          {spec.iso && <span className="inline-block ml-1.5 bg-[#dde5ea] text-[#33526b] border border-[#4a8bc2]/30 rounded px-1 text-[9px] font-bold align-middle">{spec.iso}</span>}
+          {spec.hint && <p className="text-[10px] text-[#968871] mt-0.5">{spec.hint}</p>}
+        </div>
+        <div className="min-w-0">
+          <PresetChips presets={spec.presets} disabled={fieldDisabled} onPick={(p) => onChange(spec.key + 'Spec', p)} />
+          <input disabled={fieldDisabled} value={value} onChange={(e) => onChange(spec.key + 'Spec', e.target.value)}
+            className="w-full text-xs border border-[#d3c9b4] rounded-lg px-2 py-1.5 bg-[#f0eadd] disabled:opacity-40" />
+        </div>
+        <div className="flex items-center gap-1.5 sm:justify-self-end">
+          <YesNoToggle value={status} disabled={locked} onChange={(v) => onChange(spec.key + 'Status', v)} />
+          <FieldAttachToggle fieldKey={spec.key} crmSpec={crmSpec} onChange={onChange} locked={locked} open={attachOpen} setOpen={setAttachOpen} />
+        </div>
       </div>
-      <div className="min-w-0">
-        <PresetChips presets={spec.presets} disabled={fieldDisabled} onPick={(p) => onChange(spec.key + 'Spec', p)} />
-        <input disabled={fieldDisabled} value={value} onChange={(e) => onChange(spec.key + 'Spec', e.target.value)}
-          className="w-full text-xs border border-[#d3c9b4] rounded-lg px-2 py-1.5 bg-[#f0eadd] disabled:opacity-40" />
-      </div>
-      <YesNoToggle value={status} disabled={locked} onChange={(v) => onChange(spec.key + 'Status', v)} className="sm:justify-self-end" />
+      {attachOpen && <div className="pb-2"><AttachmentBox category={spec.key} crmSpec={crmSpec} onChange={onChange} locked={locked} /></div>}
     </div>
   );
 }
@@ -249,7 +279,6 @@ export default function OrderSpecTabs({ crmSpec, onChange, locked, detailsConten
           <SectionHeading>👃 Sensory Targets</SectionHeading>
           <Card>
             {byKeys(QC_SPECS, SENSORY_KEYS).map((s) => <SpecSectionRow key={s.key} spec={s} crmSpec={crmSpec} onChange={onChange} locked={locked} />)}
-            <AttachmentBox category="sensory" crmSpec={crmSpec} onChange={onChange} locked={locked} hint="Shade cards, fragrance blotters, retained-sample photos." />
           </Card>
         </section>
 
@@ -257,7 +286,6 @@ export default function OrderSpecTabs({ crmSpec, onChange, locked, detailsConten
           <SectionHeading>🧪 Physicochemical</SectionHeading>
           <Card>
             {byKeys(QC_SPECS, PHYSICO_KEYS).map((s) => <SpecSectionRow key={s.key} spec={s} crmSpec={crmSpec} onChange={onChange} locked={locked} />)}
-            <AttachmentBox category="physico" crmSpec={crmSpec} onChange={onChange} locked={locked} hint="Customer spec sheets, method references, instrument parameters." />
           </Card>
         </section>
 
@@ -269,7 +297,6 @@ export default function OrderSpecTabs({ crmSpec, onChange, locked, detailsConten
             <p className="text-[10px] font-bold text-[#968871] uppercase mt-3 mb-1">Stability &amp; Compatibility</p>
             {byKeys(LAB_SPECS, STABILITY_KEYS).map((s) => <SpecSectionRow key={s.key} spec={s} crmSpec={crmSpec} onChange={onChange} locked={locked} />)}
             <DynamicSpecFields category="qcplan" crmSpec={crmSpec} onChange={onChange} locked={locked} />
-            <AttachmentBox category="qcplan" crmSpec={crmSpec} onChange={onChange} locked={locked} hint="Micro specs, challenge-test protocols, stability data." />
           </Card>
         </section>
 
@@ -278,25 +305,7 @@ export default function OrderSpecTabs({ crmSpec, onChange, locked, detailsConten
           <Card>
             {FQC_SPECS.map((s) => <SpecSectionRow key={s.key} spec={s} crmSpec={crmSpec} onChange={onChange} locked={locked} />)}
             <DynamicSpecFields category="fqc" crmSpec={crmSpec} onChange={onChange} locked={locked} />
-            <AttachmentBox category="fqc" crmSpec={crmSpec} onChange={onChange} locked={locked} hint="AQL tables, defect classification lists, label verification samples." />
           </Card>
-        </section>
-
-        <section>
-          <SectionHeading>📦 Packaging Specification (BOM)</SectionHeading>
-          <Card>
-            {PKG_SPEC_FIELDS.map((f) => <PlainSpecRow key={f.key} field={f} crmSpec={crmSpec} onChange={onChange} locked={locked} />)}
-            <DynamicSpecFields category="pkg" crmSpec={crmSpec} onChange={onChange} locked={locked} />
-            <AttachmentBox category="pkg" crmSpec={crmSpec} onChange={onChange} locked={locked} hint="Artwork files, dielines, label PDFs, pack photos, BOM references." />
-          </Card>
-        </section>
-
-        <section>
-          <SectionHeading>💰 Payment</SectionHeading>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <Card>{PAYMENT_FIELDS.slice(0, 2).map((f) => <PlainSpecRow key={f.key} field={f} crmSpec={crmSpec} onChange={onChange} locked={locked} />)}</Card>
-            <Card>{PAYMENT_FIELDS.slice(2).map((f) => <PlainSpecRow key={f.key} field={f} crmSpec={crmSpec} onChange={onChange} locked={locked} />)}</Card>
-          </div>
         </section>
 
         <section>
@@ -304,7 +313,6 @@ export default function OrderSpecTabs({ crmSpec, onChange, locked, detailsConten
           <Card>
             {byKeys(LAB_SPECS, DOC_KEYS).map((s) => <SpecSectionRow key={s.key} spec={s} crmSpec={crmSpec} onChange={onChange} locked={locked} />)}
             <DynamicSpecFields category="docs" crmSpec={crmSpec} onChange={onChange} locked={locked} />
-            <AttachmentBox category="docs" crmSpec={crmSpec} onChange={onChange} locked={locked} hint="Regulatory files, PIF references, certificate templates." />
           </Card>
         </section>
 
@@ -313,7 +321,6 @@ export default function OrderSpecTabs({ crmSpec, onChange, locked, detailsConten
           <Card>
             <p className="text-[11px] text-[#968871] mb-2">Examples: SPF in-vivo (ISO 24444), HRIPT patch test, heavy-metal screen, vegan/halal/organic certification, customer audit rights, third-party lab witness.</p>
             <DynamicSpecFields category="custom" crmSpec={crmSpec} onChange={onChange} locked={locked} />
-            <AttachmentBox category="custom" crmSpec={crmSpec} onChange={onChange} locked={locked} hint="Certificates, claim substantiation, audit reports." />
           </Card>
         </section>
       </div>

@@ -9,7 +9,6 @@ import { FONT_IMPORT, PILL, SUB_STAGE_PILL, StatCard } from './sampleTheme';
 import { customerId } from '../../utils/leadHelpers';
 import EditKycModal from './EditKycModal';
 import { CreateCatalogProductModal } from './CreateCatalogProductModal';
-import NewOrderModal from './production/NewOrderModal';
 import {
   StageOrder, StageWorkAssignment, StageProcurement, StageWeighing,
   StageBulkQC, StagePackaging, StageFinalQC, StageDispatch, STAGE_NAMES,
@@ -23,7 +22,7 @@ import {
 // SampleProduction.jsx's cream palette, imported from there so both stay in sync.
 
 const SUB_STAGES = ['Requested', 'In Lab', 'Sent', 'Feedback', 'Approved', 'Rejected'];
-const TABS = ['Overview', 'Q&A', 'Products', 'Payments', 'Formulas', 'Samples', 'Approvals'];
+const TABS = ['Overview', 'Q&A', 'Products', "RND's Payments", 'Formulas', 'Samples', 'Invoice'];
 
 // Overview tab's status chain, and the modal's own top-level tabs, continue into the production
 // floor once a lead is linked to an order — same stages as SampleProduction.jsx's
@@ -38,13 +37,14 @@ const ORDER_JOURNEY_STAGES = [
   { stage: 2, label: 'Procurement', emoji: '📦' },
   { stage: 3, label: 'Weighing', emoji: '⚖️' },
   { stage: 4, label: 'Bulk QC', emoji: '🧫' },
-  { stage: 5, label: 'Packaging', emoji: '🎁' },
+  { stage: 5, label: 'Product Packaging', emoji: '🎁' },
   { stage: 6, label: 'Final QC', emoji: '✅' },
   { stage: 7, label: 'Dispatch', emoji: '🚚' },
 ];
-// Work Assignment shows first in the tab bar — once payment is confirmed, filling its start
-// date/team is the actual next action, before the Orders/Client-Profile tab's own content.
-const ORDER_JOURNEY_TAB_ORDER = ['Work Assignment', 'Orders', 'Procurement', 'Weighing', 'Bulk QC', 'Packaging', 'Final QC', 'Dispatch'];
+// Work Assignment (stage 1) has no tab of its own — Approvals goes straight to Orders. Its
+// content still renders when an order is actually sitting at that stage (via the auto-jump
+// effect below), there's just nothing to click to jump there directly.
+const ORDER_JOURNEY_TAB_ORDER = ['Orders', 'Procurement', 'Weighing', 'Bulk QC', 'Product Packaging', 'Final QC', 'Dispatch'];
 const bodyFont = { fontFamily: "'Inter', -apple-system, sans-serif" };
 const displayFont = { fontFamily: "'Fraunces', Georgia, serif" };
 const inputCls = 'px-3 py-2 text-sm rounded-[10px] border-[1.5px] border-[#d3c9b4] bg-[#f0eadd] text-[#2e241b] focus:outline-none focus:border-[#968871] placeholder:text-[#968871]';
@@ -126,40 +126,6 @@ function qaSummaryParagraph(queries, leadName) {
   out += ` Most recent: "${truncText(latest.title, 70)}"${latest.answer ? ' — answered.' : ' — awaiting a reply.'}`;
   out += open > 0 ? ` ${open} question${open === 1 ? ' is' : 's are'} still open.` : ' All caught up.';
   return out;
-}
-
-// Journey Chain — one-glance strip on the Overview tab: Customer → Q&A → Product → Formula →
-// Sample, each segment clickable to jump straight into that tab. Mirrors the reference's
-// custJourneyChainHTML(); "everything on the Customer ID" in a single row instead of separate
-// per-tab digging.
-function JourneyChain({ lead, queries, products, formulas, samples, onJump }) {
-  const list = queries || [];
-  const answered = list.filter((q) => q.answer).length;
-  const latestProduct = products?.[0];
-  const latestFormula = formulas?.[formulas.length - 1];
-  const latestSample = samples?.[samples.length - 1];
-
-  function chip(emoji, label, onClick) {
-    return (
-      <button onClick={onClick} className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-full border border-[#d3c9b4] bg-[#f0eadd] hover:bg-[#e7dfce] hover:border-[#968871] text-[11px] font-semibold text-[#4a3a29] transition-colors">
-        {emoji} {label}
-      </button>
-    );
-  }
-
-  return (
-    <div className="flex items-center gap-1.5 flex-wrap">
-      {chip('👤', lead?.name || 'Customer', () => onJump('Overview'))}
-      <span className="text-[#c9bfae]">→</span>
-      {chip('💬', `${list.length} quer${list.length === 1 ? 'y' : 'ies'} · ${answered} answered`, () => onJump('Q&A'))}
-      <span className="text-[#c9bfae]">→</span>
-      {chip('📦', latestProduct ? `${latestProduct.name} · ₹${(latestProduct.approxPrice || 0).toLocaleString('en-IN')}` : 'No product yet', () => onJump('Products'))}
-      <span className="text-[#c9bfae]">→</span>
-      {chip('🧬', latestFormula ? `${latestFormula.formulaId} · V${latestFormula.currentVersion}` : 'No formula yet', () => onJump('Formulas'))}
-      <span className="text-[#c9bfae]">→</span>
-      {chip('🧪', latestSample ? `${latestSample.sampleId} · ${latestSample.status}` : 'No sample yet', () => onJump('Samples'))}
-    </div>
-  );
 }
 
 // Auto-generated Conversation Summary panel shown at the bottom of the Q&A tab — stats line,
@@ -424,7 +390,7 @@ function NewSampleModal({ formulas, products, saving, onClose, onSave, onGoToPay
           {formula && !isPaid && (
             <div className="p-2.5 rounded-lg bg-[#f0d8d2] text-[#8c3a30] text-[11px] flex gap-2">
               <span>🔒</span>
-              <span><strong>Payment for {product?.name || formula.productId || 'this product'} is not confirmed</strong> — sampling is locked for it. Confirm it in the 💳 Payments tab first.</span>
+              <span><strong>Payment for {product?.name || formula.productId || 'this product'} is not confirmed</strong> — sampling is locked for it. Confirm it in the 💳 RND's Payments tab first.</span>
             </div>
           )}
           {formulas.length === 0 && (
@@ -453,7 +419,7 @@ function NewSampleModal({ formulas, products, saving, onClose, onSave, onGoToPay
             <button
               onClick={() => {
                 if (!formulaId || !versionNo) { toast.error('Select a formula and version'); return; }
-                if (!isPaid) { toast.error(`🔒 Sampling is locked for ${product?.name || 'this product'} — confirm its payment in the Payments tab first`); onGoToPayments(); return; }
+                if (!isPaid) { toast.error(`🔒 Sampling is locked for ${product?.name || 'this product'} — confirm its payment in the RND's Payments tab first`); onGoToPayments(); return; }
                 onSave({ formulaId, formulaVersionNo: Number(versionNo), productId: formula?.productId || undefined, chainedFrom: chainedFrom || undefined });
               }}
               disabled={saving}
@@ -699,7 +665,7 @@ function FormulaEditorModal({ formula, samples, rawMaterials, onClose }) {
   );
 }
 
-export default function SampleLeadDetail({ leadId, onClose, initialTab }) {
+export default function SampleLeadDetail({ leadId, onClose, initialTab, initialOrderId }) {
   const qc = useQueryClient();
   const navigate = useNavigate();
   // 'Production' is a generic sentinel from callers that want "wherever this order currently is"
@@ -759,7 +725,6 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab }) {
 
   const [viewStage, setViewStage] = useState(null);
   const [activeProductId, setActiveProductId] = useState(null);
-  const [showAddProductInOrders, setShowAddProductInOrders] = useState(false);
   const autoJumpedToProductionRef = useRef(false);
 
   // Per-product quotation → payment → production (Approvals tab) — each approved sample gets
@@ -801,6 +766,11 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab }) {
   // Which product's inline payment-entry form is open — payments are per-product now, so this
   // one shared form gets reused for whichever product row the user is currently recording.
   const [payingProductId, setPayingProductId] = useState(null);
+  // Shared product-chip filter for Formulas/Samples/Approvals — click a chip to show only that
+  // product's items, click again to clear. Resets to "show all" whenever the tab changes so a
+  // filter picked on one tab doesn't silently carry into another.
+  const [productFilterId, setProductFilterId] = useState(null);
+  useEffect(() => { setProductFilterId(null); }, [tab]);
 
   // Samples
   const [showSampleForm, setShowSampleForm] = useState(false);
@@ -851,6 +821,15 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab }) {
   // activeProductId lets the Products sidebar (below) switch which product's own order is being
   // viewed — each product has its own separate order, moving at its own pace (a 45-day soap vs.
   // a 2-day shampoo), so without this only the first one found would ever be reachable here.
+  // Opened straight from a specific order's row (e.g. a Bulk QC / Packaging / Final QC / Dispatch
+  // stage-tab list) — without this, a lead with more than one product would always fall back to
+  // whichever sample's order comes first below, ignoring which order was actually clicked.
+  useEffect(() => {
+    if (!initialOrderId || activeProductId || !lead?.samples?.length) return;
+    const match = lead.samples.find((s) => String(s.productionOrderId?._id || s.productionOrderId) === String(initialOrderId));
+    if (match?.productId) setActiveProductId(match.productId);
+  }, [initialOrderId, lead, activeProductId]);
+
   const activeProductOrderId = activeProductId
     ? (lead?.samples || []).find((s) => s.productId === activeProductId && s.productionOrderId)?.productionOrderId
     : null;
@@ -1156,7 +1135,7 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab }) {
       toast.success('Quotation created — opening it in Finance to fill in the price and send it');
       invalidate();
       const invoiceId = res.data.invoice?._id || res.data.data?.invoice?._id;
-      const returnTo = encodeURIComponent(`/samples?open=${leadId}&leadTab=Approvals`);
+      const returnTo = encodeURIComponent(`/samples?open=${leadId}&leadTab=Invoice`);
       navigate(`/finance/invoices?open=${invoiceId}&returnTo=${returnTo}`);
     },
     onError: (e) => toast.error(e.response?.data?.message || 'Failed to create quotation'),
@@ -1168,7 +1147,7 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab }) {
       toast.success('Final invoice created');
       invalidate();
       const invoiceId = res.data.invoice?._id || res.data.data?.invoice?._id;
-      const returnTo = encodeURIComponent(`/samples?open=${leadId}&leadTab=Approvals`);
+      const returnTo = encodeURIComponent(`/samples?open=${leadId}&leadTab=Invoice`);
       navigate(`/finance/invoices?open=${invoiceId}&returnTo=${returnTo}`);
     },
     onError: (e) => toast.error(e.response?.data?.message || 'Failed to create invoice'),
@@ -1275,7 +1254,7 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab }) {
             // Order" button when no order exists yet. Every other stage still waits until the
             // order actually exists and has reached it.
             const locked = !!stageMeta && stageMeta.stage > 0 && (!productionOrderId || actualStage === undefined || stageMeta.stage > actualStage);
-            const count = t === 'Q&A' ? (queries || []).length : t === 'Products' ? products.length : t === 'Formulas' ? formulas.length : t === 'Samples' ? samples.length : t === 'Approvals' ? approvedSamples.length : null;
+            const count = t === 'Q&A' ? (queries || []).length : t === 'Products' ? products.length : t === 'Formulas' ? formulas.length : t === 'Samples' ? samples.length : t === 'Invoice' ? approvedSamples.length : null;
             return (
               <button
                 key={t}
@@ -1302,15 +1281,14 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab }) {
 
           {!isLoading && tab === 'Overview' && (
             <div className="space-y-4">
-              <div className="flex items-center justify-between gap-2 flex-wrap">
-                <JourneyChain lead={lead} queries={queries} products={products} formulas={formulas} samples={samples} onJump={setTab} />
+              <div className="flex items-center justify-end gap-2 flex-wrap">
                 <button onClick={() => setShowEditKyc(true)} className={outlineBtn}>✏️ Edit KYC</button>
               </div>
 
               {approvedSamples.length > 0 && !productionOrderId && (
                 <div className={clsx('p-3 rounded-[10px] border', 'bg-[#dce9d4] border-[#b9d2af]')}>
                   <p className="text-sm font-semibold text-[#3a5f3c]">✓ {approvedSamples.length} sample(s) approved — ready to send to production</p>
-                  <p className="text-xs text-[#3a5f3c]/80 mt-0.5">Open the Approvals tab and move this lead to Production — the order opens right here in the Production tab.</p>
+                  <p className="text-xs text-[#3a5f3c]/80 mt-0.5">Open the Invoice tab and move this lead to Production — the order opens right here in the Production tab.</p>
                 </div>
               )}
 
@@ -1396,10 +1374,10 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab }) {
               <div>
                 <p className="text-sm font-semibold text-[#6d5f4c]">🏭 Not sent to production yet</p>
                 <p className="text-xs text-[#968871] mt-1">
-                  Approve a sample in the Samples tab, then create its quotation and invoice in Approvals — sending it to production from there opens this Orders/Customer Details view automatically, with the customer's KYC details already filled in.
+                  Approve a sample in the Samples tab, then create its quotation and invoice in the Invoice tab — sending it to production from there opens this Orders/Customer Details view automatically, with the customer's KYC details already filled in.
                 </p>
               </div>
-              <button onClick={() => setTab('Approvals')} className={accentBtn}>Go to Approvals →</button>
+              <button onClick={() => setTab('Invoice')} className={accentBtn}>Go to Invoice →</button>
             </div>
           )}
 
@@ -1410,45 +1388,48 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab }) {
               ) : (() => {
                 // No inner stage bar here — the main tab strip above (Orders/Procurement/
                 // Weighing/.../Dispatch) already does this exact navigation; having both was
-                // just the same buttons twice. The Products sidebar, though, needs to be visible
-                // across every stage (not just Orders) — each product moves through Orders ->
-                // Dispatch entirely on its own pace, and this is the one place to switch between
-                // them without losing your spot.
+                // just the same buttons twice. The product switcher is a horizontal chip row,
+                // not a left sidebar — a sidebar turned this into a two-column layout unlike
+                // every other tab (Overview/Q&A/Products/...), which stay single-column; this
+                // keeps that same single-column shape while still letting you jump between this
+                // customer's other products (each moves through Orders -> Dispatch on its own).
                 const stage = viewStage ?? productionOrder.stage;
                 return (
-                  <div className="flex gap-4 items-start">
-                    <div className="w-52 flex-shrink-0">
-                      <p className="text-[10px] font-bold uppercase tracking-wide text-[#968871] mb-2">Products (from catalogue)</p>
-                      <div className="space-y-1.5">
-                        {products.map((p) => {
-                          const prodOrder = productionForProduct(p.productId)?.order;
-                          const isCurrent = prodOrder && String(prodOrder._id) === String(productionOrder._id);
-                          return (
-                            <button
-                              key={p.productId}
-                              onClick={() => { if (prodOrder && !isCurrent) { setActiveProductId(p.productId); setViewStage(null); } }}
-                              disabled={!prodOrder}
-                              className={clsx('w-full text-left rounded-lg border-[1.5px] px-2.5 py-2 transition-colors',
-                                isCurrent ? 'border-[#f2b23e] bg-[#f3e3c2]' : prodOrder ? 'border-[#d3c9b4] bg-white hover:bg-[#f0eadd]' : 'border-[#e2dac8] bg-[#f0eadd] opacity-60 cursor-not-allowed')}
-                            >
-                              <p className="text-xs font-bold text-[#2e241b] truncate">{p.name}</p>
-                              <p className="text-[10px] text-[#968871] truncate">{prodOrder ? STAGE_NAMES[prodOrder.stage] || prodOrder.status : 'Not in production'}</p>
-                            </button>
-                          );
-                        })}
-                      </div>
-                      <button onClick={() => setShowAddProductInOrders(true)} className="w-full mt-2 border-2 border-dashed border-[#968871] text-[#7a5a10] rounded-lg py-2 text-xs font-bold hover:bg-[#f3e3c2]">+ Add product</button>
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-[10px] font-bold uppercase tracking-wide text-[#968871]">Products:</span>
+                      {products.map((p) => {
+                        const prodOrder = productionForProduct(p.productId)?.order;
+                        const isCurrent = prodOrder && String(prodOrder._id) === String(productionOrder._id);
+                        return (
+                          <button
+                            key={p.productId}
+                            onClick={() => { if (prodOrder && !isCurrent) { setActiveProductId(p.productId); setViewStage(null); } }}
+                            disabled={!prodOrder}
+                            title={prodOrder ? STAGE_NAMES[prodOrder.stage] || prodOrder.status : 'Not in production'}
+                            className={clsx('rounded-full border-[1.5px] px-3 py-1 text-xs font-semibold transition-colors',
+                              isCurrent ? 'border-[#f2b23e] bg-[#f3e3c2] text-[#2e241b]' : prodOrder ? 'border-[#d3c9b4] bg-white text-[#6d5f4c] hover:bg-[#f0eadd]' : 'border-[#e2dac8] bg-[#f0eadd] text-[#968871] opacity-60 cursor-not-allowed')}
+                          >
+                            {p.name} <span className="font-mono font-normal opacity-75">{p.productId}</span>
+                          </button>
+                        );
+                      })}
+                      <button
+                        onClick={() => { setQaConvertQueryId(null); setQuickCreateOpen(true); setTab('Products'); }}
+                        title="A new product starts at Products — Formula, Sample, Invoice, then its own Order, same as every other product on this lead."
+                        className="rounded-full border-2 border-dashed border-[#968871] text-[#7a5a10] px-3 py-1 text-xs font-bold hover:bg-[#f3e3c2]"
+                      >
+                        + Add product
+                      </button>
                     </div>
-                    <div className="flex-1 min-w-0 space-y-4">
-                      {stage === 0 && <StageOrder order={productionOrder} onSaved={invalidateOrder} hideSidebar />}
-                      {stage === 1 && <StageWorkAssignment order={productionOrder} onSaved={invalidateOrder} />}
-                      {stage === 2 && <StageProcurement order={productionOrder} onAdvanced={invalidateOrder} />}
-                      {stage === 3 && <StageWeighing order={productionOrder} onSaved={invalidateOrder} />}
-                      {stage === 4 && <StageBulkQC order={productionOrder} onSaved={invalidateOrder} />}
-                      {stage === 5 && <StagePackaging order={productionOrder} onSaved={invalidateOrder} />}
-                      {stage === 6 && <StageFinalQC order={productionOrder} onSaved={invalidateOrder} />}
-                      {stage === 7 && <StageDispatch order={productionOrder} onSaved={invalidateOrder} />}
-                    </div>
+                    {stage === 0 && <StageOrder order={productionOrder} onSaved={invalidateOrder} hideSidebar />}
+                    {stage === 1 && <StageWorkAssignment order={productionOrder} onSaved={invalidateOrder} />}
+                    {stage === 2 && <StageProcurement order={productionOrder} onAdvanced={invalidateOrder} />}
+                    {stage === 3 && <StageWeighing order={productionOrder} onSaved={invalidateOrder} />}
+                    {stage === 4 && <StageBulkQC order={productionOrder} onSaved={invalidateOrder} />}
+                    {stage === 5 && <StagePackaging order={productionOrder} onSaved={invalidateOrder} />}
+                    {stage === 6 && <StageFinalQC order={productionOrder} onSaved={invalidateOrder} />}
+                    {stage === 7 && <StageDispatch order={productionOrder} onSaved={invalidateOrder} />}
                   </div>
                 );
               })()}
@@ -1726,7 +1707,7 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab }) {
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="text-left text-[11px] uppercase tracking-wide text-[#6d5f4c] border-b border-[#d3c9b4] bg-[#e7dfce]">
-                        <th className="px-3 py-2">Product ID</th><th className="px-3 py-2">Basis</th><th className="px-3 py-2">Approx Price</th>
+                        <th className="px-3 py-2">Product ID</th><th className="px-3 py-2">Product Name</th><th className="px-3 py-2">Basis</th><th className="px-3 py-2">Approx Price</th>
                         <th className="px-3 py-2">Price Status</th><th className="px-3 py-2">Payment</th><th className="px-3 py-2">Production</th><th className="px-3 py-2 w-28">Actions</th>
                       </tr>
                     </thead>
@@ -1735,8 +1716,11 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab }) {
                         const production = productionForProduct(p.productId);
                         return (
                         <tr key={p.productId} className="border-b border-[#e2dac8]">
-                          <td className="px-3 py-2 cursor-pointer" title="Edit product link" onClick={() => { setProductModalEditing(p); setProductModalOpen(true); }}>
-                            <span className="font-mono text-xs text-[#6d5f4c]">{p.productId}</span><p className="text-[#2e241b] font-medium">{p.name}</p>
+                          <td className="px-3 py-2 font-mono text-xs text-[#6d5f4c] cursor-pointer" title="Edit product link" onClick={() => { setProductModalEditing(p); setProductModalOpen(true); }}>
+                            {p.productId}
+                          </td>
+                          <td className="px-3 py-2 text-[#2e241b] font-medium cursor-pointer" title="Edit product link" onClick={() => { setProductModalEditing(p); setProductModalOpen(true); }}>
+                            {p.name}
                           </td>
                           <td className="px-3 py-2 text-xs text-[#6d5f4c]">{p.basis || '—'}</td>
                           <td className="px-3 py-2 text-xs text-[#2e241b]">{p.approxPrice > 0 ? `₹${p.approxPrice.toLocaleString('en-IN')}` : '—'}</td>
@@ -1789,6 +1773,23 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab }) {
                 <p className="text-[11px] text-[#968871]">View only — ingredients are built in Product Catalog's Formulation tab and shown here live once linked. Start a new one from the Products tab.</p>
               </div>
 
+              {products.length > 0 && (
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-[10px] font-bold uppercase tracking-wide text-[#968871]">Products:</span>
+                  {products.map((p) => (
+                    <button
+                      key={p.productId}
+                      onClick={() => setProductFilterId((cur) => (cur === p.productId ? null : p.productId))}
+                      className={clsx('rounded-full border-[1.5px] px-3 py-1 text-xs font-semibold transition-colors',
+                        productFilterId === p.productId ? 'border-[#f2b23e] bg-[#f3e3c2] text-[#2e241b]' : 'border-[#d3c9b4] bg-white text-[#6d5f4c] hover:bg-[#f0eadd]')}
+                    >
+                      {p.name} <span className="font-mono font-normal opacity-75">{p.productId}</span>
+                    </button>
+                  ))}
+                  {productFilterId && <button onClick={() => setProductFilterId(null)} className={textLink}>Clear filter</button>}
+                </div>
+              )}
+
               {formulas.length === 0 && <p className="text-sm text-[#968871] text-center py-6">No custom formulas yet.</p>}
 
               {formulas.length > 0 && (
@@ -1801,7 +1802,7 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab }) {
                       </tr>
                     </thead>
                     <tbody>
-                      {formulas.map((f) => {
+                      {formulas.filter((f) => !productFilterId || f.productId === productFilterId).map((f) => {
                         const latest = f.versions[f.versions.length - 1];
                         const linkedProduct = products.find((p) => p.productId === f.productId);
                         return (
@@ -1865,6 +1866,23 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab }) {
                 <button onClick={() => setShowSampleForm(true)} className={outlineBtn}>➕ Request New Sample</button>
               </div>
 
+              {products.length > 0 && (
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-[10px] font-bold uppercase tracking-wide text-[#968871]">Products:</span>
+                  {products.map((p) => (
+                    <button
+                      key={p.productId}
+                      onClick={() => setProductFilterId((cur) => (cur === p.productId ? null : p.productId))}
+                      className={clsx('rounded-full border-[1.5px] px-3 py-1 text-xs font-semibold transition-colors',
+                        productFilterId === p.productId ? 'border-[#f2b23e] bg-[#f3e3c2] text-[#2e241b]' : 'border-[#d3c9b4] bg-white text-[#6d5f4c] hover:bg-[#f0eadd]')}
+                    >
+                      {p.name} <span className="font-mono font-normal opacity-75">{p.productId}</span>
+                    </button>
+                  ))}
+                  {productFilterId && <button onClick={() => setProductFilterId(null)} className={textLink}>Clear filter</button>}
+                </div>
+              )}
+
               {samples.length === 0 && <p className="text-sm text-[#968871] text-center py-6">No samples yet.</p>}
 
               {samples.length > 0 && (
@@ -1877,7 +1895,7 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab }) {
                       </tr>
                     </thead>
                     <tbody>
-                      {samples.map((s) => {
+                      {samples.filter((s) => !productFilterId || productForSample(s)?.productId === productFilterId).map((s) => {
                         const formula = formulas.find((f) => f.formulaId === s.formulaId);
                         const lastEvent = s.timeline?.[s.timeline.length - 1];
                         const product = productForSample(s);
@@ -1931,7 +1949,7 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab }) {
               </div>
 
               {!isSamplePaid(openSample) && (
-                <p className="text-[11px] text-[#7a5a10]">🔒 Confirm payment for {productForSample(openSample)?.name || 'this product'} in the Payments tab before this sample can move past "Requested".</p>
+                <p className="text-[11px] text-[#7a5a10]">🔒 Confirm payment for {productForSample(openSample)?.name || 'this product'} in the RND's Payments tab before this sample can move past "Requested".</p>
               )}
 
               <div className="flex items-center gap-2 flex-wrap">
@@ -2044,85 +2062,146 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab }) {
             </div>
           )}
 
-          {!isLoading && tab === 'Payments' && (
+          {!isLoading && tab === "RND's Payments" && (
             <div className="space-y-4">
               <p className="text-[11px] text-[#968871]">Payment is per product — whichever product is paid for, only that product's samples unlock past "Requested". The rest stay locked until their own payment is confirmed.</p>
 
+              {products.length > 0 && (
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-[10px] font-bold uppercase tracking-wide text-[#968871]">Products:</span>
+                  {products.map((p) => {
+                    const paid = p.paymentStatus === 'full_paid';
+                    return (
+                      <button
+                        key={p.productId}
+                        onClick={() => { if (!paid) { setPayingProductId(p.productId); setPayMode('upi'); setPayTxnRef(''); setPayDate(new Date().toISOString().slice(0, 10)); setPayReceivedBy(''); setPayNotes(''); } }}
+                        title={paid ? 'Paid' : 'Click to record payment'}
+                        className={clsx('rounded-full border-[1.5px] px-3 py-1 text-xs font-semibold transition-colors',
+                          paid ? 'border-[#b9d2af] bg-[#dce9d4] text-[#3a5f3c]' : 'border-[#d3c9b4] bg-white text-[#6d5f4c] hover:bg-[#f0eadd]')}
+                      >
+                        {p.name} <span className="font-mono font-normal opacity-75">{p.productId}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+
               {products.length === 0 && <p className="text-sm text-[#968871] text-center py-6">No products linked yet — add one in the Products tab first.</p>}
 
-              {products.map((p) => {
-                const paid = p.paymentStatus === 'full_paid';
-                const entering = payingProductId === p.productId;
-                return (
-                  <div key={p.productId} className="p-3 rounded-[10px] border border-[#e2dac8] bg-[#f0eadd] space-y-2">
-                    <div className="flex items-center justify-between gap-2 flex-wrap">
-                      <div>
-                        <p className="text-sm font-semibold text-[#2e241b]">{p.name} <span className="text-xs text-[#968871] font-mono font-normal">{p.productId}</span></p>
-                        <p className="text-xs text-[#968871]">₹{(p.chargeAmount || p.approxPrice || 0).toLocaleString('en-IN')}</p>
-                      </div>
-                      <span className={clsx('px-2.5 py-1 rounded-full text-xs font-semibold', paid ? PILL.success : PILL.warning)}>
-                        {paid ? '✓ Paid' : '⏳ Pending'}
-                      </span>
-                    </div>
-
-                    {paid ? (
-                      <div className="grid grid-cols-2 gap-3 text-sm p-2.5 rounded-lg bg-[#e7dfce]">
-                        <div><p className="text-xs text-[#968871] mb-0.5">Mode</p><p className="text-[#2e241b] capitalize">{(p.paymentMode || '—').replace('_', ' ')}</p></div>
-                        <div><p className="text-xs text-[#968871] mb-0.5">Txn / Ref No.</p><p className="text-[#2e241b]">{p.paymentTxnRef || '—'}</p></div>
-                        <div><p className="text-xs text-[#968871] mb-0.5">Paid on</p><p className="text-[#2e241b]">{p.paidAt ? format(new Date(p.paidAt), 'dd MMM yyyy') : '—'}</p></div>
-                        <div><p className="text-xs text-[#968871] mb-0.5">Received by</p><p className="text-[#2e241b]">{p.receivedBy || '—'}</p></div>
-                        {p.paymentNotes && <div className="col-span-2"><p className="text-xs text-[#968871] mb-0.5">Notes</p><p className="text-[#2e241b]">{p.paymentNotes}</p></div>}
-                        <div className="col-span-2">
-                          <button onClick={() => updateProductMutation.mutate({ productId: p.productId, paymentStatus: 'pending' })} disabled={updateProductMutation.isPending} className={textLink}>
-                            Revoke payment
-                          </button>
-                        </div>
-                      </div>
-                    ) : entering ? (
-                      <div className="p-2.5 rounded-lg border-[1.5px] border-dashed border-[#d3c9b4] bg-[#e7dfce] space-y-2">
-                        <div className="grid grid-cols-2 gap-2">
-                          <select value={payMode} onChange={(e) => setPayMode(e.target.value)} className={inputCls}>
-                            <option value="upi">UPI</option>
-                            <option value="cash">Cash</option>
-                            <option value="bank_transfer">Bank Transfer</option>
-                          </select>
-                          <input value={payTxnRef} onChange={(e) => setPayTxnRef(e.target.value)} placeholder="Txn / Ref No." className={inputCls} />
-                          <input type="date" value={payDate} onChange={(e) => setPayDate(e.target.value)} className={inputCls} />
-                          <input value={payReceivedBy} onChange={(e) => setPayReceivedBy(e.target.value)} placeholder="Received by" className={inputCls} />
-                        </div>
-                        <textarea value={payNotes} onChange={(e) => setPayNotes(e.target.value)} placeholder="Notes (optional)…" rows={2} className={clsx(inputCls, 'w-full')} />
-                        <div className="flex gap-2 justify-end">
-                          <button onClick={() => setPayingProductId(null)} className={outlineBtn}>Cancel</button>
-                          <button
-                            onClick={() => updateProductMutation.mutate({
-                              productId: p.productId, paymentStatus: 'full_paid', paymentMode: payMode,
-                              paymentTxnRef: payTxnRef.trim() || undefined, paidAt: payDate || undefined,
-                              receivedBy: payReceivedBy.trim() || undefined, paymentNotes: payNotes.trim() || undefined,
-                            }, { onSuccess: () => setPayingProductId(null) })}
-                            disabled={updateProductMutation.isPending}
-                            className={accentBtn}
-                          >
-                            {updateProductMutation.isPending ? 'Confirming…' : '✅ Confirm Payment'}
-                          </button>
-                        </div>
-                      </div>
-                    ) : (
-                      <button
-                        onClick={() => { setPayingProductId(p.productId); setPayMode('upi'); setPayTxnRef(''); setPayDate(new Date().toISOString().slice(0, 10)); setPayReceivedBy(''); setPayNotes(''); }}
-                        className={outlineBtn}
-                      >
-                        💳 Record Payment
-                      </button>
-                    )}
-                  </div>
-                );
-              })}
+              {products.length > 0 && (
+                <div className="overflow-x-auto rounded-[10px] border border-[#e2dac8]">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="text-left text-[11px] uppercase tracking-wide text-[#6d5f4c] border-b border-[#d3c9b4] bg-[#e7dfce]">
+                        <th className="px-3 py-2">Product ID</th><th className="px-3 py-2">Product</th><th className="px-3 py-2">Price</th>
+                        <th className="px-3 py-2">Status</th><th className="px-3 py-2">Mode</th><th className="px-3 py-2">Txn / Ref</th>
+                        <th className="px-3 py-2">Paid On</th><th className="px-3 py-2">Received By</th><th className="px-3 py-2 w-28"></th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {products.map((p) => {
+                        const paid = p.paymentStatus === 'full_paid';
+                        return (
+                          <tr key={p.productId} className="border-b border-[#e2dac8] whitespace-nowrap">
+                            <td className="px-3 py-2 font-mono text-xs text-[#6d5f4c]">{p.productId}</td>
+                            <td className="px-3 py-2 text-[#2e241b] font-medium">{p.name}</td>
+                            <td className="px-3 py-2 text-xs text-[#2e241b]">₹{(p.chargeAmount || p.approxPrice || 0).toLocaleString('en-IN')}</td>
+                            <td className="px-3 py-2">
+                              <span className={clsx('text-[10px] font-semibold px-2 py-0.5 rounded-full', paid ? PILL.success : PILL.warning)}>
+                                {paid ? '✓ Paid' : '⏳ Pending'}
+                              </span>
+                            </td>
+                            <td className="px-3 py-2 text-xs text-[#6d5f4c] capitalize">{paid ? (p.paymentMode || '—').replace('_', ' ') : '—'}</td>
+                            <td className="px-3 py-2 text-xs text-[#6d5f4c]">{paid ? (p.paymentTxnRef || '—') : '—'}</td>
+                            <td className="px-3 py-2 text-xs text-[#6d5f4c]">{paid && p.paidAt ? format(new Date(p.paidAt), 'dd MMM yyyy') : '—'}</td>
+                            <td className="px-3 py-2 text-xs text-[#6d5f4c]">{paid ? (p.receivedBy || '—') : '—'}</td>
+                            <td className="px-3 py-2 text-right">
+                              {paid ? (
+                                <button onClick={() => updateProductMutation.mutate({ productId: p.productId, paymentStatus: 'pending' })} disabled={updateProductMutation.isPending} className={textLink}>
+                                  Revoke
+                                </button>
+                              ) : (
+                                <button
+                                  onClick={() => { setPayingProductId(p.productId); setPayMode('upi'); setPayTxnRef(''); setPayDate(new Date().toISOString().slice(0, 10)); setPayReceivedBy(''); setPayNotes(''); }}
+                                  className={textLink}
+                                >
+                                  💳 Record
+                                </button>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </div>
           )}
 
-          {!isLoading && tab === 'Approvals' && (
+          {payingProductId && (() => {
+            const payingProduct = products.find((p) => p.productId === payingProductId);
+            if (!payingProduct) return null;
+            return (
+              <div className="fixed inset-0 z-[80] flex items-center justify-center p-4" style={bodyFont}>
+                <div className="absolute inset-0 bg-[#2e241b]/50 backdrop-blur-sm" onClick={() => setPayingProductId(null)} />
+                <div className="relative bg-[#f0eadd] shadow-[0_10px_40px_rgba(46,36,27,0.16)] border border-[#d3c9b4] rounded-2xl w-full max-w-sm">
+                  <div className="p-5 border-b border-[#e2dac8] bg-[#e7dfce] rounded-t-2xl flex items-center justify-between">
+                    <h3 className="font-bold text-[#2e241b]" style={displayFont}>💳 Record Payment</h3>
+                    <button onClick={() => setPayingProductId(null)} className="text-[#968871] hover:text-[#2e241b] text-xl leading-none">&times;</button>
+                  </div>
+                  <div className="p-5 space-y-3">
+                    <p className="text-xs text-[#6d5f4c]">{payingProduct.name} <span className="font-mono text-[#968871]">{payingProduct.productId}</span></p>
+                    <div className="grid grid-cols-2 gap-2">
+                      <select value={payMode} onChange={(e) => setPayMode(e.target.value)} className={inputCls}>
+                        <option value="upi">UPI</option>
+                        <option value="cash">Cash</option>
+                        <option value="bank_transfer">Bank Transfer</option>
+                      </select>
+                      <input type="date" value={payDate} onChange={(e) => setPayDate(e.target.value)} className={inputCls} />
+                      <input value={payTxnRef} onChange={(e) => setPayTxnRef(e.target.value)} placeholder="Txn / Ref No." className={clsx(inputCls, 'col-span-2')} />
+                      <input value={payReceivedBy} onChange={(e) => setPayReceivedBy(e.target.value)} placeholder="Received by" className={clsx(inputCls, 'col-span-2')} />
+                    </div>
+                    <textarea value={payNotes} onChange={(e) => setPayNotes(e.target.value)} placeholder="Notes (optional)…" rows={2} className={clsx(inputCls, 'w-full')} />
+                    <div className="flex gap-3 pt-1">
+                      <button onClick={() => setPayingProductId(null)} className={clsx(outlineBtn, 'flex-1 justify-center')}>Cancel</button>
+                      <button
+                        onClick={() => updateProductMutation.mutate({
+                          productId: payingProductId, paymentStatus: 'full_paid', paymentMode: payMode,
+                          paymentTxnRef: payTxnRef.trim() || undefined, paidAt: payDate || undefined,
+                          receivedBy: payReceivedBy.trim() || undefined, paymentNotes: payNotes.trim() || undefined,
+                        }, { onSuccess: () => setPayingProductId(null) })}
+                        disabled={updateProductMutation.isPending}
+                        className={clsx(accentBtn, 'flex-1 justify-center')}
+                      >
+                        {updateProductMutation.isPending ? 'Confirming…' : '✅ Confirm Payment'}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
+
+          {!isLoading && tab === 'Invoice' && (
             <div className="space-y-3">
               <p className="text-xs font-semibold text-[#968871] uppercase tracking-wide">Approved → Production ({approvedSamples.length})</p>
+              {products.length > 0 && (
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-[10px] font-bold uppercase tracking-wide text-[#968871]">Products:</span>
+                  {products.map((p) => (
+                    <button
+                      key={p.productId}
+                      onClick={() => setProductFilterId((cur) => (cur === p.productId ? null : p.productId))}
+                      className={clsx('rounded-full border-[1.5px] px-3 py-1 text-xs font-semibold transition-colors',
+                        productFilterId === p.productId ? 'border-[#f2b23e] bg-[#f3e3c2] text-[#2e241b]' : 'border-[#d3c9b4] bg-white text-[#6d5f4c] hover:bg-[#f0eadd]')}
+                    >
+                      {p.name} <span className="font-mono font-normal opacity-75">{p.productId}</span>
+                    </button>
+                  ))}
+                  {productFilterId && <button onClick={() => setProductFilterId(null)} className={textLink}>Clear filter</button>}
+                </div>
+              )}
               {approvedSamples.length === 0 && (
                 <div className="text-center py-8">
                   <p className="text-sm text-[#968871]">No approved samples yet</p>
@@ -2132,107 +2211,124 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab }) {
               {approvedSamples.length > 0 && (
                 <p className="text-[11px] text-[#968871]">Each product below gets its own Create Quotation → Create Invoice → Send to Production flow — independent of every other product on this lead.</p>
               )}
-              {approvedSamples.map((s) => {
-                const inv = s.invoiceId;
-                const paidPct = inv && inv.totalAmount > 0 ? Math.round((inv.paidAmount / inv.totalAmount) * 100) : 0;
-                // No payment wait here anymore — as soon as the final invoice exists (quotation
-                // confirmed + invoiced), this product can move straight to Orders. The
-                // ≥50% advance-payment gate now sits later, at Work Assignment → Procurement.
-                const canSendToProduction = !!s.finalInvoiceId && !s.productionOrderId;
-                return (
-                  <div key={s.sampleId} className="p-3 rounded-[10px] border bg-[#dce9d4] border-[#b9d2af] space-y-2">
-                    <div className="flex items-center justify-between gap-3">
-                      <div>
-                        <p className="text-sm font-semibold text-[#2e241b]">{productForSample(s)?.name || s.sampleId}</p>
-                        <p className="text-xs text-[#6d5f4c]">{s.sampleId}{s.formulaVersionNo && ` · V${s.formulaVersionNo}`} — {s.formulaId || 'No formula linked'}</p>
-                      </div>
-                      {s.productionOrderId ? (
-                        <span className="text-xs font-semibold text-[#33526b]">{s.productionOrderId.orderNumber}</span>
-                      ) : (
-                        <span className="text-xs text-[#3a5f3c] font-semibold">Approved</span>
-                      )}
-                    </div>
-                    <div className="flex items-center justify-between gap-3 flex-wrap pt-2 border-t border-[#b9d2af]">
-                      {!inv && (
-                        <button onClick={() => createQuotationMutation.mutate(s._id)} disabled={createQuotationMutation.isPending} className={accentBtn}>
-                          📄 {createQuotationMutation.isPending ? 'Creating…' : 'Create Quotation'}
-                        </button>
-                      )}
-                      {inv && (
-                        <>
-                          <div className="text-xs text-[#6d5f4c] flex items-center gap-2 flex-wrap">
-                            <span className={clsx('font-semibold px-2 py-0.5 rounded-full text-[10px]', inv.status === 'paid' ? PILL.success : paidPct >= 50 ? PILL.warning : PILL.gray)}>
-                              {inv.invoiceNumber} — {paidPct}% paid
-                            </span>
-                            <span>₹{(inv.paidAmount || 0).toLocaleString('en-IN')} / ₹{(inv.totalAmount || 0).toLocaleString('en-IN')}</span>
-                          </div>
-                          <div className="flex items-center gap-3 flex-wrap">
-                            {!s.productionOrderId && (
-                              <button
-                                onClick={() => navigate(`/finance/invoices?open=${inv._id}&returnTo=${encodeURIComponent(`/samples?open=${leadId}&leadTab=Approvals`)}`)}
-                                className={textLink}
-                              >
-                                ✏️ Rework Quotation
-                              </button>
-                            )}
-                            {inv.status === 'draft' && !s.finalInvoiceId && (
-                              <button onClick={() => sendQuotationMutation.mutate(inv._id)} disabled={sendQuotationMutation.isPending} className={accentBtn}>
-                                📤 {sendQuotationMutation.isPending ? 'Sending…' : 'Send Quotation'}
-                              </button>
-                            )}
-                            {inv.status !== 'draft' && inv.status !== 'cancelled' && !s.finalInvoiceId && (
-                              <button onClick={() => createInvoiceMutation.mutate(s._id)} disabled={createInvoiceMutation.isPending} className={accentBtn}>
-                                🧾 {createInvoiceMutation.isPending ? 'Creating…' : 'Create Invoice'}
-                              </button>
-                            )}
-                            {s.finalInvoiceId && (
-                              <button
-                                onClick={() => navigate(`/finance/invoices?open=${s.finalInvoiceId._id}&returnTo=${encodeURIComponent(`/samples?open=${leadId}&leadTab=Approvals`)}`)}
-                                className={textLink}
-                              >
-                                🧾 {s.finalInvoiceId.invoiceNumber}
-                              </button>
-                            )}
-                            {canSendToProduction && (
-                              <button
-                                onClick={() => {
-                                  // This sample is already tied to one specific product — no need
-                                  // to search the catalog again, just confirm it.
-                                  const linkedProduct = productForSample(s);
-                                  const catalogMatch = linkedProduct?.catalogProductId
-                                    ? (catalogProducts || []).find((p) => String(p._id) === String(linkedProduct.catalogProductId))
-                                    : null;
-                                  setSendSampleFor(s);
-                                  setSendSampleSelectedCatalog(catalogMatch || null);
-                                  setSendSampleCatalogSearch('');
-                                  setSendSampleBatchSizeKg(10);
-                                }}
-                                className={accentBtn}
-                              >
-                                🏭 Send to Production →
-                              </button>
-                            )}
-                          </div>
-                        </>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
+              {approvedSamples.length > 0 && (
+                <div className="overflow-x-auto rounded-[10px] border border-[#d3c9b4]">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="text-left text-[11px] uppercase tracking-wide text-[#6d5f4c] border-b border-[#d3c9b4] bg-[#e7dfce]">
+                        <th className="px-3 py-2">Product ID</th>
+                        <th className="px-3 py-2">Product</th>
+                        <th className="px-3 py-2">Quotation</th>
+                        <th className="px-3 py-2">Invoice ID</th>
+                        <th className="px-3 py-2">Paid</th>
+                        <th className="px-3 py-2">Order</th>
+                        <th className="px-3 py-2">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {approvedSamples.filter((s) => !productFilterId || productForSample(s)?.productId === productFilterId).map((s) => {
+                        const inv = s.invoiceId;
+                        const paidPct = inv && inv.totalAmount > 0 ? Math.round((inv.paidAmount / inv.totalAmount) * 100) : 0;
+                        // No payment wait here anymore — as soon as the final invoice exists (quotation
+                        // confirmed + invoiced), this product can move straight to Orders. The
+                        // ≥50% advance-payment gate now sits later, at Work Assignment → Procurement.
+                        const canSendToProduction = !!s.finalInvoiceId && !s.productionOrderId;
+                        return (
+                          <tr key={s.sampleId} className="border-b border-[#e2dac8] last:border-none align-top">
+                            <td className="px-3 py-2 font-mono text-xs text-[#6d5f4c] whitespace-nowrap">{productForSample(s)?.productId || '—'}</td>
+                            <td className="px-3 py-2 whitespace-nowrap">
+                              <p className="text-sm font-semibold text-[#2e241b]">{productForSample(s)?.name || s.sampleId}</p>
+                              <p className="text-[10px] text-[#968871]">{s.sampleId}{s.formulaVersionNo && ` · V${s.formulaVersionNo}`}</p>
+                            </td>
+                            <td className="px-3 py-2 whitespace-nowrap">
+                              {inv ? (
+                                <span className={clsx('font-semibold px-2 py-0.5 rounded-full text-[10px]', inv.status === 'paid' ? PILL.success : paidPct >= 50 ? PILL.warning : PILL.gray)}>
+                                  {inv.invoiceNumber}
+                                </span>
+                              ) : (
+                                <span className="text-xs text-[#968871]">—</span>
+                              )}
+                            </td>
+                            <td className="px-3 py-2 whitespace-nowrap text-xs text-[#6d5f4c]">
+                              {s.finalInvoiceId ? s.finalInvoiceId.invoiceNumber : '—'}
+                            </td>
+                            <td className="px-3 py-2 whitespace-nowrap text-xs text-[#6d5f4c]">
+                              {inv ? `₹${(inv.paidAmount || 0).toLocaleString('en-IN')} / ₹${(inv.totalAmount || 0).toLocaleString('en-IN')} (${paidPct}%)` : '—'}
+                            </td>
+                            <td className="px-3 py-2 whitespace-nowrap">
+                              {s.productionOrderId ? (
+                                <span className="text-xs font-semibold text-[#33526b]">{s.productionOrderId.orderNumber}</span>
+                              ) : (
+                                <span className="text-xs text-[#3a5f3c] font-semibold">Approved</span>
+                              )}
+                            </td>
+                            <td className="px-3 py-2">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                {!inv && (
+                                  <button onClick={() => createQuotationMutation.mutate(s._id)} disabled={createQuotationMutation.isPending} className={accentBtn}>
+                                    📄 {createQuotationMutation.isPending ? 'Creating…' : 'Create Quotation'}
+                                  </button>
+                                )}
+                                {inv && !s.productionOrderId && (
+                                  <button
+                                    onClick={() => navigate(`/finance/invoices?open=${inv._id}&returnTo=${encodeURIComponent(`/samples?open=${leadId}&leadTab=Invoice`)}`)}
+                                    className={textLink}
+                                  >
+                                    ✏️ Rework
+                                  </button>
+                                )}
+                                {inv && inv.status === 'draft' && !s.finalInvoiceId && (
+                                  <button onClick={() => sendQuotationMutation.mutate(inv._id)} disabled={sendQuotationMutation.isPending} className={accentBtn}>
+                                    📤 {sendQuotationMutation.isPending ? 'Sending…' : 'Send Quotation'}
+                                  </button>
+                                )}
+                                {inv && inv.status !== 'draft' && inv.status !== 'cancelled' && !s.finalInvoiceId && (
+                                  <button onClick={() => createInvoiceMutation.mutate(s._id)} disabled={createInvoiceMutation.isPending} className={accentBtn}>
+                                    🧾 {createInvoiceMutation.isPending ? 'Creating…' : 'Create Invoice'}
+                                  </button>
+                                )}
+                                {s.finalInvoiceId && (
+                                  <button
+                                    onClick={() => navigate(`/finance/invoices?open=${s.finalInvoiceId._id}&returnTo=${encodeURIComponent(`/samples?open=${leadId}&leadTab=Invoice`)}`)}
+                                    className={textLink}
+                                  >
+                                    🧾 View
+                                  </button>
+                                )}
+                                {canSendToProduction && (
+                                  <button
+                                    onClick={() => {
+                                      // This sample is already tied to one specific product — no need
+                                      // to search the catalog again, just confirm it.
+                                      const linkedProduct = productForSample(s);
+                                      const catalogMatch = linkedProduct?.catalogProductId
+                                        ? (catalogProducts || []).find((p) => String(p._id) === String(linkedProduct.catalogProductId))
+                                        : null;
+                                      setSendSampleFor(s);
+                                      setSendSampleSelectedCatalog(catalogMatch || null);
+                                      setSendSampleCatalogSearch('');
+                                      setSendSampleBatchSizeKg(10);
+                                    }}
+                                    className={accentBtn}
+                                  >
+                                    🏭 Send to Production →
+                                  </button>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </div>
           )}
         </div>
       </div>
 
       {showEditKyc && lead && <EditKycModal lead={lead} onClose={() => { setShowEditKyc(false); invalidate(); }} />}
-
-      {showAddProductInOrders && (
-        <NewOrderModal
-          initialCustomerSearch={lead?.name || ''}
-          onClose={() => setShowAddProductInOrders(false)}
-          onCreated={() => { setShowAddProductInOrders(false); toast.success('Added — new order created for this customer'); invalidate(); }}
-        />
-      )}
 
       {showFollowUpModal && (
         <div className={clsx('fixed inset-0 z-[70] flex items-center justify-center bg-black/40', followUpMaximized ? 'p-0' : 'p-4')} onClick={() => setShowFollowUpModal(false)}>
@@ -2359,7 +2455,7 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab }) {
           chainedFrom={sampleChainSeed?.chainedFrom}
           initialFormulaId={sampleChainSeed?.formulaId}
           onClose={() => { setShowSampleForm(false); setSampleChainSeed(null); }}
-          onGoToPayments={() => { setShowSampleForm(false); setSampleChainSeed(null); setTab('Payments'); }}
+          onGoToPayments={() => { setShowSampleForm(false); setSampleChainSeed(null); setTab("RND's Payments"); }}
           onSave={(payload) => { createSampleMutation.mutate({ ...payload, queryId: qaConvertQueryId || undefined }); setSampleChainSeed(null); }}
         />
       )}

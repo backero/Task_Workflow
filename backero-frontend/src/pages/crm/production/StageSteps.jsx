@@ -9,6 +9,7 @@ import OrderSpecTabs, {
   Field, inputCls, primaryBtn, secondaryBtn,
   QC_SPECS, LAB_SPECS, FQC_SPECS, PKG_SPEC_FIELDS,
   SENSORY_KEYS, PHYSICO_KEYS, MICRO_KEYS, STABILITY_KEYS, byKeys,
+  PlainSpecRow, DynamicSpecFields,
 } from './orderSpecFields';
 import NewOrderModal from './NewOrderModal';
 
@@ -17,7 +18,7 @@ import NewOrderModal from './NewOrderModal';
 // invalidate pattern as before, restyled from Batch Tracker's gray/blue+dark-mode theme onto
 // SampleProduction's cream/amber palette so the merged lead+order panel reads as one page.
 
-export const STAGE_NAMES = ['Orders', 'Work Assignment', 'Procurement', 'Weighing', 'Bulk QC', 'Packaging', 'Final QC', 'Dispatch'];
+export const STAGE_NAMES = ['Orders', 'Work Assignment', 'Procurement', 'Weighing', 'Bulk QC', 'Product Packaging', 'Final QC', 'Dispatch'];
 
 export const STAGE_BUCKET_COLOR = (stage) => {
   if (stage <= 1) return PILL.gray;
@@ -430,6 +431,30 @@ const BULK_QC_FIELDS = [
   ...byKeys(LAB_SPECS, STABILITY_KEYS).map((s) => ({ spec: s, legacy: { labStability: 'stability', labPreservative: 'preservative', labHeavyMetal: 'heavy' }[s.key] })),
 ];
 
+// Two-button PASS/FAIL toggle — same pill-pair shape as YesNoToggle (Required/N-A), used
+// wherever a QC field needs a pass/fail call instead of a dropdown. Clicking the already-active
+// option again clears it back to unset, so a wrong tap can be undone without picking the other one.
+function PassFailToggle({ value, onChange }) {
+  return (
+    <div className="inline-flex rounded-full border border-[#d3c9b4] overflow-hidden">
+      <button type="button" onClick={() => onChange(value === 'PASS' ? '' : 'PASS')}
+        className={clsx('px-3 py-1 text-[11px] font-bold transition-colors',
+          value === 'PASS' ? 'bg-[#5c8a5f] text-white' : 'bg-white text-[#6d5f4c] hover:bg-[#f0eadd]')}>
+        PASS
+      </button>
+      <button type="button" onClick={() => onChange(value === 'FAIL' ? '' : 'FAIL')}
+        className={clsx('px-3 py-1 text-[11px] font-bold transition-colors',
+          value === 'FAIL' ? 'bg-[#c0574a] text-white' : 'bg-white text-[#6d5f4c] hover:bg-[#f0eadd]')}>
+        FAIL
+      </button>
+    </div>
+  );
+}
+
+// Same row shape as Customer Details' spec rows (label+hint | spec reference | check) — label
+// and hint on the left, the fetched spec value shown read-only in the middle (this is a
+// cross-check against Customer Details, not a place to edit the spec itself), and PASS/FAIL
+// on the right where Customer Details has its Required/N-A toggle.
 function BulkQCField({ spec, legacy, crmSpec, form, setForm }) {
   const value = legacy ? (form[legacy] ?? '') : (form.extra?.[spec.key] ?? '');
   const onChange = (v) => {
@@ -437,11 +462,18 @@ function BulkQCField({ spec, legacy, crmSpec, form, setForm }) {
     else setForm((f) => ({ ...f, extra: { ...f.extra, [spec.key]: v } }));
   };
   return (
-    <div className="rounded-lg border border-[#d3c9b4] bg-[#f0eadd] p-2.5">
-      <label className="text-xs font-semibold text-[#968871] uppercase tracking-wide mb-1 block">
-        {spec.label} <span className="text-[#7a5a10] normal-case font-normal">· Spec: {specValue(crmSpec, spec.key, '—')}</span>
-      </label>
-      <input value={value} onChange={(e) => onChange(e.target.value)} className={clsx(inputCls, 'bg-white')} />
+    <div className="grid grid-cols-1 sm:grid-cols-[220px_1fr_150px] gap-x-3 gap-y-1 sm:items-center py-2 border-b border-[#e2dac8] last:border-none">
+      <div className="min-w-0">
+        <span className="text-xs text-[#6d5f4c]">{spec.label}</span>
+        {spec.iso && <span className="inline-block ml-1.5 bg-[#dde5ea] text-[#33526b] border border-[#4a8bc2]/30 rounded px-1 text-[9px] font-bold align-middle">{spec.iso}</span>}
+        {spec.hint && <p className="text-[10px] text-[#968871] mt-0.5">{spec.hint}</p>}
+      </div>
+      <div className="min-w-0">
+        <input disabled value={specValue(crmSpec, spec.key, '—')} className="w-full text-xs border border-[#d3c9b4] rounded-lg px-2 py-1.5 bg-[#e7dfce] text-[#7a5a10] disabled:opacity-100" />
+      </div>
+      <div className="sm:justify-self-end">
+        <PassFailToggle value={value} onChange={onChange} />
+      </div>
     </div>
   );
 }
@@ -458,7 +490,7 @@ export function StageBulkQC({ order, onSaved }) {
   const [busy, setBusy] = useState(false);
 
   const submit = async (result) => {
-    if (result === 'PASS' && isRequired(crmSpec, 'qcPh') && !form.ph) { toast.error('Enter pH value'); return; }
+    if (result === 'PASS' && isRequired(crmSpec, 'qcPh') && !form.ph) { toast.error('Select PASS/FAIL for pH'); return; }
     setBusy(true);
     try {
       await api.post(`/production/${order._id}/bulk-qc`, { ...form, result });
@@ -472,7 +504,7 @@ export function StageBulkQC({ order, onSaved }) {
     <Card>
       <h3 className="text-sm font-bold text-[#2e241b] mb-1">Bulk Quality Control</h3>
       <p className="text-xs text-[#6d5f4c] mb-3">Fetched from Orders — Sensory Targets, Physicochemical, and QC Plan (Micro &amp; Stability). Spec values shown are the reference to cross-check the actual reading against.</p>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+      <div>
         {BULK_QC_FIELDS.map(({ spec, legacy }) => (
           <BulkQCField key={spec.key} spec={spec} legacy={legacy} crmSpec={crmSpec} form={form} setForm={setForm} />
         ))}
@@ -489,10 +521,9 @@ export function StageBulkQC({ order, onSaved }) {
 
 export function StagePackaging({ order, onSaved }) {
   const p = order.packaging || {};
-  const crmSpec = order.crmSpec || {};
-  const pkgSpecRows = PKG_SPEC_FIELDS.filter((f) => crmSpec[f.key]);
-  const pkgCustomRows = (crmSpec.pkgExtra || []).filter((c) => c.label || c.spec);
-  const pkgAttachments = crmSpec.pkgAttachments || [];
+  const [crmSpec, setCrmSpec] = useState(order.crmSpec || {});
+  const patchSpec = (key, val) => setCrmSpec((c) => ({ ...c, [key]: val }));
+  const [specBusy, setSpecBusy] = useState(false);
   const batchGrams = (order.batchSizeKg || 0) * 1000;
   const [form, setForm] = useState({
     mrp: p.mrp || '', fillWeight: p.fillWeight || '', filled: p.filled || 0, rejected: p.rejected || 0,
@@ -503,6 +534,16 @@ export function StagePackaging({ order, onSaved }) {
   const expected = form.fillWeight ? Math.floor(batchGrams / Number(form.fillWeight)) : null;
   const totalCartons = form.filled && form.cartonQty ? Math.ceil(Number(form.filled) / Number(form.cartonQty)) : null;
   const yieldPct = (Number(form.filled) + Number(form.rejected)) > 0 ? ((Number(form.filled) / (Number(form.filled) + Number(form.rejected))) * 100).toFixed(1) : '0.0';
+
+  const saveSpec = async () => {
+    setSpecBusy(true);
+    try {
+      await api.patch(`/production/${order._id}/order`, { crmSpec });
+      toast.success('Packaging spec saved');
+      onSaved();
+    } catch (e) { toast.error(e.response?.data?.message || 'Save failed'); }
+    finally { setSpecBusy(false); }
+  };
 
   const submit = async () => {
     setBusy(true);
@@ -517,31 +558,19 @@ export function StagePackaging({ order, onSaved }) {
   return (
     <div className="space-y-4">
       <Card>
-        <h3 className="text-sm font-bold text-[#2e241b] mb-3">📦 Packaging Specification <span className="text-xs font-normal text-[#968871]">— fetched from Orders</span></h3>
-        {pkgSpecRows.length === 0 && pkgCustomRows.length === 0 ? (
-          <p className="text-xs text-[#968871]">No packaging spec set in Orders yet.</p>
-        ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            {pkgSpecRows.map((f) => (
-              <div key={f.key} className="rounded-lg border border-[#d3c9b4] bg-[#f0eadd] p-2.5">
-                <p className="text-[10px] font-semibold text-[#968871] uppercase tracking-wide mb-1">{f.label}</p>
-                <p className="text-xs font-semibold text-[#2e241b]">{crmSpec[f.key]}</p>
-              </div>
-            ))}
-            {pkgCustomRows.map((c, i) => (
-              <div key={i} className="rounded-lg border border-[#d3c9b4] bg-[#f0eadd] p-2.5">
-                <p className="text-[10px] font-semibold text-[#968871] uppercase tracking-wide mb-1">{c.label || '—'}</p>
-                <p className="text-xs font-semibold text-[#2e241b]">{c.spec || '—'}</p>
-              </div>
-            ))}
-          </div>
-        )}
-        {pkgAttachments.length > 0 && (
-          <div className="mt-2 pt-2 border-t border-[#e2dac8]">
-            <p className="text-[10px] font-bold uppercase text-[#968871] mb-1">Attachments</p>
-            {pkgAttachments.map((f, i) => <p key={i} className="text-xs text-[#2e241b]">{f.name}</p>)}
-          </div>
-        )}
+        <h3 className="text-sm font-bold text-[#2e241b] mb-3">📦 Packaging Specification (BOM)</h3>
+        {PKG_SPEC_FIELDS.map((f) => (
+          <PlainSpecRow
+            key={f.key}
+            field={f}
+            crmSpec={crmSpec}
+            onChange={patchSpec}
+            locked={false}
+            extra={<PassFailToggle value={crmSpec[f.key + 'Result'] || ''} onChange={(v) => patchSpec(f.key + 'Result', v)} />}
+          />
+        ))}
+        <DynamicSpecFields category="pkg" crmSpec={crmSpec} onChange={patchSpec} locked={false} />
+        <button onClick={saveSpec} disabled={specBusy} className={clsx(secondaryBtn, 'mt-3')}>{specBusy ? 'Saving…' : 'Save Packaging Spec'}</button>
       </Card>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
       <Card>
@@ -623,7 +652,7 @@ export function StageFinalQC({ order, onSaved }) {
   // Fetched straight from Orders' Final QC section (FQC_SPECS, all 8 items) — the
   // 7 with a named ProductionOrder.finalQC column keep using it; the remaining one
   // (fqcRelease) goes into finalQC.extra, same pattern as Bulk QC's extra map.
-  const selectField = (spec) => {
+  const finalQCField = (spec) => {
     const mapped = FQC_SPEC_TO_FIELD[spec.key];
     const value = mapped ? form[mapped.field] : (form.extra?.[spec.key] ?? '');
     const onChange = (v) => {
@@ -631,13 +660,17 @@ export function StageFinalQC({ order, onSaved }) {
       else setForm((f) => ({ ...f, extra: { ...f.extra, [spec.key]: v } }));
     };
     return (
-      <div key={spec.key} className="rounded-lg border border-[#d3c9b4] bg-[#f0eadd] p-2.5">
-        <label className="text-xs font-semibold text-[#968871] uppercase tracking-wide mb-1 block">
-          {spec.label} <span className="text-[#7a5a10] normal-case font-normal">· Spec: {specValue(crmSpec, spec.key, '—')}</span>
-        </label>
-        <select value={value} onChange={(e) => onChange(e.target.value)} className={clsx(inputCls, 'bg-white')}>
-          <option value="">Select</option><option value="PASS">PASS</option><option value="FAIL">FAIL</option>
-        </select>
+      <div key={spec.key} className="grid grid-cols-1 sm:grid-cols-[220px_1fr_150px] gap-x-3 gap-y-1 sm:items-center py-2 border-b border-[#e2dac8] last:border-none">
+        <div className="min-w-0">
+          <span className="text-xs text-[#6d5f4c]">{spec.label}</span>
+          {spec.hint && <p className="text-[10px] text-[#968871] mt-0.5">{spec.hint}</p>}
+        </div>
+        <div className="min-w-0">
+          <input disabled value={specValue(crmSpec, spec.key, '—')} className="w-full text-xs border border-[#d3c9b4] rounded-lg px-2 py-1.5 bg-[#e7dfce] text-[#7a5a10] disabled:opacity-100" />
+        </div>
+        <div className="sm:justify-self-end">
+          <PassFailToggle value={value} onChange={onChange} />
+        </div>
       </div>
     );
   };
@@ -646,8 +679,8 @@ export function StageFinalQC({ order, onSaved }) {
     <Card>
       <h3 className="text-sm font-bold text-[#2e241b] mb-1">Final Quality Control</h3>
       <p className="text-xs text-[#6d5f4c] mb-3">Batch {order.batch} · {p.filled || 0} units filled, {p.rejected || 0} rejected · fetched from Orders — Final QC</p>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        {FQC_SPECS.map((spec) => selectField(spec))}
+      <div>
+        {FQC_SPECS.map((spec) => finalQCField(spec))}
       </div>
       <div className="mt-3"><Field label="Comments"><textarea rows={2} value={form.comment} onChange={(e) => setForm((f) => ({ ...f, comment: e.target.value }))} className={inputCls} /></Field></div>
       <div className="flex gap-3 mt-4">
@@ -660,13 +693,97 @@ export function StageFinalQC({ order, onSaved }) {
 
 // ── STAGE 7: DISPATCH ─────────────────────────────────────────────────────────
 
+const DISPATCH_CHECKLIST = [
+  { key: 'labelReady', label: 'Shipping label printed & attached to the carton' },
+  { key: 'invoiceReady', label: 'Invoice ready / shared with the customer' },
+  { key: 'documentsReady', label: 'Dispatch documents ready (COA, delivery challan, etc.)' },
+];
+
+function TestResultBadge({ value }) {
+  if (value === 'PASS') return <span className={clsx('text-[10px] font-semibold px-1.5 py-0.5 rounded-full flex-shrink-0', PILL.success)}>PASS</span>;
+  if (value === 'FAIL') return <span className={clsx('text-[10px] font-semibold px-1.5 py-0.5 rounded-full flex-shrink-0', PILL.danger)}>FAIL</span>;
+  return <span className={clsx('text-[10px] font-semibold px-1.5 py-0.5 rounded-full flex-shrink-0', PILL.gray)}>—</span>;
+}
+
+// One compact list per stage — label + PASS/FAIL/— badge — so whoever's dispatching can see
+// everything that was actually tested for this customer's batch without hopping back through
+// Bulk QC / Final QC / Packaging individually.
+function TestResultGroup({ title, rows }) {
+  return (
+    <div>
+      <p className="text-[10px] font-bold uppercase tracking-wide text-[#968871] mb-1.5">{title}</p>
+      <div className="rounded-lg border border-[#d3c9b4] bg-[#f0eadd] divide-y divide-[#e2dac8]">
+        {rows.map((r) => (
+          <div key={r.label} className="flex items-center justify-between gap-2 px-2.5 py-1.5">
+            <span className="text-xs text-[#4a3a29]">{r.label}</span>
+            <TestResultBadge value={r.value} />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export function StageDispatch({ order, onSaved }) {
   const already = order.dispatchRecord?.tracking;
-  const [form, setForm] = useState({ carrier: 'Delhivery', tracking: '', date: new Date().toISOString().slice(0, 10), eta: '', notes: '' });
+  const savedChecklist = order.dispatchRecord?.checklist || {};
+  const [form, setForm] = useState({
+    carrier: 'Delhivery', tracking: '', date: new Date().toISOString().slice(0, 10), eta: '', notes: '',
+    checklist: { labelReady: false, invoiceReady: false, documentsReady: false },
+  });
   const [busy, setBusy] = useState(false);
   const p = order.packaging || {};
+  const bulkQC = order.bulkQC || {};
+  const finalQC = order.finalQC || {};
+  const crmSpec = order.crmSpec || {};
+  const bulkQCRows = BULK_QC_FIELDS.map(({ spec, legacy }) => ({ label: spec.label, value: legacy ? bulkQC[legacy] : bulkQC.extra?.[spec.key] }));
+  const finalQCRows = FQC_SPECS.map((spec) => {
+    const mapped = FQC_SPEC_TO_FIELD[spec.key];
+    return { label: spec.label, value: mapped ? finalQC[mapped.field] : finalQC.extra?.[spec.key] };
+  });
+  const packagingRows = PKG_SPEC_FIELDS.filter((f) => crmSpec[f.key]).map((f) => ({ label: f.label, value: crmSpec[f.key + 'Result'] }));
+  const allChecked = DISPATCH_CHECKLIST.every((c) => form.checklist[c.key]);
+  const toggleCheck = (key) => setForm((f) => ({ ...f, checklist: { ...f.checklist, [key]: !f.checklist[key] } }));
+
+  // One physical carton = one label, so each gets its own numbered "Carton X of N" print
+  // button instead of a single label standing in for the whole batch.
+  const cartonQty = Number(p.cartonQty) || null;
+  const totalCartons = Number(p.totalCartons) || (p.filled && cartonQty ? Math.ceil(Number(p.filled) / cartonQty) : 1);
+  const cartonNumbers = Array.from({ length: Math.max(1, totalCartons) }, (_, i) => i + 1);
+
+  // Opens the label in its own standalone print window instead of hiding the rest of this page
+  // via CSS — that approach broke inside the stage's own popup/modal chrome. This way it always
+  // prints just the one carton's label, independent of whatever else is on screen.
+  const printLabel = (cartonNo, cartonTotal) => {
+    const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    const win = window.open('', '_blank', 'width=420,height=320');
+    if (!win) { toast.error('Allow pop-ups for this site to print the label'); return; }
+    win.document.write(`<!DOCTYPE html><html><head><title>Label — ${esc(order.orderNumber)} — Carton ${cartonNo}</title>
+      <style>
+        body { font-family: Arial, sans-serif; margin: 0; padding: 20px; }
+        .label { width: 280px; border: 1px solid #d4c5a9; border-radius: 8px; padding: 16px; background: #f5f0e8; color: #2C1810; }
+        .brand { font-size: 12px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.05em; }
+        .product { font-size: 11px; font-weight: 600; margin-top: 4px; }
+        .row { display: flex; justify-content: space-between; font-size: 9px; margin-top: 10px; }
+        .netwt { font-size: 9px; margin-top: 4px; }
+        .carton { font-size: 9px; font-weight: bold; margin-top: 6px; }
+      </style>
+      </head><body>
+        <div class="label">
+          <div class="brand">${esc(order.catalogProduct?.name?.split(' ')[0] || 'BACKERO')}</div>
+          <div class="product">${esc(order.catalogProduct?.name || 'Product')}</div>
+          <div class="row"><span>Batch: <strong>${esc(p.batchCode || order.batch)}</strong></span><span>MFG: ${esc(p.mfgDate || '—')}</span></div>
+          <div class="row"><span>EXP: ${esc(p.expDate || '—')}</span><span>MRP: ₹${esc(p.mrp || '—')}</span></div>
+          <div class="netwt">Net Wt: ${esc(p.fillWeight || '—')}g</div>
+          <div class="carton">Carton ${esc(cartonNo)} of ${esc(cartonTotal)}</div>
+        </div>
+        <script>window.onload = () => { window.print(); }<\/script>
+      </body></html>`);
+    win.document.close();
+  };
 
   const submit = async () => {
+    if (!allChecked) { toast.error('Confirm every item on the dispatch checklist first'); return; }
     setBusy(true);
     try { await api.post(`/production/${order._id}/dispatch`, form); toast.success('Batch dispatched'); onSaved(); }
     catch (e) { toast.error(e.response?.data?.message || 'Failed'); }
@@ -685,6 +802,56 @@ export function StageDispatch({ order, onSaved }) {
         <div><p className="text-[#968871] uppercase text-[10px]">Rejects</p><p className="font-semibold">{p.rejected || 0}</p></div>
         <div><p className="text-[#968871] uppercase text-[10px]">Net Good</p><p className="font-semibold text-[#3a5f3c]">{(p.filled || 0) - (p.rejected || 0)}</p></div>
       </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
+        <div>
+          <p className="text-[10px] font-bold uppercase tracking-wide text-[#968871] mb-1.5">🏷️ Label — {cartonNumbers.length} carton{cartonNumbers.length !== 1 ? 's' : ''}</p>
+          <div className="bg-[#f5f0e8] rounded-lg border border-[#d4c5a9] p-3">
+            <div className="text-[#2C1810] mb-2 pb-2 border-b border-dashed border-[#d4c5a9]">
+              <p className="text-[11px] font-bold uppercase tracking-wide">{order.catalogProduct?.name?.split(' ')[0] || 'BACKERO'}</p>
+              <p className="text-[10px] font-semibold mt-1">{order.catalogProduct?.name || 'Product'}</p>
+              <div className="flex justify-between text-[8px] mt-2"><span>Batch: <strong>{p.batchCode || order.batch}</strong></span><span>MFG: {p.mfgDate || '—'}</span></div>
+              <div className="flex justify-between text-[8px]"><span>EXP: {p.expDate || '—'}</span><span>MRP: ₹{p.mrp || '—'}</span></div>
+              <div className="text-[8px] mt-1">Net Wt: {p.fillWeight || '—'}g</div>
+            </div>
+            <div className="max-h-40 overflow-y-auto space-y-1">
+              {cartonNumbers.map((n) => (
+                <div key={n} className="flex items-center justify-between gap-2 px-2 py-1 rounded-md bg-white/60 border border-[#e2dac8]">
+                  <span className="text-[11px] font-semibold text-[#4a3a29]">Carton {n} of {cartonNumbers.length}</span>
+                  <button onClick={() => printLabel(n, cartonNumbers.length)} className="text-[10px] font-semibold text-[#7a5a10] hover:underline flex-shrink-0">🖨️ Print Label</button>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+        <div>
+          <p className="text-[10px] font-bold uppercase tracking-wide text-[#968871] mb-1.5">📋 Dispatch Checklist</p>
+          <div className="rounded-lg border border-[#d3c9b4] bg-[#f0eadd] p-3 space-y-1.5">
+            {DISPATCH_CHECKLIST.map((c) => (
+              <label key={c.key} className={clsx('flex items-center gap-2 text-xs text-[#2e241b]', !already && 'cursor-pointer')}>
+                <input
+                  type="checkbox"
+                  checked={already ? !!savedChecklist[c.key] : form.checklist[c.key]}
+                  onChange={() => !already && toggleCheck(c.key)}
+                  disabled={!!already}
+                  className="w-4 h-4 accent-[#5c8a5f] disabled:opacity-70"
+                />
+                {c.label}
+              </label>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div className="mb-4">
+        <p className="text-[10px] font-bold uppercase tracking-wide text-[#968871] mb-1.5">✅ Test Summary — everything verified for this customer</p>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
+          <TestResultGroup title="Bulk QC" rows={bulkQCRows} />
+          <TestResultGroup title="Final QC" rows={finalQCRows} />
+          <TestResultGroup title="Packaging" rows={packagingRows.length ? packagingRows : [{ label: 'No packaging spec set', value: undefined }]} />
+        </div>
+      </div>
+
       {already ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs bg-[#dce9d4] border border-[#b9d2af] rounded-xl p-3">
           <div><p className="text-[#968871] uppercase text-[10px]">Carrier</p><p className="font-semibold">{order.dispatchRecord.carrier}</p></div>
@@ -705,7 +872,7 @@ export function StageDispatch({ order, onSaved }) {
             <Field label="Expected Delivery"><input type="date" value={form.eta} onChange={(e) => setForm((f) => ({ ...f, eta: e.target.value }))} className={inputCls} /></Field>
           </div>
           <div className="mt-3"><Field label="Notes"><textarea rows={2} value={form.notes} onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))} className={inputCls} /></Field></div>
-          <button onClick={submit} disabled={busy} className={clsx(primaryBtn, 'mt-4 flex items-center gap-1.5')}>
+          <button onClick={submit} disabled={busy || !allChecked} title={!allChecked ? 'Tick every checklist item first' : undefined} className={clsx(primaryBtn, 'mt-4 flex items-center gap-1.5')}>
             <TruckIcon className="w-4 h-4" /> {busy ? 'Confirming…' : 'Confirm Dispatch'}
           </button>
         </>

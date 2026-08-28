@@ -42,7 +42,7 @@ const PROD_STAGE_TABS = [
   { key: 'procurement', label: 'Procurement', emoji: '📦', stage: 2, hint: 'Orders at Procurement — raw material availability check against the scaled formula.' },
   { key: 'weighing', label: 'Weighing', emoji: '⚖️', stage: 3, hint: 'Orders at Weighing — ingredient weigh-off and process steps, then a manager approves the batch to move on.' },
   { key: 'bulkqc', label: 'Bulk QC', emoji: '🧫', stage: 4, hint: 'Orders at Bulk QC — pass/fail against the locked Job Sheet specs.' },
-  { key: 'packing', label: 'Packaging', emoji: '🎁', stage: 5, hint: 'Orders at Packaging — fill, reject count, labeling.' },
+  { key: 'packing', label: 'Product Packaging', emoji: '🎁', stage: 5, hint: 'Orders at Packaging — fill, reject count, labeling.' },
   { key: 'finalqc', label: 'Final QC', emoji: '✅', stage: 6, hint: 'Orders at Final QC — release checks before dispatch.' },
   { key: 'dispatch', label: 'Dispatch', emoji: '🚚', stage: 7, hint: 'Orders at Dispatch — ready to ship or already shipped.' },
 ];
@@ -79,12 +79,19 @@ const TABS = [
   { key: 'qa', label: 'Q&A Inbox', emoji: '📥', hint: 'Every technical query raised for a lead currently in Sample — reply here or from the lead’s own Q&A tab.' },
   { key: 'payments', label: "RND's Payments", emoji: '💳', hint: 'R&D / sampling fee confirmation — a sample stays locked at "Requested" until this is confirmed.' },
   { key: 'sample', label: 'Sample', emoji: '🧪', hint: 'Leads currently being sampled — dispatch, feedback, invoicing happens on the lead itself.' },
-  { key: 'awaiting', label: 'Approvals', emoji: '⏳', hint: 'Sample approved (moved to In Progress) but not yet linked to a Batch Tracker order.' },
+  { key: 'awaiting', label: 'Invoices', emoji: '⏳', hint: 'Sample approved (moved to In Progress) but not yet linked to a Batch Tracker order.' },
   { key: 'linked', label: 'Orders', emoji: '🧾', hint: 'Already handed off — tracked in Batch Tracker from here on.' },
   ...PROD_STAGE_TABS,
 ];
 
 const SAMPLE_SUB_STAGES = ['Requested', 'In Lab', 'Sent', 'Feedback', 'Approved', 'Rejected'];
+
+// Lead.status pill colors for the KYC tab's Stage column — shows where a lead has moved on to
+// once it's past KYC (Sample, In Progress, Dispatched, ...), matching the CRM lead pipeline.
+const LEAD_STAGE_PILL = {
+  'New Lead': PILL.gray, 'Follow-up': PILL.gray, Sample: PILL.info, 'In Progress': PILL.purple,
+  'Payment Pending': PILL.warning, 'Ready to Dispatch': PILL.warning, Dispatched: PILL.success, Lost: PILL.danger,
+};
 
 function toCsv(rows, columns) {
   const escape = (v) => {
@@ -138,6 +145,7 @@ export default function SampleProduction() {
   const [search, setSearch] = useState('');
   const [openLeadId, setOpenLeadId] = useState(null);
   const [openLeadInitialTab, setOpenLeadInitialTab] = useState(null);
+  const [openLeadInitialOrderId, setOpenLeadInitialOrderId] = useState(null);
   const [sendLead, setSendLead] = useState(null);
   const [catalogSearch, setCatalogSearch] = useState('');
   const [selectedCatalogProduct, setSelectedCatalogProduct] = useState(null);
@@ -739,6 +747,7 @@ export default function SampleProduction() {
                     <SortableTh label="City" sortKey="city" sortState={sortState} setSortState={setSortState} />
                     <SortableTh label="Business Type" sortKey="businessType" sortState={sortState} setSortState={setSortState} />
                     <SortableTh label="Product Interest" sortKey="productInterest" sortState={sortState} setSortState={setSortState} />
+                    <th className="px-4 py-2.5">Stage</th>
                     <th className="px-4 py-2.5">Payment</th>
                     <th className="px-4 py-2.5">Assigned To</th>
                     <th className="px-4 py-2.5">In-charge</th>
@@ -746,8 +755,8 @@ export default function SampleProduction() {
                   </tr>
                 </thead>
                 <tbody>
-                  {isLoading && <tr><td colSpan={10} className="px-4 py-8 text-center text-[#968871] text-xs">Loading…</td></tr>}
-                  {!isLoading && sortedKycRows.length === 0 && <tr><td colSpan={10} className="px-4 py-8 text-center text-[#968871] text-xs">No new leads right now.</td></tr>}
+                  {isLoading && <tr><td colSpan={11} className="px-4 py-8 text-center text-[#968871] text-xs">Loading…</td></tr>}
+                  {!isLoading && sortedKycRows.length === 0 && <tr><td colSpan={11} className="px-4 py-8 text-center text-[#968871] text-xs">No new leads right now.</td></tr>}
                   {sortedKycRows.map((l) => (
                     <tr
                       key={l._id}
@@ -763,6 +772,11 @@ export default function SampleProduction() {
                       <td className="px-4 py-2.5 text-[#6d5f4c] text-xs">{l.city || '—'}</td>
                       <td className="px-4 py-2.5 text-[#6d5f4c] text-xs">{l.businessType || '—'}</td>
                       <td className="px-4 py-2.5 text-[#6d5f4c] text-xs">{(l.productInterest || []).join(', ') || '—'}</td>
+                      <td className="px-4 py-2.5">
+                        <span className={clsx('text-[10px] font-semibold px-2 py-0.5 rounded-full', LEAD_STAGE_PILL[l.status] || PILL.gray)}>
+                          {l.status || 'New Lead'}
+                        </span>
+                      </td>
                       <td className="px-4 py-2.5">
                         <span className={clsx('text-[10px] font-semibold px-2 py-0.5 rounded-full', l.sampleDetails?.paymentStatus === 'full_paid' ? PILL.success : PILL.warning)}>
                           {l.sampleDetails?.paymentStatus === 'full_paid' ? 'Paid' : 'Pending'}
@@ -1160,10 +1174,14 @@ export default function SampleProduction() {
                     // offering the button whenever this product's own order reaches stage 7 is
                     // safe even if another of the same customer's products dispatches it first.
                     const syntheticLead = { _id: o.leadId, name: o.customer, productionOrderId: { _id: o._id, orderNumber: o.orderNumber } };
+                    // Opens the full customer view (KYC/Overview through the production stages,
+                    // all in one tab bar) instead of the standalone stage-only panel — this
+                    // order always has a real lead (linkedOrders is already filtered to those).
+                    const openThisOrder = () => { setOpenLeadId(o.leadId?._id || o.leadId); setOpenLeadInitialTab('Production'); setOpenLeadInitialOrderId(o._id); };
                     return (
                     <tr
                       key={o._id}
-                      onClick={(e) => { if (e.target.closest('button, select, a, input')) return; setOpenOrderId(o._id); }}
+                      onClick={(e) => { if (e.target.closest('button, select, a, input')) return; openThisOrder(); }}
                       className="border-b border-[#e2dac8] hover:bg-[#e7dfce]/60 cursor-pointer"
                     >
                       <td className="px-4 py-2.5 whitespace-nowrap">
@@ -1190,7 +1208,7 @@ export default function SampleProduction() {
                         >
                           Order Detail
                         </button>
-                        <button onClick={() => setOpenOrderId(o._id)} className={clsx(textLink, 'mr-3')}>
+                        <button onClick={openThisOrder} className={clsx(textLink, 'mr-3')}>
                           🏭 Track Production →
                         </button>
                         {o.stage === 7 && (
@@ -1252,7 +1270,9 @@ export default function SampleProduction() {
                 <thead>
                   <tr className="border-b border-[#d3c9b4] text-left text-[11px] uppercase tracking-wide text-[#6d5f4c] bg-[#e7dfce]">
                     <th className="px-4 py-2.5">Order ID</th>
-                    <th className="px-4 py-2.5">{currentProdStageTab.label} ID</th>
+                    {currentProdStageTab.key !== 'weighing' && (
+                      <th className="px-4 py-2.5">{currentProdStageTab.key === 'bulkqc' ? 'Batch Number' : currentProdStageTab.key === 'dispatch' ? 'Customer ID' : `${currentProdStageTab.label} ID`}</th>
+                    )}
                     <th className="px-4 py-2.5">Customer</th>
                     <th className="px-4 py-2.5">Product</th>
                     <th className="px-4 py-2.5">Qty</th>
@@ -1269,11 +1289,28 @@ export default function SampleProduction() {
                     return (
                     <tr
                       key={o._id}
-                      onClick={() => setFocusStageOrder({ orderId: o._id, stageTab: currentProdStageTab, StageComponent: PROD_STAGE_COMPONENT[currentProdStageTab.key] })}
+                      onClick={() => {
+                        // An order with a real CRM lead gets the full customer view (Overview
+                        // through every production stage tab, all in one navbar) instead of the
+                        // narrow single-stage popup — same fix already applied to the Orders tab,
+                        // now consistent across every stage tab so there's always a way to move
+                        // between stages without closing and re-opening from the list.
+                        if (o.leadId) {
+                          setOpenLeadId(o.leadId?._id || o.leadId);
+                          setOpenLeadInitialTab('Production');
+                          setOpenLeadInitialOrderId(o._id);
+                        } else {
+                          setFocusStageOrder({ orderId: o._id, stageTab: currentProdStageTab, StageComponent: PROD_STAGE_COMPONENT[currentProdStageTab.key] });
+                        }
+                      }}
                       className="border-b border-[#e2dac8] hover:bg-[#e7dfce]/60 cursor-pointer"
                     >
                       <td className="px-4 py-2.5 font-mono font-bold text-[#4a3a29] whitespace-nowrap">{o.orderNumber}</td>
-                      <td className="px-4 py-2.5 font-mono text-[#6d5f4c] whitespace-nowrap">{o[STAGE_ID_FIELD[currentProdStageTab.key]] || '—'}</td>
+                      {currentProdStageTab.key !== 'weighing' && (
+                        <td className="px-4 py-2.5 font-mono text-[#6d5f4c] whitespace-nowrap">
+                          {currentProdStageTab.key === 'dispatch' ? customerId({ _id: o.leadId?._id || o.leadId }) : (o[STAGE_ID_FIELD[currentProdStageTab.key]] || '—')}
+                        </td>
+                      )}
                       <td className="px-4 py-2.5 text-[#2e241b] whitespace-nowrap">{o.customer || '—'}</td>
                       <td className="px-4 py-2.5 text-[#6d5f4c] text-xs whitespace-nowrap">{o.catalogProduct?.name || '—'}</td>
                       <td className="px-4 py-2.5 text-[#6d5f4c] text-xs whitespace-nowrap">{o.batchSizeKg ? `${o.batchSizeKg} kg` : '—'}</td>
@@ -1317,7 +1354,8 @@ export default function SampleProduction() {
         <SampleLeadDetail
           leadId={openLeadId}
           initialTab={openLeadInitialTab}
-          onClose={() => { setOpenLeadId(null); setOpenLeadInitialTab(null); }}
+          initialOrderId={openLeadInitialOrderId}
+          onClose={() => { setOpenLeadId(null); setOpenLeadInitialTab(null); setOpenLeadInitialOrderId(null); }}
         />
       )}
 
@@ -1648,42 +1686,38 @@ function OrphanOrderPanel({ orderId: initialOrderId, onClose }) {
           {isLoading || !order ? (
             <p className="text-sm text-[#968871] text-center py-8">Loading order…</p>
           ) : (
-            <div className="flex gap-4 items-start">
+            <div className="space-y-4">
+              <StageBar order={order} viewStage={stage} setViewStage={setViewStage} />
               {leadId && (
-                <div className="w-52 flex-shrink-0">
-                  <p className="text-[10px] font-bold uppercase tracking-wide text-[#968871] mb-2">Products (from catalogue)</p>
-                  <div className="space-y-1.5">
-                    {siblingProducts.map((p) => {
-                      const prodOrder = productionForProduct(p.productId);
-                      const isCurrent = prodOrder && String(prodOrder._id) === String(order._id);
-                      return (
-                        <button
-                          key={p.productId}
-                          onClick={() => { if (prodOrder && !isCurrent) { setActiveOrderId(prodOrder._id); setViewStage(null); } }}
-                          disabled={!prodOrder}
-                          className={clsx('w-full text-left rounded-lg border-[1.5px] px-2.5 py-2 transition-colors',
-                            isCurrent ? 'border-[#f2b23e] bg-[#f3e3c2]' : prodOrder ? 'border-[#d3c9b4] bg-white hover:bg-[#f0eadd]' : 'border-[#e2dac8] bg-[#f0eadd] opacity-60 cursor-not-allowed')}
-                        >
-                          <p className="text-xs font-bold text-[#2e241b] truncate">{p.name}</p>
-                          <p className="text-[10px] text-[#968871] truncate">{prodOrder ? STAGE_NAMES[prodOrder.stage] || prodOrder.status : 'Not in production'}</p>
-                        </button>
-                      );
-                    })}
-                  </div>
-                  <button onClick={() => setShowAddProduct(true)} className="w-full mt-2 border-2 border-dashed border-[#968871] text-[#7a5a10] rounded-lg py-2 text-xs font-bold hover:bg-[#f3e3c2]">+ Add product</button>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-[10px] font-bold uppercase tracking-wide text-[#968871]">Products:</span>
+                  {siblingProducts.map((p) => {
+                    const prodOrder = productionForProduct(p.productId);
+                    const isCurrent = prodOrder && String(prodOrder._id) === String(order._id);
+                    return (
+                      <button
+                        key={p.productId}
+                        onClick={() => { if (prodOrder && !isCurrent) { setActiveOrderId(prodOrder._id); setViewStage(null); } }}
+                        disabled={!prodOrder}
+                        title={prodOrder ? STAGE_NAMES[prodOrder.stage] || prodOrder.status : 'Not in production'}
+                        className={clsx('rounded-full border-[1.5px] px-3 py-1 text-xs font-semibold transition-colors',
+                          isCurrent ? 'border-[#f2b23e] bg-[#f3e3c2] text-[#2e241b]' : prodOrder ? 'border-[#d3c9b4] bg-white text-[#6d5f4c] hover:bg-[#f0eadd]' : 'border-[#e2dac8] bg-[#f0eadd] text-[#968871] opacity-60 cursor-not-allowed')}
+                      >
+                        {p.name} <span className="font-mono font-normal opacity-75">{p.productId}</span>
+                      </button>
+                    );
+                  })}
+                  <button onClick={() => setShowAddProduct(true)} className="rounded-full border-2 border-dashed border-[#968871] text-[#7a5a10] px-3 py-1 text-xs font-bold hover:bg-[#f3e3c2]">+ Add product</button>
                 </div>
               )}
-              <div className="flex-1 min-w-0 space-y-4">
-                <StageBar order={order} viewStage={stage} setViewStage={setViewStage} />
-                {stage === 0 && <StageOrder order={order} onSaved={invalidateOrder} hideSidebar={!!leadId} />}
-                {stage === 1 && <StageWorkAssignment order={order} onSaved={invalidateOrder} />}
-                {stage === 2 && <StageProcurement order={order} onAdvanced={invalidateOrder} />}
-                {stage === 3 && <StageWeighing order={order} onSaved={invalidateOrder} />}
-                {stage === 4 && <StageBulkQC order={order} onSaved={invalidateOrder} />}
-                {stage === 5 && <StagePackaging order={order} onSaved={invalidateOrder} />}
-                {stage === 6 && <StageFinalQC order={order} onSaved={invalidateOrder} />}
-                {stage === 7 && <StageDispatch order={order} onSaved={invalidateOrder} />}
-              </div>
+              {stage === 0 && <StageOrder order={order} onSaved={invalidateOrder} hideSidebar />}
+              {stage === 1 && <StageWorkAssignment order={order} onSaved={invalidateOrder} />}
+              {stage === 2 && <StageProcurement order={order} onAdvanced={invalidateOrder} />}
+              {stage === 3 && <StageWeighing order={order} onSaved={invalidateOrder} />}
+              {stage === 4 && <StageBulkQC order={order} onSaved={invalidateOrder} />}
+              {stage === 5 && <StagePackaging order={order} onSaved={invalidateOrder} />}
+              {stage === 6 && <StageFinalQC order={order} onSaved={invalidateOrder} />}
+              {stage === 7 && <StageDispatch order={order} onSaved={invalidateOrder} />}
             </div>
           )}
         </div>
@@ -1730,7 +1764,7 @@ function StageFocusPanel({ orderId, stageTab, StageComponent, onClose }) {
             <h3 className="font-bold text-[#2e241b]" style={displayFont}>{stageTab?.emoji} {stageTab?.label} — {order?.orderNumber || 'Loading…'}</h3>
             <p className="text-xs text-[#6d5f4c]">
               {order?.customer || 'No linked CRM lead'} · {order?.catalogProduct?.name || '—'}
-              {order?.[STAGE_ID_FIELD[stageTab?.key]] && <> · <span className="font-mono">{order[STAGE_ID_FIELD[stageTab.key]]}</span></>}
+              {stageTab?.key !== 'weighing' && order?.[STAGE_ID_FIELD[stageTab?.key]] && <> · <span className="font-mono">{order[STAGE_ID_FIELD[stageTab.key]]}</span></>}
             </p>
           </div>
           <div className="flex items-center gap-1.5">
@@ -1738,11 +1772,23 @@ function StageFocusPanel({ orderId, stageTab, StageComponent, onClose }) {
             <button onClick={onClose} className="w-9 h-9 rounded-lg hover:bg-[#ddd3be] flex items-center justify-center text-[#968871] hover:text-[#2e241b] text-lg">✕</button>
           </div>
         </div>
-        <div className="flex-1 overflow-y-auto p-5">
+        <div className="flex-1 overflow-y-auto p-5 space-y-4">
           {isLoading || !order ? (
             <p className="text-sm text-[#968871] text-center py-8">Loading order…</p>
           ) : (
-            <StageComponent order={order} onSaved={invalidateOrder} onAdvanced={invalidateOrder} />
+            <>
+              {/* This order has no linked CRM lead (created directly in Batch Tracker), so there's
+                  no full customer view to open and no sibling products to switch between — still
+                  show the same "Products:" row shape as the lead view, just with its one product,
+                  so the panel isn't missing this row entirely. */}
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-[10px] font-bold uppercase tracking-wide text-[#968871]">Products:</span>
+                <span className="rounded-full border-[1.5px] border-[#f2b23e] bg-[#f3e3c2] px-3 py-1 text-xs font-semibold text-[#2e241b]">
+                  {order.catalogProduct?.name || order.orderNumber} <span className="font-mono font-normal opacity-75">{order.orderNumber}</span>
+                </span>
+              </div>
+              <StageComponent order={order} onSaved={invalidateOrder} onAdvanced={invalidateOrder} />
+            </>
           )}
         </div>
       </div>
