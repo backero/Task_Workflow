@@ -7,11 +7,15 @@ import { LockClosedIcon, TruckIcon } from '@heroicons/react/24/outline';
 import { Card, PILL } from '../sampleTheme';
 import OrderSpecTabs, {
   Field, inputCls, primaryBtn, secondaryBtn,
-  QC_SPECS, LAB_SPECS, FQC_SPECS, PKG_SPEC_FIELDS,
+  QC_SPECS, LAB_SPECS, FQC_SPECS, PKG_SPEC_FIELDS, DOC_KEYS,
   SENSORY_KEYS, PHYSICO_KEYS, MICRO_KEYS, STABILITY_KEYS, byKeys,
   PlainSpecRow, DynamicSpecFields,
 } from './orderSpecFields';
 import NewOrderModal from './NewOrderModal';
+import { printInvoice, BACKERO } from '../../finance/Invoices';
+import { useAuthStore } from '../../../store/useAuthStore';
+import ReactDOMServer from 'react-dom/server';
+import QRCode from 'react-qr-code';
 
 // The 8-stage production board, ported from the standalone Batch Tracker page so it can render
 // inline inside SampleLeadDetail's Production tab — same API calls, same onSaved/onAdvanced ->
@@ -725,6 +729,13 @@ function TestResultGroup({ title, rows }) {
 }
 
 export function StageDispatch({ order, onSaved }) {
+  const { user } = useAuthStore();
+  const { data: orgData } = useQuery({
+    queryKey: ['org', 'me'],
+    queryFn: () => api.get('/organizations/me').then((r) => r.data),
+    staleTime: 60_000,
+  });
+  const [printingInvoice, setPrintingInvoice] = useState(false);
   const already = order.dispatchRecord?.tracking;
   const savedChecklist = order.dispatchRecord?.checklist || {};
   const [form, setForm] = useState({
@@ -736,6 +747,25 @@ export function StageDispatch({ order, onSaved }) {
   const bulkQC = order.bulkQC || {};
   const finalQC = order.finalQC || {};
   const crmSpec = order.crmSpec || {};
+  const invoice = order.invoiceId;
+  // The order only carries a summary of the invoice (number/status/amounts) — this fetches the
+  // full document (client name/address/phone/GSTIN) so both the on-screen Shipping Label card
+  // and the printed one can show a real "Ship To" instead of just the bare customer name.
+  const { data: invoiceFull } = useQuery({
+    queryKey: ['invoice-full', invoice?._id],
+    queryFn: () => api.get(`/finance/invoices/${invoice._id}`).then((r) => r.data.invoice),
+    enabled: !!invoice,
+    staleTime: 60_000,
+  });
+  const shipToClient = invoiceFull?.client;
+  // Every file attached to a Documentation field in Orders (COA, stability report, allergen
+  // declaration, ...) — these are name/size manifests only (the actual file stays on whoever's
+  // device attached it, per AttachmentBox), so this is a checklist of what to physically gather
+  // for dispatch, not something this page can print on its own.
+  const docRows = DOC_KEYS.flatMap((key) => {
+    const spec = LAB_SPECS.find((s) => s.key === key);
+    return (crmSpec[key + 'Attachments'] || []).map((f) => ({ label: spec?.label || key, name: f.name }));
+  });
   const bulkQCRows = BULK_QC_FIELDS.map(({ spec, legacy }) => ({ label: spec.label, value: legacy ? bulkQC[legacy] : bulkQC.extra?.[spec.key] }));
   const finalQCRows = FQC_SPECS.map((spec) => {
     const mapped = FQC_SPEC_TO_FIELD[spec.key];
@@ -782,6 +812,90 @@ export function StageDispatch({ order, onSaved }) {
     win.document.close();
   };
 
+  // A real courier consignment label — sender/receiver blocks, AWB + scannable QR, payment
+  // mode, order/batch reference — separate from the product label above (that one's stuck on
+  // the carton itself; this one's stuck on the outer shipment for the courier to read).
+  // Pulls the receiver's actual address off the linked invoice's client record (same address
+  // used on the tax invoice) since the order itself only carries a bare customer name.
+  const printShippingLabel = () => {
+    const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    const rec = already ? order.dispatchRecord : form;
+    const fromLines = [BACKERO.address, `GSTIN: ${BACKERO.gst}`].filter(Boolean);
+    const toName = shipToClient?.name || order.customer || 'Customer';
+    const toLines = [
+      shipToClient?.address || '',
+      shipToClient?.state || '',
+      shipToClient?.phone ? `Ph: ${shipToClient.phone}` : '',
+      shipToClient?.gstin ? `GSTIN: ${shipToClient.gstin}` : '',
+    ].filter(Boolean);
+    const tracking = rec.tracking || '—';
+    const qrMarkup = tracking !== '—' ? ReactDOMServer.renderToStaticMarkup(<QRCode value={tracking} size={72} />) : '';
+
+    const win = window.open('', '_blank', 'width=460,height=680');
+    if (!win) { toast.error('Allow pop-ups for this site to print the label'); return; }
+    win.document.write(`<!DOCTYPE html><html><head><title>Shipping Label — ${esc(order.orderNumber)}</title>
+      <style>
+        body { font-family: Arial, sans-serif; margin: 0; padding: 16px; }
+        .label { width: 380px; border: 2.5px solid #111; border-radius: 4px; padding: 14px; }
+        .hdr { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #111; padding-bottom: 8px; margin-bottom: 10px; }
+        .carrier { font-size: 18px; font-weight: 900; text-transform: uppercase; }
+        .mode { font-size: 9px; font-weight: 700; border: 1.5px solid #111; border-radius: 3px; padding: 2px 8px; text-transform: uppercase; align-self: flex-start; }
+        .sec-lbl { font-size: 8px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: #555; margin-top: 10px; }
+        .sec-name { font-size: 14px; font-weight: 800; margin-top: 2px; }
+        .sec-line { font-size: 10px; color: #333; line-height: 1.5; }
+        .divider { border-top: 1px dashed #999; margin: 10px 0; }
+        .awb-row { display: flex; justify-content: space-between; align-items: center; margin-top: 10px; }
+        .awb { font-size: 12px; font-family: monospace; font-weight: 700; }
+        .meta-grid { display: flex; justify-content: space-between; font-size: 9px; margin-top: 8px; border-top: 1px solid #ddd; padding-top: 6px; }
+      </style>
+      </head><body>
+        <div class="label">
+          <div class="hdr">
+            <div class="carrier">${esc(rec.carrier || 'Courier')}</div>
+            <div class="mode">Prepaid</div>
+          </div>
+          <div class="sec-lbl">From</div>
+          <div class="sec-name">${esc(BACKERO.name)}</div>
+          ${fromLines.map((l) => `<div class="sec-line">${esc(l)}</div>`).join('')}
+          <div class="divider"></div>
+          <div class="sec-lbl">Ship To</div>
+          <div class="sec-name">${esc(toName)}</div>
+          ${toLines.map((l) => `<div class="sec-line">${esc(l)}</div>`).join('') || '<div class="sec-line">No address on file — check the linked invoice.</div>'}
+          <div class="awb-row">
+            <div>
+              <div class="sec-lbl" style="margin-top:0">AWB / Tracking</div>
+              <div class="awb">${esc(tracking)}</div>
+            </div>
+            ${qrMarkup}
+          </div>
+          <div class="meta-grid">
+            <span>Order: <strong>${esc(order.orderNumber)}</strong></span>
+            <span>Batch: ${esc(p.batchCode || order.batch)}</span>
+          </div>
+          <div class="meta-grid">
+            <span>Dispatch: ${esc(rec.date || '—')}</span>
+            <span>ETA: ${esc(rec.eta || '—')}</span>
+          </div>
+          <div class="sec-line" style="margin-top:8px">${esc(order.catalogProduct?.name || 'Product')} — Net Wt ${esc(p.fillWeight || '—')}g</div>
+        </div>
+        <script>window.onload = () => { window.print(); }<\/script>
+      </body></html>`);
+    win.document.close();
+  };
+
+  // The order only carries a summary of the invoice (number/status/amounts) — fetch the full
+  // document (line items, client, GST breakup, ...) on click and hand it to the same print
+  // function Finance uses, so this stays a print-in-place action, not a trip to another tab.
+  const printLinkedInvoice = async () => {
+    if (!invoice) return;
+    setPrintingInvoice(true);
+    try {
+      const full = await api.get(`/finance/invoices/${invoice._id}`).then((r) => r.data.invoice);
+      printInvoice(full, orgData?.organization, user);
+    } catch (e) { toast.error(e.response?.data?.message || 'Could not load the invoice'); }
+    finally { setPrintingInvoice(false); }
+  };
+
   const submit = async () => {
     if (!allChecked) { toast.error('Confirm every item on the dispatch checklist first'); return; }
     setBusy(true);
@@ -822,6 +936,66 @@ export function StageDispatch({ order, onSaved }) {
                 </div>
               ))}
             </div>
+          </div>
+        </div>
+        <div>
+          <div className="flex items-center justify-between mb-1.5">
+            <p className="text-[10px] font-bold uppercase tracking-wide text-[#968871]">🚚 Shipping Label</p>
+            <button onClick={printShippingLabel} className="text-[10px] font-semibold text-[#7a5a10] hover:underline">🖨️ Print Label</button>
+          </div>
+          <div className="rounded-lg border border-[#2C1810]/30 p-3 text-[#2C1810] space-y-2">
+            <div>
+              <p className="text-[9px] uppercase tracking-wide text-[#968871]">From</p>
+              <p className="text-xs font-semibold">{BACKERO.name}</p>
+              <p className="text-[10px] text-[#6d5f4c]">{BACKERO.address}</p>
+              <p className="text-[10px] text-[#6d5f4c]">GSTIN: {BACKERO.gst}</p>
+            </div>
+            <div className="pt-2 border-t border-dashed border-[#e2dac8]">
+              <p className="text-[9px] uppercase tracking-wide text-[#968871]">Ship To</p>
+              <p className="text-sm font-bold">{shipToClient?.name || order.customer || 'Customer'}</p>
+              {shipToClient?.address && <p className="text-[10px] text-[#6d5f4c]">{shipToClient.address}{shipToClient.state ? `, ${shipToClient.state}` : ''}</p>}
+              {shipToClient?.phone && <p className="text-[10px] text-[#6d5f4c]">Ph: {shipToClient.phone}</p>}
+              {shipToClient?.gstin && <p className="text-[10px] text-[#6d5f4c]">GSTIN: {shipToClient.gstin}</p>}
+              {!invoice && <p className="text-[10px] text-[#968871] italic">No invoice linked — address unavailable</p>}
+            </div>
+            <div className="pt-2 border-t border-dashed border-[#e2dac8] flex items-center justify-between">
+              <div>
+                <p className="text-xs font-semibold">{(already ? order.dispatchRecord.carrier : form.carrier) || '—'}</p>
+                <p className="text-[10px] font-mono text-[#6d5f4c]">AWB: {(already ? order.dispatchRecord.tracking : form.tracking) || '—'}</p>
+              </div>
+              <span className="text-[9px] font-bold border border-[#2C1810]/40 rounded px-1.5 py-0.5 uppercase">Prepaid</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4">
+        <div>
+          <p className="text-[10px] font-bold uppercase tracking-wide text-[#968871] mb-1.5">📄 Documentation — from Orders</p>
+          <div className="rounded-lg border border-[#d3c9b4] bg-[#f0eadd] p-3 max-h-32 overflow-y-auto">
+            {docRows.length === 0 ? (
+              <p className="text-xs text-[#968871]">No documents attached in Orders — Documentation.</p>
+            ) : (
+              <div className="space-y-1">
+                {docRows.map((d, i) => (
+                  <p key={i} className="text-xs text-[#2e241b] truncate" title={d.name}><span className="text-[#968871]">{d.label}:</span> {d.name}</p>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+        <div>
+          <p className="text-[10px] font-bold uppercase tracking-wide text-[#968871] mb-1.5">🧾 Invoice</p>
+          <div className="rounded-lg border border-[#d3c9b4] bg-[#f0eadd] p-3">
+            {!invoice ? (
+              <p className="text-xs text-[#968871]">No invoice linked to this order.</p>
+            ) : (
+              <>
+                <p className="text-xs font-bold text-[#2e241b]">{invoice.invoiceNumber}</p>
+                <p className="text-[10px] text-[#6d5f4c] mt-0.5">₹{(invoice.paidAmount || 0).toLocaleString('en-IN')} / ₹{(invoice.totalAmount || 0).toLocaleString('en-IN')} — {invoice.status}</p>
+                <button onClick={printLinkedInvoice} disabled={printingInvoice} className="text-[10px] font-semibold text-[#7a5a10] hover:underline mt-1.5 disabled:opacity-50">🖨️ {printingInvoice ? 'Loading…' : 'Print Invoice'}</button>
+              </>
+            )}
           </div>
         </div>
         <div>

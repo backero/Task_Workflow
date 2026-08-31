@@ -1,9 +1,11 @@
 import React, { useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import clsx from 'clsx';
 import api from '../../api/axios';
 import { usePermissions } from '../../store/usePermissions';
+import { STAGE_NAMES } from '../crm/production/StageSteps';
 import {
   ChevronLeftIcon, ChevronRightIcon, LockClosedIcon, LockOpenIcon, XMarkIcon,
   ExclamationTriangleIcon, TruckIcon, UserGroupIcon, Squares2X2Icon, ArrowPathIcon,
@@ -90,6 +92,18 @@ function busyUserIdsAt(slots, date, excludeSlotId) {
   return busy;
 }
 
+// A person is genuinely "Busy" on a date if they're leader/support on a real (non-Removed)
+// batch slot that day — this is the actual Kitchen Schedule assignment, separate from the
+// manually-cycled RD/Client/Docs/Leave blocks below, and takes priority for display since it's
+// real work rather than a manager's plan.
+function assignedSlotFor(slots, userId, dateStr) {
+  return slots.find((s) => {
+    if (s.status === 'Removed' || s.date !== dateStr) return false;
+    if (personId(s.leader) === userId) return true;
+    return (s.support || []).some((u) => personId(u) === userId);
+  }) || null;
+}
+
 function computeConflicts(slots, blocks) {
   const conflicts = [];
   const deliveryRisks = [];
@@ -116,6 +130,7 @@ function computeConflicts(slots, blocks) {
 // ── Page ──────────────────────────────────────────────────────────────────
 
 export default function KitchenSchedule() {
+  const navigate = useNavigate();
   const { isManager } = usePermissions();
   const queryClient = useQueryClient();
   const [weekOffset, setWeekOffset] = useState(0);
@@ -449,7 +464,10 @@ export default function KitchenSchedule() {
           <div className="card overflow-hidden">
             <div className="px-5 py-3.5 border-b border-gray-100 dark:border-[#1b2e4a]">
               <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-300">Availability — Production Team</h2>
-              <p className="text-xs text-gray-400 mt-0.5">{isManager ? 'Click a cell to cycle: RD → Client → Docs → Leave → clear' : 'Read-only'}</p>
+              <p className="text-xs text-gray-400 mt-0.5">
+                Blue "Busy" cells are real batch assignments from this schedule — click to open that order.{' '}
+                {isManager ? 'Other cells cycle: RD → Client → Docs → Leave → clear' : 'Read-only'}
+              </p>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full border-collapse">
@@ -469,6 +487,25 @@ export default function KitchenSchedule() {
                       <td className="px-4 py-2 text-xs font-medium text-gray-700 dark:text-gray-300 whitespace-nowrap">{u.firstName} {u.lastName}</td>
                       {weekDates.map((d) => {
                         const dateStr = toDateStr(d);
+                        const assignedSlot = assignedSlotFor(slots, u._id, dateStr);
+                        if (assignedSlot) {
+                          const order = assignedSlot.productionOrderId || {};
+                          const label = order.customer || order.orderNumber || 'Batch';
+                          return (
+                            <td key={dateStr} className="px-1.5 py-1.5">
+                              <button
+                                onClick={() => {
+                                  if (order.leadId) navigate(`/samples?open=${order.leadId?._id || order.leadId}&leadTab=Production`);
+                                  else setActiveSlot(assignedSlot);
+                                }}
+                                title={`${label} — currently at ${STAGE_NAMES[order.stage] ?? 'stage ' + order.stage}`}
+                                className="w-full py-1.5 rounded-md text-[11px] font-semibold bg-blue-100 text-blue-700 hover:brightness-95 truncate px-1"
+                              >
+                                🏭 {label}
+                              </button>
+                            </td>
+                          );
+                        }
                         const block = blocks.find((b) => personId(b.userId) === u._id && b.date === dateStr);
                         return (
                           <td key={dateStr} className="px-1.5 py-1.5">

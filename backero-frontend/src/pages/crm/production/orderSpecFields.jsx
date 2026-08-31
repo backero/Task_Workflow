@@ -260,7 +260,7 @@ export const SENSORY_KEYS = ['qcSensory', 'qcColor', 'qcOdor', 'qcTexture', 'qcA
 export const PHYSICO_KEYS = ['qcPhysico', 'qcPh', 'qcViscosity', 'qcDensity', 'qcAssay'];
 export const MICRO_KEYS = ['qcMicrobial', 'qcTpc', 'qcYm', 'qcPathogen'];
 export const STABILITY_KEYS = ['labStability', 'labAccelerated', 'labDuration', 'labFreezeThaw', 'labPackCompat', 'labPreservative', 'labHeavyMetal', 'labDermatological'];
-const DOC_KEYS = ['labDocumentation', 'labCoa', 'labMethod', 'docAllergen', 'docStabReport'];
+export const DOC_KEYS = ['labDocumentation', 'labCoa', 'labMethod', 'docAllergen', 'docStabReport'];
 
 function SectionHeading({ children }) {
   return <h4 className="text-xs font-bold uppercase tracking-wide text-[#6d5f4c] mb-2 pb-1.5 border-b border-[#e2dac8]">{children}</h4>;

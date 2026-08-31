@@ -33,7 +33,7 @@ const STATUS_STYLES = {
 
 const INR = (n) => `₹${Number(n || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
-const BACKERO = {
+export const BACKERO = {
   name: 'Backero Private Limited',
   address: '42, Interflex Complex, Near 5K Car Care, Trichy Road, Sulur, Coimbatore - 641402',
   gst: '33AAJCB0859L1ZH',
@@ -86,7 +86,7 @@ function isIntraState(clientGstin, clientState) {
 }
 
 // ── PDF / Print (B2B GST Compliant) ──────────────────────────────────────────
-function printInvoice(inv, org, user) {
+export function printInvoice(inv, org, user) {
   const fmtDate = (d) => d ? format(new Date(d), 'dd MMM yyyy') : '—';
   const intra = isIntraState(inv.client?.gstin, inv.client?.state);
   const bd = org?.bankDetails || {};

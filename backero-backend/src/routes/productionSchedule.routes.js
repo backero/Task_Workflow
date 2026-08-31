@@ -97,7 +97,7 @@ async function populateWeekResponse(week, orgId) {
     { path: 'slots.support', select: 'firstName lastName' },
     {
       path: 'slots.productionOrderId',
-      select: 'orderNumber customer catalogProduct batchSizeKg deliveryDate stage container ingredients',
+      select: 'orderNumber customer catalogProduct batchSizeKg deliveryDate stage container ingredients leadId',
       populate: { path: 'catalogProduct', select: 'name code formulation' },
     },
     { path: 'blocks.userId', select: 'firstName lastName' },
