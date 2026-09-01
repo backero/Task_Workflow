@@ -14,7 +14,7 @@ import {
   QuestionMarkCircleIcon,
 } from '@heroicons/react/24/outline';
 import api from '../../api/axios';
-import { PROD_STAGE_TABS } from '../crm/SampleProduction';
+import { ProductionStatBoxes } from './ProductionSnapshot';
 import { useAuthStore } from '../../store/useAuthStore';
 import { formatDistanceToNow, format } from 'date-fns';
 import { clsx } from 'clsx';
@@ -32,11 +32,11 @@ function StatCard({ icon: Icon, label, value, sub, color = 'blue', to, badge }) 
     <motion.div
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
-      className={clsx('card p-5 flex flex-col gap-3', to && 'hover:shadow-md transition-shadow cursor-pointer')}
+      className={clsx('card p-4 flex flex-col gap-2', to && 'hover:shadow-md transition-shadow cursor-pointer')}
     >
       <div className="flex items-start justify-between">
-        <div className={`w-10 h-10 rounded-xl bg-${color}-100 dark:bg-${color}-900/30 flex items-center justify-center`}>
-          <Icon className={`w-5 h-5 text-${color}-600 dark:text-${color}-400`} />
+        <div className={`w-8 h-8 rounded-lg bg-${color}-100 dark:bg-${color}-900/30 flex items-center justify-center`}>
+          <Icon className={`w-4 h-4 text-${color}-600 dark:text-${color}-400`} />
         </div>
         {badge !== undefined && (
           <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${badge > 0 ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-500'}`}>
@@ -45,9 +45,9 @@ function StatCard({ icon: Icon, label, value, sub, color = 'blue', to, badge }) 
         )}
       </div>
       <div>
-        <p className="text-2xl font-bold text-gray-900 dark:text-white">{value}</p>
-        <p className="text-sm font-medium text-gray-600 dark:text-gray-400 mt-0.5">{label}</p>
-        {sub && <p className="text-xs text-gray-400 mt-0.5">{sub}</p>}
+        <p className="text-xl font-bold text-gray-900 dark:text-white">{value}</p>
+        <p className="text-xs font-medium text-gray-600 dark:text-gray-400 mt-0.5">{label}</p>
+        {sub && <p className="text-[11px] text-gray-400 mt-0.5">{sub}</p>}
       </div>
     </motion.div>
   );
@@ -72,29 +72,6 @@ function SectionHeader({ title, sub, to, toLabel }) {
 }
 
 // ── Production Stage Strip ──────────────────────────────────────────────────
-// Breaks "Active Production" down by shop-floor stage — mirrors Sample Production's
-// Procurement..Dispatch tabs (/samples) so a click lands directly on that stage's list.
-function ProductionStageStrip({ stageCounts }) {
-  return (
-    <div className="card p-4">
-      <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-3">Production Pipeline</p>
-      <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
-        {PROD_STAGE_TABS.map((t) => (
-          <Link
-            key={t.key}
-            to={`/samples?tab=${t.key}`}
-            className="flex flex-col items-center gap-1 px-2 py-2.5 rounded-xl border border-gray-100 dark:border-[#1b2e4a] hover:border-brand-300 hover:bg-brand-50 dark:hover:bg-brand-900/10 transition-colors text-center"
-          >
-            <span className="text-lg leading-none">{t.emoji}</span>
-            <span className="text-base font-bold text-gray-900 dark:text-white">{stageCounts[t.stage] || 0}</span>
-            <span className="text-[10px] text-gray-500 dark:text-gray-400 leading-tight">{t.label}</span>
-          </Link>
-        ))}
-      </div>
-    </div>
-  );
-}
-
 // ── Custom Tooltip ───────────────────────────────────────────────────────────
 const ChartTooltip = ({ active, payload, label }) => {
   if (!active || !payload?.length) return null;
@@ -278,7 +255,7 @@ export default function FounderDashboard() {
         />
       </div>
 
-      <ProductionStageStrip stageCounts={d.production?.stageCounts || {}} />
+      <ProductionStatBoxes department="Production" />
 
       {/* ── Row 3: Finance + Task Chart ──────────────────────────────────────── */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

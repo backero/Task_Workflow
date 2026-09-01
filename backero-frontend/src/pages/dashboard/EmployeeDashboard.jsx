@@ -9,6 +9,7 @@ import {
 } from '@heroicons/react/24/outline';
 import api from '../../api/axios';
 import { useAuthStore } from '../../store/useAuthStore';
+import ProductionSnapshot from './ProductionSnapshot';
 import { format, isToday, isTomorrow, isPast, formatDistanceToNow } from 'date-fns';
 import { clsx } from 'clsx';
 
@@ -137,6 +138,8 @@ export default function EmployeeDashboard() {
           />
         )}
       </div>
+
+      <ProductionSnapshot department={user?.department} />
 
       {/* Overdue Banner */}
       {overdueTasks.length > 0 && (

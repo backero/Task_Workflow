@@ -11,6 +11,7 @@ import {
 } from '@heroicons/react/24/outline';
 import api from '../../api/axios';
 import { useAuthStore } from '../../store/useAuthStore';
+import ProductionSnapshot from './ProductionSnapshot';
 import { format, isToday, isTomorrow, isPast, formatDistanceToNow } from 'date-fns';
 import { clsx } from 'clsx';
 
@@ -238,6 +239,8 @@ export default function ManagerDashboard() {
         <KPICard icon={QuestionMarkCircleIcon} color="rose" label="Pending Queries" value={techQueries.pendingCount}
           sub="Awaiting production reply" alert={techQueries.pendingCount} to="/crm/queries" />
       </div>
+
+      <ProductionSnapshot department={user?.department} />
 
       {/* ── Status chart + Due soon ── */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
