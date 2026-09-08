@@ -49,6 +49,7 @@ import FinanceReports from './pages/finance/FinanceReports';
 // Department pages
 import MarketingDept from './pages/departments/Marketing';
 import SocialApprovals from './pages/marketing/SocialApprovals';
+import SocialAutomation from './pages/marketing/SocialAutomation';
 import MarketplaceDept from './pages/departments/Marketplace';
 import SalesDept from './pages/departments/Sales';
 import RnDDept from './pages/departments/RnD';
@@ -168,6 +169,7 @@ export default function App() {
           {/* Departments */}
           <Route path="/departments/marketing" element={<PermissionRoute module="dept.marketing"><MarketingDept /></PermissionRoute>} />
           <Route path="/marketing/social-approvals" element={<PermissionRoute module="dept.marketing"><SocialApprovals /></PermissionRoute>} />
+          <Route path="/marketing/automation" element={<PermissionRoute module="dept.marketing"><SocialAutomation /></PermissionRoute>} />
           <Route path="/departments/marketplace" element={<PermissionRoute module="dept.marketplace"><MarketplaceDept /></PermissionRoute>} />
           <Route path="/departments/sales" element={<PermissionRoute module="dept.sales"><SalesDept /></PermissionRoute>} />
           <Route path="/departments/rnd" element={<PermissionRoute module="dept.rnd"><RnDDept /></PermissionRoute>} />

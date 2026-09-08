@@ -134,6 +134,7 @@ export default function Sidebar({ collapsed, onToggle }) {
   if (can('dept.marketing'))   deptItems.push({ label: 'Marketing', icon: MegaphoneIcon, children: [
     { label: 'Dashboard', to: '/departments/marketing' },
     { label: 'Social Approvals', to: '/marketing/social-approvals' },
+    { label: 'Social Automation', to: '/marketing/automation' },
   ]});
   if (can('dept.marketplace')) deptItems.push({ label: 'Marketplace', to: '/departments/marketplace', icon: BuildingStorefrontIcon });
   if (can('dept.sales'))       deptItems.push({ label: 'Sales Dept',  to: '/departments/sales',       icon: ShoppingBagIcon });
