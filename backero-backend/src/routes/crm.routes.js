@@ -97,7 +97,10 @@ router.get('/leads/analytics/rep', authorizeManagerOrAbove, ctrl.getRepAnalytics
 router.get('/leads/analytics/velocity', authorizeManagerOrAbove, ctrl.getPipelineVelocity);
 router.get('/leads/by-task/:taskId', ctrl.getLeadByTask);
 router.get('/leads/:id', ctrl.getLead);
-router.post('/leads', ctrl.authorizeLeadCreate, ctrl.createLead);
+// Any authenticated member can add a new lead/KYC — first-contact/intake isn't limited to
+// managers or the two named intake reps, per explicit request (members were getting blocked
+// here even after the earlier naven/vignesh carve-out).
+router.post('/leads', ctrl.createLead);
 router.put('/leads/:id', ctrl.updateLead);
 router.put('/leads/:id/sample', ctrl.updateSampleDetails);
 router.put('/leads/:id/sample/stage', ctrl.updateSampleSubStage);

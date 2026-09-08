@@ -945,17 +945,6 @@ function canAssignLeads(user) {
 }
 exports.canAssignLeads = canAssignLeads;
 
-// Route guard for POST /leads (create) — manager+ as before, plus the two named intake reps
-// even when their role is 'member' (Naventhra). They're the ones who actually do first-contact/
-// KYC entry for new clients, same as everywhere else canAssignLeads is used, so a member-level
-// intake rep shouldn't be blocked from creating the lead they're the designated owner of.
-exports.authorizeLeadCreate = (req, res, next) => {
-  if (!req.user) return sendError(res, 'Authentication required.', 401);
-  const level = ROLE_HIERARCHY[req.user.role] || 0;
-  if (level >= ROLE_HIERARCHY['manager'] || canAssignLeads(req.user)) return next();
-  return sendError(res, 'Access denied. Minimum role required: manager (or intake team).', 403);
-};
-
 // POST /api/crm/leads/:id/assign
 // Open to whoever's doing KYC entry/first-contact — no restriction here, unlike inCharge
 // (the production handoff) in updateLead below.
