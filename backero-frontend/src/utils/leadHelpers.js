@@ -19,10 +19,12 @@ export function queryId(query) {
 // intake reps, may change who a lead/client is assigned to. Everyone else can still see who
 // owns a lead; this just decides whether the picker renders as editable or as plain text.
 // Name-hint matching (not a role) since these are two specific people, not a role tier.
+// startsWith, not includes — avoids false-positives on names that merely contain the hint
+// (e.g. "Krisnaveni" contains "naven" but isn't Naventhra).
 const ASSIGNER_NAME_HINTS = ['naven', 'vignesh'];
 export function canAssignLeads(user) {
   if (!user) return false;
   if (user.role === 'admin') return true;
   const name = `${user.firstName || ''} ${user.lastName || ''}`.toLowerCase();
-  return ASSIGNER_NAME_HINTS.some((hint) => name.includes(hint));
+  return ASSIGNER_NAME_HINTS.some((hint) => name.startsWith(hint));
 }

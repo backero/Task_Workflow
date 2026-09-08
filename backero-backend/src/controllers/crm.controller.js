@@ -934,14 +934,27 @@ exports.addFollowUp = asyncHandler(async (req, res) => {
 // Only admin, or the two named intake reps, may ever change a lead's In-Charge (the production
 // end-to-end owner handoff) — everyone else can still see who's In-Charge, just not change it.
 // Name-hint matching, not a dedicated role, since these are two specific people rather than a
-// role tier — same 'naven'/'vignesh' substring convention the frontend KYC/EditKyc pickers use.
+// role tier — same 'naven'/'vignesh' prefix convention the frontend KYC/EditKyc pickers use.
+// startsWith, not includes — a plain substring check false-positives on names that merely
+// contain the hint (e.g. "Krisnaveni" contains "naven" but isn't Naventhra).
 const ASSIGNER_NAME_HINTS = ['naven', 'vignesh'];
 function canAssignLeads(user) {
   if (user.role === 'admin') return true;
   const name = `${user.firstName || ''} ${user.lastName || ''}`.toLowerCase();
-  return ASSIGNER_NAME_HINTS.some((hint) => name.includes(hint));
+  return ASSIGNER_NAME_HINTS.some((hint) => name.startsWith(hint));
 }
 exports.canAssignLeads = canAssignLeads;
+
+// Route guard for POST /leads (create) — manager+ as before, plus the two named intake reps
+// even when their role is 'member' (Naventhra). They're the ones who actually do first-contact/
+// KYC entry for new clients, same as everywhere else canAssignLeads is used, so a member-level
+// intake rep shouldn't be blocked from creating the lead they're the designated owner of.
+exports.authorizeLeadCreate = (req, res, next) => {
+  if (!req.user) return sendError(res, 'Authentication required.', 401);
+  const level = ROLE_HIERARCHY[req.user.role] || 0;
+  if (level >= ROLE_HIERARCHY['manager'] || canAssignLeads(req.user)) return next();
+  return sendError(res, 'Access denied. Minimum role required: manager (or intake team).', 403);
+};
 
 // POST /api/crm/leads/:id/assign
 // Open to whoever's doing KYC entry/first-contact — no restriction here, unlike inCharge

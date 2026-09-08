@@ -97,7 +97,7 @@ router.get('/leads/analytics/rep', authorizeManagerOrAbove, ctrl.getRepAnalytics
 router.get('/leads/analytics/velocity', authorizeManagerOrAbove, ctrl.getPipelineVelocity);
 router.get('/leads/by-task/:taskId', ctrl.getLeadByTask);
 router.get('/leads/:id', ctrl.getLead);
-router.post('/leads', authorizeManagerOrAbove, ctrl.createLead);
+router.post('/leads', ctrl.authorizeLeadCreate, ctrl.createLead);
 router.put('/leads/:id', ctrl.updateLead);
 router.put('/leads/:id/sample', ctrl.updateSampleDetails);
 router.put('/leads/:id/sample/stage', ctrl.updateSampleSubStage);

@@ -77,9 +77,11 @@ export default function EditKycModal({ lead, onClose, readOnly = false }) {
   // A brand-new lead (still New Lead/Follow-up, or being created here) can only go to the two
   // intake reps who do first contact; once it's moved on, the handoff is Production-dept only.
   const isNewIntake = isCreate || !lead?.status || ['New Lead', 'Follow-up'].includes(lead.status);
+  // startsWith, not includes — avoids false-positives on names that merely contain the hint
+  // (e.g. "Krisnaveni" contains "naven" but isn't Naventhra).
   const INTAKE_NAME_HINTS = ['naven', 'vignesh'];
   const assignableUsers = isNewIntake
-    ? (orgUsers || []).filter((u) => INTAKE_NAME_HINTS.some((h) => (u.firstName || '').toLowerCase().includes(h)))
+    ? (orgUsers || []).filter((u) => INTAKE_NAME_HINTS.some((h) => (u.firstName || '').toLowerCase().startsWith(h)))
     : (orgUsers || []).filter((u) => u.department === 'Production');
 
   const originalAssignedTo = lead?.assignedTo?._id || lead?.assignedTo || '';
