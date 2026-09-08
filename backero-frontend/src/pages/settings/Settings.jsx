@@ -12,6 +12,8 @@ export default function Settings() {
   const [logoPreview, setLogoPreview] = useState('');
   const [qrPreview, setQrPreview] = useState('');
   const [avatarBroken, setAvatarBroken] = useState(false);
+  const [callbackUrlInput, setCallbackUrlInput] = useState('');
+  const [revealedKey, setRevealedKey] = useState(null);
   const avatarInputRef = React.useRef(null);
   const queryClient = useQueryClient();
 
@@ -107,11 +109,37 @@ export default function Settings() {
 
   const isAdmin = ['admin', 'owner', 'super_admin'].includes(user?.role);
 
+  const { data: integrationStatus, refetch: refetchIntegrationStatus } = useQuery({
+    queryKey: ['social-automation-status'],
+    queryFn: () => api.get('/organizations/social-automation/status').then((r) => r.data),
+    enabled: isAdmin && activeTab === 'integrations',
+  });
+
+  useEffect(() => {
+    if (integrationStatus) setCallbackUrlInput(integrationStatus.defaultCallbackUrl || '');
+  }, [integrationStatus]);
+
+  const generateKeyMutation = useMutation({
+    mutationFn: () => api.post('/organizations/social-automation/generate-key'),
+    onSuccess: (res) => {
+      setRevealedKey({ apiKey: res.data.apiKey, webhookSecret: res.data.webhookSecret });
+      refetchIntegrationStatus();
+    },
+    onError: (err) => toast.error(err.response?.data?.message || 'Failed to generate key'),
+  });
+
+  const callbackUrlMutation = useMutation({
+    mutationFn: (defaultCallbackUrl) => api.put('/organizations/social-automation/callback-url', { defaultCallbackUrl }),
+    onSuccess: () => { toast.success('Callback URL saved'); refetchIntegrationStatus(); },
+    onError: (err) => toast.error(err.response?.data?.message || 'Failed to save'),
+  });
+
   const TABS = [
     { key: 'profile', label: 'Profile' },
     { key: 'password', label: 'Password' },
     { key: 'notifications', label: 'Notifications' },
     ...(isAdmin ? [{ key: 'invoice', label: 'Invoice Settings' }] : []),
+    ...(isAdmin ? [{ key: 'integrations', label: 'Integrations' }] : []),
   ];
 
   return (
@@ -351,6 +379,86 @@ export default function Settings() {
             {invoiceMutation.isPending ? 'Saving...' : 'Save Invoice Settings'}
           </button>
         </form>
+      )}
+
+      {activeTab === 'integrations' && (
+        <div className="space-y-6">
+          <div className="card p-6 space-y-4">
+            <h3 className="section-title">Social Media Automation</h3>
+            <p className="text-sm text-gray-500">
+              Lets an external system push posts here for Marketing approval, and get notified once reviewed.
+            </p>
+
+            <div className="flex items-center justify-between py-3 border-t border-gray-100 dark:border-[#1b2e4a]">
+              <div>
+                <p className="font-medium text-gray-900 dark:text-white">
+                  {integrationStatus?.configured ? 'API key configured' : 'Not configured yet'}
+                </p>
+                {integrationStatus?.configured && (
+                  <p className="text-xs text-gray-400 mt-0.5">
+                    Ends in •••{integrationStatus.apiKeyPreview}
+                    {integrationStatus.generatedAt && ` — generated ${new Date(integrationStatus.generatedAt).toLocaleDateString()}`}
+                  </p>
+                )}
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  if (integrationStatus?.configured && !window.confirm('Generating a new key invalidates the old one — the automation system will need updating. Continue?')) return;
+                  generateKeyMutation.mutate();
+                }}
+                disabled={generateKeyMutation.isPending}
+                className="btn-primary"
+              >
+                {generateKeyMutation.isPending ? 'Generating...' : integrationStatus?.configured ? 'Regenerate Key' : 'Generate API Key'}
+              </button>
+            </div>
+
+            {revealedKey && (
+              <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-4 space-y-3">
+                <p className="text-sm font-semibold text-amber-800 dark:text-amber-300">
+                  Save these now — they will not be shown again.
+                </p>
+                <div>
+                  <label className="label">API Key (X-Backero-Api-Key)</label>
+                  <div className="flex gap-2">
+                    <input readOnly value={revealedKey.apiKey} className="input font-mono text-xs" onFocus={(e) => e.target.select()} />
+                    <button type="button" className="btn-secondary flex-shrink-0" onClick={() => { navigator.clipboard.writeText(revealedKey.apiKey); toast.success('Copied'); }}>Copy</button>
+                  </div>
+                </div>
+                <div>
+                  <label className="label">Webhook Secret (BACKERO_WEBHOOK_SECRET)</label>
+                  <div className="flex gap-2">
+                    <input readOnly value={revealedKey.webhookSecret} className="input font-mono text-xs" onFocus={(e) => e.target.select()} />
+                    <button type="button" className="btn-secondary flex-shrink-0" onClick={() => { navigator.clipboard.writeText(revealedKey.webhookSecret); toast.success('Copied'); }}>Copy</button>
+                  </div>
+                </div>
+                <button type="button" className="btn-secondary w-full justify-center" onClick={() => setRevealedKey(null)}>I've saved these</button>
+              </div>
+            )}
+
+            <div className="pt-2 border-t border-gray-100 dark:border-[#1b2e4a]">
+              <label className="label">Default Callback URL</label>
+              <p className="text-xs text-gray-400 mb-2">Used when the automation system doesn't send its own callbackUrl per request.</p>
+              <div className="flex gap-2">
+                <input
+                  value={callbackUrlInput}
+                  onChange={(e) => setCallbackUrlInput(e.target.value)}
+                  className="input"
+                  placeholder="https://your-automation-app.example.com/webhooks/backero-approval"
+                />
+                <button
+                  type="button"
+                  onClick={() => callbackUrlMutation.mutate(callbackUrlInput)}
+                  disabled={callbackUrlMutation.isPending}
+                  className="btn-primary flex-shrink-0"
+                >
+                  Save
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

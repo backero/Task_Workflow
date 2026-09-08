@@ -50,6 +50,8 @@ const rawMaterialRoutes       = require('./src/routes/rawmaterial.routes');
 const productionUsageRoutes   = require('./src/routes/productionusage.routes');
 const teamRewardRoutes        = require('./src/routes/teamReward.routes');
 const productionCustomerRoutes = require('./src/routes/productioncustomer.routes');
+const socialApprovalRoutes    = require('./src/routes/socialApproval.routes');
+const integrationRoutes       = require('./src/routes/integration.routes');
 
 const app = express();
 const server = http.createServer(app);
@@ -192,6 +194,8 @@ app.use('/api/rawmaterials',       rawMaterialRoutes);
 app.use('/api/production-usage',   productionUsageRoutes);
 app.use('/api/team-rewards',       teamRewardRoutes);
 app.use('/api/production-customers', productionCustomerRoutes);
+app.use('/api/social-approvals', socialApprovalRoutes);
+app.use('/api/integrations', integrationRoutes);
 
 // 404 handler
 app.use('*', (req, res) => {

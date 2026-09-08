@@ -54,6 +54,18 @@ const organizationSchema = new mongoose.Schema({
     upiId: { type: String },
     upiQrUrl: { type: String },
   },
+  // Machine-to-machine integration for external systems (e.g. a social media
+  // automation app) that need to push approval requests into Backero and
+  // receive a signed callback when they're reviewed. apiKeyHash/webhookSecret
+  // are select:false so they never leak through /organizations/me or any
+  // other normal query — only explicit .select('+socialAutomation.x') reads them.
+  socialAutomation: {
+    apiKeyHash: { type: String, select: false },
+    apiKeyPreview: { type: String },
+    webhookSecret: { type: String, select: false },
+    defaultCallbackUrl: { type: String },
+    generatedAt: { type: Date },
+  },
   invoicePrefix: { type: String, default: 'INV' },
   invoiceTerms: { type: String, default: 'Payment due within 30 days of invoice date. Late payments attract 2% interest per month.' },
   createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },

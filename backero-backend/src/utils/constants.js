@@ -160,6 +160,14 @@ const APPROVAL_STATUS = {
   CHANGES_REQUESTED: 'changes_requested',
 };
 
+const SOCIAL_APPROVAL_STATUS = {
+  PENDING: 'pending',
+  APPROVED: 'approved',
+  REJECTED: 'rejected',
+};
+
+const SOCIAL_PLATFORMS = ['instagram', 'facebook', 'linkedin', 'twitter', 'youtube', 'other'];
+
 const SOCKET_EVENTS = {
   TASK_CREATED: 'task_created',
   TASK_UPDATED: 'task_updated',
@@ -195,5 +203,7 @@ module.exports = {
   MARKETING_TASK_TYPES,
   TRANSACTION_TYPES,
   APPROVAL_STATUS,
+  SOCIAL_APPROVAL_STATUS,
+  SOCIAL_PLATFORMS,
   SOCKET_EVENTS,
 };
