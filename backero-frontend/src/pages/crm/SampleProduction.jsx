@@ -530,10 +530,10 @@ export default function SampleProduction() {
     onError: (e) => toast.error(e.response?.data?.message || 'Failed to unassign'),
   });
 
-  // In-charge — set at KYC, from the whole Production department — carries through as the
-  // production order's owner and pre-fills Team Assignment once this lead reaches production
-  // (see lead.inCharge in Lead.js / crm.controller.js's linkProduction & linkSampleProduction).
-  const productionInCharge = (orgUsers || []).filter((u) => u.department === 'Production' && u.isActive !== false);
+  // In-charge — any active org member — carries through as the production order's owner and
+  // pre-fills Team Assignment once this lead reaches production (see lead.inCharge in Lead.js /
+  // crm.controller.js's linkProduction & linkSampleProduction).
+  const productionInCharge = (orgUsers || []).filter((u) => u.isActive !== false);
   const inChargeMutation = useMutation({
     mutationFn: ({ leadId, inCharge }) => api.put(`/crm/leads/${leadId}`, { inCharge }),
     onSuccess: () => {

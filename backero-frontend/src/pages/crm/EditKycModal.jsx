@@ -81,11 +81,14 @@ export default function EditKycModal({ lead, onClose, readOnly = false }) {
     queryKey: ['users', 'org', 'all'],
     queryFn: () => api.get('/users', { params: { limit: 200 } }).then((r) => r.data.data || []),
   });
-  // A brand-new lead (still New Lead/Follow-up, or being created here) can go to any org member
-  // doing first contact; once it's moved on, the handoff is Production-dept only.
+  // A brand-new lead (still New Lead/Follow-up, or being created here) can only go to the two
+  // intake reps who do first contact; once it's moved on, the handoff is Production-dept only.
   const isNewIntake = isCreate || !lead?.status || ['New Lead', 'Follow-up'].includes(lead.status);
+  // startsWith, not includes — avoids false-positives on names that merely contain the hint
+  // (e.g. "Krisnaveni" contains "naven" but isn't Naventhra).
+  const INTAKE_NAME_HINTS = ['naven', 'vignesh'];
   const assignableUsers = isNewIntake
-    ? (orgUsers || []).filter((u) => u.isActive !== false)
+    ? (orgUsers || []).filter((u) => INTAKE_NAME_HINTS.some((h) => (u.firstName || '').toLowerCase().startsWith(h)))
     : (orgUsers || []).filter((u) => u.department === 'Production');
 
   const originalAssignedTo = lead?.assignedTo?._id || lead?.assignedTo || '';
@@ -391,7 +394,7 @@ export default function EditKycModal({ lead, onClose, readOnly = false }) {
               </select>
               <p className="text-[10px] text-[#8a8171] mt-1">
                 {isNewIntake
-                  ? 'Any team member can do first-contact/intake — once shifted to Production below, that person becomes the end-to-end owner through to dispatch.'
+                  ? 'New leads can only go to the intake reps — once shifted to Production below, that person becomes the end-to-end owner through to dispatch.'
                   : 'Production-dept only from here — whoever\'s set becomes this client\'s end-to-end owner: Q&A, samples, payment, production, dispatch.'}
               </p>
             </Field>
