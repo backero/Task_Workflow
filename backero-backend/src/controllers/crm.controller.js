@@ -76,10 +76,35 @@ exports.getLeads = asyncHandler(async (req, res) => {
   sendSuccess(res, paginateResponse(leads, total, page, limit));
 });
 
+// POST /api/crm/leads/transcribe  (multipart 'audio') — used by the Add/Edit Lead KYC form's
+// voice-note autofill: transcribes the recording and pulls out lead fields, but does NOT touch
+// the database — the frontend reviews/edits the suggested fields before Save KYC persists them.
+exports.transcribeLeadAudio = asyncHandler(async (req, res) => {
+  if (!req.file) return sendError(res, 'No audio file uploaded', 400);
+  if (!process.env.GROQ_API_KEY) return sendError(res, 'Transcription is not configured (missing GROQ_API_KEY).', 503);
+
+  const { transcribeAudio, extractLeadFieldsFromTranscript } = require('../utils/groq');
+  const { uploadBuffer } = require('../utils/cloudinary');
+
+  const transcript = await transcribeAudio(req.file.buffer, req.file.originalname, req.file.mimetype);
+  if (!transcript.trim()) return sendError(res, 'Could not transcribe any speech from that audio.', 422);
+
+  const [fields, uploadResult] = await Promise.all([
+    extractLeadFieldsFromTranscript(transcript),
+    uploadBuffer(req.file.buffer, { folder: `backero/crm-intake/${req.user.organizationId}`, resourceType: 'video' }),
+  ]);
+
+  sendSuccess(res, {
+    transcript,
+    fields,
+    audio: { url: uploadResult.secure_url, publicId: uploadResult.public_id, name: req.file.originalname, transcript },
+  });
+});
+
 // POST /api/crm/leads
 exports.createLead = asyncHandler(async (req, res) => {
   const io = req.app.get('io');
-  const { name, email, phone, whatsapp, company, source, status, priority, productInterest, estimatedValue, notes, campaign, city, state, designation, businessType } = req.body;
+  const { name, email, phone, whatsapp, company, source, status, priority, productInterest, estimatedValue, notes, campaign, city, state, designation, businessType, intakeAudio } = req.body;
   // "Unassigned" in the Add Lead form submits an empty string, which Mongoose can't cast to ObjectId.
   const assignedTo = req.body.assignedTo || undefined;
 
@@ -91,7 +116,7 @@ exports.createLead = asyncHandler(async (req, res) => {
   const lead = await Lead.create({
     organizationId: req.user.organizationId,
     name, email, phone, whatsapp, company, source, status: initialStage, priority, productInterest, estimatedValue,
-    assignedTo, notes, campaign, city, state, designation, businessType,
+    assignedTo, notes, campaign, city, state, designation, businessType, intakeAudio,
     assignedBy: assignedTo ? req.user._id : undefined,
     assignedAt: assignedTo ? new Date() : undefined,
     createdBy: req.user._id,

@@ -18,6 +18,7 @@ export default function EmployeeMonitoring() {
         <p className="text-gray-500 text-sm">{users.length} employees</p>
       </div>
       <div className="card overflow-hidden">
+        <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead className="bg-gray-50 dark:bg-[#0f1a2e]">
             <tr>
@@ -56,6 +57,7 @@ export default function EmployeeMonitoring() {
             ))}
           </tbody>
         </table>
+        </div>
       </div>
     </div>
   );

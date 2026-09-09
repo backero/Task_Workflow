@@ -30,8 +30,8 @@ import { canAssignLeads } from '../../utils/leadHelpers';
 // FONT_IMPORT + hardcoded hex classes below (nothing global is touched).
 
 export { FONT_IMPORT, Card, PILL, StatCard, SUB_STAGE_PILL, PROD_STAGE_TABS };
-const displayFont = { fontFamily: "'Fraunces', Georgia, serif" };
-const bodyFont = { fontFamily: "'Inter', -apple-system, sans-serif" };
+const displayFont = { fontFamily: "'Zilla Slab', Georgia, serif" };
+const bodyFont = { fontFamily: "'IBM Plex Sans', -apple-system, sans-serif" };
 
 const QA_TOPIC_PILL = { General: PILL.gray, Product: PILL.info, Packaging: PILL.warning, Formula: PILL.purple, Designing: PILL.info, Pricing: PILL.success };
 
@@ -130,7 +130,7 @@ function SortableTh({ label, sortKey, sortState, setSortState, className = '' })
   const active = sortState.col === sortKey;
   return (
     <th
-      className={clsx('px-4 py-2.5 cursor-pointer select-none hover:text-[#2e241b]', className)}
+      className={clsx('px-4 py-2.5 cursor-pointer select-none hover:text-[#1c1917]', className)}
       onClick={() => setSortState((s) => (s.col === sortKey ? { col: sortKey, dir: s.dir === 'asc' ? 'desc' : 'asc' } : { col: sortKey, dir: 'asc' }))}
     >
       {label}{active && <span className="ml-1">{sortState.dir === 'asc' ? '▲' : '▼'}</span>}
@@ -590,7 +590,7 @@ export default function SampleProduction() {
 
   // Consistent color per client — same client always gets the same swatch, so every query row
   // for that client (even scattered across a search/sort) reads as one visual group at a glance.
-  const CLIENT_COLOR_PALETTE = ['#f2b23e', '#7fa8c9', '#c98cae', '#8cc98f', '#c9a05c', '#a08cc9', '#c98c8c', '#6fb3ad'];
+  const CLIENT_COLOR_PALETTE = ['#a8781f', '#a39c8c', '#7c5a17', '#4f8f6c', '#c9a227', '#8a6a7d', '#a13d34', '#2f6b4f'];
   function clientColorFor(cid) {
     let hash = 0;
     for (let i = 0; i < (cid || '').length; i++) hash = (hash * 31 + cid.charCodeAt(i)) >>> 0;
@@ -624,10 +624,10 @@ export default function SampleProduction() {
     setQaSortDir(next.dir);
   };
 
-  const accentBtn = 'inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-[#f2b23e] text-[#2e241b] text-xs font-bold hover:brightness-95 transition disabled:opacity-50';
-  const outlineBtn = 'inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full border-[1.5px] border-[#d3c9b4] text-[#6d5f4c] text-xs font-semibold hover:bg-[#e7dfce] hover:border-[#968871] hover:text-[#2e241b] transition';
-  const textLink = 'text-xs font-semibold text-[#4a3a29] hover:text-[#2e241b]';
-  const modalInputCls = 'px-3 py-2 text-sm rounded-[10px] border-[1.5px] border-[#d3c9b4] bg-white text-[#2e241b] focus:outline-none focus:border-[#968871] placeholder:text-[#968871]';
+  const accentBtn = 'inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-[#a8781f] text-[#1c1917] text-xs font-bold hover:brightness-95 transition disabled:opacity-50';
+  const outlineBtn = 'inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full border-[1.5px] border-[#ddd6c4] text-[#6b6155] text-xs font-semibold hover:bg-[#f1ede4] hover:border-[#8a8171] hover:text-[#1c1917] transition';
+  const textLink = 'text-xs font-semibold text-[#292521] hover:text-[#1c1917]';
+  const modalInputCls = 'px-3 py-2 text-sm rounded-[10px] border-[1.5px] border-[#ddd6c4] bg-white text-[#1c1917] focus:outline-none focus:border-[#8a8171] placeholder:text-[#8a8171]';
 
   // One stat card per tab above, in the same order — labels/emojis pulled straight from TABS so
   // the dashboard and the tab bar can never drift out of sync with each other.
@@ -650,20 +650,20 @@ export default function SampleProduction() {
       <style>{FONT_IMPORT}</style>
 
       <Card className="flex items-center gap-3">
-        <div className="w-10 h-10 rounded-xl bg-[#f2b23e] flex items-center justify-center shadow-sm flex-shrink-0 text-lg">🧪</div>
+        <div className="w-10 h-10 rounded-xl bg-[#a8781f] flex items-center justify-center shadow-sm flex-shrink-0 text-lg">🧪</div>
         <div className="flex-1 min-w-0">
-          <h1 className="text-lg font-bold text-[#2e241b] leading-tight" style={displayFont}>Sample Development</h1>
-          <p className="text-xs text-[#6d5f4c]">{sampleLeads.length} in sampling · {awaiting.length} in approvals · {linkedOrders.length} linked</p>
+          <h1 className="text-lg font-bold text-[#1c1917] leading-tight" style={displayFont}>Sample Development</h1>
+          <p className="text-xs text-[#6b6155]">{sampleLeads.length} in sampling · {awaiting.length} in approvals · {linkedOrders.length} linked</p>
         </div>
-        <button onClick={exportCSV} className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full border-[1.5px] border-[#d3c9b4] text-[#6d5f4c] text-xs font-semibold hover:bg-[#e7dfce] hover:border-[#968871] hover:text-[#2e241b] transition flex-shrink-0">
+        <button onClick={exportCSV} className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full border-[1.5px] border-[#ddd6c4] text-[#6b6155] text-xs font-semibold hover:bg-[#f1ede4] hover:border-[#8a8171] hover:text-[#1c1917] transition flex-shrink-0">
           📥 Export CSV
         </button>
       </Card>
 
       {agingLeads.length > 0 && (
-        <div className="p-3 rounded-[10px] border border-[#e3b3ab] bg-[#f6e3e0] flex items-start gap-2">
+        <div className="p-3 rounded-[10px] border border-[#e8c9c3] bg-[#f5e3e0] flex items-start gap-2">
           <span className="text-base leading-none">⚠️</span>
-          <div className="text-xs text-[#8c3a30]">
+          <div className="text-xs text-[#a13d34]">
             <span className="font-semibold">{agingLeads.length} sample{agingLeads.length === 1 ? '' : 's'} stalled over 7 days</span> — {agingLeads.map((l) => l.name).join(', ')}
           </div>
         </div>
@@ -683,18 +683,18 @@ export default function SampleProduction() {
       </div>
 
       <Card className="p-0 overflow-hidden">
-        <div className="flex gap-1 px-5 border-b border-[#e2dac8] flex-nowrap overflow-x-auto">
+        <div className="flex gap-1 px-5 border-b border-[#e7e2d6] flex-nowrap overflow-x-auto">
           {TABS.map((t) => (
             <button
               key={t.key}
               onClick={() => { setTab(t.key); setSortState({ col: null, dir: 'asc' }); }}
               className={clsx(
                 'px-4 py-3 text-[13px] font-semibold border-b-[2.5px] transition-colors flex items-center gap-1.5 whitespace-nowrap flex-shrink-0',
-                tab === t.key ? 'border-[#f2b23e] text-[#2e241b]' : 'border-transparent text-[#6d5f4c] hover:text-[#2e241b]'
+                tab === t.key ? 'border-[#a8781f] text-[#1c1917]' : 'border-transparent text-[#6b6155] hover:text-[#1c1917]'
               )}
             >
               <span>{t.emoji}</span>{t.label}
-              <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-[#f2b23e] text-[#2e241b] text-[10px] font-bold">
+              <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-[#a8781f] text-[#1c1917] text-[10px] font-bold">
                 {dashboardStats.find((s) => s.key === t.key)?.value ?? 0}
               </span>
             </button>
@@ -702,13 +702,13 @@ export default function SampleProduction() {
         </div>
 
         <div className="p-5 space-y-4">
-          <p className="text-xs text-[#968871]">{TABS.find((t) => t.key === tab)?.hint}</p>
+          <p className="text-xs text-[#8a8171]">{TABS.find((t) => t.key === tab)?.hint}</p>
 
           <div className="flex items-center gap-3 flex-wrap">
             <div className="relative max-w-sm flex-1 min-w-[220px]">
-              <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#968871] text-sm">🔍</span>
+              <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#8a8171] text-sm">🔍</span>
               <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search customer, company…"
-                className="pl-9 pr-3 py-2 text-sm border-[1.5px] border-[#d3c9b4] rounded-full focus:outline-none focus:border-[#968871] w-full bg-[#e7dfce] text-[#2e241b] placeholder:text-[#968871]" />
+                className="pl-9 pr-3 py-2 text-sm border-[1.5px] border-[#ddd6c4] rounded-full focus:outline-none focus:border-[#8a8171] w-full bg-[#f1ede4] text-[#1c1917] placeholder:text-[#8a8171]" />
             </div>
             {tab === 'new' && <button onClick={() => setShowCreateLead(true)} className={accentBtn}>+ New Lead</button>}
             {tab === 'linked' && <button onClick={() => setShowNewOrder(true)} className={accentBtn}>🆕 New Order</button>}
@@ -719,7 +719,7 @@ export default function SampleProduction() {
               <button
                 onClick={() => setSampleStageFilter('')}
                 className={clsx('px-3 py-1 rounded-full text-[11px] font-semibold border-[1.5px] transition-colors',
-                  !sampleStageFilter ? 'bg-[#2e241b] border-[#2e241b] text-white' : 'border-[#d3c9b4] bg-[#e7dfce] text-[#6d5f4c] hover:border-[#968871]')}
+                  !sampleStageFilter ? 'bg-[#1c1917] border-[#1c1917] text-white' : 'border-[#ddd6c4] bg-[#f1ede4] text-[#6b6155] hover:border-[#8a8171]')}
               >
                 All <span className="opacity-75 font-bold">{sampleLeads.length}</span>
               </button>
@@ -728,7 +728,7 @@ export default function SampleProduction() {
                   key={s}
                   onClick={() => setSampleStageFilter(s)}
                   className={clsx('px-3 py-1 rounded-full text-[11px] font-semibold border-[1.5px] transition-colors',
-                    sampleStageFilter === s ? 'bg-[#2e241b] border-[#2e241b] text-white' : 'border-[#d3c9b4] bg-[#e7dfce] text-[#6d5f4c] hover:border-[#968871]')}
+                    sampleStageFilter === s ? 'bg-[#1c1917] border-[#1c1917] text-white' : 'border-[#ddd6c4] bg-[#f1ede4] text-[#6b6155] hover:border-[#8a8171]')}
                 >
                   {s} <span className="opacity-75 font-bold">{stageChipCounts[s] || 0}</span>
                 </button>
@@ -737,10 +737,10 @@ export default function SampleProduction() {
           )}
 
           {tab === 'new' && (
-            <div className="overflow-x-auto rounded-[10px] border border-[#e2dac8]">
+            <div className="overflow-x-auto rounded-[10px] border border-[#e7e2d6]">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b border-[#d3c9b4] text-left text-[11px] uppercase tracking-wide text-[#6d5f4c] bg-[#e7dfce]">
+                  <tr className="border-b border-[#ddd6c4] text-left text-[11px] uppercase tracking-wide text-[#6b6155] bg-[#f1ede4]">
                     <SortableTh label="Customer ID" sortKey="customerId" sortState={sortState} setSortState={setSortState} />
                     <SortableTh label="Customer" sortKey="name" sortState={sortState} setSortState={setSortState} />
                     <SortableTh label="Phone" sortKey="phone" sortState={sortState} setSortState={setSortState} />
@@ -755,23 +755,23 @@ export default function SampleProduction() {
                   </tr>
                 </thead>
                 <tbody>
-                  {isLoading && <tr><td colSpan={11} className="px-4 py-8 text-center text-[#968871] text-xs">Loading…</td></tr>}
-                  {!isLoading && sortedKycRows.length === 0 && <tr><td colSpan={11} className="px-4 py-8 text-center text-[#968871] text-xs">No new leads right now.</td></tr>}
+                  {isLoading && <tr><td colSpan={11} className="px-4 py-8 text-center text-[#8a8171] text-xs">Loading…</td></tr>}
+                  {!isLoading && sortedKycRows.length === 0 && <tr><td colSpan={11} className="px-4 py-8 text-center text-[#8a8171] text-xs">No new leads right now.</td></tr>}
                   {sortedKycRows.map((l) => (
                     <tr
                       key={l._id}
                       onClick={(e) => { if (e.target.closest('button, select, a, input')) return; setOpenLeadId(l._id); setOpenLeadInitialTab(null); }}
-                      className="border-b border-[#e2dac8] hover:bg-[#e7dfce]/60 cursor-pointer"
+                      className="border-b border-[#e7e2d6] hover:bg-[#f1ede4]/60 cursor-pointer"
                     >
-                      <td className="px-4 py-2.5 font-mono text-xs text-[#4a3a29] font-semibold">{customerId(l)}</td>
+                      <td className="px-4 py-2.5 font-mono text-xs text-[#292521] font-semibold">{customerId(l)}</td>
                       <td className="px-4 py-2.5">
-                        <p className="text-[#2e241b] font-medium">{l.name}</p>
-                        <p className="text-[#968871] text-xs">{l.company || '—'}</p>
+                        <p className="text-[#1c1917] font-medium">{l.name}</p>
+                        <p className="text-[#8a8171] text-xs">{l.company || '—'}</p>
                       </td>
-                      <td className="px-4 py-2.5 text-[#6d5f4c] text-xs">{l.phone}</td>
-                      <td className="px-4 py-2.5 text-[#6d5f4c] text-xs">{l.city || '—'}</td>
-                      <td className="px-4 py-2.5 text-[#6d5f4c] text-xs">{l.businessType || '—'}</td>
-                      <td className="px-4 py-2.5 text-[#6d5f4c] text-xs">{(l.productInterest || []).join(', ') || '—'}</td>
+                      <td className="px-4 py-2.5 text-[#6b6155] text-xs">{l.phone}</td>
+                      <td className="px-4 py-2.5 text-[#6b6155] text-xs">{l.city || '—'}</td>
+                      <td className="px-4 py-2.5 text-[#6b6155] text-xs">{l.businessType || '—'}</td>
+                      <td className="px-4 py-2.5 text-[#6b6155] text-xs">{(l.productInterest || []).join(', ') || '—'}</td>
                       <td className="px-4 py-2.5">
                         <span className={clsx('text-[10px] font-semibold px-2 py-0.5 rounded-full', LEAD_STAGE_PILL[l.status] || PILL.gray)}>
                           {l.status || 'New Lead'}
@@ -791,7 +791,7 @@ export default function SampleProduction() {
                           }}
                           disabled={assignLeadMutation.isPending || unassignLeadMutation.isPending}
                           title="Assign this client to an intake rep"
-                          className="text-[11px] text-[#6d5f4c] border border-[#d3c9b4] rounded-lg px-1.5 py-1 bg-white disabled:opacity-50 max-w-[140px]"
+                          className="text-[11px] text-[#6b6155] border border-[#ddd6c4] rounded-lg px-1.5 py-1 bg-white disabled:opacity-50 max-w-[140px]"
                         >
                           <option value="">Unassigned</option>
                           {intakeAssignees.map((u) => (
@@ -806,7 +806,7 @@ export default function SampleProduction() {
                             onChange={(e) => inChargeMutation.mutate({ leadId: l._id, inCharge: e.target.value })}
                             disabled={inChargeMutation.isPending}
                             title="Owns this client end-to-end through Dispatch"
-                            className="text-[11px] text-[#6d5f4c] border border-[#d3c9b4] rounded-lg px-1.5 py-1 bg-white disabled:opacity-50 max-w-[140px]"
+                            className="text-[11px] text-[#6b6155] border border-[#ddd6c4] rounded-lg px-1.5 py-1 bg-white disabled:opacity-50 max-w-[140px]"
                           >
                             <option value="">Unassigned</option>
                             {productionInCharge.map((u) => (
@@ -814,7 +814,7 @@ export default function SampleProduction() {
                             ))}
                           </select>
                         ) : (
-                          <span className="text-[11px] text-[#6d5f4c]" title="Only admin, Naventhra, or Vignesh can change who is In-Charge">
+                          <span className="text-[11px] text-[#6b6155]" title="Only admin, Naventhra, or Vignesh can change who is In-Charge">
                             {l.inCharge ? `${l.inCharge.firstName || ''} ${l.inCharge.lastName || ''}`.trim() || l.inCharge.email : 'Unassigned'}
                           </span>
                         )}
@@ -835,7 +835,7 @@ export default function SampleProduction() {
                         <button
                           onClick={() => { if (window.confirm(`Delete lead "${l.name}"? This cannot be undone.`)) deleteLeadMutation.mutate(l._id); }}
                           disabled={deleteLeadMutation.isPending}
-                          className="text-xs font-semibold text-[#8c3a30] hover:text-[#6b2c24] disabled:opacity-50"
+                          className="text-xs font-semibold text-[#a13d34] hover:text-[#7c2b23] disabled:opacity-50"
                         >
                           Delete
                         </button>
@@ -848,10 +848,10 @@ export default function SampleProduction() {
           )}
 
           {tab === 'qa' && (
-            <div className="overflow-x-auto rounded-[10px] border border-[#e2dac8]">
+            <div className="overflow-x-auto rounded-[10px] border border-[#e7e2d6]">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b border-[#d3c9b4] text-left text-[11px] uppercase tracking-wide text-[#6d5f4c] bg-[#e7dfce]">
+                  <tr className="border-b border-[#ddd6c4] text-left text-[11px] uppercase tracking-wide text-[#6b6155] bg-[#f1ede4]">
                     <SortableTh label="Client ID" sortKey="custId" sortState={qaSortState} setSortState={setQaSortState} />
                     <SortableTh label="Query ID" sortKey="qid" sortState={qaSortState} setSortState={setQaSortState} />
                     <SortableTh label="Customer" sortKey="customer" sortState={qaSortState} setSortState={setQaSortState} />
@@ -865,7 +865,7 @@ export default function SampleProduction() {
                 </thead>
                 <tbody>
                   {groupedQueries.length === 0 && (
-                    <tr><td colSpan={9} className="px-4 py-8 text-center text-[#968871] text-xs">No queries for any Sample-stage lead right now.</td></tr>
+                    <tr><td colSpan={9} className="px-4 py-8 text-center text-[#8a8171] text-xs">No queries for any Sample-stage lead right now.</td></tr>
                   )}
                   {groupedQueries.map((q) => {
                     const relatedLead = leadsById.get(q.leadId?._id);
@@ -873,7 +873,7 @@ export default function SampleProduction() {
                     const clientColor = clientColorFor(customerId(q.leadId));
                     return (
                       <Fragment key={q._id}>
-                        <tr className="border-b border-[#e2dac8] hover:bg-[#e7dfce]/60 align-top" style={{ borderLeft: `4px solid ${clientColor}` }}>
+                        <tr className="border-b border-[#e7e2d6] hover:bg-[#f1ede4]/60 align-top" style={{ borderLeft: `4px solid ${clientColor}` }}>
                           <td className="px-4 py-2.5 whitespace-nowrap">
                             <button
                               onClick={() => { setOpenLeadId(q.leadId?._id); setOpenLeadInitialTab(null); }}
@@ -888,24 +888,24 @@ export default function SampleProduction() {
                             <button
                               onClick={() => { setOpenLeadId(q.leadId?._id); setOpenLeadInitialTab('Q&A'); }}
                               title={`Open in ${customerId(q.leadId)} Q&A`}
-                              className="font-mono font-bold text-[#4a3a29] hover:underline"
+                              className="font-mono font-bold text-[#292521] hover:underline"
                             >
                               {queryId(q)}
                             </button>
                           </td>
                           <td className="px-4 py-2.5">
-                            <p className="text-[#2e241b] font-medium whitespace-nowrap">{q.leadId?.name || 'Unknown lead'}</p>
-                            <p className="text-[#968871] text-xs whitespace-nowrap">{q.leadId?.company || ''}</p>
+                            <p className="text-[#1c1917] font-medium whitespace-nowrap">{q.leadId?.name || 'Unknown lead'}</p>
+                            <p className="text-[#8a8171] text-xs whitespace-nowrap">{q.leadId?.company || ''}</p>
                           </td>
                           <td className="px-4 py-2.5 whitespace-nowrap">
                             <span className={clsx('px-2 py-0.5 rounded-full font-semibold text-[11px]', QA_TOPIC_PILL[q.topic] || PILL.gray)}>{q.topic || 'General'}</span>
                           </td>
                           <td className="px-4 py-2.5 min-w-[260px] max-w-[360px]">
-                            <p className="text-[#2e241b] font-medium">{q.title}</p>
-                            {q.description && q.description !== q.title && <p className="text-[#6d5f4c] text-xs mt-0.5">{q.description}</p>}
+                            <p className="text-[#1c1917] font-medium">{q.title}</p>
+                            {q.description && q.description !== q.title && <p className="text-[#6b6155] text-xs mt-0.5">{q.description}</p>}
                             {q.answer ? (
-                              <div className={clsx('mt-1.5 p-2 rounded-lg text-xs text-[#2e241b]', PILL.success)}>
-                                <p className="text-[10px] text-[#3a5f3c] font-semibold mb-0.5">{q.answeredBy ? `${q.answeredBy.firstName} ${q.answeredBy.lastName}` : 'Answered'}</p>
+                              <div className={clsx('mt-1.5 p-2 rounded-lg text-xs text-[#1c1917]', PILL.success)}>
+                                <p className="text-[10px] text-[#2f6b4f] font-semibold mb-0.5">{q.answeredBy ? `${q.answeredBy.firstName} ${q.answeredBy.lastName}` : 'Answered'}</p>
                                 {q.answer}
                               </div>
                             ) : (
@@ -914,7 +914,7 @@ export default function SampleProduction() {
                                   value={qaReplyDrafts[q._id] || ''}
                                   onChange={(e) => setQaReplyDrafts((d) => ({ ...d, [q._id]: e.target.value }))}
                                   placeholder="Type a reply…"
-                                  className="px-2.5 py-1.5 text-xs rounded-[8px] border-[1.5px] border-[#d3c9b4] bg-[#f0eadd] flex-1 min-w-[120px] focus:outline-none focus:border-[#968871]"
+                                  className="px-2.5 py-1.5 text-xs rounded-[8px] border-[1.5px] border-[#ddd6c4] bg-[#fbfaf7] flex-1 min-w-[120px] focus:outline-none focus:border-[#8a8171]"
                                 />
                                 <button
                                   onClick={() => {
@@ -923,18 +923,18 @@ export default function SampleProduction() {
                                     answerQueryMutation.mutate({ queryId: q._id, answer });
                                   }}
                                   disabled={answerQueryMutation.isPending}
-                                  className="px-3 py-1.5 rounded-full bg-[#f2b23e] text-[#2e241b] text-xs font-bold hover:brightness-95 transition disabled:opacity-50 whitespace-nowrap"
+                                  className="px-3 py-1.5 rounded-full bg-[#a8781f] text-[#1c1917] text-xs font-bold hover:brightness-95 transition disabled:opacity-50 whitespace-nowrap"
                                 >
                                   Reply
                                 </button>
                               </div>
                             )}
                           </td>
-                          <td className="px-4 py-2.5 text-[#968871] text-xs whitespace-nowrap">{lastUpdateBadge(q)}</td>
-                          <td className="px-4 py-2.5 text-[#968871] text-xs whitespace-nowrap">{q.askedVia || '—'}</td>
+                          <td className="px-4 py-2.5 text-[#8a8171] text-xs whitespace-nowrap">{lastUpdateBadge(q)}</td>
+                          <td className="px-4 py-2.5 text-[#8a8171] text-xs whitespace-nowrap">{q.askedVia || '—'}</td>
                           <td className="px-4 py-2.5 whitespace-nowrap">
                             <span className={clsx('px-2 py-0.5 rounded-full font-semibold text-[11px]', q.status === 'pending' ? PILL.warning : q.status === 'in_progress' ? PILL.info : PILL.success)}>{q.status.replace('_', ' ')}</span>
-                            {q.convertedTo && <span className="ml-1 px-2 py-0.5 rounded-full font-semibold text-[11px] bg-[#e7dfce] text-[#4a3a29]">→ {q.convertedTo}</span>}
+                            {q.convertedTo && <span className="ml-1 px-2 py-0.5 rounded-full font-semibold text-[11px] bg-[#f1ede4] text-[#292521]">→ {q.convertedTo}</span>}
                           </td>
                           <td className="px-4 py-2.5">
                             <div className="flex flex-col items-start gap-1 whitespace-nowrap">
@@ -964,9 +964,9 @@ export default function SampleProduction() {
                           </td>
                         </tr>
                         {connectingQueryId === q._id && (
-                          <tr className="border-b border-[#e2dac8]">
+                          <tr className="border-b border-[#e7e2d6]">
                             <td colSpan={9} className="p-2">
-                              <div className="p-2 rounded-lg border-[1.5px] border-dashed border-[#d3c9b4] bg-[#e7dfce]">
+                              <div className="p-2 rounded-lg border-[1.5px] border-dashed border-[#ddd6c4] bg-[#f1ede4]">
                                 <input
                                   value={connectCatalogSearch}
                                   onChange={(e) => setConnectCatalogSearch(e.target.value)}
@@ -974,14 +974,14 @@ export default function SampleProduction() {
                                   className={clsx(modalInputCls, 'w-full')}
                                 />
                                 {connectCatalogSearch && (
-                                  <div className="mt-1 rounded-[10px] border border-[#d3c9b4] bg-white max-h-32 overflow-y-auto">
-                                    {connectCatalogMatches.length === 0 && <div className="px-3 py-2 text-xs text-[#968871]">No products found</div>}
+                                  <div className="mt-1 rounded-[10px] border border-[#ddd6c4] bg-white max-h-32 overflow-y-auto">
+                                    {connectCatalogMatches.length === 0 && <div className="px-3 py-2 text-xs text-[#8a8171]">No products found</div>}
                                     {connectCatalogMatches.slice(0, 8).map((p) => (
                                       <button key={p._id} type="button"
                                         onClick={() => connectProductMutation.mutate({ leadId: q.leadId?._id, product: p })}
-                                        className="w-full text-left px-3 py-2 text-xs hover:bg-[#e7dfce] flex justify-between">
-                                        <span className="text-[#2e241b]">{p.name}</span>
-                                        <span className="text-[#968871] font-mono">{p.code}</span>
+                                        className="w-full text-left px-3 py-2 text-xs hover:bg-[#f1ede4] flex justify-between">
+                                        <span className="text-[#1c1917]">{p.name}</span>
+                                        <span className="text-[#8a8171] font-mono">{p.code}</span>
                                       </button>
                                     ))}
                                   </div>
@@ -999,10 +999,10 @@ export default function SampleProduction() {
           )}
 
           {(tab === 'sample' || tab === 'payments') && (
-            <div className="overflow-x-auto rounded-[10px] border border-[#e2dac8]">
+            <div className="overflow-x-auto rounded-[10px] border border-[#e7e2d6]">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b border-[#d3c9b4] text-left text-[11px] uppercase tracking-wide text-[#6d5f4c] bg-[#e7dfce]">
+                  <tr className="border-b border-[#ddd6c4] text-left text-[11px] uppercase tracking-wide text-[#6b6155] bg-[#f1ede4]">
                     <SortableTh label="Customer" sortKey="name" sortState={sortState} setSortState={setSortState} />
                     <th className="px-4 py-2.5">Product Interest</th>
                     <SortableTh label="Sample Stage" sortKey="stage" sortState={sortState} setSortState={setSortState} />
@@ -1012,19 +1012,19 @@ export default function SampleProduction() {
                   </tr>
                 </thead>
                 <tbody>
-                  {isLoading && <tr><td colSpan={6} className="px-4 py-8 text-center text-[#968871] text-xs">Loading…</td></tr>}
-                  {!isLoading && sortedRows.length === 0 && <tr><td colSpan={6} className="px-4 py-8 text-center text-[#968871] text-xs">Nothing here right now.</td></tr>}
+                  {isLoading && <tr><td colSpan={6} className="px-4 py-8 text-center text-[#8a8171] text-xs">Loading…</td></tr>}
+                  {!isLoading && sortedRows.length === 0 && <tr><td colSpan={6} className="px-4 py-8 text-center text-[#8a8171] text-xs">Nothing here right now.</td></tr>}
                   {sortedRows.map((l) => (
                     <tr
                       key={l._id}
                       onClick={(e) => { if (e.target.closest('button, select, a, input')) return; setOpenLeadId(l._id); setOpenLeadInitialTab(null); }}
-                      className="border-b border-[#e2dac8] hover:bg-[#e7dfce]/60 cursor-pointer"
+                      className="border-b border-[#e7e2d6] hover:bg-[#f1ede4]/60 cursor-pointer"
                     >
                       <td className="px-4 py-2.5">
-                        <p className="text-[#2e241b] font-medium">{l.name}</p>
-                        <p className="text-[#968871] text-xs">{l.company || '—'}</p>
+                        <p className="text-[#1c1917] font-medium">{l.name}</p>
+                        <p className="text-[#8a8171] text-xs">{l.company || '—'}</p>
                       </td>
-                      <td className="px-4 py-2.5 text-[#6d5f4c] text-xs">{(l.productInterest || []).join(', ') || '—'}</td>
+                      <td className="px-4 py-2.5 text-[#6b6155] text-xs">{(l.productInterest || []).join(', ') || '—'}</td>
                       <td className="px-4 py-2.5">
                         <span className={clsx('text-[10px] font-semibold px-2 py-0.5 rounded-full', SUB_STAGE_PILL[l.sampleDetails?.subStage] || SUB_STAGE_PILL.Requested)}>
                           {l.sampleDetails?.subStage || 'Requested'}
@@ -1037,13 +1037,13 @@ export default function SampleProduction() {
                       </td>
                       {tab !== 'payments' && (
                         <td className="px-4 py-2.5 text-xs">
-                          <span className="text-[#6d5f4c]">{l.assignedTo ? `${l.assignedTo.firstName || ''} ${l.assignedTo.lastName || ''}`.trim() : 'Unassigned'}</span>
+                          <span className="text-[#6b6155]">{l.assignedTo ? `${l.assignedTo.firstName || ''} ${l.assignedTo.lastName || ''}`.trim() : 'Unassigned'}</span>
                         </td>
                       )}
                       <td className="px-4 py-2.5 text-right whitespace-nowrap">
                         {tab === 'payments' && (
                           l.sampleDetails?.paymentStatus === 'full_paid'
-                            ? <span className="text-xs text-[#3a5f3c] font-semibold mr-3">✓ Paid</span>
+                            ? <span className="text-xs text-[#2f6b4f] font-semibold mr-3">✓ Paid</span>
                             : (
                               <button onClick={() => setPayConfirmFor(l)} className={clsx(textLink, 'mr-3')}>
                                 Confirm Payment
@@ -1070,10 +1070,10 @@ export default function SampleProduction() {
               exists yet for "awaiting" rows), and Cost/Price-per-unit dropped since our real
               ProductionOrder/Batch Tracker record doesn't track those the way the static mock did. */}
           {tab === 'awaiting' && (
-            <div className="overflow-x-auto rounded-[10px] border border-[#e2dac8]">
+            <div className="overflow-x-auto rounded-[10px] border border-[#e7e2d6]">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b border-[#d3c9b4] text-left text-[11px] uppercase tracking-wide text-[#6d5f4c] bg-[#e7dfce]">
+                  <tr className="border-b border-[#ddd6c4] text-left text-[11px] uppercase tracking-wide text-[#6b6155] bg-[#f1ede4]">
                     <SortableTh label="Customer ID" sortKey="custId" sortState={sortState} setSortState={setSortState} />
                     <SortableTh label="Order ID" sortKey="orderId" sortState={sortState} setSortState={setSortState} />
                     <SortableTh label="Customer" sortKey="name" sortState={sortState} setSortState={setSortState} />
@@ -1084,35 +1084,35 @@ export default function SampleProduction() {
                   </tr>
                 </thead>
                 <tbody>
-                  {isLoading && <tr><td colSpan={7} className="px-4 py-8 text-center text-[#968871] text-xs">Loading…</td></tr>}
-                  {!isLoading && sortedRows.length === 0 && <tr><td colSpan={7} className="px-4 py-8 text-center text-[#968871] text-xs">Nothing here right now.</td></tr>}
+                  {isLoading && <tr><td colSpan={7} className="px-4 py-8 text-center text-[#8a8171] text-xs">Loading…</td></tr>}
+                  {!isLoading && sortedRows.length === 0 && <tr><td colSpan={7} className="px-4 py-8 text-center text-[#8a8171] text-xs">Nothing here right now.</td></tr>}
                   {sortedRows.map((l) => (
                     <tr
                       key={l._id}
                       onClick={(e) => { if (e.target.closest('button, select, a, input')) return; setOpenLeadId(l._id); setOpenLeadInitialTab(null); }}
-                      className="border-b border-[#e2dac8] hover:bg-[#e7dfce]/60 cursor-pointer"
+                      className="border-b border-[#e7e2d6] hover:bg-[#f1ede4]/60 cursor-pointer"
                     >
                       <td className="px-4 py-2.5 whitespace-nowrap">
                         <button
                           onClick={() => { setOpenLeadId(l._id); setOpenLeadInitialTab(null); }}
                           title={`Open ${customerId(l)}`}
-                          className="font-mono font-bold text-[#4a3a29] hover:underline"
+                          className="font-mono font-bold text-[#292521] hover:underline"
                         >
                           {customerId(l)}
                         </button>
                       </td>
                       <td className="px-4 py-2.5 whitespace-nowrap">
                         {l.productionOrderId?.orderNumber
-                          ? <span className="font-mono font-bold text-[#4a3a29]">{l.productionOrderId.orderNumber}</span>
-                          : <span className="text-[#968871]">—</span>}
+                          ? <span className="font-mono font-bold text-[#292521]">{l.productionOrderId.orderNumber}</span>
+                          : <span className="text-[#8a8171]">—</span>}
                       </td>
                       <td className="px-4 py-2.5">
-                        <p className="text-[#2e241b] font-medium whitespace-nowrap">{l.name}</p>
-                        <p className="text-[#968871] text-xs whitespace-nowrap">{l.company || '—'}</p>
+                        <p className="text-[#1c1917] font-medium whitespace-nowrap">{l.name}</p>
+                        <p className="text-[#8a8171] text-xs whitespace-nowrap">{l.company || '—'}</p>
                       </td>
-                      <td className="px-4 py-2.5 text-[#6d5f4c] text-xs whitespace-nowrap">{l.productionOrderId?.catalogProduct?.name || '—'}</td>
-                      <td className="px-4 py-2.5 text-[#6d5f4c] text-xs whitespace-nowrap">{l.productionOrderId?.batchSizeKg ? `${l.productionOrderId.batchSizeKg} kg` : '—'}</td>
-                      <td className="px-4 py-2.5 text-[#6d5f4c] text-xs whitespace-nowrap">{l.productionOrderId?.deliveryDate || '—'}</td>
+                      <td className="px-4 py-2.5 text-[#6b6155] text-xs whitespace-nowrap">{l.productionOrderId?.catalogProduct?.name || '—'}</td>
+                      <td className="px-4 py-2.5 text-[#6b6155] text-xs whitespace-nowrap">{l.productionOrderId?.batchSizeKg ? `${l.productionOrderId.batchSizeKg} kg` : '—'}</td>
+                      <td className="px-4 py-2.5 text-[#6b6155] text-xs whitespace-nowrap">{l.productionOrderId?.deliveryDate || '—'}</td>
                       <td className="px-4 py-2.5 text-right whitespace-nowrap">
                         <button
                           onClick={() => {
@@ -1147,10 +1147,10 @@ export default function SampleProduction() {
               already has one document per product/order, so every product shows under its own
               customer with its own current stage. */}
           {tab === 'linked' && (
-            <div className="overflow-x-auto rounded-[10px] border border-[#e2dac8]">
+            <div className="overflow-x-auto rounded-[10px] border border-[#e7e2d6]">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b border-[#d3c9b4] text-left text-[11px] uppercase tracking-wide text-[#6d5f4c] bg-[#e7dfce]">
+                  <tr className="border-b border-[#ddd6c4] text-left text-[11px] uppercase tracking-wide text-[#6b6155] bg-[#f1ede4]">
                     <SortableTh label="Customer ID" sortKey="custId" sortState={sortState} setSortState={setSortState} />
                     <SortableTh label="Order ID" sortKey="orderId" sortState={sortState} setSortState={setSortState} />
                     <SortableTh label="Customer" sortKey="name" sortState={sortState} setSortState={setSortState} />
@@ -1162,8 +1162,8 @@ export default function SampleProduction() {
                   </tr>
                 </thead>
                 <tbody>
-                  {!allProductionOrders && <tr><td colSpan={8} className="px-4 py-8 text-center text-[#968871] text-xs">Loading…</td></tr>}
-                  {allProductionOrders && sortedLinkedOrders.length === 0 && <tr><td colSpan={8} className="px-4 py-8 text-center text-[#968871] text-xs">Nothing here right now.</td></tr>}
+                  {!allProductionOrders && <tr><td colSpan={8} className="px-4 py-8 text-center text-[#8a8171] text-xs">Loading…</td></tr>}
+                  {allProductionOrders && sortedLinkedOrders.length === 0 && <tr><td colSpan={8} className="px-4 py-8 text-center text-[#8a8171] text-xs">Nothing here right now.</td></tr>}
                   {sortedLinkedOrders.map((o) => {
                     // Lightweight stand-in for the lead object the Order Detail / Dispatch modals
                     // expect — everything they actually read (name, productionOrderId._id/
@@ -1182,18 +1182,18 @@ export default function SampleProduction() {
                     <tr
                       key={o._id}
                       onClick={(e) => { if (e.target.closest('button, select, a, input')) return; openThisOrder(); }}
-                      className="border-b border-[#e2dac8] hover:bg-[#e7dfce]/60 cursor-pointer"
+                      className="border-b border-[#e7e2d6] hover:bg-[#f1ede4]/60 cursor-pointer"
                     >
                       <td className="px-4 py-2.5 whitespace-nowrap">
-                        <span className="font-mono font-bold text-[#4a3a29]">{customerId({ _id: o.leadId })}</span>
+                        <span className="font-mono font-bold text-[#292521]">{customerId({ _id: o.leadId })}</span>
                       </td>
-                      <td className="px-4 py-2.5 whitespace-nowrap"><span className="font-mono font-bold text-[#4a3a29]">{o.orderNumber}</span></td>
-                      <td className="px-4 py-2.5"><p className="text-[#2e241b] font-medium whitespace-nowrap">{o.customer || '—'}</p></td>
-                      <td className="px-4 py-2.5 text-[#6d5f4c] text-xs whitespace-nowrap">{o.catalogProduct?.name || '—'}</td>
-                      <td className="px-4 py-2.5 text-[#6d5f4c] text-xs whitespace-nowrap">{o.batchSizeKg ? `${o.batchSizeKg} kg` : '—'}</td>
-                      <td className="px-4 py-2.5 text-[#6d5f4c] text-xs whitespace-nowrap">{o.deliveryDate || '—'}</td>
+                      <td className="px-4 py-2.5 whitespace-nowrap"><span className="font-mono font-bold text-[#292521]">{o.orderNumber}</span></td>
+                      <td className="px-4 py-2.5"><p className="text-[#1c1917] font-medium whitespace-nowrap">{o.customer || '—'}</p></td>
+                      <td className="px-4 py-2.5 text-[#6b6155] text-xs whitespace-nowrap">{o.catalogProduct?.name || '—'}</td>
+                      <td className="px-4 py-2.5 text-[#6b6155] text-xs whitespace-nowrap">{o.batchSizeKg ? `${o.batchSizeKg} kg` : '—'}</td>
+                      <td className="px-4 py-2.5 text-[#6b6155] text-xs whitespace-nowrap">{o.deliveryDate || '—'}</td>
                       <td className="px-4 py-2.5 text-xs whitespace-nowrap">
-                        <span className="px-2 py-0.5 rounded-full font-semibold bg-[#dde5ea] text-[#33526b]">{STAGE_NAMES[o.stage] || o.status}</span>
+                        <span className="px-2 py-0.5 rounded-full font-semibold bg-[#f3e6c8] text-[#a8781f]">{STAGE_NAMES[o.stage] || o.status}</span>
                       </td>
                       <td className="px-4 py-2.5 text-right whitespace-nowrap">
                         <button
@@ -1230,11 +1230,11 @@ export default function SampleProduction() {
 
           {tab === 'linked' && orphanOrders.length > 0 && (
             <div className="mt-5">
-              <p className="text-xs font-semibold text-[#6d5f4c] uppercase tracking-wide mb-2">Orders without a linked lead</p>
-              <div className="overflow-x-auto rounded-[10px] border border-[#e2dac8]">
+              <p className="text-xs font-semibold text-[#6b6155] uppercase tracking-wide mb-2">Orders without a linked lead</p>
+              <div className="overflow-x-auto rounded-[10px] border border-[#e7e2d6]">
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="border-b border-[#d3c9b4] text-left text-[11px] uppercase tracking-wide text-[#6d5f4c] bg-[#e7dfce]">
+                    <tr className="border-b border-[#ddd6c4] text-left text-[11px] uppercase tracking-wide text-[#6b6155] bg-[#f1ede4]">
                       <th className="px-4 py-2.5">Order ID</th>
                       <th className="px-4 py-2.5">Customer</th>
                       <th className="px-4 py-2.5">Product</th>
@@ -1246,12 +1246,12 @@ export default function SampleProduction() {
                   </thead>
                   <tbody>
                     {orphanOrders.map((o) => (
-                      <tr key={o._id} className="border-b border-[#e2dac8] hover:bg-[#e7dfce]/60">
-                        <td className="px-4 py-2.5 font-mono font-bold text-[#4a3a29] whitespace-nowrap">{o.orderNumber}</td>
-                        <td className="px-4 py-2.5 text-[#2e241b] whitespace-nowrap">{o.customer || '—'}</td>
-                        <td className="px-4 py-2.5 text-[#6d5f4c] text-xs whitespace-nowrap">{o.catalogProduct?.name || '—'}</td>
-                        <td className="px-4 py-2.5 text-[#6d5f4c] text-xs whitespace-nowrap">{o.batchSizeKg ? `${o.batchSizeKg} kg` : '—'}</td>
-                        <td className="px-4 py-2.5 text-[#6d5f4c] text-xs whitespace-nowrap">{o.deliveryDate || '—'}</td>
+                      <tr key={o._id} className="border-b border-[#e7e2d6] hover:bg-[#f1ede4]/60">
+                        <td className="px-4 py-2.5 font-mono font-bold text-[#292521] whitespace-nowrap">{o.orderNumber}</td>
+                        <td className="px-4 py-2.5 text-[#1c1917] whitespace-nowrap">{o.customer || '—'}</td>
+                        <td className="px-4 py-2.5 text-[#6b6155] text-xs whitespace-nowrap">{o.catalogProduct?.name || '—'}</td>
+                        <td className="px-4 py-2.5 text-[#6b6155] text-xs whitespace-nowrap">{o.batchSizeKg ? `${o.batchSizeKg} kg` : '—'}</td>
+                        <td className="px-4 py-2.5 text-[#6b6155] text-xs whitespace-nowrap">{o.deliveryDate || '—'}</td>
                         <td className="px-4 py-2.5 text-xs whitespace-nowrap">{STAGE_NAMES[o.stage]}</td>
                         <td className="px-4 py-2.5 text-right whitespace-nowrap">
                           <button onClick={() => setOpenOrderId(o._id)} className={clsx(textLink)}>Track Production →</button>
@@ -1265,10 +1265,10 @@ export default function SampleProduction() {
           )}
 
           {currentProdStageTab && (
-            <div className="overflow-x-auto rounded-[10px] border border-[#e2dac8]">
+            <div className="overflow-x-auto rounded-[10px] border border-[#e7e2d6]">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b border-[#d3c9b4] text-left text-[11px] uppercase tracking-wide text-[#6d5f4c] bg-[#e7dfce]">
+                  <tr className="border-b border-[#ddd6c4] text-left text-[11px] uppercase tracking-wide text-[#6b6155] bg-[#f1ede4]">
                     <th className="px-4 py-2.5">Order ID</th>
                     {currentProdStageTab.key !== 'weighing' && (
                       <th className="px-4 py-2.5">{currentProdStageTab.key === 'bulkqc' ? 'Batch Number' : currentProdStageTab.key === 'dispatch' ? 'Customer ID' : `${currentProdStageTab.label} ID`}</th>
@@ -1282,8 +1282,8 @@ export default function SampleProduction() {
                   </tr>
                 </thead>
                 <tbody>
-                  {!allProductionOrders && <tr><td colSpan={8} className="px-4 py-8 text-center text-[#968871] text-xs">Loading…</td></tr>}
-                  {allProductionOrders && currentProdStageOrders.length === 0 && <tr><td colSpan={8} className="px-4 py-8 text-center text-[#968871] text-xs">No orders at {currentProdStageTab.label} right now.</td></tr>}
+                  {!allProductionOrders && <tr><td colSpan={8} className="px-4 py-8 text-center text-[#8a8171] text-xs">Loading…</td></tr>}
+                  {allProductionOrders && currentProdStageOrders.length === 0 && <tr><td colSpan={8} className="px-4 py-8 text-center text-[#8a8171] text-xs">No orders at {currentProdStageTab.label} right now.</td></tr>}
                   {currentProdStageOrders.map((o) => {
                     const shortfalls = showStockColumn ? procurementStockStatus(o) : [];
                     return (
@@ -1303,24 +1303,24 @@ export default function SampleProduction() {
                           setFocusStageOrder({ orderId: o._id, stageTab: currentProdStageTab, StageComponent: PROD_STAGE_COMPONENT[currentProdStageTab.key] });
                         }
                       }}
-                      className="border-b border-[#e2dac8] hover:bg-[#e7dfce]/60 cursor-pointer"
+                      className="border-b border-[#e7e2d6] hover:bg-[#f1ede4]/60 cursor-pointer"
                     >
-                      <td className="px-4 py-2.5 font-mono font-bold text-[#4a3a29] whitespace-nowrap">{o.orderNumber}</td>
+                      <td className="px-4 py-2.5 font-mono font-bold text-[#292521] whitespace-nowrap">{o.orderNumber}</td>
                       {currentProdStageTab.key !== 'weighing' && (
-                        <td className="px-4 py-2.5 font-mono text-[#6d5f4c] whitespace-nowrap">
+                        <td className="px-4 py-2.5 font-mono text-[#6b6155] whitespace-nowrap">
                           {currentProdStageTab.key === 'dispatch' ? customerId({ _id: o.leadId?._id || o.leadId }) : (o[STAGE_ID_FIELD[currentProdStageTab.key]] || '—')}
                         </td>
                       )}
-                      <td className="px-4 py-2.5 text-[#2e241b] whitespace-nowrap">{o.customer || '—'}</td>
-                      <td className="px-4 py-2.5 text-[#6d5f4c] text-xs whitespace-nowrap">{o.catalogProduct?.name || '—'}</td>
-                      <td className="px-4 py-2.5 text-[#6d5f4c] text-xs whitespace-nowrap">{o.batchSizeKg ? `${o.batchSizeKg} kg` : '—'}</td>
-                      <td className="px-4 py-2.5 text-[#6d5f4c] text-xs whitespace-nowrap">{o.deliveryDate || '—'}</td>
+                      <td className="px-4 py-2.5 text-[#1c1917] whitespace-nowrap">{o.customer || '—'}</td>
+                      <td className="px-4 py-2.5 text-[#6b6155] text-xs whitespace-nowrap">{o.catalogProduct?.name || '—'}</td>
+                      <td className="px-4 py-2.5 text-[#6b6155] text-xs whitespace-nowrap">{o.batchSizeKg ? `${o.batchSizeKg} kg` : '—'}</td>
+                      <td className="px-4 py-2.5 text-[#6b6155] text-xs whitespace-nowrap">{o.deliveryDate || '—'}</td>
                       {showStockColumn && (
                         <td className="px-4 py-2.5 whitespace-nowrap" title={shortfalls.map((s) => `${s.name}: short ${s.shortfall} ${s.unit}`).join(', ')}>
                           {shortfalls.length > 0 ? (
-                            <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-[#f0d8d2] text-[#8c3a30]">⚠ Stock over ({shortfalls.length})</span>
+                            <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-[#f5e3e0] text-[#a13d34]">⚠ Stock over ({shortfalls.length})</span>
                           ) : (
-                            <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-[#dce9d4] text-[#3a5f3c]">✓ OK</span>
+                            <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-[#e2ece5] text-[#2f6b4f]">✓ OK</span>
                           )}
                         </td>
                       )}
@@ -1376,48 +1376,48 @@ export default function SampleProduction() {
       {sendLead && (
         <div className={clsx('fixed inset-0 z-[70] flex items-center justify-center', sendMaximized ? 'p-0' : 'p-4')} style={bodyFont}>
           <style>{FONT_IMPORT}</style>
-          <div className="absolute inset-0 bg-[#2e241b]/50 backdrop-blur-sm" onClick={() => setSendLead(null)} />
-          <div className={clsx('relative bg-white shadow-[0_10px_40px_rgba(46,36,27,0.16)] border border-[#d3c9b4]',
+          <div className="absolute inset-0 bg-[#1c1917]/50 backdrop-blur-sm" onClick={() => setSendLead(null)} />
+          <div className={clsx('relative bg-white shadow-[0_10px_40px_rgba(46,36,27,0.16)] border border-[#ddd6c4]',
             sendMaximized ? 'w-screen h-screen max-w-none rounded-none flex flex-col' : 'w-full max-w-md rounded-2xl')}>
-            <div className={clsx('p-5 border-b border-[#e2dac8] bg-[#e7dfce] flex items-center justify-between flex-shrink-0', !sendMaximized && 'rounded-t-2xl')}>
+            <div className={clsx('p-5 border-b border-[#e7e2d6] bg-[#f1ede4] flex items-center justify-between flex-shrink-0', !sendMaximized && 'rounded-t-2xl')}>
               <div>
-                <h3 className="font-bold text-[#2e241b]" style={displayFont}>🏭 Send to Production</h3>
-                <p className="text-xs text-[#6d5f4c] mt-0.5">{sendLead.name} — creates a Batch Tracker order pre-filled from this lead.</p>
+                <h3 className="font-bold text-[#1c1917]" style={displayFont}>🏭 Send to Production</h3>
+                <p className="text-xs text-[#6b6155] mt-0.5">{sendLead.name} — creates a Batch Tracker order pre-filled from this lead.</p>
               </div>
               <div className="flex items-center gap-1.5 flex-shrink-0">
-                <button onClick={() => setSendMaximized((m) => !m)} title={sendMaximized ? 'Restore' : 'Maximize'} className="w-9 h-9 rounded-lg hover:bg-[#ddd3be] flex items-center justify-center text-[#968871] hover:text-[#2e241b] text-base">{sendMaximized ? '🗗' : '🗖'}</button>
-                <button onClick={() => setSendLead(null)} className="w-9 h-9 rounded-lg hover:bg-[#ddd3be] flex items-center justify-center text-[#968871] hover:text-[#2e241b] text-lg">✕</button>
+                <button onClick={() => setSendMaximized((m) => !m)} title={sendMaximized ? 'Restore' : 'Maximize'} className="w-9 h-9 rounded-lg hover:bg-[#e7e2d6] flex items-center justify-center text-[#8a8171] hover:text-[#1c1917] text-base">{sendMaximized ? '🗗' : '🗖'}</button>
+                <button onClick={() => setSendLead(null)} className="w-9 h-9 rounded-lg hover:bg-[#e7e2d6] flex items-center justify-center text-[#8a8171] hover:text-[#1c1917] text-lg">✕</button>
               </div>
             </div>
             <div className={clsx('p-5 space-y-3', sendMaximized && 'flex-1 overflow-y-auto')}>
               <div>
-                <label className="text-xs font-semibold text-[#968871] uppercase tracking-wide mb-1 block">Catalog product</label>
+                <label className="text-xs font-semibold text-[#8a8171] uppercase tracking-wide mb-1 block">Catalog product</label>
                 <input
                   value={selectedCatalogProduct ? selectedCatalogProduct.name : catalogSearch}
                   onChange={(e) => { setCatalogSearch(e.target.value); setSelectedCatalogProduct(null); }}
                   placeholder="Search catalog products…"
-                  className={clsx('px-3 py-2 text-sm rounded-[10px] border-[1.5px] border-[#d3c9b4] bg-[#fff] text-[#2e241b] focus:outline-none focus:border-[#968871] w-full')}
+                  className={clsx('px-3 py-2 text-sm rounded-[10px] border-[1.5px] border-[#ddd6c4] bg-[#fff] text-[#1c1917] focus:outline-none focus:border-[#8a8171] w-full')}
                 />
                 {catalogSearch && !selectedCatalogProduct && (
-                  <div className="mt-1 rounded-[10px] border border-[#d3c9b4] bg-white max-h-32 overflow-y-auto">
-                    {catalogMatches.length === 0 && <div className="px-3 py-2 text-xs text-[#968871]">No products found</div>}
+                  <div className="mt-1 rounded-[10px] border border-[#ddd6c4] bg-white max-h-32 overflow-y-auto">
+                    {catalogMatches.length === 0 && <div className="px-3 py-2 text-xs text-[#8a8171]">No products found</div>}
                     {catalogMatches.slice(0, 8).map((p) => (
                       <button key={p._id} type="button" onClick={() => { setSelectedCatalogProduct(p); setCatalogSearch(''); }}
-                        className="w-full text-left px-3 py-2 text-xs hover:bg-[#e7dfce] flex justify-between">
-                        <span className="text-[#2e241b]">{p.name}</span>
-                        <span className="text-[#968871] font-mono">{p.code}</span>
+                        className="w-full text-left px-3 py-2 text-xs hover:bg-[#f1ede4] flex justify-between">
+                        <span className="text-[#1c1917]">{p.name}</span>
+                        <span className="text-[#8a8171] font-mono">{p.code}</span>
                       </button>
                     ))}
                   </div>
                 )}
                 {selectedCatalogProduct && (
-                  <p className="text-[11px] text-[#968871] mt-1">{selectedCatalogProduct.formulation?.rows?.length || 0} ingredient(s) in formulation</p>
+                  <p className="text-[11px] text-[#8a8171] mt-1">{selectedCatalogProduct.formulation?.rows?.length || 0} ingredient(s) in formulation</p>
                 )}
               </div>
               <div>
-                <label className="text-xs font-semibold text-[#968871] uppercase tracking-wide mb-1 block">Batch size (kg)</label>
+                <label className="text-xs font-semibold text-[#8a8171] uppercase tracking-wide mb-1 block">Batch size (kg)</label>
                 <input type="number" min="0.1" step="0.1" value={batchSizeKg} onChange={(e) => setBatchSizeKg(e.target.value)}
-                  className="px-3 py-2 text-sm rounded-[10px] border-[1.5px] border-[#d3c9b4] bg-white text-[#2e241b] focus:outline-none focus:border-[#968871] w-full" />
+                  className="px-3 py-2 text-sm rounded-[10px] border-[1.5px] border-[#ddd6c4] bg-white text-[#1c1917] focus:outline-none focus:border-[#8a8171] w-full" />
               </div>
               <div className="flex gap-3 pt-1">
                 <button type="button" onClick={() => setSendLead(null)} className={clsx(outlineBtn, 'flex-1 justify-center')}>Cancel</button>
@@ -1443,36 +1443,36 @@ export default function SampleProduction() {
       {payConfirmFor && (
         <div className={clsx('fixed inset-0 z-[70] flex items-center justify-center', payMaximized ? 'p-0' : 'p-4')} style={bodyFont}>
           <style>{FONT_IMPORT}</style>
-          <div className="absolute inset-0 bg-[#2e241b]/50 backdrop-blur-sm" onClick={() => setPayConfirmFor(null)} />
-          <div className={clsx('relative bg-white shadow-[0_10px_40px_rgba(46,36,27,0.16)] border border-[#d3c9b4]',
+          <div className="absolute inset-0 bg-[#1c1917]/50 backdrop-blur-sm" onClick={() => setPayConfirmFor(null)} />
+          <div className={clsx('relative bg-white shadow-[0_10px_40px_rgba(46,36,27,0.16)] border border-[#ddd6c4]',
             payMaximized ? 'w-screen h-screen max-w-none rounded-none flex flex-col' : 'w-full max-w-md rounded-2xl')}>
-            <div className={clsx('p-5 border-b border-[#e2dac8] bg-[#e7dfce] flex items-center justify-between flex-shrink-0', !payMaximized && 'rounded-t-2xl')}>
+            <div className={clsx('p-5 border-b border-[#e7e2d6] bg-[#f1ede4] flex items-center justify-between flex-shrink-0', !payMaximized && 'rounded-t-2xl')}>
               <div>
-                <h3 className="font-bold text-[#2e241b]" style={displayFont}>💳 Confirm R&D Payment</h3>
-                <p className="text-xs text-[#6d5f4c] mt-0.5">{payConfirmFor.name} — ₹{(payConfirmFor.sampleDetails?.chargeAmount || 0).toLocaleString('en-IN')}</p>
+                <h3 className="font-bold text-[#1c1917]" style={displayFont}>💳 Confirm R&D Payment</h3>
+                <p className="text-xs text-[#6b6155] mt-0.5">{payConfirmFor.name} — ₹{(payConfirmFor.sampleDetails?.chargeAmount || 0).toLocaleString('en-IN')}</p>
               </div>
               <div className="flex items-center gap-1.5 flex-shrink-0">
-                <button onClick={() => setPayMaximized((m) => !m)} title={payMaximized ? 'Restore' : 'Maximize'} className="w-9 h-9 rounded-lg hover:bg-[#ddd3be] flex items-center justify-center text-[#968871] hover:text-[#2e241b] text-base">{payMaximized ? '🗗' : '🗖'}</button>
-                <button onClick={() => setPayConfirmFor(null)} className="w-9 h-9 rounded-lg hover:bg-[#ddd3be] flex items-center justify-center text-[#968871] hover:text-[#2e241b] text-lg">✕</button>
+                <button onClick={() => setPayMaximized((m) => !m)} title={payMaximized ? 'Restore' : 'Maximize'} className="w-9 h-9 rounded-lg hover:bg-[#e7e2d6] flex items-center justify-center text-[#8a8171] hover:text-[#1c1917] text-base">{payMaximized ? '🗗' : '🗖'}</button>
+                <button onClick={() => setPayConfirmFor(null)} className="w-9 h-9 rounded-lg hover:bg-[#e7e2d6] flex items-center justify-center text-[#8a8171] hover:text-[#1c1917] text-lg">✕</button>
               </div>
             </div>
             <div className={clsx('p-5 space-y-2', payMaximized && 'flex-1 overflow-y-auto')}>
               <div className="grid grid-cols-2 gap-2">
                 <select value={payMode} onChange={(e) => setPayMode(e.target.value)}
-                  className="px-3 py-2 text-sm rounded-[10px] border-[1.5px] border-[#d3c9b4] bg-white text-[#2e241b] focus:outline-none focus:border-[#968871]">
+                  className="px-3 py-2 text-sm rounded-[10px] border-[1.5px] border-[#ddd6c4] bg-white text-[#1c1917] focus:outline-none focus:border-[#8a8171]">
                   <option value="upi">UPI</option>
                   <option value="cash">Cash</option>
                   <option value="bank_transfer">Bank Transfer</option>
                 </select>
                 <input value={payTxnRef} onChange={(e) => setPayTxnRef(e.target.value)} placeholder="Txn / Ref No."
-                  className="px-3 py-2 text-sm rounded-[10px] border-[1.5px] border-[#d3c9b4] bg-white text-[#2e241b] focus:outline-none focus:border-[#968871]" />
+                  className="px-3 py-2 text-sm rounded-[10px] border-[1.5px] border-[#ddd6c4] bg-white text-[#1c1917] focus:outline-none focus:border-[#8a8171]" />
                 <input type="date" value={payDate} onChange={(e) => setPayDate(e.target.value)}
-                  className="px-3 py-2 text-sm rounded-[10px] border-[1.5px] border-[#d3c9b4] bg-white text-[#2e241b] focus:outline-none focus:border-[#968871]" />
+                  className="px-3 py-2 text-sm rounded-[10px] border-[1.5px] border-[#ddd6c4] bg-white text-[#1c1917] focus:outline-none focus:border-[#8a8171]" />
                 <input value={payReceivedBy} onChange={(e) => setPayReceivedBy(e.target.value)} placeholder="Received by"
-                  className="px-3 py-2 text-sm rounded-[10px] border-[1.5px] border-[#d3c9b4] bg-white text-[#2e241b] focus:outline-none focus:border-[#968871]" />
+                  className="px-3 py-2 text-sm rounded-[10px] border-[1.5px] border-[#ddd6c4] bg-white text-[#1c1917] focus:outline-none focus:border-[#8a8171]" />
               </div>
               <textarea value={payNotes} onChange={(e) => setPayNotes(e.target.value)} placeholder="Notes (optional)…" rows={2}
-                className="w-full px-3 py-2 text-sm rounded-[10px] border-[1.5px] border-[#d3c9b4] bg-white text-[#2e241b] focus:outline-none focus:border-[#968871]" />
+                className="w-full px-3 py-2 text-sm rounded-[10px] border-[1.5px] border-[#ddd6c4] bg-white text-[#1c1917] focus:outline-none focus:border-[#8a8171]" />
               <div className="flex gap-3 pt-1">
                 <button type="button" onClick={() => setPayConfirmFor(null)} className={clsx(outlineBtn, 'flex-1 justify-center')}>Cancel</button>
                 <button
@@ -1495,30 +1495,30 @@ export default function SampleProduction() {
       {openOrderLead && (
         <div className={clsx('fixed inset-0 z-[70] flex items-center justify-center', orderMaximized ? 'p-0' : 'p-4')} style={bodyFont}>
           <style>{FONT_IMPORT}</style>
-          <div className="absolute inset-0 bg-[#2e241b]/50 backdrop-blur-sm" onClick={() => setOpenOrderLead(null)} />
-          <div className={clsx('relative bg-white shadow-[0_10px_40px_rgba(46,36,27,0.16)] border border-[#d3c9b4]',
+          <div className="absolute inset-0 bg-[#1c1917]/50 backdrop-blur-sm" onClick={() => setOpenOrderLead(null)} />
+          <div className={clsx('relative bg-white shadow-[0_10px_40px_rgba(46,36,27,0.16)] border border-[#ddd6c4]',
             orderMaximized ? 'w-screen h-screen max-w-none rounded-none flex flex-col' : 'w-full max-w-md rounded-2xl')}>
-            <div className={clsx('p-5 border-b border-[#e2dac8] bg-[#e7dfce] flex items-center justify-between flex-shrink-0', !orderMaximized && 'rounded-t-2xl')}>
+            <div className={clsx('p-5 border-b border-[#e7e2d6] bg-[#f1ede4] flex items-center justify-between flex-shrink-0', !orderMaximized && 'rounded-t-2xl')}>
               <div>
-                <h3 className="font-bold text-[#2e241b]" style={displayFont}>🧾 Order Detail</h3>
-                <p className="text-xs text-[#6d5f4c] mt-0.5">{openOrderLead.name} — {openOrderLead.productionOrderId?.orderNumber}</p>
+                <h3 className="font-bold text-[#1c1917]" style={displayFont}>🧾 Order Detail</h3>
+                <p className="text-xs text-[#6b6155] mt-0.5">{openOrderLead.name} — {openOrderLead.productionOrderId?.orderNumber}</p>
               </div>
               <div className="flex items-center gap-1.5 flex-shrink-0">
-                <button onClick={() => setOrderMaximized((m) => !m)} title={orderMaximized ? 'Restore' : 'Maximize'} className="w-9 h-9 rounded-lg hover:bg-[#ddd3be] flex items-center justify-center text-[#968871] hover:text-[#2e241b] text-base">{orderMaximized ? '🗗' : '🗖'}</button>
-                <button onClick={() => setOpenOrderLead(null)} className="w-9 h-9 rounded-lg hover:bg-[#ddd3be] flex items-center justify-center text-[#968871] hover:text-[#2e241b] text-lg">✕</button>
+                <button onClick={() => setOrderMaximized((m) => !m)} title={orderMaximized ? 'Restore' : 'Maximize'} className="w-9 h-9 rounded-lg hover:bg-[#e7e2d6] flex items-center justify-center text-[#8a8171] hover:text-[#1c1917] text-base">{orderMaximized ? '🗗' : '🗖'}</button>
+                <button onClick={() => setOpenOrderLead(null)} className="w-9 h-9 rounded-lg hover:bg-[#e7e2d6] flex items-center justify-center text-[#8a8171] hover:text-[#1c1917] text-lg">✕</button>
               </div>
             </div>
             <div className={clsx('p-5 space-y-3', orderMaximized && 'flex-1 overflow-y-auto')}>
               <div>
-                <label className="text-xs font-semibold text-[#968871] uppercase tracking-wide mb-1 block">Quantity</label>
+                <label className="text-xs font-semibold text-[#8a8171] uppercase tracking-wide mb-1 block">Quantity</label>
                 <input type="number" value={orderQty} onChange={(e) => setOrderQty(e.target.value)} className={clsx(modalInputCls, 'w-full')} />
               </div>
               <div>
-                <label className="text-xs font-semibold text-[#968871] uppercase tracking-wide mb-1 block">Delivery date</label>
+                <label className="text-xs font-semibold text-[#8a8171] uppercase tracking-wide mb-1 block">Delivery date</label>
                 <input type="date" value={orderDeliveryDate} onChange={(e) => setOrderDeliveryDate(e.target.value)} className={clsx(modalInputCls, 'w-full')} />
               </div>
               <div>
-                <label className="text-xs font-semibold text-[#968871] uppercase tracking-wide mb-1 block">Margin %</label>
+                <label className="text-xs font-semibold text-[#8a8171] uppercase tracking-wide mb-1 block">Margin %</label>
                 <input type="number" value={orderMarginPct} onChange={(e) => setOrderMarginPct(e.target.value)} className={clsx(modalInputCls, 'w-full')} />
               </div>
               {openOrderDetail && (() => {
@@ -1526,7 +1526,7 @@ export default function SampleProduction() {
                 const margin = Number(orderMarginPct) || 0;
                 const suggestedPrice = margin < 100 ? cost / (1 - margin / 100) : cost;
                 return (
-                  <div className="flex items-center gap-4 flex-wrap text-xs px-3 py-2 rounded-lg bg-[#e7dfce]">
+                  <div className="flex items-center gap-4 flex-wrap text-xs px-3 py-2 rounded-lg bg-[#f1ede4]">
                     <span>Estimated cost: <strong>₹{cost.toFixed(2)}</strong></span>
                     <span>Suggested price: <strong>₹{suggestedPrice.toFixed(2)}</strong></span>
                   </div>
@@ -1576,22 +1576,22 @@ export default function SampleProduction() {
       {dispatchLead && (
         <div className={clsx('fixed inset-0 z-[70] flex items-center justify-center', dispatchMaximized ? 'p-0' : 'p-4')} style={bodyFont}>
           <style>{FONT_IMPORT}</style>
-          <div className="absolute inset-0 bg-[#2e241b]/50 backdrop-blur-sm" onClick={() => setDispatchLead(null)} />
-          <div className={clsx('relative bg-white shadow-[0_10px_40px_rgba(46,36,27,0.16)] border border-[#d3c9b4]',
+          <div className="absolute inset-0 bg-[#1c1917]/50 backdrop-blur-sm" onClick={() => setDispatchLead(null)} />
+          <div className={clsx('relative bg-white shadow-[0_10px_40px_rgba(46,36,27,0.16)] border border-[#ddd6c4]',
             dispatchMaximized ? 'w-screen h-screen max-w-none rounded-none flex flex-col' : 'w-full max-w-md rounded-2xl')}>
-            <div className={clsx('p-5 border-b border-[#e2dac8] bg-[#e7dfce] flex items-center justify-between flex-shrink-0', !dispatchMaximized && 'rounded-t-2xl')}>
+            <div className={clsx('p-5 border-b border-[#e7e2d6] bg-[#f1ede4] flex items-center justify-between flex-shrink-0', !dispatchMaximized && 'rounded-t-2xl')}>
               <div>
-                <h3 className="font-bold text-[#2e241b]" style={displayFont}>🚚 Confirm Dispatch</h3>
-                <p className="text-xs text-[#6d5f4c] mt-0.5">{dispatchLead.name} — {dispatchLead.productionOrderId?.orderNumber}</p>
+                <h3 className="font-bold text-[#1c1917]" style={displayFont}>🚚 Confirm Dispatch</h3>
+                <p className="text-xs text-[#6b6155] mt-0.5">{dispatchLead.name} — {dispatchLead.productionOrderId?.orderNumber}</p>
               </div>
               <div className="flex items-center gap-1.5 flex-shrink-0">
-                <button onClick={() => setDispatchMaximized((m) => !m)} title={dispatchMaximized ? 'Restore' : 'Maximize'} className="w-9 h-9 rounded-lg hover:bg-[#ddd3be] flex items-center justify-center text-[#968871] hover:text-[#2e241b] text-base">{dispatchMaximized ? '🗗' : '🗖'}</button>
-                <button onClick={() => setDispatchLead(null)} className="w-9 h-9 rounded-lg hover:bg-[#ddd3be] flex items-center justify-center text-[#968871] hover:text-[#2e241b] text-lg">✕</button>
+                <button onClick={() => setDispatchMaximized((m) => !m)} title={dispatchMaximized ? 'Restore' : 'Maximize'} className="w-9 h-9 rounded-lg hover:bg-[#e7e2d6] flex items-center justify-center text-[#8a8171] hover:text-[#1c1917] text-base">{dispatchMaximized ? '🗗' : '🗖'}</button>
+                <button onClick={() => setDispatchLead(null)} className="w-9 h-9 rounded-lg hover:bg-[#e7e2d6] flex items-center justify-center text-[#8a8171] hover:text-[#1c1917] text-lg">✕</button>
               </div>
             </div>
             <div className={clsx('p-5 space-y-3', dispatchMaximized && 'flex-1 overflow-y-auto')}>
               <div>
-                <label className="text-xs font-semibold text-[#968871] uppercase tracking-wide mb-1 block">Note to client (optional)</label>
+                <label className="text-xs font-semibold text-[#8a8171] uppercase tracking-wide mb-1 block">Note to client (optional)</label>
                 <textarea
                   value={dispatchNote}
                   onChange={(e) => setDispatchNote(e.target.value)}
@@ -1601,12 +1601,12 @@ export default function SampleProduction() {
                 />
               </div>
               <div>
-                <label className="text-xs font-semibold text-[#968871] uppercase tracking-wide mb-1 block">Proof (photo/video, optional)</label>
+                <label className="text-xs font-semibold text-[#8a8171] uppercase tracking-wide mb-1 block">Proof (photo/video, optional)</label>
                 <input
                   type="file"
                   accept="image/*,video/*"
                   onChange={(e) => setDispatchFile(e.target.files?.[0] || null)}
-                  className="text-xs text-[#6d5f4c]"
+                  className="text-xs text-[#6b6155]"
                 />
               </div>
               <div className="flex gap-3 pt-1">
@@ -1668,29 +1668,29 @@ function OrphanOrderPanel({ orderId: initialOrderId, onClose }) {
   return (
     <div className={clsx('fixed inset-0 z-[70] flex items-center justify-center', maximized ? 'p-0' : 'p-4')} style={bodyFont}>
       <style>{FONT_IMPORT}</style>
-      <div className="absolute inset-0 bg-[#2e241b]/50 backdrop-blur-sm" onClick={onClose} />
-      <div className={clsx('relative bg-white shadow-[0_10px_40px_rgba(46,36,27,0.16)] border border-[#d3c9b4] flex flex-col',
+      <div className="absolute inset-0 bg-[#1c1917]/50 backdrop-blur-sm" onClick={onClose} />
+      <div className={clsx('relative bg-white shadow-[0_10px_40px_rgba(46,36,27,0.16)] border border-[#ddd6c4] flex flex-col',
         maximized ? 'w-screen h-screen max-w-none rounded-none' : 'w-full max-w-4xl rounded-2xl')}
         style={maximized ? undefined : { maxHeight: '90vh' }}>
-        <div className={clsx('p-5 border-b border-[#e2dac8] bg-[#e7dfce] flex items-center justify-between flex-shrink-0', !maximized && 'rounded-t-2xl')}>
+        <div className={clsx('p-5 border-b border-[#e7e2d6] bg-[#f1ede4] flex items-center justify-between flex-shrink-0', !maximized && 'rounded-t-2xl')}>
           <div>
-            <h3 className="font-bold text-[#2e241b]" style={displayFont}>{order?.orderNumber || 'Loading…'}</h3>
-            <p className="text-xs text-[#6d5f4c]">{order?.customer || 'No linked CRM lead'} · {order?.catalogProduct?.name || '—'}</p>
+            <h3 className="font-bold text-[#1c1917]" style={displayFont}>{order?.orderNumber || 'Loading…'}</h3>
+            <p className="text-xs text-[#6b6155]">{order?.customer || 'No linked CRM lead'} · {order?.catalogProduct?.name || '—'}</p>
           </div>
           <div className="flex items-center gap-1.5">
-            <button onClick={() => setMaximized((m) => !m)} title={maximized ? 'Restore' : 'Maximize'} className="w-9 h-9 rounded-lg hover:bg-[#ddd3be] flex items-center justify-center text-[#968871] hover:text-[#2e241b] text-base">{maximized ? '🗗' : '🗖'}</button>
-            <button onClick={onClose} className="w-9 h-9 rounded-lg hover:bg-[#ddd3be] flex items-center justify-center text-[#968871] hover:text-[#2e241b] text-lg">✕</button>
+            <button onClick={() => setMaximized((m) => !m)} title={maximized ? 'Restore' : 'Maximize'} className="w-9 h-9 rounded-lg hover:bg-[#e7e2d6] flex items-center justify-center text-[#8a8171] hover:text-[#1c1917] text-base">{maximized ? '🗗' : '🗖'}</button>
+            <button onClick={onClose} className="w-9 h-9 rounded-lg hover:bg-[#e7e2d6] flex items-center justify-center text-[#8a8171] hover:text-[#1c1917] text-lg">✕</button>
           </div>
         </div>
         <div className="flex-1 overflow-y-auto p-5">
           {isLoading || !order ? (
-            <p className="text-sm text-[#968871] text-center py-8">Loading order…</p>
+            <p className="text-sm text-[#8a8171] text-center py-8">Loading order…</p>
           ) : (
             <div className="space-y-4">
               <StageBar order={order} viewStage={stage} setViewStage={setViewStage} />
               {leadId && (
                 <div className="flex items-center gap-2 flex-wrap">
-                  <span className="text-[10px] font-bold uppercase tracking-wide text-[#968871]">Products:</span>
+                  <span className="text-[10px] font-bold uppercase tracking-wide text-[#8a8171]">Products:</span>
                   {siblingProducts.map((p) => {
                     const prodOrder = productionForProduct(p.productId);
                     const isCurrent = prodOrder && String(prodOrder._id) === String(order._id);
@@ -1701,13 +1701,13 @@ function OrphanOrderPanel({ orderId: initialOrderId, onClose }) {
                         disabled={!prodOrder}
                         title={prodOrder ? STAGE_NAMES[prodOrder.stage] || prodOrder.status : 'Not in production'}
                         className={clsx('rounded-full border-[1.5px] px-3 py-1 text-xs font-semibold transition-colors',
-                          isCurrent ? 'border-[#f2b23e] bg-[#f3e3c2] text-[#2e241b]' : prodOrder ? 'border-[#d3c9b4] bg-white text-[#6d5f4c] hover:bg-[#f0eadd]' : 'border-[#e2dac8] bg-[#f0eadd] text-[#968871] opacity-60 cursor-not-allowed')}
+                          isCurrent ? 'border-[#a8781f] bg-[#f3e6c8] text-[#1c1917]' : prodOrder ? 'border-[#ddd6c4] bg-white text-[#6b6155] hover:bg-[#fbfaf7]' : 'border-[#e7e2d6] bg-[#fbfaf7] text-[#8a8171] opacity-60 cursor-not-allowed')}
                       >
                         {p.name} <span className="font-mono font-normal opacity-75">{p.productId}</span>
                       </button>
                     );
                   })}
-                  <button onClick={() => setShowAddProduct(true)} className="rounded-full border-2 border-dashed border-[#968871] text-[#7a5a10] px-3 py-1 text-xs font-bold hover:bg-[#f3e3c2]">+ Add product</button>
+                  <button onClick={() => setShowAddProduct(true)} className="rounded-full border-2 border-dashed border-[#8a8171] text-[#a8781f] px-3 py-1 text-xs font-bold hover:bg-[#f3e6c8]">+ Add product</button>
                 </div>
               )}
               {stage === 0 && <StageOrder order={order} onSaved={invalidateOrder} hideSidebar />}
@@ -1755,26 +1755,26 @@ function StageFocusPanel({ orderId, stageTab, StageComponent, onClose }) {
   return (
     <div className={clsx('fixed inset-0 z-[70] flex items-center justify-center', maximized ? 'p-0' : 'p-4')} style={bodyFont}>
       <style>{FONT_IMPORT}</style>
-      <div className="absolute inset-0 bg-[#2e241b]/50 backdrop-blur-sm" onClick={onClose} />
-      <div className={clsx('relative bg-white shadow-[0_10px_40px_rgba(46,36,27,0.16)] border border-[#d3c9b4] flex flex-col',
+      <div className="absolute inset-0 bg-[#1c1917]/50 backdrop-blur-sm" onClick={onClose} />
+      <div className={clsx('relative bg-white shadow-[0_10px_40px_rgba(46,36,27,0.16)] border border-[#ddd6c4] flex flex-col',
         maximized ? 'w-screen h-screen max-w-none rounded-none' : 'w-full max-w-3xl rounded-2xl')}
         style={maximized ? undefined : { maxHeight: '90vh' }}>
-        <div className={clsx('p-5 border-b border-[#e2dac8] bg-[#e7dfce] flex items-center justify-between flex-shrink-0', !maximized && 'rounded-t-2xl')}>
+        <div className={clsx('p-5 border-b border-[#e7e2d6] bg-[#f1ede4] flex items-center justify-between flex-shrink-0', !maximized && 'rounded-t-2xl')}>
           <div>
-            <h3 className="font-bold text-[#2e241b]" style={displayFont}>{stageTab?.emoji} {stageTab?.label} — {order?.orderNumber || 'Loading…'}</h3>
-            <p className="text-xs text-[#6d5f4c]">
+            <h3 className="font-bold text-[#1c1917]" style={displayFont}>{stageTab?.emoji} {stageTab?.label} — {order?.orderNumber || 'Loading…'}</h3>
+            <p className="text-xs text-[#6b6155]">
               {order?.customer || 'No linked CRM lead'} · {order?.catalogProduct?.name || '—'}
               {stageTab?.key !== 'weighing' && order?.[STAGE_ID_FIELD[stageTab?.key]] && <> · <span className="font-mono">{order[STAGE_ID_FIELD[stageTab.key]]}</span></>}
             </p>
           </div>
           <div className="flex items-center gap-1.5">
-            <button onClick={() => setMaximized((m) => !m)} title={maximized ? 'Restore' : 'Maximize'} className="w-9 h-9 rounded-lg hover:bg-[#ddd3be] flex items-center justify-center text-[#968871] hover:text-[#2e241b] text-base">{maximized ? '🗗' : '🗖'}</button>
-            <button onClick={onClose} className="w-9 h-9 rounded-lg hover:bg-[#ddd3be] flex items-center justify-center text-[#968871] hover:text-[#2e241b] text-lg">✕</button>
+            <button onClick={() => setMaximized((m) => !m)} title={maximized ? 'Restore' : 'Maximize'} className="w-9 h-9 rounded-lg hover:bg-[#e7e2d6] flex items-center justify-center text-[#8a8171] hover:text-[#1c1917] text-base">{maximized ? '🗗' : '🗖'}</button>
+            <button onClick={onClose} className="w-9 h-9 rounded-lg hover:bg-[#e7e2d6] flex items-center justify-center text-[#8a8171] hover:text-[#1c1917] text-lg">✕</button>
           </div>
         </div>
         <div className="flex-1 overflow-y-auto p-5 space-y-4">
           {isLoading || !order ? (
-            <p className="text-sm text-[#968871] text-center py-8">Loading order…</p>
+            <p className="text-sm text-[#8a8171] text-center py-8">Loading order…</p>
           ) : (
             <>
               {/* This order has no linked CRM lead (created directly in Batch Tracker), so there's
@@ -1782,8 +1782,8 @@ function StageFocusPanel({ orderId, stageTab, StageComponent, onClose }) {
                   show the same "Products:" row shape as the lead view, just with its one product,
                   so the panel isn't missing this row entirely. */}
               <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-[10px] font-bold uppercase tracking-wide text-[#968871]">Products:</span>
-                <span className="rounded-full border-[1.5px] border-[#f2b23e] bg-[#f3e3c2] px-3 py-1 text-xs font-semibold text-[#2e241b]">
+                <span className="text-[10px] font-bold uppercase tracking-wide text-[#8a8171]">Products:</span>
+                <span className="rounded-full border-[1.5px] border-[#a8781f] bg-[#f3e6c8] px-3 py-1 text-xs font-semibold text-[#1c1917]">
                   {order.catalogProduct?.name || order.orderNumber} <span className="font-mono font-normal opacity-75">{order.orderNumber}</span>
                 </span>
               </div>

@@ -391,6 +391,7 @@ function timeAgo(date) {
 function ProductTable({ products, canWrite, canDelete, onStock, onEdit, onQr, onDelete }) {
   return (
     <div className="card overflow-hidden">
+      <div className="overflow-x-auto">
       <table className="w-full text-sm">
         <thead className="bg-gray-50 dark:bg-[#0f1a2e]">
           <tr>
@@ -469,6 +470,7 @@ function ProductTable({ products, canWrite, canDelete, onStock, onEdit, onQr, on
           })}
         </tbody>
       </table>
+      </div>
       {products.length === 0 && (
         <div className="text-center py-12 text-gray-400">No products found</div>
       )}

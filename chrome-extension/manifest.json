@@ -1,0 +1,19 @@
+{
+  "manifest_version": 3,
+  "name": "Backero Lead Capture",
+  "version": "1.0.0",
+  "description": "Capture leads from any website into Backero CRM",
+  "permissions": ["activeTab", "storage", "scripting"],
+  "host_permissions": ["https://api.backero.in/*"],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Capture Lead – Backero"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}

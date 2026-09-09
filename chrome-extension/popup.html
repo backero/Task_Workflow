@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Backero Lead Capture</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      width: 340px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      font-size: 13px;
+      background: #0f172a;
+      color: #e2e8f0;
+    }
+
+    /* ── Header ── */
+    .header {
+      background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+      border-bottom: 1px solid #1e3a5f;
+      padding: 12px 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .header-logo {
+      width: 28px; height: 28px;
+      background: #3b82f6;
+      border-radius: 6px;
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 700; font-size: 14px; color: #fff;
+    }
+    .header-title { font-weight: 600; font-size: 14px; color: #f1f5f9; }
+    .header-sub { font-size: 11px; color: #64748b; margin-top: 1px; }
+    .status-dot {
+      width: 7px; height: 7px; border-radius: 50%;
+      background: #22c55e; margin-left: auto;
+      box-shadow: 0 0 6px #22c55e88;
+    }
+
+    /* ── Screens ── */
+    #screen-login, #screen-main { padding: 16px; }
+
+    /* ── Login ── */
+    .section-label {
+      font-size: 11px; font-weight: 600;
+      color: #64748b; text-transform: uppercase; letter-spacing: .5px;
+      margin-bottom: 6px;
+    }
+    input, select {
+      width: 100%; padding: 8px 10px;
+      background: #1e293b; border: 1px solid #334155;
+      border-radius: 6px; color: #e2e8f0; font-size: 13px;
+      outline: none; transition: border-color .15s;
+    }
+    input:focus, select:focus { border-color: #3b82f6; }
+    .field { margin-bottom: 10px; }
+    .field label { display: block; font-size: 11px; color: #94a3b8; margin-bottom: 4px; }
+
+    /* ── Buttons ── */
+    .btn {
+      width: 100%; padding: 9px;
+      border: none; border-radius: 6px;
+      font-size: 13px; font-weight: 600; cursor: pointer;
+      transition: opacity .15s;
+    }
+    .btn:hover { opacity: .88; }
+    .btn:disabled { opacity: .45; cursor: not-allowed; }
+    .btn-primary { background: #3b82f6; color: #fff; }
+    .btn-success { background: #22c55e; color: #fff; }
+    .btn-outline {
+      background: transparent; color: #94a3b8;
+      border: 1px solid #334155; margin-top: 6px;
+    }
+
+    /* ── Alert ── */
+    .alert {
+      padding: 8px 10px; border-radius: 6px; font-size: 12px;
+      margin-bottom: 10px; display: none;
+    }
+    .alert-err { background: #450a0a; color: #fca5a5; border: 1px solid #7f1d1d; }
+    .alert-ok  { background: #052e16; color: #86efac; border: 1px solid #14532d; }
+
+    /* ── Divider ── */
+    .divider {
+      border: none; border-top: 1px solid #1e293b;
+      margin: 12px 0;
+    }
+
+    /* ── Page info badge ── */
+    .page-badge {
+      background: #1e293b; border: 1px solid #334155;
+      border-radius: 6px; padding: 8px 10px;
+      font-size: 11px; color: #94a3b8;
+      margin-bottom: 10px; display: flex; gap: 8px; align-items: flex-start;
+    }
+    .page-badge span { word-break: break-all; color: #60a5fa; }
+
+    /* ── Row layout ── */
+    .row { display: flex; gap: 8px; }
+    .row .field { flex: 1; }
+
+    /* ── Logout link ── */
+    .logout-row {
+      text-align: right; margin-top: 8px;
+    }
+    .logout-link {
+      font-size: 11px; color: #475569; cursor: pointer;
+      text-decoration: underline; background: none; border: none;
+    }
+    .logout-link:hover { color: #94a3b8; }
+  </style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-logo">B</div>
+  <div>
+    <div class="header-title">Backero CRM</div>
+    <div class="header-sub">Lead Capture</div>
+  </div>
+  <div class="status-dot" id="status-dot" style="background:#64748b; box-shadow:none;"></div>
+</div>
+
+<!-- ── LOGIN SCREEN ── -->
+<div id="screen-login">
+  <div class="field" style="margin-top:4px;">
+    <label>Email</label>
+    <input type="email" id="login-email" placeholder="you@company.com" />
+  </div>
+  <div class="field">
+    <label>Password</label>
+    <input type="password" id="login-password" placeholder="••••••••" />
+  </div>
+  <div class="alert alert-err" id="login-err"></div>
+  <button class="btn btn-primary" id="btn-login">Sign In</button>
+</div>
+
+<!-- ── MAIN SCREEN ── -->
+<div id="screen-main" style="display:none;">
+
+  <div class="alert alert-err" id="main-err"></div>
+  <div class="alert alert-ok"  id="main-ok"></div>
+
+  <!-- Page info auto-filled -->
+  <div class="page-badge" id="page-badge">
+    <span style="color:#475569;">🌐</span>
+    <span id="page-url-label">Loading page info…</span>
+  </div>
+
+  <!-- Lead form -->
+  <div class="field">
+    <label>Full Name *</label>
+    <input type="text" id="f-name" placeholder="Contact person" />
+  </div>
+  <div class="row">
+    <div class="field">
+      <label>Phone *</label>
+      <input type="tel" id="f-phone" placeholder="9XXXXXXXXX" />
+    </div>
+    <div class="field">
+      <label>Email</label>
+      <input type="email" id="f-email" placeholder="optional" />
+    </div>
+  </div>
+  <div class="field">
+    <label>Company</label>
+    <input type="text" id="f-company" placeholder="Company name" />
+  </div>
+  <div class="row">
+    <div class="field">
+      <label>Priority</label>
+      <select id="f-priority">
+        <option value="medium">Medium</option>
+        <option value="high">High</option>
+        <option value="low">Low</option>
+        <option value="critical">Critical</option>
+      </select>
+    </div>
+    <div class="field">
+      <label>Value (₹)</label>
+      <input type="number" id="f-value" placeholder="0" />
+    </div>
+  </div>
+  <div class="field">
+    <label>Notes</label>
+    <input type="text" id="f-notes" placeholder="Quick note about this lead" />
+  </div>
+
+  <button class="btn btn-success" id="btn-submit">Save Lead to CRM</button>
+
+  <div class="logout-row">
+    <button class="logout-link" id="btn-logout">Sign out</button>
+  </div>
+</div>
+
+<script src="popup.js"></script>
+</body>
+</html>

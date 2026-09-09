@@ -163,4 +163,24 @@ const sendTaskNotificationEmail = async (toEmail, { type = 'assigned', taskTitle
   }
 };
 
-module.exports = { sendOTPEmail, sendPasswordResetEmail, sendWelcomeEmail, sendTaskNotificationEmail };
+const sendDocumentExpiryReminderEmail = async (toEmail, { orgName, html }) => {
+  const transporter = getTransporter();
+  if (!transporter) return false;
+  const from = process.env.SMTP_FROM || process.env.SMTP_USER;
+
+  try {
+    await transporter.sendMail({
+      from: `"Backero" <${from}>`,
+      to: toEmail,
+      subject: `${orgName} — Document Wallet renewal digest`,
+      html,
+    });
+    logger.info(`[Email] ✅ Document renewal digest sent to ${toEmail}`);
+    return true;
+  } catch (err) {
+    logger.error(`[Email] ❌ Document renewal digest failed to ${toEmail}: ${err.message}`);
+    return false;
+  }
+};
+
+module.exports = { sendOTPEmail, sendPasswordResetEmail, sendWelcomeEmail, sendTaskNotificationEmail, sendDocumentExpiryReminderEmail };

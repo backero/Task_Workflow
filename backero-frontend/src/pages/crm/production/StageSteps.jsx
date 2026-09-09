@@ -29,7 +29,7 @@ export const STAGE_BUCKET_COLOR = (stage) => {
   if (stage <= 3) return PILL.info;
   if (stage === 4) return PILL.purple;
   if (stage === 5) return PILL.warning;
-  if (stage === 6) return 'bg-[#dde5ea] text-[#33526b]';
+  if (stage === 6) return 'bg-[#f3e6c8] text-[#a8781f]';
   return PILL.success;
 };
 
@@ -60,12 +60,12 @@ export function StageBar({ order, viewStage, setViewStage }) {
         return (
           <button key={name} disabled={locked} onClick={() => setViewStage(i)}
             className={clsx('flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold whitespace-nowrap border transition-colors flex-shrink-0',
-              active ? 'bg-[#f3e3c2] border-[#f2b23e] text-[#7a5a10]' :
-              done ? 'bg-[#dce9d4] border-[#b9d2af] text-[#3a5f3c]' :
-              locked ? 'bg-[#e7dfce] border-[#e2dac8] text-[#c2b9a3] cursor-not-allowed' :
-              'bg-[#f0eadd] border-[#d3c9b4] text-[#6d5f4c]')}>
+              active ? 'bg-[#f3e6c8] border-[#a8781f] text-[#a8781f]' :
+              done ? 'bg-[#e2ece5] border-[#c3d9c9] text-[#2f6b4f]' :
+              locked ? 'bg-[#f1ede4] border-[#e7e2d6] text-[#ddd6c4] cursor-not-allowed' :
+              'bg-[#fbfaf7] border-[#ddd6c4] text-[#6b6155]')}>
             <span className={clsx('w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold flex-shrink-0',
-              done ? 'bg-[#5c8a5f] text-white' : active ? 'bg-[#f2b23e] text-[#2e241b]' : 'bg-[#e2dac8] text-[#6d5f4c]')}>
+              done ? 'bg-[#2f6b4f] text-white' : active ? 'bg-[#a8781f] text-[#1c1917]' : 'bg-[#e7e2d6] text-[#6b6155]')}>
               {done ? '✓' : displayIndex + 1}
             </span>
             {name}
@@ -116,22 +116,22 @@ export function StageOrder({ order, onSaved, hideSidebar }) {
     <div className="flex gap-4 items-start">
       {!hideSidebar && (
         <div className="w-52 flex-shrink-0">
-          <p className="text-[10px] font-bold uppercase tracking-wide text-[#968871] mb-2">Products (from catalogue)</p>
-          <div className="rounded-lg border-[1.5px] border-[#f2b23e] bg-[#f3e3c2] px-2.5 py-2">
-            <p className="text-xs font-bold text-[#2e241b] truncate">{order.catalogProduct?.name || order.orderNumber}</p>
-            <p className="text-[10px] text-[#968871] truncate">{order.catalogProduct?.code || order.batch}{order.batchSizeKg ? ` · ${order.batchSizeKg} kg` : ''}</p>
+          <p className="text-[10px] font-bold uppercase tracking-wide text-[#8a8171] mb-2">Products (from catalogue)</p>
+          <div className="rounded-lg border-[1.5px] border-[#a8781f] bg-[#f3e6c8] px-2.5 py-2">
+            <p className="text-xs font-bold text-[#1c1917] truncate">{order.catalogProduct?.name || order.orderNumber}</p>
+            <p className="text-[10px] text-[#8a8171] truncate">{order.catalogProduct?.code || order.batch}{order.batchSizeKg ? ` · ${order.batchSizeKg} kg` : ''}</p>
           </div>
-          <button onClick={() => setShowAddProduct(true)} className="w-full mt-2 border-2 border-dashed border-[#968871] text-[#7a5a10] rounded-lg py-2 text-xs font-bold hover:bg-[#f3e3c2]">+ Add product</button>
-          <p className="text-[9.5px] text-[#968871] mt-2 leading-relaxed">Adds a new product for {order.customer || 'this customer'} — becomes its own order &amp; job sheet, linked by the same order group.</p>
+          <button onClick={() => setShowAddProduct(true)} className="w-full mt-2 border-2 border-dashed border-[#8a8171] text-[#a8781f] rounded-lg py-2 text-xs font-bold hover:bg-[#f3e6c8]">+ Add product</button>
+          <p className="text-[9.5px] text-[#8a8171] mt-2 leading-relaxed">Adds a new product for {order.customer || 'this customer'} — becomes its own order &amp; job sheet, linked by the same order group.</p>
         </div>
       )}
 
       <div className="flex-1 min-w-0 space-y-4">
         {locked && (
-          <Card className="border-[#b9d2af] bg-[#dce9d4] flex items-center justify-between gap-3 flex-wrap">
+          <Card className="border-[#c3d9c9] bg-[#e2ece5] flex items-center justify-between gap-3 flex-wrap">
             <div>
-              <p className="text-sm font-bold text-[#3a5f3c]">🔒 Job Sheet Confirmed &amp; Locked</p>
-              <p className="text-xs text-[#6d5f4c]">Confirmed {crmSpec.specsConfirmedAt ? new Date(crmSpec.specsConfirmedAt).toLocaleString('en-IN') : ''}</p>
+              <p className="text-sm font-bold text-[#2f6b4f]">🔒 Job Sheet Confirmed &amp; Locked</p>
+              <p className="text-xs text-[#6b6155]">Confirmed {crmSpec.specsConfirmedAt ? new Date(crmSpec.specsConfirmedAt).toLocaleString('en-IN') : ''}</p>
             </div>
             <button onClick={unlockJobSheet} disabled={busy} className={secondaryBtn}>🔓 Unlock &amp; Edit</button>
           </Card>
@@ -143,7 +143,7 @@ export function StageOrder({ order, onSaved, hideSidebar }) {
           locked={locked}
           detailsContent={
             <Card>
-              <h3 className="text-sm font-bold text-[#2e241b] mb-3">Client Profile</h3>
+              <h3 className="text-sm font-bold text-[#1c1917] mb-3">Client Profile</h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <Field label="Customer"><input disabled={locked} value={form.customer} onChange={(e) => setForm((f) => ({ ...f, customer: e.target.value }))} className={inputCls} /></Field>
                 <Field label="Contact"><input disabled={locked} value={form.contact} onChange={(e) => setForm((f) => ({ ...f, contact: e.target.value }))} className={inputCls} /></Field>
@@ -239,18 +239,18 @@ export function StageWorkAssignment({ order, onSaved }) {
 
   return (
     <Card>
-      <h3 className="text-sm font-bold text-[#2e241b] mb-3">Production Schedule</h3>
+      <h3 className="text-sm font-bold text-[#1c1917] mb-3">Production Schedule</h3>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
         {dateField('startDate', 'Production Start')}{dateField('weighDate', 'Weighing Date')}{dateField('prodDate', 'Production Date')}
         {dateField('packDate', 'Packaging Date')}{dateField('qcDate', 'QC Target Date')}{dateField('dispatchDate', 'Dispatch Target')}
       </div>
-      <h3 className="text-sm font-bold text-[#2e241b] mt-5 mb-3">Team Assignment</h3>
+      <h3 className="text-sm font-bold text-[#1c1917] mt-5 mb-3">Team Assignment</h3>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
         {personField('weighPerson', 'Weighing In-charge')}{personField('prodPerson', 'Production In-charge')}{personField('qcPerson', 'QC In-charge')}
         {personField('packPerson', 'Packaging In-charge')}{personField('dispatchPerson', 'Dispatch In-charge')}{personField('supervisor', 'Supervisor')}
       </div>
       {paymentBlocked && (
-        <p className="text-xs text-[#8c3a30] font-semibold mt-3 bg-[#f0d8d2] border border-[#e0b6ab] rounded-xl px-3 py-2">
+        <p className="text-xs text-[#a13d34] font-semibold mt-3 bg-[#f5e3e0] border border-[#e8c9c3] rounded-xl px-3 py-2">
           ⚠ Needs ≥50% advance payment confirmed before Procurement can start ({paidPct}% paid so far — {inv.invoiceNumber}).
         </p>
       )}
@@ -285,30 +285,30 @@ export function StageProcurement({ order, onAdvanced }) {
 
   return (
     <Card>
-      <h3 className="text-sm font-bold text-[#2e241b] mb-1">Formula & Raw Material Check</h3>
-      <p className="text-xs text-[#6d5f4c] mb-3">Scaled from Product Catalog for a {order.batchSizeKg || '—'}kg batch.</p>
+      <h3 className="text-sm font-bold text-[#1c1917] mb-1">Formula & Raw Material Check</h3>
+      <p className="text-xs text-[#6b6155] mb-3">Scaled from Product Catalog for a {order.batchSizeKg || '—'}kg batch.</p>
       {rows.length === 0 ? (
-        <p className="text-xs text-[#968871] py-4">No formulation ingredients found for this order's catalog product.</p>
+        <p className="text-xs text-[#8a8171] py-4">No formulation ingredients found for this order's catalog product.</p>
       ) : (
         <table className="w-full text-xs">
-          <thead><tr className="text-left text-[10px] uppercase text-[#968871] border-b border-[#e2dac8]">
+          <thead><tr className="text-left text-[10px] uppercase text-[#8a8171] border-b border-[#e7e2d6]">
             <th className="py-1.5">Material</th><th className="py-1.5">Required</th><th className="py-1.5">In Stock</th><th className="py-1.5">To Procure</th><th className="py-1.5">Status</th>
           </tr></thead>
           <tbody>
             {rows.map((r, i) => (
-              <tr key={i} className="border-b border-[#e2dac8]">
-                <td className="py-1.5 text-[#2e241b]">{r.name}</td>
+              <tr key={i} className="border-b border-[#e7e2d6]">
+                <td className="py-1.5 text-[#1c1917]">{r.name}</td>
                 <td className="py-1.5 font-mono">{r.targetQty} {r.unit}</td>
                 <td className="py-1.5 font-mono">{r.stock} {r.unit}</td>
                 <td className="py-1.5 font-mono">{r.short ? <span className="text-red-600 font-semibold">{r.shortfall} {r.unit}</span> : '—'}</td>
-                <td className="py-1.5">{r.short ? <span className="text-red-600 font-semibold">Order More</span> : <span className="text-[#3a5f3c] font-semibold">OK</span>}</td>
+                <td className="py-1.5">{r.short ? <span className="text-red-600 font-semibold">Order More</span> : <span className="text-[#2f6b4f] font-semibold">OK</span>}</td>
               </tr>
             ))}
           </tbody>
         </table>
       )}
       {shortRows.length > 0 && (
-        <div className="mt-3 bg-[#f0d8d2] border border-[#e0b6ab] rounded-xl px-3 py-2 text-xs text-[#8c3a30]">
+        <div className="mt-3 bg-[#f5e3e0] border border-[#e8c9c3] rounded-xl px-3 py-2 text-xs text-[#a13d34]">
           ⚠ {shortRows.length} material(s) below required quantity — procure before proceeding, this blocks confirming until resolved:
           <ul className="mt-1 ml-4 list-disc">
             {shortRows.map((r, i) => <li key={i}>{r.name}: need {r.shortfall} {r.unit} more (have {r.stock}, need {r.targetQty})</li>)}
@@ -358,20 +358,20 @@ export function StageWeighing({ order, onSaved }) {
     <div className="space-y-4">
       <Card>
         <div className="flex items-center justify-between mb-2">
-          <h3 className="text-sm font-bold text-[#2e241b]">Ingredient Weighing</h3>
-          <span className={clsx('text-[11px] font-semibold', allWeighed ? 'text-[#3a5f3c]' : 'text-[#7a5a10]')}>{weighedCount}/{order.ingredients.length}</span>
+          <h3 className="text-sm font-bold text-[#1c1917]">Ingredient Weighing</h3>
+          <span className={clsx('text-[11px] font-semibold', allWeighed ? 'text-[#2f6b4f]' : 'text-[#a8781f]')}>{weighedCount}/{order.ingredients.length}</span>
         </div>
         <table className="w-full text-xs">
-          <thead><tr className="text-left text-[10px] uppercase text-[#968871] border-b border-[#e2dac8]"><th className="py-1.5">Material</th><th className="py-1.5">Target</th><th className="py-1.5">Status</th><th className="py-1.5"></th></tr></thead>
+          <thead><tr className="text-left text-[10px] uppercase text-[#8a8171] border-b border-[#e7e2d6]"><th className="py-1.5">Material</th><th className="py-1.5">Target</th><th className="py-1.5">Status</th><th className="py-1.5"></th></tr></thead>
           <tbody>
             {order.ingredients.map((ing, i) => (
-              <tr key={i} className="border-b border-[#e2dac8]">
-                <td className="py-1.5 text-[#2e241b]">{ing.name}</td>
+              <tr key={i} className="border-b border-[#e7e2d6]">
+                <td className="py-1.5 text-[#1c1917]">{ing.name}</td>
                 <td className="py-1.5 font-mono">{ing.targetQty} {ing.unit}</td>
-                <td className="py-1.5">{ing.actualQty != null ? <span className="text-[#3a5f3c] font-semibold">Weighed ({ing.actualQty}{ing.unit})</span> : <span className="text-[#7a5a10] font-semibold">Pending</span>}</td>
+                <td className="py-1.5">{ing.actualQty != null ? <span className="text-[#2f6b4f] font-semibold">Weighed ({ing.actualQty}{ing.unit})</span> : <span className="text-[#a8781f] font-semibold">Pending</span>}</td>
                 <td className="py-1.5 text-right">
                   {ing.actualQty == null && (
-                    <button onClick={() => weigh(ing)} disabled={busyKey === ing.rawMaterialId} className="text-[#7a5a10] font-semibold disabled:opacity-50">{busyKey === ing.rawMaterialId ? '…' : 'Mark Weighed'}</button>
+                    <button onClick={() => weigh(ing)} disabled={busyKey === ing.rawMaterialId} className="text-[#a8781f] font-semibold disabled:opacity-50">{busyKey === ing.rawMaterialId ? '…' : 'Mark Weighed'}</button>
                   )}
                 </td>
               </tr>
@@ -379,29 +379,29 @@ export function StageWeighing({ order, onSaved }) {
           </tbody>
         </table>
         {order.ingredients.length === 0 && (
-          <p className="text-xs text-[#8c3a30] mt-2">No ingredients found for this order — its catalog product's Formulation is empty in Product Catalog. Fill that in for future batches; Process Steps below can still proceed for this one.</p>
+          <p className="text-xs text-[#a13d34] mt-2">No ingredients found for this order — its catalog product's Formulation is empty in Product Catalog. Fill that in for future batches; Process Steps below can still proceed for this one.</p>
         )}
       </Card>
 
       <Card>
         <div className="flex items-center justify-between mb-2">
-          <h3 className="text-sm font-bold text-[#2e241b]">Process Steps</h3>
-          <span className={clsx('text-[11px] font-semibold', allSteps ? 'text-[#3a5f3c]' : 'text-[#7a5a10]')}>{doneSteps}/{order.processSteps.length}</span>
+          <h3 className="text-sm font-bold text-[#1c1917]">Process Steps</h3>
+          <span className={clsx('text-[11px] font-semibold', allSteps ? 'text-[#2f6b4f]' : 'text-[#a8781f]')}>{doneSteps}/{order.processSteps.length}</span>
         </div>
         <div className="space-y-1.5">
           {order.processSteps.map((step, i) => {
             const locked = !allWeighed || (i > 0 && !order.processSteps[i - 1].done);
             return (
               <div key={i} className={clsx('flex items-center justify-between px-3 py-2 rounded-lg border text-xs',
-                step.done ? 'border-[#b9d2af] bg-[#dce9d4]' : locked ? 'border-[#e2dac8] opacity-50' : 'border-[#d3c9b4]')}>
-                <span className="flex items-center gap-2 text-[#2e241b]">
-                  <span className={clsx('w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold', step.done ? 'bg-[#5c8a5f] text-white' : 'bg-[#e2dac8] text-[#6d5f4c]')}>{step.done ? '✓' : i + 1}</span>
+                step.done ? 'border-[#c3d9c9] bg-[#e2ece5]' : locked ? 'border-[#e7e2d6] opacity-50' : 'border-[#ddd6c4]')}>
+                <span className="flex items-center gap-2 text-[#1c1917]">
+                  <span className={clsx('w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold', step.done ? 'bg-[#2f6b4f] text-white' : 'bg-[#e7e2d6] text-[#6b6155]')}>{step.done ? '✓' : i + 1}</span>
                   {step.name}
                 </span>
                 {!step.done && !locked && (
-                  <button onClick={() => completeStep(i)} disabled={busyKey === 'step' + i} className="text-[#7a5a10] font-semibold disabled:opacity-50">{busyKey === 'step' + i ? '…' : 'Mark Complete'}</button>
+                  <button onClick={() => completeStep(i)} disabled={busyKey === 'step' + i} className="text-[#a8781f] font-semibold disabled:opacity-50">{busyKey === 'step' + i ? '…' : 'Mark Complete'}</button>
                 )}
-                {locked && <LockClosedIcon className="w-3.5 h-3.5 text-[#c2b9a3]" />}
+                {locked && <LockClosedIcon className="w-3.5 h-3.5 text-[#ddd6c4]" />}
               </div>
             );
           })}
@@ -409,9 +409,9 @@ export function StageWeighing({ order, onSaved }) {
       </Card>
 
       {allWeighed && allSteps && (
-        <Card className="border-[#b9d2af]">
+        <Card className="border-[#c3d9c9]">
           <div className="flex items-center justify-between">
-            <div><p className="text-sm font-bold text-[#3a5f3c]">✓ All weighing & process steps complete</p><p className="text-xs text-[#6d5f4c]">Ready for Bulk QC</p></div>
+            <div><p className="text-sm font-bold text-[#2f6b4f]">✓ All weighing & process steps complete</p><p className="text-xs text-[#6b6155]">Ready for Bulk QC</p></div>
             <button onClick={advance} disabled={busyKey === 'advance'} className={primaryBtn}>{busyKey === 'advance' ? 'Advancing…' : 'Complete → Bulk QC'}</button>
           </div>
         </Card>
@@ -440,15 +440,15 @@ const BULK_QC_FIELDS = [
 // option again clears it back to unset, so a wrong tap can be undone without picking the other one.
 function PassFailToggle({ value, onChange }) {
   return (
-    <div className="inline-flex rounded-full border border-[#d3c9b4] overflow-hidden">
+    <div className="inline-flex rounded-full border border-[#ddd6c4] overflow-hidden">
       <button type="button" onClick={() => onChange(value === 'PASS' ? '' : 'PASS')}
         className={clsx('px-3 py-1 text-[11px] font-bold transition-colors',
-          value === 'PASS' ? 'bg-[#5c8a5f] text-white' : 'bg-white text-[#6d5f4c] hover:bg-[#f0eadd]')}>
+          value === 'PASS' ? 'bg-[#2f6b4f] text-white' : 'bg-white text-[#6b6155] hover:bg-[#fbfaf7]')}>
         PASS
       </button>
       <button type="button" onClick={() => onChange(value === 'FAIL' ? '' : 'FAIL')}
         className={clsx('px-3 py-1 text-[11px] font-bold transition-colors',
-          value === 'FAIL' ? 'bg-[#c0574a] text-white' : 'bg-white text-[#6d5f4c] hover:bg-[#f0eadd]')}>
+          value === 'FAIL' ? 'bg-[#a13d34] text-white' : 'bg-white text-[#6b6155] hover:bg-[#fbfaf7]')}>
         FAIL
       </button>
     </div>
@@ -466,14 +466,14 @@ function BulkQCField({ spec, legacy, crmSpec, form, setForm }) {
     else setForm((f) => ({ ...f, extra: { ...f.extra, [spec.key]: v } }));
   };
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-[220px_1fr_150px] gap-x-3 gap-y-1 sm:items-center py-2 border-b border-[#e2dac8] last:border-none">
+    <div className="grid grid-cols-1 sm:grid-cols-[220px_1fr_150px] gap-x-3 gap-y-1 sm:items-center py-2 border-b border-[#e7e2d6] last:border-none">
       <div className="min-w-0">
-        <span className="text-xs text-[#6d5f4c]">{spec.label}</span>
-        {spec.iso && <span className="inline-block ml-1.5 bg-[#dde5ea] text-[#33526b] border border-[#4a8bc2]/30 rounded px-1 text-[9px] font-bold align-middle">{spec.iso}</span>}
-        {spec.hint && <p className="text-[10px] text-[#968871] mt-0.5">{spec.hint}</p>}
+        <span className="text-xs text-[#6b6155]">{spec.label}</span>
+        {spec.iso && <span className="inline-block ml-1.5 bg-[#f3e6c8] text-[#a8781f] border border-[#c9a227]/30 rounded px-1 text-[9px] font-bold align-middle">{spec.iso}</span>}
+        {spec.hint && <p className="text-[10px] text-[#8a8171] mt-0.5">{spec.hint}</p>}
       </div>
       <div className="min-w-0">
-        <input disabled value={specValue(crmSpec, spec.key, '—')} className="w-full text-xs border border-[#d3c9b4] rounded-lg px-2 py-1.5 bg-[#e7dfce] text-[#7a5a10] disabled:opacity-100" />
+        <input disabled value={specValue(crmSpec, spec.key, '—')} className="w-full text-xs border border-[#ddd6c4] rounded-lg px-2 py-1.5 bg-[#f1ede4] text-[#a8781f] disabled:opacity-100" />
       </div>
       <div className="sm:justify-self-end">
         <PassFailToggle value={value} onChange={onChange} />
@@ -506,16 +506,16 @@ export function StageBulkQC({ order, onSaved }) {
 
   return (
     <Card>
-      <h3 className="text-sm font-bold text-[#2e241b] mb-1">Bulk Quality Control</h3>
-      <p className="text-xs text-[#6d5f4c] mb-3">Fetched from Orders — Sensory Targets, Physicochemical, and QC Plan (Micro &amp; Stability). Spec values shown are the reference to cross-check the actual reading against.</p>
+      <h3 className="text-sm font-bold text-[#1c1917] mb-1">Bulk Quality Control</h3>
+      <p className="text-xs text-[#6b6155] mb-3">Fetched from Orders — Sensory Targets, Physicochemical, and QC Plan (Micro &amp; Stability). Spec values shown are the reference to cross-check the actual reading against.</p>
       <div>
         {BULK_QC_FIELDS.map(({ spec, legacy }) => (
           <BulkQCField key={spec.key} spec={spec} legacy={legacy} crmSpec={crmSpec} form={form} setForm={setForm} />
         ))}
       </div>
       <div className="flex gap-3 mt-4">
-        <button onClick={() => submit('PASS')} disabled={busy} className="px-4 py-2 bg-[#5c8a5f] hover:brightness-95 text-white text-sm font-semibold rounded-xl disabled:opacity-50">Pass → Packaging</button>
-        <button onClick={() => submit('FAIL')} disabled={busy} className="px-4 py-2 bg-[#c0574a] hover:brightness-95 text-white text-sm font-semibold rounded-xl disabled:opacity-50">Fail / Hold</button>
+        <button onClick={() => submit('PASS')} disabled={busy} className="px-4 py-2 bg-[#2f6b4f] hover:brightness-95 text-white text-sm font-semibold rounded-xl disabled:opacity-50">Pass → Packaging</button>
+        <button onClick={() => submit('FAIL')} disabled={busy} className="px-4 py-2 bg-[#a13d34] hover:brightness-95 text-white text-sm font-semibold rounded-xl disabled:opacity-50">Fail / Hold</button>
       </div>
     </Card>
   );
@@ -562,7 +562,7 @@ export function StagePackaging({ order, onSaved }) {
   return (
     <div className="space-y-4">
       <Card>
-        <h3 className="text-sm font-bold text-[#2e241b] mb-3">📦 Packaging Specification (BOM)</h3>
+        <h3 className="text-sm font-bold text-[#1c1917] mb-3">📦 Packaging Specification (BOM)</h3>
         {PKG_SPEC_FIELDS.map((f) => (
           <PlainSpecRow
             key={f.key}
@@ -578,27 +578,27 @@ export function StagePackaging({ order, onSaved }) {
       </Card>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
       <Card>
-        <h3 className="text-sm font-bold text-[#2e241b] mb-3">Packaging Details</h3>
+        <h3 className="text-sm font-bold text-[#1c1917] mb-3">Packaging Details</h3>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <Field label="MRP (₹)"><input type="number" value={form.mrp} onChange={(e) => setForm((f) => ({ ...f, mrp: e.target.value }))} className={inputCls} /></Field>
           <Field label="Fill Weight/Unit (g)"><input type="number" value={form.fillWeight} onChange={(e) => setForm((f) => ({ ...f, fillWeight: e.target.value }))} className={inputCls} /></Field>
         </div>
-        <p className="text-xs text-[#968871] mt-2">Batch weight: {batchGrams}g · Expected units: <strong className="text-[#7a5a10]">{expected ?? '—'}</strong></p>
+        <p className="text-xs text-[#8a8171] mt-2">Batch weight: {batchGrams}g · Expected units: <strong className="text-[#a8781f]">{expected ?? '—'}</strong></p>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
           <Field label="Filled (units)"><input type="number" value={form.filled} onChange={(e) => setForm((f) => ({ ...f, filled: e.target.value }))} className={inputCls} /></Field>
           <Field label="Rejected"><input type="number" value={form.rejected} onChange={(e) => setForm((f) => ({ ...f, rejected: e.target.value }))} className={inputCls} /></Field>
         </div>
-        <p className="text-xs text-[#968871] mt-2">Yield: <strong className="text-[#7a5a10]">{yieldPct}%</strong></p>
+        <p className="text-xs text-[#8a8171] mt-2">Yield: <strong className="text-[#a8781f]">{yieldPct}%</strong></p>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mt-3">
           <Field label="MFG Date"><input type="date" value={form.mfgDate} onChange={(e) => setForm((f) => ({ ...f, mfgDate: e.target.value }))} className={inputCls} /></Field>
           <Field label="EXP Date"><input type="date" value={form.expDate} onChange={(e) => setForm((f) => ({ ...f, expDate: e.target.value }))} className={inputCls} /></Field>
           <Field label="Units/Carton"><input type="number" value={form.cartonQty} onChange={(e) => setForm((f) => ({ ...f, cartonQty: e.target.value }))} className={inputCls} /></Field>
         </div>
-        <p className="text-xs text-[#968871] mt-2">Total cartons: <strong className="text-[#7a5a10]">{totalCartons ?? '—'}</strong></p>
+        <p className="text-xs text-[#8a8171] mt-2">Total cartons: <strong className="text-[#a8781f]">{totalCartons ?? '—'}</strong></p>
         <button onClick={submit} disabled={busy} className={clsx(primaryBtn, 'mt-4')}>{busy ? 'Saving…' : 'Packaging Complete → Final QC'}</button>
       </Card>
       <Card>
-        <h3 className="text-sm font-bold text-[#2e241b] mb-3">Label Preview</h3>
+        <h3 className="text-sm font-bold text-[#1c1917] mb-3">Label Preview</h3>
         <div className="bg-[#f5f0e8] text-[#2C1810] rounded-lg p-4 border border-[#d4c5a9]">
           <p className="text-[11px] font-bold uppercase tracking-wide">{order.catalogProduct?.name?.split(' ')[0] || 'BACKERO'}</p>
           <p className="text-[10px] font-semibold mt-1">{order.catalogProduct?.name || 'Product'}</p>
@@ -664,13 +664,13 @@ export function StageFinalQC({ order, onSaved }) {
       else setForm((f) => ({ ...f, extra: { ...f.extra, [spec.key]: v } }));
     };
     return (
-      <div key={spec.key} className="grid grid-cols-1 sm:grid-cols-[220px_1fr_150px] gap-x-3 gap-y-1 sm:items-center py-2 border-b border-[#e2dac8] last:border-none">
+      <div key={spec.key} className="grid grid-cols-1 sm:grid-cols-[220px_1fr_150px] gap-x-3 gap-y-1 sm:items-center py-2 border-b border-[#e7e2d6] last:border-none">
         <div className="min-w-0">
-          <span className="text-xs text-[#6d5f4c]">{spec.label}</span>
-          {spec.hint && <p className="text-[10px] text-[#968871] mt-0.5">{spec.hint}</p>}
+          <span className="text-xs text-[#6b6155]">{spec.label}</span>
+          {spec.hint && <p className="text-[10px] text-[#8a8171] mt-0.5">{spec.hint}</p>}
         </div>
         <div className="min-w-0">
-          <input disabled value={specValue(crmSpec, spec.key, '—')} className="w-full text-xs border border-[#d3c9b4] rounded-lg px-2 py-1.5 bg-[#e7dfce] text-[#7a5a10] disabled:opacity-100" />
+          <input disabled value={specValue(crmSpec, spec.key, '—')} className="w-full text-xs border border-[#ddd6c4] rounded-lg px-2 py-1.5 bg-[#f1ede4] text-[#a8781f] disabled:opacity-100" />
         </div>
         <div className="sm:justify-self-end">
           <PassFailToggle value={value} onChange={onChange} />
@@ -681,15 +681,15 @@ export function StageFinalQC({ order, onSaved }) {
 
   return (
     <Card>
-      <h3 className="text-sm font-bold text-[#2e241b] mb-1">Final Quality Control</h3>
-      <p className="text-xs text-[#6d5f4c] mb-3">Batch {order.batch} · {p.filled || 0} units filled, {p.rejected || 0} rejected · fetched from Orders — Final QC</p>
+      <h3 className="text-sm font-bold text-[#1c1917] mb-1">Final Quality Control</h3>
+      <p className="text-xs text-[#6b6155] mb-3">Batch {order.batch} · {p.filled || 0} units filled, {p.rejected || 0} rejected · fetched from Orders — Final QC</p>
       <div>
         {FQC_SPECS.map((spec) => finalQCField(spec))}
       </div>
       <div className="mt-3"><Field label="Comments"><textarea rows={2} value={form.comment} onChange={(e) => setForm((f) => ({ ...f, comment: e.target.value }))} className={inputCls} /></Field></div>
       <div className="flex gap-3 mt-4">
-        <button onClick={() => submit(true)} disabled={busy} className="px-4 py-2 bg-[#5c8a5f] hover:brightness-95 text-white text-sm font-semibold rounded-xl disabled:opacity-50">Approve → Dispatch</button>
-        <button onClick={() => submit(false)} disabled={busy} className="px-4 py-2 bg-[#c0574a] hover:brightness-95 text-white text-sm font-semibold rounded-xl disabled:opacity-50">Reject / Hold</button>
+        <button onClick={() => submit(true)} disabled={busy} className="px-4 py-2 bg-[#2f6b4f] hover:brightness-95 text-white text-sm font-semibold rounded-xl disabled:opacity-50">Approve → Dispatch</button>
+        <button onClick={() => submit(false)} disabled={busy} className="px-4 py-2 bg-[#a13d34] hover:brightness-95 text-white text-sm font-semibold rounded-xl disabled:opacity-50">Reject / Hold</button>
       </div>
     </Card>
   );
@@ -715,11 +715,11 @@ function TestResultBadge({ value }) {
 function TestResultGroup({ title, rows }) {
   return (
     <div>
-      <p className="text-[10px] font-bold uppercase tracking-wide text-[#968871] mb-1.5">{title}</p>
-      <div className="rounded-lg border border-[#d3c9b4] bg-[#f0eadd] divide-y divide-[#e2dac8]">
+      <p className="text-[10px] font-bold uppercase tracking-wide text-[#8a8171] mb-1.5">{title}</p>
+      <div className="rounded-lg border border-[#ddd6c4] bg-[#fbfaf7] divide-y divide-[#e7e2d6]">
         {rows.map((r) => (
           <div key={r.label} className="flex items-center justify-between gap-2 px-2.5 py-1.5">
-            <span className="text-xs text-[#4a3a29]">{r.label}</span>
+            <span className="text-xs text-[#292521]">{r.label}</span>
             <TestResultBadge value={r.value} />
           </div>
         ))}
@@ -907,19 +907,19 @@ export function StageDispatch({ order, onSaved }) {
   return (
     <Card>
       <div className="flex items-center justify-between mb-3">
-        <h3 className="text-sm font-bold text-[#2e241b]">Dispatch</h3>
+        <h3 className="text-sm font-bold text-[#1c1917]">Dispatch</h3>
         {already ? <span className={clsx('text-[11px] font-semibold px-2 py-0.5 rounded-full', PILL.success)}>Dispatched</span> : <span className={clsx('text-[11px] font-semibold px-2 py-0.5 rounded-full', PILL.info)}>Ready</span>}
       </div>
       <div className="grid grid-cols-4 gap-3 mb-4 text-xs">
-        <div><p className="text-[#968871] uppercase text-[10px]">Batch Code</p><p className="font-mono font-semibold">{p.batchCode || '—'}</p></div>
-        <div><p className="text-[#968871] uppercase text-[10px]">Units</p><p className="font-semibold">{p.filled || 0}</p></div>
-        <div><p className="text-[#968871] uppercase text-[10px]">Rejects</p><p className="font-semibold">{p.rejected || 0}</p></div>
-        <div><p className="text-[#968871] uppercase text-[10px]">Net Good</p><p className="font-semibold text-[#3a5f3c]">{(p.filled || 0) - (p.rejected || 0)}</p></div>
+        <div><p className="text-[#8a8171] uppercase text-[10px]">Batch Code</p><p className="font-mono font-semibold">{p.batchCode || '—'}</p></div>
+        <div><p className="text-[#8a8171] uppercase text-[10px]">Units</p><p className="font-semibold">{p.filled || 0}</p></div>
+        <div><p className="text-[#8a8171] uppercase text-[10px]">Rejects</p><p className="font-semibold">{p.rejected || 0}</p></div>
+        <div><p className="text-[#8a8171] uppercase text-[10px]">Net Good</p><p className="font-semibold text-[#2f6b4f]">{(p.filled || 0) - (p.rejected || 0)}</p></div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
         <div>
-          <p className="text-[10px] font-bold uppercase tracking-wide text-[#968871] mb-1.5">🏷️ Label — {cartonNumbers.length} carton{cartonNumbers.length !== 1 ? 's' : ''}</p>
+          <p className="text-[10px] font-bold uppercase tracking-wide text-[#8a8171] mb-1.5">🏷️ Label — {cartonNumbers.length} carton{cartonNumbers.length !== 1 ? 's' : ''}</p>
           <div className="bg-[#f5f0e8] rounded-lg border border-[#d4c5a9] p-3">
             <div className="text-[#2C1810] mb-2 pb-2 border-b border-dashed border-[#d4c5a9]">
               <p className="text-[11px] font-bold uppercase tracking-wide">{order.catalogProduct?.name?.split(' ')[0] || 'BACKERO'}</p>
@@ -930,9 +930,9 @@ export function StageDispatch({ order, onSaved }) {
             </div>
             <div className="max-h-40 overflow-y-auto space-y-1">
               {cartonNumbers.map((n) => (
-                <div key={n} className="flex items-center justify-between gap-2 px-2 py-1 rounded-md bg-white/60 border border-[#e2dac8]">
-                  <span className="text-[11px] font-semibold text-[#4a3a29]">Carton {n} of {cartonNumbers.length}</span>
-                  <button onClick={() => printLabel(n, cartonNumbers.length)} className="text-[10px] font-semibold text-[#7a5a10] hover:underline flex-shrink-0">🖨️ Print Label</button>
+                <div key={n} className="flex items-center justify-between gap-2 px-2 py-1 rounded-md bg-white/60 border border-[#e7e2d6]">
+                  <span className="text-[11px] font-semibold text-[#292521]">Carton {n} of {cartonNumbers.length}</span>
+                  <button onClick={() => printLabel(n, cartonNumbers.length)} className="text-[10px] font-semibold text-[#a8781f] hover:underline flex-shrink-0">🖨️ Print Label</button>
                 </div>
               ))}
             </div>
@@ -940,28 +940,28 @@ export function StageDispatch({ order, onSaved }) {
         </div>
         <div>
           <div className="flex items-center justify-between mb-1.5">
-            <p className="text-[10px] font-bold uppercase tracking-wide text-[#968871]">🚚 Shipping Label</p>
-            <button onClick={printShippingLabel} className="text-[10px] font-semibold text-[#7a5a10] hover:underline">🖨️ Print Label</button>
+            <p className="text-[10px] font-bold uppercase tracking-wide text-[#8a8171]">🚚 Shipping Label</p>
+            <button onClick={printShippingLabel} className="text-[10px] font-semibold text-[#a8781f] hover:underline">🖨️ Print Label</button>
           </div>
           <div className="rounded-lg border border-[#2C1810]/30 p-3 text-[#2C1810] space-y-2">
             <div>
-              <p className="text-[9px] uppercase tracking-wide text-[#968871]">From</p>
+              <p className="text-[9px] uppercase tracking-wide text-[#8a8171]">From</p>
               <p className="text-xs font-semibold">{BACKERO.name}</p>
-              <p className="text-[10px] text-[#6d5f4c]">{BACKERO.address}</p>
-              <p className="text-[10px] text-[#6d5f4c]">GSTIN: {BACKERO.gst}</p>
+              <p className="text-[10px] text-[#6b6155]">{BACKERO.address}</p>
+              <p className="text-[10px] text-[#6b6155]">GSTIN: {BACKERO.gst}</p>
             </div>
-            <div className="pt-2 border-t border-dashed border-[#e2dac8]">
-              <p className="text-[9px] uppercase tracking-wide text-[#968871]">Ship To</p>
+            <div className="pt-2 border-t border-dashed border-[#e7e2d6]">
+              <p className="text-[9px] uppercase tracking-wide text-[#8a8171]">Ship To</p>
               <p className="text-sm font-bold">{shipToClient?.name || order.customer || 'Customer'}</p>
-              {shipToClient?.address && <p className="text-[10px] text-[#6d5f4c]">{shipToClient.address}{shipToClient.state ? `, ${shipToClient.state}` : ''}</p>}
-              {shipToClient?.phone && <p className="text-[10px] text-[#6d5f4c]">Ph: {shipToClient.phone}</p>}
-              {shipToClient?.gstin && <p className="text-[10px] text-[#6d5f4c]">GSTIN: {shipToClient.gstin}</p>}
-              {!invoice && <p className="text-[10px] text-[#968871] italic">No invoice linked — address unavailable</p>}
+              {shipToClient?.address && <p className="text-[10px] text-[#6b6155]">{shipToClient.address}{shipToClient.state ? `, ${shipToClient.state}` : ''}</p>}
+              {shipToClient?.phone && <p className="text-[10px] text-[#6b6155]">Ph: {shipToClient.phone}</p>}
+              {shipToClient?.gstin && <p className="text-[10px] text-[#6b6155]">GSTIN: {shipToClient.gstin}</p>}
+              {!invoice && <p className="text-[10px] text-[#8a8171] italic">No invoice linked — address unavailable</p>}
             </div>
-            <div className="pt-2 border-t border-dashed border-[#e2dac8] flex items-center justify-between">
+            <div className="pt-2 border-t border-dashed border-[#e7e2d6] flex items-center justify-between">
               <div>
                 <p className="text-xs font-semibold">{(already ? order.dispatchRecord.carrier : form.carrier) || '—'}</p>
-                <p className="text-[10px] font-mono text-[#6d5f4c]">AWB: {(already ? order.dispatchRecord.tracking : form.tracking) || '—'}</p>
+                <p className="text-[10px] font-mono text-[#6b6155]">AWB: {(already ? order.dispatchRecord.tracking : form.tracking) || '—'}</p>
               </div>
               <span className="text-[9px] font-bold border border-[#2C1810]/40 rounded px-1.5 py-0.5 uppercase">Prepaid</span>
             </div>
@@ -971,44 +971,44 @@ export function StageDispatch({ order, onSaved }) {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4">
         <div>
-          <p className="text-[10px] font-bold uppercase tracking-wide text-[#968871] mb-1.5">📄 Documentation — from Orders</p>
-          <div className="rounded-lg border border-[#d3c9b4] bg-[#f0eadd] p-3 max-h-32 overflow-y-auto">
+          <p className="text-[10px] font-bold uppercase tracking-wide text-[#8a8171] mb-1.5">📄 Documentation — from Orders</p>
+          <div className="rounded-lg border border-[#ddd6c4] bg-[#fbfaf7] p-3 max-h-32 overflow-y-auto">
             {docRows.length === 0 ? (
-              <p className="text-xs text-[#968871]">No documents attached in Orders — Documentation.</p>
+              <p className="text-xs text-[#8a8171]">No documents attached in Orders — Documentation.</p>
             ) : (
               <div className="space-y-1">
                 {docRows.map((d, i) => (
-                  <p key={i} className="text-xs text-[#2e241b] truncate" title={d.name}><span className="text-[#968871]">{d.label}:</span> {d.name}</p>
+                  <p key={i} className="text-xs text-[#1c1917] truncate" title={d.name}><span className="text-[#8a8171]">{d.label}:</span> {d.name}</p>
                 ))}
               </div>
             )}
           </div>
         </div>
         <div>
-          <p className="text-[10px] font-bold uppercase tracking-wide text-[#968871] mb-1.5">🧾 Invoice</p>
-          <div className="rounded-lg border border-[#d3c9b4] bg-[#f0eadd] p-3">
+          <p className="text-[10px] font-bold uppercase tracking-wide text-[#8a8171] mb-1.5">🧾 Invoice</p>
+          <div className="rounded-lg border border-[#ddd6c4] bg-[#fbfaf7] p-3">
             {!invoice ? (
-              <p className="text-xs text-[#968871]">No invoice linked to this order.</p>
+              <p className="text-xs text-[#8a8171]">No invoice linked to this order.</p>
             ) : (
               <>
-                <p className="text-xs font-bold text-[#2e241b]">{invoice.invoiceNumber}</p>
-                <p className="text-[10px] text-[#6d5f4c] mt-0.5">₹{(invoice.paidAmount || 0).toLocaleString('en-IN')} / ₹{(invoice.totalAmount || 0).toLocaleString('en-IN')} — {invoice.status}</p>
-                <button onClick={printLinkedInvoice} disabled={printingInvoice} className="text-[10px] font-semibold text-[#7a5a10] hover:underline mt-1.5 disabled:opacity-50">🖨️ {printingInvoice ? 'Loading…' : 'Print Invoice'}</button>
+                <p className="text-xs font-bold text-[#1c1917]">{invoice.invoiceNumber}</p>
+                <p className="text-[10px] text-[#6b6155] mt-0.5">₹{(invoice.paidAmount || 0).toLocaleString('en-IN')} / ₹{(invoice.totalAmount || 0).toLocaleString('en-IN')} — {invoice.status}</p>
+                <button onClick={printLinkedInvoice} disabled={printingInvoice} className="text-[10px] font-semibold text-[#a8781f] hover:underline mt-1.5 disabled:opacity-50">🖨️ {printingInvoice ? 'Loading…' : 'Print Invoice'}</button>
               </>
             )}
           </div>
         </div>
         <div>
-          <p className="text-[10px] font-bold uppercase tracking-wide text-[#968871] mb-1.5">📋 Dispatch Checklist</p>
-          <div className="rounded-lg border border-[#d3c9b4] bg-[#f0eadd] p-3 space-y-1.5">
+          <p className="text-[10px] font-bold uppercase tracking-wide text-[#8a8171] mb-1.5">📋 Dispatch Checklist</p>
+          <div className="rounded-lg border border-[#ddd6c4] bg-[#fbfaf7] p-3 space-y-1.5">
             {DISPATCH_CHECKLIST.map((c) => (
-              <label key={c.key} className={clsx('flex items-center gap-2 text-xs text-[#2e241b]', !already && 'cursor-pointer')}>
+              <label key={c.key} className={clsx('flex items-center gap-2 text-xs text-[#1c1917]', !already && 'cursor-pointer')}>
                 <input
                   type="checkbox"
                   checked={already ? !!savedChecklist[c.key] : form.checklist[c.key]}
                   onChange={() => !already && toggleCheck(c.key)}
                   disabled={!!already}
-                  className="w-4 h-4 accent-[#5c8a5f] disabled:opacity-70"
+                  className="w-4 h-4 accent-[#2f6b4f] disabled:opacity-70"
                 />
                 {c.label}
               </label>
@@ -1018,7 +1018,7 @@ export function StageDispatch({ order, onSaved }) {
       </div>
 
       <div className="mb-4">
-        <p className="text-[10px] font-bold uppercase tracking-wide text-[#968871] mb-1.5">✅ Test Summary — everything verified for this customer</p>
+        <p className="text-[10px] font-bold uppercase tracking-wide text-[#8a8171] mb-1.5">✅ Test Summary — everything verified for this customer</p>
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
           <TestResultGroup title="Bulk QC" rows={bulkQCRows} />
           <TestResultGroup title="Final QC" rows={finalQCRows} />
@@ -1027,11 +1027,11 @@ export function StageDispatch({ order, onSaved }) {
       </div>
 
       {already ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs bg-[#dce9d4] border border-[#b9d2af] rounded-xl p-3">
-          <div><p className="text-[#968871] uppercase text-[10px]">Carrier</p><p className="font-semibold">{order.dispatchRecord.carrier}</p></div>
-          <div><p className="text-[#968871] uppercase text-[10px]">Tracking</p><p className="font-semibold">{order.dispatchRecord.tracking}</p></div>
-          <div><p className="text-[#968871] uppercase text-[10px]">Date</p><p className="font-semibold">{order.dispatchRecord.date}</p></div>
-          <div><p className="text-[#968871] uppercase text-[10px]">ETA</p><p className="font-semibold">{order.dispatchRecord.eta || '—'}</p></div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs bg-[#e2ece5] border border-[#c3d9c9] rounded-xl p-3">
+          <div><p className="text-[#8a8171] uppercase text-[10px]">Carrier</p><p className="font-semibold">{order.dispatchRecord.carrier}</p></div>
+          <div><p className="text-[#8a8171] uppercase text-[10px]">Tracking</p><p className="font-semibold">{order.dispatchRecord.tracking}</p></div>
+          <div><p className="text-[#8a8171] uppercase text-[10px]">Date</p><p className="font-semibold">{order.dispatchRecord.date}</p></div>
+          <div><p className="text-[#8a8171] uppercase text-[10px]">ETA</p><p className="font-semibold">{order.dispatchRecord.eta || '—'}</p></div>
         </div>
       ) : (
         <>

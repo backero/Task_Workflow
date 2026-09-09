@@ -10,36 +10,36 @@
 /* ── Global tokens ───────────────────────────────────────────────────────── */
 :root {
   /* Surfaces */
-  --s-page:      #f5f6f8;
-  --s-card:      #ffffff;
-  --s-hover:     #f1f5f9;
-  --s-elevated:  #ffffff;
+  --s-page:      #f1ede4;
+  --s-card:      #fbfaf7;
+  --s-hover:     #f1ede4;
+  --s-elevated:  #fbfaf7;
 
   /* Borders */
-  --b-default:   rgba(15,23,42,0.09);
-  --b-subtle:    rgba(15,23,42,0.05);
+  --b-default:   rgba(28,25,23,0.1);
+  --b-subtle:    rgba(28,25,23,0.06);
   --b-chrome:    rgba(255,255,255,0.07);
 
   /* Text */
-  --t-primary:   #0f172a;
-  --t-sub:       #475569;
-  --t-muted:     #94a3b8;
+  --t-primary:   #1c1917;
+  --t-sub:       #6b6155;
+  --t-muted:     #a39c8c;
 
-  /* Brand (blue) */
-  --brand:       #2563eb;
-  --grad-brand:  linear-gradient(135deg,#1d4ed8 0%,#2563eb 50%,#3b82f6 100%);
-  --grad-glow:   rgba(37,99,235,0.22);
+  /* Brand (brass-gold) */
+  --brand:       #a8781f;
+  --grad-brand:  linear-gradient(135deg,#7c5a17 0%,#a8781f 50%,#c2a35a 100%);
+  --grad-glow:   rgba(168,120,31,0.24);
 
-  /* Zone — unified blue accent, same everywhere */
-  --zone:          #2563eb;
-  --zone-mid:      #3b82f6;
-  --zone-bg:       #f5f6f8;
-  --zone-dot:      rgba(15,23,42,0.045);
-  --zone-glow:     rgba(37,99,235,0.14);
-  --zone-card:     rgba(37,99,235,0.045);
-  --zone-link:         #93c5fd;
-  --zone-link-bg:      rgba(59,130,246,0.12);
-  --zone-link-border:  #3b82f6;
+  /* Zone — unified brass-gold accent, same everywhere */
+  --zone:          #a8781f;
+  --zone-mid:      #c2a35a;
+  --zone-bg:       #f1ede4;
+  --zone-dot:      rgba(28,25,23,0.05);
+  --zone-glow:     rgba(168,120,31,0.16);
+  --zone-card:     rgba(168,120,31,0.05);
+  --zone-link:         #d8c391;
+  --zone-link-bg:      rgba(168,120,31,0.14);
+  --zone-link-border:  #c2a35a;
 
   /* Radii */
   --r-sm: 10px;
@@ -75,7 +75,7 @@
   ::-webkit-scrollbar-thumb { background: rgba(15,23,42,0.12); border-radius: 99px; }
   ::-webkit-scrollbar-thumb:hover { background: var(--zone, #2563eb); }
 
-  h1,h2,h3,h4,h5,h6 { @apply tracking-tight; }
+  h1,h2,h3,h4,h5,h6 { @apply tracking-tight; font-family: 'Zilla Slab', Georgia, serif; }
   ::selection { background: var(--zone-card, rgba(16,185,129,0.15)); color: inherit; }
 }
 

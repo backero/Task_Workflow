@@ -10,6 +10,8 @@ const TABS = [
   { key: 'pending', label: 'Pending' },
   { key: 'approved', label: 'Approved' },
   { key: 'rejected', label: 'Rejected' },
+  { key: 'published', label: 'Published' },
+  { key: 'publish_failed', label: 'Failed' },
 ];
 
 const PLATFORM_LABELS = {
@@ -110,13 +112,32 @@ function RequestCard({ request, onApprove, onReject, isMutating }) {
       )}
 
       {request.status !== 'pending' && (
-        <div className={clsx('text-xs rounded-lg px-3 py-2 border',
-          request.status === 'approved'
-            ? 'text-green-700 bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800'
-            : 'text-red-700 bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800')}
+        <div className={clsx('text-xs rounded-lg px-3 py-2 border space-y-1',
+          request.status === 'rejected'
+            ? 'text-red-700 bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800'
+            : request.status === 'publish_failed'
+            ? 'text-orange-700 bg-orange-50 dark:bg-orange-900/20 border-orange-200 dark:border-orange-800'
+            : 'text-green-700 bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800')}
         >
-          {request.status === 'approved' ? 'Approved' : 'Rejected'} by {request.reviewedBy?.firstName || 'Unknown'}
-          {request.reviewNotes ? ` — ${request.reviewNotes}` : ''}
+          <div>
+            {request.status === 'approved' && `Approved by ${request.reviewedBy?.firstName || 'Unknown'} — awaiting publish`}
+            {request.status === 'rejected' && `Rejected by ${request.reviewedBy?.firstName || 'Unknown'}`}
+            {request.status === 'published' && 'Published live'}
+            {request.status === 'publish_failed' && 'Publish failed'}
+            {request.reviewNotes ? ` — ${request.reviewNotes}` : ''}
+          </div>
+          {request.status === 'publish_failed' && request.publishError && (
+            <div className="text-orange-800 dark:text-orange-300">{request.publishError}</div>
+          )}
+          {request.status === 'published' && request.publishedUrls?.length > 0 && (
+            <div className="flex flex-wrap gap-x-3">
+              {request.publishedUrls.map((p, i) => (
+                <a key={i} href={p.url} target="_blank" rel="noreferrer" className="underline">
+                  {PLATFORM_LABELS[p.platform] || p.platform}
+                </a>
+              ))}
+            </div>
+          )}
         </div>
       )}
     </div>

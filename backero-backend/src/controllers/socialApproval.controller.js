@@ -29,6 +29,31 @@ exports.receiveApprovalRequest = asyncHandler(async (req, res) => {
   sendSuccess(res, { request: { id: request._id, status: request.status } }, 'Approval request received', 201);
 });
 
+// PATCH /api/integrations/social-approvals/:externalId/status — called by the
+// automation system once it actually attempts the publish, authenticated via
+// authenticateApiKey. Separate from approve/reject: those record the human
+// decision, this records what happened on the platform afterward.
+exports.reportPublishStatus = asyncHandler(async (req, res) => {
+  const { status, publishedUrls, publishError } = req.body;
+  if (![SOCIAL_APPROVAL_STATUS.PUBLISHED, SOCIAL_APPROVAL_STATUS.PUBLISH_FAILED].includes(status)) {
+    return sendError(res, `status must be "${SOCIAL_APPROVAL_STATUS.PUBLISHED}" or "${SOCIAL_APPROVAL_STATUS.PUBLISH_FAILED}".`, 400);
+  }
+
+  const request = await SocialApprovalRequest.findOne({
+    organizationId: req.organizationId,
+    externalId: req.params.externalId,
+  });
+  if (!request) return sendError(res, 'Request not found.', 404);
+
+  request.status = status;
+  request.publishedUrls = publishedUrls || [];
+  request.publishError = publishError;
+  request.publishedAt = new Date();
+  await request.save();
+
+  sendSuccess(res, { request }, 'Publish status recorded');
+});
+
 // GET /api/social-approvals — Marketing manager/admin only
 exports.listSocialApprovals = asyncHandler(async (req, res) => {
   const { page = 1, limit = 20, status } = req.query;
@@ -52,12 +77,14 @@ exports.listSocialApprovals = asyncHandler(async (req, res) => {
 // GET /api/social-approvals/stats
 exports.getSocialApprovalStats = asyncHandler(async (req, res) => {
   const orgId = req.user.organizationId;
-  const [pending, approved, rejected] = await Promise.all([
+  const [pending, approved, rejected, published, publishFailed] = await Promise.all([
     SocialApprovalRequest.countDocuments({ organizationId: orgId, status: 'pending' }),
     SocialApprovalRequest.countDocuments({ organizationId: orgId, status: 'approved' }),
     SocialApprovalRequest.countDocuments({ organizationId: orgId, status: 'rejected' }),
+    SocialApprovalRequest.countDocuments({ organizationId: orgId, status: 'published' }),
+    SocialApprovalRequest.countDocuments({ organizationId: orgId, status: 'publish_failed' }),
   ]);
-  sendSuccess(res, { stats: { pending, approved, rejected } });
+  sendSuccess(res, { stats: { pending, approved, rejected, published, publishFailed } });
 });
 
 // POST /api/social-approvals/:id/approve

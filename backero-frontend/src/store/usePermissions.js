@@ -78,5 +78,6 @@ export const usePermissions = () => {
     canApprovals:  can('tasks.approvals'),
     canAnalytics:  can('tasks.analytics'),
     canCalendar:   can('tasks.calendar'),
+    canDocuments:  can('finance'),
   };
 };

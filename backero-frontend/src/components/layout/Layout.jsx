@@ -22,6 +22,7 @@ function getZone(pathname) {
   if (pathname.startsWith('/workflow') || pathname.startsWith('/tasks')) return 'zone-tasks';
   if (pathname.startsWith('/management'))                    return 'zone-management';
   if (pathname.startsWith('/settings'))                      return 'zone-settings';
+  if (pathname.startsWith('/documents'))                     return 'zone-settings';
   return 'zone-dashboard';
 }
 

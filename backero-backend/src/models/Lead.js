@@ -37,6 +37,8 @@ const leadSchema = new mongoose.Schema({
   bestTime: { type: String },
   teamSize: { type: String },
   rapportNote: { type: String },
+  // Voice-note recorded/attached during intake, auto-transcribed to help fill this form.
+  intakeAudio: { url: String, publicId: String, name: String, transcript: String },
 
   // Lead info
   source: { type: String, default: LEAD_SOURCES.MANUAL },

@@ -7,28 +7,28 @@ import clsx from 'clsx';
 // which (via SampleProduction -> SampleLeadDetail -> StageSteps -> SampleProduction) left PILL
 // in the temporal dead zone the moment StageSteps.jsx used it at module scope (PRIORITY_STYLE).
 
-export const FONT_IMPORT = "@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Fraunces:wght@500;600;700&display=swap');";
-const bodyFont = { fontFamily: "'Inter', -apple-system, sans-serif" };
+export const FONT_IMPORT = "@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=Zilla+Slab:wght@500;600;700&display=swap');";
+const bodyFont = { fontFamily: "'IBM Plex Sans', -apple-system, sans-serif" };
 
 export function Card({ children, className = '', ...rest }) {
-  return <div className={clsx('bg-white rounded-2xl border border-[#e2dac8] shadow-[0_1px_3px_rgba(46,36,27,0.05),0_4px_12px_rgba(46,36,27,0.08)] p-4', className)} style={bodyFont} {...rest}>{children}</div>;
+  return <div className={clsx('bg-white rounded-md border border-[#e7e2d6] shadow-[0_1px_2px_rgba(28,25,23,0.04),0_10px_28px_rgba(28,25,23,0.06)] p-4', className)} style={bodyFont} {...rest}>{children}</div>;
 }
 
 export const PILL = {
-  success: 'bg-[#dce9d4] text-[#3a5f3c]',
-  warning: 'bg-[#f3e3c2] text-[#7a5a10]',
-  danger: 'bg-[#f0d8d2] text-[#8c3a30]',
-  info: 'bg-[#dde5ea] text-[#33526b]',
-  purple: 'bg-[#e6dce9] text-[#5d4470]',
-  gray: 'bg-[#e2dac8] text-[#5a4d3a]',
+  success: 'bg-[#e2ece5] text-[#2f6b4f]',
+  warning: 'bg-[#f3e6c8] text-[#a8781f]',
+  danger: 'bg-[#f5e3e0] text-[#a13d34]',
+  info: 'bg-[#f3e6c8] text-[#a8781f]',
+  purple: 'bg-[#ece2ea] text-[#7c5a17]',
+  gray: 'bg-[#e7e2d6] text-[#6b6155]',
 };
 
-export function StatCard({ emoji, iconTone, label, value, hint, valueTone = 'text-[#2e241b]', onClick }) {
+export function StatCard({ emoji, iconTone, label, value, hint, valueTone = 'text-[#1c1917]', onClick }) {
   return (
     <Card
       className={clsx(
-        'flex items-start justify-between gap-3 hover:-translate-y-0.5 hover:shadow-[0_10px_40px_rgba(46,36,27,0.16)] transition-transform',
-        onClick && 'cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-[#f2b23e]'
+        'flex items-start justify-between gap-3 hover:-translate-y-0.5 hover:shadow-[0_10px_40px_rgba(28,25,23,0.12)] transition-transform',
+        onClick && 'cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-[#a8781f]'
       )}
       {...(onClick ? {
         role: 'button',
@@ -38,11 +38,11 @@ export function StatCard({ emoji, iconTone, label, value, hint, valueTone = 'tex
       } : {})}
     >
       <div className="min-w-0">
-        <p className="text-xs text-[#6d5f4c] font-medium mb-1.5">{label}</p>
-        <p className={clsx('text-2xl font-bold tracking-tight', valueTone)}>{value}</p>
-        {hint && <p className="text-[11px] text-[#968871] mt-1">{hint}</p>}
+        <p className="text-xs text-[#6b6155] font-medium mb-1.5">{label}</p>
+        <p className={clsx('text-2xl font-bold tracking-tight', valueTone)} style={{ fontFamily: "'Zilla Slab', Georgia, serif" }}>{value}</p>
+        {hint && <p className="text-[11px] text-[#a39c8c] mt-1">{hint}</p>}
       </div>
-      <div className={clsx('w-11 h-11 rounded-xl flex items-center justify-center text-lg flex-shrink-0', PILL[iconTone] || PILL.gray)}>{emoji}</div>
+      <div className={clsx('w-11 h-11 rounded-md flex items-center justify-center text-lg flex-shrink-0', PILL[iconTone] || PILL.gray)}>{emoji}</div>
     </Card>
   );
 }

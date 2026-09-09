@@ -45,12 +45,12 @@ const ORDER_JOURNEY_STAGES = [
 // content still renders when an order is actually sitting at that stage (via the auto-jump
 // effect below), there's just nothing to click to jump there directly.
 const ORDER_JOURNEY_TAB_ORDER = ['Orders', 'Procurement', 'Weighing', 'Bulk QC', 'Product Packaging', 'Final QC', 'Dispatch'];
-const bodyFont = { fontFamily: "'Inter', -apple-system, sans-serif" };
-const displayFont = { fontFamily: "'Fraunces', Georgia, serif" };
-const inputCls = 'px-3 py-2 text-sm rounded-[10px] border-[1.5px] border-[#d3c9b4] bg-[#f0eadd] text-[#2e241b] focus:outline-none focus:border-[#968871] placeholder:text-[#968871]';
-const accentBtn = 'inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-[#f2b23e] text-[#2e241b] text-xs font-bold hover:brightness-95 transition disabled:opacity-50';
-const outlineBtn = 'inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full border-[1.5px] border-[#d3c9b4] text-[#6d5f4c] text-xs font-semibold hover:bg-[#e7dfce] hover:border-[#968871] hover:text-[#2e241b] transition';
-const textLink = 'text-xs font-semibold text-[#4a3a29] hover:text-[#2e241b]';
+const bodyFont = { fontFamily: "'IBM Plex Sans', -apple-system, sans-serif" };
+const displayFont = { fontFamily: "'Zilla Slab', Georgia, serif" };
+const inputCls = 'px-3 py-2 text-sm rounded-[10px] border-[1.5px] border-[#ddd6c4] bg-[#fbfaf7] text-[#1c1917] focus:outline-none focus:border-[#8a8171] placeholder:text-[#8a8171]';
+const accentBtn = 'inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-[#a8781f] text-[#1c1917] text-xs font-bold hover:brightness-95 transition disabled:opacity-50';
+const outlineBtn = 'inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full border-[1.5px] border-[#ddd6c4] text-[#6b6155] text-xs font-semibold hover:bg-[#f1ede4] hover:border-[#8a8171] hover:text-[#1c1917] transition';
+const textLink = 'text-xs font-semibold text-[#292521] hover:text-[#1c1917]';
 
 // Shared by "Link from Catalog" (Formulas tab) and the Products-tab auto-link — maps a real
 // CatalogProduct's Formulation & Procedure into this file's row shape (percent/conv/costPerUnit)
@@ -136,9 +136,9 @@ function QaConversationSummary({ queries, leadName, onCreateProduct, onMakeSampl
 
   if (!list.length) {
     return (
-      <div className="p-3 rounded-[10px] border border-dashed border-[#d3c9b4] bg-[#e7dfce]">
-        <p className="text-xs font-bold text-[#6d5f4c] mb-1">📝 Conversation Summary</p>
-        <p className="text-xs text-[#968871]">No conversation yet — add the first query above.</p>
+      <div className="p-3 rounded-[10px] border border-dashed border-[#ddd6c4] bg-[#f1ede4]">
+        <p className="text-xs font-bold text-[#6b6155] mb-1">📝 Conversation Summary</p>
+        <p className="text-xs text-[#8a8171]">No conversation yet — add the first query above.</p>
       </div>
     );
   }
@@ -162,18 +162,18 @@ function QaConversationSummary({ queries, leadName, onCreateProduct, onMakeSampl
   }
 
   return (
-    <div className="p-3 rounded-[10px] border border-[#d3c9b4] bg-[#f0eadd] space-y-2">
-      <p className="text-[11px] text-[#6d5f4c]">
+    <div className="p-3 rounded-[10px] border border-[#ddd6c4] bg-[#fbfaf7] space-y-2">
+      <p className="text-[11px] text-[#6b6155]">
         💬 <span className="font-bold">{list.length}</span> quer{list.length === 1 ? 'y' : 'ies'} · ✅ <span className="font-bold">{answered}</span> answered · ⏳ <span className="font-bold">{open}</span> open
         {lastIso && <> · Last activity: <span className="font-bold">{format(new Date(lastIso), 'dd MMM, hh:mm a')}</span></>}
       </p>
       <div className="flex items-center justify-between gap-2">
-        <p className="text-xs font-bold text-[#6d5f4c]">📝 Conversation Summary · auto summary</p>
+        <p className="text-xs font-bold text-[#6b6155]">📝 Conversation Summary · auto summary</p>
         <button onClick={copy} className={outlineBtn}>{copied ? '✓ Copied' : '📋 Copy Summary'}</button>
       </div>
-      <p className="text-xs text-[#4a3a29]">{summary}</p>
-      <div className="flex items-center gap-2 flex-wrap pt-2 border-t border-[#d3c9b4]">
-        <span className="text-[11px] font-semibold text-[#968871]">{allDone ? "✅ All questions answered — what's next?" : 'Or turn this into:'}</span>
+      <p className="text-xs text-[#292521]">{summary}</p>
+      <div className="flex items-center gap-2 flex-wrap pt-2 border-t border-[#ddd6c4]">
+        <span className="text-[11px] font-semibold text-[#8a8171]">{allDone ? "✅ All questions answered — what's next?" : 'Or turn this into:'}</span>
         <button onClick={onCreateProduct} className={outlineBtn}>🆕 Create Product</button>
         <button onClick={onCreateProduct} className={outlineBtn}>🔗 Connect Existing</button>
         <button onClick={onMakeSample} className={outlineBtn}>🧪 Make a Sample</button>
@@ -212,57 +212,57 @@ function ProductLinkModal({ product, catalogProducts, saving, onClose, onSave, o
 
   return (
     <div className={clsx('fixed inset-0 z-[70] flex items-center justify-center bg-black/40', maximized ? 'p-0' : 'p-4')} onClick={onClose}>
-      <div className={clsx('bg-[#f0eadd] shadow-2xl border border-[#d3c9b4] flex flex-col',
+      <div className={clsx('bg-[#fbfaf7] shadow-2xl border border-[#ddd6c4] flex flex-col',
         maximized ? 'w-screen h-screen max-w-none rounded-none' : 'w-full max-w-lg rounded-2xl')} style={bodyFont} onClick={(e) => e.stopPropagation()}>
-        <div className={clsx('flex items-center justify-between px-5 py-4 border-b border-[#e2dac8] bg-[#e7dfce] flex-shrink-0', !maximized && 'rounded-t-2xl')}>
-          <h3 className="font-bold text-[#2e241b]" style={displayFont}>{product ? `🧴 Edit Product Link — ${product.productId}` : '➕ Link Product'}</h3>
+        <div className={clsx('flex items-center justify-between px-5 py-4 border-b border-[#e7e2d6] bg-[#f1ede4] flex-shrink-0', !maximized && 'rounded-t-2xl')}>
+          <h3 className="font-bold text-[#1c1917]" style={displayFont}>{product ? `🧴 Edit Product Link — ${product.productId}` : '➕ Link Product'}</h3>
           <div className="flex items-center gap-1.5">
-            <button onClick={() => setMaximized((m) => !m)} title={maximized ? 'Restore' : 'Maximize'} className="w-8 h-8 rounded-lg hover:bg-[#ddd3be] flex items-center justify-center text-[#968871] hover:text-[#2e241b] text-sm">{maximized ? '🗗' : '🗖'}</button>
-            <button onClick={onClose} className="text-[#968871] hover:text-[#2e241b] text-xl leading-none">&times;</button>
+            <button onClick={() => setMaximized((m) => !m)} title={maximized ? 'Restore' : 'Maximize'} className="w-8 h-8 rounded-lg hover:bg-[#e7e2d6] flex items-center justify-center text-[#8a8171] hover:text-[#1c1917] text-sm">{maximized ? '🗗' : '🗖'}</button>
+            <button onClick={onClose} className="text-[#8a8171] hover:text-[#1c1917] text-xl leading-none">&times;</button>
           </div>
         </div>
         <div className={clsx('p-5 space-y-3', maximized && 'flex-1 overflow-y-auto')}>
           <div>
-            <label className="text-xs font-semibold text-[#968871] uppercase tracking-wide mb-1 block">
-              Product ID <span className="text-[#b6453a]">*</span> <span className="font-normal normal-case">(catalogue mirror)</span>
+            <label className="text-xs font-semibold text-[#8a8171] uppercase tracking-wide mb-1 block">
+              Product ID <span className="text-[#7c2b23]">*</span> <span className="font-normal normal-case">(catalogue mirror)</span>
             </label>
             <input value={productId} onChange={(e) => { setProductId(e.target.value); setSearch(e.target.value); setSelectedCatalog(null); }}
               placeholder="e.g., FG-SC-001" className={clsx(inputCls, 'w-full')} />
             {search && !selectedCatalog && (
-              <div className="mt-1 rounded-[10px] border border-[#d3c9b4] bg-white max-h-32 overflow-y-auto">
-                {matches.length === 0 && <div className="px-3 py-2 text-xs text-[#968871]">No catalog match.</div>}
+              <div className="mt-1 rounded-[10px] border border-[#ddd6c4] bg-white max-h-32 overflow-y-auto">
+                {matches.length === 0 && <div className="px-3 py-2 text-xs text-[#8a8171]">No catalog match.</div>}
                 {matches.slice(0, 8).map((p) => (
-                  <button key={p._id} type="button" onClick={() => pickCatalog(p)} className="w-full text-left px-3 py-2 text-xs hover:bg-[#e7dfce] flex justify-between">
-                    <span className="text-[#2e241b]">{p.name}</span>
-                    <span className="text-[#968871] font-mono">{p.code}</span>
+                  <button key={p._id} type="button" onClick={() => pickCatalog(p)} className="w-full text-left px-3 py-2 text-xs hover:bg-[#f1ede4] flex justify-between">
+                    <span className="text-[#1c1917]">{p.name}</span>
+                    <span className="text-[#8a8171] font-mono">{p.code}</span>
                   </button>
                 ))}
               </div>
             )}
           </div>
           <div>
-            <label className="text-xs font-semibold text-[#968871] uppercase tracking-wide mb-1 block">Product Name</label>
+            <label className="text-xs font-semibold text-[#8a8171] uppercase tracking-wide mb-1 block">Product Name</label>
             <input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g., Vitamin C Serum" className={clsx(inputCls, 'w-full')} />
           </div>
           <div>
-            <label className="text-xs font-semibold text-[#968871] uppercase tracking-wide mb-1 block">Formula Basis</label>
+            <label className="text-xs font-semibold text-[#8a8171] uppercase tracking-wide mb-1 block">Formula Basis</label>
             <select value={basis} onChange={(e) => setBasis(e.target.value)} className={clsx(inputCls, 'w-full')}>
               {PRODUCT_BASIS_OPTIONS.map((b) => <option key={b} value={b}>{b}</option>)}
             </select>
           </div>
           <div>
-            <label className="text-xs font-semibold text-[#968871] uppercase tracking-wide mb-1 block">Notes</label>
+            <label className="text-xs font-semibold text-[#8a8171] uppercase tracking-wide mb-1 block">Notes</label>
             <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2}
               placeholder="Context — target price hints, packaging, decision makers..." className={clsx(inputCls, 'w-full')} />
           </div>
-          <div className="p-2.5 rounded-lg bg-[#dde5ea] text-[#33526b] text-[11px] flex gap-2">
+          <div className="p-2.5 rounded-lg bg-[#f3e6c8] text-[#a8781f] text-[11px] flex gap-2">
             <span>ℹ️</span>
             <span>Pricing happens from the row actions: <strong>💰 Quote Price</strong> → <strong>✓ Accept Price</strong>. Payment stays a CRM mirror.</span>
           </div>
           <div className="flex items-center gap-3 pt-1">
             {product && (
               <button type="button" onClick={() => { if (confirm(`Remove ${product.name} from this lead?`)) onRemove(product.productId); }}
-                className="text-xs font-semibold text-[#8c3a30] hover:opacity-70 mr-auto">Remove product link</button>
+                className="text-xs font-semibold text-[#a13d34] hover:opacity-70 mr-auto">Remove product link</button>
             )}
             <button type="button" onClick={onClose} className={clsx(outlineBtn, product ? '' : 'flex-1 justify-center')}>Cancel</button>
             <button
@@ -299,30 +299,30 @@ function NewFormulaModal({ products, saving, onClose, onSave }) {
 
   return (
     <div className={clsx('fixed inset-0 z-[70] flex items-center justify-center bg-black/40', maximized ? 'p-0' : 'p-4')} onClick={onClose}>
-      <div className={clsx('bg-[#f0eadd] shadow-2xl border border-[#d3c9b4] flex flex-col',
+      <div className={clsx('bg-[#fbfaf7] shadow-2xl border border-[#ddd6c4] flex flex-col',
         maximized ? 'w-screen h-screen max-w-none rounded-none' : 'w-full max-w-lg rounded-2xl')} style={bodyFont} onClick={(e) => e.stopPropagation()}>
-        <div className={clsx('flex items-center justify-between px-5 py-4 border-b border-[#e2dac8] bg-[#e7dfce] flex-shrink-0', !maximized && 'rounded-t-2xl')}>
-          <h3 className="font-bold text-[#2e241b]" style={displayFont}>➕ New Formula</h3>
+        <div className={clsx('flex items-center justify-between px-5 py-4 border-b border-[#e7e2d6] bg-[#f1ede4] flex-shrink-0', !maximized && 'rounded-t-2xl')}>
+          <h3 className="font-bold text-[#1c1917]" style={displayFont}>➕ New Formula</h3>
           <div className="flex items-center gap-1.5">
-            <button onClick={() => setMaximized((m) => !m)} title={maximized ? 'Restore' : 'Maximize'} className="w-8 h-8 rounded-lg hover:bg-[#ddd3be] flex items-center justify-center text-[#968871] hover:text-[#2e241b] text-sm">{maximized ? '🗗' : '🗖'}</button>
-            <button onClick={onClose} className="text-[#968871] hover:text-[#2e241b] text-xl leading-none">&times;</button>
+            <button onClick={() => setMaximized((m) => !m)} title={maximized ? 'Restore' : 'Maximize'} className="w-8 h-8 rounded-lg hover:bg-[#e7e2d6] flex items-center justify-center text-[#8a8171] hover:text-[#1c1917] text-sm">{maximized ? '🗗' : '🗖'}</button>
+            <button onClick={onClose} className="text-[#8a8171] hover:text-[#1c1917] text-xl leading-none">&times;</button>
           </div>
         </div>
         <div className={clsx('p-5 space-y-3', maximized && 'flex-1 overflow-y-auto')}>
           <div>
-            <label className="text-xs font-semibold text-[#968871] uppercase tracking-wide mb-1 block">Formula Name <span className="text-[#b6453a]">*</span></label>
+            <label className="text-xs font-semibold text-[#8a8171] uppercase tracking-wide mb-1 block">Formula Name <span className="text-[#7c2b23]">*</span></label>
             <input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g., Vitamin C Serum 15% + Ferulic" className={clsx(inputCls, 'w-full')} autoFocus />
           </div>
           <div>
-            <label className="text-xs font-semibold text-[#968871] uppercase tracking-wide mb-1 block">Product <span className="text-[#b6453a]">*</span></label>
+            <label className="text-xs font-semibold text-[#8a8171] uppercase tracking-wide mb-1 block">Product <span className="text-[#7c2b23]">*</span></label>
             <select value={productId} onChange={(e) => setProductId(e.target.value)} className={clsx(inputCls, 'w-full')}>
               <option value="">— select product —</option>
               {(products || []).map((p) => <option key={p.productId} value={p.productId}>{p.productId} — {p.name}</option>)}
             </select>
-            {(products || []).length === 0 && <p className="text-[11px] text-[#8c3a30] mt-1">No products linked yet — add one in the Products tab first.</p>}
-            <p className="text-[10px] text-[#968871] mt-1">This formula, and every sample made from it, stays tied to this product — its own Payments-tab confirmation is what unlocks sampling for it.</p>
+            {(products || []).length === 0 && <p className="text-[11px] text-[#a13d34] mt-1">No products linked yet — add one in the Products tab first.</p>}
+            <p className="text-[10px] text-[#8a8171] mt-1">This formula, and every sample made from it, stays tied to this product — its own Payments-tab confirmation is what unlocks sampling for it.</p>
           </div>
-          <div className="p-2.5 rounded-lg bg-[#dde5ea] text-[#33526b] text-[11px] flex gap-2">
+          <div className="p-2.5 rounded-lg bg-[#f3e6c8] text-[#a8781f] text-[11px] flex gap-2">
             <span>ℹ️</span>
             <span>A <strong>V1 (Draft)</strong> version is created automatically. Build the ingredient composition in <strong>Product Catalog</strong> (its Formulation tab) and link it here from the Products tab, then request samples against specific versions.</span>
           </div>
@@ -377,36 +377,36 @@ function NewSampleModal({ formulas, products, saving, onClose, onSave, onGoToPay
 
   return (
     <div className={clsx('fixed inset-0 z-[70] flex items-center justify-center bg-black/40', maximized ? 'p-0' : 'p-4')} onClick={onClose}>
-      <div className={clsx('bg-[#f0eadd] shadow-2xl border border-[#d3c9b4] flex flex-col',
+      <div className={clsx('bg-[#fbfaf7] shadow-2xl border border-[#ddd6c4] flex flex-col',
         maximized ? 'w-screen h-screen max-w-none rounded-none' : 'w-full max-w-lg rounded-2xl')} style={bodyFont} onClick={(e) => e.stopPropagation()}>
-        <div className={clsx('flex items-center justify-between px-5 py-4 border-b border-[#e2dac8] bg-[#e7dfce] flex-shrink-0', !maximized && 'rounded-t-2xl')}>
-          <h3 className="font-bold text-[#2e241b]" style={displayFont}>➕ Request New Sample</h3>
+        <div className={clsx('flex items-center justify-between px-5 py-4 border-b border-[#e7e2d6] bg-[#f1ede4] flex-shrink-0', !maximized && 'rounded-t-2xl')}>
+          <h3 className="font-bold text-[#1c1917]" style={displayFont}>➕ Request New Sample</h3>
           <div className="flex items-center gap-1.5">
-            <button onClick={() => setMaximized((m) => !m)} title={maximized ? 'Restore' : 'Maximize'} className="w-8 h-8 rounded-lg hover:bg-[#ddd3be] flex items-center justify-center text-[#968871] hover:text-[#2e241b] text-sm">{maximized ? '🗗' : '🗖'}</button>
-            <button onClick={onClose} className="text-[#968871] hover:text-[#2e241b] text-xl leading-none">&times;</button>
+            <button onClick={() => setMaximized((m) => !m)} title={maximized ? 'Restore' : 'Maximize'} className="w-8 h-8 rounded-lg hover:bg-[#e7e2d6] flex items-center justify-center text-[#8a8171] hover:text-[#1c1917] text-sm">{maximized ? '🗗' : '🗖'}</button>
+            <button onClick={onClose} className="text-[#8a8171] hover:text-[#1c1917] text-xl leading-none">&times;</button>
           </div>
         </div>
         <div className={clsx('p-5 space-y-3', maximized && 'flex-1 overflow-y-auto')}>
           {formula && !isPaid && (
-            <div className="p-2.5 rounded-lg bg-[#f0d8d2] text-[#8c3a30] text-[11px] flex gap-2">
+            <div className="p-2.5 rounded-lg bg-[#f5e3e0] text-[#a13d34] text-[11px] flex gap-2">
               <span>🔒</span>
               <span><strong>Payment for {product?.name || formula.productId || 'this product'} is not confirmed</strong> — sampling is locked for it. Confirm it in the 💳 RND's Payments tab first.</span>
             </div>
           )}
           {formulas.length === 0 && (
-            <p className="text-xs text-[#8c3a30]">No formulas yet — create one in the Formulas tab first. A sample must be linked to a formula.</p>
+            <p className="text-xs text-[#a13d34]">No formulas yet — create one in the Formulas tab first. A sample must be linked to a formula.</p>
           )}
           <div>
-            <label className="text-xs font-semibold text-[#968871] uppercase tracking-wide mb-1 block">Formula <span className="text-[#b6453a]">*</span></label>
+            <label className="text-xs font-semibold text-[#8a8171] uppercase tracking-wide mb-1 block">Formula <span className="text-[#7c2b23]">*</span></label>
             <select value={formulaId} onChange={(e) => pickFormula(e.target.value)} className={clsx(inputCls, 'w-full')}>
               <option value="">— select formula —</option>
               {formulas.map((f) => <option key={f.formulaId} value={f.formulaId}>{f.formulaId} — {f.name}</option>)}
             </select>
-            {formula && <p className="text-[10px] text-[#968871] mt-1">Product: {product?.name || formula.productId || '—'} {product && (product.paymentStatus === 'full_paid' ? '· ✓ paid' : '· ⏳ payment pending')}</p>}
+            {formula && <p className="text-[10px] text-[#8a8171] mt-1">Product: {product?.name || formula.productId || '—'} {product && (product.paymentStatus === 'full_paid' ? '· ✓ paid' : '· ⏳ payment pending')}</p>}
           </div>
           <div>
-            <label className="text-xs font-semibold text-[#968871] uppercase tracking-wide mb-1 block">
-              Formula Version <span className="text-[#b6453a]">*</span> <span className="font-normal normal-case">(Draft / In Testing)</span>
+            <label className="text-xs font-semibold text-[#8a8171] uppercase tracking-wide mb-1 block">
+              Formula Version <span className="text-[#7c2b23]">*</span> <span className="font-normal normal-case">(Draft / In Testing)</span>
             </label>
             <select value={versionNo} onChange={(e) => setVersionNo(e.target.value)} disabled={!formulaId} className={clsx(inputCls, 'w-full disabled:opacity-50')}>
               {openVersions.length === 0
@@ -443,22 +443,22 @@ function QuotePriceModal({ product, saving, onClose, onSave }) {
 
   return (
     <div className={clsx('fixed inset-0 z-[75] flex items-center justify-center bg-black/40', maximized ? 'p-0' : 'p-4')} onClick={onClose}>
-      <div className={clsx('bg-[#f0eadd] shadow-2xl border border-[#d3c9b4] flex flex-col',
+      <div className={clsx('bg-[#fbfaf7] shadow-2xl border border-[#ddd6c4] flex flex-col',
         maximized ? 'w-screen h-screen max-w-none rounded-none' : 'w-full max-w-sm rounded-2xl')} style={bodyFont} onClick={(e) => e.stopPropagation()}>
-        <div className={clsx('flex items-center justify-between px-5 py-4 border-b border-[#e2dac8] bg-[#e7dfce] flex-shrink-0', !maximized && 'rounded-t-2xl')}>
-          <h3 className="font-bold text-[#2e241b]" style={displayFont}>💰 Quote Price — {product.productId}</h3>
+        <div className={clsx('flex items-center justify-between px-5 py-4 border-b border-[#e7e2d6] bg-[#f1ede4] flex-shrink-0', !maximized && 'rounded-t-2xl')}>
+          <h3 className="font-bold text-[#1c1917]" style={displayFont}>💰 Quote Price — {product.productId}</h3>
           <div className="flex items-center gap-1.5">
-            <button onClick={() => setMaximized((m) => !m)} title={maximized ? 'Restore' : 'Maximize'} className="w-8 h-8 rounded-lg hover:bg-[#ddd3be] flex items-center justify-center text-[#968871] hover:text-[#2e241b] text-sm">{maximized ? '🗗' : '🗖'}</button>
-            <button onClick={onClose} className="text-[#968871] hover:text-[#2e241b] text-xl leading-none">&times;</button>
+            <button onClick={() => setMaximized((m) => !m)} title={maximized ? 'Restore' : 'Maximize'} className="w-8 h-8 rounded-lg hover:bg-[#e7e2d6] flex items-center justify-center text-[#8a8171] hover:text-[#1c1917] text-sm">{maximized ? '🗗' : '🗖'}</button>
+            <button onClick={onClose} className="text-[#8a8171] hover:text-[#1c1917] text-xl leading-none">&times;</button>
           </div>
         </div>
         <div className={clsx('p-5 space-y-3', maximized && 'flex-1 overflow-y-auto')}>
           <div>
-            <label className="text-xs font-semibold text-[#968871] uppercase tracking-wide mb-1 block">Approx Price (₹/unit) <span className="text-[#b6453a]">*</span></label>
+            <label className="text-xs font-semibold text-[#8a8171] uppercase tracking-wide mb-1 block">Approx Price (₹/unit) <span className="text-[#7c2b23]">*</span></label>
             <input type="number" min="0" step="0.01" value={price} onChange={(e) => setPrice(e.target.value)} placeholder="e.g., 140" className={clsx(inputCls, 'w-full')} />
           </div>
           <div>
-            <label className="text-xs font-semibold text-[#968871] uppercase tracking-wide mb-1 block">Note <span className="font-normal normal-case">(optional — appended to notes)</span></label>
+            <label className="text-xs font-semibold text-[#8a8171] uppercase tracking-wide mb-1 block">Note <span className="font-normal normal-case">(optional — appended to notes)</span></label>
             <textarea value={note} onChange={(e) => setNote(e.target.value)} rows={2} placeholder="e.g., Quoted against 5L jerry can format..." className={clsx(inputCls, 'w-full')} />
           </div>
           <div className="flex gap-3 pt-1">
@@ -524,38 +524,38 @@ function FormulaEditorModal({ formula, samples, rawMaterials, onClose }) {
 
   return (
     <div className={clsx('fixed inset-0 z-50 flex items-center justify-center bg-black/40', maximized ? 'p-0' : 'p-4')} onClick={onClose}>
-      <div className={clsx('bg-[#f7f3ea] shadow-2xl w-full flex flex-col',
+      <div className={clsx('bg-[#fbfaf7] shadow-2xl w-full flex flex-col',
         maximized ? 'max-w-none rounded-none h-screen' : 'max-w-6xl rounded-2xl h-[90vh]')} style={bodyFont} onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center justify-between px-5 py-4 border-b border-[#d3c9b4] flex-shrink-0">
-          <h2 className="text-base font-bold text-[#2e241b]" style={displayFont}>
-            🧬 {formula.formulaId} — {formula.name} · V{selectedVersion} <span className="text-xs font-normal text-[#968871]">(view only)</span>
+        <div className="flex items-center justify-between px-5 py-4 border-b border-[#ddd6c4] flex-shrink-0">
+          <h2 className="text-base font-bold text-[#1c1917]" style={displayFont}>
+            🧬 {formula.formulaId} — {formula.name} · V{selectedVersion} <span className="text-xs font-normal text-[#8a8171]">(view only)</span>
           </h2>
           <div className="flex items-center gap-1.5">
-            <button onClick={() => setMaximized((m) => !m)} title={maximized ? 'Restore' : 'Maximize'} className="w-8 h-8 rounded-lg hover:bg-[#e7dfce] flex items-center justify-center text-[#968871] hover:text-[#2e241b] text-sm">{maximized ? '🗗' : '🗖'}</button>
-            <button onClick={onClose} className="text-[#968871] hover:text-[#2e241b] text-xl leading-none">&times;</button>
+            <button onClick={() => setMaximized((m) => !m)} title={maximized ? 'Restore' : 'Maximize'} className="w-8 h-8 rounded-lg hover:bg-[#f1ede4] flex items-center justify-center text-[#8a8171] hover:text-[#1c1917] text-sm">{maximized ? '🗗' : '🗖'}</button>
+            <button onClick={onClose} className="text-[#8a8171] hover:text-[#1c1917] text-xl leading-none">&times;</button>
           </div>
         </div>
 
         <div className="flex-1 flex min-h-0">
           {/* Version sidebar */}
-          <div className="w-64 flex-shrink-0 border-r border-[#d3c9b4] p-3 overflow-y-auto space-y-2">
-            <p className="text-[10px] font-bold text-[#968871] uppercase tracking-wide px-1">Versions</p>
+          <div className="w-64 flex-shrink-0 border-r border-[#ddd6c4] p-3 overflow-y-auto space-y-2">
+            <p className="text-[10px] font-bold text-[#8a8171] uppercase tracking-wide px-1">Versions</p>
             {[...versions].sort((a, b) => a.version - b.version).map((v) => {
               const linked = samplesForVersion(v.version);
               return (
                 <div key={v.version} onClick={() => setSelectedVersion(v.version)}
                   className={clsx('rounded-[10px] border p-2.5 cursor-pointer text-xs transition-colors',
-                    v.version === selectedVersion ? 'border-[#968871] bg-[#e7dfce]' : 'border-[#d3c9b4] bg-white hover:bg-[#e7dfce]/60')}>
+                    v.version === selectedVersion ? 'border-[#8a8171] bg-[#f1ede4]' : 'border-[#ddd6c4] bg-white hover:bg-[#f1ede4]/60')}>
                   <div className="flex items-center justify-between gap-1">
-                    <span className="font-bold text-[#2e241b]">V{v.version}</span>
+                    <span className="font-bold text-[#1c1917]">V{v.version}</span>
                     <span className={clsx('px-2 py-0.5 rounded-full font-semibold text-[10px]', formulaVersionPillCls(v.status))}>{v.status}</span>
                   </div>
-                  <div className="text-[10px] text-[#968871] mt-1">
+                  <div className="text-[10px] text-[#8a8171] mt-1">
                     {v.createdAt ? format(new Date(v.createdAt), 'dd MMM yyyy') : ''}{v.changeNote ? ` · ${v.changeNote}` : ''}
                   </div>
                   {linked.length > 0 && (
                     <div className="mt-1 space-y-0.5">
-                      {linked.map((s) => <div key={s.sampleId} className="text-[10px] text-[#6d5f4c]">🧪 {s.sampleId} — {s.status}</div>)}
+                      {linked.map((s) => <div key={s.sampleId} className="text-[10px] text-[#6b6155]">🧪 {s.sampleId} — {s.status}</div>)}
                     </div>
                   )}
                 </div>
@@ -566,31 +566,31 @@ function FormulaEditorModal({ formula, samples, rawMaterials, onClose }) {
           {/* Viewer main */}
           <div className="flex-1 min-w-0 p-4 overflow-y-auto space-y-3">
             {!catalogLinked && (
-              <div className="p-2.5 rounded-lg bg-[#dde5ea] text-[#33526b] text-[11px] flex gap-2">
+              <div className="p-2.5 rounded-lg bg-[#f3e6c8] text-[#a8781f] text-[11px] flex gap-2">
                 <span>ℹ️</span>
                 <span>Not linked to a Product Catalog item yet — the ingredient composition is built there. Use "🔗 Link from Catalog" on the Products tab, or add {formula.name} as a new Product Catalog item and build its Formulation there.</span>
               </div>
             )}
             {catalogLinked && catalogLoading && (
-              <p className="text-xs text-[#968871]">Loading live formulation from Product Catalog…</p>
+              <p className="text-xs text-[#8a8171]">Loading live formulation from Product Catalog…</p>
             )}
 
             <div className="grid grid-cols-4 gap-3">
-              <div><label className="text-[10px] text-[#968871]">Ref Weight</label>
-                <p className="text-sm text-[#2e241b] px-3 py-2 rounded-[10px] bg-[#e7dfce]">{refWeight}</p>
+              <div><label className="text-[10px] text-[#8a8171]">Ref Weight</label>
+                <p className="text-sm text-[#1c1917] px-3 py-2 rounded-[10px] bg-[#f1ede4]">{refWeight}</p>
               </div>
-              <div><label className="text-[10px] text-[#968871]">Ref Unit</label>
-                <p className="text-sm text-[#2e241b] px-3 py-2 rounded-[10px] bg-[#e7dfce]">{refUnit}</p>
+              <div><label className="text-[10px] text-[#8a8171]">Ref Unit</label>
+                <p className="text-sm text-[#1c1917] px-3 py-2 rounded-[10px] bg-[#f1ede4]">{refUnit}</p>
               </div>
-              <div className="col-span-2"><label className="text-[10px] text-[#968871]">Change Note</label>
-                <p className="text-sm text-[#2e241b] px-3 py-2 rounded-[10px] bg-[#e7dfce] truncate">{versionObj?.changeNote || '—'}</p>
+              <div className="col-span-2"><label className="text-[10px] text-[#8a8171]">Change Note</label>
+                <p className="text-sm text-[#1c1917] px-3 py-2 rounded-[10px] bg-[#f1ede4] truncate">{versionObj?.changeNote || '—'}</p>
               </div>
             </div>
 
-            <div className="overflow-x-auto rounded-[10px] border border-[#d3c9b4]">
+            <div className="overflow-x-auto rounded-[10px] border border-[#ddd6c4]">
               <table className="w-full text-xs">
                 <thead>
-                  <tr className="text-left text-[10px] uppercase tracking-wide text-[#6d5f4c] border-b border-[#d3c9b4] bg-[#e7dfce]">
+                  <tr className="text-left text-[10px] uppercase tracking-wide text-[#6b6155] border-b border-[#ddd6c4] bg-[#f1ede4]">
                     <th className="px-2 py-2">#</th><th className="px-2 py-2">Code</th><th className="px-3 py-2">Ingredient</th>
                     <th className="px-2 py-2">Qty</th><th className="px-2 py-2">%</th><th className="px-2 py-2">Conv</th><th className="px-2 py-2">Unit</th>
                     <th className="px-2 py-2">Phase</th><th className="px-2 py-2">Notes</th>
@@ -602,62 +602,62 @@ function FormulaEditorModal({ formula, samples, rawMaterials, onClose }) {
                     const mat = matFor(r.rawMaterialId);
                     const amount = (Number(r.quantity) || 0) * (Number(r.costPerUnit) || 0);
                     return (
-                      <tr key={i} className="border-t border-[#e2dac8]">
-                        <td className="px-2 py-1.5 text-[#968871]">{i + 1}</td>
-                        <td className="px-2 py-1.5 font-mono text-[10px] text-[#968871]">{mat?.sku || mat?.code || '—'}</td>
-                        <td className="px-3 py-1.5 text-[#2e241b]">{r.name}</td>
-                        <td className="px-2 py-1.5 text-[#2e241b]">{r.quantity}</td>
-                        <td className="px-2 py-1.5 text-[#2e241b]">{r.percent}%</td>
-                        <td className="px-2 py-1.5 text-[#2e241b]">{r.conv}</td>
-                        <td className="px-2 py-1.5 text-[#968871]">{r.unit}</td>
-                        <td className="px-2 py-1.5 text-[#2e241b]">{r.phase || '—'}</td>
-                        <td className="px-2 py-1.5 text-[#2e241b]">{r.notes || '—'}</td>
-                        <td className="px-2 py-1.5 text-[#2e241b]">₹{(Number(r.costPerUnit) || 0).toFixed(2)}</td>
-                        <td className="px-2 py-1.5 text-[#33526b] font-mono">₹{amount.toFixed(2)}</td>
+                      <tr key={i} className="border-t border-[#e7e2d6]">
+                        <td className="px-2 py-1.5 text-[#8a8171]">{i + 1}</td>
+                        <td className="px-2 py-1.5 font-mono text-[10px] text-[#8a8171]">{mat?.sku || mat?.code || '—'}</td>
+                        <td className="px-3 py-1.5 text-[#1c1917]">{r.name}</td>
+                        <td className="px-2 py-1.5 text-[#1c1917]">{r.quantity}</td>
+                        <td className="px-2 py-1.5 text-[#1c1917]">{r.percent}%</td>
+                        <td className="px-2 py-1.5 text-[#1c1917]">{r.conv}</td>
+                        <td className="px-2 py-1.5 text-[#8a8171]">{r.unit}</td>
+                        <td className="px-2 py-1.5 text-[#1c1917]">{r.phase || '—'}</td>
+                        <td className="px-2 py-1.5 text-[#1c1917]">{r.notes || '—'}</td>
+                        <td className="px-2 py-1.5 text-[#1c1917]">₹{(Number(r.costPerUnit) || 0).toFixed(2)}</td>
+                        <td className="px-2 py-1.5 text-[#a8781f] font-mono">₹{amount.toFixed(2)}</td>
                       </tr>
                     );
                   })}
-                  {rows.length === 0 && <tr><td colSpan={10} className="px-3 py-6 text-center text-[#968871]">No ingredients yet.</td></tr>}
+                  {rows.length === 0 && <tr><td colSpan={10} className="px-3 py-6 text-center text-[#8a8171]">No ingredients yet.</td></tr>}
                 </tbody>
               </table>
             </div>
 
-            <div className="grid grid-cols-4 gap-3 bg-[#2e241b] text-[#f0eadd] rounded-2xl px-5 py-3">
-              <div><p className="text-[10px] text-[#c9bfae]">Total %</p><p className="text-sm font-bold">{totalPct.toFixed(2)}%</p></div>
-              <div><p className="text-[10px] text-[#c9bfae]">Total Qty</p><p className="text-sm font-bold">{totalQty.toFixed(2)} {refUnit}</p></div>
-              <div><p className="text-[10px] text-[#c9bfae]">Batch Amount</p><p className="text-sm font-bold">₹{totalAmount.toFixed(2)}</p></div>
-              <div><p className="text-[10px] text-[#c9bfae]">Cost / Unit</p><p className="text-sm font-bold">₹{costPerUnit.toFixed(4)}</p></div>
+            <div className="grid grid-cols-4 gap-3 bg-[#1c1917] text-[#fbfaf7] rounded-2xl px-5 py-3">
+              <div><p className="text-[10px] text-[#ddd6c4]">Total %</p><p className="text-sm font-bold">{totalPct.toFixed(2)}%</p></div>
+              <div><p className="text-[10px] text-[#ddd6c4]">Total Qty</p><p className="text-sm font-bold">{totalQty.toFixed(2)} {refUnit}</p></div>
+              <div><p className="text-[10px] text-[#ddd6c4]">Batch Amount</p><p className="text-sm font-bold">₹{totalAmount.toFixed(2)}</p></div>
+              <div><p className="text-[10px] text-[#ddd6c4]">Cost / Unit</p><p className="text-sm font-bold">₹{costPerUnit.toFixed(4)}</p></div>
             </div>
 
             <div>
-              <label className="text-[10px] text-[#968871]">Manufacturing Procedure</label>
-              <p className="text-sm text-[#2e241b] whitespace-pre-wrap px-3 py-2 rounded-[10px] bg-[#e7dfce] min-h-[3rem]">{procedure || '—'}</p>
+              <label className="text-[10px] text-[#8a8171]">Manufacturing Procedure</label>
+              <p className="text-sm text-[#1c1917] whitespace-pre-wrap px-3 py-2 rounded-[10px] bg-[#f1ede4] min-h-[3rem]">{procedure || '—'}</p>
             </div>
 
             {/* R&D Documentation — read-only view of research notes + reference files. */}
-            <div className="border-t border-[#d3c9b4] pt-3 space-y-2">
-              <p className="text-xs font-bold text-[#4a3a29]">📝 R&amp;D Documentation</p>
+            <div className="border-t border-[#ddd6c4] pt-3 space-y-2">
+              <p className="text-xs font-bold text-[#292521]">📝 R&amp;D Documentation</p>
               <div>
-                <label className="text-[10px] text-[#968871]">Research Notes</label>
-                <p className="text-sm text-[#2e241b] whitespace-pre-wrap px-3 py-2 rounded-[10px] bg-[#e7dfce] min-h-[3rem]">{formula.researchNotes || '—'}</p>
+                <label className="text-[10px] text-[#8a8171]">Research Notes</label>
+                <p className="text-sm text-[#1c1917] whitespace-pre-wrap px-3 py-2 rounded-[10px] bg-[#f1ede4] min-h-[3rem]">{formula.researchNotes || '—'}</p>
               </div>
               <div>
-                <label className="text-[10px] text-[#968871] block mb-1">Reference Files</label>
+                <label className="text-[10px] text-[#8a8171] block mb-1">Reference Files</label>
                 <div className="space-y-1">
                   {(formula.attachments || []).map((a) => (
                     <a key={a._id} href={a.url} target="_blank" rel="noreferrer"
-                      className="flex items-center px-2.5 py-1.5 rounded-lg border border-[#d3c9b4] bg-white text-xs text-[#4a3a29] font-semibold hover:underline">
+                      className="flex items-center px-2.5 py-1.5 rounded-lg border border-[#ddd6c4] bg-white text-xs text-[#292521] font-semibold hover:underline">
                       📎 {a.name}
                     </a>
                   ))}
-                  {(formula.attachments || []).length === 0 && <p className="text-[11px] text-[#968871]">No files attached.</p>}
+                  {(formula.attachments || []).length === 0 && <p className="text-[11px] text-[#8a8171]">No files attached.</p>}
                 </div>
               </div>
             </div>
           </div>
         </div>
 
-        <div className="flex items-center justify-end gap-2 px-5 py-3 border-t border-[#d3c9b4] flex-shrink-0">
+        <div className="flex items-center justify-end gap-2 px-5 py-3 border-t border-[#ddd6c4] flex-shrink-0">
           <button onClick={onClose} className={outlineBtn}>Close</button>
         </div>
       </div>
@@ -1228,25 +1228,25 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab, initialO
   return (
     <div className={clsx('fixed inset-0 z-[70] flex items-center justify-center', maximized ? 'p-0' : 'p-4')} style={bodyFont}>
       <style>{FONT_IMPORT}</style>
-      <div className="absolute inset-0 bg-[#2e241b]/50 backdrop-blur-sm" onClick={onClose} />
-      <div className={clsx('relative bg-[#f0eadd] shadow-[0_10px_40px_rgba(46,36,27,0.16)] border border-[#d3c9b4] flex flex-col',
+      <div className="absolute inset-0 bg-[#1c1917]/50 backdrop-blur-sm" onClick={onClose} />
+      <div className={clsx('relative bg-[#fbfaf7] shadow-[0_10px_40px_rgba(46,36,27,0.16)] border border-[#ddd6c4] flex flex-col',
         maximized ? 'w-screen h-screen max-w-none rounded-none' : 'w-full max-w-4xl rounded-2xl')}
         style={maximized ? undefined : { maxHeight: '90vh' }}>
-        <div className={clsx('p-5 border-b border-[#e2dac8] bg-[#e7dfce] flex items-center justify-between flex-shrink-0', !maximized && 'rounded-t-2xl')}>
+        <div className={clsx('p-5 border-b border-[#e7e2d6] bg-[#f1ede4] flex items-center justify-between flex-shrink-0', !maximized && 'rounded-t-2xl')}>
           <div>
             <div className="flex items-center gap-2">
-              <h3 className="font-bold text-[#2e241b]" style={displayFont}>{lead?.name || 'Loading…'}</h3>
-              {lead && <span className="font-mono text-[10px] font-semibold px-1.5 py-0.5 rounded bg-[#ddd3be] text-[#4a3a29]">{customerId(lead)}</span>}
+              <h3 className="font-bold text-[#1c1917]" style={displayFont}>{lead?.name || 'Loading…'}</h3>
+              {lead && <span className="font-mono text-[10px] font-semibold px-1.5 py-0.5 rounded bg-[#e7e2d6] text-[#292521]">{customerId(lead)}</span>}
             </div>
-            <p className="text-xs text-[#6d5f4c]">{lead?.company || '—'} · {lead?.phone}</p>
+            <p className="text-xs text-[#6b6155]">{lead?.company || '—'} · {lead?.phone}</p>
           </div>
           <div className="flex items-center gap-1.5">
-            <button onClick={() => setMaximized((m) => !m)} title={maximized ? 'Restore' : 'Maximize'} className="w-9 h-9 rounded-lg hover:bg-[#ddd3be] flex items-center justify-center text-[#968871] hover:text-[#2e241b] text-base">{maximized ? '🗗' : '🗖'}</button>
-            <button onClick={onClose} className="w-9 h-9 rounded-lg hover:bg-[#ddd3be] flex items-center justify-center text-[#968871] hover:text-[#2e241b] text-lg">✕</button>
+            <button onClick={() => setMaximized((m) => !m)} title={maximized ? 'Restore' : 'Maximize'} className="w-9 h-9 rounded-lg hover:bg-[#e7e2d6] flex items-center justify-center text-[#8a8171] hover:text-[#1c1917] text-base">{maximized ? '🗗' : '🗖'}</button>
+            <button onClick={onClose} className="w-9 h-9 rounded-lg hover:bg-[#e7e2d6] flex items-center justify-center text-[#8a8171] hover:text-[#1c1917] text-lg">✕</button>
           </div>
         </div>
 
-        <div className="flex gap-1 px-5 pt-3 border-b border-[#e2dac8] flex-shrink-0 overflow-x-auto">
+        <div className="flex gap-1 px-5 pt-3 border-b border-[#e7e2d6] flex-shrink-0 overflow-x-auto">
           {[...TABS, ...ORDER_JOURNEY_TAB_ORDER].map((t) => {
             const stageMeta = ORDER_JOURNEY_STAGES.find((s) => s.label === t);
             const actualStage = productionOrder?.stage;
@@ -1263,8 +1263,8 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab, initialO
                 title={locked ? `${t} — not reached yet` : undefined}
                 className={clsx(
                   'px-3 py-2 text-sm font-semibold border-b-[2.5px] -mb-px transition-colors whitespace-nowrap',
-                  locked ? 'border-transparent text-[#c2b9a3] cursor-not-allowed' :
-                  tab === t ? 'border-[#f2b23e] text-[#2e241b]' : 'border-transparent text-[#6d5f4c] hover:text-[#2e241b]'
+                  locked ? 'border-transparent text-[#ddd6c4] cursor-not-allowed' :
+                  tab === t ? 'border-[#a8781f] text-[#1c1917]' : 'border-transparent text-[#6b6155] hover:text-[#1c1917]'
                 )}
               >
                 {stageMeta ? `${stageMeta.emoji} ${t}` : t}
@@ -1277,7 +1277,7 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab, initialO
         </div>
 
         <div className="flex-1 overflow-y-auto p-5 space-y-4">
-          {isLoading && <p className="text-sm text-[#968871] text-center py-8">Loading…</p>}
+          {isLoading && <p className="text-sm text-[#8a8171] text-center py-8">Loading…</p>}
 
           {!isLoading && tab === 'Overview' && (
             <div className="space-y-4">
@@ -1286,19 +1286,19 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab, initialO
               </div>
 
               {approvedSamples.length > 0 && !productionOrderId && (
-                <div className={clsx('p-3 rounded-[10px] border', 'bg-[#dce9d4] border-[#b9d2af]')}>
-                  <p className="text-sm font-semibold text-[#3a5f3c]">✓ {approvedSamples.length} sample(s) approved — ready to send to production</p>
-                  <p className="text-xs text-[#3a5f3c]/80 mt-0.5">Open the Invoice tab and move this lead to Production — the order opens right here in the Production tab.</p>
+                <div className={clsx('p-3 rounded-[10px] border', 'bg-[#e2ece5] border-[#c3d9c9]')}>
+                  <p className="text-sm font-semibold text-[#2f6b4f]">✓ {approvedSamples.length} sample(s) approved — ready to send to production</p>
+                  <p className="text-xs text-[#2f6b4f]/80 mt-0.5">Open the Invoice tab and move this lead to Production — the order opens right here in the Production tab.</p>
                 </div>
               )}
 
               <div className="grid grid-cols-2 gap-3 text-sm">
-                <div><p className="text-xs text-[#968871] mb-0.5">Business Type</p><p className="text-[#2e241b]">{lead?.businessType || '—'}</p></div>
-                <div><p className="text-xs text-[#968871] mb-0.5">City</p><p className="text-[#2e241b]">{lead?.city || '—'}</p></div>
-                <div><p className="text-xs text-[#968871] mb-0.5">Product interest</p><p className="text-[#2e241b]">{(lead?.productInterest || []).join(', ') || '—'}</p></div>
-                <div><p className="text-xs text-[#968871] mb-0.5">Estimated value</p><p className="text-[#2e241b]">₹{(lead?.estimatedValue || 0).toLocaleString('en-IN')}</p></div>
-                <div><p className="text-xs text-[#968871] mb-0.5">Assigned to</p><p className="text-[#2e241b]">{lead?.assignedTo ? `${lead.assignedTo.firstName} ${lead.assignedTo.lastName}` : 'Unassigned'}</p></div>
-                <div><p className="text-xs text-[#968871] mb-0.5">Queries · Products · Formulas · Samples</p><p className="text-[#2e241b]">{(queries || []).length} · {products.length} · {formulas.length} · {samples.length}</p></div>
+                <div><p className="text-xs text-[#8a8171] mb-0.5">Business Type</p><p className="text-[#1c1917]">{lead?.businessType || '—'}</p></div>
+                <div><p className="text-xs text-[#8a8171] mb-0.5">City</p><p className="text-[#1c1917]">{lead?.city || '—'}</p></div>
+                <div><p className="text-xs text-[#8a8171] mb-0.5">Product interest</p><p className="text-[#1c1917]">{(lead?.productInterest || []).join(', ') || '—'}</p></div>
+                <div><p className="text-xs text-[#8a8171] mb-0.5">Estimated value</p><p className="text-[#1c1917]">₹{(lead?.estimatedValue || 0).toLocaleString('en-IN')}</p></div>
+                <div><p className="text-xs text-[#8a8171] mb-0.5">Assigned to</p><p className="text-[#1c1917]">{lead?.assignedTo ? `${lead.assignedTo.firstName} ${lead.assignedTo.lastName}` : 'Unassigned'}</p></div>
+                <div><p className="text-xs text-[#8a8171] mb-0.5">Queries · Products · Formulas · Samples</p><p className="text-[#1c1917]">{(queries || []).length} · {products.length} · {formulas.length} · {samples.length}</p></div>
               </div>
 
               {/* End-to-end at a glance — every query ever asked for this customer, right here
@@ -1306,24 +1306,24 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab, initialO
                   digging into the Q&A tab to see the full history. */}
               <div>
                 <div className="flex items-center justify-between mb-2">
-                  <p className="text-xs font-semibold text-[#968871] uppercase tracking-wide">
+                  <p className="text-xs font-semibold text-[#8a8171] uppercase tracking-wide">
                     Q&amp;A History {(queries || []).length > 0 && `(${queries.length})`}
                   </p>
                   {(queries || []).length > 0 && <button onClick={() => setTab('Q&A')} className={textLink}>Open full Q&amp;A ▸</button>}
                 </div>
                 {(queries || []).length === 0 ? (
-                  <p className="text-xs text-[#968871]">No queries raised yet.</p>
+                  <p className="text-xs text-[#8a8171]">No queries raised yet.</p>
                 ) : (
                   <div className="space-y-1.5">
                     {[...queries].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)).map((q) => (
-                      <div key={q._id} className={clsx('text-xs rounded-[10px] border border-[#e2dac8] bg-[#f0eadd] px-3 py-2', q.deleted && 'opacity-60')}>
+                      <div key={q._id} className={clsx('text-xs rounded-[10px] border border-[#e7e2d6] bg-[#fbfaf7] px-3 py-2', q.deleted && 'opacity-60')}>
                         <div className="flex items-center gap-2 flex-wrap">
                           <span className={clsx('px-1.5 py-0.5 rounded-full font-semibold', qaStatusPillCls(q.status))}>{QA_STATUS_LABEL[q.status] || q.status}</span>
                           <span className={clsx('px-1.5 py-0.5 rounded-full font-semibold', qaTopicPillCls(q.topic || 'General'))}>{q.topic || 'General'}</span>
-                          <span className="text-[#968871]">{format(new Date(q.createdAt), 'dd MMM, hh:mm a')}</span>
+                          <span className="text-[#8a8171]">{format(new Date(q.createdAt), 'dd MMM, hh:mm a')}</span>
                         </div>
-                        <p className={clsx('text-[#2e241b] font-medium mt-1', q.deleted && 'line-through')}>{q.title}</p>
-                        {q.answer && <p className={clsx('text-[#3a5f3c] mt-0.5', q.deleted && 'line-through')}>↳ {q.answer}</p>}
+                        <p className={clsx('text-[#1c1917] font-medium mt-1', q.deleted && 'line-through')}>{q.title}</p>
+                        {q.answer && <p className={clsx('text-[#2f6b4f] mt-0.5', q.deleted && 'line-through')}>↳ {q.answer}</p>}
                       </div>
                     ))}
                   </div>
@@ -1332,14 +1332,14 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab, initialO
 
               {lead?.notes && (
                 <div>
-                  <p className="text-xs text-[#968871] mb-1">Notes</p>
-                  <p className="text-sm text-[#4a3a29] whitespace-pre-wrap">{lead.notes}</p>
+                  <p className="text-xs text-[#8a8171] mb-1">Notes</p>
+                  <p className="text-sm text-[#292521] whitespace-pre-wrap">{lead.notes}</p>
                 </div>
               )}
 
               <div>
                 <div className="flex items-center justify-between mb-2">
-                  <p className="text-xs font-semibold text-[#968871] uppercase tracking-wide">
+                  <p className="text-xs font-semibold text-[#8a8171] uppercase tracking-wide">
                     Follow-ups {(lead?.followUps || []).length > 0 && `(${lead.followUps.length})`}
                   </p>
                   <button
@@ -1350,17 +1350,17 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab, initialO
                   </button>
                 </div>
                 {(lead?.followUps || []).length === 0 ? (
-                  <p className="text-xs text-[#968871]">No follow-ups logged yet.</p>
+                  <p className="text-xs text-[#8a8171]">No follow-ups logged yet.</p>
                 ) : (
                   <div className="space-y-1.5">
                     {[...lead.followUps].reverse().slice(0, 5).map((fu, i) => (
-                      <div key={i} className="text-xs rounded-[10px] border border-[#e2dac8] bg-[#f0eadd] px-3 py-2">
+                      <div key={i} className="text-xs rounded-[10px] border border-[#e7e2d6] bg-[#fbfaf7] px-3 py-2">
                         <div className="flex items-center justify-between">
-                          <span className="font-semibold text-[#2e241b] capitalize">{fu.type || 'call'}</span>
-                          <span className="text-[#968871]">{fu.scheduledAt ? format(new Date(fu.scheduledAt), 'dd MMM, h:mm a') : ''}</span>
+                          <span className="font-semibold text-[#1c1917] capitalize">{fu.type || 'call'}</span>
+                          <span className="text-[#8a8171]">{fu.scheduledAt ? format(new Date(fu.scheduledAt), 'dd MMM, h:mm a') : ''}</span>
                         </div>
-                        {fu.notes && <p className="text-[#4a3a29] mt-0.5">{fu.notes}</p>}
-                        {fu.nextAction && <p className="text-[#968871] mt-0.5">Next: {fu.nextAction}</p>}
+                        {fu.notes && <p className="text-[#292521] mt-0.5">{fu.notes}</p>}
+                        {fu.nextAction && <p className="text-[#8a8171] mt-0.5">Next: {fu.nextAction}</p>}
                       </div>
                     ))}
                   </div>
@@ -1370,10 +1370,10 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab, initialO
           )}
 
           {!isLoading && ORDER_JOURNEY_STAGES.some((s) => s.label === tab) && !productionOrderId && (
-            <div className="p-6 rounded-[10px] border border-dashed border-[#d3c9b4] bg-[#e7dfce] text-center space-y-3">
+            <div className="p-6 rounded-[10px] border border-dashed border-[#ddd6c4] bg-[#f1ede4] text-center space-y-3">
               <div>
-                <p className="text-sm font-semibold text-[#6d5f4c]">🏭 Not sent to production yet</p>
-                <p className="text-xs text-[#968871] mt-1">
+                <p className="text-sm font-semibold text-[#6b6155]">🏭 Not sent to production yet</p>
+                <p className="text-xs text-[#8a8171] mt-1">
                   Approve a sample in the Samples tab, then create its quotation and invoice in the Invoice tab — sending it to production from there opens this Orders/Customer Details view automatically, with the customer's KYC details already filled in.
                 </p>
               </div>
@@ -1384,7 +1384,7 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab, initialO
           {!isLoading && ORDER_JOURNEY_STAGES.some((s) => s.label === tab) && productionOrderId && (
             <div className="space-y-4">
               {(productionOrderLoading || !productionOrder) ? (
-                <p className="text-sm text-[#968871] text-center py-8">Loading order…</p>
+                <p className="text-sm text-[#8a8171] text-center py-8">Loading order…</p>
               ) : (() => {
                 // No inner stage bar here — the main tab strip above (Orders/Procurement/
                 // Weighing/.../Dispatch) already does this exact navigation; having both was
@@ -1397,7 +1397,7 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab, initialO
                 return (
                   <div className="space-y-4">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span className="text-[10px] font-bold uppercase tracking-wide text-[#968871]">Products:</span>
+                      <span className="text-[10px] font-bold uppercase tracking-wide text-[#8a8171]">Products:</span>
                       {products.map((p) => {
                         const prodOrder = productionForProduct(p.productId)?.order;
                         const isCurrent = prodOrder && String(prodOrder._id) === String(productionOrder._id);
@@ -1408,7 +1408,7 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab, initialO
                             disabled={!prodOrder}
                             title={prodOrder ? STAGE_NAMES[prodOrder.stage] || prodOrder.status : 'Not in production'}
                             className={clsx('rounded-full border-[1.5px] px-3 py-1 text-xs font-semibold transition-colors',
-                              isCurrent ? 'border-[#f2b23e] bg-[#f3e3c2] text-[#2e241b]' : prodOrder ? 'border-[#d3c9b4] bg-white text-[#6d5f4c] hover:bg-[#f0eadd]' : 'border-[#e2dac8] bg-[#f0eadd] text-[#968871] opacity-60 cursor-not-allowed')}
+                              isCurrent ? 'border-[#a8781f] bg-[#f3e6c8] text-[#1c1917]' : prodOrder ? 'border-[#ddd6c4] bg-white text-[#6b6155] hover:bg-[#fbfaf7]' : 'border-[#e7e2d6] bg-[#fbfaf7] text-[#8a8171] opacity-60 cursor-not-allowed')}
                           >
                             {p.name} <span className="font-mono font-normal opacity-75">{p.productId}</span>
                           </button>
@@ -1417,7 +1417,7 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab, initialO
                       <button
                         onClick={() => { setQaConvertQueryId(null); setQuickCreateOpen(true); setTab('Products'); }}
                         title="A new product starts at Products — Formula, Sample, Invoice, then its own Order, same as every other product on this lead."
-                        className="rounded-full border-2 border-dashed border-[#968871] text-[#7a5a10] px-3 py-1 text-xs font-bold hover:bg-[#f3e3c2]"
+                        className="rounded-full border-2 border-dashed border-[#8a8171] text-[#a8781f] px-3 py-1 text-xs font-bold hover:bg-[#f3e6c8]"
                       >
                         + Add product
                       </button>
@@ -1439,14 +1439,14 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab, initialO
           {!isLoading && tab === 'Q&A' && (
             <div className="space-y-3">
               <div className="flex items-center justify-between">
-                <p className="text-xs font-semibold text-[#968871] uppercase tracking-wide">
+                <p className="text-xs font-semibold text-[#8a8171] uppercase tracking-wide">
                   {(queries || []).length} quer{(queries || []).length === 1 ? 'y' : 'ies'} · {pendingQueries} open
                 </p>
                 <button onClick={() => setShowRaiseForm((v) => !v)} className={outlineBtn}>+ Raise Query</button>
               </div>
 
               {showRaiseForm && (
-                <div className="p-3 rounded-[10px] border-[1.5px] border-dashed border-[#d3c9b4] bg-[#e7dfce] space-y-2">
+                <div className="p-3 rounded-[10px] border-[1.5px] border-dashed border-[#ddd6c4] bg-[#f1ede4] space-y-2">
                   <textarea value={queryDesc} onChange={(e) => setQueryDesc(e.target.value)} placeholder="What did the customer ask?" rows={2} className={clsx(inputCls, 'w-full')} />
                   <div className="grid grid-cols-2 gap-2">
                     <select value={queryAskedVia} onChange={(e) => setQueryAskedVia(e.target.value)} className={inputCls}>
@@ -1464,14 +1464,14 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab, initialO
                       className={clsx(inputCls, 'w-full')}
                     />
                     {queryCatalogSearch && !querySelectedCatalogProduct && (
-                      <div className="mt-1 rounded-[10px] border border-[#d3c9b4] bg-[#f0eadd] max-h-32 overflow-y-auto">
-                        {queryCatalogMatches.length === 0 && <div className="px-3 py-2 text-xs text-[#968871]">No catalog match.</div>}
+                      <div className="mt-1 rounded-[10px] border border-[#ddd6c4] bg-[#fbfaf7] max-h-32 overflow-y-auto">
+                        {queryCatalogMatches.length === 0 && <div className="px-3 py-2 text-xs text-[#8a8171]">No catalog match.</div>}
                         {queryCatalogMatches.slice(0, 8).map((p) => (
                           <button key={p._id} type="button"
                             onClick={() => { setQuerySelectedCatalogProduct(p); setQueryCatalogSearch(''); }}
-                            className="w-full text-left px-3 py-2 text-xs hover:bg-[#e7dfce] flex justify-between">
-                            <span className="text-[#2e241b]">{p.name}</span>
-                            <span className="text-[#968871] font-mono">{p.code}</span>
+                            className="w-full text-left px-3 py-2 text-xs hover:bg-[#f1ede4] flex justify-between">
+                            <span className="text-[#1c1917]">{p.name}</span>
+                            <span className="text-[#8a8171] font-mono">{p.code}</span>
                           </button>
                         ))}
                       </div>
@@ -1501,7 +1501,7 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab, initialO
               )}
 
               {(queries || []).length === 0 && !showRaiseForm && (
-                <p className="text-sm text-[#968871] text-center py-6">No queries raised for this lead yet.</p>
+                <p className="text-sm text-[#8a8171] text-center py-6">No queries raised for this lead yet.</p>
               )}
 
               {/* Newest first — most recent question/activity on top, older ones settle toward the bottom. */}
@@ -1511,55 +1511,55 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab, initialO
                 const aging = qaAging(q);
                 const isEditing = editingQueryId === q._id;
                 return (
-                  <div key={q._id} className={clsx('p-3 rounded-[10px] border border-[#e2dac8] space-y-2', q.deleted && 'opacity-60 bg-[#f0eadd]/60')}>
+                  <div key={q._id} className={clsx('p-3 rounded-[10px] border border-[#e7e2d6] space-y-2', q.deleted && 'opacity-60 bg-[#fbfaf7]/60')}>
                     <div className="flex items-center gap-2 flex-wrap text-[11px]">
-                      {q.deleted && <span className="px-2 py-0.5 rounded-full font-semibold bg-[#f0d8d2] text-[#8c3a30]">Deleted</span>}
+                      {q.deleted && <span className="px-2 py-0.5 rounded-full font-semibold bg-[#f5e3e0] text-[#a13d34]">Deleted</span>}
                       <span className={clsx('px-2 py-0.5 rounded-full font-semibold', qaStatusPillCls(q.status))}>
                         {QA_STATUS_LABEL[q.status] || q.status}
                       </span>
                       <span className={clsx('px-2 py-0.5 rounded-full font-semibold', aging.cls)}>{aging.label}</span>
                       <span className={clsx('px-2 py-0.5 rounded-full font-semibold', qaTopicPillCls(q.topic || 'General'))}>{q.topic || 'General'}</span>
-                      {q.convertedTo && <span className="px-2 py-0.5 rounded-full font-semibold bg-[#e7dfce] text-[#4a3a29]">→ {q.convertedTo}</span>}
-                      <span className="text-[#968871]">{format(new Date(q.createdAt), 'dd MMM, hh:mm a')}</span>
-                      {q.editedAt && <span className="text-[#968871] italic">(edited)</span>}
-                      {q.askedVia && <span className="text-[#968871]">· 📞 {q.askedVia}</span>}
+                      {q.convertedTo && <span className="px-2 py-0.5 rounded-full font-semibold bg-[#f1ede4] text-[#292521]">→ {q.convertedTo}</span>}
+                      <span className="text-[#8a8171]">{format(new Date(q.createdAt), 'dd MMM, hh:mm a')}</span>
+                      {q.editedAt && <span className="text-[#8a8171] italic">(edited)</span>}
+                      {q.askedVia && <span className="text-[#8a8171]">· 📞 {q.askedVia}</span>}
                       <span className="flex-1" />
                       {isOpen && (
                         <div className="flex items-center gap-1">
-                          <button title="🆕 Create Product — add a new Product Catalog entry for this query" onClick={() => { setQaConvertQueryId(q._id); setQuickCreateOpen(true); }} className="w-6 h-6 rounded-full hover:bg-[#e7dfce] flex items-center justify-center">🆕</button>
-                          <button title="🔗 Connect Existing — attach a catalog product to this query" onClick={() => { setQaConvertQueryId(q._id); setTab('Products'); setProductModalEditing(null); setProductModalOpen(true); }} className="w-6 h-6 rounded-full hover:bg-[#e7dfce] flex items-center justify-center">🔗</button>
+                          <button title="🆕 Create Product — add a new Product Catalog entry for this query" onClick={() => { setQaConvertQueryId(q._id); setQuickCreateOpen(true); }} className="w-6 h-6 rounded-full hover:bg-[#f1ede4] flex items-center justify-center">🆕</button>
+                          <button title="🔗 Connect Existing — attach a catalog product to this query" onClick={() => { setQaConvertQueryId(q._id); setTab('Products'); setProductModalEditing(null); setProductModalOpen(true); }} className="w-6 h-6 rounded-full hover:bg-[#f1ede4] flex items-center justify-center">🔗</button>
                           <button
                             title={hasProduct ? '🧪 Create Sample' : '🔒 Create Sample — attach a product first (🆕 or 🔗)'}
                             onClick={hasProduct ? () => { setQaConvertQueryId(q._id); setTab('Samples'); setShowSampleForm(true); } : undefined}
-                            className={clsx('w-6 h-6 rounded-full flex items-center justify-center', hasProduct ? 'hover:bg-[#e7dfce]' : 'opacity-30 cursor-not-allowed')}
+                            className={clsx('w-6 h-6 rounded-full flex items-center justify-center', hasProduct ? 'hover:bg-[#f1ede4]' : 'opacity-30 cursor-not-allowed')}
                           >🧪</button>
                           <button
                             title={hasProduct ? '🧬 Create Formula' : '🔒 Create Formula — attach a product first (🆕 or 🔗)'}
                             onClick={hasProduct ? () => { setQaConvertQueryId(q._id); setTab('Formulas'); setShowFormulaForm(true); } : undefined}
-                            className={clsx('w-6 h-6 rounded-full flex items-center justify-center', hasProduct ? 'hover:bg-[#e7dfce]' : 'opacity-30 cursor-not-allowed')}
+                            className={clsx('w-6 h-6 rounded-full flex items-center justify-center', hasProduct ? 'hover:bg-[#f1ede4]' : 'opacity-30 cursor-not-allowed')}
                           >🧬</button>
                           {q.status === 'pending' && (
-                            <button title="▶ Start working on this query" onClick={() => startQueryMutation.mutate(q._id)} className="w-6 h-6 rounded-full hover:bg-[#e7dfce] flex items-center justify-center">▶️</button>
+                            <button title="▶ Start working on this query" onClick={() => startQueryMutation.mutate(q._id)} className="w-6 h-6 rounded-full hover:bg-[#f1ede4] flex items-center justify-center">▶️</button>
                           )}
                         </div>
                       )}
                       {q.status === 'answered' && (
-                        <button title="🔒 Customer satisfied — close this query" onClick={() => closeQueryMutation.mutate(q._id)} className="w-6 h-6 rounded-full hover:bg-[#e7dfce] flex items-center justify-center">✔️</button>
+                        <button title="🔒 Customer satisfied — close this query" onClick={() => closeQueryMutation.mutate(q._id)} className="w-6 h-6 rounded-full hover:bg-[#f1ede4] flex items-center justify-center">✔️</button>
                       )}
                       <button
                         title="✏️ Edit question"
                         onClick={() => { setEditingQueryId(q._id); setEditQueryDesc(q.description || q.title || ''); setEditQueryAskedVia(q.askedVia || 'Phone Call'); setEditQueryTopic(q.topic || 'General'); }}
-                        className="w-6 h-6 rounded-full hover:bg-[#e7dfce] flex items-center justify-center"
+                        className="w-6 h-6 rounded-full hover:bg-[#f1ede4] flex items-center justify-center"
                       >✏️</button>
                       <button
                         title={q.deleted ? '↺ Restore question' : '🗑️ Delete question (strikes it through, reversible)'}
                         onClick={() => deleteQueryMutation.mutate({ queryId: q._id, deleted: !q.deleted })}
-                        className="w-6 h-6 rounded-full hover:bg-[#f6e3e0] flex items-center justify-center"
+                        className="w-6 h-6 rounded-full hover:bg-[#f5e3e0] flex items-center justify-center"
                       >{q.deleted ? '↺' : '🗑️'}</button>
                     </div>
 
                     {isEditing ? (
-                      <div className="p-2 rounded-lg border-[1.5px] border-dashed border-[#d3c9b4] bg-[#e7dfce] space-y-2">
+                      <div className="p-2 rounded-lg border-[1.5px] border-dashed border-[#ddd6c4] bg-[#f1ede4] space-y-2">
                         <textarea value={editQueryDesc} onChange={(e) => setEditQueryDesc(e.target.value)} rows={2} className={clsx(inputCls, 'w-full')} />
                         <div className="grid grid-cols-2 gap-2">
                           <select value={editQueryAskedVia} onChange={(e) => setEditQueryAskedVia(e.target.value)} className={inputCls}>
@@ -1585,14 +1585,14 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab, initialO
                       </div>
                     ) : (
                       <>
-                        <p className={clsx('text-sm font-semibold text-[#2e241b]', q.deleted && 'line-through')}>{q.title}</p>
-                        {q.description && q.description !== q.title && <p className={clsx('text-sm text-[#6d5f4c]', q.deleted && 'line-through')}>{q.description}</p>}
+                        <p className={clsx('text-sm font-semibold text-[#1c1917]', q.deleted && 'line-through')}>{q.title}</p>
+                        {q.description && q.description !== q.title && <p className={clsx('text-sm text-[#6b6155]', q.deleted && 'line-through')}>{q.description}</p>}
                       </>
                     )}
 
                     {(q.contactName || q.contactEmail || q.targetPrice || q.benchmarkNotes || q.packagingIntent || q.internalNotes) && (
-                      <div className="text-[11px] text-[#6d5f4c] bg-[#e7dfce] rounded-lg p-2 space-y-0.5">
-                        {q.contactName && <p>Contact: <span className="text-[#2e241b] font-medium">{q.contactName}</span>{q.contactEmail && ` · ${q.contactEmail}`}</p>}
+                      <div className="text-[11px] text-[#6b6155] bg-[#f1ede4] rounded-lg p-2 space-y-0.5">
+                        {q.contactName && <p>Contact: <span className="text-[#1c1917] font-medium">{q.contactName}</span>{q.contactEmail && ` · ${q.contactEmail}`}</p>}
                         {q.targetPrice > 0 && <p>Target price: ₹{q.targetPrice.toLocaleString('en-IN')}/unit</p>}
                         {q.packagingIntent && <p>Packaging: {q.packagingIntent}</p>}
                         {q.benchmarkNotes && <p>Benchmark: {q.benchmarkNotes}</p>}
@@ -1603,9 +1603,9 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab, initialO
                     {/* Question attachments */}
                     <div className="flex items-center gap-1.5 flex-wrap">
                       {(q.attachments || []).map((a) => (
-                        <span key={a._id} className="inline-flex items-center gap-1 px-2 py-1 rounded-lg border border-[#d3c9b4] bg-white text-[11px] text-[#4a3a29] font-semibold">
+                        <span key={a._id} className="inline-flex items-center gap-1 px-2 py-1 rounded-lg border border-[#ddd6c4] bg-white text-[11px] text-[#292521] font-semibold">
                           <a href={a.url} target="_blank" rel="noreferrer" className="hover:underline">📎 {a.name}</a>
-                          <button title="Remove attachment" onClick={() => removeQueryAttachmentMutation.mutate({ queryId: q._id, attachmentId: a._id })} className="text-[#968871] hover:text-[#8c3a30]">✕</button>
+                          <button title="Remove attachment" onClick={() => removeQueryAttachmentMutation.mutate({ queryId: q._id, attachmentId: a._id })} className="text-[#8a8171] hover:text-[#a13d34]">✕</button>
                         </span>
                       ))}
                       <input
@@ -1618,15 +1618,15 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab, initialO
                         type="button"
                         onClick={() => questionFileInputs.current[q._id]?.click()}
                         disabled={uploadQueryAttachmentMutation.isPending}
-                        className="text-[11px] font-semibold text-[#968871] hover:text-[#4a3a29] disabled:opacity-50"
+                        className="text-[11px] font-semibold text-[#8a8171] hover:text-[#292521] disabled:opacity-50"
                       >
                         📎 Attach file
                       </button>
                     </div>
 
                     {q.answer ? (
-                      <div className={clsx('p-2 rounded-lg text-sm text-[#2e241b]', PILL.success, q.deleted && 'line-through')}>
-                        <p className="text-[11px] text-[#3a5f3c] font-semibold mb-0.5">
+                      <div className={clsx('p-2 rounded-lg text-sm text-[#1c1917]', PILL.success, q.deleted && 'line-through')}>
+                        <p className="text-[11px] text-[#2f6b4f] font-semibold mb-0.5">
                           {q.answeredBy ? `${q.answeredBy.firstName} ${q.answeredBy.lastName}` : 'Answered'}
                         </p>
                         {q.answer}
@@ -1656,9 +1656,9 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab, initialO
                     {/* Reply attachments — independent of whether the text answer has been sent yet. */}
                     <div className="flex items-center gap-1.5 flex-wrap">
                       {(q.answerAttachments || []).map((a) => (
-                        <span key={a._id} className="inline-flex items-center gap-1 px-2 py-1 rounded-lg border border-[#d3c9b4] bg-white text-[11px] text-[#4a3a29] font-semibold">
+                        <span key={a._id} className="inline-flex items-center gap-1 px-2 py-1 rounded-lg border border-[#ddd6c4] bg-white text-[11px] text-[#292521] font-semibold">
                           <a href={a.url} target="_blank" rel="noreferrer" className="hover:underline">📎 {a.name}</a>
-                          <button title="Remove attachment" onClick={() => removeReplyAttachmentMutation.mutate({ queryId: q._id, attachmentId: a._id })} className="text-[#968871] hover:text-[#8c3a30]">✕</button>
+                          <button title="Remove attachment" onClick={() => removeReplyAttachmentMutation.mutate({ queryId: q._id, attachmentId: a._id })} className="text-[#8a8171] hover:text-[#a13d34]">✕</button>
                         </span>
                       ))}
                       <input
@@ -1671,7 +1671,7 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab, initialO
                         type="button"
                         onClick={() => replyFileInputs.current[q._id]?.click()}
                         disabled={uploadReplyAttachmentMutation.isPending}
-                        className="text-[11px] font-semibold text-[#968871] hover:text-[#4a3a29] disabled:opacity-50"
+                        className="text-[11px] font-semibold text-[#8a8171] hover:text-[#292521] disabled:opacity-50"
                       >
                         📎 Attach to reply
                       </button>
@@ -1693,20 +1693,20 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab, initialO
           {!isLoading && tab === 'Products' && (
             <div className="space-y-3">
               <div className="flex items-center justify-between">
-                <p className="text-xs font-semibold text-[#968871] uppercase tracking-wide">{products.length} linked</p>
+                <p className="text-xs font-semibold text-[#8a8171] uppercase tracking-wide">{products.length} linked</p>
                 <div className="flex items-center gap-2">
                   <button onClick={() => { setQaConvertQueryId(null); setQuickCreateOpen(true); }} className={outlineBtn}>🆕 Create Product</button>
                   <button onClick={() => { setProductModalEditing(null); setProductModalOpen(true); }} className={outlineBtn}>➕ Link Product</button>
                 </div>
               </div>
 
-              {products.length === 0 && <p className="text-sm text-[#968871] text-center py-6">No products linked yet — link a catalogue product, pricing then flows Quote → Accept.</p>}
+              {products.length === 0 && <p className="text-sm text-[#8a8171] text-center py-6">No products linked yet — link a catalogue product, pricing then flows Quote → Accept.</p>}
 
               {products.length > 0 && (
-                <div className="overflow-x-auto rounded-[10px] border border-[#e2dac8]">
+                <div className="overflow-x-auto rounded-[10px] border border-[#e7e2d6]">
                   <table className="w-full text-sm">
                     <thead>
-                      <tr className="text-left text-[11px] uppercase tracking-wide text-[#6d5f4c] border-b border-[#d3c9b4] bg-[#e7dfce]">
+                      <tr className="text-left text-[11px] uppercase tracking-wide text-[#6b6155] border-b border-[#ddd6c4] bg-[#f1ede4]">
                         <th className="px-3 py-2">Product ID</th><th className="px-3 py-2">Product Name</th><th className="px-3 py-2">Basis</th><th className="px-3 py-2">Approx Price</th>
                         <th className="px-3 py-2">Price Status</th><th className="px-3 py-2">Payment</th><th className="px-3 py-2">Production</th><th className="px-3 py-2 w-28">Actions</th>
                       </tr>
@@ -1715,15 +1715,15 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab, initialO
                       {products.map((p) => {
                         const production = productionForProduct(p.productId);
                         return (
-                        <tr key={p.productId} className="border-b border-[#e2dac8]">
-                          <td className="px-3 py-2 font-mono text-xs text-[#6d5f4c] cursor-pointer" title="Edit product link" onClick={() => { setProductModalEditing(p); setProductModalOpen(true); }}>
+                        <tr key={p.productId} className="border-b border-[#e7e2d6]">
+                          <td className="px-3 py-2 font-mono text-xs text-[#6b6155] cursor-pointer" title="Edit product link" onClick={() => { setProductModalEditing(p); setProductModalOpen(true); }}>
                             {p.productId}
                           </td>
-                          <td className="px-3 py-2 text-[#2e241b] font-medium cursor-pointer" title="Edit product link" onClick={() => { setProductModalEditing(p); setProductModalOpen(true); }}>
+                          <td className="px-3 py-2 text-[#1c1917] font-medium cursor-pointer" title="Edit product link" onClick={() => { setProductModalEditing(p); setProductModalOpen(true); }}>
                             {p.name}
                           </td>
-                          <td className="px-3 py-2 text-xs text-[#6d5f4c]">{p.basis || '—'}</td>
-                          <td className="px-3 py-2 text-xs text-[#2e241b]">{p.approxPrice > 0 ? `₹${p.approxPrice.toLocaleString('en-IN')}` : '—'}</td>
+                          <td className="px-3 py-2 text-xs text-[#6b6155]">{p.basis || '—'}</td>
+                          <td className="px-3 py-2 text-xs text-[#1c1917]">{p.approxPrice > 0 ? `₹${p.approxPrice.toLocaleString('en-IN')}` : '—'}</td>
                           <td className="px-3 py-2">
                             <span className={clsx('text-[10px] font-semibold px-2 py-0.5 rounded-full',
                               p.priceStatus === 'Accepted' ? PILL.success : p.priceStatus === 'Quoted' ? PILL.info : PILL.gray)}>
@@ -1739,13 +1739,13 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab, initialO
                             {production ? (
                               <button
                                 onClick={() => { setTab('Orders'); setViewStage(production.order.stage); }}
-                                className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-[#dde5ea] text-[#33526b] hover:brightness-95"
+                                className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-[#f3e6c8] text-[#a8781f] hover:brightness-95"
                                 title={`${production.order.orderNumber} — click to open`}
                               >
                                 {STAGE_NAMES[production.order.stage] || production.order.status} ▸
                               </button>
                             ) : (
-                              <span className="text-[10px] text-[#968871]">Not in production</span>
+                              <span className="text-[10px] text-[#8a8171]">Not in production</span>
                             )}
                           </td>
                           <td className="px-3 py-2 text-right whitespace-nowrap">
@@ -1769,19 +1769,19 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab, initialO
           {!isLoading && tab === 'Formulas' && (
             <div className="space-y-3">
               <div className="flex items-center justify-between gap-2">
-                <p className="text-xs font-semibold text-[#968871] uppercase tracking-wide">{formulas.length} custom formula(s)</p>
-                <p className="text-[11px] text-[#968871]">View only — ingredients are built in Product Catalog's Formulation tab and shown here live once linked. Start a new one from the Products tab.</p>
+                <p className="text-xs font-semibold text-[#8a8171] uppercase tracking-wide">{formulas.length} custom formula(s)</p>
+                <p className="text-[11px] text-[#8a8171]">View only — ingredients are built in Product Catalog's Formulation tab and shown here live once linked. Start a new one from the Products tab.</p>
               </div>
 
               {products.length > 0 && (
                 <div className="flex items-center gap-2 flex-wrap">
-                  <span className="text-[10px] font-bold uppercase tracking-wide text-[#968871]">Products:</span>
+                  <span className="text-[10px] font-bold uppercase tracking-wide text-[#8a8171]">Products:</span>
                   {products.map((p) => (
                     <button
                       key={p.productId}
                       onClick={() => setProductFilterId((cur) => (cur === p.productId ? null : p.productId))}
                       className={clsx('rounded-full border-[1.5px] px-3 py-1 text-xs font-semibold transition-colors',
-                        productFilterId === p.productId ? 'border-[#f2b23e] bg-[#f3e3c2] text-[#2e241b]' : 'border-[#d3c9b4] bg-white text-[#6d5f4c] hover:bg-[#f0eadd]')}
+                        productFilterId === p.productId ? 'border-[#a8781f] bg-[#f3e6c8] text-[#1c1917]' : 'border-[#ddd6c4] bg-white text-[#6b6155] hover:bg-[#fbfaf7]')}
                     >
                       {p.name} <span className="font-mono font-normal opacity-75">{p.productId}</span>
                     </button>
@@ -1790,13 +1790,13 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab, initialO
                 </div>
               )}
 
-              {formulas.length === 0 && <p className="text-sm text-[#968871] text-center py-6">No custom formulas yet.</p>}
+              {formulas.length === 0 && <p className="text-sm text-[#8a8171] text-center py-6">No custom formulas yet.</p>}
 
               {formulas.length > 0 && (
-                <div className="overflow-x-auto rounded-[10px] border border-[#e2dac8]">
+                <div className="overflow-x-auto rounded-[10px] border border-[#e7e2d6]">
                   <table className="w-full text-sm">
                     <thead>
-                      <tr className="text-left text-[11px] uppercase tracking-wide text-[#6d5f4c] border-b border-[#d3c9b4] bg-[#e7dfce]">
+                      <tr className="text-left text-[11px] uppercase tracking-wide text-[#6b6155] border-b border-[#ddd6c4] bg-[#f1ede4]">
                         <th className="px-3 py-2">Formula ID</th><th className="px-3 py-2">Name</th><th className="px-3 py-2">Product</th>
                         <th className="px-3 py-2">Current V</th><th className="px-3 py-2">Version Status</th><th className="px-3 py-2">Cost/Unit</th><th className="px-3 py-2"></th>
                       </tr>
@@ -1806,12 +1806,12 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab, initialO
                         const latest = f.versions[f.versions.length - 1];
                         const linkedProduct = products.find((p) => p.productId === f.productId);
                         return (
-                          <tr key={f.formulaId} className="border-b border-[#e2dac8] cursor-pointer hover:bg-[#e7dfce]/60" onClick={() => setEditorFormulaId(f.formulaId)}>
-                            <td className="px-3 py-2 font-mono text-xs text-[#6d5f4c]">{f.formulaId}</td>
-                            <td className="px-3 py-2 text-[#2e241b] font-medium">{f.name}</td>
+                          <tr key={f.formulaId} className="border-b border-[#e7e2d6] cursor-pointer hover:bg-[#f1ede4]/60" onClick={() => setEditorFormulaId(f.formulaId)}>
+                            <td className="px-3 py-2 font-mono text-xs text-[#6b6155]">{f.formulaId}</td>
+                            <td className="px-3 py-2 text-[#1c1917] font-medium">{f.name}</td>
                             <td className="px-3 py-2 text-xs" onClick={(e) => e.stopPropagation()}>
                               {linkedProduct ? (
-                                <span className="text-[#968871]">
+                                <span className="text-[#8a8171]">
                                   {f.catalogProductId && <span title="Linked from Product Catalog" className="mr-1">🔗</span>}
                                   {linkedProduct.name}
                                 </span>
@@ -1819,13 +1819,13 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab, initialO
                                 <select
                                   defaultValue=""
                                   onChange={(e) => { if (e.target.value) linkFormulaProductMutation.mutate({ formulaId: f.formulaId, productId: e.target.value }); }}
-                                  className="text-[10px] border border-[#8c3a30]/40 rounded px-1 py-0.5 bg-[#f0d8d2] text-[#8c3a30]"
+                                  className="text-[10px] border border-[#a13d34]/40 rounded px-1 py-0.5 bg-[#f5e3e0] text-[#a13d34]"
                                 >
                                   <option value="">🔗 Link product…</option>
                                   {products.map((p) => <option key={p.productId} value={p.productId}>{p.name}</option>)}
                                 </select>
                               ) : (
-                                <span className="text-[#8c3a30] font-semibold">Not linked</span>
+                                <span className="text-[#a13d34] font-semibold">Not linked</span>
                               )}
                             </td>
                             <td className="px-3 py-2 text-xs">V{f.currentVersion}</td>
@@ -1834,7 +1834,7 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab, initialO
                             </td>
                             <td className="px-3 py-2 text-xs">
                               ₹{(latest?.costPerUnit || 0).toFixed(2)}
-                              {latest?.rows?.length > 0 && <p className="text-[10px] text-[#968871]">{latest.rows.length} ingredient(s)</p>}
+                              {latest?.rows?.length > 0 && <p className="text-[10px] text-[#8a8171]">{latest.rows.length} ingredient(s)</p>}
                             </td>
                             <td className="px-3 py-2 text-right">
                               <button onClick={(e) => { e.stopPropagation(); setEditorFormulaId(f.formulaId); }} className={textLink}>👁️ View</button>
@@ -1862,19 +1862,19 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab, initialO
           {!isLoading && tab === 'Samples' && !openSample && (
             <div className="space-y-3">
               <div className="flex items-center justify-between">
-                <p className="text-xs font-semibold text-[#968871] uppercase tracking-wide">{samples.length} sample(s)</p>
+                <p className="text-xs font-semibold text-[#8a8171] uppercase tracking-wide">{samples.length} sample(s)</p>
                 <button onClick={() => setShowSampleForm(true)} className={outlineBtn}>➕ Request New Sample</button>
               </div>
 
               {products.length > 0 && (
                 <div className="flex items-center gap-2 flex-wrap">
-                  <span className="text-[10px] font-bold uppercase tracking-wide text-[#968871]">Products:</span>
+                  <span className="text-[10px] font-bold uppercase tracking-wide text-[#8a8171]">Products:</span>
                   {products.map((p) => (
                     <button
                       key={p.productId}
                       onClick={() => setProductFilterId((cur) => (cur === p.productId ? null : p.productId))}
                       className={clsx('rounded-full border-[1.5px] px-3 py-1 text-xs font-semibold transition-colors',
-                        productFilterId === p.productId ? 'border-[#f2b23e] bg-[#f3e3c2] text-[#2e241b]' : 'border-[#d3c9b4] bg-white text-[#6d5f4c] hover:bg-[#f0eadd]')}
+                        productFilterId === p.productId ? 'border-[#a8781f] bg-[#f3e6c8] text-[#1c1917]' : 'border-[#ddd6c4] bg-white text-[#6b6155] hover:bg-[#fbfaf7]')}
                     >
                       {p.name} <span className="font-mono font-normal opacity-75">{p.productId}</span>
                     </button>
@@ -1883,13 +1883,13 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab, initialO
                 </div>
               )}
 
-              {samples.length === 0 && <p className="text-sm text-[#968871] text-center py-6">No samples yet.</p>}
+              {samples.length === 0 && <p className="text-sm text-[#8a8171] text-center py-6">No samples yet.</p>}
 
               {samples.length > 0 && (
-                <div className="overflow-x-auto rounded-[10px] border border-[#e2dac8]">
+                <div className="overflow-x-auto rounded-[10px] border border-[#e7e2d6]">
                   <table className="w-full text-sm">
                     <thead>
-                      <tr className="text-left text-[11px] uppercase tracking-wide text-[#6d5f4c] border-b border-[#d3c9b4] bg-[#e7dfce]">
+                      <tr className="text-left text-[11px] uppercase tracking-wide text-[#6b6155] border-b border-[#ddd6c4] bg-[#f1ede4]">
                         <th className="px-3 py-2">Sample ID</th><th className="px-3 py-2">Formula/Version</th><th className="px-3 py-2">Product</th><th className="px-3 py-2">Status</th>
                         <th className="px-3 py-2">Days in Stage</th><th className="px-3 py-2">Courier</th><th className="px-3 py-2"></th>
                       </tr>
@@ -1901,22 +1901,22 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab, initialO
                         const product = productForSample(s);
                         const paid = isSamplePaid(s);
                         return (
-                          <tr key={s.sampleId} className="border-b border-[#e2dac8]">
+                          <tr key={s.sampleId} className="border-b border-[#e7e2d6]">
                             <td className="px-3 py-2">
-                              <p className="font-mono text-xs text-[#2e241b] font-medium">{s.sampleId}</p>
-                              {s.chainedFrom && <p className="text-[10px] text-[#968871]">↻ from {s.chainedFrom}</p>}
+                              <p className="font-mono text-xs text-[#1c1917] font-medium">{s.sampleId}</p>
+                              {s.chainedFrom && <p className="text-[10px] text-[#8a8171]">↻ from {s.chainedFrom}</p>}
                             </td>
-                            <td className="px-3 py-2 text-xs text-[#6d5f4c]">
+                            <td className="px-3 py-2 text-xs text-[#6b6155]">
                               {s.formulaId ? `${s.formulaId}${s.formulaVersionNo ? ` V${s.formulaVersionNo}` : ''}` : '—'}
-                              {formula && <p className="text-[10px] text-[#968871]">{formula.name}</p>}
+                              {formula && <p className="text-[10px] text-[#8a8171]">{formula.name}</p>}
                             </td>
                             <td className="px-3 py-2 text-xs">
-                              <p className="text-[#6d5f4c]">{product?.name || '—'}</p>
-                              {!paid && <p className="text-[10px] text-[#8c3a30] font-semibold">🔒 payment pending</p>}
+                              <p className="text-[#6b6155]">{product?.name || '—'}</p>
+                              {!paid && <p className="text-[10px] text-[#a13d34] font-semibold">🔒 payment pending</p>}
                             </td>
                             <td className="px-3 py-2"><span className={clsx('text-[10px] font-semibold px-2 py-0.5 rounded-full', SUB_STAGE_PILL[s.status])}>{s.status}</span></td>
                             <td className="px-3 py-2 text-xs">{lastEvent ? formatDistanceToNowStrict(new Date(lastEvent.at)) : '—'}</td>
-                            <td className="px-3 py-2 text-xs text-[#6d5f4c]">{s.courier || '—'}</td>
+                            <td className="px-3 py-2 text-xs text-[#6b6155]">{s.courier || '—'}</td>
                             <td className="px-3 py-2 text-right">
                               <button onClick={() => setOpenSampleId(s.sampleId)} className={textLink}>View ▸</button>
                             </td>
@@ -1938,18 +1938,18 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab, initialO
               </div>
 
               <div>
-                <p className="text-xs font-semibold text-[#968871] uppercase tracking-wide mb-1">Traceability Chain</p>
+                <p className="text-xs font-semibold text-[#8a8171] uppercase tracking-wide mb-1">Traceability Chain</p>
                 <div className="flex items-center gap-1.5 flex-wrap text-xs">
                   <span className={clsx('px-2 py-1 rounded-lg font-mono', PILL.gray)}>{lead?.name}</span>
-                  <span className="text-[#968871]">→</span>
-                  {openSample.queryId && <><span className={clsx('px-2 py-1 rounded-lg font-mono', PILL.gray)}>Query</span><span className="text-[#968871]">→</span></>}
-                  {openSample.formulaId && <><span className={clsx('px-2 py-1 rounded-lg font-mono', PILL.gray)}>{openSample.formulaId}{openSample.formulaVersionNo ? ` · V${openSample.formulaVersionNo}` : ''}</span><span className="text-[#968871]">→</span></>}
-                  <span className="px-2 py-1 rounded-lg bg-[#f2b23e] text-[#2e241b] font-mono font-semibold">{openSample.sampleId}</span>
+                  <span className="text-[#8a8171]">→</span>
+                  {openSample.queryId && <><span className={clsx('px-2 py-1 rounded-lg font-mono', PILL.gray)}>Query</span><span className="text-[#8a8171]">→</span></>}
+                  {openSample.formulaId && <><span className={clsx('px-2 py-1 rounded-lg font-mono', PILL.gray)}>{openSample.formulaId}{openSample.formulaVersionNo ? ` · V${openSample.formulaVersionNo}` : ''}</span><span className="text-[#8a8171]">→</span></>}
+                  <span className="px-2 py-1 rounded-lg bg-[#a8781f] text-[#1c1917] font-mono font-semibold">{openSample.sampleId}</span>
                 </div>
               </div>
 
               {!isSamplePaid(openSample) && (
-                <p className="text-[11px] text-[#7a5a10]">🔒 Confirm payment for {productForSample(openSample)?.name || 'this product'} in the RND's Payments tab before this sample can move past "Requested".</p>
+                <p className="text-[11px] text-[#a8781f]">🔒 Confirm payment for {productForSample(openSample)?.name || 'this product'} in the RND's Payments tab before this sample can move past "Requested".</p>
               )}
 
               <div className="flex items-center gap-2 flex-wrap">
@@ -1968,7 +1968,7 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab, initialO
                         if (s === 'Rejected') { setRejectModalFor(openSample.sampleId); setRejectReasonModal(''); setRejectCloneFollowUp(true); return; }
                         sampleStatusMutation.mutate({ sampleId: openSample.sampleId, status: s });
                       }}
-                      className={clsx('text-xs font-semibold px-2.5 py-1 rounded-full border-[1.5px] transition-colors', locked ? 'opacity-30 cursor-not-allowed border-[#d3c9b4] text-[#968871]' : 'border-[#d3c9b4] hover:border-[#968871] text-[#6d5f4c] hover:text-[#2e241b]')}
+                      className={clsx('text-xs font-semibold px-2.5 py-1 rounded-full border-[1.5px] transition-colors', locked ? 'opacity-30 cursor-not-allowed border-[#ddd6c4] text-[#8a8171]' : 'border-[#ddd6c4] hover:border-[#8a8171] text-[#6b6155] hover:text-[#1c1917]')}
                     >
                       {locked ? '🔒 ' : ''}{s}
                     </button>
@@ -1976,10 +1976,10 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab, initialO
                 })}
               </div>
               {openSample.status === 'Rejected' && openSample.rejectionReason && (
-                <p className="text-xs text-[#8c3a30]">Reason: {openSample.rejectionReason}{openSample.rejectedByContact && ` — rejected by ${openSample.rejectedByContact}`}</p>
+                <p className="text-xs text-[#a13d34]">Reason: {openSample.rejectionReason}{openSample.rejectedByContact && ` — rejected by ${openSample.rejectedByContact}`}</p>
               )}
               {openSample.status === 'Approved' && openSample.approvedByContact && (
-                <p className="text-xs text-[#3a5f3c]">Approved by {openSample.approvedByContact}</p>
+                <p className="text-xs text-[#2f6b4f]">Approved by {openSample.approvedByContact}</p>
               )}
               {openSample.status === 'Rejected' && (
                 <button
@@ -1993,27 +1993,27 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab, initialO
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-3">
                   <div>
-                    <p className="text-xs font-semibold text-[#968871] uppercase tracking-wide mb-2">Courier</p>
+                    <p className="text-xs font-semibold text-[#8a8171] uppercase tracking-wide mb-2">Courier</p>
                     {openSample.sentAt ? (
-                      <div className="text-sm text-[#2e241b] space-y-0.5">
-                        <p>{openSample.courier || '—'}{openSample.awb && <span className="text-xs text-[#968871]"> · AWB {openSample.awb}</span>}</p>
-                        <p className="text-xs text-[#968871]">Sent {format(new Date(openSample.sentAt), 'dd MMM yyyy')}</p>
+                      <div className="text-sm text-[#1c1917] space-y-0.5">
+                        <p>{openSample.courier || '—'}{openSample.awb && <span className="text-xs text-[#8a8171]"> · AWB {openSample.awb}</span>}</p>
+                        <p className="text-xs text-[#8a8171]">Sent {format(new Date(openSample.sentAt), 'dd MMM yyyy')}</p>
                       </div>
                     ) : (
-                      <p className="text-xs text-[#968871]">Not dispatched yet — move this sample to "Sent" to record courier details.</p>
+                      <p className="text-xs text-[#8a8171]">Not dispatched yet — move this sample to "Sent" to record courier details.</p>
                     )}
                   </div>
 
                   <div>
-                    <p className="text-xs font-semibold text-[#968871] uppercase tracking-wide mb-2">Confirmation</p>
-                    <label className="flex items-center gap-2 text-sm text-[#4a3a29]">
+                    <p className="text-xs font-semibold text-[#8a8171] uppercase tracking-wide mb-2">Confirmation</p>
+                    <label className="flex items-center gap-2 text-sm text-[#292521]">
                       <input type="checkbox" checked={openSample.packagingConfirmed} onChange={(e) => updateSampleMutation.mutate({ sampleId: openSample.sampleId, packagingConfirmed: e.target.checked })} />
                       Packaging confirmed by customer
                     </label>
                   </div>
 
                   <div>
-                    <p className="text-xs font-semibold text-[#968871] uppercase tracking-wide mb-2">Lab Notes</p>
+                    <p className="text-xs font-semibold text-[#8a8171] uppercase tracking-wide mb-2">Lab Notes</p>
                     <textarea
                       defaultValue={openSample.notes || ''}
                       onBlur={(e) => { if (e.target.value !== (openSample.notes || '')) updateSampleMutation.mutate({ sampleId: openSample.sampleId, notes: e.target.value }); }}
@@ -2024,15 +2024,15 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab, initialO
                   </div>
 
                   <div>
-                    <p className="text-xs font-semibold text-[#968871] uppercase tracking-wide mb-2">Feedback Log</p>
+                    <p className="text-xs font-semibold text-[#8a8171] uppercase tracking-wide mb-2">Feedback Log</p>
                     <div className="space-y-2 mb-2">
                       {(openSample.feedbackLog || []).map((f, i) => (
-                        <div key={i} className="p-2 rounded-lg bg-[#e7dfce] text-xs">
-                          <p className="font-semibold text-[#4a3a29]">{f.by} · {format(new Date(f.at), 'dd MMM, hh:mm a')}</p>
-                          <p className="text-[#6d5f4c]">{f.text}</p>
+                        <div key={i} className="p-2 rounded-lg bg-[#f1ede4] text-xs">
+                          <p className="font-semibold text-[#292521]">{f.by} · {format(new Date(f.at), 'dd MMM, hh:mm a')}</p>
+                          <p className="text-[#6b6155]">{f.text}</p>
                         </div>
                       ))}
-                      {(!openSample.feedbackLog || openSample.feedbackLog.length === 0) && <p className="text-xs text-[#968871]">No feedback logged yet.</p>}
+                      {(!openSample.feedbackLog || openSample.feedbackLog.length === 0) && <p className="text-xs text-[#8a8171]">No feedback logged yet.</p>}
                     </div>
                     <div className="flex items-center gap-2">
                       <input value={feedbackDraft} onChange={(e) => setFeedbackDraft(e.target.value)} placeholder="Log customer feedback…" className={clsx(inputCls, 'flex-1')} />
@@ -2048,12 +2048,12 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab, initialO
                 </div>
 
                 <div>
-                  <p className="text-xs font-semibold text-[#968871] uppercase tracking-wide mb-2">Timeline</p>
+                  <p className="text-xs font-semibold text-[#8a8171] uppercase tracking-wide mb-2">Timeline</p>
                   <div className="space-y-2">
                     {[...(openSample.timeline || [])].reverse().map((t, i) => (
-                      <div key={i} className="text-xs border-l-2 border-[#d3c9b4] pl-2">
-                        <p className="font-semibold text-[#4a3a29]">{t.event}</p>
-                        <p className="text-[#968871]">{format(new Date(t.at), 'dd MMM yyyy, hh:mm a')}</p>
+                      <div key={i} className="text-xs border-l-2 border-[#ddd6c4] pl-2">
+                        <p className="font-semibold text-[#292521]">{t.event}</p>
+                        <p className="text-[#8a8171]">{format(new Date(t.at), 'dd MMM yyyy, hh:mm a')}</p>
                       </div>
                     ))}
                   </div>
@@ -2064,11 +2064,11 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab, initialO
 
           {!isLoading && tab === "RND's Payments" && (
             <div className="space-y-4">
-              <p className="text-[11px] text-[#968871]">Payment is per product — whichever product is paid for, only that product's samples unlock past "Requested". The rest stay locked until their own payment is confirmed.</p>
+              <p className="text-[11px] text-[#8a8171]">Payment is per product — whichever product is paid for, only that product's samples unlock past "Requested". The rest stay locked until their own payment is confirmed.</p>
 
               {products.length > 0 && (
                 <div className="flex items-center gap-2 flex-wrap">
-                  <span className="text-[10px] font-bold uppercase tracking-wide text-[#968871]">Products:</span>
+                  <span className="text-[10px] font-bold uppercase tracking-wide text-[#8a8171]">Products:</span>
                   {products.map((p) => {
                     const paid = p.paymentStatus === 'full_paid';
                     return (
@@ -2077,7 +2077,7 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab, initialO
                         onClick={() => { if (!paid) { setPayingProductId(p.productId); setPayMode('upi'); setPayTxnRef(''); setPayDate(new Date().toISOString().slice(0, 10)); setPayReceivedBy(''); setPayNotes(''); } }}
                         title={paid ? 'Paid' : 'Click to record payment'}
                         className={clsx('rounded-full border-[1.5px] px-3 py-1 text-xs font-semibold transition-colors',
-                          paid ? 'border-[#b9d2af] bg-[#dce9d4] text-[#3a5f3c]' : 'border-[#d3c9b4] bg-white text-[#6d5f4c] hover:bg-[#f0eadd]')}
+                          paid ? 'border-[#c3d9c9] bg-[#e2ece5] text-[#2f6b4f]' : 'border-[#ddd6c4] bg-white text-[#6b6155] hover:bg-[#fbfaf7]')}
                       >
                         {p.name} <span className="font-mono font-normal opacity-75">{p.productId}</span>
                       </button>
@@ -2086,13 +2086,13 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab, initialO
                 </div>
               )}
 
-              {products.length === 0 && <p className="text-sm text-[#968871] text-center py-6">No products linked yet — add one in the Products tab first.</p>}
+              {products.length === 0 && <p className="text-sm text-[#8a8171] text-center py-6">No products linked yet — add one in the Products tab first.</p>}
 
               {products.length > 0 && (
-                <div className="overflow-x-auto rounded-[10px] border border-[#e2dac8]">
+                <div className="overflow-x-auto rounded-[10px] border border-[#e7e2d6]">
                   <table className="w-full text-sm">
                     <thead>
-                      <tr className="text-left text-[11px] uppercase tracking-wide text-[#6d5f4c] border-b border-[#d3c9b4] bg-[#e7dfce]">
+                      <tr className="text-left text-[11px] uppercase tracking-wide text-[#6b6155] border-b border-[#ddd6c4] bg-[#f1ede4]">
                         <th className="px-3 py-2">Product ID</th><th className="px-3 py-2">Product</th><th className="px-3 py-2">Price</th>
                         <th className="px-3 py-2">Status</th><th className="px-3 py-2">Mode</th><th className="px-3 py-2">Txn / Ref</th>
                         <th className="px-3 py-2">Paid On</th><th className="px-3 py-2">Received By</th><th className="px-3 py-2 w-28"></th>
@@ -2102,19 +2102,19 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab, initialO
                       {products.map((p) => {
                         const paid = p.paymentStatus === 'full_paid';
                         return (
-                          <tr key={p.productId} className="border-b border-[#e2dac8] whitespace-nowrap">
-                            <td className="px-3 py-2 font-mono text-xs text-[#6d5f4c]">{p.productId}</td>
-                            <td className="px-3 py-2 text-[#2e241b] font-medium">{p.name}</td>
-                            <td className="px-3 py-2 text-xs text-[#2e241b]">₹{(p.chargeAmount || p.approxPrice || 0).toLocaleString('en-IN')}</td>
+                          <tr key={p.productId} className="border-b border-[#e7e2d6] whitespace-nowrap">
+                            <td className="px-3 py-2 font-mono text-xs text-[#6b6155]">{p.productId}</td>
+                            <td className="px-3 py-2 text-[#1c1917] font-medium">{p.name}</td>
+                            <td className="px-3 py-2 text-xs text-[#1c1917]">₹{(p.chargeAmount || p.approxPrice || 0).toLocaleString('en-IN')}</td>
                             <td className="px-3 py-2">
                               <span className={clsx('text-[10px] font-semibold px-2 py-0.5 rounded-full', paid ? PILL.success : PILL.warning)}>
                                 {paid ? '✓ Paid' : '⏳ Pending'}
                               </span>
                             </td>
-                            <td className="px-3 py-2 text-xs text-[#6d5f4c] capitalize">{paid ? (p.paymentMode || '—').replace('_', ' ') : '—'}</td>
-                            <td className="px-3 py-2 text-xs text-[#6d5f4c]">{paid ? (p.paymentTxnRef || '—') : '—'}</td>
-                            <td className="px-3 py-2 text-xs text-[#6d5f4c]">{paid && p.paidAt ? format(new Date(p.paidAt), 'dd MMM yyyy') : '—'}</td>
-                            <td className="px-3 py-2 text-xs text-[#6d5f4c]">{paid ? (p.receivedBy || '—') : '—'}</td>
+                            <td className="px-3 py-2 text-xs text-[#6b6155] capitalize">{paid ? (p.paymentMode || '—').replace('_', ' ') : '—'}</td>
+                            <td className="px-3 py-2 text-xs text-[#6b6155]">{paid ? (p.paymentTxnRef || '—') : '—'}</td>
+                            <td className="px-3 py-2 text-xs text-[#6b6155]">{paid && p.paidAt ? format(new Date(p.paidAt), 'dd MMM yyyy') : '—'}</td>
+                            <td className="px-3 py-2 text-xs text-[#6b6155]">{paid ? (p.receivedBy || '—') : '—'}</td>
                             <td className="px-3 py-2 text-right">
                               {paid ? (
                                 <button onClick={() => updateProductMutation.mutate({ productId: p.productId, paymentStatus: 'pending' })} disabled={updateProductMutation.isPending} className={textLink}>
@@ -2144,14 +2144,14 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab, initialO
             if (!payingProduct) return null;
             return (
               <div className="fixed inset-0 z-[80] flex items-center justify-center p-4" style={bodyFont}>
-                <div className="absolute inset-0 bg-[#2e241b]/50 backdrop-blur-sm" onClick={() => setPayingProductId(null)} />
-                <div className="relative bg-[#f0eadd] shadow-[0_10px_40px_rgba(46,36,27,0.16)] border border-[#d3c9b4] rounded-2xl w-full max-w-sm">
-                  <div className="p-5 border-b border-[#e2dac8] bg-[#e7dfce] rounded-t-2xl flex items-center justify-between">
-                    <h3 className="font-bold text-[#2e241b]" style={displayFont}>💳 Record Payment</h3>
-                    <button onClick={() => setPayingProductId(null)} className="text-[#968871] hover:text-[#2e241b] text-xl leading-none">&times;</button>
+                <div className="absolute inset-0 bg-[#1c1917]/50 backdrop-blur-sm" onClick={() => setPayingProductId(null)} />
+                <div className="relative bg-[#fbfaf7] shadow-[0_10px_40px_rgba(46,36,27,0.16)] border border-[#ddd6c4] rounded-2xl w-full max-w-sm">
+                  <div className="p-5 border-b border-[#e7e2d6] bg-[#f1ede4] rounded-t-2xl flex items-center justify-between">
+                    <h3 className="font-bold text-[#1c1917]" style={displayFont}>💳 Record Payment</h3>
+                    <button onClick={() => setPayingProductId(null)} className="text-[#8a8171] hover:text-[#1c1917] text-xl leading-none">&times;</button>
                   </div>
                   <div className="p-5 space-y-3">
-                    <p className="text-xs text-[#6d5f4c]">{payingProduct.name} <span className="font-mono text-[#968871]">{payingProduct.productId}</span></p>
+                    <p className="text-xs text-[#6b6155]">{payingProduct.name} <span className="font-mono text-[#8a8171]">{payingProduct.productId}</span></p>
                     <div className="grid grid-cols-2 gap-2">
                       <select value={payMode} onChange={(e) => setPayMode(e.target.value)} className={inputCls}>
                         <option value="upi">UPI</option>
@@ -2185,16 +2185,16 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab, initialO
 
           {!isLoading && tab === 'Invoice' && (
             <div className="space-y-3">
-              <p className="text-xs font-semibold text-[#968871] uppercase tracking-wide">Approved → Production ({approvedSamples.length})</p>
+              <p className="text-xs font-semibold text-[#8a8171] uppercase tracking-wide">Approved → Production ({approvedSamples.length})</p>
               {products.length > 0 && (
                 <div className="flex items-center gap-2 flex-wrap">
-                  <span className="text-[10px] font-bold uppercase tracking-wide text-[#968871]">Products:</span>
+                  <span className="text-[10px] font-bold uppercase tracking-wide text-[#8a8171]">Products:</span>
                   {products.map((p) => (
                     <button
                       key={p.productId}
                       onClick={() => setProductFilterId((cur) => (cur === p.productId ? null : p.productId))}
                       className={clsx('rounded-full border-[1.5px] px-3 py-1 text-xs font-semibold transition-colors',
-                        productFilterId === p.productId ? 'border-[#f2b23e] bg-[#f3e3c2] text-[#2e241b]' : 'border-[#d3c9b4] bg-white text-[#6d5f4c] hover:bg-[#f0eadd]')}
+                        productFilterId === p.productId ? 'border-[#a8781f] bg-[#f3e6c8] text-[#1c1917]' : 'border-[#ddd6c4] bg-white text-[#6b6155] hover:bg-[#fbfaf7]')}
                     >
                       {p.name} <span className="font-mono font-normal opacity-75">{p.productId}</span>
                     </button>
@@ -2204,18 +2204,18 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab, initialO
               )}
               {approvedSamples.length === 0 && (
                 <div className="text-center py-8">
-                  <p className="text-sm text-[#968871]">No approved samples yet</p>
-                  <p className="text-xs text-[#968871] mt-1">Approve a sample in the Samples tab to unlock the move to Production.</p>
+                  <p className="text-sm text-[#8a8171]">No approved samples yet</p>
+                  <p className="text-xs text-[#8a8171] mt-1">Approve a sample in the Samples tab to unlock the move to Production.</p>
                 </div>
               )}
               {approvedSamples.length > 0 && (
-                <p className="text-[11px] text-[#968871]">Each product below gets its own Create Quotation → Create Invoice → Send to Production flow — independent of every other product on this lead.</p>
+                <p className="text-[11px] text-[#8a8171]">Each product below gets its own Create Quotation → Create Invoice → Send to Production flow — independent of every other product on this lead.</p>
               )}
               {approvedSamples.length > 0 && (
-                <div className="overflow-x-auto rounded-[10px] border border-[#d3c9b4]">
+                <div className="overflow-x-auto rounded-[10px] border border-[#ddd6c4]">
                   <table className="w-full text-sm">
                     <thead>
-                      <tr className="text-left text-[11px] uppercase tracking-wide text-[#6d5f4c] border-b border-[#d3c9b4] bg-[#e7dfce]">
+                      <tr className="text-left text-[11px] uppercase tracking-wide text-[#6b6155] border-b border-[#ddd6c4] bg-[#f1ede4]">
                         <th className="px-3 py-2">Product ID</th>
                         <th className="px-3 py-2">Product</th>
                         <th className="px-3 py-2">Quotation</th>
@@ -2234,11 +2234,11 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab, initialO
                         // ≥50% advance-payment gate now sits later, at Work Assignment → Procurement.
                         const canSendToProduction = !!s.finalInvoiceId && !s.productionOrderId;
                         return (
-                          <tr key={s.sampleId} className="border-b border-[#e2dac8] last:border-none align-top">
-                            <td className="px-3 py-2 font-mono text-xs text-[#6d5f4c] whitespace-nowrap">{productForSample(s)?.productId || '—'}</td>
+                          <tr key={s.sampleId} className="border-b border-[#e7e2d6] last:border-none align-top">
+                            <td className="px-3 py-2 font-mono text-xs text-[#6b6155] whitespace-nowrap">{productForSample(s)?.productId || '—'}</td>
                             <td className="px-3 py-2 whitespace-nowrap">
-                              <p className="text-sm font-semibold text-[#2e241b]">{productForSample(s)?.name || s.sampleId}</p>
-                              <p className="text-[10px] text-[#968871]">{s.sampleId}{s.formulaVersionNo && ` · V${s.formulaVersionNo}`}</p>
+                              <p className="text-sm font-semibold text-[#1c1917]">{productForSample(s)?.name || s.sampleId}</p>
+                              <p className="text-[10px] text-[#8a8171]">{s.sampleId}{s.formulaVersionNo && ` · V${s.formulaVersionNo}`}</p>
                             </td>
                             <td className="px-3 py-2 whitespace-nowrap">
                               {inv ? (
@@ -2246,20 +2246,20 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab, initialO
                                   {inv.invoiceNumber}
                                 </span>
                               ) : (
-                                <span className="text-xs text-[#968871]">—</span>
+                                <span className="text-xs text-[#8a8171]">—</span>
                               )}
                             </td>
-                            <td className="px-3 py-2 whitespace-nowrap text-xs text-[#6d5f4c]">
+                            <td className="px-3 py-2 whitespace-nowrap text-xs text-[#6b6155]">
                               {s.finalInvoiceId ? s.finalInvoiceId.invoiceNumber : '—'}
                             </td>
-                            <td className="px-3 py-2 whitespace-nowrap text-xs text-[#6d5f4c]">
+                            <td className="px-3 py-2 whitespace-nowrap text-xs text-[#6b6155]">
                               {inv ? `₹${(inv.paidAmount || 0).toLocaleString('en-IN')} / ₹${(inv.totalAmount || 0).toLocaleString('en-IN')} (${paidPct}%)` : '—'}
                             </td>
                             <td className="px-3 py-2 whitespace-nowrap">
                               {s.productionOrderId ? (
-                                <span className="text-xs font-semibold text-[#33526b]">{s.productionOrderId.orderNumber}</span>
+                                <span className="text-xs font-semibold text-[#a8781f]">{s.productionOrderId.orderNumber}</span>
                               ) : (
-                                <span className="text-xs text-[#3a5f3c] font-semibold">Approved</span>
+                                <span className="text-xs text-[#2f6b4f] font-semibold">Approved</span>
                               )}
                             </td>
                             <td className="px-3 py-2">
@@ -2332,37 +2332,37 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab, initialO
 
       {showFollowUpModal && (
         <div className={clsx('fixed inset-0 z-[70] flex items-center justify-center bg-black/40', followUpMaximized ? 'p-0' : 'p-4')} onClick={() => setShowFollowUpModal(false)}>
-          <div className={clsx('bg-[#f0eadd] shadow-2xl border border-[#d3c9b4] flex flex-col',
+          <div className={clsx('bg-[#fbfaf7] shadow-2xl border border-[#ddd6c4] flex flex-col',
             followUpMaximized ? 'w-screen h-screen max-w-none rounded-none' : 'w-full max-w-lg rounded-2xl')} style={bodyFont} onClick={(e) => e.stopPropagation()}>
-            <div className={clsx('flex items-center justify-between px-5 py-4 border-b border-[#e2dac8] bg-[#e7dfce] flex-shrink-0', !followUpMaximized && 'rounded-t-2xl')}>
+            <div className={clsx('flex items-center justify-between px-5 py-4 border-b border-[#e7e2d6] bg-[#f1ede4] flex-shrink-0', !followUpMaximized && 'rounded-t-2xl')}>
               <div>
-                <h3 className="font-bold text-[#2e241b]" style={displayFont}>📞 Log Follow-up</h3>
-                <p className="text-[11px] text-[#968871] mt-0.5">The client gets a WhatsApp acknowledgment when you save this.</p>
+                <h3 className="font-bold text-[#1c1917]" style={displayFont}>📞 Log Follow-up</h3>
+                <p className="text-[11px] text-[#8a8171] mt-0.5">The client gets a WhatsApp acknowledgment when you save this.</p>
               </div>
               <div className="flex items-center gap-1.5">
-                <button onClick={() => setFollowUpMaximized((m) => !m)} title={followUpMaximized ? 'Restore' : 'Maximize'} className="w-8 h-8 rounded-lg hover:bg-[#ddd3be] flex items-center justify-center text-[#968871] hover:text-[#2e241b] text-sm">{followUpMaximized ? '🗗' : '🗖'}</button>
-                <button onClick={() => setShowFollowUpModal(false)} className="text-[#968871] hover:text-[#2e241b] text-xl leading-none">&times;</button>
+                <button onClick={() => setFollowUpMaximized((m) => !m)} title={followUpMaximized ? 'Restore' : 'Maximize'} className="w-8 h-8 rounded-lg hover:bg-[#e7e2d6] flex items-center justify-center text-[#8a8171] hover:text-[#1c1917] text-sm">{followUpMaximized ? '🗗' : '🗖'}</button>
+                <button onClick={() => setShowFollowUpModal(false)} className="text-[#8a8171] hover:text-[#1c1917] text-xl leading-none">&times;</button>
               </div>
             </div>
             <div className={clsx('p-5 space-y-3', followUpMaximized && 'flex-1 overflow-y-auto')}>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-xs font-semibold text-[#968871] uppercase tracking-wide mb-1 block">Type</label>
+                  <label className="text-xs font-semibold text-[#8a8171] uppercase tracking-wide mb-1 block">Type</label>
                   <select value={fuType} onChange={(e) => setFuType(e.target.value)} className={clsx(inputCls, 'w-full')}>
                     {['call', 'whatsapp', 'meeting', 'email', 'demo', 'other'].map((t) => <option key={t} value={t}>{t.charAt(0).toUpperCase() + t.slice(1)}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label className="text-xs font-semibold text-[#968871] uppercase tracking-wide mb-1 block">Date & Time</label>
+                  <label className="text-xs font-semibold text-[#8a8171] uppercase tracking-wide mb-1 block">Date & Time</label>
                   <input type="datetime-local" value={fuScheduledAt} onChange={(e) => setFuScheduledAt(e.target.value)} className={clsx(inputCls, 'w-full')} />
                 </div>
               </div>
               <div>
-                <label className="text-xs font-semibold text-[#968871] uppercase tracking-wide mb-1 block">Notes / Outcome</label>
+                <label className="text-xs font-semibold text-[#8a8171] uppercase tracking-wide mb-1 block">Notes / Outcome</label>
                 <textarea value={fuNotes} onChange={(e) => setFuNotes(e.target.value)} rows={4} placeholder="What was discussed, how the client responded…" className={clsx(inputCls, 'w-full')} autoFocus />
               </div>
               <div>
-                <label className="text-xs font-semibold text-[#968871] uppercase tracking-wide mb-1 block">Next action (optional — shared with the client)</label>
+                <label className="text-xs font-semibold text-[#8a8171] uppercase tracking-wide mb-1 block">Next action (optional — shared with the client)</label>
                 <input value={fuNextAction} onChange={(e) => setFuNextAction(e.target.value)} placeholder="e.g. Share product catalog and pricing" className={clsx(inputCls, 'w-full')} />
               </div>
               <div className="flex gap-2 pt-1">
@@ -2462,28 +2462,28 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab, initialO
 
       {sendSampleFor && (
         <div className={clsx('fixed inset-0 z-[80] flex items-center justify-center', sendSampleMaximized ? 'p-0' : 'p-4')} style={bodyFont}>
-          <div className="absolute inset-0 bg-[#2e241b]/50 backdrop-blur-sm" onClick={() => setSendSampleFor(null)} />
-          <div className={clsx('relative bg-[#f0eadd] shadow-[0_10px_40px_rgba(46,36,27,0.16)] border border-[#d3c9b4]',
+          <div className="absolute inset-0 bg-[#1c1917]/50 backdrop-blur-sm" onClick={() => setSendSampleFor(null)} />
+          <div className={clsx('relative bg-[#fbfaf7] shadow-[0_10px_40px_rgba(46,36,27,0.16)] border border-[#ddd6c4]',
             sendSampleMaximized ? 'w-screen h-screen max-w-none rounded-none flex flex-col' : 'w-full max-w-md rounded-2xl')}>
-            <div className={clsx('p-5 border-b border-[#e2dac8] bg-[#e7dfce] flex items-center justify-between flex-shrink-0', !sendSampleMaximized && 'rounded-t-2xl')}>
+            <div className={clsx('p-5 border-b border-[#e7e2d6] bg-[#f1ede4] flex items-center justify-between flex-shrink-0', !sendSampleMaximized && 'rounded-t-2xl')}>
               <div>
-                <h3 className="font-bold text-[#2e241b]" style={displayFont}>🏭 Send Product to Production</h3>
-                <p className="text-xs text-[#6d5f4c] mt-0.5">{sendSampleFor.sampleId} — invoiced. Orders opens right after — the ≥50% advance is checked later, before Procurement starts.</p>
+                <h3 className="font-bold text-[#1c1917]" style={displayFont}>🏭 Send Product to Production</h3>
+                <p className="text-xs text-[#6b6155] mt-0.5">{sendSampleFor.sampleId} — invoiced. Orders opens right after — the ≥50% advance is checked later, before Procurement starts.</p>
               </div>
               <div className="flex items-center gap-1.5 flex-shrink-0">
-                <button onClick={() => setSendSampleMaximized((m) => !m)} title={sendSampleMaximized ? 'Restore' : 'Maximize'} className="w-9 h-9 rounded-lg hover:bg-[#ddd3be] flex items-center justify-center text-[#968871] hover:text-[#2e241b] text-base">{sendSampleMaximized ? '🗗' : '🗖'}</button>
-                <button onClick={() => setSendSampleFor(null)} className="w-9 h-9 rounded-lg hover:bg-[#ddd3be] flex items-center justify-center text-[#968871] hover:text-[#2e241b] text-lg">✕</button>
+                <button onClick={() => setSendSampleMaximized((m) => !m)} title={sendSampleMaximized ? 'Restore' : 'Maximize'} className="w-9 h-9 rounded-lg hover:bg-[#e7e2d6] flex items-center justify-center text-[#8a8171] hover:text-[#1c1917] text-base">{sendSampleMaximized ? '🗗' : '🗖'}</button>
+                <button onClick={() => setSendSampleFor(null)} className="w-9 h-9 rounded-lg hover:bg-[#e7e2d6] flex items-center justify-center text-[#8a8171] hover:text-[#1c1917] text-lg">✕</button>
               </div>
             </div>
             <div className={clsx('p-5 space-y-3', sendSampleMaximized && 'flex-1 overflow-y-auto')}>
               <div>
-                <label className="text-xs font-semibold text-[#968871] uppercase tracking-wide mb-1 block">Product</label>
+                <label className="text-xs font-semibold text-[#8a8171] uppercase tracking-wide mb-1 block">Product</label>
                 {sendSampleSelectedCatalog ? (
                   <>
-                    <div className="w-full px-3 py-2 text-sm rounded-[10px] border-[1.5px] border-[#d3c9b4] bg-[#e7dfce] text-[#2e241b] font-semibold">
-                      {sendSampleSelectedCatalog.name} <span className="text-xs text-[#968871] font-mono font-normal">{sendSampleSelectedCatalog.code}</span>
+                    <div className="w-full px-3 py-2 text-sm rounded-[10px] border-[1.5px] border-[#ddd6c4] bg-[#f1ede4] text-[#1c1917] font-semibold">
+                      {sendSampleSelectedCatalog.name} <span className="text-xs text-[#8a8171] font-mono font-normal">{sendSampleSelectedCatalog.code}</span>
                     </div>
-                    <p className="text-[11px] text-[#968871] mt-1">{sendSampleSelectedCatalog.formulation?.rows?.length || 0} ingredient(s) in formulation — already linked to this sample's product, nothing to pick.</p>
+                    <p className="text-[11px] text-[#8a8171] mt-1">{sendSampleSelectedCatalog.formulation?.rows?.length || 0} ingredient(s) in formulation — already linked to this sample's product, nothing to pick.</p>
                   </>
                 ) : (
                   <>
@@ -2493,15 +2493,15 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab, initialO
                       placeholder="Search catalog products…"
                       className={clsx(inputCls, 'w-full bg-white')}
                     />
-                    <p className="text-[11px] text-[#8c3a30] mt-1">This sample's product isn't linked to a real catalog entry — pick the closest match.</p>
+                    <p className="text-[11px] text-[#a13d34] mt-1">This sample's product isn't linked to a real catalog entry — pick the closest match.</p>
                     {sendSampleCatalogSearch && (
-                      <div className="mt-1 rounded-[10px] border border-[#d3c9b4] bg-white max-h-32 overflow-y-auto">
-                        {sendSampleCatalogMatches.length === 0 && <div className="px-3 py-2 text-xs text-[#968871]">No products found</div>}
+                      <div className="mt-1 rounded-[10px] border border-[#ddd6c4] bg-white max-h-32 overflow-y-auto">
+                        {sendSampleCatalogMatches.length === 0 && <div className="px-3 py-2 text-xs text-[#8a8171]">No products found</div>}
                         {sendSampleCatalogMatches.slice(0, 8).map((p) => (
                           <button key={p._id} type="button" onClick={() => { setSendSampleSelectedCatalog(p); setSendSampleCatalogSearch(''); }}
-                            className="w-full text-left px-3 py-2 text-xs hover:bg-[#e7dfce] flex justify-between">
-                            <span className="text-[#2e241b]">{p.name}</span>
-                            <span className="text-[#968871] font-mono">{p.code}</span>
+                            className="w-full text-left px-3 py-2 text-xs hover:bg-[#f1ede4] flex justify-between">
+                            <span className="text-[#1c1917]">{p.name}</span>
+                            <span className="text-[#8a8171] font-mono">{p.code}</span>
                           </button>
                         ))}
                       </div>
@@ -2510,7 +2510,7 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab, initialO
                 )}
               </div>
               <div>
-                <label className="text-xs font-semibold text-[#968871] uppercase tracking-wide mb-1 block">Batch size (kg)</label>
+                <label className="text-xs font-semibold text-[#8a8171] uppercase tracking-wide mb-1 block">Batch size (kg)</label>
                 <input type="number" min="0.1" step="0.1" value={sendSampleBatchSizeKg} onChange={(e) => setSendSampleBatchSizeKg(e.target.value)}
                   className={clsx(inputCls, 'w-full bg-white')} />
               </div>
@@ -2535,30 +2535,30 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab, initialO
 
       {courierModalFor && (
         <div className={clsx('fixed inset-0 z-[80] flex items-center justify-center', courierMaximized ? 'p-0' : 'p-4')} style={bodyFont}>
-          <div className="absolute inset-0 bg-[#2e241b]/50 backdrop-blur-sm" onClick={() => setCourierModalFor(null)} />
-          <div className={clsx('relative bg-[#f0eadd] shadow-[0_10px_40px_rgba(46,36,27,0.16)] border border-[#d3c9b4]',
+          <div className="absolute inset-0 bg-[#1c1917]/50 backdrop-blur-sm" onClick={() => setCourierModalFor(null)} />
+          <div className={clsx('relative bg-[#fbfaf7] shadow-[0_10px_40px_rgba(46,36,27,0.16)] border border-[#ddd6c4]',
             courierMaximized ? 'w-screen h-screen max-w-none rounded-none flex flex-col' : 'w-full max-w-md rounded-2xl')}>
-            <div className={clsx('p-5 border-b border-[#e2dac8] bg-[#e7dfce] flex items-center justify-between flex-shrink-0', !courierMaximized && 'rounded-t-2xl')}>
+            <div className={clsx('p-5 border-b border-[#e7e2d6] bg-[#f1ede4] flex items-center justify-between flex-shrink-0', !courierMaximized && 'rounded-t-2xl')}>
               <div>
-                <h3 className="font-bold text-[#2e241b]" style={displayFont}>🚚 Dispatch Sample</h3>
-                <p className="text-xs text-[#6d5f4c] mt-0.5">{courierModalFor} — record courier details to mark this sample Sent.</p>
+                <h3 className="font-bold text-[#1c1917]" style={displayFont}>🚚 Dispatch Sample</h3>
+                <p className="text-xs text-[#6b6155] mt-0.5">{courierModalFor} — record courier details to mark this sample Sent.</p>
               </div>
               <div className="flex items-center gap-1.5 flex-shrink-0">
-                <button onClick={() => setCourierMaximized((m) => !m)} title={courierMaximized ? 'Restore' : 'Maximize'} className="w-9 h-9 rounded-lg hover:bg-[#ddd3be] flex items-center justify-center text-[#968871] hover:text-[#2e241b] text-base">{courierMaximized ? '🗗' : '🗖'}</button>
-                <button onClick={() => setCourierModalFor(null)} className="w-9 h-9 rounded-lg hover:bg-[#ddd3be] flex items-center justify-center text-[#968871] hover:text-[#2e241b] text-lg">✕</button>
+                <button onClick={() => setCourierMaximized((m) => !m)} title={courierMaximized ? 'Restore' : 'Maximize'} className="w-9 h-9 rounded-lg hover:bg-[#e7e2d6] flex items-center justify-center text-[#8a8171] hover:text-[#1c1917] text-base">{courierMaximized ? '🗗' : '🗖'}</button>
+                <button onClick={() => setCourierModalFor(null)} className="w-9 h-9 rounded-lg hover:bg-[#e7e2d6] flex items-center justify-center text-[#8a8171] hover:text-[#1c1917] text-lg">✕</button>
               </div>
             </div>
             <div className={clsx('p-5 space-y-3', courierMaximized && 'flex-1 overflow-y-auto')}>
               <div>
-                <label className="text-xs font-semibold text-[#968871] uppercase tracking-wide mb-1 block">Courier name</label>
+                <label className="text-xs font-semibold text-[#8a8171] uppercase tracking-wide mb-1 block">Courier name</label>
                 <input value={courierName} onChange={(e) => setCourierName(e.target.value)} placeholder="BlueDart / Delhivery…" className={clsx(inputCls, 'w-full bg-white')} />
               </div>
               <div>
-                <label className="text-xs font-semibold text-[#968871] uppercase tracking-wide mb-1 block">Docket / AWB no.</label>
+                <label className="text-xs font-semibold text-[#8a8171] uppercase tracking-wide mb-1 block">Docket / AWB no.</label>
                 <input value={courierAwb} onChange={(e) => setCourierAwb(e.target.value)} placeholder="AWB number" className={clsx(inputCls, 'w-full bg-white')} />
               </div>
               <div>
-                <label className="text-xs font-semibold text-[#968871] uppercase tracking-wide mb-1 block">Sent date</label>
+                <label className="text-xs font-semibold text-[#8a8171] uppercase tracking-wide mb-1 block">Sent date</label>
                 <input type="date" value={courierSentDate} onChange={(e) => setCourierSentDate(e.target.value)} className={clsx(inputCls, 'w-full bg-white')} />
               </div>
               <div className="flex gap-3 pt-1">
@@ -2581,17 +2581,17 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab, initialO
 
       {feedbackModalFor && (
         <div className={clsx('fixed inset-0 z-[80] flex items-center justify-center', feedbackMaximized ? 'p-0' : 'p-4')} style={bodyFont}>
-          <div className="absolute inset-0 bg-[#2e241b]/50 backdrop-blur-sm" onClick={() => setFeedbackModalFor(null)} />
-          <div className={clsx('relative bg-[#f0eadd] shadow-[0_10px_40px_rgba(46,36,27,0.16)] border border-[#d3c9b4]',
+          <div className="absolute inset-0 bg-[#1c1917]/50 backdrop-blur-sm" onClick={() => setFeedbackModalFor(null)} />
+          <div className={clsx('relative bg-[#fbfaf7] shadow-[0_10px_40px_rgba(46,36,27,0.16)] border border-[#ddd6c4]',
             feedbackMaximized ? 'w-screen h-screen max-w-none rounded-none flex flex-col' : 'w-full max-w-md rounded-2xl')}>
-            <div className={clsx('p-5 border-b border-[#e2dac8] bg-[#e7dfce] flex items-center justify-between flex-shrink-0', !feedbackMaximized && 'rounded-t-2xl')}>
+            <div className={clsx('p-5 border-b border-[#e7e2d6] bg-[#f1ede4] flex items-center justify-between flex-shrink-0', !feedbackMaximized && 'rounded-t-2xl')}>
               <div>
-                <h3 className="font-bold text-[#2e241b]" style={displayFont}>💬 Log Customer Feedback</h3>
-                <p className="text-xs text-[#6d5f4c] mt-0.5">{feedbackModalFor} — moves this sample to "Feedback".</p>
+                <h3 className="font-bold text-[#1c1917]" style={displayFont}>💬 Log Customer Feedback</h3>
+                <p className="text-xs text-[#6b6155] mt-0.5">{feedbackModalFor} — moves this sample to "Feedback".</p>
               </div>
               <div className="flex items-center gap-1.5 flex-shrink-0">
-                <button onClick={() => setFeedbackMaximized((m) => !m)} title={feedbackMaximized ? 'Restore' : 'Maximize'} className="w-9 h-9 rounded-lg hover:bg-[#ddd3be] flex items-center justify-center text-[#968871] hover:text-[#2e241b] text-base">{feedbackMaximized ? '🗗' : '🗖'}</button>
-                <button onClick={() => setFeedbackModalFor(null)} className="w-9 h-9 rounded-lg hover:bg-[#ddd3be] flex items-center justify-center text-[#968871] hover:text-[#2e241b] text-lg">✕</button>
+                <button onClick={() => setFeedbackMaximized((m) => !m)} title={feedbackMaximized ? 'Restore' : 'Maximize'} className="w-9 h-9 rounded-lg hover:bg-[#e7e2d6] flex items-center justify-center text-[#8a8171] hover:text-[#1c1917] text-base">{feedbackMaximized ? '🗗' : '🗖'}</button>
+                <button onClick={() => setFeedbackModalFor(null)} className="w-9 h-9 rounded-lg hover:bg-[#e7e2d6] flex items-center justify-center text-[#8a8171] hover:text-[#1c1917] text-lg">✕</button>
               </div>
             </div>
             <div className={clsx('p-5 space-y-3', feedbackMaximized && 'flex-1 overflow-y-auto')}>
@@ -2616,28 +2616,28 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab, initialO
 
       {approveModalFor && (
         <div className={clsx('fixed inset-0 z-[80] flex items-center justify-center', approveMaximized ? 'p-0' : 'p-4')} style={bodyFont}>
-          <div className="absolute inset-0 bg-[#2e241b]/50 backdrop-blur-sm" onClick={() => setApproveModalFor(null)} />
-          <div className={clsx('relative bg-[#f0eadd] shadow-[0_10px_40px_rgba(46,36,27,0.16)] border border-[#d3c9b4]',
+          <div className="absolute inset-0 bg-[#1c1917]/50 backdrop-blur-sm" onClick={() => setApproveModalFor(null)} />
+          <div className={clsx('relative bg-[#fbfaf7] shadow-[0_10px_40px_rgba(46,36,27,0.16)] border border-[#ddd6c4]',
             approveMaximized ? 'w-screen h-screen max-w-none rounded-none flex flex-col' : 'w-full max-w-md rounded-2xl')}>
-            <div className={clsx('p-5 border-b border-[#e2dac8] bg-[#e7dfce] flex items-center justify-between flex-shrink-0', !approveMaximized && 'rounded-t-2xl')}>
+            <div className={clsx('p-5 border-b border-[#e7e2d6] bg-[#f1ede4] flex items-center justify-between flex-shrink-0', !approveMaximized && 'rounded-t-2xl')}>
               <div>
-                <h3 className="font-bold text-[#2e241b]" style={displayFont}>✅ Approve Sample</h3>
-                <p className="text-xs text-[#6d5f4c] mt-0.5">
+                <h3 className="font-bold text-[#1c1917]" style={displayFont}>✅ Approve Sample</h3>
+                <p className="text-xs text-[#6b6155] mt-0.5">
                   {approveModalFor}
                   {samples.find((s) => s.sampleId === approveModalFor)?.formulaId ? ' — the linked formula version will be marked Accepted.' : ''}
                 </p>
               </div>
               <div className="flex items-center gap-1.5 flex-shrink-0">
-                <button onClick={() => setApproveMaximized((m) => !m)} title={approveMaximized ? 'Restore' : 'Maximize'} className="w-9 h-9 rounded-lg hover:bg-[#ddd3be] flex items-center justify-center text-[#968871] hover:text-[#2e241b] text-base">{approveMaximized ? '🗗' : '🗖'}</button>
-                <button onClick={() => setApproveModalFor(null)} className="w-9 h-9 rounded-lg hover:bg-[#ddd3be] flex items-center justify-center text-[#968871] hover:text-[#2e241b] text-lg">✕</button>
+                <button onClick={() => setApproveMaximized((m) => !m)} title={approveMaximized ? 'Restore' : 'Maximize'} className="w-9 h-9 rounded-lg hover:bg-[#e7e2d6] flex items-center justify-center text-[#8a8171] hover:text-[#1c1917] text-base">{approveMaximized ? '🗗' : '🗖'}</button>
+                <button onClick={() => setApproveModalFor(null)} className="w-9 h-9 rounded-lg hover:bg-[#e7e2d6] flex items-center justify-center text-[#8a8171] hover:text-[#1c1917] text-lg">✕</button>
               </div>
             </div>
             <div className={clsx('p-5 space-y-3', approveMaximized && 'flex-1 overflow-y-auto')}>
               <div>
-                <label className="text-xs font-semibold text-[#968871] uppercase tracking-wide mb-1 block">Approved by (customer contact, optional)</label>
+                <label className="text-xs font-semibold text-[#8a8171] uppercase tracking-wide mb-1 block">Approved by (customer contact, optional)</label>
                 <input value={approveContactName} onChange={(e) => setApproveContactName(e.target.value)} placeholder="e.g. Priya Menon (Nykaa)" className={clsx(inputCls, 'w-full bg-white')} />
               </div>
-              <label className="flex items-center gap-2 text-sm text-[#4a3a29]">
+              <label className="flex items-center gap-2 text-sm text-[#292521]">
                 <input type="checkbox" checked={approvePackaging} onChange={(e) => setApprovePackaging(e.target.checked)} />
                 Packaging confirmed by customer
               </label>
@@ -2661,29 +2661,29 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab, initialO
 
       {rejectModalFor && (
         <div className={clsx('fixed inset-0 z-[80] flex items-center justify-center', rejectMaximized ? 'p-0' : 'p-4')} style={bodyFont}>
-          <div className="absolute inset-0 bg-[#2e241b]/50 backdrop-blur-sm" onClick={() => setRejectModalFor(null)} />
-          <div className={clsx('relative bg-[#f0eadd] shadow-[0_10px_40px_rgba(46,36,27,0.16)] border border-[#d3c9b4]',
+          <div className="absolute inset-0 bg-[#1c1917]/50 backdrop-blur-sm" onClick={() => setRejectModalFor(null)} />
+          <div className={clsx('relative bg-[#fbfaf7] shadow-[0_10px_40px_rgba(46,36,27,0.16)] border border-[#ddd6c4]',
             rejectMaximized ? 'w-screen h-screen max-w-none rounded-none flex flex-col' : 'w-full max-w-md rounded-2xl')}>
-            <div className={clsx('p-5 border-b border-[#e2dac8] bg-[#e7dfce] flex items-center justify-between flex-shrink-0', !rejectMaximized && 'rounded-t-2xl')}>
+            <div className={clsx('p-5 border-b border-[#e7e2d6] bg-[#f1ede4] flex items-center justify-between flex-shrink-0', !rejectMaximized && 'rounded-t-2xl')}>
               <div>
-                <h3 className="font-bold text-[#2e241b]" style={displayFont}>✕ Reject Sample</h3>
-                <p className="text-xs text-[#6d5f4c] mt-0.5">{rejectModalFor}</p>
+                <h3 className="font-bold text-[#1c1917]" style={displayFont}>✕ Reject Sample</h3>
+                <p className="text-xs text-[#6b6155] mt-0.5">{rejectModalFor}</p>
               </div>
               <div className="flex items-center gap-1.5 flex-shrink-0">
-                <button onClick={() => setRejectMaximized((m) => !m)} title={rejectMaximized ? 'Restore' : 'Maximize'} className="w-9 h-9 rounded-lg hover:bg-[#ddd3be] flex items-center justify-center text-[#968871] hover:text-[#2e241b] text-base">{rejectMaximized ? '🗗' : '🗖'}</button>
-                <button onClick={() => setRejectModalFor(null)} className="w-9 h-9 rounded-lg hover:bg-[#ddd3be] flex items-center justify-center text-[#968871] hover:text-[#2e241b] text-lg">✕</button>
+                <button onClick={() => setRejectMaximized((m) => !m)} title={rejectMaximized ? 'Restore' : 'Maximize'} className="w-9 h-9 rounded-lg hover:bg-[#e7e2d6] flex items-center justify-center text-[#8a8171] hover:text-[#1c1917] text-base">{rejectMaximized ? '🗗' : '🗖'}</button>
+                <button onClick={() => setRejectModalFor(null)} className="w-9 h-9 rounded-lg hover:bg-[#e7e2d6] flex items-center justify-center text-[#8a8171] hover:text-[#1c1917] text-lg">✕</button>
               </div>
             </div>
             <div className={clsx('p-5 space-y-3', rejectMaximized && 'flex-1 overflow-y-auto')}>
               <div>
-                <label className="text-xs font-semibold text-[#968871] uppercase tracking-wide mb-1 block">Rejection reason</label>
+                <label className="text-xs font-semibold text-[#8a8171] uppercase tracking-wide mb-1 block">Rejection reason</label>
                 <textarea value={rejectReasonModal} onChange={(e) => setRejectReasonModal(e.target.value)} rows={3} placeholder="Why was this sample rejected?" className={clsx(inputCls, 'w-full bg-white')} />
               </div>
               <div>
-                <label className="text-xs font-semibold text-[#968871] uppercase tracking-wide mb-1 block">Rejected by (customer contact, optional)</label>
+                <label className="text-xs font-semibold text-[#8a8171] uppercase tracking-wide mb-1 block">Rejected by (customer contact, optional)</label>
                 <input value={rejectContactName} onChange={(e) => setRejectContactName(e.target.value)} placeholder="e.g. Priya Menon (Nykaa)" className={clsx(inputCls, 'w-full bg-white')} />
               </div>
-              <label className="flex items-center gap-2 text-sm text-[#4a3a29]">
+              <label className="flex items-center gap-2 text-sm text-[#292521]">
                 <input type="checkbox" checked={rejectCloneFollowUp} onChange={(e) => setRejectCloneFollowUp(e.target.checked)} />
                 Clone formula to a new version &amp; create a follow-up sample
               </label>

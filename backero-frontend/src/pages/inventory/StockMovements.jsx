@@ -31,6 +31,7 @@ export default function StockMovements() {
         <div className="flex justify-center py-12"><div className="w-8 h-8 border-2 border-brand-500 border-t-transparent rounded-full animate-spin" /></div>
       ) : (
         <div className="card overflow-hidden">
+          <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="bg-gray-50 dark:bg-[#0f1a2e]">
               <tr>
@@ -60,6 +61,7 @@ export default function StockMovements() {
               ))}
             </tbody>
           </table>
+          </div>
           {movements.length === 0 && <div className="text-center py-12 text-gray-400">No movements found</div>}
         </div>
       )}

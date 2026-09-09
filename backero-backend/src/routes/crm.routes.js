@@ -101,6 +101,7 @@ router.get('/leads/:id', ctrl.getLead);
 // managers or the two named intake reps, per explicit request (members were getting blocked
 // here even after the earlier naven/vignesh carve-out).
 router.post('/leads', ctrl.createLead);
+router.post('/leads/transcribe', commLogUpload.single('audio'), ctrl.transcribeLeadAudio);
 router.put('/leads/:id', ctrl.updateLead);
 router.put('/leads/:id/sample', ctrl.updateSampleDetails);
 router.put('/leads/:id/sample/stage', ctrl.updateSampleSubStage);

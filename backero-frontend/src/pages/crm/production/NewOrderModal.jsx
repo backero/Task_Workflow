@@ -19,10 +19,10 @@ import OrderSpecTabs, { Field, inputCls } from './orderSpecFields';
 // without a leadId — same "manual + New Order flow" the backend's link-production comment
 // already anticipates, so it shows up as an orphan order in the Orders tab.
 
-const displayFont = { fontFamily: "'Fraunces', Georgia, serif" };
-const bodyFont = { fontFamily: "'Inter', -apple-system, sans-serif" };
-const outlineBtn = 'inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full border-[1.5px] border-[#d3c9b4] text-[#6d5f4c] text-xs font-semibold hover:bg-[#e7dfce] hover:border-[#968871] hover:text-[#2e241b] transition';
-const accentBtn = 'inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-[#f2b23e] text-[#2e241b] text-xs font-bold hover:brightness-95 transition disabled:opacity-50';
+const displayFont = { fontFamily: "'Zilla Slab', Georgia, serif" };
+const bodyFont = { fontFamily: "'IBM Plex Sans', -apple-system, sans-serif" };
+const outlineBtn = 'inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full border-[1.5px] border-[#ddd6c4] text-[#6b6155] text-xs font-semibold hover:bg-[#f1ede4] hover:border-[#8a8171] hover:text-[#1c1917] transition';
+const accentBtn = 'inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-[#a8781f] text-[#1c1917] text-xs font-bold hover:brightness-95 transition disabled:opacity-50';
 
 function emptyLine() {
   return {
@@ -124,29 +124,29 @@ export default function NewOrderModal({ onClose, onCreated, initialCustomerSearc
   const detailsContent = (
     <div className="space-y-4">
       <Card>
-        <h3 className="text-sm font-bold text-[#2e241b] mb-3">Customer <span className="text-[#b6453a]">*</span></h3>
+        <h3 className="text-sm font-bold text-[#1c1917] mb-3">Customer <span className="text-[#7c2b23]">*</span></h3>
         {selectedLead ? (
-          <div className="flex items-center justify-between gap-3 p-2.5 rounded-lg bg-[#dce9d4]">
+          <div className="flex items-center justify-between gap-3 p-2.5 rounded-lg bg-[#e2ece5]">
             <div>
-              <p className="text-sm font-semibold text-[#2e241b]">{selectedLead.name} <span className="text-[#968871] font-mono text-xs">{customerId(selectedLead)}</span></p>
-              <p className="text-xs text-[#6d5f4c]">{selectedLead.whatsapp || selectedLead.phone || '—'} · {selectedLead.city || '—'}</p>
+              <p className="text-sm font-semibold text-[#1c1917]">{selectedLead.name} <span className="text-[#8a8171] font-mono text-xs">{customerId(selectedLead)}</span></p>
+              <p className="text-xs text-[#6b6155]">{selectedLead.whatsapp || selectedLead.phone || '—'} · {selectedLead.city || '—'}</p>
             </div>
-            <button onClick={() => { setSelectedLead(null); setCustomerSearch(''); }} className="text-xs font-semibold text-[#8c3a30]">Change</button>
+            <button onClick={() => { setSelectedLead(null); setCustomerSearch(''); }} className="text-xs font-semibold text-[#a13d34]">Change</button>
           </div>
         ) : (
           <div>
             <input value={customerSearch} onChange={(e) => setCustomerSearch(e.target.value)} placeholder="Search existing customer by name, phone, company…" className={inputCls} />
             {customerSearch.trim().length >= 2 && (
-              <div className="mt-1 rounded-[10px] border border-[#d3c9b4] bg-white max-h-40 overflow-y-auto">
-                {searchingLeads && <div className="px-3 py-2 text-xs text-[#968871]">Searching…</div>}
+              <div className="mt-1 rounded-[10px] border border-[#ddd6c4] bg-white max-h-40 overflow-y-auto">
+                {searchingLeads && <div className="px-3 py-2 text-xs text-[#8a8171]">Searching…</div>}
                 {!searchingLeads && (leadMatches || []).length === 0 && (
-                  <div className="px-3 py-2 text-xs text-[#968871]">No customer found — add them via KYC first.</div>
+                  <div className="px-3 py-2 text-xs text-[#8a8171]">No customer found — add them via KYC first.</div>
                 )}
                 {(leadMatches || []).slice(0, 8).map((l) => (
                   <button key={l._id} type="button" onClick={() => { setSelectedLead(l); setCustomerSearch(''); }}
-                    className="w-full text-left px-3 py-2 text-xs hover:bg-[#e7dfce] flex justify-between items-center">
-                    <span className="text-[#2e241b]">{l.name} <span className="text-[#968871]">— {l.whatsapp || l.phone || '—'}</span></span>
-                    <span className="text-[#968871] font-mono">{customerId(l)}</span>
+                    className="w-full text-left px-3 py-2 text-xs hover:bg-[#f1ede4] flex justify-between items-center">
+                    <span className="text-[#1c1917]">{l.name} <span className="text-[#8a8171]">— {l.whatsapp || l.phone || '—'}</span></span>
+                    <span className="text-[#8a8171] font-mono">{customerId(l)}</span>
                   </button>
                 ))}
               </div>
@@ -156,14 +156,14 @@ export default function NewOrderModal({ onClose, onCreated, initialCustomerSearc
       </Card>
 
       <Card>
-        <h3 className="text-sm font-bold text-[#2e241b] mb-3">Product <span className="text-[#b6453a]">*</span></h3>
+        <h3 className="text-sm font-bold text-[#1c1917] mb-3">Product <span className="text-[#7c2b23]">*</span></h3>
         {line.catalogProduct ? (
-          <div className="flex items-center justify-between gap-3 p-2.5 rounded-lg bg-[#dce9d4]">
+          <div className="flex items-center justify-between gap-3 p-2.5 rounded-lg bg-[#e2ece5]">
             <div>
-              <p className="text-sm font-semibold text-[#2e241b]">{line.catalogProduct.name} <span className="text-[#968871] font-mono text-xs">{line.catalogProduct.code}</span></p>
-              <p className="text-xs text-[#6d5f4c]">{line.catalogProduct.formulation?.rows?.length || 0} ingredient(s) in formulation</p>
+              <p className="text-sm font-semibold text-[#1c1917]">{line.catalogProduct.name} <span className="text-[#8a8171] font-mono text-xs">{line.catalogProduct.code}</span></p>
+              <p className="text-xs text-[#6b6155]">{line.catalogProduct.formulation?.rows?.length || 0} ingredient(s) in formulation</p>
             </div>
-            <button onClick={() => patchLine({ catalogProduct: null })} className="text-xs font-semibold text-[#8c3a30]">Change</button>
+            <button onClick={() => patchLine({ catalogProduct: null })} className="text-xs font-semibold text-[#a13d34]">Change</button>
           </div>
         ) : (
           <div>
@@ -172,13 +172,13 @@ export default function NewOrderModal({ onClose, onCreated, initialCustomerSearc
               <button onClick={() => setShowCreateProduct(true)} className={clsx(outlineBtn, 'flex-shrink-0 whitespace-nowrap')}>+ New Product</button>
             </div>
             {line.catalogSearch && (
-              <div className="mt-1 rounded-[10px] border border-[#d3c9b4] bg-white max-h-40 overflow-y-auto">
-                {catalogMatches.length === 0 && <div className="px-3 py-2 text-xs text-[#968871]">No products found.</div>}
+              <div className="mt-1 rounded-[10px] border border-[#ddd6c4] bg-white max-h-40 overflow-y-auto">
+                {catalogMatches.length === 0 && <div className="px-3 py-2 text-xs text-[#8a8171]">No products found.</div>}
                 {catalogMatches.slice(0, 8).map((p) => (
                   <button key={p._id} type="button" onClick={() => patchLine({ catalogProduct: p, catalogSearch: '' })}
-                    className="w-full text-left px-3 py-2 text-xs hover:bg-[#e7dfce] flex justify-between">
-                    <span className="text-[#2e241b]">{p.name}</span>
-                    <span className="text-[#968871] font-mono">{p.code}</span>
+                    className="w-full text-left px-3 py-2 text-xs hover:bg-[#f1ede4] flex justify-between">
+                    <span className="text-[#1c1917]">{p.name}</span>
+                    <span className="text-[#8a8171] font-mono">{p.code}</span>
                   </button>
                 ))}
               </div>
@@ -204,45 +204,45 @@ export default function NewOrderModal({ onClose, onCreated, initialCustomerSearc
 
   return (
     <div className={clsx('fixed inset-0 z-[70] flex items-center justify-center', maximized ? 'p-0' : 'p-4')} style={bodyFont}>
-      <div className="absolute inset-0 bg-[#2e241b]/50 backdrop-blur-sm" onClick={onClose} />
-      <div className={clsx('relative bg-white shadow-[0_10px_40px_rgba(46,36,27,0.16)] border border-[#d3c9b4] flex flex-col',
+      <div className="absolute inset-0 bg-[#1c1917]/50 backdrop-blur-sm" onClick={onClose} />
+      <div className={clsx('relative bg-white shadow-[0_10px_40px_rgba(46,36,27,0.16)] border border-[#ddd6c4] flex flex-col',
         maximized ? 'w-screen h-screen max-w-none rounded-none' : 'w-full max-w-6xl rounded-2xl')}
         style={maximized ? undefined : { maxHeight: '92vh' }}>
-        <div className={clsx('p-5 border-b border-[#e2dac8] bg-[#e7dfce] flex items-center justify-between flex-shrink-0', !maximized && 'rounded-t-2xl')}>
+        <div className={clsx('p-5 border-b border-[#e7e2d6] bg-[#f1ede4] flex items-center justify-between flex-shrink-0', !maximized && 'rounded-t-2xl')}>
           <div>
-            <h3 className="font-bold text-[#2e241b]" style={displayFont}>🆕 New Order — Product Specification &amp; QC Plan</h3>
-            <p className="text-xs text-[#6d5f4c] mt-0.5">Pick an existing customer, link a catalog product (or create one), then capture the SPEC/QC plan in one pass.</p>
+            <h3 className="font-bold text-[#1c1917]" style={displayFont}>🆕 New Order — Product Specification &amp; QC Plan</h3>
+            <p className="text-xs text-[#6b6155] mt-0.5">Pick an existing customer, link a catalog product (or create one), then capture the SPEC/QC plan in one pass.</p>
           </div>
           <div className="flex items-center gap-1.5 flex-shrink-0">
             <button onClick={() => setMaximized((m) => !m)} title={maximized ? 'Restore' : 'Maximize'}
-              className="w-9 h-9 rounded-lg hover:bg-[#ddd3be] flex items-center justify-center text-[#968871] hover:text-[#2e241b] text-base">
+              className="w-9 h-9 rounded-lg hover:bg-[#e7e2d6] flex items-center justify-center text-[#8a8171] hover:text-[#1c1917] text-base">
               {maximized ? '🗗' : '🗖'}
             </button>
-            <button onClick={onClose} className="w-9 h-9 rounded-lg hover:bg-[#ddd3be] flex items-center justify-center text-[#968871] hover:text-[#2e241b] text-lg">✕</button>
+            <button onClick={onClose} className="w-9 h-9 rounded-lg hover:bg-[#e7e2d6] flex items-center justify-center text-[#8a8171] hover:text-[#1c1917] text-lg">✕</button>
           </div>
         </div>
 
         <div className="flex flex-1 min-h-0">
-          <div className="w-56 flex-shrink-0 border-r border-[#e2dac8] bg-[#f0eadd] p-3 overflow-y-auto">
-            <p className="text-[10px] font-bold uppercase tracking-wide text-[#968871] mb-2">Products (from catalogue)</p>
+          <div className="w-56 flex-shrink-0 border-r border-[#e7e2d6] bg-[#fbfaf7] p-3 overflow-y-auto">
+            <p className="text-[10px] font-bold uppercase tracking-wide text-[#8a8171] mb-2">Products (from catalogue)</p>
             <div className="space-y-1.5">
               {lines.map((l, i) => (
                 <div key={i}
                   onClick={() => setActiveLine(i)}
                   className={clsx('rounded-lg border-[1.5px] px-2.5 py-2 cursor-pointer flex items-start justify-between gap-1.5',
-                    i === activeLine ? 'border-[#f2b23e] bg-[#f3e3c2]' : 'border-[#d3c9b4] bg-[#fff] hover:border-[#968871]')}>
+                    i === activeLine ? 'border-[#a8781f] bg-[#f3e6c8]' : 'border-[#ddd6c4] bg-[#fff] hover:border-[#8a8171]')}>
                   <div className="min-w-0">
-                    <p className="text-xs font-bold text-[#2e241b] truncate">{l.catalogProduct ? l.catalogProduct.name : 'New line — select product'}</p>
-                    <p className="text-[10px] text-[#968871] truncate">{l.catalogProduct ? l.catalogProduct.code : `Line ${i + 1}`}{l.plannedQuantity ? ` · ${l.plannedQuantity} units` : ''}</p>
+                    <p className="text-xs font-bold text-[#1c1917] truncate">{l.catalogProduct ? l.catalogProduct.name : 'New line — select product'}</p>
+                    <p className="text-[10px] text-[#8a8171] truncate">{l.catalogProduct ? l.catalogProduct.code : `Line ${i + 1}`}{l.plannedQuantity ? ` · ${l.plannedQuantity} units` : ''}</p>
                   </div>
                   {lines.length > 1 && (
-                    <span onClick={(e) => { e.stopPropagation(); removeLine(i); }} title="Remove line" className="text-[#8c3a30] font-bold text-sm flex-shrink-0">×</span>
+                    <span onClick={(e) => { e.stopPropagation(); removeLine(i); }} title="Remove line" className="text-[#a13d34] font-bold text-sm flex-shrink-0">×</span>
                   )}
                 </div>
               ))}
             </div>
-            <button onClick={addLine} className="w-full mt-2 border-2 border-dashed border-[#968871] text-[#7a5a10] rounded-lg py-2 text-xs font-bold hover:bg-[#f3e3c2]">+ Add product</button>
-            <p className="text-[9.5px] text-[#968871] mt-2 leading-relaxed">Each product becomes its own order &amp; job sheet under the same customer ID and order group.</p>
+            <button onClick={addLine} className="w-full mt-2 border-2 border-dashed border-[#8a8171] text-[#a8781f] rounded-lg py-2 text-xs font-bold hover:bg-[#f3e6c8]">+ Add product</button>
+            <p className="text-[9.5px] text-[#8a8171] mt-2 leading-relaxed">Each product becomes its own order &amp; job sheet under the same customer ID and order group.</p>
           </div>
 
           <div className="flex-1 min-w-0 overflow-y-auto p-5">
@@ -255,8 +255,8 @@ export default function NewOrderModal({ onClose, onCreated, initialCustomerSearc
           </div>
         </div>
 
-        <div className={clsx('flex items-center justify-between gap-3 px-5 py-4 border-t border-[#e2dac8] flex-shrink-0 bg-[#f0eadd]', !maximized && 'rounded-b-2xl')}>
-          <span className="text-xs text-[#968871]">{lines.filter((l) => l.catalogProduct).length} of {lines.length} line(s) ready</span>
+        <div className={clsx('flex items-center justify-between gap-3 px-5 py-4 border-t border-[#e7e2d6] flex-shrink-0 bg-[#fbfaf7]', !maximized && 'rounded-b-2xl')}>
+          <span className="text-xs text-[#8a8171]">{lines.filter((l) => l.catalogProduct).length} of {lines.length} line(s) ready</span>
           <div className="flex items-center gap-3">
             <button onClick={onClose} className={outlineBtn}>Cancel</button>
             <button onClick={createOrders} disabled={busy} className={accentBtn}>{busy ? 'Creating…' : `✅ Create Order${lines.filter((l) => l.catalogProduct).length > 1 ? 's' : ''}`}</button>

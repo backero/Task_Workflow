@@ -164,6 +164,11 @@ const SOCIAL_APPROVAL_STATUS = {
   PENDING: 'pending',
   APPROVED: 'approved',
   REJECTED: 'rejected',
+  // Reported back by the automation system after it actually attempts the
+  // publish — separate from APPROVED/REJECTED, which only reflect the human
+  // review decision, not whether the post made it onto the platform.
+  PUBLISHED: 'published',
+  PUBLISH_FAILED: 'publish_failed',
 };
 
 const SOCIAL_PLATFORMS = ['instagram', 'facebook', 'linkedin', 'twitter', 'youtube', 'other'];

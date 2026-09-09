@@ -73,12 +73,12 @@ export const PKG_SPEC_FIELDS = [
   { key: 'pkgBatchCoding', label: 'Batch Coding Convention', placeholder: 'e.g. BATCH: M/Y/####; MFG & EXP inkjet on base' },
 ];
 export function Field({ label, children }) {
-  return <div><label className="text-xs font-semibold text-[#968871] uppercase tracking-wide mb-1 block">{label}</label>{children}</div>;
+  return <div><label className="text-xs font-semibold text-[#8a8171] uppercase tracking-wide mb-1 block">{label}</label>{children}</div>;
 }
 
-export const inputCls = 'w-full px-3 py-2 text-sm rounded-[10px] border-[1.5px] border-[#d3c9b4] bg-[#f0eadd] text-[#2e241b] focus:outline-none focus:border-[#968871] placeholder:text-[#968871] disabled:opacity-50';
-export const primaryBtn = 'px-4 py-2 bg-[#f2b23e] hover:brightness-95 text-[#2e241b] text-sm font-semibold rounded-xl disabled:opacity-50 transition';
-export const secondaryBtn = 'px-4 py-2 bg-[#e2dac8] hover:bg-[#d3c9b4] text-[#4a3a29] text-sm font-semibold rounded-xl disabled:opacity-50 transition';
+export const inputCls = 'w-full px-3 py-2 text-sm rounded-[10px] border-[1.5px] border-[#ddd6c4] bg-[#fbfaf7] text-[#1c1917] focus:outline-none focus:border-[#8a8171] placeholder:text-[#8a8171] disabled:opacity-50';
+export const primaryBtn = 'px-4 py-2 bg-[#a8781f] hover:brightness-95 text-[#1c1917] text-sm font-semibold rounded-xl disabled:opacity-50 transition';
+export const secondaryBtn = 'px-4 py-2 bg-[#e7e2d6] hover:bg-[#ddd6c4] text-[#292521] text-sm font-semibold rounded-xl disabled:opacity-50 transition';
 
 // Tap-to-fill preset chips — same "chipsHtml" idea as the reference file: click a chip to set
 // the field's value to that exact text, free typing still always works underneath.
@@ -88,7 +88,7 @@ function PresetChips({ presets, disabled, onPick }) {
     <div className="flex flex-wrap gap-1 mb-1.5">
       {presets.map((p) => (
         <button key={p} type="button" disabled={disabled} onClick={() => onPick(p)}
-          className="border border-dashed border-[#c98a1f] text-[#7a5a10] rounded-full px-2.5 py-0.5 text-[10px] hover:bg-[#f3e3c2] disabled:opacity-50 disabled:pointer-events-none">
+          className="border border-dashed border-[#c9a227] text-[#a8781f] rounded-full px-2.5 py-0.5 text-[10px] hover:bg-[#f3e6c8] disabled:opacity-50 disabled:pointer-events-none">
           {p}
         </button>
       ))}
@@ -101,15 +101,15 @@ function PresetChips({ presets, disabled, onPick }) {
 export function YesNoToggle({ value, onChange, disabled, className }) {
   const isRequired = value !== 'Not Required';
   return (
-    <div className={clsx('inline-flex rounded-full border border-[#d3c9b4] overflow-hidden flex-shrink-0', className)}>
+    <div className={clsx('inline-flex rounded-full border border-[#ddd6c4] overflow-hidden flex-shrink-0', className)}>
       <button type="button" disabled={disabled} onClick={() => onChange('Required')}
         className={clsx('px-2.5 py-1 text-[10px] font-bold transition-colors disabled:opacity-50 disabled:pointer-events-none',
-          isRequired ? 'bg-[#5c8a5f] text-white' : 'bg-[#f0eadd] text-[#6d5f4c] hover:bg-[#e7dfce]')}>
+          isRequired ? 'bg-[#2f6b4f] text-white' : 'bg-[#fbfaf7] text-[#6b6155] hover:bg-[#f1ede4]')}>
         Required
       </button>
       <button type="button" disabled={disabled} onClick={() => onChange('Not Required')}
         className={clsx('px-2.5 py-1 text-[10px] font-bold transition-colors disabled:opacity-50 disabled:pointer-events-none',
-          !isRequired ? 'bg-[#8c3a30] text-white' : 'bg-[#f0eadd] text-[#6d5f4c] hover:bg-[#e7dfce]')}>
+          !isRequired ? 'bg-[#a13d34] text-white' : 'bg-[#fbfaf7] text-[#6b6155] hover:bg-[#f1ede4]')}>
         N/A
       </button>
     </div>
@@ -136,7 +136,7 @@ function FieldAttachToggle({ fieldKey, crmSpec, onChange, locked, open, setOpen 
       onClick={() => setOpen((v) => !v)}
       title={count > 0 ? `${count} attachment(s)` : 'Attach a file to this field'}
       className={clsx('flex-shrink-0 text-xs px-1.5 py-1 rounded-md border transition-colors',
-        count > 0 ? 'border-[#f2b23e] bg-[#f3e3c2] text-[#7a5a10]' : 'border-[#d3c9b4] bg-white text-[#968871] hover:bg-[#f0eadd]')}
+        count > 0 ? 'border-[#a8781f] bg-[#f3e6c8] text-[#a8781f]' : 'border-[#ddd6c4] bg-white text-[#8a8171] hover:bg-[#fbfaf7]')}
     >
       📎{count > 0 ? ` ${count}` : ''}
     </button>
@@ -146,12 +146,12 @@ function FieldAttachToggle({ fieldKey, crmSpec, onChange, locked, open, setOpen 
 export function PlainSpecRow({ field, crmSpec, onChange, locked, extra }) {
   const [attachOpen, setAttachOpen] = useState(false);
   return (
-    <div className="py-2 border-b border-[#e2dac8] last:border-none">
+    <div className="py-2 border-b border-[#e7e2d6] last:border-none">
       <div className={gridRowCls}>
-        <label className="text-xs text-[#6d5f4c] self-center">{field.label}</label>
+        <label className="text-xs text-[#6b6155] self-center">{field.label}</label>
         <div className="min-w-0">
           <input disabled={locked} value={crmSpec[field.key] || ''} placeholder={field.placeholder} onChange={(e) => onChange(field.key, e.target.value)}
-            className="w-full text-xs border border-[#d3c9b4] rounded-lg px-2 py-1.5 bg-[#f0eadd] disabled:opacity-50" />
+            className="w-full text-xs border border-[#ddd6c4] rounded-lg px-2 py-1.5 bg-[#fbfaf7] disabled:opacity-50" />
         </div>
         <div className="sm:justify-self-end flex items-center gap-1.5">
           {extra}
@@ -169,17 +169,17 @@ export function SpecSectionRow({ spec, crmSpec, onChange, locked }) {
   const value = crmSpec[spec.key + 'Spec'] ?? spec.defaultSpec;
   const fieldDisabled = locked || status === 'Not Required';
   return (
-    <div className="border-b border-[#e2dac8] last:border-none">
+    <div className="border-b border-[#e7e2d6] last:border-none">
       <div className={clsx(gridRowCls, 'py-2', fieldDisabled && 'opacity-60')}>
         <div className="min-w-0 self-center">
-          <span className="text-xs text-[#6d5f4c]">{spec.label}</span>
-          {spec.iso && <span className="inline-block ml-1.5 bg-[#dde5ea] text-[#33526b] border border-[#4a8bc2]/30 rounded px-1 text-[9px] font-bold align-middle">{spec.iso}</span>}
-          {spec.hint && <p className="text-[10px] text-[#968871] mt-0.5">{spec.hint}</p>}
+          <span className="text-xs text-[#6b6155]">{spec.label}</span>
+          {spec.iso && <span className="inline-block ml-1.5 bg-[#f3e6c8] text-[#a8781f] border border-[#c9a227]/30 rounded px-1 text-[9px] font-bold align-middle">{spec.iso}</span>}
+          {spec.hint && <p className="text-[10px] text-[#8a8171] mt-0.5">{spec.hint}</p>}
         </div>
         <div className="min-w-0">
           <PresetChips presets={spec.presets} disabled={fieldDisabled} onPick={(p) => onChange(spec.key + 'Spec', p)} />
           <input disabled={fieldDisabled} value={value} onChange={(e) => onChange(spec.key + 'Spec', e.target.value)}
-            className="w-full text-xs border border-[#d3c9b4] rounded-lg px-2 py-1.5 bg-[#f0eadd] disabled:opacity-40" />
+            className="w-full text-xs border border-[#ddd6c4] rounded-lg px-2 py-1.5 bg-[#fbfaf7] disabled:opacity-40" />
         </div>
         <div className="flex items-center gap-1.5 sm:justify-self-end">
           <YesNoToggle value={status} disabled={locked} onChange={(v) => onChange(spec.key + 'Status', v)} />
@@ -197,17 +197,17 @@ export function DynamicSpecFields({ category, crmSpec, onChange, locked }) {
   return (
     <div className="mt-2 space-y-2">
       {list.map((f, i) => (
-        <div key={i} className="flex items-center gap-2 p-2 rounded-lg bg-[#e7dfce]">
+        <div key={i} className="flex items-center gap-2 p-2 rounded-lg bg-[#f1ede4]">
           <input disabled={locked} value={f.label} onChange={(e) => { const l = [...list]; l[i] = { ...l[i], label: e.target.value }; update(l); }}
-            placeholder="Parameters" className="text-xs border border-[#d3c9b4] rounded-lg px-2 py-1.5 bg-[#f0eadd] flex-1 min-w-0" />
+            placeholder="Parameters" className="text-xs border border-[#ddd6c4] rounded-lg px-2 py-1.5 bg-[#fbfaf7] flex-1 min-w-0" />
           <input disabled={locked} value={f.spec} onChange={(e) => { const l = [...list]; l[i] = { ...l[i], spec: e.target.value }; update(l); }}
-            placeholder="Requirements" className="text-xs border border-[#d3c9b4] rounded-lg px-2 py-1.5 bg-[#f0eadd] flex-1 min-w-0" />
+            placeholder="Requirements" className="text-xs border border-[#ddd6c4] rounded-lg px-2 py-1.5 bg-[#fbfaf7] flex-1 min-w-0" />
           <YesNoToggle value={f.status || 'Required'} disabled={locked} onChange={(v) => { const l = [...list]; l[i] = { ...l[i], status: v }; update(l); }} />
           {!locked && <button onClick={() => update(list.filter((_, idx) => idx !== i))} className="text-red-500 text-sm flex-shrink-0 px-1">×</button>}
         </div>
       ))}
       {!locked && (
-        <button onClick={() => update([...list, { label: '', status: 'Required', spec: '' }])} className="text-xs font-semibold text-[#7a5a10]">+ Add More Spec</button>
+        <button onClick={() => update([...list, { label: '', status: 'Required', spec: '' }])} className="text-xs font-semibold text-[#a8781f]">+ Add More Spec</button>
       )}
     </div>
   );
@@ -226,20 +226,20 @@ export function AttachmentBox({ category, crmSpec, onChange, locked, hint }) {
   };
   const removeAt = (i) => onChange(category + 'Attachments', list.filter((_, idx) => idx !== i));
   return (
-    <div className="mt-2 p-2.5 rounded-lg border border-dashed border-[#d3c9b4] bg-[#f0eadd]">
+    <div className="mt-2 p-2.5 rounded-lg border border-dashed border-[#ddd6c4] bg-[#fbfaf7]">
       <div className="flex items-center justify-between gap-2 flex-wrap">
-        <label className="text-xs font-bold uppercase tracking-wide text-[#6d5f4c]">Attachments</label>
-        {!locked && <input type="file" multiple onChange={addFiles} className="text-[11px] text-[#968871] max-w-[220px]" />}
+        <label className="text-xs font-bold uppercase tracking-wide text-[#6b6155]">Attachments</label>
+        {!locked && <input type="file" multiple onChange={addFiles} className="text-[11px] text-[#8a8171] max-w-[220px]" />}
       </div>
-      {hint && <p className="text-[10px] text-[#968871] mt-1">{hint} Files stay on this device — only the name/size is saved with the order.</p>}
+      {hint && <p className="text-[10px] text-[#8a8171] mt-1">{hint} Files stay on this device — only the name/size is saved with the order.</p>}
       {list.length > 0 && (
         <div className="mt-1.5 space-y-1">
           {list.map((f, i) => {
             const kb = f.size > 1048576 ? (f.size / 1048576).toFixed(1) + ' MB' : Math.max(1, Math.round((f.size || 0) / 1024)) + ' KB';
             return (
-              <div key={i} className="flex items-center justify-between gap-2 text-xs text-[#2e241b]">
-                <span className="truncate">{f.name} <span className="text-[#968871]">({kb})</span></span>
-                {!locked && <button onClick={() => removeAt(i)} className="text-[#8c3a30] flex-shrink-0 px-1">×</button>}
+              <div key={i} className="flex items-center justify-between gap-2 text-xs text-[#1c1917]">
+                <span className="truncate">{f.name} <span className="text-[#8a8171]">({kb})</span></span>
+                {!locked && <button onClick={() => removeAt(i)} className="text-[#a13d34] flex-shrink-0 px-1">×</button>}
               </div>
             );
           })}
@@ -263,7 +263,7 @@ export const STABILITY_KEYS = ['labStability', 'labAccelerated', 'labDuration', 
 export const DOC_KEYS = ['labDocumentation', 'labCoa', 'labMethod', 'docAllergen', 'docStabReport'];
 
 function SectionHeading({ children }) {
-  return <h4 className="text-xs font-bold uppercase tracking-wide text-[#6d5f4c] mb-2 pb-1.5 border-b border-[#e2dac8]">{children}</h4>;
+  return <h4 className="text-xs font-bold uppercase tracking-wide text-[#6b6155] mb-2 pb-1.5 border-b border-[#e7e2d6]">{children}</h4>;
 }
 
 // All sections render on one continuously-scrolling page — matches the "New Order Sheet"
@@ -292,9 +292,9 @@ export default function OrderSpecTabs({ crmSpec, onChange, locked, detailsConten
         <section>
           <SectionHeading>🎯 QC Plan — Micro &amp; Stability</SectionHeading>
           <Card>
-            <p className="text-[10px] font-bold text-[#968871] uppercase mb-1">Microbiological &amp; Safety</p>
+            <p className="text-[10px] font-bold text-[#8a8171] uppercase mb-1">Microbiological &amp; Safety</p>
             {byKeys(QC_SPECS, MICRO_KEYS).map((s) => <SpecSectionRow key={s.key} spec={s} crmSpec={crmSpec} onChange={onChange} locked={locked} />)}
-            <p className="text-[10px] font-bold text-[#968871] uppercase mt-3 mb-1">Stability &amp; Compatibility</p>
+            <p className="text-[10px] font-bold text-[#8a8171] uppercase mt-3 mb-1">Stability &amp; Compatibility</p>
             {byKeys(LAB_SPECS, STABILITY_KEYS).map((s) => <SpecSectionRow key={s.key} spec={s} crmSpec={crmSpec} onChange={onChange} locked={locked} />)}
             <DynamicSpecFields category="qcplan" crmSpec={crmSpec} onChange={onChange} locked={locked} />
           </Card>
@@ -319,7 +319,7 @@ export default function OrderSpecTabs({ crmSpec, onChange, locked, detailsConten
         <section>
           <SectionHeading>🗂️ Custom Checks &amp; Requirements</SectionHeading>
           <Card>
-            <p className="text-[11px] text-[#968871] mb-2">Examples: SPF in-vivo (ISO 24444), HRIPT patch test, heavy-metal screen, vegan/halal/organic certification, customer audit rights, third-party lab witness.</p>
+            <p className="text-[11px] text-[#8a8171] mb-2">Examples: SPF in-vivo (ISO 24444), HRIPT patch test, heavy-metal screen, vegan/halal/organic certification, customer audit rights, third-party lab witness.</p>
             <DynamicSpecFields category="custom" crmSpec={crmSpec} onChange={onChange} locked={locked} />
           </Card>
         </section>

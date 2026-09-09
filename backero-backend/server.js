@@ -52,6 +52,7 @@ const teamRewardRoutes        = require('./src/routes/teamReward.routes');
 const productionCustomerRoutes = require('./src/routes/productioncustomer.routes');
 const socialApprovalRoutes    = require('./src/routes/socialApproval.routes');
 const integrationRoutes       = require('./src/routes/integration.routes');
+const documentWalletRoutes    = require('./src/routes/documentWallet.routes');
 
 const app = express();
 const server = http.createServer(app);
@@ -196,6 +197,7 @@ app.use('/api/team-rewards',       teamRewardRoutes);
 app.use('/api/production-customers', productionCustomerRoutes);
 app.use('/api/social-approvals', socialApprovalRoutes);
 app.use('/api/integrations', integrationRoutes);
+app.use('/api/documents', documentWalletRoutes);
 
 // 404 handler
 app.use('*', (req, res) => {

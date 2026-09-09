@@ -1,17 +1,17 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import clsx from 'clsx';
 import api from '../../api/axios';
 import { FONT_IMPORT, PILL } from './SampleProduction';
 
-const displayFont = { fontFamily: "'Fraunces', Georgia, serif" };
-const bodyFont = { fontFamily: "'Inter', -apple-system, sans-serif" };
-const outlineBtn = 'inline-flex items-center gap-1.5 px-4 py-2 rounded-full border-[1.5px] border-[#d3c9b4] text-[#6d5f4c] text-[13px] font-semibold hover:bg-[#e7dfce] hover:border-[#968871] hover:text-[#2e241b] transition';
-const successBtn = 'inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-[#4d7c4f] text-white text-[13px] font-semibold hover:brightness-95 transition disabled:opacity-50';
-const extractBtn = 'inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-[#2e241b] text-white text-xs font-semibold hover:brightness-125 transition';
-const fieldCls = 'w-full px-3.5 py-2.5 text-[13px] rounded-[10px] border-[1.5px] border-[#d3c9b4] bg-[#f0eadd] text-[#2e241b] focus:outline-none focus:border-[#2e241b] focus:shadow-[0_0_0_3px_rgba(46,36,27,0.08)] placeholder:text-[#968871] disabled:opacity-60 disabled:cursor-not-allowed';
-const labelCls = 'text-xs font-semibold text-[#2e241b] mb-1 block';
+const displayFont = { fontFamily: "'Zilla Slab', Georgia, serif" };
+const bodyFont = { fontFamily: "'IBM Plex Sans', -apple-system, sans-serif" };
+const outlineBtn = 'inline-flex items-center gap-1.5 px-4 py-2 rounded-full border-[1.5px] border-[#ddd6c4] text-[#6b6155] text-[13px] font-semibold hover:bg-[#f1ede4] hover:border-[#8a8171] hover:text-[#1c1917] transition';
+const successBtn = 'inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-[#2f6b4f] text-white text-[13px] font-semibold hover:brightness-95 transition disabled:opacity-50';
+const extractBtn = 'inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-[#1c1917] text-white text-xs font-semibold hover:brightness-125 transition';
+const fieldCls = 'w-full px-3.5 py-2.5 text-[13px] rounded-[10px] border-[1.5px] border-[#ddd6c4] bg-[#fbfaf7] text-[#1c1917] focus:outline-none focus:border-[#1c1917] focus:shadow-[0_0_0_3px_rgba(46,36,27,0.08)] placeholder:text-[#8a8171] disabled:opacity-60 disabled:cursor-not-allowed';
+const labelCls = 'text-xs font-semibold text-[#1c1917] mb-1 block';
 
 const LANGUAGES = ['English', 'Hindi', 'Marathi', 'Tamil', 'Telugu', 'Other'];
 const BEST_TIMES = ['Anytime', 'Morning', 'Afternoon', 'Evening'];
@@ -28,7 +28,7 @@ function kycCompletion(lead) {
 function Field({ label, required, children }) {
   return (
     <div>
-      <label className={labelCls}>{label}{required && <span className="text-[#b6453a] ml-0.5">*</span>}</label>
+      <label className={labelCls}>{label}{required && <span className="text-[#7c2b23] ml-0.5">*</span>}</label>
       {children}
     </div>
   );
@@ -36,9 +36,9 @@ function Field({ label, required, children }) {
 
 function StepSection({ emoji, title, sub, children }) {
   return (
-    <div className="pb-5 mb-5 border-b border-dashed border-[#d3c9b4] last:border-0 last:pb-0 last:mb-0">
-      <p className="text-sm font-bold text-[#2e241b]">{emoji} {title}</p>
-      <p className="text-[11px] text-[#968871] mb-3">{sub}</p>
+    <div className="pb-5 mb-5 border-b border-dashed border-[#ddd6c4] last:border-0 last:pb-0 last:mb-0">
+      <p className="text-sm font-bold text-[#1c1917]">{emoji} {title}</p>
+      <p className="text-[11px] text-[#8a8171] mb-3">{sub}</p>
       <div className="grid grid-cols-2 gap-4">{children}</div>
     </div>
   );
@@ -57,6 +57,13 @@ export default function EditKycModal({ lead, onClose, readOnly = false }) {
   const [maximized, setMaximized] = useState(false);
   const [autofillOpen, setAutofillOpen] = useState(false);
   const [kycPaste, setKycPaste] = useState('');
+  const [voiceOpen, setVoiceOpen] = useState(false);
+  const [voiceTranscript, setVoiceTranscript] = useState(lead?.intakeAudio?.transcript || '');
+  const [audioAttachment, setAudioAttachment] = useState(lead?.intakeAudio || null);
+  const [isRecording, setIsRecording] = useState(false);
+  const fileInputRef = useRef(null);
+  const mediaRecorderRef = useRef(null);
+  const audioChunksRef = useRef([]);
   const [piText, setPiText] = useState((lead?.productInterest || []).join(', '));
   const [form, setForm] = useState({
     name: lead?.name || '', company: lead?.company || '', designation: lead?.designation || '', preferredName: lead?.preferredName || '',
@@ -167,30 +174,88 @@ export default function EditKycModal({ lead, onClose, readOnly = false }) {
     else toast('Nothing new found (or those fields are already filled)');
   };
 
+  const transcribeMutation = useMutation({
+    mutationFn: (file) => {
+      const fd = new FormData();
+      fd.append('audio', file, file.name || 'voice-note.webm');
+      return api.post('/crm/leads/transcribe', fd, { headers: { 'Content-Type': 'multipart/form-data' } }).then((r) => r.data);
+    },
+    onSuccess: ({ transcript, fields, audio }) => {
+      setVoiceTranscript(transcript || '');
+      setAudioAttachment(audio || null);
+      const found = [];
+      setForm((f) => {
+        const next = { ...f };
+        for (const [key, val] of Object.entries(fields || {})) {
+          if (key === 'productInterest' || !val) continue;
+          if (!next[key]) { next[key] = val; found.push(key); }
+        }
+        return next;
+      });
+      if (fields?.productInterest?.length && !piText.trim()) {
+        setPiText(fields.productInterest.join(', '));
+        found.push('product interest');
+      }
+      if (found.length) toast.success('Voice note auto-fill found: ' + found.join(', ') + ' — please verify');
+      else toast('Transcribed — no clear fields found, please fill in manually');
+    },
+    onError: (e) => toast.error(e.response?.data?.message || 'Failed to transcribe audio'),
+  });
+
+  const handleAudioFile = (file) => {
+    if (!file) return;
+    if (!file.type.startsWith('audio/')) { toast.error('Please attach an audio file'); return; }
+    transcribeMutation.mutate(file);
+  };
+
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const recorder = new MediaRecorder(stream);
+      audioChunksRef.current = [];
+      recorder.ondataavailable = (e) => { if (e.data.size > 0) audioChunksRef.current.push(e.data); };
+      recorder.onstop = () => {
+        stream.getTracks().forEach((t) => t.stop());
+        const blob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+        handleAudioFile(new File([blob], `voice-note-${Date.now()}.webm`, { type: 'audio/webm' }));
+      };
+      recorder.start();
+      mediaRecorderRef.current = recorder;
+      setIsRecording(true);
+    } catch {
+      toast.error('Microphone access denied or unavailable');
+    }
+  };
+
+  const stopRecording = () => {
+    mediaRecorderRef.current?.stop();
+    setIsRecording(false);
+  };
+
   return (
     <div className={clsx('fixed inset-0 z-[70] flex items-center justify-center', maximized ? 'p-0' : 'p-4')} style={bodyFont}>
       <style>{FONT_IMPORT}</style>
-      <div className="absolute inset-0 bg-[#2e241b]/50 backdrop-blur-sm" onClick={onClose} />
-      <div className={clsx('relative bg-[#f0eadd] shadow-[0_10px_40px_rgba(46,36,27,0.16)] w-full border border-[#d3c9b4] flex flex-col',
+      <div className="absolute inset-0 bg-[#1c1917]/50 backdrop-blur-sm" onClick={onClose} />
+      <div className={clsx('relative bg-[#fbfaf7] shadow-[0_10px_40px_rgba(46,36,27,0.16)] w-full border border-[#ddd6c4] flex flex-col',
         maximized ? 'w-screen h-screen max-w-none rounded-none' : 'rounded-2xl')}
         style={maximized ? undefined : { maxWidth: '700px', maxHeight: '92vh' }}>
-        <div className={clsx('px-6 py-5 border-b border-[#e2dac8] bg-[#e7dfce] flex items-center justify-between flex-shrink-0', !maximized && 'rounded-t-2xl')}>
-          <h3 className="text-base font-bold text-[#2e241b]" style={displayFont}>🪪 Customer KYC — {isCreate ? 'New Lead' : (lead.customerId || lead.name)}{readOnly && ' (View Only)'}</h3>
+        <div className={clsx('px-6 py-5 border-b border-[#e7e2d6] bg-[#f1ede4] flex items-center justify-between flex-shrink-0', !maximized && 'rounded-t-2xl')}>
+          <h3 className="text-base font-bold text-[#1c1917]" style={displayFont}>🪪 Customer KYC — {isCreate ? 'New Lead' : (lead.customerId || lead.name)}{readOnly && ' (View Only)'}</h3>
           <div className="flex items-center gap-1.5">
-            <button onClick={() => setMaximized((m) => !m)} title={maximized ? 'Restore' : 'Maximize'} className="w-9 h-9 rounded-[10px] hover:bg-[#ddd3be] flex items-center justify-center text-[#968871] hover:text-[#2e241b] text-base transition-colors">{maximized ? '🗗' : '🗖'}</button>
-            <button onClick={onClose} className="w-9 h-9 rounded-[10px] hover:bg-[#ddd3be] flex items-center justify-center text-[#968871] hover:text-[#2e241b] text-lg transition-colors">✕</button>
+            <button onClick={() => setMaximized((m) => !m)} title={maximized ? 'Restore' : 'Maximize'} className="w-9 h-9 rounded-[10px] hover:bg-[#e7e2d6] flex items-center justify-center text-[#8a8171] hover:text-[#1c1917] text-base transition-colors">{maximized ? '🗗' : '🗖'}</button>
+            <button onClick={onClose} className="w-9 h-9 rounded-[10px] hover:bg-[#e7e2d6] flex items-center justify-center text-[#8a8171] hover:text-[#1c1917] text-lg transition-colors">✕</button>
           </div>
         </div>
 
         <div className="flex-1 overflow-y-auto p-6">
           {readOnly && (
-            <div className="flex items-start gap-2.5 rounded-[10px] border-[1.5px] border-[#d9c08a] bg-[#f5ecd2] text-[#7a5c1e] text-[13px] font-medium px-4 py-3 mb-3.5">
+            <div className="flex items-start gap-2.5 rounded-[10px] border-[1.5px] border-[#d8c391] bg-[#f3e6c8] text-[#7c5a17] text-[13px] font-medium px-4 py-3 mb-3.5">
               <span className="text-base leading-[1.4]">👁️</span>
               <span>CRM Pipeline is view-only. To edit details, log a follow-up, or raise a query, open this lead from <strong>Sample Production</strong>.</span>
             </div>
           )}
         <fieldset disabled={readOnly} className="contents">
-          <div className="flex items-start gap-2.5 rounded-[10px] border-[1.5px] border-[#a9bfcb] bg-[#dde5ea] text-[#33526b] text-[13px] font-medium px-4 py-3 mb-3.5">
+          <div className="flex items-start gap-2.5 rounded-[10px] border-[1.5px] border-[#a39c8c] bg-[#f3e6c8] text-[#a8781f] text-[13px] font-medium px-4 py-3 mb-3.5">
             <span className="text-base leading-[1.4]">🪪</span>
             {isCreate ? (
               <span>Customer ID is <strong>auto-assigned</strong> on save — never typed by hand. It is the golden thread across Q&amp;A, samples, formulas &amp; handoffs.</span>
@@ -199,14 +264,14 @@ export default function EditKycModal({ lead, onClose, readOnly = false }) {
             )}
           </div>
 
-          <div className="rounded-[10px] border-[1.5px] border-dashed border-[#d3c9b4] bg-[#e7dfce] mb-4">
+          <div className="rounded-[10px] border-[1.5px] border-dashed border-[#ddd6c4] bg-[#f1ede4] mb-4">
             <button
               type="button"
               onClick={() => setAutofillOpen((o) => !o)}
-              className="w-full flex items-center gap-2 px-3.5 py-2.5 text-[12.5px] font-bold text-[#2e241b] flex-wrap text-left"
+              className="w-full flex items-center gap-2 px-3.5 py-2.5 text-[12.5px] font-bold text-[#1c1917] flex-wrap text-left"
             >
               <span>⚡ Auto-fill assist</span>
-              <span className="text-[#968871] font-normal text-[11px] flex-1">Paste a WhatsApp chat or ad-lead snippet — we'll pick out what we can. <em>Assist only — please verify.</em></span>
+              <span className="text-[#8a8171] font-normal text-[11px] flex-1">Paste a WhatsApp chat or ad-lead snippet — we'll pick out what we can. <em>Assist only — please verify.</em></span>
               <span>{autofillOpen ? '▾' : '▸'}</span>
             </button>
             {autofillOpen && (
@@ -219,6 +284,47 @@ export default function EditKycModal({ lead, onClose, readOnly = false }) {
                   className={fieldCls}
                 />
                 <button type="button" onClick={extractFromPaste} className={extractBtn}>⚡ Extract</button>
+              </div>
+            )}
+          </div>
+
+          <div className="rounded-[10px] border-[1.5px] border-dashed border-[#ddd6c4] bg-[#f1ede4] mb-4">
+            <button
+              type="button"
+              onClick={() => setVoiceOpen((o) => !o)}
+              className="w-full flex items-center gap-2 px-3.5 py-2.5 text-[12.5px] font-bold text-[#1c1917] flex-wrap text-left"
+            >
+              <span>🎙️ Voice-note auto-fill</span>
+              <span className="text-[#8a8171] font-normal text-[11px] flex-1">Record or attach an audio file — we'll transcribe it and pick out what we can. <em>Assist only — please verify.</em></span>
+              <span>{voiceOpen ? '▾' : '▸'}</span>
+            </button>
+            {voiceOpen && (
+              <div className="px-3.5 pb-3.5 space-y-2">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="audio/*"
+                    className="hidden"
+                    onChange={(e) => { handleAudioFile(e.target.files?.[0]); e.target.value = ''; }}
+                  />
+                  <button type="button" onClick={() => fileInputRef.current?.click()} disabled={transcribeMutation.isPending || isRecording} className={outlineBtn}>
+                    📎 Attach audio file
+                  </button>
+                  {!isRecording ? (
+                    <button type="button" onClick={startRecording} disabled={transcribeMutation.isPending} className={outlineBtn}>🎙️ Record</button>
+                  ) : (
+                    <button type="button" onClick={stopRecording} className={clsx(outlineBtn, 'border-[#7c2b23] text-[#7c2b23]')}>⏹ Stop &amp; transcribe</button>
+                  )}
+                  {transcribeMutation.isPending && <span className="text-[11px] text-[#8a8171]">Transcribing…</span>}
+                </div>
+                {audioAttachment && (
+                  <div className="text-[11px] text-[#6b6155] bg-[#fbfaf7] border border-[#e7e2d6] rounded-lg px-2.5 py-2">
+                    <p className="font-semibold text-[#1c1917] mb-1">🎧 {audioAttachment.name}</p>
+                    <audio controls src={audioAttachment.url} className="w-full h-8" />
+                    {voiceTranscript && <p className="mt-1.5 italic">"{voiceTranscript}"</p>}
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -286,7 +392,7 @@ export default function EditKycModal({ lead, onClose, readOnly = false }) {
                 <option value="">Unassigned</option>
                 {assignableUsers.map((u) => <option key={u._id} value={u._id}>{u.firstName} {u.lastName}</option>)}
               </select>
-              <p className="text-[10px] text-[#968871] mt-1">
+              <p className="text-[10px] text-[#8a8171] mt-1">
                 {isNewIntake
                   ? 'New leads can only go to the intake reps — once shifted to Production below, that person becomes the end-to-end owner through to dispatch.'
                   : 'Production-dept only from here — whoever\'s set becomes this client\'s end-to-end owner: Q&A, samples, payment, production, dispatch.'}
@@ -306,20 +412,20 @@ export default function EditKycModal({ lead, onClose, readOnly = false }) {
               </select>
             </Field>
             <div>
-              <label className={labelCls}>"Anything on your mind?" <span className="font-normal text-[#968871]">(totally optional)</span></label>
+              <label className={labelCls}>"Anything on your mind?" <span className="font-normal text-[#8a8171]">(totally optional)</span></label>
               <textarea value={form.rapportNote} onChange={set('rapportNote')} rows={1} placeholder="Free note — preferences, context, anything worth remembering..." className={fieldCls} />
             </div>
           </StepSection>
 
           <div>
-            <p className="text-sm font-bold text-[#2e241b]">💬 Queries</p>
-            <p className="text-[11px] text-[#968871] mb-3">The same Q&amp;A queries as the Queries tab — add or reply here and it updates in both places automatically.</p>
+            <p className="text-sm font-bold text-[#1c1917]">💬 Queries</p>
+            <p className="text-[11px] text-[#8a8171] mb-3">The same Q&amp;A queries as the Queries tab — add or reply here and it updates in both places automatically.</p>
 
             {isCreate ? (
               <div className="text-center py-6">
                 <p className="text-2xl mb-1">💬</p>
-                <p className="text-[13px] font-bold text-[#2e241b]">Save the KYC first</p>
-                <p className="text-xs text-[#968871] mt-1">Once this lead is saved, queries can be logged here — and they'll appear in the Queries tab too.</p>
+                <p className="text-[13px] font-bold text-[#1c1917]">Save the KYC first</p>
+                <p className="text-xs text-[#8a8171] mt-1">Once this lead is saved, queries can be logged here — and they'll appear in the Queries tab too.</p>
               </div>
             ) : (
             <>
@@ -327,20 +433,20 @@ export default function EditKycModal({ lead, onClose, readOnly = false }) {
               {(queries || []).length === 0 && (
                 <div className="text-center py-6">
                   <p className="text-2xl mb-1">💬</p>
-                  <p className="text-[13px] font-bold text-[#2e241b]">No queries logged yet</p>
+                  <p className="text-[13px] font-bold text-[#1c1917]">No queries logged yet</p>
                 </div>
               )}
               {(queries || []).map((q) => (
-                <div key={q._id} className="rounded-[10px] border border-[#e2dac8] bg-[#f0eadd] p-3">
+                <div key={q._id} className="rounded-[10px] border border-[#e7e2d6] bg-[#fbfaf7] p-3">
                   <div className="flex items-center justify-between gap-2">
-                    <p className="text-[13px] font-semibold text-[#2e241b]">{q.title}</p>
+                    <p className="text-[13px] font-semibold text-[#1c1917]">{q.title}</p>
                     <span className={clsx('text-[10px] font-semibold px-2 py-0.5 rounded-full flex-shrink-0',
                       q.status === 'answered' ? PILL.success : q.status === 'closed' ? PILL.gray : PILL.warning)}>
                       {q.status}
                     </span>
                   </div>
-                  <p className="text-xs text-[#6d5f4c] mt-1">{q.description}</p>
-                  {q.answer && <p className="text-xs text-[#3a5f3c] mt-2 bg-[#dce9d4] rounded-lg px-2 py-1.5">✓ {q.answer}</p>}
+                  <p className="text-xs text-[#6b6155] mt-1">{q.description}</p>
+                  {q.answer && <p className="text-xs text-[#2f6b4f] mt-2 bg-[#e2ece5] rounded-lg px-2 py-1.5">✓ {q.answer}</p>}
                   {q.status === 'pending' && (
                     <div className="flex gap-2 mt-2">
                       <input
@@ -366,7 +472,7 @@ export default function EditKycModal({ lead, onClose, readOnly = false }) {
               ))}
             </div>
 
-            <div className="rounded-[10px] border-[1.5px] border-dashed border-[#d3c9b4] p-3 space-y-2">
+            <div className="rounded-[10px] border-[1.5px] border-dashed border-[#ddd6c4] p-3 space-y-2">
               <textarea value={newQueryDesc} onChange={(e) => setNewQueryDesc(e.target.value)} rows={2} placeholder="Describe the question…" className={fieldCls} />
               <button
                 type="button"
@@ -386,10 +492,10 @@ export default function EditKycModal({ lead, onClose, readOnly = false }) {
         </fieldset>
         </div>
 
-        <div className="flex items-center gap-2.5 px-6 py-4 border-t border-[#e2dac8] flex-shrink-0 flex-wrap">
+        <div className="flex items-center gap-2.5 px-6 py-4 border-t border-[#e7e2d6] flex-shrink-0 flex-wrap">
           <button type="button" onClick={onClose} className={outlineBtn}>{readOnly ? 'Close' : 'Cancel'}</button>
           <span className="flex-1" />
-          {!readOnly && <span className="text-[11px] text-[#968871]">All sections on one page — scroll &amp; fill</span>}
+          {!readOnly && <span className="text-[11px] text-[#8a8171]">All sections on one page — scroll &amp; fill</span>}
           {!readOnly && (
           <button
             onClick={() => {
@@ -397,6 +503,7 @@ export default function EditKycModal({ lead, onClose, readOnly = false }) {
               if (isCreate && !form.phone.trim()) { toast.error('Phone number is required to create a lead'); return; }
               const productInterest = piText.split(',').map((s) => s.trim()).filter(Boolean);
               const formWithPi = { ...form, productInterest };
+              if (audioAttachment) formWithPi.intakeAudio = audioAttachment;
               const payload = isCreate ? Object.fromEntries(Object.entries(formWithPi).filter(([, v]) => v !== '')) : formWithPi;
               saveKycMutation.mutate(payload);
             }}

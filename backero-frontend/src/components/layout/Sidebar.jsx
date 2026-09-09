@@ -114,6 +114,7 @@ export default function Sidebar({ collapsed, onToggle }) {
       { label: 'Ledger', to: '/finance/ledger' },
       { label: 'Invoices', to: '/finance/invoices' },
       { label: 'Reports', to: '/finance/reports' },
+      { label: 'Documents', to: '/documents' },
     ]});
   }
   if (canInventory) {

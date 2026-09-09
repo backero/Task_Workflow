@@ -18,6 +18,11 @@ const socialApprovalRequestSchema = new mongoose.Schema({
   reviewedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   reviewNotes: { type: String },
   reviewedAt: { type: Date },
+  // Set once the automation system reports back what actually happened on
+  // the platform (separate from the approve/reject decision above).
+  publishedUrls: [{ platform: String, url: String }],
+  publishError: { type: String },
+  publishedAt: { type: Date },
   callbackUrl: { type: String },
   metadata: { type: mongoose.Schema.Types.Mixed },
   callbackStatus: { type: String, enum: ['pending', 'delivered', 'failed'], default: 'pending' },

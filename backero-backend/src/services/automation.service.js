@@ -11,6 +11,7 @@ const MarketplacePlanProgress = require('../models/MarketplacePlanProgress');
 const Invoice = require('../models/Invoice');
 const TeamReward = require('../models/TeamReward');
 const { createNotification, bulkCreateNotifications } = require('./notification.service');
+const { runDocumentExpiryReminders } = require('./documentWallet.service');
 const {
   sendTaskOverdueEmployee, sendTaskOverdueManager, sendInProgressLeadUpdate, sendActiveClientStageUpdate,
   sendOverdueFollowUpRepAlert, sendStaleLeadManagerAlert, sendTasksDueTodaySummary, sendTeamTaskOverdueAlert,
@@ -115,6 +116,12 @@ const startAutomationEngine = (socketIo) => {
   // Every day at 8 AM IST: check overdue/due-soon invoices, alert Accounts & Finance
   cron.schedule('30 2 * * *', () => {  // 8 AM IST = 2:30 AM UTC
     runOverdueInvoiceCheck().catch(logger.error);
+  });
+
+  // Every day at 8:05 AM IST: Document Wallet expiry/renewal reminders (email + in-app + WhatsApp)
+  // 8:05 AM IST = 2:35 AM UTC — offset 5 min from other 2:30-slot jobs to avoid a pile-up
+  cron.schedule('35 2 * * *', () => {
+    runDocumentExpiryReminders(io).catch(logger.error);
   });
 
   // Fires every Monday at 9:15 AM IST, but only actually flags a new team reward once
