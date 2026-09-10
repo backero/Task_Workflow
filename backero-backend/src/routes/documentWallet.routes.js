@@ -5,7 +5,15 @@ const { authenticate } = require('../middleware/auth.middleware');
 const { orgIsolation } = require('../middleware/orgIsolation.middleware');
 const { authorizeManagerOrAbove } = require('../middleware/role.middleware');
 
+// Google Drive OAuth handshake — connect-url needs an authed manager to
+// trigger it, but Google's redirect back to callback carries no auth header
+// (or org context), so both stay outside the router-wide auth below.
+router.get('/drive/connect-url', authenticate, authorizeManagerOrAbove, ctrl.driveConnectUrl);
+router.get('/drive/callback', ctrl.driveCallback);
+
 router.use(authenticate, orgIsolation);
+
+router.get('/drive/status', authorizeManagerOrAbove, ctrl.driveStatus);
 
 router.get('/', ctrl.list);
 

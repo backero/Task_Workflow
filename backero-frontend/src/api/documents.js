@@ -33,6 +33,9 @@ const documentsApi = {
 
   remindersPreview: (days) => api.get('/documents/reminders/preview', { params: { days } }).then((r) => r.data),
   remindersSendNow: () => api.post('/documents/reminders/send-now').then((r) => r.data),
+
+  driveStatus: () => api.get('/documents/drive/status').then((r) => r.data),
+  driveConnectUrl: () => api.get('/documents/drive/connect-url').then((r) => r.data.url),
 };
 
 export default documentsApi;

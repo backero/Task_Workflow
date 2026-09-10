@@ -1,9 +1,27 @@
+const crypto = require('crypto');
 const Document = require('../models/Document');
 const DocumentTrash = require('../models/DocumentTrash');
 const Organization = require('../models/Organization');
+const GoogleDriveAuth = require('../models/GoogleDriveAuth');
 const { asyncHandler, sendSuccess, sendError, slugify } = require('../utils/helpers');
 const drive = require('../services/googleDrive.service');
 const { computeDueDocsForOrg, runDocumentExpiryRemindersForOrg, maybeSeedDocumentWallet } = require('../services/documentWallet.service');
+
+// Signed, stateless CSRF state for the Drive OAuth handshake — no server-side
+// session needed since Google's redirect back to /drive/callback carries no
+// auth header we could otherwise verify against.
+function makeOAuthState() {
+  const payload = `${Date.now()}`;
+  const sig = crypto.createHmac('sha256', process.env.JWT_SECRET).update(payload).digest('hex');
+  return `${payload}.${sig}`;
+}
+function verifyOAuthState(state) {
+  const [payload, sig] = String(state || '').split('.');
+  if (!payload || !sig) return false;
+  const expected = crypto.createHmac('sha256', process.env.JWT_SECRET).update(payload).digest('hex');
+  if (sig.length !== expected.length || !crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(expected))) return false;
+  return Date.now() - Number(payload) < 10 * 60 * 1000; // 10 min
+}
 
 const toDateOrUndefined = (v) => (v ? new Date(v) : undefined);
 
@@ -205,7 +223,7 @@ exports.uploadFile = asyncHandler(async (req, res) => {
   if (!req.file) return sendError(res, 'No file uploaded', 400);
   const document = await Document.findOne({ _id: req.params.id, organizationId: req.user.organizationId });
   if (!document) return sendError(res, 'Document not found', 404);
-  if (!drive.hasWriteCredentials()) return sendError(res, 'Document storage is not configured yet.', 503);
+  if (!(await drive.hasWriteCredentials())) return sendError(res, 'Document storage is not configured yet.', 503);
 
   const org = await Organization.findById(req.user.organizationId).select('name').lean();
   let uploaded;
@@ -292,4 +310,36 @@ exports.remindersSendNow = asyncHandler(async (req, res) => {
   const io = req.app.get('io');
   const result = await runDocumentExpiryRemindersForOrg(org, { force: true, io });
   sendSuccess(res, result, 'Reminder digest sent');
+});
+
+// ── Google Drive connection (OAuth, run as a real account) ────────────────
+
+exports.driveStatus = asyncHandler(async (req, res) => {
+  const auth = await GoogleDriveAuth.findOne({}).select('connectedEmail updatedAt');
+  sendSuccess(res, { connected: !!auth, connectedEmail: auth?.connectedEmail || null });
+});
+
+exports.driveConnectUrl = asyncHandler(async (req, res) => {
+  const url = drive.getConnectUrl(makeOAuthState());
+  sendSuccess(res, { url });
+});
+
+exports.driveCallback = asyncHandler(async (req, res) => {
+  const frontendUrl = process.env.FRONTEND_URL || 'https://task-workflow-liart.vercel.app';
+  const { code, state } = req.query;
+  if (!code || !verifyOAuthState(state)) {
+    return res.redirect(`${frontendUrl}/documents?driveError=${encodeURIComponent('Invalid or expired connect link — try again')}`);
+  }
+  try {
+    const { refreshToken, email } = await drive.completeConnect(code);
+    await GoogleDriveAuth.findOneAndUpdate(
+      {},
+      { $set: { refreshToken, connectedEmail: email } },
+      { upsert: true, setDefaultsOnInsert: true },
+    );
+    drive.invalidateCache();
+    res.redirect(`${frontendUrl}/documents?driveConnected=${encodeURIComponent(email)}`);
+  } catch (err) {
+    res.redirect(`${frontendUrl}/documents?driveError=${encodeURIComponent(err.message)}`);
+  }
 });

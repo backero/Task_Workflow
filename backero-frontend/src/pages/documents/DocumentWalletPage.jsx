@@ -54,6 +54,35 @@ export default function DocumentWalletPage() {
     queryFn: documentsApi.listTrash,
     enabled: view === 'trash',
   });
+  const { data: driveStatus } = useQuery({
+    queryKey: ['documents', 'drive-status'],
+    queryFn: documentsApi.driveStatus,
+    enabled: isManagerOrAbove,
+  });
+
+  // ── Google Drive OAuth connect: read the redirect result once, then strip it from the URL ──
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const connected = params.get('driveConnected');
+    const error = params.get('driveError');
+    if (!connected && !error) return;
+    if (connected) { toast.success(`Google Drive connected as ${connected}`); qc.invalidateQueries({ queryKey: ['documents', 'drive-status'] }); }
+    if (error) toast.error(`Google Drive connect failed: ${error}`);
+    params.delete('driveConnected');
+    params.delete('driveError');
+    const rest = params.toString();
+    window.history.replaceState({}, '', window.location.pathname + (rest ? `?${rest}` : ''));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const connectDrive = async () => {
+    try {
+      const url = await documentsApi.driveConnectUrl();
+      window.location.href = url;
+    } catch (err) {
+      toast.error('Could not start Google Drive connection');
+    }
+  };
 
   const allCats = useMemo(() => [{ id: 'all', name: 'All documents' }, ...BASE_CATEGORIES, ...customCats], [customCats]);
 
@@ -154,11 +183,17 @@ export default function DocumentWalletPage() {
         toast.success('Details updated');
       } else {
         const doc = await createMutation.mutateAsync(newDocForm);
+        let failed = 0;
         for (const file of newDocFiles) {
-          await documentsApi.uploadFile(doc._id, file).catch((err) => toast.error(`"${file.name}" failed: ${err.response?.data?.message || err.message}`));
+          await documentsApi.uploadFile(doc._id, file).catch((err) => {
+            failed += 1;
+            toast.error(`"${file.name}" failed: ${err.response?.data?.message || err.message}`);
+          });
         }
         invalidateDocs();
-        toast.success('Document created');
+        if (failed && failed === newDocFiles.length) toast.error('Document created, but the file did not upload — check Document Wallet storage setup');
+        else if (failed) toast.error(`Document created — ${failed} of ${newDocFiles.length} file(s) failed to upload`);
+        else toast.success('Document created');
       }
       closeNewDocModal();
     } catch (err) {
@@ -238,11 +273,17 @@ export default function DocumentWalletPage() {
     if (!newVersionDocId) return;
     try {
       await documentsApi.addVersion(newVersionDocId, newVersionForm);
+      let failed = 0;
       for (const file of newVersionFiles) {
-        await documentsApi.uploadFile(newVersionDocId, file).catch((err) => toast.error(`"${file.name}" failed: ${err.response?.data?.message || err.message}`));
+        await documentsApi.uploadFile(newVersionDocId, file).catch((err) => {
+          failed += 1;
+          toast.error(`"${file.name}" failed: ${err.response?.data?.message || err.message}`);
+        });
       }
       invalidateDocs();
-      toast.success('Version added');
+      if (failed && failed === newVersionFiles.length) toast.error('Version added, but the file did not upload — check Document Wallet storage setup');
+      else if (failed) toast.error(`Version added — ${failed} of ${newVersionFiles.length} file(s) failed to upload`);
+      else toast.success('Version added');
       setNewVersionDocId(null);
       setNewVersionForm({ v: '', date: '', note: '', expiryDate: '' });
       setNewVersionFiles([]);
@@ -335,6 +376,17 @@ export default function DocumentWalletPage() {
             <button className="btn-secondary" onClick={() => { loadRemindersPreview(); }}>
               <BellAlertIcon className="w-4 h-4" /> Reminders
             </button>
+          )}
+          {isManagerOrAbove && (
+            driveStatus?.connected ? (
+              <span className="btn-secondary" title={`Connected as ${driveStatus.connectedEmail}`} style={{ cursor: 'default' }}>
+                <FolderIcon className="w-4 h-4" /> Drive: {driveStatus.connectedEmail}
+              </span>
+            ) : (
+              <button className="btn-secondary" onClick={connectDrive}>
+                <FolderIcon className="w-4 h-4" /> Connect Google Drive
+              </button>
+            )
           )}
           <button className="btn-primary" onClick={() => { setEditingDocId(null); setNewDocForm(emptyForm); setNewDocFiles([]); setNewDocOpen(true); }}>
             <PlusIcon className="w-4 h-4" /> New document

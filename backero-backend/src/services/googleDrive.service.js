@@ -1,33 +1,56 @@
 const { Readable } = require('stream');
+const { google } = require('googleapis');
 const logger = require('../utils/logger');
+const GoogleDriveAuth = require('../models/GoogleDriveAuth');
 
-// Document Wallet storage: a single Google service account (already used for
-// Google Sheets — see googleSheets.service.js) with a shared root Drive folder,
-// scoped per-organization by a subfolder. Not per-user OAuth — no consent screen,
-// no per-user tokens to manage. The root folder must be shared with
-// GOOGLE_SERVICE_ACCOUNT_EMAIL as Editor (see .env.example for setup notes).
+// Document Wallet storage: OAuth as a real Google account, not a service
+// account. Google blocks service accounts from owning files in a personal
+// "My Drive" (they have no storage quota of their own) unless the target is
+// a Shared Drive or Workspace domain-wide delegation is used — neither of
+// which personal @gmail.com accounts support. So an admin connects their own
+// Google account once (see driveConnectUrl/driveCallback in the controller);
+// uploads then run as that person, using their own Drive quota.
 
-const hasWriteCredentials = () => {
-  const email = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
-  const key = process.env.GOOGLE_PRIVATE_KEY;
-  const folder = process.env.GOOGLE_DRIVE_FOLDER_ID;
-  return !!(email && key && folder && !email.includes('your_service') && !key.includes('YOUR_KEY'));
-};
+const REDIRECT_PATH = '/api/documents/drive/callback';
 
-let _drive = null;
-const getClient = () => {
-  if (_drive) return _drive;
-  const { google } = require('googleapis');
-  const auth = new google.auth.GoogleAuth({
-    credentials: {
-      client_email: process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL,
-      private_key: process.env.GOOGLE_PRIVATE_KEY.replace(/\\n/g, '\n'),
-    },
-    scopes: ['https://www.googleapis.com/auth/drive'],
-  });
-  _drive = google.drive({ version: 'v3', auth });
-  return _drive;
-};
+function getRedirectUri() {
+  const base = process.env.RENDER_EXTERNAL_URL || process.env.BACKEND_URL || 'http://localhost:5000';
+  return `${base}${REDIRECT_PATH}`;
+}
+
+function getOAuthClient() {
+  return new google.auth.OAuth2(process.env.GOOGLE_CLIENT_ID, process.env.GOOGLE_CLIENT_SECRET, getRedirectUri());
+}
+
+const hasClientCredentials = () => !!(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET);
+
+let cachedClient = null;
+
+async function getAuthorizedClient() {
+  if (cachedClient) return cachedClient;
+  if (!hasClientCredentials()) return null;
+  const doc = await GoogleDriveAuth.findOne({}).select('+refreshToken');
+  if (!doc) return null;
+  const client = getOAuthClient();
+  client.setCredentials({ refresh_token: doc.refreshToken });
+  cachedClient = client;
+  return client;
+}
+
+function invalidateCache() {
+  cachedClient = null;
+}
+
+async function hasWriteCredentials() {
+  if (!hasClientCredentials() || !process.env.GOOGLE_DRIVE_FOLDER_ID) return false;
+  return !!(await getAuthorizedClient());
+}
+
+async function getDriveClient() {
+  const auth = await getAuthorizedClient();
+  if (!auth) throw new Error('Document storage is not configured yet.');
+  return google.drive({ version: 'v3', auth });
+}
 
 const folderCache = new Map();
 
@@ -62,8 +85,7 @@ async function ensureDocFolder(drive, orgFolderName, categoryName, docName) {
 }
 
 async function uploadBuffer(buffer, { filename, mimeType, orgFolderName, categoryName, docName }) {
-  if (!hasWriteCredentials()) throw new Error('Document storage is not configured yet.');
-  const drive = getClient();
+  const drive = await getDriveClient();
   const folderId = await ensureDocFolder(drive, orgFolderName, categoryName, docName);
   const res = await drive.files.create({
     requestBody: { name: filename, parents: [folderId] },
@@ -74,8 +96,7 @@ async function uploadBuffer(buffer, { filename, mimeType, orgFolderName, categor
 }
 
 async function streamFile(fileId, res) {
-  if (!hasWriteCredentials()) throw new Error('Document storage is not configured yet.');
-  const drive = getClient();
+  const drive = await getDriveClient();
   const meta = await drive.files.get({ fileId, fields: 'name, mimeType' });
   res.setHeader('Content-Type', meta.data.mimeType || 'application/octet-stream');
   res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(meta.data.name)}"`);
@@ -84,9 +105,9 @@ async function streamFile(fileId, res) {
 }
 
 async function deleteFile(fileId) {
-  if (!hasWriteCredentials() || !fileId) return;
+  if (!fileId) return;
   try {
-    const drive = getClient();
+    const drive = await getDriveClient();
     await drive.files.delete({ fileId });
   } catch (err) {
     // already gone / not accessible — Mongo is the source of truth for what "exists"
@@ -94,4 +115,29 @@ async function deleteFile(fileId) {
   }
 }
 
-module.exports = { hasWriteCredentials, uploadBuffer, streamFile, deleteFile };
+function getConnectUrl(state) {
+  const client = getOAuthClient();
+  return client.generateAuthUrl({
+    access_type: 'offline',
+    prompt: 'consent',
+    scope: ['https://www.googleapis.com/auth/drive', 'https://www.googleapis.com/auth/userinfo.email'],
+    state,
+  });
+}
+
+async function completeConnect(code) {
+  const client = getOAuthClient();
+  const { tokens } = await client.getToken(code);
+  if (!tokens.refresh_token) {
+    throw new Error('Google did not return a refresh token. Revoke prior access at https://myaccount.google.com/permissions and try connecting again.');
+  }
+  client.setCredentials(tokens);
+  const oauth2 = google.oauth2({ version: 'v2', auth: client });
+  const { data } = await oauth2.userinfo.get();
+  return { refreshToken: tokens.refresh_token, email: data.email };
+}
+
+module.exports = {
+  hasWriteCredentials, uploadBuffer, streamFile, deleteFile,
+  getConnectUrl, completeConnect, invalidateCache,
+};
