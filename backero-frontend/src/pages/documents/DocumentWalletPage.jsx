@@ -272,7 +272,8 @@ export default function DocumentWalletPage() {
     e.preventDefault();
     if (!newVersionDocId) return;
     try {
-      await documentsApi.addVersion(newVersionDocId, newVersionForm);
+      const doc = await documentsApi.addVersion(newVersionDocId, newVersionForm);
+      const newVersion = doc.versions[doc.versions.length - 1];
       let failed = 0;
       for (const file of newVersionFiles) {
         await documentsApi.uploadFile(newVersionDocId, file).catch((err) => {
@@ -280,10 +281,16 @@ export default function DocumentWalletPage() {
           toast.error(`"${file.name}" failed: ${err.response?.data?.message || err.message}`);
         });
       }
+      if (newVersionFiles.length && failed === newVersionFiles.length) {
+        // every intended file failed — remove the now-empty version instead of leaving a "vX.0, no files" ghost
+        await documentsApi.deleteVersion(newVersionDocId, newVersion._id).catch(() => {});
+        toast.error('Version not added — the file did not upload. Check Document Wallet storage setup.');
+      } else if (failed) {
+        toast.error(`Version added — ${failed} of ${newVersionFiles.length} file(s) failed to upload`);
+      } else {
+        toast.success('Version added');
+      }
       invalidateDocs();
-      if (failed && failed === newVersionFiles.length) toast.error('Version added, but the file did not upload — check Document Wallet storage setup');
-      else if (failed) toast.error(`Version added — ${failed} of ${newVersionFiles.length} file(s) failed to upload`);
-      else toast.success('Version added');
       setNewVersionDocId(null);
       setNewVersionForm({ v: '', date: '', note: '', expiryDate: '' });
       setNewVersionFiles([]);
@@ -567,7 +574,7 @@ export default function DocumentWalletPage() {
                 <button className="btn-secondary" onClick={() => downloadLatestFile(openDoc)}>
                   <ArrowDownTrayIcon className="w-4 h-4" /> Download latest file
                 </button>
-                <button className="btn-secondary" onClick={() => { setNewVersionDocId(openDoc._id); setNewVersionForm({ v: '', date: '', note: '', expiryDate: openDoc.expiryDate ? openDoc.expiryDate.slice(0, 10) : '' }); setNewVersionFiles([]); }}>
+                <button className="btn-secondary" onClick={() => { setNewVersionDocId(openDoc._id); setNewVersionForm({ v: '', date: new Date().toISOString().slice(0, 10), note: '', expiryDate: openDoc.expiryDate ? openDoc.expiryDate.slice(0, 10) : '' }); setNewVersionFiles([]); }}>
                   <ArrowUpTrayIcon className="w-4 h-4" /> New version
                 </button>
                 <button className="btn-secondary" onClick={() => shareViaEmail(openDoc)}>
@@ -671,11 +678,17 @@ export default function DocumentWalletPage() {
         <div className="doc-wallet-modal-overlay" onClick={() => setNewVersionDocId(null)}>
           <form className="doc-wallet-modal" onClick={(e) => e.stopPropagation()} onSubmit={submitNewVersion}>
             <h3>Upload new version</h3>
-            <input placeholder="Version label (e.g. v2.0)" value={newVersionForm.v} onChange={(e) => setNewVersionForm({ ...newVersionForm, v: e.target.value })} />
+            <input placeholder="Version label (auto-fills from file name, or type your own)" value={newVersionForm.v} onChange={(e) => setNewVersionForm({ ...newVersionForm, v: e.target.value })} />
             <input type="date" value={newVersionForm.date} onChange={(e) => setNewVersionForm({ ...newVersionForm, date: e.target.value })} />
             <textarea placeholder="Change note" value={newVersionForm.note} onChange={(e) => setNewVersionForm({ ...newVersionForm, note: e.target.value })} />
             <label>Updated expiry<input type="date" value={newVersionForm.expiryDate} onChange={(e) => setNewVersionForm({ ...newVersionForm, expiryDate: e.target.value })} /></label>
-            <input type="file" multiple onChange={(e) => setNewVersionFiles([...e.target.files])} />
+            <input type="file" multiple onChange={(e) => {
+              const files = [...e.target.files];
+              setNewVersionFiles(files);
+              if (files.length && !newVersionForm.v.trim()) {
+                setNewVersionForm((f) => ({ ...f, v: files[0].name.replace(/\.[^./]+$/, '') }));
+              }
+            }} />
             <div className="doc-wallet-modal-actions">
               <button type="button" className="btn-secondary" onClick={() => setNewVersionDocId(null)}>Cancel</button>
               <button type="submit" className="btn-primary">Save version</button>

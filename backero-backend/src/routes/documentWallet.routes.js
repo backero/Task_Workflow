@@ -38,6 +38,7 @@ router.delete('/:id', ctrl.softDelete);
 
 router.post('/:id/upload', upload.single('file'), ctrl.uploadFile);
 router.post('/:id/versions', ctrl.addVersion);
+router.delete('/:id/versions/:versionId', ctrl.deleteVersion);
 router.delete('/:id/versions/:versionId/files/:fileId', ctrl.deleteVersionFile);
 
 module.exports = router;

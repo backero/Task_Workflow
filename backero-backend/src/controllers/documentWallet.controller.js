@@ -263,11 +263,29 @@ exports.addVersion = asyncHandler(async (req, res) => {
   if (!document) return sendError(res, 'Document not found', 404);
 
   const { v, date, note, expiryDate } = req.body;
-  document.versions.push({ v: v || `v${document.versions.length + 1}.0`, date: date || '', note: note || '', files: [] });
+  const today = new Date().toISOString().slice(0, 10);
+  document.versions.push({ v: v || `v${document.versions.length + 1}.0`, date: date || today, note: note || '', files: [] });
   if (expiryDate !== undefined) document.expiryDate = toDateOrUndefined(expiryDate) || null;
   document.updatedBy = req.user._id;
   await document.save();
   sendSuccess(res, { document }, 'Version added', 201);
+});
+
+// Removes an empty version row — only ever used to roll back a version created
+// by addVersion when its intended file upload then failed, so a "vX.0, no
+// files" ghost entry doesn't linger. Refuses if the version already has files.
+exports.deleteVersion = asyncHandler(async (req, res) => {
+  const document = await Document.findOne({ _id: req.params.id, organizationId: req.user.organizationId });
+  if (!document) return sendError(res, 'Document not found', 404);
+
+  const version = document.versions.id(req.params.versionId);
+  if (!version) return sendError(res, 'Version not found', 404);
+  if (version.files.length) return sendError(res, 'Version has files — remove them individually first', 400);
+
+  document.versions.pull(version._id);
+  document.updatedBy = req.user._id;
+  await document.save();
+  sendSuccess(res, { document }, 'Version removed');
 });
 
 exports.deleteVersionFile = asyncHandler(async (req, res) => {

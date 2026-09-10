@@ -25,6 +25,7 @@ const documentsApi = {
     }).then((r) => r.data);
   },
   addVersion: (docId, payload) => api.post(`/documents/${docId}/versions`, payload).then((r) => r.data.document),
+  deleteVersion: (docId, versionId) => api.delete(`/documents/${docId}/versions/${versionId}`).then((r) => r.data),
   deleteVersionFile: (docId, versionId, fileId) =>
     api.delete(`/documents/${docId}/versions/${versionId}/files/${fileId}`).then((r) => r.data.document),
 
