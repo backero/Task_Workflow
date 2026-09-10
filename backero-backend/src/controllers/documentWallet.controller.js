@@ -5,7 +5,7 @@ const Organization = require('../models/Organization');
 const GoogleDriveAuth = require('../models/GoogleDriveAuth');
 const { asyncHandler, sendSuccess, sendError, slugify } = require('../utils/helpers');
 const drive = require('../services/googleDrive.service');
-const { computeDueDocsForOrg, runDocumentExpiryRemindersForOrg, maybeSeedDocumentWallet } = require('../services/documentWallet.service');
+const { computeDueDocsForOrg, runDocumentExpiryRemindersForOrg, maybeSeedDocumentWallet, categoryName: resolveCategoryName } = require('../services/documentWallet.service');
 
 // Signed, stateless CSRF state for the Drive OAuth handshake — no server-side
 // session needed since Google's redirect back to /drive/callback carries no
@@ -225,14 +225,14 @@ exports.uploadFile = asyncHandler(async (req, res) => {
   if (!document) return sendError(res, 'Document not found', 404);
   if (!(await drive.hasWriteCredentials())) return sendError(res, 'Document storage is not configured yet.', 503);
 
-  const org = await Organization.findById(req.user.organizationId).select('name').lean();
+  const org = await Organization.findById(req.user.organizationId).select('name documentCategories').lean();
   let uploaded;
   try {
     uploaded = await drive.uploadBuffer(req.file.buffer, {
       filename: req.file.originalname,
       mimeType: req.file.mimetype,
       orgFolderName: org?.name,
-      categoryName: document.category,
+      categoryName: resolveCategoryName(document.category, org?.documentCategories),
       docName: document.name,
     });
   } catch (err) {
