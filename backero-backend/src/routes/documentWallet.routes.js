@@ -3,7 +3,7 @@ const ctrl = require('../controllers/documentWallet.controller');
 const upload = require('../middleware/documentUpload.middleware');
 const { authenticate } = require('../middleware/auth.middleware');
 const { orgIsolation } = require('../middleware/orgIsolation.middleware');
-const { authorizeManagerOrAbove } = require('../middleware/role.middleware');
+const { authorizeManagerOrAbove, authorizeAdminOrAbove } = require('../middleware/role.middleware');
 
 // Google Drive OAuth handshake — connect-url needs an authed manager to
 // trigger it, but Google's redirect back to callback carries no auth header
@@ -21,10 +21,11 @@ router.get('/categories', ctrl.getCategories);
 router.post('/categories', authorizeManagerOrAbove, ctrl.addCategory);
 router.delete('/categories/:catId', authorizeManagerOrAbove, ctrl.deleteCategory);
 
-router.get('/trash', authorizeManagerOrAbove, ctrl.listTrash);
-router.post('/trash/:trashId/restore', authorizeManagerOrAbove, ctrl.restoreTrash);
-router.delete('/trash/:trashId', authorizeManagerOrAbove, ctrl.purgeTrash);
-router.delete('/trash', authorizeManagerOrAbove, ctrl.emptyTrash);
+// Recycle Bin — admin+ only, not manager/member
+router.get('/trash', authorizeAdminOrAbove, ctrl.listTrash);
+router.post('/trash/:trashId/restore', authorizeAdminOrAbove, ctrl.restoreTrash);
+router.delete('/trash/:trashId', authorizeAdminOrAbove, ctrl.purgeTrash);
+router.delete('/trash', authorizeAdminOrAbove, ctrl.emptyTrash);
 
 router.get('/files/:driveId/content', ctrl.streamFile);
 

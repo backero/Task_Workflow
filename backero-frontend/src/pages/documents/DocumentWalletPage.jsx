@@ -21,6 +21,7 @@ const emptyForm = { name: '', category: '', docNo: '', issueDate: '', expiryDate
 export default function DocumentWalletPage() {
   const qc = useQueryClient();
   const isManagerOrAbove = useAuthStore((s) => s.isManagerOrAbove)();
+  const isAdminOrAbove = useAuthStore((s) => s.isAdminOrAbove)();
   const companyName = useAuthStore((s) => s.user?.organizationId?.name) || 'Company';
 
   const [activeCat, setActiveCat] = useState('all');
@@ -415,7 +416,7 @@ export default function DocumentWalletPage() {
               {c.id !== 'all' && <span className="doc-wallet-cat-count">{catCounts[c.id] || 0}</span>}
             </button>
           ))}
-          {isManagerOrAbove && (
+          {isAdminOrAbove && (
             <button className={`doc-wallet-cat ${view === 'trash' ? 'active' : ''}`} onClick={() => setView('trash')}>
               <span className="flex items-center gap-1"><TrashIcon className="w-3.5 h-3.5" /> Recycle Bin</span>
               <span className="doc-wallet-cat-count">{trash.length}</span>
@@ -503,7 +504,7 @@ export default function DocumentWalletPage() {
           {view === 'trash' && (
             <>
               <div className="flex justify-end mb-2">
-                {isManagerOrAbove && trash.length > 0 && (
+                {isAdminOrAbove && trash.length > 0 && (
                   <button
                     className="btn-secondary text-red-600"
                     onClick={() => setConfirmState({
@@ -527,7 +528,7 @@ export default function DocumentWalletPage() {
                       <td className="text-[var(--t-sub)]">{new Date(t.deletedAt).toLocaleDateString('en-IN')}</td>
                       <td className="flex gap-2 justify-end">
                         <button className="btn-secondary" onClick={() => restoreMutation.mutate(t._id)}><ArrowPathIcon className="w-3.5 h-3.5" /> Restore</button>
-                        {isManagerOrAbove && (
+                        {isAdminOrAbove && (
                           <button
                             className="btn-secondary text-red-600"
                             onClick={() => setConfirmState({
