@@ -53,6 +53,7 @@ const productionCustomerRoutes = require('./src/routes/productioncustomer.routes
 const socialApprovalRoutes    = require('./src/routes/socialApproval.routes');
 const integrationRoutes       = require('./src/routes/integration.routes');
 const documentWalletRoutes    = require('./src/routes/documentWallet.routes');
+const socialEngineRoutes      = require('./src/routes/socialEngine.routes');
 
 const app = express();
 const server = http.createServer(app);
@@ -198,6 +199,7 @@ app.use('/api/production-customers', productionCustomerRoutes);
 app.use('/api/social-approvals', socialApprovalRoutes);
 app.use('/api/integrations', integrationRoutes);
 app.use('/api/documents', documentWalletRoutes);
+app.use('/api/social-engine', socialEngineRoutes);
 
 // 404 handler
 app.use('*', (req, res) => {
