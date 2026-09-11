@@ -6,7 +6,7 @@ import toast from 'react-hot-toast';
 import {
   FolderIcon, PlusIcon, MagnifyingGlassIcon, XMarkIcon, TrashIcon,
   ArrowPathIcon, DocumentTextIcon, ArrowDownTrayIcon, ChevronLeftIcon, ChevronRightIcon,
-  BellAlertIcon, ArrowUpTrayIcon, EnvelopeIcon, ClipboardDocumentIcon, PencilSquareIcon,
+  BellAlertIcon, ArrowUpTrayIcon, EnvelopeIcon, ClipboardDocumentIcon, PencilSquareIcon, EyeIcon,
 } from '@heroicons/react/24/outline';
 import documentsApi from '../../api/documents';
 import { useAuthStore } from '../../store/useAuthStore';
@@ -440,17 +440,15 @@ export default function DocumentWalletPage() {
                 <div className="stat-card"><div><div className="text-xs text-[var(--t-sub)]">Files in Drive</div><div className="text-xl font-bold">{stats.filesInDrive}</div></div></div>
                 {stats.recent.length > 0 && (
                   <div className="stat-card" style={{ flex: '2 1 240px' }}>
-                    <div style={{ width: '100%' }}>
-                      <div className="text-xs text-[var(--t-sub)] mb-1">Recently updated</div>
-                      <div className="doc-wallet-recent">
-                        {stats.recent.map((d) => (
-                          <button key={d._id} className="doc-wallet-recent-item" onClick={() => setOpenDocId(d._id)}>
-                            <span className="badge badge-green">{d.versions?.[d.versions.length - 1]?.v || 'v1.0'}</span>
-                            <span className="n">{d.name}</span>
-                            <span className="d">{d.updatedAt ? d.updatedAt.slice(0, 10) : ''}</span>
-                          </button>
-                        ))}
-                      </div>
+                    <div className="text-xs text-[var(--t-sub)] mb-1">Recently updated</div>
+                    <div className="doc-wallet-recent">
+                      {stats.recent.map((d) => (
+                        <button key={d._id} className="doc-wallet-recent-item" onClick={() => setOpenDocId(d._id)}>
+                          <span className="badge badge-green">{d.versions?.[d.versions.length - 1]?.v || 'v1.0'}</span>
+                          <span className="n">{d.name}</span>
+                          <span className="d">{d.updatedAt ? d.updatedAt.slice(0, 10) : ''}</span>
+                        </button>
+                      ))}
                     </div>
                   </div>
                 )}
@@ -494,11 +492,13 @@ export default function DocumentWalletPage() {
                     <th onClick={() => { setSortKey('expiry'); setSortDir((d) => (sortKey === 'expiry' ? -d : 1)); }}>Expiry</th>
                     <th onClick={() => { setSortKey('status'); setSortDir((d) => (sortKey === 'status' ? -d : 1)); }}>Status</th>
                     <th>Custodian</th>
+                    <th style={{ width: '1%' }}>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {filtered.map((d) => {
                     const s = docStatus(d);
+                    const f = latestFile(d);
                     return (
                       <tr key={d._id} onClick={() => setOpenDocId(d._id)}>
                         <td className="font-medium">{d.name}</td>
@@ -506,11 +506,44 @@ export default function DocumentWalletPage() {
                         <td className="text-[var(--t-sub)]">{d.expiryDate ? d.expiryDate.slice(0, 10) : '—'}</td>
                         <td><span className={`badge ${STATUS_BADGE[s.k]}`}>{s.label}</span></td>
                         <td className="text-[var(--t-sub)]">{d.keeper || '—'}</td>
+                        <td className="doc-wallet-row-actions" onClick={(e) => e.stopPropagation()}>
+                          <button
+                            className={`doc-wallet-iconbtn ${f ? '' : 'off'}`}
+                            title={f ? 'Preview latest file' : 'No file attached yet'}
+                            onClick={() => { if (!f) return toast.error('No file attached yet'); openViewerForDoc(d, f); }}
+                          >
+                            <EyeIcon className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            className={`doc-wallet-iconbtn ${f ? '' : 'off'}`}
+                            title={f ? 'Download latest file' : 'No file attached yet'}
+                            onClick={() => downloadLatestFile(d)}
+                          >
+                            <ArrowDownTrayIcon className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            className="doc-wallet-iconbtn"
+                            title="Quick upload — attach as a new version"
+                            onClick={() => {
+                              setNewVersionDocId(d._id);
+                              setNewVersionForm({ v: '', date: new Date().toISOString().slice(0, 10), note: '', expiryDate: d.expiryDate ? d.expiryDate.slice(0, 10) : '' });
+                              setNewVersionFiles([]);
+                            }}
+                          >
+                            ＋ver
+                          </button>
+                          <button className="doc-wallet-iconbtn" title="Share via email" onClick={() => shareViaEmail(d)}>
+                            <EnvelopeIcon className="w-3.5 h-3.5" />
+                          </button>
+                          <button className="doc-wallet-iconbtn" title="Open details" onClick={() => setOpenDocId(d._id)}>
+                            Open
+                          </button>
+                        </td>
                       </tr>
                     );
                   })}
                   {!filtered.length && (
-                    <tr><td colSpan={5} className="text-center text-[var(--t-sub)] py-8">No documents match.</td></tr>
+                    <tr><td colSpan={6} className="text-center text-[var(--t-sub)] py-8">No documents match.</td></tr>
                   )}
                 </tbody>
               </table>

@@ -33,7 +33,7 @@ export function parseFilename(raw) {
   if ((m = raw.match(/\b\d{2}[A-Z]{5}\d{4}[A-Z][A-Z\d]Z[A-Z\d]\b/i))) { res.docNo = m[0].toUpperCase(); res.category = 'tax'; } // GSTIN
   else if ((m = raw.match(/\b[LU]\d{5}[A-Z]{2}\d{4}[A-Z]{3}\d{6}\b/i))) { res.docNo = m[0].toUpperCase(); res.category = 'corp'; } // CIN
   else if ((m = raw.match(/\b\d{14}\b/))) { res.docNo = m[0]; res.category = 'licenses'; } // FSSAI no.
-  else if ((m = raw.match(/\b[A-Z]{5}\d{4}\b[A-Z]\b/))) { res.docNo = m[0].toUpperCase(); res.category = 'hr'; } // PAN
+  else if ((m = raw.match(/\b[A-Z]{5}\d{4}[A-Z]\b/i))) { res.docNo = m[0].toUpperCase(); res.category = 'hr'; } // PAN
   else if ((m = raw.match(/\b\d{8}\b/))) { res.docNo = m[0]; res.category = 'hr'; } // DIN
 
   if ((m = raw.match(/(\d{1,2})[.\-/](\d{1,2})[.\-/](20\d{2})/))) {
