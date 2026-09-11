@@ -438,6 +438,22 @@ export default function DocumentWalletPage() {
                 <div className="stat-card"><div><div className="text-xs text-[var(--t-sub)]">Expiring ≤90d</div><div className="text-xl font-bold text-amber-500">{stats.soon}</div></div></div>
                 <div className="stat-card"><div><div className="text-xs text-[var(--t-sub)]">Expired</div><div className="text-xl font-bold text-red-500">{stats.expired}</div></div></div>
                 <div className="stat-card"><div><div className="text-xs text-[var(--t-sub)]">Files in Drive</div><div className="text-xl font-bold">{stats.filesInDrive}</div></div></div>
+                {stats.recent.length > 0 && (
+                  <div className="stat-card" style={{ flex: '2 1 240px' }}>
+                    <div style={{ width: '100%' }}>
+                      <div className="text-xs text-[var(--t-sub)] mb-1">Recently updated</div>
+                      <div className="doc-wallet-recent">
+                        {stats.recent.map((d) => (
+                          <button key={d._id} className="doc-wallet-recent-item" onClick={() => setOpenDocId(d._id)}>
+                            <span className="badge badge-green">{d.versions?.[d.versions.length - 1]?.v || 'v1.0'}</span>
+                            <span className="n">{d.name}</span>
+                            <span className="d">{d.updatedAt ? d.updatedAt.slice(0, 10) : ''}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {radarItems.length > 0 && (
