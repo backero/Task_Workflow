@@ -11,7 +11,7 @@ import {
 import documentsApi from '../../api/documents';
 import { useAuthStore } from '../../store/useAuthStore';
 import { BASE_CATEGORIES, TEMPLATES } from './documentTemplates';
-import { docStatus, catName, latestFile, parseFilename, buildDocumentsCsv, docSummaryText, copyToClipboard } from './documentWalletHelpers';
+import { docStatus, catName, latestFile, parseFilename, buildDocumentsCsv, docSummaryText, copyToClipboard, fmtSize } from './documentWalletHelpers';
 import ConfirmDialog from '../../components/common/ConfirmDialog';
 import './DocumentWalletPage.css';
 
@@ -138,9 +138,11 @@ export default function DocumentWalletPage() {
     const expired = documents.filter((d) => docStatus(d).k === 'expired').length;
     const soon = documents.filter((d) => docStatus(d).k === 'soon').length;
     const foldersInUse = new Set(documents.map((d) => d.category)).size;
-    const filesInDrive = documents.reduce((s, d) => s + (d.versions || []).reduce((s2, v) => s2 + (v.files || []).length, 0), 0);
+    const allFiles = documents.flatMap((d) => (d.versions || []).flatMap((v) => v.files || []));
+    const filesInDrive = allFiles.length;
+    const storageBytes = allFiles.reduce((s, f) => s + (f.size || 0), 0);
     const recent = [...documents].sort((a, b) => (b.updatedAt || '').localeCompare(a.updatedAt || '')).slice(0, 5);
-    return { total: documents.length, foldersInUse, expired, soon, filesInDrive, recent };
+    return { total: documents.length, foldersInUse, expired, soon, filesInDrive, storageBytes, recent };
   }, [documents]);
 
   const radarItems = useMemo(() => {
@@ -437,9 +439,27 @@ export default function DocumentWalletPage() {
                 <div className="stat-card"><div><div className="text-xs text-[var(--t-sub)]">Folders in use</div><div className="text-xl font-bold">{stats.foldersInUse}</div></div></div>
                 <div className="stat-card"><div><div className="text-xs text-[var(--t-sub)]">Expiring ≤90d</div><div className="text-xl font-bold text-amber-500">{stats.soon}</div></div></div>
                 <div className="stat-card"><div><div className="text-xs text-[var(--t-sub)]">Expired</div><div className="text-xl font-bold text-red-500">{stats.expired}</div></div></div>
-                <div className="stat-card"><div><div className="text-xs text-[var(--t-sub)]">Files in Drive</div><div className="text-xl font-bold">{stats.filesInDrive}</div></div></div>
+                <div className="stat-card doc-wallet-gauge-card">
+                  <div className="text-xs text-[var(--t-sub)] mb-1">Storage used</div>
+                  {(() => {
+                    const CAP = 15 * 1024 * 1024 * 1024; // 15GB — standard Google account quota
+                    const pct = Math.min(100, (stats.storageBytes / CAP) * 100);
+                    const R = 52, C = Math.PI * R, off = C * (1 - pct / 100);
+                    return (
+                      <div className="doc-wallet-gauge">
+                        <svg viewBox="0 0 118 62">
+                          <path d="M7 60 A52 52 0 0 1 111 60" fill="none" stroke="var(--b-default)" strokeWidth="9" strokeLinecap="round" />
+                          <path d="M7 60 A52 52 0 0 1 111 60" fill="none" stroke="var(--zone)" strokeWidth="9" strokeLinecap="round"
+                            strokeDasharray={C.toFixed(1)} strokeDashoffset={off.toFixed(1)} />
+                        </svg>
+                        <div className="doc-wallet-gauge-value">{fmtSize(stats.storageBytes)}</div>
+                      </div>
+                    );
+                  })()}
+                  <div className="doc-wallet-gauge-cap">of 15 GB · {stats.filesInDrive} file{stats.filesInDrive === 1 ? '' : 's'}</div>
+                </div>
                 {stats.recent.length > 0 && (
-                  <div className="stat-card" style={{ flex: '2 1 240px' }}>
+                  <div className="stat-card doc-wallet-recent-card" style={{ flex: '2 1 240px' }}>
                     <div className="text-xs text-[var(--t-sub)] mb-1">Recently updated</div>
                     <div className="doc-wallet-recent">
                       {stats.recent.map((d) => (

@@ -131,6 +131,21 @@
 .doc-wallet-stats { display: flex; gap: 12px; flex-wrap: wrap; }
 .doc-wallet-stats .stat-card { flex: 1 1 140px; }
 
+.doc-wallet-gauge-card,
+.doc-wallet-recent-card {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 4px;
+}
+.doc-wallet-gauge-card { flex: 1 1 150px; text-align: center; }
+.doc-wallet-gauge { position: relative; width: 96px; height: 50px; margin: 0 auto; }
+.doc-wallet-gauge svg { display: block; width: 100%; height: 100%; }
+.doc-wallet-gauge-value {
+  position: absolute; left: 0; right: 0; bottom: 0; text-align: center;
+  font-family: 'Zilla Slab', Georgia, serif; font-size: 15px; font-weight: 700; color: var(--t-primary);
+}
+.doc-wallet-gauge-cap { font-size: 10.5px; color: var(--t-muted); line-height: 1.4; text-align: center; margin-top: 2px; }
+
 .doc-wallet-recent { display: flex; flex-direction: column; gap: 2px; }
 .doc-wallet-recent-item {
   display: flex; align-items: center; gap: 8px; width: 100%; text-align: left;
