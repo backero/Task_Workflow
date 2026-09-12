@@ -31,6 +31,8 @@ services:
       # WHATSAPP_CLOUD_BUSINESS_ACCOUNT_ID
       # WHATSAPP_CLOUD_OTP_TEMPLATE
       # WHATSAPP_WEBHOOK_VERIFY_TOKEN
+      # SOCIAL_ENGINE_URL                 — base URL of the Python social-media-automation engine (currently a trycloudflare.com quick tunnel — ephemeral, changes if that tunnel restarts)
+      # SOCIAL_ENGINE_ADMIN_KEY           — must match ADMIN_API_KEY checked by the Python engine's X-Admin-Key header on /admin/*
     disk:
       name: wa-session-store
       mountPath: /mnt/wa_session
