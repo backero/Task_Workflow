@@ -115,7 +115,7 @@ function Empty({ children }) {
 function OverviewTab() {
   const { data, isLoading, error } = useQuery({
     queryKey: ['social-engine-overview'],
-    queryFn: () => api.get('/social-engine/overview').then((r) => r.data.data),
+    queryFn: () => api.get('/social-engine/overview').then((r) => r.data),
   });
 
   if (isLoading) return <Loading />;
@@ -174,7 +174,7 @@ function GenerateSection() {
 
   const generateMutation = useMutation({
     mutationFn: () => api.post('/social-engine/posts/generate', { pillar }),
-    onSuccess: (res) => { setResult(res.data.data); toast.success('Post generated — sent for approval'); },
+    onSuccess: (res) => { setResult(res.data); toast.success('Post generated — sent for approval'); },
     onError: (err) => toast.error(err.response?.data?.message || 'Content generation failed'),
   });
 
@@ -218,7 +218,7 @@ function VideoIngestSection() {
       form.append('autoEdit', String(autoEdit));
       return api.post('/social-engine/video/ingest', form);
     },
-    onSuccess: (res) => { setResult(res.data.data); toast.success('Video analyzed and queued'); setFile(null); },
+    onSuccess: (res) => { setResult(res.data); toast.success('Video analyzed and queued'); setFile(null); },
     onError: (err) => toast.error(err.response?.data?.message || 'Video ingest failed'),
   });
 
@@ -289,7 +289,7 @@ function ManualPostSection() {
       return api.post('/social-engine/posts/manual', form);
     },
     onSuccess: (res) => {
-      setResult(res.data.data);
+      setResult(res.data);
       toast.success('Post saved');
       setFile(null); setTopic(''); setCaption(''); setHashtagsRaw(''); setPlatforms([]);
     },
@@ -366,7 +366,7 @@ function LeadsTab() {
   const qc = useQueryClient();
   const { data, isLoading, error } = useQuery({
     queryKey: ['social-engine-leads'],
-    queryFn: () => api.get('/social-engine/leads').then((r) => r.data.data.leads),
+    queryFn: () => api.get('/social-engine/leads').then((r) => r.data.leads),
   });
 
   const stageMutation = useMutation({
@@ -428,7 +428,7 @@ function EngagementTab() {
 
   const { data, isLoading } = useQuery({
     queryKey: ['social-engine-comments', filter],
-    queryFn: () => api.get('/social-engine/comments', { params: { replyState: filter } }).then((r) => r.data.data.comments),
+    queryFn: () => api.get('/social-engine/comments', { params: { replyState: filter } }).then((r) => r.data.comments),
   });
 
   const invalidate = () => qc.invalidateQueries({ queryKey: ['social-engine-comments'] });
@@ -514,7 +514,7 @@ function EngagementTab() {
 function AnalyticsTab() {
   const { data, isLoading, error } = useQuery({
     queryKey: ['social-engine-analytics'],
-    queryFn: () => api.get('/social-engine/analytics/summary').then((r) => r.data.data),
+    queryFn: () => api.get('/social-engine/analytics/summary').then((r) => r.data),
   });
 
   if (isLoading) return <Loading />;
@@ -579,11 +579,11 @@ function AnalyticsTab() {
 function AccountsTab() {
   const { data: accountsData, isLoading: loadingAccounts } = useQuery({
     queryKey: ['social-engine-accounts'],
-    queryFn: () => api.get('/social-engine/accounts').then((r) => r.data.data.accounts),
+    queryFn: () => api.get('/social-engine/accounts').then((r) => r.data.accounts),
   });
   const { data: activityData } = useQuery({
     queryKey: ['social-engine-accounts-activity'],
-    queryFn: () => api.get('/social-engine/accounts/activity').then((r) => r.data.data.activity),
+    queryFn: () => api.get('/social-engine/accounts/activity').then((r) => r.data.activity),
   });
 
   if (loadingAccounts) return <Loading />;
@@ -639,21 +639,21 @@ function AdsTab() {
 
   const { data, isLoading } = useQuery({
     queryKey: ['social-engine-ads'],
-    queryFn: () => api.get('/social-engine/ads/suggestions', { params: { status: 'new' } }).then((r) => r.data.data.suggestions),
+    queryFn: () => api.get('/social-engine/ads/suggestions', { params: { status: 'new' } }).then((r) => r.data.suggestions),
   });
 
   const invalidate = () => qc.invalidateQueries({ queryKey: ['social-engine-ads'] });
 
   const scanMutation = useMutation({
     mutationFn: () => api.post('/social-engine/ads/scan'),
-    onSuccess: (res) => { invalidate(); toast.success(`Created ${res.data.data.created} new suggestion(s)`); },
+    onSuccess: (res) => { invalidate(); toast.success(`Created ${res.data.created} new suggestion(s)`); },
     onError: (err) => toast.error(err.response?.data?.message || 'Scan failed'),
   });
   const draftMutation = useMutation({
     mutationFn: (id) => api.post(`/social-engine/ads/suggestions/${id}/create-draft-campaign`),
     onSuccess: (res) => {
       invalidate();
-      const d = res.data.data;
+      const d = res.data;
       if (d.ok) toast.success(`Draft campaign created (PAUSED) — id ${d.campaign_id}`);
       else toast.error(d.error || 'Failed to create draft campaign');
     },
@@ -732,14 +732,14 @@ function FestivalsTab() {
   const qc = useQueryClient();
   const { data, isLoading } = useQuery({
     queryKey: ['social-engine-festivals'],
-    queryFn: () => api.get('/social-engine/festivals/upcoming').then((r) => r.data.data.upcoming),
+    queryFn: () => api.get('/social-engine/festivals/upcoming').then((r) => r.data.upcoming),
   });
 
   const genMutation = useMutation({
     mutationFn: () => api.post('/social-engine/festivals/generate-due'),
     onSuccess: (res) => {
       qc.invalidateQueries({ queryKey: ['social-engine-festivals'] });
-      const ids = res.data.data.post_ids;
+      const ids = res.data.post_ids;
       toast.success(ids.length ? `Generated ${ids.length} festival post(s)` : 'No festivals due today');
     },
     onError: (err) => toast.error(err.response?.data?.message || 'Generation failed'),
@@ -786,7 +786,7 @@ function CompetitorsTab() {
 
   const { data, isLoading } = useQuery({
     queryKey: ['social-engine-competitors'],
-    queryFn: () => api.get('/social-engine/competitors/pulse').then((r) => r.data.data),
+    queryFn: () => api.get('/social-engine/competitors/pulse').then((r) => r.data),
   });
 
   const checkinMutation = useMutation({
@@ -890,15 +890,15 @@ function CompetitorsTab() {
 function SettingsTab() {
   const { data: cost, isLoading: loadingCost } = useQuery({
     queryKey: ['social-engine-cost'],
-    queryFn: () => api.get('/social-engine/cost/breakdown').then((r) => r.data.data),
+    queryFn: () => api.get('/social-engine/cost/breakdown').then((r) => r.data),
   });
   const { data: flags, isLoading: loadingFlags } = useQuery({
     queryKey: ['social-engine-flags'],
-    queryFn: () => api.get('/social-engine/settings/flags').then((r) => r.data.data),
+    queryFn: () => api.get('/social-engine/settings/flags').then((r) => r.data),
   });
   const { data: strategy, isLoading: loadingStrategy } = useQuery({
     queryKey: ['social-engine-strategy'],
-    queryFn: () => api.get('/social-engine/strategy/best-time').then((r) => r.data.data),
+    queryFn: () => api.get('/social-engine/strategy/best-time').then((r) => r.data),
   });
 
   return (
