@@ -1,79 +1,104 @@
-﻿import React, { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { PlusIcon, ArrowUpIcon, ArrowDownIcon } from '@heroicons/react/24/outline';
+import React, { useState } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { Plus, ArrowUp, ArrowDown } from 'lucide-react';
 import api from '../../api/axios';
 import { format } from 'date-fns';
-import { clsx } from 'clsx';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { useForm } from 'react-hook-form';
+import { useForm, Controller } from 'react-hook-form';
 import toast from 'react-hot-toast';
+import { Button, Card, Col, DatePicker, Drawer, Empty, Input, InputNumber, Radio, Row, Segmented, Select, Space, Spin, Table, Tag, Typography } from 'antd';
+import dayjs from 'dayjs';
+
+const { Title, Text } = Typography;
 
 const INCOME_CATEGORIES = ['Sales', 'Invoice Payment', 'Marketplace Revenue', 'Other Income'];
 const EXPENSE_CATEGORIES = ['Salary', 'Raw Material', 'Rent', 'Utilities', 'Marketing', 'Logistics', 'Vendor Payment', 'Other Expense'];
+const PAYMENT_METHODS = ['bank_transfer', 'upi', 'cash', 'cheque', 'card'];
 
-function TransactionModal({ onClose, onSuccess }) {
-  const { register, handleSubmit, watch } = useForm({ defaultValues: { type: 'income' } });
-  const [loading, setLoading] = useState(false);
+function TransactionDrawer({ open, onClose, onSuccess }) {
+  const { control, register, handleSubmit, watch, reset } = useForm({
+    defaultValues: { type: 'income', date: dayjs(), paymentMethod: 'bank_transfer' },
+  });
   const type = watch('type');
 
-  const onSubmit = async (data) => {
-    setLoading(true);
-    try {
-      await api.post('/finance/transactions', data);
+  const mutation = useMutation({
+    mutationFn: (data) => api.post('/finance/transactions', { ...data, date: data.date?.toISOString() }),
+    onSuccess: () => {
       toast.success('Transaction recorded');
+      reset({ type: 'income', date: dayjs(), paymentMethod: 'bank_transfer' });
       onSuccess();
-    } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed');
-    } finally {
-      setLoading(false);
-    }
-  };
+    },
+    onError: (err) => toast.error(err.response?.data?.message || 'Failed'),
+  });
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-gray-900/60" onClick={onClose} />
-      <div className="relative card w-full max-w-md shadow-modal p-6 space-y-4">
-        <h3 className="font-bold text-gray-900 dark:text-white">Record Transaction</h3>
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          <div className="flex gap-2">
-            <label className={clsx('flex-1 py-2 text-center rounded-lg cursor-pointer border-2 text-sm font-medium', type === 'income' ? 'bg-green-600 text-white border-green-600' : 'border-gray-300 text-gray-600')}>
-              <input {...register('type')} type="radio" value="income" className="hidden" />Income
-            </label>
-            <label className={clsx('flex-1 py-2 text-center rounded-lg cursor-pointer border-2 text-sm font-medium', type === 'expense' ? 'bg-red-600 text-white border-red-600' : 'border-gray-300 text-gray-600')}>
-              <input {...register('type')} type="radio" value="expense" className="hidden" />Expense
-            </label>
-          </div>
-          <div>
-            <label className="label">Category</label>
-            <select {...register('category', { required: true })} className="input">
-              {(type === 'income' ? INCOME_CATEGORIES : EXPENSE_CATEGORIES).map((c) => <option key={c} value={c}>{c}</option>)}
-            </select>
-          </div>
-          <div>
-            <label className="label">Amount (₹) *</label>
-            <input {...register('amount', { required: true })} type="number" min="0" step="0.01" className="input" />
-          </div>
-          <div>
-            <label className="label">Description *</label>
-            <input {...register('description', { required: true })} className="input" placeholder="Payment description..." />
-          </div>
-          <div>
-            <label className="label">Date</label>
-            <input {...register('date')} type="date" className="input" defaultValue={new Date().toISOString().split('T')[0]} />
-          </div>
-          <div>
-            <label className="label">Payment Method</label>
-            <select {...register('paymentMethod')} className="input">
-              {['bank_transfer', 'upi', 'cash', 'cheque', 'card'].map((m) => <option key={m} value={m}>{m.replace('_', ' ')}</option>)}
-            </select>
-          </div>
-          <div className="flex gap-3">
-            <button type="button" onClick={onClose} className="btn-secondary flex-1 justify-center">Cancel</button>
-            <button type="submit" disabled={loading} className="btn-primary flex-1 justify-center">{loading ? 'Saving...' : 'Record'}</button>
-          </div>
-        </form>
-      </div>
-    </div>
+    <Drawer
+      title="Record Transaction"
+      open={open}
+      onClose={onClose}
+      width={420}
+      footer={
+        <Space style={{ width: '100%' }}>
+          <Button onClick={onClose} style={{ flex: 1 }}>Cancel</Button>
+          <Button type="primary" style={{ flex: 1 }} loading={mutation.isPending} onClick={handleSubmit((data) => mutation.mutate(data))}>Record</Button>
+        </Space>
+      }
+    >
+      <Space direction="vertical" style={{ width: '100%' }} size={16}>
+        <Controller
+          name="type" control={control}
+          render={({ field }) => (
+            <Segmented
+              block {...field}
+              options={[
+                { label: 'Income', value: 'income' },
+                { label: 'Expense', value: 'expense' },
+              ]}
+            />
+          )}
+        />
+
+        <div>
+          <Text strong style={{ display: 'block', marginBottom: 6, fontSize: 12 }}>Category</Text>
+          <Controller
+            name="category" control={control} rules={{ required: true }}
+            render={({ field }) => (
+              <Select {...field} style={{ width: '100%' }} options={(type === 'income' ? INCOME_CATEGORIES : EXPENSE_CATEGORIES).map((c) => ({ label: c, value: c }))} />
+            )}
+          />
+        </div>
+
+        <div>
+          <Text strong style={{ display: 'block', marginBottom: 6, fontSize: 12 }}>Amount (₹) *</Text>
+          <Controller
+            name="amount" control={control} rules={{ required: true }}
+            render={({ field }) => <InputNumber {...field} style={{ width: '100%' }} min={0} step={0.01} />}
+          />
+        </div>
+
+        <div>
+          <Text strong style={{ display: 'block', marginBottom: 6, fontSize: 12 }}>Description *</Text>
+          <Input {...register('description', { required: true })} placeholder="Payment description..." />
+        </div>
+
+        <div>
+          <Text strong style={{ display: 'block', marginBottom: 6, fontSize: 12 }}>Date</Text>
+          <Controller
+            name="date" control={control}
+            render={({ field }) => <DatePicker {...field} style={{ width: '100%' }} format="DD-MM-YYYY" />}
+          />
+        </div>
+
+        <div>
+          <Text strong style={{ display: 'block', marginBottom: 6, fontSize: 12 }}>Payment Method</Text>
+          <Controller
+            name="paymentMethod" control={control}
+            render={({ field }) => (
+              <Select {...field} style={{ width: '100%' }} options={PAYMENT_METHODS.map((m) => ({ label: m.replace('_', ' '), value: m }))} />
+            )}
+          />
+        </div>
+      </Space>
+    </Drawer>
   );
 }
 
@@ -93,79 +118,82 @@ export default function Ledger() {
   });
 
   const transactions = data?.data || [];
+  const netProfit = summaryData?.netProfit || 0;
+
+  const columns = [
+    { title: 'Date', dataIndex: 'date', key: 'date', render: (d) => <Text type="secondary">{format(new Date(d), 'dd MMM yy')}</Text> },
+    {
+      title: 'Description', dataIndex: 'description', key: 'description',
+      render: (desc, tx) => (
+        <div>
+          <Text strong>{desc}</Text>
+          {tx.reference && <div><Text type="secondary" style={{ fontSize: 12 }}>Ref: {tx.reference}</Text></div>}
+        </div>
+      ),
+    },
+    { title: 'Category', dataIndex: 'category', key: 'category', render: (c) => <Text type="secondary">{c}</Text> },
+    { title: 'Method', dataIndex: 'paymentMethod', key: 'paymentMethod', align: 'center', render: (m) => <Tag>{m?.replace('_', ' ')}</Tag> },
+    {
+      title: 'Amount', dataIndex: 'amount', key: 'amount', align: 'right',
+      render: (amount, tx) => (
+        <Text strong style={{ color: tx.type === 'income' ? '#389e0d' : '#cf1322' }}>
+          {tx.type === 'income' ? '+' : '-'}₹{amount.toLocaleString('en-IN')}
+        </Text>
+      ),
+    },
+  ];
 
   return (
-    <div className="space-y-6">
-      <div className="page-header">
-        <h1 className="page-title">Financial Ledger</h1>
-        <button onClick={() => setShowForm(true)} className="btn-primary"><PlusIcon className="w-4 h-4" /> Record Transaction</button>
+    <div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+        <Title level={4} style={{ marginBottom: 0 }}>Financial Ledger</Title>
+        <Button type="primary" icon={<Plus size={16} />} onClick={() => setShowForm(true)}>Record Transaction</Button>
       </div>
 
-      <div className="grid grid-cols-3 gap-4">
-        <div className="card p-5 border-t-4 border-green-500">
-          <ArrowUpIcon className="w-5 h-5 text-green-500 mb-2" />
-          <p className="text-2xl font-bold text-green-600">₹{(summaryData?.totalIncome || 0).toLocaleString('en-IN')}</p>
-          <p className="text-sm text-gray-500">Income (This Month)</p>
-        </div>
-        <div className="card p-5 border-t-4 border-red-500">
-          <ArrowDownIcon className="w-5 h-5 text-red-500 mb-2" />
-          <p className="text-2xl font-bold text-red-600">₹{(summaryData?.totalExpense || 0).toLocaleString('en-IN')}</p>
-          <p className="text-sm text-gray-500">Expense (This Month)</p>
-        </div>
-        <div className={clsx('card p-5 border-t-4', (summaryData?.netProfit || 0) >= 0 ? 'border-brand-500' : 'border-red-500')}>
-          <p className={clsx('text-2xl font-bold', (summaryData?.netProfit || 0) >= 0 ? 'text-brand-600' : 'text-red-600')}>
-            ₹{Math.abs(summaryData?.netProfit || 0).toLocaleString('en-IN')}
-          </p>
-          <p className="text-sm text-gray-500">Net {(summaryData?.netProfit || 0) >= 0 ? 'Profit' : 'Loss'} (This Month)</p>
-        </div>
-      </div>
+      <Row gutter={16} style={{ marginBottom: 16 }}>
+        <Col span={8}>
+          <Card style={{ borderTop: '3px solid #22c55e' }}>
+            <ArrowUp size={18} color="#22c55e" style={{ marginBottom: 8 }} />
+            <div style={{ fontSize: 22, fontWeight: 700, color: '#389e0d' }}>₹{(summaryData?.totalIncome || 0).toLocaleString('en-IN')}</div>
+            <Text type="secondary" style={{ fontSize: 13 }}>Income (This Month)</Text>
+          </Card>
+        </Col>
+        <Col span={8}>
+          <Card style={{ borderTop: '3px solid #ef4444' }}>
+            <ArrowDown size={18} color="#ef4444" style={{ marginBottom: 8 }} />
+            <div style={{ fontSize: 22, fontWeight: 700, color: '#cf1322' }}>₹{(summaryData?.totalExpense || 0).toLocaleString('en-IN')}</div>
+            <Text type="secondary" style={{ fontSize: 13 }}>Expense (This Month)</Text>
+          </Card>
+        </Col>
+        <Col span={8}>
+          <Card style={{ borderTop: `3px solid ${netProfit >= 0 ? '#a8781f' : '#ef4444'}` }}>
+            <div style={{ fontSize: 22, fontWeight: 700, color: netProfit >= 0 ? '#a8781f' : '#cf1322' }}>₹{Math.abs(netProfit).toLocaleString('en-IN')}</div>
+            <Text type="secondary" style={{ fontSize: 13 }}>Net {netProfit >= 0 ? 'Profit' : 'Loss'} (This Month)</Text>
+          </Card>
+        </Col>
+      </Row>
 
-      <div className="flex gap-3">
-        {['', 'income', 'expense'].map((t) => (
-          <button key={t} onClick={() => setType(t)} className={clsx('px-4 py-2 rounded-lg text-sm font-medium transition-colors', type === t ? 'bg-brand-600 text-white' : 'bg-white dark:bg-[#0f1a2e] text-gray-600 border border-gray-200 dark:border-[#1b2e4a]')}>
-            {t === '' ? 'All' : t.charAt(0).toUpperCase() + t.slice(1)}
-          </button>
-        ))}
-      </div>
+      <Radio.Group value={type} onChange={(e) => setType(e.target.value)} style={{ marginBottom: 16 }}>
+        <Radio.Button value="">All</Radio.Button>
+        <Radio.Button value="income">Income</Radio.Button>
+        <Radio.Button value="expense">Expense</Radio.Button>
+      </Radio.Group>
 
-      {isLoading ? (
-        <div className="flex justify-center py-12"><div className="w-8 h-8 border-2 border-brand-500 border-t-transparent rounded-full animate-spin" /></div>
-      ) : (
-        <div className="card overflow-hidden">
-          <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead className="bg-gray-50 dark:bg-[#0f1a2e]">
-              <tr>
-                <th className="text-left py-3 px-4 text-gray-500 font-medium">Date</th>
-                <th className="text-left py-3 px-4 text-gray-500 font-medium">Description</th>
-                <th className="text-left py-3 px-4 text-gray-500 font-medium">Category</th>
-                <th className="text-center py-3 px-4 text-gray-500 font-medium">Method</th>
-                <th className="text-right py-3 px-4 text-gray-500 font-medium">Amount</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100 dark:divide-[#1b2e4a]">
-              {transactions.map((tx) => (
-                <tr key={tx._id} className="hover:bg-gray-50 dark:hover:bg-[#17263d]/50">
-                  <td className="py-3 px-4 text-gray-500">{format(new Date(tx.date), 'dd MMM yy')}</td>
-                  <td className="py-3 px-4">
-                    <p className="font-medium text-gray-900 dark:text-white">{tx.description}</p>
-                    {tx.reference && <p className="text-xs text-gray-400">Ref: {tx.reference}</p>}
-                  </td>
-                  <td className="py-3 px-4 text-gray-500">{tx.category}</td>
-                  <td className="py-3 px-4 text-center text-gray-400 text-xs">{tx.paymentMethod?.replace('_', ' ')}</td>
-                  <td className={clsx('py-3 px-4 text-right font-semibold', tx.type === 'income' ? 'text-green-600' : 'text-red-600')}>
-                    {tx.type === 'income' ? '+' : '-'}₹{tx.amount.toLocaleString('en-IN')}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          </div>
-          {transactions.length === 0 && <div className="text-center py-12 text-gray-400">No transactions found</div>}
-        </div>
-      )}
+      <Card styles={{ body: { padding: 0 } }}>
+        {isLoading ? (
+          <div style={{ textAlign: 'center', padding: 60 }}><Spin size="large" /></div>
+        ) : transactions.length === 0 ? (
+          <div style={{ padding: 40 }}><Empty description="No transactions found" /></div>
+        ) : (
+          <Table rowKey="_id" columns={columns} dataSource={transactions} pagination={false} />
+        )}
+      </Card>
 
-      {showForm && <TransactionModal onClose={() => setShowForm(false)} onSuccess={() => { setShowForm(false); qc.invalidateQueries({ queryKey: ['finance'] }); }} />}
+      <TransactionDrawer
+        open={showForm}
+        onClose={() => setShowForm(false)}
+        onSuccess={() => { setShowForm(false); qc.invalidateQueries({ queryKey: ['finance'] }); }}
+      />
     </div>
   );
 }

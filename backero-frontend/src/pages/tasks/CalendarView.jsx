@@ -1,2 +1,15 @@
 import React from 'react';
-export default function CalendarView() { return <div className="space-y-4"><h1 className="page-title">Task Calendar</h1><div className="card p-12 text-center text-gray-400"><p>Calendar integration - coming soon</p></div></div>; }
+import { Empty, Typography } from 'antd';
+
+const { Title } = Typography;
+
+export default function CalendarView() {
+  return (
+    <div>
+      <Title level={4} style={{ marginBottom: 16 }}>Task Calendar</Title>
+      <div style={{ background: '#fff', borderRadius: 8, padding: 60 }}>
+        <Empty description="Calendar integration — coming soon" />
+      </div>
+    </div>
+  );
+}

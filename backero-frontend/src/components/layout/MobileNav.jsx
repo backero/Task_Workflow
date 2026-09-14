@@ -1,15 +1,16 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
+import { Badge } from 'antd';
 import {
-  HomeIcon, BoltIcon, ClipboardDocumentListIcon, CogIcon, Bars3Icon,
-} from '@heroicons/react/24/outline';
+  HomeOutlined, ThunderboltOutlined, UnorderedListOutlined, SettingOutlined, MenuOutlined,
+} from '@ant-design/icons';
 import { useNotificationStore } from '../../store/useNotificationStore';
 
 const TABS = [
-  { label: 'Home',     to: '/',          icon: HomeIcon,                    exact: true },
-  { label: 'Workflow', to: '/workflow',   icon: BoltIcon },
-  { label: 'My Tasks', to: '/tasks/my',  icon: ClipboardDocumentListIcon },
-  { label: 'Settings', to: '/settings',  icon: CogIcon },
+  { label: 'Home',     to: '/',          icon: HomeOutlined,        exact: true },
+  { label: 'Workflow', to: '/workflow',   icon: ThunderboltOutlined },
+  { label: 'My Tasks', to: '/tasks/my',  icon: UnorderedListOutlined },
+  { label: 'Settings', to: '/settings',  icon: SettingOutlined },
 ];
 
 export default function MobileNav({ onMenuOpen }) {
@@ -17,40 +18,39 @@ export default function MobileNav({ onMenuOpen }) {
 
   return (
     <nav
-      className="lg:hidden fixed bottom-0 left-0 right-0 z-30 flex items-stretch border-t border-slate-200 dark:border-[#1b2e4a] bg-white dark:bg-[#070c17]"
-      style={{ height: '56px', paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
+      className="lg:hidden fixed bottom-0 left-0 right-0 z-30 flex items-stretch"
+      style={{
+        height: 56,
+        paddingBottom: 'env(safe-area-inset-bottom, 0px)',
+        background: '#fbfaf7',
+        borderTop: '1px solid rgba(28,25,23,0.08)',
+      }}
     >
       {TABS.map(({ label, to, icon: Icon, exact }) => (
         <NavLink
           key={to}
           to={to}
           end={exact}
-          className={({ isActive }) =>
-            `flex-1 flex flex-col items-center justify-center gap-0.5 text-[10px] font-medium transition-colors ${
-              isActive
-                ? 'text-blue-600 dark:text-blue-400'
-                : 'text-slate-500 dark:text-slate-400'
-            }`
-          }
+          className="flex-1 flex flex-col items-center justify-center gap-0.5"
+          style={({ isActive }) => ({
+            fontSize: 10,
+            fontWeight: 500,
+            color: isActive ? '#a8781f' : '#6b6155',
+          })}
         >
-          <Icon className="w-5 h-5" />
+          <Icon style={{ fontSize: 18 }} />
           {label}
         </NavLink>
       ))}
 
-      {/* More — opens full sidebar overlay */}
       <button
         onClick={onMenuOpen}
-        className="flex-1 flex flex-col items-center justify-center gap-0.5 text-[10px] font-medium text-slate-500 dark:text-slate-400 relative"
+        className="flex-1 flex flex-col items-center justify-center gap-0.5"
+        style={{ fontSize: 10, fontWeight: 500, color: '#6b6155', background: 'none', border: 'none' }}
       >
-        <span className="relative">
-          <Bars3Icon className="w-5 h-5" />
-          {unreadCount > 0 && (
-            <span className="absolute -top-1 -right-1 min-w-[14px] h-3.5 px-0.5 bg-red-500 text-white text-[8px] rounded-full flex items-center justify-center font-bold">
-              {unreadCount > 9 ? '9+' : unreadCount}
-            </span>
-          )}
-        </span>
+        <Badge count={unreadCount} size="small" offset={[4, -2]}>
+          <MenuOutlined style={{ fontSize: 18 }} />
+        </Badge>
         More
       </button>
     </nav>

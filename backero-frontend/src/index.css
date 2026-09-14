@@ -60,6 +60,9 @@
   *, *::before, *::after { box-sizing: border-box; }
   html { scroll-behavior: smooth; }
 
+  /* lucide-react icons scale with surrounding text, matching @ant-design/icons' 1em sizing */
+  svg.lucide { width: 1em; height: 1em; stroke-width: 2; vertical-align: -0.125em; flex-shrink: 0; }
+
   body {
     background: var(--zone-bg, var(--s-page));
     color: var(--t-primary);
@@ -75,7 +78,7 @@
   ::-webkit-scrollbar-thumb { background: rgba(15,23,42,0.12); border-radius: 99px; }
   ::-webkit-scrollbar-thumb:hover { background: var(--zone, #2563eb); }
 
-  h1,h2,h3,h4,h5,h6 { @apply tracking-tight; font-family: 'Zilla Slab', Georgia, serif; }
+  h1,h2,h3,h4,h5,h6 { @apply tracking-tight font-sans; }
   ::selection { background: var(--zone-card, rgba(16,185,129,0.15)); color: inherit; }
 }
 

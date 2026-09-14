@@ -1,19 +1,16 @@
 import { useState } from 'react';
-import clsx from 'clsx';
 import toast from 'react-hot-toast';
+import { Upload } from 'lucide-react';
+import { Button, Col, Drawer, Form, Input, InputNumber, Row, Select, Space, Typography } from 'antd';
 import { CATEGORIES as CATALOG_CATEGORIES, UNITS as CATALOG_UNITS, PRODUCT_TYPES as CATALOG_PRODUCT_TYPES, GST_RATES as CATALOG_GST_RATES, STATUSES as CATALOG_STATUSES } from '../inventory/ProductCatalogPage';
+
+const { Text } = Typography;
 
 // Leaf module (no imports from SampleLeadDetail.jsx / StageSteps.jsx / NewOrderModal.jsx) so all
 // three can create a catalog product inline without forming an import cycle — this used to live
 // inside SampleLeadDetail.jsx, but StageSteps.jsx's Stage 0 "Orders" panel now also
 // needs it (to add another product line for an existing order's customer) and StageSteps.jsx is
 // itself imported BY SampleLeadDetail.jsx, so it had to move out to its own file first.
-
-const bodyFont = { fontFamily: "'IBM Plex Sans', -apple-system, sans-serif" };
-const displayFont = { fontFamily: "'Zilla Slab', Georgia, serif" };
-const inputCls = 'px-3 py-2 text-sm rounded-[10px] border-[1.5px] border-[#ddd6c4] bg-[#fbfaf7] text-[#1c1917] focus:outline-none focus:border-[#8a8171] placeholder:text-[#8a8171]';
-const accentBtn = 'inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-[#a8781f] text-[#1c1917] text-xs font-bold hover:brightness-95 transition disabled:opacity-50';
-const outlineBtn = 'inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full border-[1.5px] border-[#ddd6c4] text-[#6b6155] text-xs font-semibold hover:bg-[#f1ede4] hover:border-[#8a8171] hover:text-[#1c1917] transition';
 
 // "Create Product" — creates a real Product Catalog entry via POST /catalog/products (the
 // caller does the actual API call and passes it in as onSave), so it shows up in the actual
@@ -37,7 +34,6 @@ export function CreateCatalogProductModal({ nextCode, defaultName, saving, onClo
   const [certifications, setCertifications] = useState('');
   const [barcode, setBarcode] = useState('');
   const [imagePreview, setImagePreview] = useState(null);
-  const [maximized, setMaximized] = useState(false);
 
   function onImageChange(e) {
     const f = e.target.files[0]; if (!f) return;
@@ -46,138 +42,141 @@ export function CreateCatalogProductModal({ nextCode, defaultName, saving, onClo
     r.readAsDataURL(f);
   }
 
+  function submit() {
+    if (!code.trim() || !name.trim() || !category) { toast.error('SKU code, name and category are required'); return; }
+    onSave({
+      code: code.trim(), name: name.trim(), category, subCategory: subCategory.trim() || undefined,
+      type: type || undefined, status, unit, weight: weight ? Number(weight) : undefined,
+      gstRate, hsnCode: hsnCode.trim() || undefined, shelfLife: shelfLife ? Number(shelfLife) : undefined,
+      description: description.trim() || undefined, storage: storage.trim() || undefined,
+      certifications: certifications.trim() || undefined, barcode: barcode.trim() || undefined,
+      image: imagePreview || undefined,
+    });
+  }
+
   return (
-    <div className={clsx('fixed inset-0 z-[70] flex items-center justify-center bg-black/40', maximized ? 'p-0' : 'p-4')} onClick={onClose}>
-      <div className={clsx('bg-[#fbfaf7] shadow-2xl flex flex-col border border-[#ddd6c4]',
-        maximized ? 'w-screen h-screen max-w-none rounded-none' : 'w-full max-w-2xl max-h-[90vh] rounded-2xl')} style={bodyFont} onClick={(e) => e.stopPropagation()}>
-        <div className={clsx('flex items-center justify-between px-5 py-4 border-b border-[#e7e2d6] bg-[#f1ede4] flex-shrink-0', !maximized && 'rounded-t-2xl')}>
-          <h3 className="font-bold text-[#1c1917]" style={displayFont}>🆕 Create Product</h3>
-          <div className="flex items-center gap-1.5">
-            <button onClick={() => setMaximized((m) => !m)} title={maximized ? 'Restore' : 'Maximize'} className="w-8 h-8 rounded-lg hover:bg-[#e7e2d6] flex items-center justify-center text-[#8a8171] hover:text-[#1c1917] text-sm">{maximized ? '🗗' : '🗖'}</button>
-            <button onClick={onClose} className="text-[#8a8171] hover:text-[#1c1917] text-xl leading-none">&times;</button>
-          </div>
-        </div>
-        <div className="p-5 space-y-3 overflow-y-auto">
-          <p className="text-[11px] text-[#6b6155] -mt-1">Creates a real entry in the Product Catalog (same fields as Product Catalog's own Add Product).</p>
+    <Drawer
+      open
+      onClose={onClose}
+      title="Create Product"
+      width={520}
+      footer={
+        <Space style={{ width: '100%' }}>
+          <Button onClick={onClose} style={{ flex: 1 }}>Cancel</Button>
+          <Button type="primary" style={{ flex: 1 }} loading={saving} onClick={submit}>Create in Catalog</Button>
+        </Space>
+      }
+    >
+      <Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 16 }}>
+        Creates a real entry in the Product Catalog (same fields as Product Catalog's own Add Product).
+      </Text>
 
-          <div className="grid grid-cols-3 gap-2">
-            <div>
-              <label className="text-xs font-semibold text-[#8a8171] uppercase tracking-wide mb-1 block">SKU Code <span className="text-[#7c2b23]">*</span></label>
-              <input value={code} onChange={(e) => setCode(e.target.value.toUpperCase())} placeholder="e.g., FG-0007" className={clsx(inputCls, 'w-full')} />
-            </div>
-            <div className="col-span-2">
-              <label className="text-xs font-semibold text-[#8a8171] uppercase tracking-wide mb-1 block">Product Name <span className="text-[#7c2b23]">*</span></label>
-              <input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g., Vitamin C Serum" className={clsx(inputCls, 'w-full')} />
-            </div>
-          </div>
+      <Form layout="vertical">
+        <Row gutter={12}>
+          <Col span={8}>
+            <Form.Item label="SKU Code *" required>
+              <Input value={code} onChange={(e) => setCode(e.target.value.toUpperCase())} placeholder="e.g., FG-0007" />
+            </Form.Item>
+          </Col>
+          <Col span={16}>
+            <Form.Item label="Product Name *" required>
+              <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g., Vitamin C Serum" />
+            </Form.Item>
+          </Col>
+        </Row>
 
-          <div className="grid grid-cols-3 gap-2">
-            <div>
-              <label className="text-xs font-semibold text-[#8a8171] uppercase tracking-wide mb-1 block">Category <span className="text-[#7c2b23]">*</span></label>
-              <select value={category} onChange={(e) => setCategory(e.target.value)} className={clsx(inputCls, 'w-full')}>
-                <option value="">Select…</option>
-                {CATALOG_CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
-              </select>
-            </div>
-            <div>
-              <label className="text-xs font-semibold text-[#8a8171] uppercase tracking-wide mb-1 block">Sub-Category</label>
-              <input value={subCategory} onChange={(e) => setSubCategory(e.target.value)} placeholder="e.g., Shampoo, Serum" className={clsx(inputCls, 'w-full')} />
-            </div>
-            <div>
-              <label className="text-xs font-semibold text-[#8a8171] uppercase tracking-wide mb-1 block">Product Type</label>
-              <select value={type} onChange={(e) => setType(e.target.value)} className={clsx(inputCls, 'w-full')}>
-                <option value="">Select…</option>
-                {CATALOG_PRODUCT_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
-              </select>
-            </div>
-          </div>
+        <Row gutter={12}>
+          <Col span={8}>
+            <Form.Item label="Category *" required>
+              <Select value={category || undefined} onChange={setCategory} placeholder="Select…" options={CATALOG_CATEGORIES.map((c) => ({ label: c, value: c }))} />
+            </Form.Item>
+          </Col>
+          <Col span={8}>
+            <Form.Item label="Sub-Category">
+              <Input value={subCategory} onChange={(e) => setSubCategory(e.target.value)} placeholder="e.g., Shampoo, Serum" />
+            </Form.Item>
+          </Col>
+          <Col span={8}>
+            <Form.Item label="Product Type">
+              <Select value={type || undefined} onChange={setType} placeholder="Select…" options={CATALOG_PRODUCT_TYPES.map((t) => ({ label: t, value: t }))} />
+            </Form.Item>
+          </Col>
+        </Row>
 
-          <div className="grid grid-cols-3 gap-2">
-            <div>
-              <label className="text-xs font-semibold text-[#8a8171] uppercase tracking-wide mb-1 block">Status</label>
-              <select value={status} onChange={(e) => setStatus(e.target.value)} className={clsx(inputCls, 'w-full')}>
-                {CATALOG_STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
-              </select>
-            </div>
-            <div>
-              <label className="text-xs font-semibold text-[#8a8171] uppercase tracking-wide mb-1 block">Base Unit</label>
-              <select value={unit} onChange={(e) => setUnit(e.target.value)} className={clsx(inputCls, 'w-full')}>
-                {CATALOG_UNITS.map((u) => <option key={u} value={u}>{u}</option>)}
-              </select>
-            </div>
-            <div>
-              <label className="text-xs font-semibold text-[#8a8171] uppercase tracking-wide mb-1 block">Ref Weight/Volume</label>
-              <input type="number" value={weight} onChange={(e) => setWeight(e.target.value)} placeholder="e.g., 200" className={clsx(inputCls, 'w-full')} />
-            </div>
-          </div>
+        <Row gutter={12}>
+          <Col span={8}>
+            <Form.Item label="Status">
+              <Select value={status} onChange={setStatus} options={CATALOG_STATUSES.map((s) => ({ label: s, value: s }))} />
+            </Form.Item>
+          </Col>
+          <Col span={8}>
+            <Form.Item label="Base Unit">
+              <Select value={unit} onChange={setUnit} options={CATALOG_UNITS.map((u) => ({ label: u, value: u }))} />
+            </Form.Item>
+          </Col>
+          <Col span={8}>
+            <Form.Item label="Ref Weight/Volume">
+              <InputNumber style={{ width: '100%' }} value={weight} onChange={setWeight} placeholder="e.g., 200" />
+            </Form.Item>
+          </Col>
+        </Row>
 
-          <div className="grid grid-cols-3 gap-2">
-            <div>
-              <label className="text-xs font-semibold text-[#8a8171] uppercase tracking-wide mb-1 block">GST Rate</label>
-              <select value={gstRate} onChange={(e) => setGstRate(Number(e.target.value))} className={clsx(inputCls, 'w-full')}>
-                {CATALOG_GST_RATES.map((r) => <option key={r} value={r}>{r}%</option>)}
-              </select>
-            </div>
-            <div>
-              <label className="text-xs font-semibold text-[#8a8171] uppercase tracking-wide mb-1 block">HSN Code</label>
-              <input value={hsnCode} onChange={(e) => setHsnCode(e.target.value)} placeholder="e.g., 3305" className={clsx(inputCls, 'w-full')} />
-            </div>
-            <div>
-              <label className="text-xs font-semibold text-[#8a8171] uppercase tracking-wide mb-1 block">Shelf Life (months)</label>
-              <input type="number" value={shelfLife} onChange={(e) => setShelfLife(e.target.value)} placeholder="e.g., 36" className={clsx(inputCls, 'w-full')} />
-            </div>
-          </div>
+        <Row gutter={12}>
+          <Col span={8}>
+            <Form.Item label="GST Rate">
+              <Select value={gstRate} onChange={setGstRate} options={CATALOG_GST_RATES.map((r) => ({ label: `${r}%`, value: r }))} />
+            </Form.Item>
+          </Col>
+          <Col span={8}>
+            <Form.Item label="HSN Code">
+              <Input value={hsnCode} onChange={(e) => setHsnCode(e.target.value)} placeholder="e.g., 3305" />
+            </Form.Item>
+          </Col>
+          <Col span={8}>
+            <Form.Item label="Shelf Life (months)">
+              <InputNumber style={{ width: '100%' }} value={shelfLife} onChange={setShelfLife} placeholder="e.g., 36" />
+            </Form.Item>
+          </Col>
+        </Row>
 
-          <div className="grid grid-cols-3 gap-2 items-start">
-            <div className="col-span-2">
-              <label className="text-xs font-semibold text-[#8a8171] uppercase tracking-wide mb-1 block">Description</label>
-              <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={2} placeholder="Product description, key claims, benefits…" className={clsx(inputCls, 'w-full')} />
-            </div>
-            <div>
-              <label className="text-xs font-semibold text-[#8a8171] uppercase tracking-wide mb-1 block">Image</label>
-              <label className="w-16 h-16 border-2 border-dashed border-[#ddd6c4] rounded-lg flex items-center justify-center cursor-pointer overflow-hidden hover:border-[#8a8171] transition-colors bg-white">
-                {imagePreview ? <img src={imagePreview} alt="Product" className="w-full h-full object-cover" /> : <span className="text-[#8a8171] text-[10px] text-center px-1">📷 Upload</span>}
-                <input type="file" accept="image/*" className="hidden" onChange={onImageChange} />
+        <Row gutter={12}>
+          <Col span={16}>
+            <Form.Item label="Description">
+              <Input.TextArea value={description} onChange={(e) => setDescription(e.target.value)} rows={2} placeholder="Product description, key claims, benefits…" />
+            </Form.Item>
+          </Col>
+          <Col span={8}>
+            <Form.Item label="Image">
+              <label style={{ width: 64, height: 64, border: '2px dashed #d9d9d9', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', overflow: 'hidden', background: '#fff' }}>
+                {imagePreview ? (
+                  <img src={imagePreview} alt="Product" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                ) : (
+                  <Upload size={16} color="#bfbfbf" />
+                )}
+                <input type="file" accept="image/*" style={{ display: 'none' }} onChange={onImageChange} />
               </label>
-            </div>
-          </div>
+            </Form.Item>
+          </Col>
+        </Row>
 
-          <div className="grid grid-cols-3 gap-2">
-            <div>
-              <label className="text-xs font-semibold text-[#8a8171] uppercase tracking-wide mb-1 block">Storage</label>
-              <input value={storage} onChange={(e) => setStorage(e.target.value)} placeholder="Cool, dry place" className={clsx(inputCls, 'w-full')} />
-            </div>
-            <div>
-              <label className="text-xs font-semibold text-[#8a8171] uppercase tracking-wide mb-1 block">Certifications</label>
-              <input value={certifications} onChange={(e) => setCertifications(e.target.value)} placeholder="Organic, Cruelty-Free…" className={clsx(inputCls, 'w-full')} />
-            </div>
-            <div>
-              <label className="text-xs font-semibold text-[#8a8171] uppercase tracking-wide mb-1 block">Barcode</label>
-              <input value={barcode} onChange={(e) => setBarcode(e.target.value)} placeholder="8901234567890" className={clsx(inputCls, 'w-full')} />
-            </div>
-          </div>
-        </div>
-        <div className="flex items-center gap-3 px-5 py-4 border-t border-[#e7e2d6] flex-shrink-0">
-          <button type="button" onClick={onClose} className={clsx(outlineBtn, 'flex-1 justify-center')}>Cancel</button>
-          <button
-            onClick={() => {
-              if (!code.trim() || !name.trim() || !category) { toast.error('SKU code, name and category are required'); return; }
-              onSave({
-                code: code.trim(), name: name.trim(), category, subCategory: subCategory.trim() || undefined,
-                type: type || undefined, status, unit, weight: weight ? Number(weight) : undefined,
-                gstRate, hsnCode: hsnCode.trim() || undefined, shelfLife: shelfLife ? Number(shelfLife) : undefined,
-                description: description.trim() || undefined, storage: storage.trim() || undefined,
-                certifications: certifications.trim() || undefined, barcode: barcode.trim() || undefined,
-                image: imagePreview || undefined,
-              });
-            }}
-            disabled={saving}
-            className={clsx(accentBtn, 'flex-1 justify-center')}
-          >
-            {saving ? 'Creating…' : '💾 Create in Catalog'}
-          </button>
-        </div>
-      </div>
-    </div>
+        <Row gutter={12}>
+          <Col span={8}>
+            <Form.Item label="Storage">
+              <Input value={storage} onChange={(e) => setStorage(e.target.value)} placeholder="Cool, dry place" />
+            </Form.Item>
+          </Col>
+          <Col span={8}>
+            <Form.Item label="Certifications">
+              <Input value={certifications} onChange={(e) => setCertifications(e.target.value)} placeholder="Organic, Cruelty-Free…" />
+            </Form.Item>
+          </Col>
+          <Col span={8}>
+            <Form.Item label="Barcode">
+              <Input value={barcode} onChange={(e) => setBarcode(e.target.value)} placeholder="8901234567890" />
+            </Form.Item>
+          </Col>
+        </Row>
+      </Form>
+    </Drawer>
   );
 }

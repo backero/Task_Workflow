@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { PlayIcon, ClockIcon, ChevronDownIcon, ChevronUpIcon } from '@heroicons/react/24/outline';
+import { Button, Tag, Typography } from 'antd';
+import { CaretDownOutlined, CaretUpOutlined, ClockCircleOutlined, PlayCircleFilled } from '@ant-design/icons';
 import { format } from 'date-fns';
-import { clsx } from 'clsx';
 import { useTaskTimer } from '../../store/useTaskTimer';
+
+const { Text } = Typography;
 
 function fmtMs(ms, mode = 'clock') {
   if (!ms || ms < 0) return mode === 'clock' ? '00:00:00' : '0s';
@@ -16,10 +18,9 @@ function fmtMs(ms, mode = 'clock') {
   return `${s}s`;
 }
 
-// Square stop icon (not in heroicons outline)
-function StopIcon({ className }) {
+function StopSquareIcon() {
   return (
-    <svg className={className} viewBox="0 0 24 24" fill="currentColor">
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
       <rect x="5" y="5" width="14" height="14" rx="2" />
     </svg>
   );
@@ -45,76 +46,74 @@ export default function TaskTimer({ task }) {
   const sessions = task?.timerSessions || [];
 
   return (
-    <div className="rounded-xl border border-gray-200 dark:border-[#1b2e4a] overflow-hidden">
-      {/* Main timer row */}
-      <div className="flex items-center gap-3 px-4 py-3 bg-gray-50 dark:bg-[#0f1a2e]">
-        {/* Indicator dot */}
-        <div className={clsx(
-          'w-2.5 h-2.5 rounded-full flex-shrink-0',
-          isRunning ? 'bg-green-500 animate-pulse' : 'bg-gray-300 dark:bg-gray-600'
-        )} />
+    <div style={{ borderRadius: 12, border: '1px solid rgba(28,25,23,0.1)', overflow: 'hidden' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px', background: 'rgba(15,23,42,0.03)' }}>
+        <span
+          style={{
+            width: 10, height: 10, borderRadius: '50%', flexShrink: 0,
+            background: isRunning ? '#22c55e' : '#d1d5db',
+            animation: isRunning ? 'pulse 2s infinite' : 'none',
+          }}
+        />
 
-        {/* Clock display */}
-        <div className="flex-1">
-          <div className="flex items-baseline gap-2">
-            <span className="font-mono text-xl font-bold text-gray-900 dark:text-white tracking-tight">
-              {fmtMs(totalMs, 'clock')}
-            </span>
-            {isRunning && (
-              <span className="text-xs font-semibold text-green-600 dark:text-green-400 animate-pulse">
-                RUNNING
-              </span>
-            )}
+        <div style={{ flex: 1 }}>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
+            <span style={{ fontFamily: 'monospace', fontSize: 20, fontWeight: 700 }}>{fmtMs(totalMs, 'clock')}</span>
+            {isRunning && <Tag color="success" style={{ fontSize: 10, fontWeight: 700 }}>RUNNING</Tag>}
           </div>
           {sessions.length > 0 && (
-            <p className="text-xs text-gray-400 mt-0.5">{sessions.length} session{sessions.length !== 1 ? 's' : ''} · {fmtMs(task?.totalTrackedMs || 0, 'compact')} total</p>
+            <Text type="secondary" style={{ fontSize: 12 }}>
+              {sessions.length} session{sessions.length !== 1 ? 's' : ''} · {fmtMs(task?.totalTrackedMs || 0, 'compact')} total
+            </Text>
           )}
         </div>
 
-        {/* Start / Stop button */}
-        <button
+        <Button
+          type={isRunning ? 'default' : 'primary'}
+          danger={isRunning}
+          icon={isRunning ? <StopSquareIcon /> : <PlayCircleFilled />}
+          loading={isStarting || isStopping}
           onClick={() => isRunning ? stopTimer({ id: taskId }) : startTimer(taskId)}
-          disabled={isStarting || isStopping}
-          className={clsx(
-            'flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-bold transition-all disabled:opacity-50',
-            isRunning
-              ? 'bg-red-500 hover:bg-red-600 text-white shadow-sm shadow-red-200'
-              : 'bg-blue-600 hover:bg-blue-700 text-white shadow-sm shadow-blue-200'
-          )}
         >
-          {isRunning
-            ? <><StopIcon className="w-3.5 h-3.5" /> Stop</>
-            : <><PlayIcon className="w-3.5 h-3.5" /> Start</>
-          }
-        </button>
+          {isRunning ? 'Stop' : 'Start'}
+        </Button>
       </div>
 
-      {/* Sessions toggle */}
       {sessions.length > 0 && (
         <>
           <button
-            onClick={() => setShowSessions(v => !v)}
-            className="w-full flex items-center justify-between px-4 py-2 text-xs font-medium text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-[#0f1a2e] border-t border-gray-100 dark:border-[#1b2e4a] transition-colors"
+            onClick={() => setShowSessions((v) => !v)}
+            style={{
+              width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              padding: '8px 16px', fontSize: 12, fontWeight: 500, color: '#6b6155',
+              borderTop: '1px solid rgba(28,25,23,0.08)', background: 'none', border: 'none', cursor: 'pointer',
+            }}
           >
             <span>Time Log ({sessions.length})</span>
-            {showSessions ? <ChevronUpIcon className="w-3.5 h-3.5" /> : <ChevronDownIcon className="w-3.5 h-3.5" />}
+            {showSessions ? <CaretUpOutlined /> : <CaretDownOutlined />}
           </button>
 
           {showSessions && (
-            <div className="divide-y divide-gray-100 dark:divide-[#1b2e4a] max-h-52 overflow-y-auto">
+            <div style={{ maxHeight: 208, overflowY: 'auto' }}>
               {[...sessions].reverse().map((s, i) => (
-                <div key={i} className="flex items-center justify-between px-4 py-2.5">
+                <div
+                  key={i}
+                  style={{
+                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                    padding: '10px 16px', borderTop: '1px solid rgba(28,25,23,0.06)',
+                  }}
+                >
                   <div>
-                    <p className="text-xs font-semibold text-gray-700 dark:text-gray-300 font-mono">
+                    <Text strong style={{ fontSize: 12, fontFamily: 'monospace', display: 'block' }}>
                       {fmtMs(s.durationMs, 'compact')}
-                    </p>
-                    <p className="text-[11px] text-gray-400 mt-0.5">
+                    </Text>
+                    <Text type="secondary" style={{ fontSize: 11 }}>
                       {s.startedAt ? format(new Date(s.startedAt), 'dd MMM, hh:mm a') : ''}
                       {s.stoppedAt ? ` → ${format(new Date(s.stoppedAt), 'hh:mm a')}` : ''}
-                    </p>
-                    {s.note && <p className="text-[11px] text-gray-400 italic mt-0.5">{s.note}</p>}
+                    </Text>
+                    {s.note && <Text type="secondary" italic style={{ fontSize: 11, display: 'block' }}>{s.note}</Text>}
                   </div>
-                  <ClockIcon className="w-3.5 h-3.5 text-gray-300 flex-shrink-0" />
+                  <ClockCircleOutlined style={{ color: '#d1d5db', flexShrink: 0 }} />
                 </div>
               ))}
             </div>

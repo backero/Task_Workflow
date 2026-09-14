@@ -204,19 +204,22 @@ function StageLeadsModal({ stage, onClose, onSelectLead }) {
         className={clsx('relative bg-white dark:bg-[#070c17] w-full flex flex-col shadow-2xl border border-gray-100 dark:border-[#1b2e4a] overflow-hidden',
           maximized ? 'max-w-none h-screen sm:h-screen rounded-none' : 'rounded-t-3xl sm:rounded-2xl sm:max-w-lg max-h-[85vh]')}
       >
-        {/* Gradient header */}
-        <div className="flex-shrink-0 px-5 pt-5 pb-4" style={{ background: meta.grad }}>
+        {/* Minimal header — white surface, colored accent dot */}
+        <div className="flex-shrink-0 px-5 pt-5 pb-4 border-b border-gray-100 dark:border-[#1b2e4a]">
           <div className="flex items-center justify-between mb-3">
             <div>
-              <h3 className="text-base font-bold text-white">{stage}</h3>
-              <p className="text-xs text-white/60 mt-0.5">{data?.pagination?.total || leads.length} leads in this stage</p>
+              <h3 className="text-base font-bold text-gray-800 dark:text-white flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: meta.accent }} />
+                {stage}
+              </h3>
+              <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">{data?.pagination?.total || leads.length} leads in this stage</p>
             </div>
             <div className="flex items-center gap-1.5">
-              <button onClick={() => setMaximized((m) => !m)} title={maximized ? 'Restore' : 'Maximize'} className="p-2 rounded-xl bg-white/20 hover:bg-white/30 transition-colors text-white text-xs leading-none">
+              <button onClick={() => setMaximized((m) => !m)} title={maximized ? 'Restore' : 'Maximize'} className="p-2 rounded-xl bg-gray-100 dark:bg-[#132035] hover:bg-gray-200 dark:hover:bg-[#1b2e4a] transition-colors text-gray-600 dark:text-gray-300 text-xs leading-none">
                 {maximized ? '🗗' : '🗖'}
               </button>
-              <button onClick={onClose} className="p-2 rounded-xl bg-white/20 hover:bg-white/30 transition-colors">
-                <XMarkIcon className="w-4 h-4 text-white" />
+              <button onClick={onClose} className="p-2 rounded-xl bg-gray-100 dark:bg-[#132035] hover:bg-gray-200 dark:hover:bg-[#1b2e4a] transition-colors">
+                <XMarkIcon className="w-4 h-4 text-gray-500 dark:text-gray-300" />
               </button>
             </div>
           </div>
@@ -227,7 +230,7 @@ function StageLeadsModal({ stage, onClose, onSelectLead }) {
               value={search}
               onChange={e => setSearch(e.target.value)}
               placeholder="Search by name, phone, company…"
-              className="w-full bg-white/20 placeholder-white/50 text-white text-sm rounded-xl px-3 py-2 outline-none border border-white/20 focus:border-white/50 transition-colors"
+              className="w-full bg-gray-50 dark:bg-[#132035] placeholder-gray-400 dark:placeholder-gray-500 text-gray-800 dark:text-white text-sm rounded-xl px-3 py-2 outline-none border border-gray-200 dark:border-[#1b2e4a] focus:border-gray-400 dark:focus:border-slate-500 transition-colors"
             />
           </div>
         </div>
@@ -500,25 +503,20 @@ export default function LeadPipeline() {
       {/* ── Stats ── */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
         {[
-          { label: 'Total Leads',       value: analyticsData?.totalLeads || 0,     icon: ChartBarIcon,               grad: 'linear-gradient(135deg,#112270 0%,#1e40af 100%)' },
-          { label: 'In Process',        value: stageCount('In Progress'),          icon: ArrowRightIcon,             grad: 'linear-gradient(135deg,#3b82f6 0%,#1d4ed8 100%)' },
-          { label: 'Follow-up',         value: stageCount('Follow-up'),            icon: ClockIcon,                  grad: 'linear-gradient(135deg,#f59e0b 0%,#b45309 100%)' },
-          { label: 'Ready to Dispatch', value: stageCount('Ready to Dispatch'),    icon: ArrowTopRightOnSquareIcon,  grad: 'linear-gradient(135deg,#8b5cf6 0%,#5b21b6 100%)' },
-          { label: 'Payment Pending',   value: analyticsData?.wonLeads || 0,       icon: SparklesIcon,               grad: 'linear-gradient(135deg,#16a34a 0%,#15803d 100%)' },
+          { label: 'Total Leads',       value: analyticsData?.totalLeads || 0,     icon: ChartBarIcon,               color: '#334155' },
+          { label: 'In Process',        value: stageCount('In Progress'),          icon: ArrowRightIcon,             color: '#2563eb' },
+          { label: 'Follow-up',         value: stageCount('Follow-up'),            icon: ClockIcon,                  color: '#b45309' },
+          { label: 'Ready to Dispatch', value: stageCount('Ready to Dispatch'),    icon: ArrowTopRightOnSquareIcon,  color: '#7c3aed' },
+          { label: 'Payment Pending',   value: analyticsData?.wonLeads || 0,       icon: SparklesIcon,               color: '#15803d' },
         ].map((s) => (
-          <div key={s.label} className="rounded-2xl p-5 shadow-lg overflow-hidden relative" style={{ background: s.grad }}>
-            {/* Decorative circles */}
-            <div className="absolute -right-5 -top-5 w-28 h-28 rounded-full bg-white/10 pointer-events-none" />
-            <div className="absolute right-2 -bottom-6 w-16 h-16 rounded-full bg-white/5 pointer-events-none" />
-            <div className="relative">
-              <div className="flex items-start justify-between mb-3">
-                <div className="w-9 h-9 rounded-xl bg-white/25 flex items-center justify-center shadow-sm">
-                  <s.icon className="w-4.5 h-4.5 text-white" />
-                </div>
+          <div key={s.label} className="rounded-2xl p-5 bg-white dark:bg-[#0f1a2e] border border-gray-100 dark:border-[#1b2e4a] shadow-sm">
+            <div className="flex items-start justify-between mb-3">
+              <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: `${s.color}14` }}>
+                <s.icon className="w-4.5 h-4.5" style={{ color: s.color }} />
               </div>
-              <p className="text-[34px] font-black text-white tracking-tight tabular-nums leading-none">{s.value}</p>
-              <p className="text-[10px] text-white/55 font-bold uppercase tracking-[0.12em] mt-2">{s.label}</p>
             </div>
+            <p className="text-[28px] font-bold tracking-tight tabular-nums leading-none" style={{ color: s.color }}>{s.value}</p>
+            <p className="text-[11px] text-gray-500 dark:text-gray-400 font-semibold uppercase tracking-[0.08em] mt-2">{s.label}</p>
           </div>
         ))}
       </div>
@@ -568,17 +566,20 @@ export default function LeadPipeline() {
 
             return (
               <div key={stage} className="flex-shrink-0 w-[248px]">
-                <div className="rounded-2xl flex flex-col min-h-[500px] overflow-hidden shadow-lg dark:shadow-slate-900/60 border border-white/10 bg-white dark:bg-[#0f1a2e]">
+                <div className="rounded-2xl flex flex-col min-h-[500px] overflow-hidden shadow-sm border border-gray-100 dark:border-[#1b2e4a] bg-white dark:bg-[#0f1a2e]">
 
-                  {/* Full gradient header */}
-                  <div className="flex-shrink-0 px-4 pt-4 pb-3" style={{ background: meta.grad }}>
+                  {/* Minimal header — consistent white surface, colored accent dot only */}
+                  <div className="flex-shrink-0 px-4 pt-4 pb-3 border-b border-gray-100 dark:border-[#1b2e4a]">
                     <div className="flex items-center justify-between gap-2">
-                      <h3 className="text-[13px] font-bold text-white tracking-tight truncate flex-1">{stageLabel(stage)}</h3>
-                      <span className="text-[11px] font-bold text-white/90 bg-white/20 rounded-full px-2.5 py-0.5 flex-shrink-0">
+                      <h3 className="text-[13px] font-bold text-gray-800 dark:text-white tracking-tight truncate flex-1 flex items-center gap-2">
+                        <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: meta.accent }} />
+                        {stageLabel(stage)}
+                      </h3>
+                      <span className="text-[11px] font-bold text-gray-600 dark:text-gray-300 bg-gray-100 dark:bg-[#132035] rounded-full px-2.5 py-0.5 flex-shrink-0">
                         {count}
                       </span>
                     </div>
-                    <p className="text-[11px] text-white/60 font-medium mt-1 flex items-center gap-0.5">
+                    <p className="text-[11px] text-gray-400 dark:text-gray-500 font-medium mt-1 flex items-center gap-0.5">
                       <CurrencyRupeeIcon className="w-3 h-3" />
                       {value > 0 ? value.toLocaleString('en-IN') : '—'}
                     </p>
@@ -604,7 +605,7 @@ export default function LeadPipeline() {
                     )}
                     {count === 0 && (
                       <div className="flex flex-col items-center justify-center py-14 opacity-35 select-none">
-                        <div className="w-8 h-8 rounded-full mb-2" style={{ background: meta.grad }} />
+                        <div className="w-8 h-8 rounded-full mb-2" style={{ background: meta.accent }} />
                         <p className="text-xs text-gray-400 dark:text-gray-500">No leads</p>
                       </div>
                     )}

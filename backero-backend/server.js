@@ -54,6 +54,11 @@ const socialApprovalRoutes    = require('./src/routes/socialApproval.routes');
 const integrationRoutes       = require('./src/routes/integration.routes');
 const documentWalletRoutes    = require('./src/routes/documentWallet.routes');
 const socialEngineRoutes      = require('./src/routes/socialEngine.routes');
+const employeeRoutes          = require('./src/routes/employee.routes');
+const attendanceRoutes        = require('./src/routes/attendance.routes');
+const biometricDeviceRoutes   = require('./src/routes/biometricDevice.routes');
+const locationRoutes          = require('./src/routes/location.routes');
+const payrollRoutes           = require('./src/routes/payroll.routes');
 
 const app = express();
 const server = http.createServer(app);
@@ -200,6 +205,11 @@ app.use('/api/social-approvals', socialApprovalRoutes);
 app.use('/api/integrations', integrationRoutes);
 app.use('/api/documents', documentWalletRoutes);
 app.use('/api/social-engine', socialEngineRoutes);
+app.use('/api/employees', employeeRoutes);
+app.use('/api/attendance', attendanceRoutes);
+app.use('/api/devices', biometricDeviceRoutes);
+app.use('/api/locations', locationRoutes);
+app.use('/api/payroll', payrollRoutes);
 
 // 404 handler
 app.use('*', (req, res) => {

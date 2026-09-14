@@ -71,8 +71,8 @@ export default {
         },
       },
       fontFamily: {
-        sans: ['"IBM Plex Sans"', 'Inter', 'system-ui', 'sans-serif'],
-        display: ['"Zilla Slab"', 'Georgia', 'serif'],
+        sans: ['Inter', '-apple-system', 'BlinkMacSystemFont', '"Segoe UI"', 'system-ui', 'sans-serif'],
+        display: ['Inter', '-apple-system', 'BlinkMacSystemFont', '"Segoe UI"', 'system-ui', 'sans-serif'],
       },
       boxShadow: {
         card:        '0 1px 3px rgba(15,23,42,0.06), 0 1px 2px rgba(15,23,42,0.04)',

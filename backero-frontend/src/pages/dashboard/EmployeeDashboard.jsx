@@ -1,44 +1,40 @@
-﻿import React from 'react';
+import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link, useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
 import {
-  ClipboardDocumentListIcon, ExclamationTriangleIcon, CheckCircleIcon,
-  ClockIcon, ArrowRightIcon, ChevronRightIcon, BoltIcon, ViewColumnsIcon,
-  QuestionMarkCircleIcon,
-} from '@heroicons/react/24/outline';
+  FileText, AlertTriangle, CheckCircle2, Clock,
+  ArrowRight, ChevronRight, Zap, LayoutGrid,
+  HelpCircle,
+} from 'lucide-react';
+import { Alert, Button, Card, Col, Empty, Progress, Row, Space, Spin, Tag, Typography } from 'antd';
 import api from '../../api/axios';
 import { useAuthStore } from '../../store/useAuthStore';
 import ProductionSnapshot from './ProductionSnapshot';
 import { format, isToday, isTomorrow, isPast, formatDistanceToNow } from 'date-fns';
-import { clsx } from 'clsx';
 
-const PRIORITY_COLORS = { critical: 'badge-red', urgent: 'badge-red', high: 'badge-orange', medium: 'badge-yellow', low: 'badge-gray' };
-const STATUS_COLORS   = { 'Pending': 'badge-gray', 'Assigned': 'badge-blue', 'In Progress': 'badge-yellow', 'Approval Pending': 'badge-purple', 'Changes Requested': 'badge-red', 'Completed': 'badge-green' };
+const { Title, Text, Paragraph } = Typography;
+
+const PRIORITY_COLOR = { critical: 'red', urgent: 'red', high: 'orange', medium: 'gold', low: 'default' };
+const STATUS_COLOR = { Pending: 'default', Assigned: 'blue', 'In Progress': 'gold', 'Approval Pending': 'purple', 'Changes Requested': 'red', Completed: 'green' };
 
 function getDueLabel(dueDate) {
   const d = new Date(dueDate);
-  if (isPast(d) && !isToday(d)) return { label: 'OVERDUE', cls: 'text-red-600 font-bold', bg: 'bg-red-50 dark:bg-red-900/10 border border-red-200 dark:border-red-900/30' };
-  if (isToday(d))    return { label: 'Due Today',    cls: 'text-orange-600 font-semibold', bg: 'bg-orange-50 dark:bg-orange-900/10 border border-orange-200 dark:border-orange-900/30' };
-  if (isTomorrow(d)) return { label: 'Due Tomorrow', cls: 'text-yellow-600 font-medium', bg: '' };
-  return { label: format(d, 'dd MMM yyyy'), cls: 'text-gray-500', bg: '' };
+  if (isPast(d) && !isToday(d)) return { label: 'OVERDUE', color: 'red' };
+  if (isToday(d)) return { label: 'Due Today', color: 'orange' };
+  if (isTomorrow(d)) return { label: 'Due Tomorrow', color: 'gold' };
+  return { label: format(d, 'dd MMM yyyy'), color: 'default' };
 }
 
-function StatCard({ icon: Icon, label, value, color = 'blue', to, sub }) {
-  const inner = (
-    <motion.div
-      initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
-      className={clsx('card p-5', to && 'hover:shadow-md cursor-pointer transition-shadow')}
-    >
-      <div className={`w-10 h-10 rounded-xl bg-${color}-100 dark:bg-${color}-900/30 flex items-center justify-center mb-3`}>
-        <Icon className={`w-5 h-5 text-${color}-600 dark:text-${color}-400`} />
-      </div>
-      <p className="text-2xl font-bold text-gray-900 dark:text-white">{value}</p>
-      <p className="text-sm font-medium text-gray-600 dark:text-gray-400 mt-0.5">{label}</p>
-      {sub && <p className="text-xs text-gray-400 mt-0.5">{sub}</p>}
-    </motion.div>
+function StatCard({ icon, label, value, sub, to }) {
+  const content = (
+    <Card hoverable={!!to} style={{ height: '100%' }}>
+      <div style={{ fontSize: 20, marginBottom: 8, color: 'var(--ant-color-primary)' }}>{icon}</div>
+      <div style={{ fontSize: 24, fontWeight: 700 }}>{value}</div>
+      <Text style={{ fontSize: 13, fontWeight: 500 }}>{label}</Text>
+      {sub && <div><Text type="secondary" style={{ fontSize: 12 }}>{sub}</Text></div>}
+    </Card>
   );
-  return to ? <Link to={to}>{inner}</Link> : inner;
+  return to ? <Link to={to}>{content}</Link> : content;
 }
 
 export default function EmployeeDashboard() {
@@ -60,284 +56,181 @@ export default function EmployeeDashboard() {
   });
 
   if (isLoading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="w-8 h-8 border-2 border-brand-500 border-t-transparent rounded-full animate-spin" />
-      </div>
-    );
+    return <div style={{ textAlign: 'center', padding: 80 }}><Spin size="large" /></div>;
   }
 
-  const d        = data || {};
-  const myTasks  = d.myTasks || [];
-  const myLeads  = d.myLeads || [];
+  const d = data || {};
+  const myTasks = d.myTasks || [];
+  const myLeads = d.myLeads || [];
   const myQueries = d.myQueries || [];
 
-  // Separate overdue tasks from active tasks
-  const overdueTasks  = myTasks.filter((t) => t.isOverdue);
-  const activeTasks   = myTasks.filter((t) => !t.isOverdue);
-  // Sort: today first, then by due date
-  const sortedTasks   = [
+  const overdueTasks = myTasks.filter((t) => t.isOverdue);
+  const activeTasks = myTasks.filter((t) => !t.isOverdue);
+  const sortedTasks = [
     ...myTasks.filter((t) => t.dueDate && isToday(new Date(t.dueDate))),
     ...overdueTasks.filter((t) => !t.dueDate || !isToday(new Date(t.dueDate))),
     ...activeTasks.filter((t) => !t.dueDate || !isToday(new Date(t.dueDate))),
   ];
-  // Remove duplicates (tasks that are both overdue and today already handled)
   const uniqueTasks = sortedTasks.filter((t, i, arr) => arr.findIndex((x) => x._id === t._id) === i);
 
   const hour = new Date().getHours();
   const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
 
   return (
-    <div className="space-y-6">
-
-      {/* Header */}
-      <div className="page-header">
+    <div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
         <div>
-          <h1 className="page-title">My Workspace</h1>
-          <p className="text-gray-500 text-sm">
-            {greeting}, {user?.firstName}!
-            {user?.department && ` · ${user.department}`}
-          </p>
+          <Title level={4} style={{ marginBottom: 0 }}>My Workspace</Title>
+          <Text type="secondary">{greeting}, {user?.firstName}!{user?.department && ` · ${user.department}`}</Text>
         </div>
-        <div className="flex gap-2">
-          <Link to="/workflow" className="btn-primary">Workflow Board</Link>
-        </div>
+        <Link to="/workflow"><Button type="primary">Workflow Board</Button></Link>
       </div>
 
-      {/* KPI Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard
-          icon={ClipboardDocumentListIcon} color="blue"
-          label="Active Tasks" value={myTasks.length}
-          sub="Not yet completed"
-          to="/workflow"
-        />
-        <StatCard
-          icon={ExclamationTriangleIcon} color="red"
-          label="Overdue" value={d.overdueTasks || 0}
-          sub="Need immediate attention"
-          to="/workflow"
-        />
-        <StatCard
-          icon={CheckCircleIcon} color="green"
-          label="Done This Month" value={d.completedThisMonth || 0}
-          sub="Tasks completed"
-        />
-        <StatCard
-          icon={ClockIcon} color="purple"
-          label="Pending Approval" value={d.pendingApprovals || 0}
-          sub="Awaiting manager review"
-          to="/workflow"
-        />
+      <Row gutter={16} style={{ marginBottom: 16 }}>
+        <Col span={myQueries.length > 0 ? 4 : 6}>
+          <StatCard icon={<FileText />} label="Active Tasks" value={myTasks.length} sub="Not yet completed" to="/workflow" />
+        </Col>
+        <Col span={myQueries.length > 0 ? 4 : 6}>
+          <StatCard icon={<AlertTriangle />} label="Overdue" value={d.overdueTasks || 0} sub="Need immediate attention" to="/workflow" />
+        </Col>
+        <Col span={myQueries.length > 0 ? 4 : 6}>
+          <StatCard icon={<CheckCircle2 />} label="Done This Month" value={d.completedThisMonth || 0} sub="Tasks completed" />
+        </Col>
+        <Col span={myQueries.length > 0 ? 4 : 6}>
+          <StatCard icon={<Clock />} label="Pending Approval" value={d.pendingApprovals || 0} sub="Awaiting manager review" to="/workflow" />
+        </Col>
         {myQueries.length > 0 && (
-          <StatCard
-            icon={QuestionMarkCircleIcon} color="rose"
-            label="My Queries" value={myQueries.length}
-            sub="Awaiting your reply"
-            to="/crm/queries"
-          />
+          <Col span={4}>
+            <StatCard icon={<HelpCircle />} label="My Queries" value={myQueries.length} sub="Awaiting your reply" to="/crm/queries" />
+          </Col>
         )}
+      </Row>
+
+      <div style={{ marginBottom: 16 }}>
+        <ProductionSnapshot department={user?.department} />
       </div>
 
-      <ProductionSnapshot department={user?.department} />
-
-      {/* Overdue Banner */}
       {overdueTasks.length > 0 && (
-        <motion.div
-          initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }}
-          className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-900/40 rounded-xl p-4 flex items-center gap-3"
-        >
-          <ExclamationTriangleIcon className="w-5 h-5 text-red-600 flex-shrink-0" />
-          <div className="flex-1">
-            <p className="text-sm font-semibold text-red-800 dark:text-red-400">
-              You have {overdueTasks.length} overdue task{overdueTasks.length > 1 ? 's' : ''}
-            </p>
-            <p className="text-xs text-red-600 dark:text-red-500 mt-0.5">
-              {overdueTasks.map((t) => t.title).join(', ')}
-            </p>
-          </div>
-          <Link to="/workflow" className="btn-primary text-xs px-3 py-1.5 flex-shrink-0 bg-red-600 hover:bg-red-700">
-            View Now
-          </Link>
-        </motion.div>
+        <Alert
+          style={{ marginBottom: 16 }}
+          type="error"
+          showIcon
+          message={`You have ${overdueTasks.length} overdue task${overdueTasks.length > 1 ? 's' : ''}`}
+          description={overdueTasks.map((t) => t.title).join(', ')}
+          action={<Link to="/workflow"><Button size="small" danger type="primary">View Now</Button></Link>}
+        />
       )}
 
-      {/* Main Content */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-
-        {/* My Tasks List */}
-        <div className="card p-5 lg:col-span-2">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h3 className="font-bold text-gray-900 dark:text-white">My Active Tasks</h3>
-              <p className="text-xs text-gray-500 mt-0.5">{myTasks.length} task{myTasks.length !== 1 ? 's' : ''} in progress</p>
-            </div>
-            <Link to="/workflow" className="flex items-center gap-1 text-xs text-brand-600 hover:text-brand-700 font-medium">
-              View all <ArrowRightIcon className="w-3 h-3" />
-            </Link>
-          </div>
-
-          {uniqueTasks.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-10 text-gray-400">
-              <CheckCircleIcon className="w-12 h-12 mb-2 opacity-30" />
-              <p className="text-sm font-medium">No active tasks</p>
-              <p className="text-xs mt-1">You're all caught up!</p>
-            </div>
-          ) : (
-            <div className="space-y-2">
-              {uniqueTasks.map((task) => {
-                const due = task.dueDate ? getDueLabel(task.dueDate) : null;
-                const isChangesRequested = task.status === 'Changes Requested';
-                return (
-                  <div
-                    key={task._id}
-                    className={clsx(
-                      'flex items-start gap-3 p-3 rounded-lg transition-colors',
-                      due?.bg || 'hover:bg-gray-50 dark:hover:bg-[#17263d]/50'
-                    )}
-                  >
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap mb-1">
-                        <span className={`badge ${STATUS_COLORS[task.status] || 'badge-gray'}`}>{task.status}</span>
-                        <span className={`badge ${PRIORITY_COLORS[task.priority] || 'badge-gray'}`}>{task.priority}</span>
-                        {isChangesRequested && (
-                          <span className="text-xs text-red-600 font-semibold">Action needed</span>
-                        )}
-                      </div>
-                      <button
-                        onClick={() => toWorkflow(task)}
-                        className="text-sm font-medium text-gray-900 dark:text-white hover:text-brand-600 dark:hover:text-brand-400 text-left transition-colors"
-                      >
-                        {task.title}
-                      </button>
-                      <div className="flex items-center gap-3 mt-0.5 text-xs text-gray-400">
-                        <span>{task.department}</span>
-                        {task.assignedBy && (
-                          <span>from {task.assignedBy.firstName} {task.assignedBy.lastName}</span>
-                        )}
-                      </div>
-                      {task.progress > 0 && (
-                        <div className="mt-2 flex items-center gap-2">
-                          <div className="flex-1 h-1.5 bg-gray-100 dark:bg-[#132035] rounded-full overflow-hidden">
-                            <div className="h-full bg-brand-500 rounded-full" style={{ width: `${task.progress}%` }} />
-                          </div>
-                          <span className="text-xs text-gray-400">{task.progress}%</span>
-                        </div>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-1 flex-shrink-0">
-                      {due && <span className={`text-xs ${due.cls} mr-1`}>{due.label}</span>}
-                      <button onClick={() => toWorkflow(task)} title="Open in Workflow Builder"
-                        className="p-1.5 rounded-lg hover:bg-brand-50 text-gray-400 hover:text-brand-600 transition-colors">
-                        <BoltIcon className="w-4 h-4" />
-                      </button>
-                      <Link to="/tasks/kanban" title="Open Kanban Board"
-                        className="p-1.5 rounded-lg hover:bg-indigo-50 text-gray-400 hover:text-indigo-600 transition-colors">
-                        <ViewColumnsIcon className="w-4 h-4" />
-                      </Link>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
-
-        {/* Right column */}
-        <div className="space-y-6">
-
-          {/* Quick Actions */}
-          <div className="card p-5">
-            <h3 className="font-bold text-gray-900 dark:text-white mb-3">Quick Actions</h3>
-            <div className="space-y-2">
-              {[
-                { label: 'View My Tasks', sub: 'All tasks assigned to me', to: '/tasks/my', color: 'blue' },
-                { label: 'Kanban Board', sub: 'Visual task board', to: '/tasks/kanban', color: 'purple' },
-                { label: 'CRM Follow-ups', sub: 'My leads & clients', to: '/crm/pipeline', color: 'green' },
-                { label: 'Calendar', sub: 'Due dates & follow-ups', to: '/tasks/calendar', color: 'orange' },
-              ].map((item) => (
-                <Link
-                  key={item.to}
-                  to={item.to}
-                  className="flex items-center gap-3 p-2.5 rounded-lg hover:bg-gray-50 dark:hover:bg-[#17263d]/50 transition-colors group"
-                >
-                  <div className={`w-8 h-8 rounded-lg bg-${item.color}-100 dark:bg-${item.color}-900/30 flex items-center justify-center flex-shrink-0`}>
-                    <div className={`w-2 h-2 rounded-full bg-${item.color}-500`} />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-gray-900 dark:text-white">{item.label}</p>
-                    <p className="text-xs text-gray-400">{item.sub}</p>
-                  </div>
-                  <ChevronRightIcon className="w-4 h-4 text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity" />
-                </Link>
-              ))}
-            </div>
-          </div>
-
-          {/* Upcoming CRM Follow-ups */}
-          <div className="card p-5">
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="font-bold text-gray-900 dark:text-white">My Follow-ups</h3>
-              <Link to="/crm/calendar" className="text-xs text-brand-600 hover:text-brand-700 font-medium">Calendar</Link>
-            </div>
-            {myLeads.length === 0 ? (
-              <div className="text-center py-6 text-gray-400">
-                <p className="text-sm">No follow-ups scheduled</p>
-              </div>
+      <Row gutter={16}>
+        <Col span={16}>
+          <Card
+            title={<div><div style={{ fontWeight: 700 }}>My Active Tasks</div><Text type="secondary" style={{ fontSize: 12, fontWeight: 400 }}>{myTasks.length} task{myTasks.length !== 1 ? 's' : ''} in progress</Text></div>}
+            extra={<Link to="/workflow">View all <ArrowRight /></Link>}
+          >
+            {uniqueTasks.length === 0 ? (
+              <Empty description="No active tasks — you're all caught up!" />
             ) : (
-              <div className="space-y-2">
-                {myLeads.map((lead) => (
-                  <Link key={lead._id} to={`/crm/leads/${lead._id}`} className="block p-3 rounded-lg bg-gray-50 dark:bg-[#0f1a2e] hover:bg-gray-100 dark:hover:bg-[#132035] transition-colors">
-                    <p className="font-medium text-sm text-gray-900 dark:text-white">{lead.name}</p>
-                    <p className="text-xs text-gray-500">{lead.phone}</p>
-                    <div className="flex items-center gap-2 mt-1">
-                      <span className="badge badge-blue text-xs">{lead.status}</span>
-                      {lead.nextFollowUpAt && (
-                        <span className="text-xs text-orange-600">
-                          {formatDistanceToNow(new Date(lead.nextFollowUpAt), { addSuffix: true })}
-                        </span>
-                      )}
+              <Space direction="vertical" style={{ width: '100%' }} split={<div style={{ borderBottom: '1px solid #f0f0f0' }} />}>
+                {uniqueTasks.map((task) => {
+                  const due = task.dueDate ? getDueLabel(task.dueDate) : null;
+                  return (
+                    <div key={task._id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', padding: '8px 0' }}>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <Space size={4} style={{ marginBottom: 4 }} wrap>
+                          <Tag color={STATUS_COLOR[task.status] || 'default'}>{task.status}</Tag>
+                          <Tag color={PRIORITY_COLOR[task.priority] || 'default'}>{task.priority}</Tag>
+                          {task.status === 'Changes Requested' && <Text type="danger" style={{ fontSize: 12, fontWeight: 600 }}>Action needed</Text>}
+                        </Space>
+                        <div>
+                          <Button type="link" style={{ padding: 0, height: 'auto', fontWeight: 500 }} onClick={() => toWorkflow(task)}>{task.title}</Button>
+                        </div>
+                        <Space size={12}>
+                          <Text type="secondary" style={{ fontSize: 12 }}>{task.department}</Text>
+                          {task.assignedBy && <Text type="secondary" style={{ fontSize: 12 }}>from {task.assignedBy.firstName} {task.assignedBy.lastName}</Text>}
+                        </Space>
+                        {task.progress > 0 && <Progress percent={task.progress} size="small" style={{ maxWidth: 240, marginTop: 4 }} />}
+                      </div>
+                      <Space size={4} style={{ flexShrink: 0 }}>
+                        {due && <Tag color={due.color}>{due.label}</Tag>}
+                        <Button type="text" size="small" icon={<Zap />} title="Open in Workflow Builder" onClick={() => toWorkflow(task)} />
+                        <Link to="/tasks/kanban"><Button type="text" size="small" icon={<LayoutGrid />} title="Open Kanban Board" /></Link>
+                      </Space>
                     </div>
+                  );
+                })}
+              </Space>
+            )}
+          </Card>
+        </Col>
+
+        <Col span={8}>
+          <Space direction="vertical" style={{ width: '100%' }} size={16}>
+            <Card title="Quick Actions">
+              <Space direction="vertical" style={{ width: '100%' }}>
+                {[
+                  { label: 'View My Tasks', sub: 'All tasks assigned to me', to: '/tasks/my' },
+                  { label: 'Kanban Board', sub: 'Visual task board', to: '/tasks/kanban' },
+                  { label: 'CRM Follow-ups', sub: 'My leads & clients', to: '/crm/pipeline' },
+                  { label: 'Calendar', sub: 'Due dates & follow-ups', to: '/tasks/calendar' },
+                ].map((item) => (
+                  <Link key={item.to} to={item.to} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0' }}>
+                    <div>
+                      <div style={{ fontSize: 13, fontWeight: 500 }}>{item.label}</div>
+                      <Text type="secondary" style={{ fontSize: 12 }}>{item.sub}</Text>
+                    </div>
+                    <ChevronRight style={{ fontSize: 11, color: '#bbb' }} />
                   </Link>
                 ))}
-              </div>
-            )}
-          </div>
+              </Space>
+            </Card>
 
-          {/* My Technical Queries */}
-          {myQueries.length > 0 && (
-            <div className="card p-5">
-              <div className="flex items-center justify-between mb-3">
-                <div>
-                  <h3 className="font-bold text-gray-900 dark:text-white">My Queries</h3>
-                  <p className="text-xs text-gray-500 mt-0.5">{myQueries.length} pending</p>
-                </div>
-                <Link to="/crm/queries" className="text-xs text-brand-600 hover:text-brand-700 font-medium flex items-center gap-1">
-                  View all <ArrowRightIcon className="w-3 h-3" />
-                </Link>
-              </div>
-              <div className="space-y-2">
-                {myQueries.map((q) => (
-                  <div key={q._id} className="p-3 rounded-lg bg-rose-50 dark:bg-rose-900/10 border border-rose-100 dark:border-rose-900/30">
-                    <div className="flex items-center gap-2 mb-1">
-                      <QuestionMarkCircleIcon className="w-4 h-4 text-rose-500 flex-shrink-0" />
-                      <span className={`text-xs font-semibold px-1.5 py-0.5 rounded-full ${
-                        q.urgency === 'high' ? 'bg-red-100 text-red-700' : q.urgency === 'medium' ? 'bg-yellow-100 text-yellow-700' : 'bg-gray-100 text-gray-600'
-                      }`}>{q.urgency}</span>
-                    </div>
-                    <p className="text-sm font-medium text-gray-900 dark:text-white">{q.title}</p>
-                    {q.leadName && <p className="text-xs text-gray-500 mt-0.5">Lead: {q.leadName}</p>}
-                    <p className="text-xs text-gray-400 mt-0.5">
-                      By: {q.raisedBy?.firstName} {q.raisedBy?.lastName}
-                    </p>
-                    <Link to="/crm/queries" className="mt-2 inline-block btn-primary text-xs px-3 py-1">Reply</Link>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
+            <Card title="My Follow-ups" extra={<Link to="/crm/calendar">Calendar</Link>}>
+              {myLeads.length === 0 ? (
+                <Empty description="No follow-ups scheduled" image={Empty.PRESENTED_IMAGE_SIMPLE} />
+              ) : (
+                <Space direction="vertical" style={{ width: '100%' }}>
+                  {myLeads.map((lead) => (
+                    <Link key={lead._id} to={`/crm/leads/${lead._id}`}>
+                      <Card size="small" hoverable>
+                        <div style={{ fontWeight: 500, fontSize: 13 }}>{lead.name}</div>
+                        <Text type="secondary" style={{ fontSize: 12 }}>{lead.phone}</Text>
+                        <div style={{ marginTop: 4 }}>
+                          <Space size={4}>
+                            <Tag color="blue">{lead.status}</Tag>
+                            {lead.nextFollowUpAt && <Text type="warning" style={{ fontSize: 12 }}>{formatDistanceToNow(new Date(lead.nextFollowUpAt), { addSuffix: true })}</Text>}
+                          </Space>
+                        </div>
+                      </Card>
+                    </Link>
+                  ))}
+                </Space>
+              )}
+            </Card>
+
+            {myQueries.length > 0 && (
+              <Card
+                title={<div><div style={{ fontWeight: 700 }}>My Queries</div><Text type="secondary" style={{ fontSize: 12, fontWeight: 400 }}>{myQueries.length} pending</Text></div>}
+                extra={<Link to="/crm/queries">View all <ArrowRight /></Link>}
+              >
+                <Space direction="vertical" style={{ width: '100%' }}>
+                  {myQueries.map((q) => (
+                    <Card key={q._id} size="small" style={{ background: '#fff1f0', borderColor: '#ffccc7' }}>
+                      <Space size={4} style={{ marginBottom: 4 }}>
+                        <HelpCircle style={{ color: '#ff4d4f' }} />
+                        <Tag color={q.urgency === 'high' ? 'red' : q.urgency === 'medium' ? 'gold' : 'default'}>{q.urgency}</Tag>
+                      </Space>
+                      <div style={{ fontWeight: 500, fontSize: 13 }}>{q.title}</div>
+                      {q.leadName && <Text type="secondary" style={{ fontSize: 12 }}>Lead: {q.leadName}</Text>}
+                      <div><Text type="secondary" style={{ fontSize: 12 }}>By: {q.raisedBy?.firstName} {q.raisedBy?.lastName}</Text></div>
+                      <Link to="/crm/queries"><Button size="small" type="primary" style={{ marginTop: 8 }}>Reply</Button></Link>
+                    </Card>
+                  ))}
+                </Space>
+              </Card>
+            )}
+          </Space>
+        </Col>
+      </Row>
     </div>
   );
 }

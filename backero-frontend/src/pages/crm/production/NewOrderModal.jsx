@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import clsx from 'clsx';
+import { Plus } from 'lucide-react';
+import { Button, Drawer } from 'antd';
 import api from '../../../api/axios';
 import { Card } from '../sampleTheme';
 import { customerId } from '../../../utils/leadHelpers';
@@ -11,18 +13,14 @@ import OrderSpecTabs, { Field, inputCls } from './orderSpecFields';
 // New Order Sheet — manual/direct order intake (no CRM lead hand-off needed first). Ported
 // from the "New Order Sheet" reference file: same one-scrolling-page SPEC/QC/Packaging/Payment/
 // Custom-Checks layout (via OrderSpecTabs — shared with the Stage 0 "Orders" edit
-// panel so both surfaces read the exact same field set) restyled onto the cream/amber theme and
-// wired to the real APIs instead of localStorage stubs. Customers
-// always come from the existing KYC/Lead directory (never typed fresh here) — pick one, then
-// link an existing Product Catalog SKU or create a new one inline, same as the rest of the app
-// does it. Every product line becomes its own Production Order (POST /production), created
-// without a leadId — same "manual + New Order flow" the backend's link-production comment
-// already anticipates, so it shows up as an orphan order in the Orders tab.
+// panel so both surfaces read the exact same field set), wired to the real APIs instead of
+// localStorage stubs. Customers always come from the existing KYC/Lead directory (never typed
+// fresh here) — pick one, then link an existing Product Catalog SKU or create a new one inline,
+// same as the rest of the app does it. Every product line becomes its own Production Order
+// (POST /production), created without a leadId — same "manual + New Order flow" the backend's
+// link-production comment already anticipates, so it shows up as an orphan order in the Orders tab.
 
-const displayFont = { fontFamily: "'Zilla Slab', Georgia, serif" };
-const bodyFont = { fontFamily: "'IBM Plex Sans', -apple-system, sans-serif" };
 const outlineBtn = 'inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full border-[1.5px] border-[#ddd6c4] text-[#6b6155] text-xs font-semibold hover:bg-[#f1ede4] hover:border-[#8a8171] hover:text-[#1c1917] transition';
-const accentBtn = 'inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-[#a8781f] text-[#1c1917] text-xs font-bold hover:brightness-95 transition disabled:opacity-50';
 
 function emptyLine() {
   return {
@@ -35,7 +33,6 @@ function emptyLine() {
 export default function NewOrderModal({ onClose, onCreated, initialCustomerSearch = '' }) {
   const qc = useQueryClient();
 
-  const [maximized, setMaximized] = useState(false);
   const [customerSearch, setCustomerSearch] = useState(initialCustomerSearch);
   const [selectedLead, setSelectedLead] = useState(null);
   const { data: leadMatches, isFetching: searchingLeads } = useQuery({
@@ -203,64 +200,56 @@ export default function NewOrderModal({ onClose, onCreated, initialCustomerSearc
   );
 
   return (
-    <div className={clsx('fixed inset-0 z-[70] flex items-center justify-center', maximized ? 'p-0' : 'p-4')} style={bodyFont}>
-      <div className="absolute inset-0 bg-[#1c1917]/50 backdrop-blur-sm" onClick={onClose} />
-      <div className={clsx('relative bg-white shadow-[0_10px_40px_rgba(46,36,27,0.16)] border border-[#ddd6c4] flex flex-col',
-        maximized ? 'w-screen h-screen max-w-none rounded-none' : 'w-full max-w-6xl rounded-2xl')}
-        style={maximized ? undefined : { maxHeight: '92vh' }}>
-        <div className={clsx('p-5 border-b border-[#e7e2d6] bg-[#f1ede4] flex items-center justify-between flex-shrink-0', !maximized && 'rounded-t-2xl')}>
-          <div>
-            <h3 className="font-bold text-[#1c1917]" style={displayFont}>🆕 New Order — Product Specification &amp; QC Plan</h3>
-            <p className="text-xs text-[#6b6155] mt-0.5">Pick an existing customer, link a catalog product (or create one), then capture the SPEC/QC plan in one pass.</p>
-          </div>
-          <div className="flex items-center gap-1.5 flex-shrink-0">
-            <button onClick={() => setMaximized((m) => !m)} title={maximized ? 'Restore' : 'Maximize'}
-              className="w-9 h-9 rounded-lg hover:bg-[#e7e2d6] flex items-center justify-center text-[#8a8171] hover:text-[#1c1917] text-base">
-              {maximized ? '🗗' : '🗖'}
-            </button>
-            <button onClick={onClose} className="w-9 h-9 rounded-lg hover:bg-[#e7e2d6] flex items-center justify-center text-[#8a8171] hover:text-[#1c1917] text-lg">✕</button>
-          </div>
+    <Drawer
+      open
+      onClose={onClose}
+      width="min(1100px, 96vw)"
+      title={
+        <div>
+          <div>New Order — Product Specification &amp; QC Plan</div>
+          <p className="text-xs text-[#6b6155] mt-0.5 font-normal">Pick an existing customer, link a catalog product (or create one), then capture the SPEC/QC plan in one pass.</p>
         </div>
-
-        <div className="flex flex-1 min-h-0">
-          <div className="w-56 flex-shrink-0 border-r border-[#e7e2d6] bg-[#fbfaf7] p-3 overflow-y-auto">
-            <p className="text-[10px] font-bold uppercase tracking-wide text-[#8a8171] mb-2">Products (from catalogue)</p>
-            <div className="space-y-1.5">
-              {lines.map((l, i) => (
-                <div key={i}
-                  onClick={() => setActiveLine(i)}
-                  className={clsx('rounded-lg border-[1.5px] px-2.5 py-2 cursor-pointer flex items-start justify-between gap-1.5',
-                    i === activeLine ? 'border-[#a8781f] bg-[#f3e6c8]' : 'border-[#ddd6c4] bg-[#fff] hover:border-[#8a8171]')}>
-                  <div className="min-w-0">
-                    <p className="text-xs font-bold text-[#1c1917] truncate">{l.catalogProduct ? l.catalogProduct.name : 'New line — select product'}</p>
-                    <p className="text-[10px] text-[#8a8171] truncate">{l.catalogProduct ? l.catalogProduct.code : `Line ${i + 1}`}{l.plannedQuantity ? ` · ${l.plannedQuantity} units` : ''}</p>
-                  </div>
-                  {lines.length > 1 && (
-                    <span onClick={(e) => { e.stopPropagation(); removeLine(i); }} title="Remove line" className="text-[#a13d34] font-bold text-sm flex-shrink-0">×</span>
-                  )}
-                </div>
-              ))}
-            </div>
-            <button onClick={addLine} className="w-full mt-2 border-2 border-dashed border-[#8a8171] text-[#a8781f] rounded-lg py-2 text-xs font-bold hover:bg-[#f3e6c8]">+ Add product</button>
-            <p className="text-[9.5px] text-[#8a8171] mt-2 leading-relaxed">Each product becomes its own order &amp; job sheet under the same customer ID and order group.</p>
-          </div>
-
-          <div className="flex-1 min-w-0 overflow-y-auto p-5">
-            <OrderSpecTabs
-              crmSpec={line.crmSpec}
-              onChange={patchSpec}
-              locked={false}
-              detailsContent={detailsContent}
-            />
-          </div>
-        </div>
-
-        <div className={clsx('flex items-center justify-between gap-3 px-5 py-4 border-t border-[#e7e2d6] flex-shrink-0 bg-[#fbfaf7]', !maximized && 'rounded-b-2xl')}>
+      }
+      footer={
+        <div className="flex items-center justify-between gap-3">
           <span className="text-xs text-[#8a8171]">{lines.filter((l) => l.catalogProduct).length} of {lines.length} line(s) ready</span>
           <div className="flex items-center gap-3">
-            <button onClick={onClose} className={outlineBtn}>Cancel</button>
-            <button onClick={createOrders} disabled={busy} className={accentBtn}>{busy ? 'Creating…' : `✅ Create Order${lines.filter((l) => l.catalogProduct).length > 1 ? 's' : ''}`}</button>
+            <Button onClick={onClose}>Cancel</Button>
+            <Button type="primary" loading={busy} onClick={createOrders}>{`Create Order${lines.filter((l) => l.catalogProduct).length > 1 ? 's' : ''}`}</Button>
           </div>
+        </div>
+      }
+    >
+      <div className="flex h-full min-h-0 -m-6">
+        <div className="w-56 flex-shrink-0 border-r border-[#e7e2d6] bg-[#fbfaf7] p-3 overflow-y-auto">
+          <p className="text-[10px] font-bold uppercase tracking-wide text-[#8a8171] mb-2">Products (from catalogue)</p>
+          <div className="space-y-1.5">
+            {lines.map((l, i) => (
+              <div key={i}
+                onClick={() => setActiveLine(i)}
+                className={clsx('rounded-lg border-[1.5px] px-2.5 py-2 cursor-pointer flex items-start justify-between gap-1.5',
+                  i === activeLine ? 'border-[#a8781f] bg-[#f3e6c8]' : 'border-[#ddd6c4] bg-[#fff] hover:border-[#8a8171]')}>
+                <div className="min-w-0">
+                  <p className="text-xs font-bold text-[#1c1917] truncate">{l.catalogProduct ? l.catalogProduct.name : 'New line — select product'}</p>
+                  <p className="text-[10px] text-[#8a8171] truncate">{l.catalogProduct ? l.catalogProduct.code : `Line ${i + 1}`}{l.plannedQuantity ? ` · ${l.plannedQuantity} units` : ''}</p>
+                </div>
+                {lines.length > 1 && (
+                  <span onClick={(e) => { e.stopPropagation(); removeLine(i); }} title="Remove line" className="text-[#a13d34] font-bold text-sm flex-shrink-0">×</span>
+                )}
+              </div>
+            ))}
+          </div>
+          <button onClick={addLine} className="w-full mt-2 border-2 border-dashed border-[#8a8171] text-[#a8781f] rounded-lg py-2 text-xs font-bold hover:bg-[#f3e6c8] flex items-center justify-center gap-1"><Plus size={12} /> Add product</button>
+          <p className="text-[9.5px] text-[#8a8171] mt-2 leading-relaxed">Each product becomes its own order &amp; job sheet under the same customer ID and order group.</p>
+        </div>
+
+        <div className="flex-1 min-w-0 overflow-y-auto p-5">
+          <OrderSpecTabs
+            crmSpec={line.crmSpec}
+            onChange={patchSpec}
+            locked={false}
+            detailsContent={detailsContent}
+          />
         </div>
       </div>
 
@@ -273,6 +262,6 @@ export default function NewOrderModal({ onClose, onCreated, initialCustomerSearc
           onSave={(payload) => createProductMutation.mutate(payload)}
         />
       )}
-    </div>
+    </Drawer>
   );
 }

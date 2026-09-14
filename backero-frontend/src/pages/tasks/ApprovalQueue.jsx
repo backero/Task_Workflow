@@ -1,14 +1,19 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
-import { CheckIcon, XMarkIcon, ArrowPathIcon, ClockIcon, ChatBubbleLeftIcon, CalendarDaysIcon, CheckCircleIcon, NoSymbolIcon } from '@heroicons/react/24/outline';
+import {
+  CheckOutlined, CloseOutlined, ClockCircleOutlined, MessageOutlined,
+  CalendarOutlined, CheckCircleFilled, StopFilled,
+} from '@ant-design/icons';
+import { Button, Card, Col, Empty, Input, Modal, Row, Spin, Statistic, Tabs, Tag, Typography } from 'antd';
 import api from '../../api/axios';
 import toast from 'react-hot-toast';
 import { formatDistanceToNow, format } from 'date-fns';
 import { useAuthStore } from '../../store/useAuthStore';
-import { clsx } from 'clsx';
 
-const PRIORITY_COLORS = { critical: 'badge-red', urgent: 'badge-red', high: 'badge-orange', medium: 'badge-yellow', low: 'badge-gray' };
+const { Text, Title, Paragraph } = Typography;
+
+const PRIORITY_TAG = { critical: 'red', urgent: 'volcano', high: 'orange', medium: 'gold', low: 'default' };
 
 function ApprovalModal({ approval, onApprove, onReject, onClose }) {
   const [notes, setNotes] = useState('');
@@ -31,168 +36,100 @@ function ApprovalModal({ approval, onApprove, onReject, onClose }) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-gray-900/60 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative card w-full max-w-xl shadow-modal max-h-[90vh] flex flex-col">
-        <div className="p-6 border-b border-gray-200 dark:border-[#1b2e4a]">
-          <h3 className="text-lg font-bold text-gray-900 dark:text-white">Review Task Completion</h3>
-        </div>
-
-        <div className="p-6 space-y-4 overflow-y-auto flex-1">
-          <div>
-            <p className="text-sm font-semibold text-gray-900 dark:text-white">{approval.taskId?.title}</p>
-            {approval.taskId?.description && (
-              <p className="text-xs text-gray-500 mt-1">{approval.taskId?.description}</p>
-            )}
-          </div>
-
-          <div className="grid grid-cols-2 gap-3 text-sm">
-            <div>
-              <span className="text-gray-500">Requested by</span>
-              <p className="font-medium">{approval.requestedBy?.firstName} {approval.requestedBy?.lastName}</p>
-            </div>
-            <div>
-              <span className="text-gray-500">Department</span>
-              <p className="font-medium">{approval.taskId?.department}</p>
-            </div>
-            <div>
-              <span className="text-gray-500">Progress</span>
-              <p className="font-medium">{approval.taskId?.progress || 0}%</p>
-            </div>
-            {approval.round > 1 && (
-              <div>
-                <span className="text-gray-500">Submission Round</span>
-                <p className="font-medium text-orange-600">#{approval.round} (resubmitted)</p>
-              </div>
-            )}
-          </div>
-
-          {approval.requestNotes && (
-            <div className="p-3 rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800">
-              <p className="text-xs font-semibold text-blue-700 dark:text-blue-400 mb-1">Employee's completion notes</p>
-              <p className="text-sm text-gray-900 dark:text-white">{approval.requestNotes}</p>
-            </div>
-          )}
-
-          {/* Daily updates history */}
-          {dailyUpdates.length > 0 && (
-            <div>
-              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2 flex items-center gap-1">
-                <ChatBubbleLeftIcon className="w-3.5 h-3.5" />
-                Daily Work Log ({dailyUpdates.length} updates)
-              </p>
-              <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
-                {dailyUpdates.map((upd, i) => (
-                  <div key={upd._id || i} className="p-2.5 bg-gray-50 dark:bg-[#0f1a2e] rounded-lg">
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-xs font-medium text-gray-700 dark:text-gray-300">
-                        {upd.author?.firstName} {upd.author?.lastName}
-                      </span>
-                      <div className="flex items-center gap-2 text-xs text-gray-400">
-                        {upd.hoursWorked > 0 && <span className="flex items-center gap-0.5"><ClockIcon className="w-3 h-3" />{upd.hoursWorked}h</span>}
-                        {upd.progress !== undefined && <span className="text-brand-600 font-medium">{upd.progress}%</span>}
-                        <span>{upd.createdAt ? formatDistanceToNow(new Date(upd.createdAt), { addSuffix: true }) : ''}</span>
-                      </div>
-                    </div>
-                    <p className="text-xs text-gray-600 dark:text-gray-400">{upd.content}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          <div>
-            <label className="label">
-              Review Notes {action === 'reject' && <span className="text-red-500">*</span>}
-            </label>
-            <textarea
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              rows={3}
-              className="input resize-none"
-              placeholder={action === 'reject' ? 'Explain what needs to be corrected...' : 'Optional approval notes...'}
-            />
-          </div>
-
-          <div className="flex gap-3">
-            <button
-              onClick={() => setAction('reject')}
-              className={clsx('flex-1 py-2 rounded-lg text-sm font-medium border-2 transition-colors', action === 'reject' ? 'bg-red-600 text-white border-red-600' : 'border-red-300 text-red-600 hover:bg-red-50')}
-            >
-              <XMarkIcon className="w-4 h-4 inline mr-1" />Reject
-            </button>
-            <button
-              onClick={() => setAction('approve')}
-              className={clsx('flex-1 py-2 rounded-lg text-sm font-medium border-2 transition-colors', action === 'approve' ? 'bg-green-600 text-white border-green-600' : 'border-green-300 text-green-600 hover:bg-green-50')}
-            >
-              <CheckIcon className="w-4 h-4 inline mr-1" />Approve
-            </button>
-          </div>
-
-          <div className="flex gap-2">
-            <button onClick={onClose} className="btn-secondary flex-1 justify-center">Cancel</button>
-            <button onClick={handleAction} disabled={!action} className="btn-primary flex-1 justify-center">Confirm</button>
-          </div>
-        </div>
+    <Modal open onCancel={onClose} title="Review Task Completion" footer={null} width={600} styles={{ body: { maxHeight: '70vh', overflowY: 'auto' } }}>
+      <div style={{ marginBottom: 16 }}>
+        <Text strong>{approval.taskId?.title}</Text>
+        {approval.taskId?.description && <Paragraph type="secondary" style={{ fontSize: 13, marginTop: 4 }}>{approval.taskId?.description}</Paragraph>}
       </div>
-    </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, fontSize: 13, marginBottom: 16 }}>
+        <div><Text type="secondary">Requested by</Text><br /><Text strong>{approval.requestedBy?.firstName} {approval.requestedBy?.lastName}</Text></div>
+        <div><Text type="secondary">Department</Text><br /><Text strong>{approval.taskId?.department}</Text></div>
+        <div><Text type="secondary">Progress</Text><br /><Text strong>{approval.taskId?.progress || 0}%</Text></div>
+        {approval.round > 1 && (
+          <div><Text type="secondary">Submission Round</Text><br /><Text strong style={{ color: '#ea580c' }}>#{approval.round} (resubmitted)</Text></div>
+        )}
+      </div>
+
+      {approval.requestNotes && (
+        <div style={{ padding: 12, borderRadius: 10, background: 'rgba(59,130,246,0.06)', border: '1px solid rgba(59,130,246,0.15)', marginBottom: 16 }}>
+          <Text strong style={{ fontSize: 12, color: '#1d4ed8', display: 'block', marginBottom: 4 }}>Employee's completion notes</Text>
+          <Text style={{ fontSize: 13 }}>{approval.requestNotes}</Text>
+        </div>
+      )}
+
+      {dailyUpdates.length > 0 && (
+        <div style={{ marginBottom: 16 }}>
+          <Text type="secondary" style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: 0.5, display: 'flex', alignItems: 'center', gap: 4, marginBottom: 8 }}>
+            <MessageOutlined /> Daily Work Log ({dailyUpdates.length} updates)
+          </Text>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxHeight: 190, overflowY: 'auto' }}>
+            {dailyUpdates.map((upd, i) => (
+              <div key={upd._id || i} style={{ padding: 10, borderRadius: 8, background: 'rgba(15,23,42,0.03)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                  <Text strong style={{ fontSize: 12 }}>{upd.author?.firstName} {upd.author?.lastName}</Text>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    {upd.hoursWorked > 0 && <Text type="secondary" style={{ fontSize: 11 }}><ClockCircleOutlined /> {upd.hoursWorked}h</Text>}
+                    {upd.progress !== undefined && <Text style={{ fontSize: 11, color: '#a8781f', fontWeight: 600 }}>{upd.progress}%</Text>}
+                    <Text type="secondary" style={{ fontSize: 11 }}>{upd.createdAt ? formatDistanceToNow(new Date(upd.createdAt), { addSuffix: true }) : ''}</Text>
+                  </div>
+                </div>
+                <Text style={{ fontSize: 12 }}>{upd.content}</Text>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <label className="label">
+        Review Notes {action === 'reject' && <span style={{ color: '#dc2626' }}>*</span>}
+      </label>
+      <Input.TextArea value={notes} onChange={(e) => setNotes(e.target.value)} rows={3} placeholder={action === 'reject' ? 'Explain what needs to be corrected...' : 'Optional approval notes...'} />
+
+      <div style={{ display: 'flex', gap: 10, marginTop: 12 }}>
+        <Button danger={action === 'reject'} type={action === 'reject' ? 'primary' : 'default'} block icon={<CloseOutlined />} onClick={() => setAction('reject')}>Reject</Button>
+        <Button type={action === 'approve' ? 'primary' : 'default'} block icon={<CheckOutlined />} onClick={() => setAction('approve')} style={action === 'approve' ? { background: '#16a34a', borderColor: '#16a34a' } : {}}>Approve</Button>
+      </div>
+      <div style={{ display: 'flex', gap: 10, marginTop: 10 }}>
+        <Button onClick={onClose} block>Cancel</Button>
+        <Button type="primary" disabled={!action} onClick={handleAction} block>Confirm</Button>
+      </div>
+    </Modal>
   );
 }
 
 function RejectPrompt({ onConfirm, onCancel }) {
   const [notes, setNotes] = useState('');
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-gray-900/60 backdrop-blur-sm" onClick={onCancel} />
-      <div className="relative card w-full max-w-sm shadow-modal p-6 space-y-4">
-        <h3 className="font-bold text-gray-900 dark:text-white">Reject &amp; Send Feedback</h3>
-        <p className="text-sm text-gray-500">Provide a reason so the employee knows what to fix.</p>
-        <textarea
-          value={notes}
-          onChange={(e) => setNotes(e.target.value)}
-          rows={3}
-          className="input resize-none"
-          placeholder="What needs to be corrected or improved?"
-          autoFocus
-        />
-        <div className="flex gap-3">
-          <button onClick={onCancel} className="btn-secondary flex-1 justify-center">Cancel</button>
-          <button
-            onClick={() => { if (!notes.trim()) return toast.error('Reason is required'); onConfirm(notes); }}
-            className="btn-danger flex-1 justify-center"
-          >
-            Send Back
-          </button>
-        </div>
+    <Modal open onCancel={onCancel} title="Reject & Send Feedback" footer={null} width={420}>
+      <Text type="secondary" style={{ fontSize: 13 }}>Provide a reason so the employee knows what to fix.</Text>
+      <Input.TextArea value={notes} onChange={(e) => setNotes(e.target.value)} rows={3} placeholder="What needs to be corrected or improved?" autoFocus style={{ margin: '12px 0' }} />
+      <div style={{ display: 'flex', gap: 10 }}>
+        <Button onClick={onCancel} block>Cancel</Button>
+        <Button danger type="primary" block onClick={() => { if (!notes.trim()) return toast.error('Reason is required'); onConfirm(notes); }}>Send Back</Button>
       </div>
-    </div>
+    </Modal>
   );
 }
 
 const ROLE_LEVEL = { super_admin: 7, chairman: 6, founder: 5, admin: 4, manager: 3, team_lead: 2, member: 1 };
 
-// Returns true if currentUser is allowed to approve/reject this approval.
-// Backend already filters the list so managers only see their own tasks —
-// frontend just gates on role level. Backend enforces the exact check.
 function canUserApprove(approval, currentUser) {
   if (!currentUser || !approval) return false;
   const approverLevel = ROLE_LEVEL[currentUser.role] || 0;
   const submitterLevel = ROLE_LEVEL[approval.requestedBy?.role] || 0;
   if (approverLevel < ROLE_LEVEL['manager']) return false;
   const isAssigner = approval.taskId?.assignedBy?._id?.toString() === currentUser._id?.toString();
-  // If submitter is a manager or above → assigning manager or admin+ can approve
   if (submitterLevel >= ROLE_LEVEL['manager']) return isAssigner || approverLevel >= ROLE_LEVEL['admin'];
-  // Member/team_lead submitted → any manager can see the button (backend enforces assigner check)
   return true;
 }
 
-// Label shown on card: who is authorized to approve
 function approverLabel(approval) {
   const submitterLevel = ROLE_LEVEL[approval.requestedBy?.role] || 0;
   const ab = approval.taskId?.assignedBy;
   const name = ab ? `${ab.firstName} ${ab.lastName}` : '—';
-  if (submitterLevel >= ROLE_LEVEL['manager'] && !ab) return { text: 'Requires Admin Approval', color: 'text-red-600 bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800' };
-  return { text: `Approver: ${name}`, color: 'text-blue-700 bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800' };
+  if (submitterLevel >= ROLE_LEVEL['manager'] && !ab) return { text: 'Requires Admin Approval', color: 'red' };
+  return { text: `Approver: ${name}`, color: 'blue' };
 }
 
 export default function ApprovalQueue() {
@@ -275,205 +212,116 @@ export default function ApprovalQueue() {
     <div className="space-y-6">
       <div className="page-header">
         <div>
-          <h1 className="page-title">Approval Queue</h1>
-          <p className="text-gray-500 text-sm">{approvals.length} completions · {totalExtensions} extensions pending</p>
+          <Title level={4} style={{ marginBottom: 0 }}>Approval Queue</Title>
+          <Text type="secondary">{approvals.length} completions · {totalExtensions} extensions pending</Text>
         </div>
       </div>
 
-      {/* Stats */}
       {statsData && (
-        <div className="grid grid-cols-4 gap-4">
+        <Row gutter={12}>
           {[
-            { label: 'Pending', value: statsData.pending, color: 'orange', tab: 'completions' },
-            { label: 'Approved', value: statsData.approved, color: 'green', tab: 'history' },
-            { label: 'Rejected', value: statsData.rejected, color: 'red', tab: 'history' },
-            { label: 'My Requests', value: statsData.myRequests, color: 'blue', tab: null },
+            { label: 'Pending', value: statsData.pending, color: '#ea580c', tab: 'completions' },
+            { label: 'Approved', value: statsData.approved, color: '#16a34a', tab: 'history' },
+            { label: 'Rejected', value: statsData.rejected, color: '#dc2626', tab: 'history' },
+            { label: 'My Requests', value: statsData.myRequests, color: '#2563eb', tab: null },
           ].map((s) => (
-            <div
-              key={s.label}
-              onClick={() => s.tab && setActiveTab(s.tab)}
-              className={`card p-4 text-center ${s.tab ? 'cursor-pointer hover:shadow-md transition-shadow' : ''}`}
-            >
-              <p className={`text-2xl font-bold text-${s.color}-600`}>{s.value}</p>
-              <p className="text-sm text-gray-500">{s.label}</p>
-            </div>
+            <Col span={6} key={s.label}>
+              <Card size="small" hoverable={!!s.tab} onClick={() => s.tab && setActiveTab(s.tab)} style={{ textAlign: 'center', cursor: s.tab ? 'pointer' : 'default' }}>
+                <Statistic value={s.value} title={s.label} valueStyle={{ color: s.color, fontWeight: 700 }} />
+              </Card>
+            </Col>
           ))}
-        </div>
+        </Row>
       )}
 
-      {/* Tab bar */}
-      <div className="flex gap-1 border-b border-gray-200 dark:border-[#1b2e4a]">
-        {[
-          { key: 'completions', label: 'Completion Requests', count: approvals.length },
-          { key: 'extensions',  label: 'Extension Requests',  count: totalExtensions },
-          { key: 'history',     label: 'History', count: (statsData?.approved || 0) + (statsData?.rejected || 0) },
-        ].map(({ key, label, count }) => (
-          <button
-            key={key}
-            onClick={() => setActiveTab(key)}
-            className={clsx(
-              'px-4 py-2.5 text-sm font-medium border-b-2 transition-colors flex items-center gap-2',
-              activeTab === key
-                ? 'border-brand-600 text-brand-600 dark:text-brand-400'
-                : 'border-transparent text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
-            )}
-          >
-            {label}
-            {count > 0 && (
-              <span className={clsx(
-                'text-xs px-1.5 py-0.5 rounded-full',
-                activeTab === key ? 'bg-brand-100 text-brand-700' : 'bg-gray-100 text-gray-500'
-              )}>{count}</span>
-            )}
-          </button>
-        ))}
-      </div>
+      <Tabs
+        activeKey={activeTab}
+        onChange={setActiveTab}
+        items={[
+          { key: 'completions', label: `Completion Requests (${approvals.length})` },
+          { key: 'extensions', label: `Extension Requests (${totalExtensions})` },
+          { key: 'history', label: `History (${(statsData?.approved || 0) + (statsData?.rejected || 0)})` },
+        ]}
+      />
 
-      {/* ── Completion approvals ── */}
       {activeTab === 'completions' && (
         isLoading ? (
-          <div className="flex justify-center py-12"><div className="w-8 h-8 border-2 border-brand-500 border-t-transparent rounded-full animate-spin" /></div>
+          <div style={{ textAlign: 'center', padding: 48 }}><Spin size="large" /></div>
         ) : approvals.length === 0 ? (
-          <div className="card p-12 text-center">
-            <CheckIcon className="w-12 h-12 text-green-400 mx-auto mb-3" />
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">All clear!</h3>
-            <p className="text-gray-500 text-sm mt-1">No pending approvals</p>
-          </div>
+          <Card><Empty description="No pending approvals" image={<CheckCircleFilled style={{ fontSize: 48, color: '#4ade80' }} />} /></Card>
         ) : (
           <div className="space-y-3">
             {approvals.map((approval) => (
-              <motion.div
-                key={approval._id}
-                initial={{ opacity: 0, y: 5 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="card p-5 hover:shadow-md transition-shadow"
-              >
-                <div className="flex items-start justify-between gap-4">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 flex-wrap mb-1">
-                      <span className={`badge ${PRIORITY_COLORS[approval.taskId?.priority]}`}>{approval.taskId?.priority}</span>
-                      <span className="badge badge-purple">Approval Pending</span>
-                      <span className="text-xs text-gray-400">{approval.taskId?.department}</span>
-                      {approval.round > 1 && (
-                        <span className="text-xs text-orange-600 font-semibold">Round #{approval.round}</span>
-                      )}
+              <motion.div key={approval._id} initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }}>
+                <Card size="small">
+                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 4 }}>
+                        <Tag color={PRIORITY_TAG[approval.taskId?.priority]}>{approval.taskId?.priority}</Tag>
+                        <Tag color="purple">Approval Pending</Tag>
+                        <Text type="secondary" style={{ fontSize: 12 }}>{approval.taskId?.department}</Text>
+                        {approval.round > 1 && <Text style={{ fontSize: 12, color: '#ea580c', fontWeight: 600 }}>Round #{approval.round}</Text>}
+                      </div>
+                      <Text strong>{approval.taskId?.title}</Text>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginTop: 8, flexWrap: 'wrap', fontSize: 13 }}>
+                        <Text type="secondary">Submitted by: <Text strong>{approval.requestedBy?.firstName} {approval.requestedBy?.lastName}</Text> <Text type="secondary" style={{ fontSize: 11 }}>({approval.requestedBy?.role})</Text></Text>
+                        <Text type="secondary" style={{ fontSize: 12 }}><ClockCircleOutlined /> {formatDistanceToNow(new Date(approval.requestedAt), { addSuffix: true })}</Text>
+                      </div>
+                      {(() => { const lbl = approverLabel(approval); return <Tag color={lbl.color} style={{ marginTop: 8 }}>{lbl.text}</Tag>; })()}
+                      {approval.requestNotes && <Paragraph italic ellipsis={{ rows: 2 }} type="secondary" style={{ fontSize: 13, marginTop: 8, marginBottom: 0 }}>"{approval.requestNotes}"</Paragraph>}
                     </div>
-                    <h3 className="font-semibold text-gray-900 dark:text-white">{approval.taskId?.title}</h3>
-                    <div className="flex items-center gap-4 mt-2 text-sm text-gray-500 flex-wrap">
-                      <span>Submitted by: <strong className="text-gray-700 dark:text-gray-300">{approval.requestedBy?.firstName} {approval.requestedBy?.lastName}</strong>
-                        <span className="ml-1 text-xs text-gray-400">({approval.requestedBy?.role})</span>
-                      </span>
-                      <span className="flex items-center gap-1">
-                        <ClockIcon className="w-3.5 h-3.5" />
-                        {formatDistanceToNow(new Date(approval.requestedAt), { addSuffix: true })}
-                      </span>
-                    </div>
-                    {/* Who can approve this task */}
-                    {(() => { const lbl = approverLabel(approval); return (
-                      <span className={`mt-2 inline-flex text-xs font-semibold px-2 py-0.5 rounded-full border ${lbl.color}`}>
-                        {lbl.text}
-                      </span>
-                    ); })()}
-                    {approval.requestNotes && (
-                      <p className="text-sm text-gray-600 dark:text-gray-400 mt-2 italic line-clamp-2">"{approval.requestNotes}"</p>
+                    {canUserApprove(approval, currentUser) ? (
+                      <div style={{ display: 'flex', gap: 8, flexShrink: 0, alignItems: 'flex-start' }}>
+                        <Button danger size="small" icon={<CloseOutlined />} onClick={() => setRejectTarget(approval._id)}>Reject</Button>
+                        <Button size="small" onClick={() => setSelected(approval)}>Review</Button>
+                        <Button type="primary" size="small" icon={<CheckOutlined />} style={{ background: '#16a34a', borderColor: '#16a34a' }} onClick={() => approveMutation.mutate({ id: approval._id, notes: '' })}>Approve</Button>
+                      </div>
+                    ) : isManagerOrAbove() && (
+                      <Text type="secondary" italic style={{ fontSize: 12, flexShrink: 0 }}>Not your task to approve</Text>
                     )}
                   </div>
-                  {canUserApprove(approval, currentUser) ? (
-                    <div className="flex gap-2 flex-shrink-0">
-                      <button onClick={() => setRejectTarget(approval._id)} className="btn-danger text-xs px-3 py-1.5">
-                        <XMarkIcon className="w-3.5 h-3.5" /> Reject
-                      </button>
-                      <button onClick={() => setSelected(approval)} className="btn-secondary text-xs px-3 py-1.5">
-                        Review
-                      </button>
-                      <button
-                        onClick={() => approveMutation.mutate({ id: approval._id, notes: '' })}
-                        className="btn-primary text-xs px-3 py-1.5 bg-green-600 hover:bg-green-700"
-                      >
-                        <CheckIcon className="w-3.5 h-3.5" /> Approve
-                      </button>
-                    </div>
-                  ) : isManagerOrAbove() && (
-                    <span className="text-xs text-gray-400 italic flex-shrink-0 self-center">Not your task to approve</span>
-                  )}
-                </div>
+                </Card>
               </motion.div>
             ))}
           </div>
         )
       )}
 
-      {/* ── Extension requests ── */}
       {activeTab === 'extensions' && (
         extLoading ? (
-          <div className="flex justify-center py-12"><div className="w-8 h-8 border-2 border-brand-500 border-t-transparent rounded-full animate-spin" /></div>
+          <div style={{ textAlign: 'center', padding: 48 }}><Spin size="large" /></div>
         ) : extensionTasks.length === 0 ? (
-          <div className="card p-12 text-center">
-            <CalendarDaysIcon className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">No pending extensions</h3>
-            <p className="text-gray-500 text-sm mt-1">No team members have requested deadline extensions</p>
-          </div>
+          <Card><Empty description="No team members have requested deadline extensions" image={<CalendarOutlined style={{ fontSize: 48, color: '#d1d5db' }} />} /></Card>
         ) : (
           <div className="space-y-3">
             {extensionTasks.map((task) =>
               task.extensionRequests.map((ext) => (
-                <motion.div
-                  key={ext._id}
-                  initial={{ opacity: 0, y: 5 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="card p-5 hover:shadow-md transition-shadow border-l-4 border-l-orange-400"
-                >
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 flex-wrap mb-1">
-                        <span className={`badge ${PRIORITY_COLORS[task.priority]}`}>{task.priority}</span>
-                        <span className="badge badge-orange">Extension Requested</span>
-                        <span className="text-xs text-gray-400">{task.department}</span>
+                <motion.div key={ext._id} initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }}>
+                  <Card size="small" style={{ borderInlineStart: '4px solid #fb923c' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 4 }}>
+                          <Tag color={PRIORITY_TAG[task.priority]}>{task.priority}</Tag>
+                          <Tag color="orange">Extension Requested</Tag>
+                          <Text type="secondary" style={{ fontSize: 12 }}>{task.department}</Text>
+                        </div>
+                        <Text strong>{task.title}</Text>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginTop: 8, flexWrap: 'wrap', fontSize: 13 }}>
+                          <Text type="secondary">By: <Text strong>{(ext.requestedBy?.firstName || task.assignedTo?.firstName)} {(ext.requestedBy?.lastName || task.assignedTo?.lastName)}</Text></Text>
+                          {task.dueDate && <Text style={{ color: '#dc2626', fontSize: 12 }}><ClockCircleOutlined /> Current: {format(new Date(task.dueDate), 'dd MMM yyyy')}</Text>}
+                          {ext.requestedDueDate && <Text style={{ color: '#16a34a', fontSize: 12 }}><CalendarOutlined /> Requested: {format(new Date(ext.requestedDueDate), 'dd MMM yyyy')}</Text>}
+                        </div>
+                        {ext.reason && <Paragraph italic type="secondary" style={{ fontSize: 13, marginTop: 8, marginBottom: 0 }}>"{ext.reason}"</Paragraph>}
+                        <Text type="secondary" style={{ fontSize: 11 }}>Requested {ext.requestedAt ? formatDistanceToNow(new Date(ext.requestedAt), { addSuffix: true }) : ''}</Text>
                       </div>
-                      <h3 className="font-semibold text-gray-900 dark:text-white">{task.title}</h3>
-                      <div className="flex items-center gap-4 mt-2 text-sm text-gray-500 flex-wrap">
-                        <span>By: <strong className="text-gray-700 dark:text-gray-300">
-                          {(ext.requestedBy?.firstName || task.assignedTo?.firstName)} {(ext.requestedBy?.lastName || task.assignedTo?.lastName)}
-                        </strong></span>
-                        {task.dueDate && (
-                          <span className="flex items-center gap-1 text-red-500">
-                            <ClockIcon className="w-3.5 h-3.5" />
-                            Current: {format(new Date(task.dueDate), 'dd MMM yyyy')}
-                          </span>
-                        )}
-                        {ext.requestedDueDate && (
-                          <span className="flex items-center gap-1 text-green-600">
-                            <CalendarDaysIcon className="w-3.5 h-3.5" />
-                            Requested: {format(new Date(ext.requestedDueDate), 'dd MMM yyyy')}
-                          </span>
-                        )}
-                      </div>
-                      {ext.reason && (
-                        <p className="text-sm text-gray-600 dark:text-gray-400 mt-2 italic">"{ext.reason}"</p>
+                      {isManagerOrAbove() && (
+                        <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+                          <Button danger size="small" icon={<CloseOutlined />} loading={reviewExtensionMutation.isPending} onClick={() => reviewExtensionMutation.mutate({ taskId: task._id, reqId: ext._id, status: 'rejected' })}>Reject</Button>
+                          <Button type="primary" size="small" icon={<CheckOutlined />} style={{ background: '#16a34a', borderColor: '#16a34a' }} loading={reviewExtensionMutation.isPending} onClick={() => reviewExtensionMutation.mutate({ taskId: task._id, reqId: ext._id, status: 'approved' })}>Approve</Button>
+                        </div>
                       )}
-                      <p className="text-xs text-gray-400 mt-1">
-                        Requested {ext.requestedAt ? formatDistanceToNow(new Date(ext.requestedAt), { addSuffix: true }) : ''}
-                      </p>
                     </div>
-                    {isManagerOrAbove() && (
-                      <div className="flex gap-2 flex-shrink-0">
-                        <button
-                          onClick={() => reviewExtensionMutation.mutate({ taskId: task._id, reqId: ext._id, status: 'rejected' })}
-                          disabled={reviewExtensionMutation.isPending}
-                          className="btn-danger text-xs px-3 py-1.5"
-                        >
-                          <XMarkIcon className="w-3.5 h-3.5" /> Reject
-                        </button>
-                        <button
-                          onClick={() => reviewExtensionMutation.mutate({ taskId: task._id, reqId: ext._id, status: 'approved' })}
-                          disabled={reviewExtensionMutation.isPending}
-                          className="btn-primary text-xs px-3 py-1.5 bg-green-600 hover:bg-green-700"
-                        >
-                          <CheckIcon className="w-3.5 h-3.5" /> Approve
-                        </button>
-                      </div>
-                    )}
-                  </div>
+                  </Card>
                 </motion.div>
               ))
             )}
@@ -481,59 +329,42 @@ export default function ApprovalQueue() {
         )
       )}
 
-      {/* ── History tab ── */}
       {activeTab === 'history' && (
         historyLoading ? (
-          <div className="flex justify-center py-12"><div className="w-8 h-8 border-2 border-brand-500 border-t-transparent rounded-full animate-spin" /></div>
+          <div style={{ textAlign: 'center', padding: 48 }}><Spin size="large" /></div>
         ) : !historyData?.length ? (
-          <div className="card p-12 text-center">
-            <CheckCircleIcon className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">No history yet</h3>
-            <p className="text-gray-500 text-sm mt-1">Approved and rejected approvals will appear here</p>
-          </div>
+          <Card><Empty description="Approved and rejected approvals will appear here" image={<CheckCircleFilled style={{ fontSize: 48, color: '#d1d5db' }} />} /></Card>
         ) : (
           <div className="space-y-3">
             {historyData.map((approval) => {
               const isApproved = approval.status === 'approved';
               return (
-                <motion.div
-                  key={approval._id}
-                  initial={{ opacity: 0, y: 5 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className={`card p-5 border-l-4 ${isApproved ? 'border-l-green-500' : 'border-l-red-500'}`}
-                >
-                  <div className="flex items-start gap-4">
-                    <div className={`mt-0.5 w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center ${isApproved ? 'bg-green-100 dark:bg-green-900/30' : 'bg-red-100 dark:bg-red-900/30'}`}>
-                      {isApproved
-                        ? <CheckCircleIcon className="w-5 h-5 text-green-600 dark:text-green-400" />
-                        : <NoSymbolIcon className="w-5 h-5 text-red-600 dark:text-red-400" />}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap mb-1">
-                        <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${isApproved ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'}`}>
-                          {isApproved ? 'Approved' : 'Rejected'}
-                        </span>
-                        <span className={`badge ${PRIORITY_COLORS[approval.taskId?.priority]}`}>{approval.taskId?.priority}</span>
-                        <span className="text-xs text-gray-400">{approval.taskId?.department}</span>
+                <motion.div key={approval._id} initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }}>
+                  <Card size="small" style={{ borderInlineStart: `4px solid ${isApproved ? '#22c55e' : '#ef4444'}` }}>
+                    <div style={{ display: 'flex', gap: 12 }}>
+                      <div style={{ width: 32, height: 32, borderRadius: '50%', background: isApproved ? 'rgba(34,197,94,0.12)' : 'rgba(239,68,68,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 2 }}>
+                        {isApproved ? <CheckCircleFilled style={{ color: '#16a34a' }} /> : <StopFilled style={{ color: '#dc2626' }} />}
                       </div>
-                      <h3 className="font-semibold text-gray-900 dark:text-white">{approval.taskId?.title}</h3>
-                      <div className="flex items-center gap-4 mt-1.5 text-sm text-gray-500 flex-wrap">
-                        <span>By: <strong className="text-gray-700 dark:text-gray-300">{approval.requestedBy?.firstName} {approval.requestedBy?.lastName}</strong></span>
-                        <span>{isApproved ? 'Approved' : 'Rejected'} by: <strong className="text-gray-700 dark:text-gray-300">{approval.reviewedBy?.firstName} {approval.reviewedBy?.lastName}</strong></span>
-                        {approval.reviewedAt && (
-                          <span className="flex items-center gap-1 text-xs">
-                            <ClockIcon className="w-3.5 h-3.5" />
-                            {format(new Date(approval.reviewedAt), 'dd MMM yyyy, hh:mm a')}
-                          </span>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 4 }}>
+                          <Tag color={isApproved ? 'green' : 'red'}>{isApproved ? 'Approved' : 'Rejected'}</Tag>
+                          <Tag color={PRIORITY_TAG[approval.taskId?.priority]}>{approval.taskId?.priority}</Tag>
+                          <Text type="secondary" style={{ fontSize: 12 }}>{approval.taskId?.department}</Text>
+                        </div>
+                        <Text strong>{approval.taskId?.title}</Text>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginTop: 6, flexWrap: 'wrap', fontSize: 13 }}>
+                          <Text type="secondary">By: <Text strong>{approval.requestedBy?.firstName} {approval.requestedBy?.lastName}</Text></Text>
+                          <Text type="secondary">{isApproved ? 'Approved' : 'Rejected'} by: <Text strong>{approval.reviewedBy?.firstName} {approval.reviewedBy?.lastName}</Text></Text>
+                          {approval.reviewedAt && <Text type="secondary" style={{ fontSize: 12 }}><ClockCircleOutlined /> {format(new Date(approval.reviewedAt), 'dd MMM yyyy, hh:mm a')}</Text>}
+                        </div>
+                        {approval.reviewNotes && (
+                          <Paragraph italic style={{ fontSize: 13, marginTop: 8, marginBottom: 0, padding: '6px 10px', borderRadius: 8, background: isApproved ? 'rgba(34,197,94,0.06)' : 'rgba(239,68,68,0.06)' }}>
+                            "{approval.reviewNotes}"
+                          </Paragraph>
                         )}
                       </div>
-                      {approval.reviewNotes && (
-                        <p className={`text-sm mt-2 italic px-2.5 py-1.5 rounded-lg ${isApproved ? 'bg-green-50 dark:bg-green-900/15 text-green-800 dark:text-green-300' : 'bg-red-50 dark:bg-red-900/15 text-red-800 dark:text-red-300'}`}>
-                          "{approval.reviewNotes}"
-                        </p>
-                      )}
                     </div>
-                  </div>
+                  </Card>
                 </motion.div>
               );
             })}
@@ -551,10 +382,7 @@ export default function ApprovalQueue() {
       )}
 
       {rejectTarget && (
-        <RejectPrompt
-          onConfirm={handleRejectConfirm}
-          onCancel={() => setRejectTarget(null)}
-        />
+        <RejectPrompt onConfirm={handleRejectConfirm} onCancel={() => setRejectTarget(null)} />
       )}
     </div>
   );

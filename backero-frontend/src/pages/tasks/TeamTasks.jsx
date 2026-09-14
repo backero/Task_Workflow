@@ -1,126 +1,145 @@
-﻿import React, { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { PlusIcon, BoltIcon } from '@heroicons/react/24/outline';
+import React, { useState } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
+import { PlusOutlined, ThunderboltOutlined } from '@ant-design/icons';
+import { Avatar, Button, Progress, Select, Spin, Table, Tag, Typography } from 'antd';
+import { format, isPast } from 'date-fns';
 import api from '../../api/axios';
 import { useAuthStore } from '../../store/useAuthStore';
-import { format, isPast } from 'date-fns';
-import { clsx } from 'clsx';
-import { useQueryClient } from '@tanstack/react-query';
 import TaskForm from './TaskForm';
 
-const STATUS_COLORS = {
-  'Pending': 'badge-gray', 'Assigned': 'badge-blue', 'In Progress': 'badge-yellow',
-  'Approval Pending': 'badge-purple', 'Changes Requested': 'badge-red', 'Completed': 'badge-green', 'Achieved': 'badge-amber',
+const { Title, Text } = Typography;
+
+const STATUS_COLOR = {
+  Pending: 'default', Assigned: 'blue', 'In Progress': 'gold', 'Approval Pending': 'purple',
+  'Changes Requested': 'red', Completed: 'green', Achieved: 'gold', Reopened: 'orange',
+  Cancelled: 'default', 'Under Review': 'purple',
 };
-const PRIORITY_COLORS = { critical: 'text-red-600', urgent: 'text-red-500', high: 'text-orange-600', medium: 'text-yellow-600', low: 'text-gray-400' };
+const PRIORITY_COLOR = { critical: 'red', urgent: 'volcano', high: 'orange', medium: 'gold', low: 'default' };
+
+const DEPTS = ['Marketing', 'Marketplace', 'Sales', 'Production', 'R&D', 'Operations', 'Accounts & Finance'];
+const STATUSES = ['Pending', 'Assigned', 'In Progress', 'Approval Pending', 'Changes Requested', 'Completed', 'Cancelled'];
 
 export default function TeamTasks() {
   const [showForm, setShowForm] = useState(false);
-  const [dept, setDept] = useState('');
-  const [status, setStatus] = useState('');
+  const [dept, setDept] = useState();
+  const [status, setStatus] = useState();
   const { isManagerOrAbove } = useAuthStore();
   const qc = useQueryClient();
   const navigate = useNavigate();
 
   const { data, isLoading } = useQuery({
     queryKey: ['tasks', 'team', dept, status],
-    queryFn: () => api.get('/tasks', { params: { limit: 50, department: dept || undefined, status: status || undefined } }).then((r) => r.data),
+    queryFn: () => api.get('/tasks', { params: { limit: 50, department: dept, status } }).then((r) => r.data),
   });
 
   const tasks = data?.data || [];
-  const DEPTS = ['', 'Marketing', 'Marketplace', 'Sales', 'Production', 'R&D', 'Operations', 'Accounts & Finance'];
-  const STATUSES = ['', 'Pending', 'Assigned', 'In Progress', 'Approval Pending', 'Changes Requested', 'Completed', 'Cancelled'];
+
+  const columns = [
+    {
+      title: 'Task',
+      dataIndex: 'title',
+      render: (title, task) => (
+        <div>
+          <div style={{ fontWeight: 500 }}>{title}</div>
+          <Text type="secondary" style={{ fontSize: 12 }}>{task.department}{task.platform ? ` • ${task.platform}` : ''}</Text>
+        </div>
+      ),
+    },
+    {
+      title: 'Assigned To',
+      dataIndex: 'assignedTo',
+      render: (assignedTo) => assignedTo ? (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <Avatar size={24}>{assignedTo.firstName?.[0]}</Avatar>
+          <span>{assignedTo.firstName} {assignedTo.lastName}</span>
+        </div>
+      ) : <Text type="secondary">Unassigned</Text>,
+    },
+    {
+      title: 'Status',
+      dataIndex: 'status',
+      align: 'center',
+      render: (s) => <Tag color={STATUS_COLOR[s] || 'default'}>{s}</Tag>,
+    },
+    {
+      title: 'Priority',
+      dataIndex: 'priority',
+      align: 'center',
+      render: (p) => <Tag color={PRIORITY_COLOR[p]}>{p?.toUpperCase()}</Tag>,
+    },
+    {
+      title: 'Progress',
+      dataIndex: 'progress',
+      align: 'center',
+      width: 140,
+      render: (progress) => <Progress percent={progress || 0} size="small" />,
+    },
+    {
+      title: 'Due Date',
+      dataIndex: 'dueDate',
+      align: 'right',
+      render: (dueDate, task) => {
+        const due = dueDate ? new Date(dueDate) : null;
+        const isOverdue = due && isPast(due) && task.status !== 'Completed';
+        return <Text type={isOverdue ? 'danger' : 'secondary'} style={{ fontSize: 12 }}>{due ? format(due, 'dd MMM yyyy') : '—'}</Text>;
+      },
+    },
+    {
+      title: '',
+      key: 'actions',
+      align: 'right',
+      render: (_, task) => (
+        <Button type="link" size="small" icon={<ThunderboltOutlined />} onClick={() => navigate(`/workflow/${task._id}`)}>
+          Workflow
+        </Button>
+      ),
+    },
+  ];
 
   return (
-    <div className="space-y-6">
-      <div className="page-header">
+    <div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
         <div>
-          <h1 className="page-title">Team Tasks</h1>
-          <p className="text-gray-500 text-sm">{tasks.length} tasks</p>
+          <Title level={4} style={{ marginBottom: 0 }}>Team Tasks</Title>
+          <Text type="secondary">{tasks.length} tasks</Text>
         </div>
         {isManagerOrAbove() && (
-          <button onClick={() => setShowForm(true)} className="btn-primary"><PlusIcon className="w-4 h-4" /> New Task</button>
+          <Button type="primary" icon={<PlusOutlined />} onClick={() => setShowForm(true)}>New Task</Button>
         )}
       </div>
-      <div className="flex gap-3">
-        <select value={dept} onChange={(e) => setDept(e.target.value)} className="input w-auto">
-          {DEPTS.map((d) => <option key={d} value={d}>{d || 'All Departments'}</option>)}
-        </select>
-        <select value={status} onChange={(e) => setStatus(e.target.value)} className="input w-auto">
-          {STATUSES.map((s) => <option key={s} value={s}>{s || 'All Statuses'}</option>)}
-        </select>
+
+      <div style={{ display: 'flex', gap: 12, marginBottom: 16 }}>
+        <Select
+          allowClear
+          placeholder="All Departments"
+          style={{ width: 200 }}
+          value={dept}
+          onChange={setDept}
+          options={DEPTS.map((d) => ({ label: d, value: d }))}
+        />
+        <Select
+          allowClear
+          placeholder="All Statuses"
+          style={{ width: 200 }}
+          value={status}
+          onChange={setStatus}
+          options={STATUSES.map((s) => ({ label: s, value: s }))}
+        />
       </div>
+
       {isLoading ? (
-        <div className="flex justify-center py-12"><div className="w-8 h-8 border-2 border-brand-500 border-t-transparent rounded-full animate-spin" /></div>
+        <div style={{ textAlign: 'center', padding: 60 }}><Spin size="large" /></div>
       ) : (
-        <div className="card overflow-hidden">
-          <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead className="bg-gray-50 dark:bg-[#0f1a2e]">
-              <tr>
-                <th className="text-left py-3 px-4 text-gray-500 font-medium">Task</th>
-                <th className="text-left py-3 px-4 text-gray-500 font-medium">Assigned To</th>
-                <th className="text-center py-3 px-4 text-gray-500 font-medium">Status</th>
-                <th className="text-center py-3 px-4 text-gray-500 font-medium">Priority</th>
-                <th className="text-center py-3 px-4 text-gray-500 font-medium">Progress</th>
-                <th className="text-right py-3 px-4 text-gray-500 font-medium">Due Date</th>
-                <th className="py-3 px-4"></th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100 dark:divide-[#1b2e4a]">
-              {tasks.map((task) => {
-                const due = task.dueDate ? new Date(task.dueDate) : null;
-                const isOverdue = due && isPast(due) && task.status !== 'Completed';
-                return (
-                  <tr key={task._id} className="hover:bg-gray-50 dark:hover:bg-[#17263d]/50">
-                    <td className="py-3 px-4">
-                      <p className="font-medium text-gray-900 dark:text-white">{task.title}</p>
-                      <p className="text-xs text-gray-400">{task.department} {task.platform ? `• ${task.platform}` : ''}</p>
-                    </td>
-                    <td className="py-3 px-4">
-                      {task.assignedTo ? (
-                        <div className="flex items-center gap-2">
-                          <div className="w-6 h-6 rounded-full bg-brand-100 flex items-center justify-center">
-                            <span className="text-brand-700 text-xs">{task.assignedTo.firstName?.[0]}</span>
-                          </div>
-                          <span className="text-gray-700 dark:text-gray-300">{task.assignedTo.firstName} {task.assignedTo.lastName}</span>
-                        </div>
-                      ) : <span className="text-gray-400">Unassigned</span>}
-                    </td>
-                    <td className="py-3 px-4 text-center"><span className={`badge ${STATUS_COLORS[task.status] || 'badge-gray'}`}>{task.status}</span></td>
-                    <td className={`py-3 px-4 text-center font-medium text-xs ${PRIORITY_COLORS[task.priority]}`}>{task.priority?.toUpperCase()}</td>
-                    <td className="py-3 px-4 text-center">
-                      <div className="flex items-center gap-1 justify-center">
-                        <div className="w-16 h-1.5 bg-gray-100 dark:bg-[#132035] rounded-full overflow-hidden">
-                          <div className="h-full bg-brand-500 rounded-full" style={{ width: `${task.progress || 0}%` }} />
-                        </div>
-                        <span className="text-xs text-gray-400">{task.progress || 0}%</span>
-                      </div>
-                    </td>
-                    <td className={clsx('py-3 px-4 text-right text-xs', isOverdue ? 'text-red-600 font-medium' : 'text-gray-500')}>
-                      {due ? format(due, 'dd MMM yyyy') : '—'}
-                    </td>
-                    <td className="py-3 px-4 text-right">
-                      <button
-                        onClick={() => navigate(`/workflow/${task._id}`)}
-                        title="Open Workflow"
-                        className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 rounded-lg transition-colors"
-                      >
-                        <BoltIcon className="w-3.5 h-3.5" />
-                        Workflow
-                      </button>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-          </div>
-          {tasks.length === 0 && <div className="text-center py-12 text-gray-400">No tasks found</div>}
-        </div>
+        <Table rowKey="_id" columns={columns} dataSource={tasks} pagination={false} />
       )}
-      {showForm && <TaskForm onClose={() => setShowForm(false)} onSuccess={() => { setShowForm(false); qc.invalidateQueries({ queryKey: ['tasks'] }); }} />}
+
+      {showForm && (
+        <TaskForm
+          onClose={() => setShowForm(false)}
+          onSuccess={() => { setShowForm(false); qc.invalidateQueries({ queryKey: ['tasks'] }); }}
+        />
+      )}
     </div>
   );
 }

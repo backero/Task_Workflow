@@ -1,91 +1,87 @@
-﻿import React from 'react';
+import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link, useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, Legend, AreaChart, Area,
 } from 'recharts';
 import {
-  ClipboardDocumentListIcon, UsersIcon, CubeIcon, BoltIcon, BanknotesIcon,
-  ExclamationTriangleIcon, CheckCircleIcon, ClockIcon, ArrowTrendingUpIcon,
-  ChartBarIcon, BuildingOfficeIcon, ShoppingCartIcon, BeakerIcon,
-  ArrowRightIcon, BellAlertIcon, UserGroupIcon, DocumentTextIcon, ViewColumnsIcon,
-  QuestionMarkCircleIcon,
-} from '@heroicons/react/24/outline';
+  FileText, Users, LayoutGrid, Zap, DollarSign,
+  AlertTriangle, CheckCircle2, Clock,
+  BarChart3, Landmark, ShoppingBag, FlaskConical,
+  ArrowRight, Bell, UserPlus, File, LayoutDashboard,
+  HelpCircle, Check,
+} from 'lucide-react';
+import { Avatar, Badge, Card, Col, Empty, Progress, Row, Space, Spin, Tag, Typography } from 'antd';
 import api from '../../api/axios';
 import { ProductionStatBoxes } from './ProductionSnapshot';
 import { useAuthStore } from '../../store/useAuthStore';
 import { formatDistanceToNow, format } from 'date-fns';
-import { clsx } from 'clsx';
 
-const PRIORITY_COLORS = { critical: 'badge-red', urgent: 'badge-red', high: 'badge-orange', medium: 'badge-yellow', low: 'badge-gray' };
-const STATUS_COLORS   = { 'Completed': 'badge-green', 'Achieved': 'badge-amber', 'In Progress': 'badge-yellow', 'Assigned': 'badge-blue', 'Approval Pending': 'badge-purple', 'Changes Requested': 'badge-red', 'Pending': 'badge-gray' };
-const DEPT_COLORS     = ['#3b82f6', '#22c55e', '#f97316', '#9333ea', '#06b6d4', '#ec4899', '#f59e0b', '#6366f1'];
+const { Title, Text } = Typography;
+
+const PRIORITY_COLOR = { critical: 'red', urgent: 'red', high: 'orange', medium: 'gold', low: 'default' };
+const STATUS_COLOR = { Completed: 'green', Achieved: 'gold', 'In Progress': 'gold', Assigned: 'blue', 'Approval Pending': 'purple', 'Changes Requested': 'red', Pending: 'default' };
+const DEPT_COLORS = ['#3b82f6', '#22c55e', '#f97316', '#9333ea', '#06b6d4', '#ec4899', '#f59e0b', '#6366f1'];
 
 const fmt = (n) => (n || 0).toLocaleString('en-IN');
 const pct = (n) => `${Math.round(n || 0)}%`;
 
-// ── Stat Card ───────────────────────────────────────────────────────────────
-function StatCard({ icon: Icon, label, value, sub, color = 'blue', to, badge }) {
+function StatCard({ icon, label, value, sub, to, badge }) {
   const card = (
-    <motion.div
-      initial={{ opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0 }}
-      className={clsx('card p-4 flex flex-col gap-2', to && 'hover:shadow-md transition-shadow cursor-pointer')}
-    >
-      <div className="flex items-start justify-between">
-        <div className={`w-8 h-8 rounded-lg bg-${color}-100 dark:bg-${color}-900/30 flex items-center justify-center`}>
-          <Icon className={`w-4 h-4 text-${color}-600 dark:text-${color}-400`} />
-        </div>
+    <Card hoverable={!!to} size="small" style={{ height: '100%' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+        <div style={{ fontSize: 18, color: 'var(--ant-color-primary)' }}>{icon}</div>
         {badge !== undefined && (
-          <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${badge > 0 ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-500'}`}>
-            {badge > 0 ? badge : '✓'}
-          </span>
+          <Tag color={badge > 0 ? 'red' : 'default'} style={{ marginInlineEnd: 0 }}>{badge > 0 ? badge : <Check size={11} />}</Tag>
         )}
       </div>
-      <div>
-        <p className="text-xl font-bold text-gray-900 dark:text-white">{value}</p>
-        <p className="text-xs font-medium text-gray-600 dark:text-gray-400 mt-0.5">{label}</p>
-        {sub && <p className="text-[11px] text-gray-400 mt-0.5">{sub}</p>}
+      <div style={{ marginTop: 8 }}>
+        <div style={{ fontSize: 20, fontWeight: 700 }}>{value}</div>
+        <Text style={{ fontSize: 12, fontWeight: 500 }}>{label}</Text>
+        {sub && <div><Text type="secondary" style={{ fontSize: 11 }}>{sub}</Text></div>}
       </div>
-    </motion.div>
+    </Card>
   );
   return to ? <Link to={to}>{card}</Link> : card;
 }
 
-// ── Section Header ───────────────────────────────────────────────────────────
 function SectionHeader({ title, sub, to, toLabel }) {
   return (
-    <div className="flex items-center justify-between mb-4">
+    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
       <div>
-        <h3 className="font-bold text-gray-900 dark:text-white">{title}</h3>
-        {sub && <p className="text-xs text-gray-500 mt-0.5">{sub}</p>}
+        <Text strong>{title}</Text>
+        {sub && <div><Text type="secondary" style={{ fontSize: 12 }}>{sub}</Text></div>}
       </div>
-      {to && (
-        <Link to={to} className="flex items-center gap-1 text-xs text-brand-600 hover:text-brand-700 font-medium">
-          {toLabel || 'View all'} <ArrowRightIcon className="w-3 h-3" />
-        </Link>
-      )}
+      {to && <Link to={to}>{toLabel || 'View all'} <ArrowRight /></Link>}
     </div>
   );
 }
 
-// ── Production Stage Strip ──────────────────────────────────────────────────
-// ── Custom Tooltip ───────────────────────────────────────────────────────────
 const ChartTooltip = ({ active, payload, label }) => {
   if (!active || !payload?.length) return null;
   return (
-    <div className="bg-white dark:bg-[#0f1a2e] border border-gray-200 dark:border-[#1b2e4a] rounded-lg px-3 py-2 shadow text-xs">
-      <p className="font-semibold text-gray-700 dark:text-gray-300 mb-1">{label}</p>
-      {payload.map((p) => (
-        <p key={p.name} style={{ color: p.color }}>{p.name}: <strong>₹{fmt(p.value)}</strong></p>
-      ))}
+    <div style={{ background: '#fff', border: '1px solid #f0f0f0', borderRadius: 8, padding: '8px 12px', boxShadow: '0 2px 8px rgba(0,0,0,0.1)', fontSize: 12 }}>
+      <div style={{ fontWeight: 600, marginBottom: 4 }}>{label}</div>
+      {payload.map((p) => <div key={p.name} style={{ color: p.color }}>{p.name}: <strong>₹{fmt(p.value)}</strong></div>)}
     </div>
   );
 };
 
-// ── Main Dashboard ───────────────────────────────────────────────────────────
+const QUICK_NAV = [
+  { label: 'Task Board', sub: 'Kanban view', icon: <FileText />, to: '/tasks/kanban' },
+  { label: 'CRM Pipeline', sub: 'Leads & follow-ups', icon: <Users />, to: '/crm/pipeline' },
+  { label: 'Product Catalog', sub: 'Finished goods', icon: <LayoutGrid />, to: '/inventory/catalog' },
+  { label: 'Raw Materials', sub: 'RM stock levels', icon: <FlaskConical />, to: '/inventory/rawmaterials' },
+  { label: 'Production', sub: 'Orders & batches', icon: <Zap />, to: '/production/orders' },
+  { label: 'Finance', sub: 'Ledger & invoices', icon: <DollarSign />, to: '/finance/ledger' },
+  { label: 'Team', sub: 'Employees', icon: <UserPlus />, to: '/management/team' },
+  { label: 'Approvals', sub: 'Review queue', icon: <CheckCircle2 />, to: '/tasks/approvals' },
+  { label: 'Analytics', sub: 'Task reports', icon: <BarChart3 />, to: '/tasks/analytics' },
+  { label: 'Departments', sub: 'Dept overview', icon: <Landmark />, to: '/management/departments' },
+  { label: 'Settings', sub: 'Org settings', icon: <File />, to: '/settings' },
+];
+
 export default function FounderDashboard() {
   const { user } = useAuthStore();
   const navigate = useNavigate();
@@ -106,7 +102,7 @@ export default function FounderDashboard() {
 
   const { data: rmStatsData } = useQuery({
     queryKey: ['inventory', 'rm-stats'],
-    queryFn: () => api.get('/inventory/raw-materials/stats').then(r => r.data.data),
+    queryFn: () => api.get('/inventory/raw-materials/stats').then((r) => r.data),
     staleTime: 60 * 1000,
   });
   const rmStats = {
@@ -116,552 +112,341 @@ export default function FounderDashboard() {
   };
 
   if (isLoading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="w-8 h-8 border-2 border-brand-500 border-t-transparent rounded-full animate-spin" />
-      </div>
-    );
+    return <div style={{ textAlign: 'center', padding: 80 }}><Spin size="large" /></div>;
   }
 
-  const d          = data || {};
-  const company    = d.company || {};
-  const crm        = d.crm || {};
-  const finance    = d.finance || {};
-  const depts      = d.departments || [];
-  const topEmps    = d.topEmployees || [];
-  const approvals  = d.pendingApprovals || [];
-  const alerts     = d.recentAlerts || [];
+  const d = data || {};
+  const company = d.company || {};
+  const crm = d.crm || {};
+  const finance = d.finance || {};
+  const depts = d.departments || [];
+  const topEmps = d.topEmployees || [];
+  const approvals = d.pendingApprovals || [];
+  const alerts = d.recentAlerts || [];
   const recentTasks = d.recentTasks || [];
   const techQueries = d.technicalQueries || { pendingCount: 0, recent: [] };
 
-  // Charts
   const taskPieData = [
-    { name: 'Completed',   value: company.completedTasks || 0,         color: '#22c55e' },
-    { name: 'In Progress', value: company.inProgressTasks || 0,        color: '#f97316' },
-    { name: 'Assigned',    value: company.pendingTasks || 0,           color: '#3b82f6' },
-    { name: 'Approval',    value: company.approvalPendingTasks || 0,   color: '#9333ea' },
-    { name: 'Overdue',     value: company.overdueTaskCount || 0,       color: '#ef4444' },
-  ].filter((d) => d.value > 0);
+    { name: 'Completed', value: company.completedTasks || 0, color: '#22c55e' },
+    { name: 'In Progress', value: company.inProgressTasks || 0, color: '#f97316' },
+    { name: 'Assigned', value: company.pendingTasks || 0, color: '#3b82f6' },
+    { name: 'Approval', value: company.approvalPendingTasks || 0, color: '#9333ea' },
+    { name: 'Overdue', value: company.overdueTaskCount || 0, color: '#ef4444' },
+  ].filter((x) => x.value > 0);
 
-  const deptBarData = depts.map((d) => ({
-    name: d._id || 'Unknown',
-    Total: d.total || 0,
-    Done: d.completed || 0,
-    Overdue: d.overdue || 0,
-  }));
+  const deptBarData = depts.map((x) => ({ name: x._id || 'Unknown', Total: x.total || 0, Done: x.completed || 0, Overdue: x.overdue || 0 }));
 
   const crmPipeData = [
-    { name: 'New',        value: crm.newLeads || 0,    fill: '#3b82f6' },
-    { name: 'Follow-up',  value: crm.followUp || 0,    fill: '#f97316' },
-    { name: 'Interested', value: crm.interested || 0,  fill: '#9333ea' },
+    { name: 'New', value: crm.newLeads || 0, fill: '#3b82f6' },
+    { name: 'Follow-up', value: crm.followUp || 0, fill: '#f97316' },
+    { name: 'Interested', value: crm.interested || 0, fill: '#9333ea' },
     { name: 'Payment Pending', value: crm.wonLeads || 0, fill: '#22c55e' },
-    { name: 'Lost',       value: crm.lostLeads || 0,   fill: '#ef4444' },
-  ].filter((d) => d.value > 0);
+    { name: 'Lost', value: crm.lostLeads || 0, fill: '#ef4444' },
+  ].filter((x) => x.value > 0);
 
-  const revenueData = (finance.revenueChart || []);
-
+  const revenueData = finance.revenueChart || [];
   const hour = new Date().getHours();
   const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
 
   return (
-    <div className="space-y-6">
-
-      {/* ── Header ─────────────────────────────────────────────────────────── */}
-      <div className="page-header">
+    <div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
         <div>
-          <h1 className="page-title">Command Center</h1>
-          <p className="text-gray-500 text-sm">
-            {greeting}, {user?.firstName}. Here's your complete business overview.
-          </p>
+          <Title level={4} style={{ marginBottom: 0 }}>Command Center</Title>
+          <Text type="secondary">{greeting}, {user?.firstName}. Here's your complete business overview.</Text>
         </div>
-        <div className="flex items-center gap-3">
-          <span className="text-sm text-gray-500">{format(new Date(), 'EEEE, dd MMMM yyyy')}</span>
-          <span className="badge badge-green flex items-center gap-1">
-            <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse" />
-            Live
-          </span>
-        </div>
+        <Space>
+          <Text type="secondary">{format(new Date(), 'EEEE, dd MMMM yyyy')}</Text>
+          <Badge status="processing" text="Live" />
+        </Space>
       </div>
 
-      {/* ── Row 1: Primary KPIs ─────────────────────────────────────────────── */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard
-          icon={ClipboardDocumentListIcon} color="blue"
-          label="Total Tasks" value={company.totalTasks || 0}
-          sub={`${pct(company.completionRate)} completion rate`}
-          to="/workflow"
-        />
-        <StatCard
-          icon={CheckCircleIcon} color="green"
-          label="Completed Tasks" value={company.completedTasks || 0}
-          sub={`${company.inProgressTasks || 0} in progress`}
-          to="/workflow"
-        />
-        <StatCard
-          icon={ExclamationTriangleIcon} color="red"
-          label="Overdue Tasks" value={company.overdueTaskCount || 0}
-          sub="Need immediate attention"
-          badge={company.overdueTaskCount || 0}
-          to="/workflow"
-        />
-        <StatCard
-          icon={ClockIcon} color="purple"
-          label="Pending Approvals" value={company.pendingApprovalsCount || 0}
-          sub="Waiting for your review"
-          badge={company.pendingApprovalsCount || 0}
-          to="/tasks/approvals"
-        />
-      </div>
+      <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
+        <Col xs={12} lg={6}><StatCard icon={<FileText />} label="Total Tasks" value={company.totalTasks || 0} sub={`${pct(company.completionRate)} completion rate`} to="/workflow" /></Col>
+        <Col xs={12} lg={6}><StatCard icon={<CheckCircle2 />} label="Completed Tasks" value={company.completedTasks || 0} sub={`${company.inProgressTasks || 0} in progress`} to="/workflow" /></Col>
+        <Col xs={12} lg={6}><StatCard icon={<AlertTriangle />} label="Overdue Tasks" value={company.overdueTaskCount || 0} sub="Need immediate attention" badge={company.overdueTaskCount || 0} to="/workflow" /></Col>
+        <Col xs={12} lg={6}><StatCard icon={<Clock />} label="Pending Approvals" value={company.pendingApprovalsCount || 0} sub="Waiting for your review" badge={company.pendingApprovalsCount || 0} to="/tasks/approvals" /></Col>
+      </Row>
 
-      {/* ── Row 2: Secondary KPIs ────────────────────────────────────────────── */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard
-          icon={UserGroupIcon} color="indigo"
-          label="Active Employees" value={company.totalEmployees || 0}
-          sub="Across all departments"
-          to="/management/team"
-        />
-        <StatCard
-          icon={UsersIcon} color="cyan"
-          label="Total Leads" value={crm.totalLeads || 0}
-          sub={`${pct(crm.conversionRate)} conversion rate`}
-          to="/crm/pipeline"
-        />
-        <StatCard
-          icon={CubeIcon} color="yellow"
-          label="Product Catalog" value={d.inventory?.catalogProductCount || 0}
-          sub="Finished goods catalog"
-          to="/inventory/catalog"
-        />
-        <StatCard
-          icon={BeakerIcon} color="emerald"
-          label="Raw Materials" value={rmStats.total}
-          sub={rmStats.out > 0 ? `${rmStats.out} out of stock${rmStats.low > 0 ? `, ${rmStats.low} low` : ''}` : rmStats.low > 0 ? `${rmStats.low} low stock` : 'All levels healthy'}
-          badge={rmStats.out + rmStats.low}
-          to="/inventory/rawmaterials"
-        />
-        <StatCard
-          icon={BoltIcon} color="orange"
-          label="Active Production" value={d.production?.activeOrders || 0}
-          sub="Orders in progress"
-          to="/samples"
-        />
-        <StatCard
-          icon={QuestionMarkCircleIcon} color="rose"
-          label="Pending Queries" value={techQueries.pendingCount}
-          sub="Technical queries from Sales"
-          badge={techQueries.pendingCount}
-          to="/crm/queries"
-        />
-      </div>
+      <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
+        <Col xs={12} lg={4}><StatCard icon={<UserPlus />} label="Active Employees" value={company.totalEmployees || 0} sub="Across all departments" to="/management/team" /></Col>
+        <Col xs={12} lg={4}><StatCard icon={<Users />} label="Total Leads" value={crm.totalLeads || 0} sub={`${pct(crm.conversionRate)} conversion rate`} to="/crm/pipeline" /></Col>
+        <Col xs={12} lg={4}><StatCard icon={<LayoutGrid />} label="Product Catalog" value={d.inventory?.catalogProductCount || 0} sub="Finished goods catalog" to="/inventory/catalog" /></Col>
+        <Col xs={12} lg={4}>
+          <StatCard
+            icon={<FlaskConical />} label="Raw Materials" value={rmStats.total}
+            sub={rmStats.out > 0 ? `${rmStats.out} out of stock${rmStats.low > 0 ? `, ${rmStats.low} low` : ''}` : rmStats.low > 0 ? `${rmStats.low} low stock` : 'All levels healthy'}
+            badge={rmStats.out + rmStats.low} to="/inventory/rawmaterials"
+          />
+        </Col>
+        <Col xs={12} lg={4}><StatCard icon={<Zap />} label="Active Production" value={d.production?.activeOrders || 0} sub="Orders in progress" to="/samples" /></Col>
+        <Col xs={12} lg={4}><StatCard icon={<HelpCircle />} label="Pending Queries" value={techQueries.pendingCount} sub="Technical queries from Sales" badge={techQueries.pendingCount} to="/crm/queries" /></Col>
+      </Row>
 
-      <ProductionStatBoxes department="Production" />
+      <div style={{ marginBottom: 16 }}><ProductionStatBoxes department="Production" /></div>
 
-      {/* ── Row 3: Finance + Task Chart ──────────────────────────────────────── */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <Row gutter={16} style={{ marginBottom: 16 }}>
+        <Col span={8}>
+          <Card>
+            <SectionHeader title="Finance Overview" sub="Income vs Expense" to="/finance/ledger" toLabel="Ledger" />
+            <Space direction="vertical" style={{ width: '100%' }} split={<div style={{ borderBottom: '1px solid #f0f0f0' }} />}>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}><Text type="secondary">Today's Income</Text><Text strong style={{ color: '#389e0d' }}>₹{fmt(finance.todayIncome)}</Text></div>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}><Text type="secondary">Today's Expense</Text><Text strong type="danger">₹{fmt(finance.todayExpense)}</Text></div>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}><Text>Today Net</Text><Text strong style={{ color: (finance.todayNet || 0) >= 0 ? '#389e0d' : '#cf1322' }}>₹{fmt(finance.todayNet)}</Text></div>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}><Text type="secondary">This Month Income</Text><Text strong style={{ color: '#389e0d' }}>₹{fmt(finance.monthIncome)}</Text></div>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}><Text type="secondary">This Month Expense</Text><Text strong type="danger">₹{fmt(finance.monthExpense)}</Text></div>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}><Text>Total Revenue</Text><Text strong style={{ color: 'var(--ant-color-primary)' }}>₹{fmt(finance.totalRevenue)}</Text></div>
+              {d.inventory?.totalStockValue > 0 && (
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}><Text type="secondary">Inventory Value</Text><Text strong style={{ color: '#1677ff' }}>₹{fmt(d.inventory?.totalStockValue)}</Text></div>
+              )}
+            </Space>
+            {revenueData.length > 0 && (
+              <div style={{ marginTop: 12 }}>
+                <Text type="secondary" style={{ fontSize: 12 }}>Monthly Revenue Trend</Text>
+                <ResponsiveContainer width="100%" height={80}>
+                  <AreaChart data={revenueData}>
+                    <defs>
+                      <linearGradient id="revGrad" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3} />
+                        <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <Area type="monotone" dataKey="revenue" stroke="#3b82f6" fill="url(#revGrad)" strokeWidth={2} dot={false} />
+                    <XAxis dataKey="month" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
+                    <Tooltip content={<ChartTooltip />} />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+            )}
+          </Card>
+        </Col>
 
-        {/* Finance Panel */}
-        <div className="card p-5 space-y-4">
-          <SectionHeader title="Finance Overview" sub="Income vs Expense" to="/finance/ledger" toLabel="Ledger" />
-
-          <div className="space-y-2">
-            <div className="flex justify-between items-center py-2 border-b border-gray-100 dark:border-[#1b2e4a]">
-              <span className="text-sm text-gray-500">Today's Income</span>
-              <span className="font-semibold text-green-600">₹{fmt(finance.todayIncome)}</span>
-            </div>
-            <div className="flex justify-between items-center py-2 border-b border-gray-100 dark:border-[#1b2e4a]">
-              <span className="text-sm text-gray-500">Today's Expense</span>
-              <span className="font-semibold text-red-600">₹{fmt(finance.todayExpense)}</span>
-            </div>
-            <div className="flex justify-between items-center py-2 border-b border-gray-100 dark:border-[#1b2e4a]">
-              <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Today Net</span>
-              <span className={`font-bold ${(finance.todayNet || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                ₹{fmt(finance.todayNet)}
-              </span>
-            </div>
-            <div className="flex justify-between items-center py-2 border-b border-gray-100 dark:border-[#1b2e4a]">
-              <span className="text-sm text-gray-500">This Month Income</span>
-              <span className="font-semibold text-green-600">₹{fmt(finance.monthIncome)}</span>
-            </div>
-            <div className="flex justify-between items-center py-2 border-b border-gray-100 dark:border-[#1b2e4a]">
-              <span className="text-sm text-gray-500">This Month Expense</span>
-              <span className="font-semibold text-red-600">₹{fmt(finance.monthExpense)}</span>
-            </div>
-            <div className="flex justify-between items-center py-2">
-              <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Total Revenue</span>
-              <span className="font-bold text-brand-600">₹{fmt(finance.totalRevenue)}</span>
-            </div>
-          </div>
-
-          {(d.inventory?.totalStockValue > 0) && (
-            <div className="flex justify-between items-center py-2 border-b border-gray-100 dark:border-[#1b2e4a]">
-              <span className="text-sm text-gray-500">Inventory Value</span>
-              <span className="font-semibold text-indigo-600">₹{fmt(d.inventory?.totalStockValue)}</span>
-            </div>
-          )}
-
-          {revenueData.length > 0 && (
-            <div className="pt-2">
-              <p className="text-xs text-gray-500 mb-2">Monthly Revenue Trend</p>
-              <ResponsiveContainer width="100%" height={80}>
-                <AreaChart data={revenueData}>
-                  <defs>
-                    <linearGradient id="revGrad" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3} />
-                      <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
-                    </linearGradient>
-                  </defs>
-                  <Area type="monotone" dataKey="revenue" stroke="#3b82f6" fill="url(#revGrad)" strokeWidth={2} dot={false} />
-                  <XAxis dataKey="month" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
-                  <Tooltip content={<ChartTooltip />} />
-                </AreaChart>
+        <Col span={8}>
+          <Card>
+            <SectionHeader title="Task Status Breakdown" sub={`${company.totalTasks || 0} total tasks`} to="/tasks/analytics" toLabel="Analytics" />
+            {taskPieData.length > 0 ? (
+              <ResponsiveContainer width="100%" height={220}>
+                <PieChart>
+                  <Pie data={taskPieData} cx="50%" cy="50%" innerRadius={55} outerRadius={85} paddingAngle={3} dataKey="value">
+                    {taskPieData.map((entry, i) => <Cell key={i} fill={entry.color} />)}
+                  </Pie>
+                  <Legend iconType="circle" iconSize={8} />
+                  <Tooltip />
+                </PieChart>
               </ResponsiveContainer>
-            </div>
-          )}
-        </div>
+            ) : <Empty description="No tasks yet" image={Empty.PRESENTED_IMAGE_SIMPLE} style={{ padding: '40px 0' }} />}
+          </Card>
+        </Col>
 
-        {/* Task Status Donut */}
-        <div className="card p-5">
-          <SectionHeader title="Task Status Breakdown" sub={`${company.totalTasks || 0} total tasks`} to="/tasks/analytics" toLabel="Analytics" />
-          {taskPieData.length > 0 ? (
-            <ResponsiveContainer width="100%" height={220}>
-              <PieChart>
-                <Pie
-                  data={taskPieData} cx="50%" cy="50%"
-                  innerRadius={55} outerRadius={85}
-                  paddingAngle={3} dataKey="value"
-                >
-                  {taskPieData.map((entry, i) => (
-                    <Cell key={i} fill={entry.color} />
-                  ))}
-                </Pie>
-                <Legend iconType="circle" iconSize={8} formatter={(v) => <span className="text-xs text-gray-600 dark:text-gray-400">{v}</span>} />
-                <Tooltip formatter={(v, n) => [v, n]} />
-              </PieChart>
-            </ResponsiveContainer>
-          ) : (
-            <div className="flex flex-col items-center justify-center h-48 text-gray-400">
-              <CheckCircleIcon className="w-10 h-10 mb-2 opacity-30" />
-              <p className="text-sm">No tasks yet</p>
-            </div>
-          )}
-        </div>
-
-        {/* CRM Pipeline */}
-        <div className="card p-5">
-          <SectionHeader title="CRM Pipeline" sub={`${crm.totalLeads || 0} leads · ${pct(crm.conversionRate)} win rate`} to="/crm/pipeline" toLabel="Pipeline" />
-          {crmPipeData.length > 0 ? (
-            <div className="space-y-3 mt-2">
-              {crmPipeData.map((item) => (
-                <div key={item.name}>
-                  <div className="flex justify-between text-xs mb-1">
-                    <span className="text-gray-600 dark:text-gray-400">{item.name}</span>
-                    <span className="font-semibold text-gray-800 dark:text-gray-200">{item.value}</span>
+        <Col span={8}>
+          <Card>
+            <SectionHeader title="CRM Pipeline" sub={`${crm.totalLeads || 0} leads · ${pct(crm.conversionRate)} win rate`} to="/crm/pipeline" toLabel="Pipeline" />
+            {crmPipeData.length > 0 ? (
+              <Space direction="vertical" style={{ width: '100%' }} size={12}>
+                {crmPipeData.map((item) => (
+                  <div key={item.name}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 4 }}>
+                      <Text type="secondary">{item.name}</Text>
+                      <Text strong>{item.value}</Text>
+                    </div>
+                    <Progress percent={crm.totalLeads > 0 ? (item.value / crm.totalLeads) * 100 : 0} showInfo={false} strokeColor={item.fill} size="small" />
                   </div>
-                  <div className="h-2 bg-gray-100 dark:bg-[#0f1a2e] rounded-full overflow-hidden">
-                    <div
-                      className="h-full rounded-full transition-all duration-500"
-                      style={{ width: `${crm.totalLeads > 0 ? (item.value / crm.totalLeads) * 100 : 0}%`, backgroundColor: item.fill }}
-                    />
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="flex flex-col items-center justify-center h-48 text-gray-400">
-              <UsersIcon className="w-10 h-10 mb-2 opacity-30" />
-              <p className="text-sm">No leads yet</p>
-            </div>
-          )}
-        </div>
-      </div>
+                ))}
+              </Space>
+            ) : <Empty description="No leads yet" image={Empty.PRESENTED_IMAGE_SIMPLE} style={{ padding: '40px 0' }} />}
+          </Card>
+        </Col>
+      </Row>
 
-      {/* ── Row 4: Department Performance ────────────────────────────────────── */}
       {deptBarData.length > 0 && (
-        <div className="card p-5">
+        <Card style={{ marginBottom: 16 }}>
           <SectionHeader title="Department Performance" sub="Tasks by department — completed vs overdue" to="/management/departments" toLabel="Full Report" />
           <ResponsiveContainer width="100%" height={200}>
             <BarChart data={deptBarData} margin={{ top: 0, right: 0, bottom: 0, left: -20 }}>
-              <CartesianGrid strokeDasharray="3 3" className="stroke-gray-100 dark:stroke-gray-800" />
+              <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="name" tick={{ fontSize: 11 }} />
               <YAxis tick={{ fontSize: 11 }} />
               <Tooltip />
-              <Legend iconType="circle" iconSize={8} formatter={(v) => <span className="text-xs">{v}</span>} />
-              <Bar dataKey="Total"   fill="#3b82f6" radius={[3, 3, 0, 0]} name="Total" />
-              <Bar dataKey="Done"    fill="#22c55e" radius={[3, 3, 0, 0]} name="Completed" />
+              <Legend iconType="circle" iconSize={8} />
+              <Bar dataKey="Total" fill="#3b82f6" radius={[3, 3, 0, 0]} name="Total" />
+              <Bar dataKey="Done" fill="#22c55e" radius={[3, 3, 0, 0]} name="Completed" />
               <Bar dataKey="Overdue" fill="#ef4444" radius={[3, 3, 0, 0]} name="Overdue" />
             </BarChart>
           </ResponsiveContainer>
 
-          {/* Department health mini cards */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-3 mt-5">
+          <Row gutter={[12, 12]} style={{ marginTop: 16 }}>
             {depts.map((dept, i) => (
-              <div key={dept._id || i} className="rounded-xl border border-gray-100 dark:border-[#1b2e4a] p-3 text-center">
-                <div
-                  className="w-8 h-8 rounded-full mx-auto mb-2 flex items-center justify-center text-white text-xs font-bold"
-                  style={{ backgroundColor: DEPT_COLORS[i % DEPT_COLORS.length] }}
-                >
-                  {(dept._id || 'U')[0]}
-                </div>
-                <p className="text-xs font-medium text-gray-700 dark:text-gray-300 line-clamp-1">{dept._id || 'Unknown'}</p>
-                <p className="text-lg font-bold text-gray-900 dark:text-white mt-1">{pct(dept.completionRate)}</p>
-                <p className="text-xs text-gray-400">{dept.total} tasks</p>
-                <div className="mt-2 h-1.5 bg-gray-100 dark:bg-[#0f1a2e] rounded-full overflow-hidden">
-                  <div
-                    className="h-full rounded-full"
-                    style={{
-                      width: `${dept.completionRate || 0}%`,
-                      backgroundColor: DEPT_COLORS[i % DEPT_COLORS.length],
-                    }}
-                  />
-                </div>
-              </div>
+              <Col key={dept._id || i} xs={12} sm={8} lg={6} xl={3}>
+                <Card size="small" style={{ textAlign: 'center' }}>
+                  <Avatar style={{ backgroundColor: DEPT_COLORS[i % DEPT_COLORS.length] }}>{(dept._id || 'U')[0]}</Avatar>
+                  <div style={{ marginTop: 8 }}>
+                    <Text style={{ fontSize: 12, fontWeight: 500 }} ellipsis>{dept._id || 'Unknown'}</Text>
+                  </div>
+                  <div style={{ fontSize: 18, fontWeight: 700 }}>{pct(dept.completionRate)}</div>
+                  <Text type="secondary" style={{ fontSize: 12 }}>{dept.total} tasks</Text>
+                  <Progress percent={dept.completionRate || 0} showInfo={false} strokeColor={DEPT_COLORS[i % DEPT_COLORS.length]} size="small" style={{ marginTop: 8 }} />
+                </Card>
+              </Col>
             ))}
-          </div>
-        </div>
+          </Row>
+        </Card>
       )}
 
-      {/* ── Row 5: Pending Approvals + Top Performers ─────────────────────────── */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-
-        {/* Pending Approvals */}
-        <div className="card p-5">
-          <SectionHeader
-            title="Pending Approvals"
-            sub={`${approvals.length} task${approvals.length !== 1 ? 's' : ''} waiting for review`}
-            to="/tasks/approvals"
-            toLabel="Review All"
-          />
-          {approvals.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-8 text-gray-400">
-              <CheckCircleIcon className="w-10 h-10 mb-2 opacity-30" />
-              <p className="text-sm">All approvals are clear!</p>
-            </div>
-          ) : (
-            <div className="space-y-2">
-              {approvals.map((ap) => (
-                <div key={ap._id} className="flex items-center gap-3 p-3 rounded-lg bg-gray-50 dark:bg-[#0f1a2e]/50 hover:bg-gray-100 dark:hover:bg-[#17263d] transition-colors">
-                  <div className="flex-1 min-w-0">
-                    <button
-                      onClick={() => ap.taskId && toWorkflow(ap.taskId)}
-                      className="text-sm font-medium text-gray-900 dark:text-white hover:text-brand-600 truncate text-left w-full transition-colors"
-                    >
-                      {ap.taskId?.title}
-                    </button>
-                    <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-                      <span className={`badge ${PRIORITY_COLORS[ap.taskId?.priority] || 'badge-gray'}`}>{ap.taskId?.priority}</span>
-                      <span className="text-xs text-gray-500">{ap.requestedBy?.firstName} {ap.requestedBy?.lastName}</span>
-                      <span className="text-xs text-gray-400">{ap.requestedAt ? formatDistanceToNow(new Date(ap.requestedAt), { addSuffix: true }) : ''}</span>
+      <Row gutter={16} style={{ marginBottom: 16 }}>
+        <Col span={12}>
+          <Card>
+            <SectionHeader title="Pending Approvals" sub={`${approvals.length} task${approvals.length !== 1 ? 's' : ''} waiting for review`} to="/tasks/approvals" toLabel="Review All" />
+            {approvals.length === 0 ? (
+              <Empty description="All approvals are clear!" image={Empty.PRESENTED_IMAGE_SIMPLE} />
+            ) : (
+              <Space direction="vertical" style={{ width: '100%' }}>
+                {approvals.map((ap) => (
+                  <Card size="small" key={ap._id}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <Text strong style={{ cursor: 'pointer' }} onClick={() => ap.taskId && toWorkflow(ap.taskId)}>{ap.taskId?.title}</Text>
+                        <Space size={4} style={{ marginTop: 4 }} wrap>
+                          <Tag color={PRIORITY_COLOR[ap.taskId?.priority] || 'default'}>{ap.taskId?.priority}</Tag>
+                          <Text type="secondary" style={{ fontSize: 12 }}>{ap.requestedBy?.firstName} {ap.requestedBy?.lastName}</Text>
+                          <Text type="secondary" style={{ fontSize: 12 }}>{ap.requestedAt ? formatDistanceToNow(new Date(ap.requestedAt), { addSuffix: true }) : ''}</Text>
+                        </Space>
+                      </div>
+                      <Link to="/tasks/approvals">Review</Link>
                     </div>
-                  </div>
-                  <div className="flex items-center gap-1.5 flex-shrink-0">
-                    <button onClick={() => ap.taskId && toWorkflow(ap.taskId)} title="Open in Workflow Builder"
-                      className="p-1.5 rounded-lg hover:bg-brand-50 text-gray-400 hover:text-brand-600 transition-colors">
-                      <BoltIcon className="w-4 h-4" />
-                    </button>
-                    <Link to="/workflow" title="Open Workflow Board"
-                      className="p-1.5 rounded-lg hover:bg-indigo-50 text-gray-400 hover:text-indigo-600 transition-colors">
-                      <ViewColumnsIcon className="w-4 h-4" />
-                    </Link>
-                    <Link to="/tasks/approvals" className="btn-primary text-xs px-3 py-1.5">Review</Link>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
+                  </Card>
+                ))}
+              </Space>
+            )}
+          </Card>
+        </Col>
 
-        {/* Top Performers */}
-        <div className="card p-5">
-          <SectionHeader title="Top Performers" sub="Ranked by completed tasks" to="/management/employees" toLabel="All Employees" />
-          {topEmps.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-8 text-gray-400">
-              <UserGroupIcon className="w-10 h-10 mb-2 opacity-30" />
-              <p className="text-sm">No task data yet</p>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {topEmps.map((emp, i) => (
-                <div key={emp.userId || i} className="flex items-center gap-3">
-                  <span className="w-5 text-xs font-bold text-gray-400 text-center">#{i + 1}</span>
-                  <div className="w-8 h-8 rounded-full bg-brand-100 dark:bg-brand-900/30 flex items-center justify-center flex-shrink-0">
-                    <span className="text-brand-700 dark:text-brand-400 text-xs font-bold">
-                      {emp.firstName?.[0]}{emp.lastName?.[0]}
-                    </span>
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-sm font-medium text-gray-900 dark:text-white truncate">{emp.firstName} {emp.lastName}</span>
-                      <span className="text-xs text-gray-500 flex-shrink-0 ml-2">{emp.completed}/{emp.total}</span>
+        <Col span={12}>
+          <Card>
+            <SectionHeader title="Top Performers" sub="Ranked by completed tasks" to="/management/employees" toLabel="All Employees" />
+            {topEmps.length === 0 ? (
+              <Empty description="No task data yet" image={Empty.PRESENTED_IMAGE_SIMPLE} />
+            ) : (
+              <Space direction="vertical" style={{ width: '100%' }} size={12}>
+                {topEmps.map((emp, i) => (
+                  <div key={emp.userId || i} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                    <Text type="secondary" style={{ width: 20, fontSize: 12, textAlign: 'center' }}>#{i + 1}</Text>
+                    <Avatar size={32}>{emp.firstName?.[0]}{emp.lastName?.[0]}</Avatar>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <Text style={{ fontSize: 13, fontWeight: 500 }} ellipsis>{emp.firstName} {emp.lastName}</Text>
+                        <Text type="secondary" style={{ fontSize: 12 }}>{emp.completed}/{emp.total}</Text>
+                      </div>
+                      <Progress percent={emp.completionRate || 0} showInfo={false} strokeColor={DEPT_COLORS[i % DEPT_COLORS.length]} size="small" />
                     </div>
-                    <div className="h-1.5 bg-gray-100 dark:bg-[#0f1a2e] rounded-full overflow-hidden">
-                      <div
-                        className="h-full rounded-full transition-all duration-500"
-                        style={{ width: `${emp.completionRate || 0}%`, backgroundColor: DEPT_COLORS[i % DEPT_COLORS.length] }}
-                      />
-                    </div>
+                    <Text strong style={{ width: 40, textAlign: 'right' }}>{pct(emp.completionRate)}</Text>
                   </div>
-                  <span className="text-sm font-bold text-gray-700 dark:text-gray-300 w-10 text-right flex-shrink-0">
-                    {pct(emp.completionRate)}
-                  </span>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
+                ))}
+              </Space>
+            )}
+          </Card>
+        </Col>
+      </Row>
 
-      {/* ── Row 6: Recent Tasks + Alerts ─────────────────────────────────────── */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-
-        {/* Recent Tasks */}
-        <div className="card p-5">
-          <SectionHeader title="Recent Tasks" sub="Latest tasks across all departments" to="/workflow" toLabel="View Board" />
-          {recentTasks.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-8 text-gray-400">
-              <ClipboardDocumentListIcon className="w-10 h-10 mb-2 opacity-30" />
-              <p className="text-sm">No tasks created yet</p>
-            </div>
-          ) : (
-            <div className="space-y-2">
-              {recentTasks.map((task) => (
-                <div key={task._id} className="flex items-start gap-3 p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-[#17263d]/50 transition-colors">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap mb-0.5">
-                      <span className={`badge ${STATUS_COLORS[task.status] || 'badge-gray'}`}>{task.status}</span>
-                      <span className={`badge ${PRIORITY_COLORS[task.priority] || 'badge-gray'}`}>{task.priority}</span>
-                    </div>
-                    <button
-                      onClick={() => toWorkflow(task)}
-                      className="text-sm font-medium text-gray-900 dark:text-white hover:text-brand-600 dark:hover:text-brand-400 text-left transition-colors"
-                    >
-                      {task.title}
-                    </button>
-                    <div className="flex items-center gap-3 mt-0.5 text-xs text-gray-400">
-                      <span>{task.department}</span>
-                      {task.assignedTo && <span>→ {task.assignedTo.firstName} {task.assignedTo.lastName}</span>}
-                      {task.isOverdue && <span className="text-red-500 font-medium">Overdue</span>}
-                    </div>
+      <Row gutter={16} style={{ marginBottom: 16 }}>
+        <Col span={12}>
+          <Card>
+            <SectionHeader title="Recent Tasks" sub="Latest tasks across all departments" to="/workflow" toLabel="View Board" />
+            {recentTasks.length === 0 ? (
+              <Empty description="No tasks created yet" image={Empty.PRESENTED_IMAGE_SIMPLE} />
+            ) : (
+              <Space direction="vertical" style={{ width: '100%' }}>
+                {recentTasks.map((task) => (
+                  <div key={task._id} style={{ padding: '8px 0', borderBottom: '1px solid #f0f0f0' }}>
+                    <Space size={4} wrap>
+                      <Tag color={STATUS_COLOR[task.status] || 'default'}>{task.status}</Tag>
+                      <Tag color={PRIORITY_COLOR[task.priority] || 'default'}>{task.priority}</Tag>
+                    </Space>
+                    <div><Text strong style={{ cursor: 'pointer' }} onClick={() => toWorkflow(task)}>{task.title}</Text></div>
+                    <Space size={12}>
+                      <Text type="secondary" style={{ fontSize: 12 }}>{task.department}</Text>
+                      {task.assignedTo && <Text type="secondary" style={{ fontSize: 12 }}>→ {task.assignedTo.firstName} {task.assignedTo.lastName}</Text>}
+                      {task.isOverdue && <Text type="danger" style={{ fontSize: 12, fontWeight: 500 }}>Overdue</Text>}
+                    </Space>
                   </div>
-                  <div className="flex items-center gap-1 flex-shrink-0">
-                    <span className="text-xs text-gray-400 mr-1">{task.createdAt ? formatDistanceToNow(new Date(task.createdAt), { addSuffix: true }) : ''}</span>
-                    <button onClick={() => toWorkflow(task)} title="Open in Workflow Builder"
-                      className="p-1.5 rounded-lg hover:bg-brand-50 text-gray-400 hover:text-brand-600 transition-colors">
-                      <BoltIcon className="w-4 h-4" />
-                    </button>
-                    <Link to="/workflow" title="Open Workflow Board"
-                      className="p-1.5 rounded-lg hover:bg-indigo-50 text-gray-400 hover:text-indigo-600 transition-colors">
-                      <ViewColumnsIcon className="w-4 h-4" />
-                    </Link>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
+                ))}
+              </Space>
+            )}
+          </Card>
+        </Col>
 
-        {/* Critical Alerts */}
-        <div className="card p-5">
-          <SectionHeader title="Critical Alerts" sub="High priority unread notifications" to="/settings" toLabel="All Notifications" />
-          {alerts.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-8 text-gray-400">
-              <BellAlertIcon className="w-10 h-10 mb-2 opacity-30" />
-              <p className="text-sm">No critical alerts</p>
-            </div>
-          ) : (
-            <div className="space-y-2">
-              {alerts.map((alert) => (
-                <div key={alert._id} className="flex items-start gap-3 p-3 rounded-lg bg-red-50 dark:bg-red-900/10 border border-red-100 dark:border-red-900/30">
-                  <BellAlertIcon className="w-4 h-4 text-red-500 flex-shrink-0 mt-0.5" />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-gray-900 dark:text-white">{alert.title}</p>
-                    <p className="text-xs text-gray-500 mt-0.5 line-clamp-2">{alert.message}</p>
-                    <p className="text-xs text-gray-400 mt-1">{alert.createdAt ? formatDistanceToNow(new Date(alert.createdAt), { addSuffix: true }) : ''}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
+        <Col span={12}>
+          <Card>
+            <SectionHeader title="Critical Alerts" sub="High priority unread notifications" to="/settings" toLabel="All Notifications" />
+            {alerts.length === 0 ? (
+              <Empty description="No critical alerts" image={Empty.PRESENTED_IMAGE_SIMPLE} />
+            ) : (
+              <Space direction="vertical" style={{ width: '100%' }}>
+                {alerts.map((alert) => (
+                  <Card size="small" key={alert._id} style={{ background: '#fff2f0', borderColor: '#ffccc7' }}>
+                    <Space align="start">
+                      <Bell style={{ color: '#ff4d4f' }} />
+                      <div>
+                        <Text strong style={{ fontSize: 13 }}>{alert.title}</Text>
+                        <div><Text type="secondary" style={{ fontSize: 12 }}>{alert.message}</Text></div>
+                        <Text type="secondary" style={{ fontSize: 11 }}>{alert.createdAt ? formatDistanceToNow(new Date(alert.createdAt), { addSuffix: true }) : ''}</Text>
+                      </div>
+                    </Space>
+                  </Card>
+                ))}
+              </Space>
+            )}
+          </Card>
+        </Col>
+      </Row>
 
-      {/* ── Row 7: Technical Queries ─────────────────────────────────────────── */}
-      <div className="card p-5">
-        <SectionHeader
-          title="Technical Queries"
-          sub={`${techQueries.pendingCount} pending queries from Sales team`}
-          to="/crm/queries"
-          toLabel="View All"
-        />
+      <Card style={{ marginBottom: 16 }}>
+        <SectionHeader title="Technical Queries" sub={`${techQueries.pendingCount} pending queries from Sales team`} to="/crm/queries" toLabel="View All" />
         {techQueries.recent.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-8 text-gray-400">
-            <QuestionMarkCircleIcon className="w-10 h-10 mb-2 opacity-30" />
-            <p className="text-sm">No pending technical queries</p>
-          </div>
+          <Empty description="No pending technical queries" image={Empty.PRESENTED_IMAGE_SIMPLE} />
         ) : (
-          <div className="space-y-2">
+          <Space direction="vertical" style={{ width: '100%' }}>
             {techQueries.recent.map((q) => (
-              <div key={q._id} className="flex items-start gap-3 p-3 rounded-lg bg-rose-50 dark:bg-rose-900/10 border border-rose-100 dark:border-rose-900/30">
-                <QuestionMarkCircleIcon className="w-4 h-4 text-rose-500 flex-shrink-0 mt-0.5" />
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap mb-0.5">
-                    <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
-                      q.urgency === 'high' ? 'bg-red-100 text-red-700' : q.urgency === 'medium' ? 'bg-yellow-100 text-yellow-700' : 'bg-gray-100 text-gray-600'
-                    }`}>{q.urgency}</span>
-                    {q.leadName && <span className="text-xs text-gray-500">Lead: {q.leadName}</span>}
-                  </div>
-                  <p className="text-sm font-medium text-gray-900 dark:text-white">{q.title}</p>
-                  <div className="flex items-center gap-3 mt-0.5 text-xs text-gray-400 flex-wrap">
-                    <span>By: {q.raisedBy?.firstName} {q.raisedBy?.lastName}</span>
-                    {q.assignedTo ? (
-                      <span>Assigned: {q.assignedTo.firstName} {q.assignedTo.lastName}</span>
-                    ) : (
-                      <span className="text-orange-500">Unassigned</span>
-                    )}
-                    <span>{q.createdAt ? formatDistanceToNow(new Date(q.createdAt), { addSuffix: true }) : ''}</span>
-                  </div>
+              <Card size="small" key={q._id} style={{ background: '#fff0f6', borderColor: '#ffadd2' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
+                  <Space align="start">
+                    <HelpCircle style={{ color: '#eb2f96' }} />
+                    <div>
+                      <Space size={4}>
+                        <Tag color={q.urgency === 'high' ? 'red' : q.urgency === 'medium' ? 'gold' : 'default'}>{q.urgency}</Tag>
+                        {q.leadName && <Text type="secondary" style={{ fontSize: 12 }}>Lead: {q.leadName}</Text>}
+                      </Space>
+                      <div><Text strong style={{ fontSize: 13 }}>{q.title}</Text></div>
+                      <Space size={12} wrap>
+                        <Text type="secondary" style={{ fontSize: 12 }}>By: {q.raisedBy?.firstName} {q.raisedBy?.lastName}</Text>
+                        {q.assignedTo ? (
+                          <Text type="secondary" style={{ fontSize: 12 }}>Assigned: {q.assignedTo.firstName} {q.assignedTo.lastName}</Text>
+                        ) : <Text type="warning" style={{ fontSize: 12 }}>Unassigned</Text>}
+                        <Text type="secondary" style={{ fontSize: 12 }}>{q.createdAt ? formatDistanceToNow(new Date(q.createdAt), { addSuffix: true }) : ''}</Text>
+                      </Space>
+                    </div>
+                  </Space>
+                  <Link to="/crm/queries">Reply</Link>
                 </div>
-                <Link to="/crm/queries" className="btn-primary text-xs px-3 py-1.5 flex-shrink-0">Reply</Link>
-              </div>
+              </Card>
             ))}
-          </div>
+          </Space>
         )}
-      </div>
+      </Card>
 
-      {/* ── Row 8: Quick Navigation ───────────────────────────────────────────── */}
-      <div>
-        <h3 className="font-bold text-gray-900 dark:text-white mb-4">Quick Navigation</h3>
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-          {[
-            { label: 'Task Board',   sub: 'Kanban view',        icon: ClipboardDocumentListIcon, to: '/tasks/kanban',          color: 'blue'   },
-            { label: 'CRM Pipeline', sub: 'Leads & follow-ups', icon: UsersIcon,                 to: '/crm/pipeline',          color: 'cyan'   },
-            { label: 'Product Catalog', sub: 'Finished goods',   icon: CubeIcon,                  to: '/inventory/catalog',     color: 'yellow' },
-            { label: 'Raw Materials',   sub: 'RM stock levels', icon: BeakerIcon,                to: '/inventory/rawmaterials', color: 'emerald'},
-            { label: 'Production',   sub: 'Orders & batches',   icon: BoltIcon,                  to: '/production/orders',     color: 'orange' },
-            { label: 'Finance',      sub: 'Ledger & invoices',  icon: BanknotesIcon,             to: '/finance/ledger',        color: 'green'  },
-            { label: 'Team',         sub: 'Employees',          icon: UserGroupIcon,             to: '/management/team',       color: 'indigo' },
-            { label: 'Approvals',    sub: 'Review queue',       icon: CheckCircleIcon,           to: '/tasks/approvals',       color: 'purple' },
-            { label: 'Analytics',    sub: 'Task reports',       icon: ChartBarIcon,              to: '/tasks/analytics',       color: 'rose'   },
-            { label: 'Departments',  sub: 'Dept overview',      icon: BuildingOfficeIcon,        to: '/management/departments', color: 'teal'  },
-            { label: 'Settings',     sub: 'Org settings',       icon: DocumentTextIcon,          to: '/settings',              color: 'gray'   },
-          ].map((item) => (
-            <Link
-              key={item.to}
-              to={item.to}
-              className="card p-4 flex flex-col gap-2 hover:shadow-md transition-all hover:-translate-y-0.5 group"
-            >
-              <div className={`w-9 h-9 rounded-xl bg-${item.color}-100 dark:bg-${item.color}-900/30 flex items-center justify-center group-hover:scale-110 transition-transform`}>
-                <item.icon className={`w-5 h-5 text-${item.color}-600 dark:text-${item.color}-400`} />
-              </div>
-              <div>
-                <p className="text-sm font-semibold text-gray-900 dark:text-white">{item.label}</p>
-                <p className="text-xs text-gray-400">{item.sub}</p>
-              </div>
+      <Title level={5} style={{ marginBottom: 16 }}>Quick Navigation</Title>
+      <Row gutter={[12, 12]}>
+        {QUICK_NAV.map((item) => (
+          <Col key={item.to} xs={12} sm={8} lg={6} xl={4}>
+            <Link to={item.to}>
+              <Card hoverable size="small">
+                <div style={{ fontSize: 18, color: 'var(--ant-color-primary)', marginBottom: 8 }}>{item.icon}</div>
+                <Text strong style={{ fontSize: 13 }}>{item.label}</Text>
+                <div><Text type="secondary" style={{ fontSize: 12 }}>{item.sub}</Text></div>
+              </Card>
             </Link>
-          ))}
-        </div>
-      </div>
-
+          </Col>
+        ))}
+      </Row>
     </div>
   );
 }

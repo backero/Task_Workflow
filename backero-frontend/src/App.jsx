@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { ConfigProvider } from 'antd';
 import { useAuthStore } from './store/useAuthStore';
 import { useSocketStore } from './store/useSocketStore';
 import Layout from './components/layout/Layout';
@@ -7,6 +8,7 @@ import ProtectedRoute from './components/common/ProtectedRoute';
 import PermissionRoute from './components/common/PermissionRoute';
 import DevAutoLogin from './components/common/DevAutoLogin';
 import LoadingScreen from './components/common/LoadingScreen';
+import { workflowTheme } from './theme/workflowTheme';
 
 // Auth pages
 import Login from './pages/auth/Login';
@@ -117,6 +119,7 @@ export default function App() {
   }
 
   return (
+    <ConfigProvider theme={workflowTheme}>
     <BrowserRouter>
       {import.meta.env.DEV && <DevAutoLogin />}
       <Routes>
@@ -198,8 +201,16 @@ export default function App() {
           <Route path="/documents" element={<PermissionRoute module="finance"><DocumentWalletPage /></PermissionRoute>} />
         </Route>
 
+        {/* workflow-v2 retired: its Tasks-board/my-tasks/approvals pages
+            were built against the (now-abandoned) FastAPI backend and
+            duplicated functionality that /tasks/kanban, /tasks/my, and
+            /tasks/approvals already have — in Ant Design, already wired to
+            this real Node backend, with strictly more features (timers,
+            daily updates, dependency-aware completion, etc). Its files stay
+            on disk (not deleted) but are no longer routed to. */}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>
+    </ConfigProvider>
   );
 }

@@ -1,27 +1,28 @@
-﻿import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
+import { AnimatePresence, motion } from 'framer-motion';
 import {
-  FunnelIcon, ExclamationTriangleIcon, XMarkIcon, PaperAirplaneIcon,
-  CheckCircleIcon, ClockIcon, ArrowPathIcon, ChatBubbleLeftIcon, ArrowUturnLeftIcon, PlayIcon, BoltIcon,
-  CalendarDaysIcon,
-} from '@heroicons/react/24/outline';
+  ClockCircleOutlined, CheckCircleFilled, SendOutlined, PlayCircleFilled,
+  RedoOutlined, MessageOutlined, ThunderboltOutlined, CalendarOutlined,
+  ExclamationCircleFilled, FilterOutlined,
+} from '@ant-design/icons';
+import { Button, DatePicker, Drawer, Empty, Input, Progress, Segmented, Slider, Spin, Tabs, Tag, Typography } from 'antd';
+import dayjs from 'dayjs';
 import api from '../../api/axios';
 import { useAuthStore } from '../../store/useAuthStore';
 import { useSocketStore } from '../../store/useSocketStore';
 import { format, isPast, isToday, formatDistanceToNow } from 'date-fns';
-import { clsx } from 'clsx';
 import toast from 'react-hot-toast';
 import TaskTimer from '../../components/tasks/TaskTimer';
 
-const STATUS_COLORS = {
-  'Pending': 'badge-gray', 'Assigned': 'badge-blue', 'In Progress': 'badge-yellow',
-  'Under Review': 'badge-purple', 'Approval Pending': 'badge-purple',
-  'Changes Requested': 'badge-red', 'Completed': 'badge-green', 'Achieved': 'badge-amber', 'Reopened': 'badge-orange',
+const { Text, Title, Paragraph } = Typography;
+
+const STATUS_TAG = {
+  Pending: 'default', Assigned: 'blue', 'In Progress': 'gold', 'Under Review': 'purple',
+  'Approval Pending': 'purple', 'Changes Requested': 'red', Completed: 'green', Achieved: 'gold', Reopened: 'orange',
 };
-const PRIORITY_BORDER = { critical: 'border-l-red-500', high: 'border-l-orange-400', medium: 'border-l-yellow-400', low: 'border-l-gray-300', urgent: 'border-l-red-400' };
-const PRIORITY_TEXT   = { critical: 'text-red-600', high: 'text-orange-500', medium: 'text-yellow-600', low: 'text-gray-400', urgent: 'text-red-500' };
+const PRIORITY_COLOR = { critical: '#ef4444', high: '#f97316', medium: '#eab308', low: '#9ca3af', urgent: '#f87171' };
 
 function formatDuration(ms, mode = 'compact') {
   if (!ms || ms < 0) return null;
@@ -57,15 +58,9 @@ function TaskTimerBadge({ startDate, status, completedAt }) {
   const ms = useElapsedMs(startDate, status, completedAt);
   if (!ms || ms <= 0) return null;
   return (
-    <span className={clsx(
-      'text-xs font-mono font-semibold flex items-center gap-0.5 px-1.5 py-0.5 rounded-md',
-      status === 'In Progress'
-        ? 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400'
-        : 'bg-green-100 dark:bg-green-900/20 text-green-700 dark:text-green-400'
-    )}>
-      <ClockIcon className="w-3 h-3" />
+    <Tag color={status === 'In Progress' ? 'gold' : 'green'} icon={<ClockCircleOutlined />} style={{ fontFamily: 'monospace' }}>
       {formatDuration(ms, 'compact')}
-    </span>
+    </Tag>
   );
 }
 
@@ -75,8 +70,6 @@ function TaskDrawer({ task: initialTask, onClose, onUpdated }) {
   const { user } = useAuthStore();
   const qc = useQueryClient();
   const navigate = useNavigate();
-  const updatesEndRef = useRef();
-  const commentsEndRef = useRef();
   const elapsedMs = useElapsedMs(initialTask.startDate, initialTask.status, initialTask.completedAt);
 
   const [tab, setTab] = useState('updates');
@@ -86,7 +79,7 @@ function TaskDrawer({ task: initialTask, onClose, onUpdated }) {
   const [showCompletion, setShowCompletion] = useState(false);
   const [completionNotes, setCompletionNotes] = useState('');
   const [commentText, setCommentText] = useState('');
-  const [extDate, setExtDate] = useState('');
+  const [extDate, setExtDate] = useState(null);
   const [extReason, setExtReason] = useState('');
 
   const { data: taskData } = useQuery({
@@ -114,17 +107,16 @@ function TaskDrawer({ task: initialTask, onClose, onUpdated }) {
   const canAct = ['Assigned', 'In Progress', 'Changes Requested', 'Reopened'].includes(task.status);
 
   useEffect(() => { setProgress(task.progress || 0); }, [task.progress]);
-  useEffect(() => { updatesEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [updates.length]);
-  useEffect(() => { commentsEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [realComments.length]);
+
+  const invalidateAll = () => {
+    qc.invalidateQueries({ queryKey: ['task-detail', task._id] });
+    qc.invalidateQueries({ queryKey: ['tasks', 'my'] });
+    if (onUpdated) onUpdated();
+  };
 
   const startMutation = useMutation({
     mutationFn: () => api.post(`/tasks/${task._id}/start`),
-    onSuccess: () => {
-      toast.success('Task started — moved to In Progress');
-      qc.invalidateQueries({ queryKey: ['task-detail', task._id] });
-      qc.invalidateQueries({ queryKey: ['tasks', 'my'] });
-      if (onUpdated) onUpdated();
-    },
+    onSuccess: () => { toast.success('Task started — moved to In Progress'); invalidateAll(); },
     onError: (err) => toast.error(err.response?.data?.message || 'Failed'),
   });
 
@@ -134,10 +126,8 @@ function TaskDrawer({ task: initialTask, onClose, onUpdated }) {
       setProgress(res.data.task?.progress ?? progress);
       setUpdateText('');
       setHours('');
-      qc.invalidateQueries({ queryKey: ['task-detail', task._id] });
-      qc.invalidateQueries({ queryKey: ['tasks', 'my'] });
       toast.success('Update posted!');
-      if (onUpdated) onUpdated();
+      invalidateAll();
     },
     onError: (err) => toast.error(err.response?.data?.message || 'Failed'),
   });
@@ -166,7 +156,7 @@ function TaskDrawer({ task: initialTask, onClose, onUpdated }) {
   const extensionMutation = useMutation({
     mutationFn: (data) => api.post(`/tasks/${task._id}/extension-request`, data),
     onSuccess: () => {
-      setExtDate('');
+      setExtDate(null);
       setExtReason('');
       qc.invalidateQueries({ queryKey: ['task-detail', task._id] });
       toast.success('Extension request submitted — your manager has been notified');
@@ -181,475 +171,257 @@ function TaskDrawer({ task: initialTask, onClose, onUpdated }) {
 
   const dueDate = task.dueDate ? new Date(task.dueDate) : null;
   const isOverdue = dueDate && isPast(dueDate) && task.status !== 'Completed';
+  const minExtDate = dueDate ? dayjs(Math.max(Date.now(), dueDate.getTime()) + 86400000) : dayjs().add(1, 'day');
 
-  // Min date for extension = tomorrow or 1 day after current due date, whichever is later
-  const minExtDate = dueDate
-    ? format(new Date(Math.max(Date.now(), dueDate.getTime()) + 86400000), 'yyyy-MM-dd')
-    : format(new Date(Date.now() + 86400000), 'yyyy-MM-dd');
-
-  const tabs = [
-    { key: 'updates',   label: 'Updates',   count: updates.length },
-    { key: 'comments',  label: 'Comments',  count: realComments.length },
-    ...(canRequestExtension ? [{ key: 'extension', label: 'Extension', count: hasPendingExtension ? 1 : 0, warn: hasPendingExtension }] : []),
-  ];
-
-  return (
-    <div className="fixed inset-0 z-50 flex justify-end">
-      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
-      <motion.div
-        initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }}
-        transition={{ type: 'spring', damping: 30, stiffness: 300 }}
-        className="relative w-full max-w-lg bg-white dark:bg-[#070c17] flex flex-col h-full shadow-2xl"
-      >
-        {/* Header */}
-        <div className="flex items-start justify-between p-5 border-b border-gray-100 dark:border-[#1b2e4a]">
-          <div className="flex-1 min-w-0 pr-3">
-            <div className="flex items-center gap-2 flex-wrap mb-1">
-              <span className={`badge ${STATUS_COLORS[task.status] || 'badge-gray'}`}>{task.status}</span>
-              <span className={`text-xs font-bold ${PRIORITY_TEXT[task.priority]}`}>{task.priority?.toUpperCase()}</span>
-              <span className="text-xs text-gray-400">{task.department}</span>
-            </div>
-            <h2 className="font-bold text-gray-900 dark:text-white text-base leading-snug">{task.title}</h2>
-            <p className="text-xs text-gray-500 mt-1">
-              Assigned by {task.assignedBy?.firstName} {task.assignedBy?.lastName}
-              {dueDate && (
-                <span className={clsx('ml-2', isOverdue ? 'text-red-500 font-semibold' : 'text-gray-400')}>
-                  · {isOverdue ? 'Overdue' : 'Due'} {format(dueDate, 'dd MMM')}
-                </span>
-              )}
-            </p>
-          </div>
-          <div className="flex items-center gap-1 flex-shrink-0">
-            <button
-              onClick={() => { onClose(); navigate(`/workflow/${initialTask._id}`); }}
-              title="Open Workflow"
-              className="flex items-center gap-1 px-2 py-1.5 text-xs font-medium text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 rounded-lg transition-colors"
-            >
-              <BoltIcon className="w-4 h-4" />
-              Workflow
-            </button>
-            <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-[#17263d]">
-              <XMarkIcon className="w-5 h-5 text-gray-500" />
-            </button>
-          </div>
-        </div>
-
-        {/* Progress bar */}
-        <div className="px-5 py-3 border-b border-gray-100 dark:border-[#1b2e4a] space-y-2">
-          <div className="flex items-center gap-3">
-            <div className="flex-1 h-2.5 bg-gray-100 dark:bg-[#132035] rounded-full overflow-hidden">
-              <div className="h-full bg-brand-500 rounded-full transition-all duration-500" style={{ width: `${task.progress || 0}%` }} />
-            </div>
-            <span className="text-sm font-semibold text-gray-700 dark:text-gray-300 w-10 text-right">{task.progress || 0}%</span>
-            {task.actualHours > 0 && (
-              <span className="text-xs text-gray-400 flex items-center gap-1">
-                <ClockIcon className="w-3.5 h-3.5" />{task.actualHours}h
+  const tabItems = [
+    {
+      key: 'updates',
+      label: `Updates (${updates.length})`,
+      children: (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {updates.length === 0 ? (
+            <Empty description="No updates yet — post your first daily update below" image={Empty.PRESENTED_IMAGE_SIMPLE} />
+          ) : updates.map((upd, i) => (
+            <div key={upd._id || i} style={{ display: 'flex', gap: 10 }}>
+              <span style={{ width: 26, height: 26, borderRadius: '50%', background: 'rgba(168,120,31,0.12)', color: '#a8781f', fontSize: 11, fontWeight: 700, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', marginTop: 2 }}>
+                {upd.author?.firstName?.[0]}{upd.author?.lastName?.[0]}
               </span>
-            )}
-          </div>
-          {(task.status === 'In Progress' || (task.status === 'Completed' && task.startDate)) && elapsedMs > 0 && (
-            <div className={clsx(
-              'flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-mono font-semibold w-fit',
-              task.status === 'In Progress'
-                ? 'bg-yellow-50 dark:bg-yellow-900/20 text-yellow-700 dark:text-yellow-400'
-                : 'bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400'
-            )}>
-              <ClockIcon className="w-4 h-4 flex-shrink-0" />
-              {task.status === 'In Progress' ? (
-                <span>{formatDuration(elapsedMs, 'clock')} elapsed</span>
-              ) : (
-                <span>Completed in {formatDuration(elapsedMs, 'compact')}</span>
-              )}
-            </div>
-          )}
-        </div>
-
-        {/* Time Tracker */}
-        <div className="px-5 py-3 border-b border-gray-100 dark:border-[#1b2e4a]">
-          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Time Tracker</p>
-          <TaskTimer task={task} />
-        </div>
-
-        {/* Description */}
-        {task.description && (
-          <div className="px-5 py-3 border-b border-gray-100 dark:border-[#1b2e4a]">
-            <p className="text-sm text-gray-600 dark:text-gray-400">{task.description}</p>
-          </div>
-        )}
-
-        {/* Rejection feedback */}
-        {task.status === 'Changes Requested' && lastRejection?.reviewNotes && (
-          <div className="mx-5 mt-3 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl">
-            <div className="flex items-start gap-2">
-              <ArrowUturnLeftIcon className="w-4 h-4 text-red-500 flex-shrink-0 mt-0.5" />
-              <div>
-                <p className="text-xs font-semibold text-red-700 dark:text-red-400 mb-0.5">
-                  Returned by {lastRejection.reviewedBy?.firstName} {lastRejection.reviewedBy?.lastName}
-                  {task.rejectionCount > 1 && <span className="ml-1 text-red-500">(Round #{task.rejectionCount})</span>}
-                </p>
-                <p className="text-sm text-red-800 dark:text-red-300">{lastRejection.reviewNotes}</p>
+              <div style={{ flex: 1, background: 'rgba(15,23,42,0.03)', borderRadius: 10, padding: 10 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                  <Text strong style={{ fontSize: 12 }}>{upd.author?.firstName} {upd.author?.lastName}</Text>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    {upd.hoursWorked > 0 && <Text type="secondary" style={{ fontSize: 11 }}><ClockCircleOutlined /> {upd.hoursWorked}h</Text>}
+                    {upd.progress !== undefined && <Text style={{ fontSize: 11, color: '#a8781f', fontWeight: 600 }}>{upd.progress}%</Text>}
+                    <Text type="secondary" style={{ fontSize: 11 }}>{upd.createdAt ? formatDistanceToNow(new Date(upd.createdAt), { addSuffix: true }) : ''}</Text>
+                  </div>
+                </div>
+                <Text style={{ fontSize: 13 }}>{upd.content}</Text>
               </div>
             </div>
-          </div>
-        )}
-
-        {/* Tabs */}
-        <div className="flex border-b border-gray-100 dark:border-[#1b2e4a] mt-1">
-          {tabs.map(({ key, label, count, warn }) => (
-            <button
-              key={key}
-              onClick={() => setTab(key)}
-              className={clsx(
-                'flex-1 px-3 py-3 text-sm font-medium border-b-2 transition-colors flex items-center justify-center gap-1.5',
-                tab === key
-                  ? 'border-brand-600 text-brand-600 dark:text-brand-400'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
-              )}
-            >
-              {label}
-              {count > 0 && (
-                <span className={clsx(
-                  'text-xs px-1.5 py-0.5 rounded-full',
-                  warn ? 'bg-orange-100 text-orange-600 dark:bg-orange-900/30 dark:text-orange-400' :
-                  tab === key ? 'bg-brand-100 text-brand-700 dark:bg-brand-900/30 dark:text-brand-400' :
-                  'bg-gray-100 text-gray-500 dark:bg-[#0f1a2e] dark:text-gray-400'
-                )}>
-                  {count}
-                </span>
-              )}
-            </button>
           ))}
         </div>
-
-        {/* Tab content */}
-        <div className="flex-1 overflow-y-auto px-5 py-4 space-y-3">
-
-          {/* ── Updates tab ── */}
-          {tab === 'updates' && (
-            updates.length === 0 ? (
-              <div className="text-center py-8 text-gray-400">
-                <ChatBubbleLeftIcon className="w-8 h-8 mx-auto mb-2 opacity-40" />
-                <p className="text-sm">No updates yet — post your first daily update below</p>
-              </div>
-            ) : updates.map((upd, i) => (
-              <div key={upd._id || i} className="flex gap-3">
-                <div className="w-7 h-7 rounded-full bg-brand-100 dark:bg-brand-900/30 flex items-center justify-center flex-shrink-0 mt-0.5">
-                  <span className="text-brand-700 dark:text-brand-400 text-xs font-bold">
-                    {upd.author?.firstName?.[0]}{upd.author?.lastName?.[0]}
-                  </span>
+      ),
+    },
+    {
+      key: 'comments',
+      label: `Comments (${realComments.length})`,
+      children: (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {realComments.length === 0 ? (
+            <Empty description="No comments yet — start a discussion below" image={Empty.PRESENTED_IMAGE_SIMPLE} />
+          ) : realComments.map((c, i) => (
+            <div key={c._id || i} style={{ display: 'flex', gap: 10 }}>
+              <span style={{ width: 26, height: 26, borderRadius: '50%', background: 'rgba(79,70,229,0.1)', color: '#4f46e5', fontSize: 11, fontWeight: 700, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', marginTop: 2 }}>
+                {c.author?.firstName?.[0]}{c.author?.lastName?.[0]}
+              </span>
+              <div style={{ flex: 1, background: 'rgba(15,23,42,0.03)', borderRadius: 10, padding: 10 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                  <Text strong style={{ fontSize: 12 }}>{c.author?.firstName} {c.author?.lastName}</Text>
+                  <Text type="secondary" style={{ fontSize: 11 }}>{c.createdAt ? formatDistanceToNow(new Date(c.createdAt), { addSuffix: true }) : ''}</Text>
                 </div>
-                <div className="flex-1 bg-gray-50 dark:bg-[#0f1a2e] rounded-xl p-3">
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="text-xs font-semibold text-gray-700 dark:text-gray-300">
-                      {upd.author?.firstName} {upd.author?.lastName}
-                    </span>
-                    <div className="flex items-center gap-2 text-xs text-gray-400">
-                      {upd.hoursWorked > 0 && <span className="flex items-center gap-0.5"><ClockIcon className="w-3 h-3" />{upd.hoursWorked}h</span>}
-                      {upd.progress !== undefined && <span className="text-brand-600 font-medium">{upd.progress}%</span>}
-                      <span>{upd.createdAt ? formatDistanceToNow(new Date(upd.createdAt), { addSuffix: true }) : ''}</span>
+                <Text style={{ fontSize: 13 }}>{c.content}</Text>
+              </div>
+            </div>
+          ))}
+        </div>
+      ),
+    },
+  ];
+
+  if (canRequestExtension) {
+    tabItems.push({
+      key: 'extension',
+      label: hasPendingExtension ? 'Extension ⚠' : 'Extension',
+      children: (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          {(task.extensionRequests || []).length > 0 && (
+            <div>
+              <Text type="secondary" style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: 0.5, display: 'block', marginBottom: 8 }}>Request History</Text>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {(task.extensionRequests || []).map((ext, i) => (
+                  <div key={ext._id || i} style={{ padding: 10, borderRadius: 10, border: '1px solid rgba(15,23,42,0.08)', background: ext.status === 'approved' ? 'rgba(34,197,94,0.06)' : ext.status === 'rejected' ? 'rgba(239,68,68,0.06)' : 'rgba(249,115,22,0.06)' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                      <Tag color={ext.status === 'approved' ? 'green' : ext.status === 'rejected' ? 'red' : 'orange'} style={{ textTransform: 'uppercase', fontSize: 10 }}>{ext.status}</Tag>
+                      <Text type="secondary" style={{ fontSize: 11 }}>{ext.requestedAt ? format(new Date(ext.requestedAt), 'dd MMM') : ''}</Text>
                     </div>
+                    <Text style={{ fontSize: 12 }}>Requested deadline: <Text strong>{ext.requestedDueDate ? format(new Date(ext.requestedDueDate), 'dd MMM yyyy') : '—'}</Text></Text>
+                    {ext.reason && <Paragraph italic type="secondary" style={{ fontSize: 12, margin: '4px 0 0' }}>"{ext.reason}"</Paragraph>}
                   </div>
-                  <p className="text-sm text-gray-700 dark:text-gray-300">{upd.content}</p>
-                </div>
+                ))}
               </div>
-            ))
+            </div>
           )}
-          {tab === 'updates' && <div ref={updatesEndRef} />}
 
-          {/* ── Comments tab ── */}
-          {tab === 'comments' && (
-            realComments.length === 0 ? (
-              <div className="text-center py-8 text-gray-400">
-                <ChatBubbleLeftIcon className="w-8 h-8 mx-auto mb-2 opacity-40" />
-                <p className="text-sm">No comments yet — start a discussion below</p>
+          {hasPendingExtension ? (
+            <div style={{ padding: 12, borderRadius: 10, background: 'rgba(249,115,22,0.08)', border: '1px solid rgba(249,115,22,0.2)' }}>
+              <Text style={{ fontSize: 13, color: '#9a3412' }}>You have a pending extension request. Wait for your manager to review it before submitting a new one.</Text>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <div>
+                <label className="label">New Requested Deadline</label>
+                <DatePicker value={extDate} minDate={minExtDate} onChange={setExtDate} style={{ width: '100%' }} suffixIcon={<CalendarOutlined />} />
               </div>
-            ) : realComments.map((c, i) => (
-              <div key={c._id || i} className="flex gap-3">
-                <div className="w-7 h-7 rounded-full bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center flex-shrink-0 mt-0.5">
-                  <span className="text-indigo-700 dark:text-indigo-400 text-xs font-bold">
-                    {c.author?.firstName?.[0]}{c.author?.lastName?.[0]}
-                  </span>
-                </div>
-                <div className="flex-1 bg-gray-50 dark:bg-[#0f1a2e] rounded-xl p-3">
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="text-xs font-semibold text-gray-700 dark:text-gray-300">
-                      {c.author?.firstName} {c.author?.lastName}
-                    </span>
-                    <span className="text-xs text-gray-400">
-                      {c.createdAt ? formatDistanceToNow(new Date(c.createdAt), { addSuffix: true }) : ''}
-                    </span>
-                  </div>
-                  <p className="text-sm text-gray-700 dark:text-gray-300">{c.content}</p>
-                </div>
+              <div>
+                <label className="label">Reason for Extension</label>
+                <Input.TextArea value={extReason} onChange={(e) => setExtReason(e.target.value)} rows={3} placeholder="Explain why you need more time and what's blocking you..." />
               </div>
-            ))
-          )}
-          {tab === 'comments' && <div ref={commentsEndRef} />}
-
-          {/* ── Extension tab ── */}
-          {tab === 'extension' && (
-            <div className="space-y-4">
-              {/* Request history */}
-              {(task.extensionRequests || []).length > 0 && (
-                <div className="space-y-2">
-                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Request History</p>
-                  {(task.extensionRequests || []).map((ext, i) => (
-                    <div key={ext._id || i} className={clsx(
-                      'p-3 rounded-xl border text-sm',
-                      ext.status === 'approved' ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800' :
-                      ext.status === 'rejected' ? 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800' :
-                      'bg-orange-50 dark:bg-orange-900/20 border-orange-200 dark:border-orange-800'
-                    )}>
-                      <div className="flex items-center justify-between mb-1">
-                        <span className={clsx(
-                          'text-xs font-bold uppercase',
-                          ext.status === 'approved' ? 'text-green-700 dark:text-green-400' :
-                          ext.status === 'rejected' ? 'text-red-700 dark:text-red-400' : 'text-orange-700 dark:text-orange-400'
-                        )}>{ext.status}</span>
-                        <span className="text-xs text-gray-400">
-                          {ext.requestedAt ? format(new Date(ext.requestedAt), 'dd MMM') : ''}
-                        </span>
-                      </div>
-                      <p className="text-xs text-gray-600 dark:text-gray-400">
-                        Requested deadline: <span className="font-medium">{ext.requestedDueDate ? format(new Date(ext.requestedDueDate), 'dd MMM yyyy') : '—'}</span>
-                      </p>
-                      {ext.reason && <p className="text-xs text-gray-500 mt-1 italic">"{ext.reason}"</p>}
-                      {ext.reviewedBy && (
-                        <p className="text-xs text-gray-400 mt-1">
-                          Reviewed by {ext.reviewedBy.firstName} {ext.reviewedBy.lastName}
-                        </p>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {/* New request form */}
-              {hasPendingExtension ? (
-                <div className="p-4 bg-orange-50 dark:bg-orange-900/20 rounded-xl border border-orange-200 dark:border-orange-800">
-                  <p className="text-sm font-medium text-orange-800 dark:text-orange-300">
-                    You have a pending extension request. Wait for your manager to review it before submitting a new one.
-                  </p>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Request a New Deadline</p>
-                  <div>
-                    <label className="label">New Requested Deadline</label>
-                    <div className="relative">
-                      <CalendarDaysIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                      <input
-                        type="date"
-                        value={extDate}
-                        min={minExtDate}
-                        onChange={(e) => setExtDate(e.target.value)}
-                        className="input pl-9"
-                      />
-                    </div>
-                  </div>
-                  <div>
-                    <label className="label">Reason for Extension</label>
-                    <textarea
-                      value={extReason}
-                      onChange={(e) => setExtReason(e.target.value)}
-                      rows={3}
-                      className="input resize-none"
-                      placeholder="Explain why you need more time and what's blocking you..."
-                    />
-                  </div>
-                  <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg text-xs text-blue-800 dark:text-blue-300">
-                    Your manager will be notified via WhatsApp and can approve or reject this request.
-                  </div>
-                  <button
-                    onClick={() => {
-                      if (!extDate) return toast.error('Please select a new deadline');
-                      if (!extReason.trim()) return toast.error('Please provide a reason');
-                      extensionMutation.mutate({ requestedDueDate: extDate, reason: extReason });
-                    }}
-                    disabled={extensionMutation.isPending || !extDate || !extReason.trim()}
-                    className="btn-primary w-full justify-center disabled:opacity-50"
-                  >
-                    {extensionMutation.isPending ? 'Submitting…' : 'Submit Extension Request'}
-                  </button>
-                </div>
-              )}
+              <Text type="secondary" style={{ fontSize: 12 }}>Your manager will be notified via WhatsApp and can approve or reject this request.</Text>
+              <Button
+                type="primary"
+                block
+                loading={extensionMutation.isPending}
+                disabled={!extDate || !extReason.trim()}
+                onClick={() => extensionMutation.mutate({ requestedDueDate: extDate.toISOString(), reason: extReason })}
+              >
+                Submit Extension Request
+              </Button>
             </div>
           )}
         </div>
+      ),
+    });
+  }
 
-        {/* Action bar — Updates tab */}
-        {tab === 'updates' && (
-          task.status === 'Completed' ? (
-            <div className="p-5 border-t border-gray-100 dark:border-[#1b2e4a]">
-              <div className="flex items-center gap-2 justify-center text-green-600">
-                <CheckCircleIcon className="w-5 h-5" />
-                <span className="font-semibold">Task Completed</span>
+  return (
+    <Drawer
+      open
+      onClose={onClose}
+      width={480}
+      title={
+        <div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 4 }}>
+            <Tag color={STATUS_TAG[task.status] || 'default'}>{task.status}</Tag>
+            <Text strong style={{ color: PRIORITY_COLOR[task.priority], fontSize: 12 }}>{task.priority?.toUpperCase()}</Text>
+            <Text type="secondary" style={{ fontSize: 12 }}>{task.department}</Text>
+          </div>
+          <Text strong style={{ fontSize: 15 }}>{task.title}</Text>
+          <div>
+            <Text type="secondary" style={{ fontSize: 12 }}>
+              Assigned by {task.assignedBy?.firstName} {task.assignedBy?.lastName}
+              {dueDate && <span style={{ color: isOverdue ? '#dc2626' : undefined, fontWeight: isOverdue ? 600 : 400 }}> · {isOverdue ? 'Overdue' : 'Due'} {format(dueDate, 'dd MMM')}</span>}
+            </Text>
+          </div>
+        </div>
+      }
+      extra={
+        <Button size="small" icon={<ThunderboltOutlined />} onClick={() => { onClose(); navigate(`/workflow/${initialTask._id}`); }}>
+          Workflow
+        </Button>
+      }
+      footer={
+        tab !== 'updates' ? null : task.status === 'Completed' ? (
+          <div style={{ textAlign: 'center', color: '#16a34a', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+            <CheckCircleFilled /> <Text strong style={{ color: 'inherit' }}>Task Completed</Text>
+          </div>
+        ) : task.status === 'Approval Pending' ? (
+          <div style={{ textAlign: 'center', color: '#7c3aed' }}>Waiting for manager approval…</div>
+        ) : canAct ? (
+          <div>
+            {task.status === 'Assigned' && (
+              <div style={{ marginBottom: 12, padding: 12, borderRadius: 10, background: 'rgba(59,130,246,0.08)' }}>
+                <Text style={{ display: 'block', marginBottom: 8, fontSize: 13 }}>Ready to start? Click below to begin working.</Text>
+                <Button type="primary" icon={<PlayCircleFilled />} loading={startMutation.isPending} onClick={() => startMutation.mutate()}>Start Working</Button>
               </div>
-            </div>
-          ) : task.status === 'Approval Pending' ? (
-            <div className="p-5 border-t border-gray-100 dark:border-[#1b2e4a]">
-              <div className="flex items-center gap-2 justify-center text-purple-600">
-                <ArrowPathIcon className="w-4 h-4 animate-spin" />
-                <span className="text-sm font-medium">Waiting for manager approval…</span>
-              </div>
-            </div>
-          ) : canAct ? (
-            <div className="border-t border-gray-100 dark:border-[#1b2e4a]">
-              {task.status === 'Assigned' && (
-                <div className="p-4 border-b border-gray-100 dark:border-[#1b2e4a] bg-blue-50 dark:bg-blue-900/20">
-                  <p className="text-sm font-medium text-blue-900 dark:text-blue-300 mb-3">Ready to start? Click below to begin working.</p>
-                  <button
-                    onClick={() => startMutation.mutate()}
-                    disabled={startMutation.isPending}
-                    className="btn-primary flex items-center gap-2"
-                  >
-                    <PlayIcon className="w-4 h-4" />
-                    {startMutation.isPending ? 'Starting…' : 'Start Working'}
-                  </button>
+            )}
+            <Text type="secondary" style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: 0.5 }}>Post Today's Update</Text>
+            <Input.TextArea value={updateText} onChange={(e) => setUpdateText(e.target.value)} rows={2} placeholder="What did you work on today? Any blockers?" style={{ marginTop: 6, marginBottom: 8 }} />
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 10 }}>
+              <div style={{ flex: 1 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11 }}>
+                  <span>Progress</span><Text strong style={{ fontSize: 11, color: '#a8781f' }}>{progress}%</Text>
                 </div>
+                <Slider min={0} max={100} step={5} value={progress} onChange={setProgress} />
+              </div>
+              <div style={{ width: 80 }}>
+                <Text type="secondary" style={{ fontSize: 11 }}>Hours</Text>
+                <Input type="number" min={0} max={24} step={0.5} value={hours} onChange={(e) => setHours(e.target.value)} placeholder="0" />
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <Button icon={<SendOutlined />} loading={dailyMutation.isPending} disabled={!updateText.trim()} onClick={handlePostUpdate} block>Post Update</Button>
+              {progress === 100 && !pendingApproval && (
+                <Button type="primary" icon={<CheckCircleFilled />} onClick={() => setShowCompletion(true)}>Request Completion</Button>
               )}
-              <div className="p-4 space-y-3">
-                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Post Today's Update</p>
-                <textarea
-                  value={updateText}
-                  onChange={(e) => setUpdateText(e.target.value)}
-                  rows={2}
-                  className="input resize-none text-sm"
-                  placeholder="What did you work on today? Any blockers?"
-                />
-                <div className="flex items-center gap-3">
-                  <div className="flex-1">
-                    <div className="flex justify-between text-xs text-gray-500 mb-1">
-                      <span>Progress</span>
-                      <span className="font-semibold text-brand-600">{progress}%</span>
-                    </div>
-                    <input
-                      type="range" min="0" max="100" step="5" value={progress}
-                      onChange={(e) => setProgress(Number(e.target.value))}
-                      className="w-full accent-brand-600"
-                    />
-                  </div>
-                  <div className="w-20">
-                    <p className="text-xs text-gray-500 mb-1">Hours</p>
-                    <input
-                      type="number" min="0" max="24" step="0.5" value={hours}
-                      onChange={(e) => setHours(e.target.value)}
-                      className="input text-sm py-1.5"
-                      placeholder="0"
-                    />
-                  </div>
-                </div>
-                <div className="flex gap-2">
-                  <button
-                    onClick={handlePostUpdate}
-                    disabled={dailyMutation.isPending || !updateText.trim()}
-                    className="btn-primary flex-1 justify-center py-2 gap-2 disabled:opacity-50"
-                  >
-                    <PaperAirplaneIcon className="w-4 h-4" />
-                    {dailyMutation.isPending ? 'Posting...' : 'Post Update'}
-                  </button>
-                  {progress === 100 && !pendingApproval && (
-                    <button
-                      onClick={() => setShowCompletion(true)}
-                      className="btn-primary justify-center px-4 py-2 bg-green-600 hover:bg-green-700 gap-1.5"
-                    >
-                      <CheckCircleIcon className="w-4 h-4" />
-                      Request Completion
-                    </button>
-                  )}
-                </div>
-                {progress < 100 && canAct && !pendingApproval && (
-                  <button
-                    onClick={() => setShowCompletion(true)}
-                    className="w-full text-center text-xs text-gray-400 hover:text-green-600 py-1 transition-colors"
-                  >
-                    Done with the task? → Request Completion
-                  </button>
-                )}
-              </div>
             </div>
-          ) : null
-        )}
+            {progress < 100 && !pendingApproval && (
+              <Button type="link" size="small" onClick={() => setShowCompletion(true)} style={{ marginTop: 4, padding: 0 }}>
+                Done with the task? → Request Completion
+              </Button>
+            )}
+          </div>
+        ) : null
+      }
+    >
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
+        <Progress percent={task.progress || 0} style={{ flex: 1 }} />
+        {task.actualHours > 0 && <Text type="secondary" style={{ fontSize: 12 }}><ClockCircleOutlined /> {task.actualHours}h</Text>}
+      </div>
+      {(task.status === 'In Progress' || (task.status === 'Completed' && task.startDate)) && elapsedMs > 0 && (
+        <Tag color={task.status === 'In Progress' ? 'gold' : 'green'} style={{ marginBottom: 16, fontFamily: 'monospace' }} icon={<ClockCircleOutlined />}>
+          {task.status === 'In Progress' ? `${formatDuration(elapsedMs, 'clock')} elapsed` : `Completed in ${formatDuration(elapsedMs, 'compact')}`}
+        </Tag>
+      )}
 
-        {/* Action bar — Comments tab */}
-        {tab === 'comments' && (
-          <div className="border-t border-gray-100 dark:border-[#1b2e4a] p-4">
-            <div className="flex gap-2 items-end">
-              <textarea
-                value={commentText}
-                onChange={(e) => setCommentText(e.target.value)}
-                rows={2}
-                className="input resize-none text-sm flex-1"
-                placeholder="Write a comment… (Ctrl+Enter to send)"
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && (e.ctrlKey || e.metaKey) && commentText.trim()) {
-                    e.preventDefault();
-                    commentMutation.mutate(commentText.trim());
-                  }
-                }}
-              />
-              <button
-                onClick={() => { if (commentText.trim()) commentMutation.mutate(commentText.trim()); }}
-                disabled={commentMutation.isPending || !commentText.trim()}
-                className="btn-primary px-3 py-2.5 disabled:opacity-50 self-stretch flex items-center"
-              >
-                <PaperAirplaneIcon className="w-4 h-4" />
-              </button>
+      <Text type="secondary" style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: 0.5, display: 'block', marginBottom: 8 }}>Time Tracker</Text>
+      <TaskTimer task={task} />
+
+      {task.description && (
+        <Paragraph type="secondary" style={{ marginTop: 16 }}>{task.description}</Paragraph>
+      )}
+
+      {task.status === 'Changes Requested' && lastRejection?.reviewNotes && (
+        <div style={{ marginTop: 16, padding: 12, borderRadius: 10, background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.2)' }}>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <ExclamationCircleFilled style={{ color: '#dc2626', marginTop: 2 }} />
+            <div>
+              <Text strong style={{ color: '#b91c1c', fontSize: 12, display: 'block' }}>
+                Returned by {lastRejection.reviewedBy?.firstName} {lastRejection.reviewedBy?.lastName}
+                {task.rejectionCount > 1 && <span> (Round #{task.rejectionCount})</span>}
+              </Text>
+              <Text style={{ fontSize: 13, color: '#991b1b' }}>{lastRejection.reviewNotes}</Text>
             </div>
           </div>
-        )}
+        </div>
+      )}
 
-        {/* Completion modal */}
-        <AnimatePresence>
-          {showCompletion && (
-            <motion.div
-              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              className="absolute inset-0 z-10 flex items-center justify-center p-4"
-            >
-              <div className="bg-white dark:bg-[#070c17] rounded-2xl shadow-modal w-full max-w-sm p-6 space-y-4 relative z-20">
-                <h3 className="font-bold text-gray-900 dark:text-white">
-                  Request Task Completion
-                  {task.rejectionCount > 0 && (
-                    <span className="ml-2 text-sm font-normal text-orange-600">(Resubmission #{task.rejectionCount + 1})</span>
-                  )}
-                </h3>
-                <div className="p-3 bg-gray-50 dark:bg-[#0f1a2e] rounded-lg">
-                  <p className="text-sm font-medium text-gray-700 dark:text-gray-300">{task.title}</p>
-                </div>
-                {task.status === 'Changes Requested' && lastRejection?.reviewNotes && (
-                  <div className="p-3 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800">
-                    <p className="text-xs font-semibold text-red-600 mb-0.5">Previous feedback to address:</p>
-                    <p className="text-xs text-red-700 dark:text-red-300">{lastRejection.reviewNotes}</p>
-                  </div>
-                )}
-                <div>
-                  <label className="label">Summary of completed work</label>
-                  <textarea
-                    value={completionNotes}
-                    onChange={(e) => setCompletionNotes(e.target.value)}
-                    rows={3} className="input resize-none"
-                    placeholder="Describe what you completed, any attachments or proof of work..."
-                  />
-                </div>
-                <div className="p-3 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg text-xs text-yellow-800 dark:text-yellow-300">
-                  Your manager will review this and mark it complete or send it back with feedback.
-                </div>
-                <div className="flex gap-3">
-                  <button onClick={() => setShowCompletion(false)} className="btn-secondary flex-1 justify-center">Cancel</button>
-                  <button
-                    onClick={() => completionMutation.mutate(completionNotes)}
-                    disabled={completionMutation.isPending}
-                    className="btn-primary flex-1 justify-center bg-green-600 hover:bg-green-700"
-                  >
-                    {completionMutation.isPending ? 'Submitting...' : 'Submit for Review'}
-                  </button>
-                </div>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </motion.div>
-    </div>
+      <Tabs activeKey={tab} onChange={setTab} items={tabItems} style={{ marginTop: 16 }} />
+
+      {tab === 'comments' && (
+        <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+          <Input
+            value={commentText}
+            onChange={(e) => setCommentText(e.target.value)}
+            onPressEnter={() => commentText.trim() && commentMutation.mutate(commentText.trim())}
+            placeholder="Write a comment…"
+          />
+          <Button icon={<SendOutlined />} type="primary" loading={commentMutation.isPending} disabled={!commentText.trim()} onClick={() => commentMutation.mutate(commentText.trim())} />
+        </div>
+      )}
+
+      <Drawer
+        open={showCompletion}
+        onClose={() => setShowCompletion(false)}
+        title={`Request Task Completion${task.rejectionCount > 0 ? ` (Resubmission #${task.rejectionCount + 1})` : ''}`}
+        height="auto"
+        placement="bottom"
+      >
+        <Text strong style={{ display: 'block', marginBottom: 12 }}>{task.title}</Text>
+        {task.status === 'Changes Requested' && lastRejection?.reviewNotes && (
+          <div style={{ padding: 10, borderRadius: 10, background: 'rgba(239,68,68,0.06)', marginBottom: 12 }}>
+            <Text strong style={{ fontSize: 11, color: '#b91c1c', display: 'block' }}>Previous feedback to address:</Text>
+            <Text style={{ fontSize: 12, color: '#991b1b' }}>{lastRejection.reviewNotes}</Text>
+          </div>
+        )}
+        <label className="label">Summary of completed work</label>
+        <Input.TextArea value={completionNotes} onChange={(e) => setCompletionNotes(e.target.value)} rows={3} placeholder="Describe what you completed, any attachments or proof of work..." />
+        <Text type="secondary" style={{ fontSize: 12, display: 'block', margin: '10px 0' }}>Your manager will review this and mark it complete or send it back with feedback.</Text>
+        <div style={{ display: 'flex', gap: 10 }}>
+          <Button onClick={() => setShowCompletion(false)} block>Cancel</Button>
+          <Button type="primary" loading={completionMutation.isPending} onClick={() => completionMutation.mutate(completionNotes)} block>Submit for Review</Button>
+        </div>
+      </Drawer>
+    </Drawer>
   );
 }
 
@@ -695,46 +467,29 @@ export default function MyTasks() {
   const tasks = data?.data || [];
 
   const FILTERS = [
-    { key: 'active',    label: 'Active' },
-    { key: 'pending',   label: 'Pending Approval' },
-    { key: 'overdue',   label: 'Overdue' },
-    { key: 'completed', label: 'Completed' },
-    { key: 'achieved',  label: '🏆 Achieved' },
-    { key: 'all',       label: 'All' },
+    { value: 'active',    label: 'Active' },
+    { value: 'pending',   label: 'Pending Approval' },
+    { value: 'overdue',   label: 'Overdue' },
+    { value: 'completed', label: 'Completed' },
+    { value: 'achieved',  label: '🏆 Achieved' },
+    { value: 'all',       label: 'All' },
   ];
 
   return (
     <div className="space-y-6">
       <div className="page-header">
         <div>
-          <h1 className="page-title">My Tasks</h1>
-          <p className="text-gray-500 text-sm">{tasks.length} tasks</p>
+          <Title level={4} style={{ marginBottom: 0 }}>My Tasks</Title>
+          <Text type="secondary">{tasks.length} tasks</Text>
         </div>
       </div>
 
-      <div className="flex gap-2 flex-wrap">
-        {FILTERS.map((f) => (
-          <button
-            key={f.key}
-            onClick={() => setFilter(f.key)}
-            className={clsx('px-4 py-2 rounded-lg text-sm font-medium transition-colors',
-              filter === f.key
-                ? 'bg-brand-600 text-white'
-                : 'bg-white dark:bg-[#0f1a2e] text-gray-600 dark:text-gray-400 border border-gray-200 dark:border-[#1b2e4a] hover:bg-gray-50'
-            )}
-          >
-            {f.label}
-          </button>
-        ))}
-      </div>
+      <Segmented options={FILTERS} value={filter} onChange={setFilter} />
 
       {isLoading ? (
-        <div className="flex justify-center py-16"><div className="w-8 h-8 border-2 border-brand-500 border-t-transparent rounded-full animate-spin" /></div>
+        <div style={{ textAlign: 'center', padding: 60 }}><Spin size="large" /></div>
       ) : tasks.length === 0 ? (
-        <div className="card p-12 text-center text-gray-400">
-          <FunnelIcon className="w-10 h-10 mx-auto mb-2 opacity-40" />
-          <p>No tasks in this filter</p>
-        </div>
+        <Empty description="No tasks in this filter" image={Empty.PRESENTED_IMAGE_SIMPLE} style={{ padding: 40 }} />
       ) : (
         <div className="space-y-3">
           {tasks.map((task) => {
@@ -750,67 +505,52 @@ export default function MyTasks() {
                 initial={{ opacity: 0, y: 4 }}
                 animate={{ opacity: 1, y: 0 }}
                 onClick={() => setOpenTask(task)}
-                className={clsx(
-                  'card p-4 cursor-pointer border-l-4 hover:shadow-md transition-shadow',
-                  PRIORITY_BORDER[task.priority] || 'border-l-gray-200'
-                )}
+                style={{
+                  background: '#fbfaf7', borderRadius: 14, padding: 16, cursor: 'pointer',
+                  border: '1px solid rgba(15,23,42,0.08)',
+                  borderInlineStart: `4px solid ${PRIORITY_COLOR[task.priority] || '#e5e7eb'}`,
+                  boxShadow: '0 1px 2px rgba(15,23,42,0.04)',
+                }}
               >
-                <div className="flex items-start gap-4">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap mb-1">
-                      <span className={`badge ${STATUS_COLORS[task.status] || 'badge-gray'}`}>{task.status}</span>
-                      <span className={`text-xs font-bold ${PRIORITY_TEXT[task.priority]}`}>{task.priority?.toUpperCase()}</span>
-                      <span className="text-xs text-gray-400">{task.department}</span>
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: 16 }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 4 }}>
+                      <Tag color={STATUS_TAG[task.status] || 'default'}>{task.status}</Tag>
+                      <Text strong style={{ color: PRIORITY_COLOR[task.priority], fontSize: 11 }}>{task.priority?.toUpperCase()}</Text>
+                      <Text type="secondary" style={{ fontSize: 11 }}>{task.department}</Text>
                     </div>
-                    <h3 className="font-semibold text-gray-900 dark:text-white text-sm leading-snug">{task.title}</h3>
+                    <Text strong style={{ fontSize: 13 }}>{task.title}</Text>
 
                     {lastUpdate ? (
-                      <p className="text-xs text-gray-500 mt-1 line-clamp-1 italic">
+                      <Paragraph type="secondary" italic ellipsis style={{ fontSize: 12, margin: '4px 0 0' }}>
                         Last update: "{lastUpdate.content}"
-                      </p>
+                      </Paragraph>
                     ) : (
-                      <p className="text-xs text-orange-500 mt-1">No updates posted yet</p>
+                      <Text style={{ fontSize: 12, color: '#ea580c', display: 'block', marginTop: 4 }}>No updates posted yet</Text>
                     )}
 
-                    <div className="flex items-center gap-3 mt-2 flex-wrap">
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 8, flexWrap: 'wrap' }}>
                       {dueDate && (
-                        <span className={clsx('text-xs font-medium', isOverdue ? 'text-red-600' : isDueToday ? 'text-orange-500' : 'text-gray-400')}>
-                          {isOverdue && <ExclamationTriangleIcon className="w-3 h-3 inline mr-0.5" />}
+                        <Text style={{ fontSize: 12, fontWeight: 500, color: isOverdue ? '#dc2626' : isDueToday ? '#ea580c' : '#94a3b8' }}>
+                          {isOverdue && <ExclamationCircleFilled style={{ marginRight: 4 }} />}
                           {isOverdue ? 'Overdue · ' : isDueToday ? 'Due Today · ' : 'Due '}{format(dueDate, 'dd MMM')}
-                        </span>
+                        </Text>
                       )}
                       {(task.status === 'In Progress' || (task.status === 'Completed' && task.startDate)) && (
                         <TaskTimerBadge startDate={task.startDate} status={task.status} completedAt={task.completedAt} />
                       )}
                       {task.actualHours > 0 && (
-                        <span className="text-xs text-gray-400 flex items-center gap-0.5">
-                          <ClockIcon className="w-3 h-3" />{task.actualHours}h logged
-                        </span>
+                        <Text type="secondary" style={{ fontSize: 12 }}><ClockCircleOutlined /> {task.actualHours}h logged</Text>
                       )}
                       {commentCount > 0 && (
-                        <span className="text-xs text-gray-400 flex items-center gap-0.5">
-                          <ChatBubbleLeftIcon className="w-3 h-3" />{commentCount}
-                        </span>
+                        <Text type="secondary" style={{ fontSize: 12 }}><MessageOutlined /> {commentCount}</Text>
                       )}
                     </div>
                   </div>
 
-                  {/* Progress ring */}
-                  <div className="flex-shrink-0 flex flex-col items-center gap-1">
-                    <div className="relative w-12 h-12">
-                      <svg className="w-12 h-12 -rotate-90" viewBox="0 0 36 36">
-                        <circle cx="18" cy="18" r="15" fill="none" stroke="currentColor" strokeWidth="3" className="text-gray-100 dark:text-gray-700" />
-                        <circle cx="18" cy="18" r="15" fill="none" stroke="currentColor" strokeWidth="3"
-                          strokeDasharray={`${(task.progress || 0) * 0.942} 94.2`}
-                          strokeLinecap="round"
-                          className="text-brand-500 transition-all duration-500"
-                        />
-                      </svg>
-                      <span className="absolute inset-0 flex items-center justify-center text-xs font-bold text-gray-700 dark:text-gray-300">
-                        {task.progress || 0}%
-                      </span>
-                    </div>
-                    <span className="text-xs text-brand-600 font-medium">Update</span>
+                  <div style={{ flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+                    <Progress type="circle" percent={task.progress || 0} size={48} strokeColor="#a8781f" />
+                    <Text style={{ fontSize: 11, color: '#a8781f', fontWeight: 600 }}>Update</Text>
                   </div>
                 </div>
               </motion.div>

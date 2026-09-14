@@ -1,41 +1,38 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  PlusIcon, XMarkIcon, CheckIcon, PlayIcon, PaperAirplaneIcon,
-  ArrowPathIcon, ChatBubbleLeftEllipsisIcon, ClockIcon, UserIcon,
-  ExclamationTriangleIcon, CalendarIcon,
-} from '@heroicons/react/24/outline';
+  PlusOutlined, CloseOutlined, CheckOutlined, PlayCircleFilled, SendOutlined,
+  RedoOutlined, UserOutlined, ExclamationCircleFilled, CalendarOutlined,
+} from '@ant-design/icons';
+import { Button, Empty, Input, Modal, Progress, Select, Spin, Tabs, Tag, Typography } from 'antd';
 import api from '../../api/axios';
 import { useAuthStore } from '../../store/useAuthStore';
-import { clsx } from 'clsx';
 import { format, isPast, isToday, formatDistanceToNow } from 'date-fns';
 import toast from 'react-hot-toast';
 import TaskForm from './TaskForm';
 
+const { Text, Title, Paragraph } = Typography;
+
 const COLUMNS = [
-  { key: 'Pending',          label: 'Pending',          color: 'bg-gray-100 dark:bg-[#0f1a2e]',         dot: 'bg-gray-400'   },
-  { key: 'Assigned',         label: 'Assigned',          color: 'bg-blue-50 dark:bg-blue-900/20',       dot: 'bg-blue-500'   },
-  { key: 'In Progress',      label: 'In Progress',       color: 'bg-yellow-50 dark:bg-yellow-900/20',   dot: 'bg-yellow-500' },
-  { key: 'Approval Pending', label: 'Under Review',      color: 'bg-orange-50 dark:bg-orange-900/20',   dot: 'bg-orange-500' },
-  { key: 'Completed',        label: 'Completed',         color: 'bg-green-50 dark:bg-green-900/20',     dot: 'bg-green-500'  },
-  { key: 'Achieved',         label: '🏆 Achieved',        color: 'bg-amber-50 dark:bg-amber-900/20',     dot: 'bg-amber-500'  },
+  { key: 'Pending',          label: 'Pending',          bg: 'rgba(15,23,42,0.04)', dot: '#94a3b8' },
+  { key: 'Assigned',         label: 'Assigned',          bg: 'rgba(59,130,246,0.06)', dot: '#3b82f6' },
+  { key: 'In Progress',      label: 'In Progress',       bg: 'rgba(234,179,8,0.07)',  dot: '#eab308' },
+  { key: 'Approval Pending', label: 'Under Review',      bg: 'rgba(249,115,22,0.07)', dot: '#f97316' },
+  { key: 'Completed',        label: 'Completed',         bg: 'rgba(34,197,94,0.07)',  dot: '#22c55e' },
+  { key: 'Achieved',         label: '🏆 Achieved',        bg: 'rgba(245,158,11,0.07)', dot: '#f59e0b' },
 ];
 
 const PRIORITY_BORDER = {
-  critical: 'border-l-red-500',
-  urgent:   'border-l-red-400',
-  high:     'border-l-orange-500',
-  medium:   'border-l-yellow-400',
-  low:      'border-l-gray-300',
+  critical: '#ef4444', urgent: '#f87171', high: '#f97316', medium: '#eab308', low: '#d1d5db',
 };
 
-const PRIORITY_BADGE = {
-  critical: 'bg-red-100 text-red-700',
-  urgent:   'bg-red-50 text-red-600',
-  high:     'bg-orange-100 text-orange-700',
-  medium:   'bg-yellow-100 text-yellow-700',
-  low:      'bg-gray-100 text-gray-500',
+const PRIORITY_TAG = {
+  critical: 'red', urgent: 'volcano', high: 'orange', medium: 'gold', low: 'default',
+};
+
+const STATUS_TAG = {
+  Assigned: 'blue', 'In Progress': 'gold', 'Approval Pending': 'orange', Completed: 'green', Pending: 'default',
 };
 
 const DEPARTMENTS = ['Marketing', 'Marketplace', 'Sales', 'Production', 'R&D', 'Operations', 'Accounts & Finance'];
@@ -44,13 +41,13 @@ const DEPARTMENTS = ['Marketing', 'Marketplace', 'Sales', 'Production', 'R&D', '
 // Task Detail Modal
 // ─────────────────────────────────────────────────────────────────────────────
 function TaskDetailModal({ taskId, onClose }) {
-  const { user, isManagerOrAbove, ROLE_LEVEL } = useAuthStore();
+  const { user, isManagerOrAbove } = useAuthStore();
   const qc = useQueryClient();
   const [updateText, setUpdateText] = useState('');
   const [progress, setProgress] = useState('');
   const [approvalNotes, setApprovalNotes] = useState('');
   const [showRejectBox, setShowRejectBox] = useState(false);
-  const [activeTab, setActiveTab] = useState('updates'); // 'updates' | 'activity'
+  const [activeTab, setActiveTab] = useState('updates');
 
   const { data, isLoading } = useQuery({
     queryKey: ['task-detail', taskId],
@@ -61,7 +58,6 @@ function TaskDetailModal({ taskId, onClose }) {
 
   const task = data;
 
-  // Fetch pending approval if status is Approval Pending
   const { data: approvalsData } = useQuery({
     queryKey: ['task-approvals', taskId],
     queryFn: () => api.get(`/tasks/${taskId}/approvals`).then((r) => r.data.approvals),
@@ -123,7 +119,6 @@ function TaskDetailModal({ taskId, onClose }) {
 
   const isAssignee = task?.assignedTo?._id === user?._id;
   const userLevel = { super_admin: 7, chairman: 6, founder: 5, admin: 4, manager: 3, team_lead: 2, member: 1 }[user?.role] || 1;
-  // managers can only manage tasks in their own dept; admin+ can manage all
   const canManage = isManagerOrAbove() && (userLevel >= 4 || !user?.department || task?.department === user?.department);
 
   const dueDate = task?.dueDate ? new Date(task.dueDate) : null;
@@ -134,320 +129,186 @@ function TaskDetailModal({ taskId, onClose }) {
   const activityLog = task?.activity || [];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-gray-900/60 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative card w-full max-w-2xl shadow-modal max-h-[92vh] flex flex-col">
-
-        {/* ── Header ── */}
-        <div className="flex items-start justify-between gap-3 p-5 border-b border-gray-200 dark:border-[#1b2e4a]">
-          <div className="flex-1 min-w-0">
-            {isLoading ? (
-              <div className="h-5 w-48 bg-gray-200 dark:bg-[#132035] rounded animate-pulse" />
-            ) : (
-              <>
-                <div className="flex items-center gap-2 flex-wrap mb-1">
-                  <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">{task?.department}</span>
-                  <span className={clsx('text-xs px-2 py-0.5 rounded-full font-medium', PRIORITY_BADGE[task?.priority])}>
-                    {task?.priority}
-                  </span>
-                  <span className={clsx('text-xs px-2 py-0.5 rounded-full font-medium', {
-                    'bg-blue-100 text-blue-700': task?.status === 'Assigned',
-                    'bg-yellow-100 text-yellow-700': task?.status === 'In Progress',
-                    'bg-orange-100 text-orange-700': task?.status === 'Approval Pending',
-                    'bg-green-100 text-green-700': task?.status === 'Completed',
-                    'bg-gray-100 text-gray-600': task?.status === 'Pending',
-                  })}>
-                    {task?.status}
-                  </span>
-                  {isOverdue && (
-                    <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-red-100 text-red-700 flex items-center gap-1">
-                      <ExclamationTriangleIcon className="w-3 h-3" /> Overdue
-                    </span>
-                  )}
-                </div>
-                <h2 className="text-lg font-bold text-gray-900 dark:text-white leading-snug">{task?.title}</h2>
-              </>
-            )}
-          </div>
-          <button onClick={onClose} className="p-1.5 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 dark:hover:bg-[#17263d] flex-shrink-0">
-            <XMarkIcon className="w-5 h-5" />
-          </button>
-        </div>
-
-        {isLoading ? (
-          <div className="flex-1 flex items-center justify-center py-12">
-            <div className="w-7 h-7 border-2 border-brand-500 border-t-transparent rounded-full animate-spin" />
-          </div>
-        ) : task ? (
-          <div className="flex-1 overflow-y-auto">
-
-            {/* ── Meta row ── */}
-            <div className="px-5 py-4 grid grid-cols-2 gap-3 text-sm border-b border-gray-100 dark:border-[#1b2e4a]">
-              <div className="flex items-center gap-2 text-gray-600 dark:text-gray-400">
-                <UserIcon className="w-4 h-4 flex-shrink-0" />
-                <span className="text-gray-500">Assigned to:</span>
-                <span className="font-medium text-gray-900 dark:text-white">
-                  {task.assignedTo ? `${task.assignedTo.firstName} ${task.assignedTo.lastName}` : '—'}
-                </span>
-              </div>
-              <div className="flex items-center gap-2 text-gray-600 dark:text-gray-400">
-                <UserIcon className="w-4 h-4 flex-shrink-0" />
-                <span className="text-gray-500">By:</span>
-                <span className="font-medium text-gray-900 dark:text-white">
-                  {task.assignedBy ? `${task.assignedBy.firstName} ${task.assignedBy.lastName}` : '—'}
-                </span>
-              </div>
-              {dueDate && (
-                <div className={clsx('flex items-center gap-2', isOverdue ? 'text-red-600' : isDueToday ? 'text-orange-600' : 'text-gray-600 dark:text-gray-400')}>
-                  <CalendarIcon className="w-4 h-4 flex-shrink-0" />
-                  <span className="text-gray-500">Due:</span>
-                  <span className="font-medium">{format(dueDate, 'dd MMM yyyy')}{isDueToday ? ' (Today)' : isOverdue ? ' (Overdue)' : ''}</span>
-                </div>
-              )}
-              {task.platform && (
-                <div className="flex items-center gap-2 text-gray-600 dark:text-gray-400">
-                  <span className="text-gray-500">Platform:</span>
-                  <span className="font-medium text-gray-900 dark:text-white">{task.platform}</span>
-                </div>
-              )}
+    <Modal open={!!taskId} onCancel={onClose} footer={null} width={720} styles={{ body: { maxHeight: '80vh', overflowY: 'auto' } }}>
+      {isLoading ? (
+        <div style={{ textAlign: 'center', padding: 60 }}><Spin size="large" /></div>
+      ) : task ? (
+        <div>
+          <div style={{ marginBottom: 8 }}>
+            <Text type="secondary" style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: 0.5 }}>{task.department}</Text>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 2, flexWrap: 'wrap' }}>
+              <Tag color={PRIORITY_TAG[task.priority]}>{task.priority}</Tag>
+              <Tag color={STATUS_TAG[task.status] || 'default'}>{task.status}</Tag>
+              {isOverdue && <Tag color="red" icon={<ExclamationCircleFilled />}>Overdue</Tag>}
             </div>
+          </div>
+          <Title level={4} style={{ marginTop: 4 }}>{task.title}</Title>
 
-            {/* ── Description ── */}
-            {task.description && (
-              <div className="px-5 py-3 border-b border-gray-100 dark:border-[#1b2e4a]">
-                <p className="text-sm text-gray-600 dark:text-gray-400 whitespace-pre-wrap">{task.description}</p>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, fontSize: 13, padding: '12px 0', borderTop: '1px solid rgba(15,23,42,0.06)', borderBottom: '1px solid rgba(15,23,42,0.06)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <UserOutlined style={{ color: '#94a3b8' }} />
+              <Text type="secondary">Assigned to:</Text>
+              <Text strong>{task.assignedTo ? `${task.assignedTo.firstName} ${task.assignedTo.lastName}` : '—'}</Text>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <UserOutlined style={{ color: '#94a3b8' }} />
+              <Text type="secondary">By:</Text>
+              <Text strong>{task.assignedBy ? `${task.assignedBy.firstName} ${task.assignedBy.lastName}` : '—'}</Text>
+            </div>
+            {dueDate && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: isOverdue ? '#dc2626' : isDueToday ? '#ea580c' : undefined }}>
+                <CalendarOutlined />
+                <Text type="secondary">Due:</Text>
+                <Text strong>{format(dueDate, 'dd MMM yyyy')}{isDueToday ? ' (Today)' : isOverdue ? ' (Overdue)' : ''}</Text>
+              </div>
+            )}
+            {task.platform && (
+              <div><Text type="secondary">Platform: </Text><Text strong>{task.platform}</Text></div>
+            )}
+          </div>
+
+          {task.description && <Paragraph style={{ margin: '12px 0' }} type="secondary">{task.description}</Paragraph>}
+
+          <div style={{ margin: '12px 0' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+              <Text type="secondary" style={{ fontSize: 12 }}>Progress</Text>
+              <Text strong style={{ fontSize: 12 }}>{task.progress || 0}%</Text>
+            </div>
+            <Progress percent={task.progress || 0} showInfo={false} />
+          </div>
+
+          {/* Status-specific action panel */}
+          <div style={{ padding: '16px 0', borderBottom: '1px solid rgba(15,23,42,0.06)' }}>
+            {task.status === 'Assigned' && isAssignee && (
+              <div style={{ background: 'rgba(59,130,246,0.08)', border: '1px solid rgba(59,130,246,0.2)', borderRadius: 12, padding: 16 }}>
+                <Text strong style={{ display: 'block', marginBottom: 10, color: '#1e40af' }}>Ready to start this task?</Text>
+                <Button type="primary" icon={<PlayCircleFilled />} loading={startMutation.isPending} onClick={() => startMutation.mutate()}>
+                  Start Working
+                </Button>
               </div>
             )}
 
-            {/* ── Progress bar ── */}
-            <div className="px-5 py-3 border-b border-gray-100 dark:border-[#1b2e4a]">
-              <div className="flex items-center justify-between mb-1.5">
-                <span className="text-xs font-medium text-gray-500">Progress</span>
-                <span className="text-xs font-bold text-gray-900 dark:text-white">{task.progress || 0}%</span>
-              </div>
-              <div className="h-2 bg-gray-100 dark:bg-[#0f1a2e] rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-brand-500 rounded-full transition-all duration-500"
-                  style={{ width: `${task.progress || 0}%` }}
+            {task.status === 'In Progress' && isAssignee && (
+              <div>
+                <Text strong style={{ display: 'block', marginBottom: 8 }}>Post a progress update</Text>
+                <Input.TextArea
+                  value={updateText}
+                  onChange={(e) => setUpdateText(e.target.value)}
+                  placeholder="What did you work on? Any blockers?"
+                  rows={3}
                 />
-              </div>
-            </div>
-
-            {/* ── Status-specific action panel ── */}
-            <div className="px-5 py-4 border-b border-gray-100 dark:border-[#1b2e4a]">
-
-              {/* ASSIGNED → employee can start working */}
-              {task.status === 'Assigned' && isAssignee && (
-                <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl p-4">
-                  <p className="text-sm font-medium text-blue-900 dark:text-blue-300 mb-3">
-                    Ready to start this task?
-                  </p>
-                  <button
-                    onClick={() => startMutation.mutate()}
-                    disabled={startMutation.isPending}
-                    className="btn-primary flex items-center gap-2"
-                  >
-                    <PlayIcon className="w-4 h-4" />
-                    {startMutation.isPending ? 'Starting…' : 'Start Working'}
-                  </button>
-                </div>
-              )}
-
-              {/* IN PROGRESS → employee can post update + request completion */}
-              {task.status === 'In Progress' && isAssignee && (
-                <div className="space-y-3">
-                  <p className="text-sm font-medium text-gray-700 dark:text-gray-300">Post a progress update</p>
-                  <textarea
-                    value={updateText}
-                    onChange={(e) => setUpdateText(e.target.value)}
-                    placeholder="What did you work on? Any blockers?"
-                    rows={3}
-                    className="input w-full resize-none text-sm"
-                  />
-                  <div className="flex items-center gap-3">
-                    <div className="flex items-center gap-2 flex-1">
-                      <label className="text-xs text-gray-500 whitespace-nowrap">Progress %</label>
-                      <input
-                        type="number"
-                        min={0} max={100}
-                        value={progress}
-                        onChange={(e) => setProgress(e.target.value)}
-                        placeholder={String(task.progress || 0)}
-                        className="input w-20 text-sm py-1.5"
-                      />
-                    </div>
-                    <button
-                      onClick={() => updateMutation.mutate({ content: updateText, progress })}
-                      disabled={!updateText.trim() || updateMutation.isPending}
-                      className="btn-secondary flex items-center gap-1.5 text-sm"
-                    >
-                      <PaperAirplaneIcon className="w-4 h-4" />
-                      {updateMutation.isPending ? 'Posting…' : 'Post Update'}
-                    </button>
-                    <button
-                      onClick={() => requestCompletionMutation.mutate()}
-                      disabled={requestCompletionMutation.isPending}
-                      className="btn-primary flex items-center gap-1.5 text-sm"
-                    >
-                      <CheckIcon className="w-4 h-4" />
-                      {requestCompletionMutation.isPending ? 'Submitting…' : 'Request Completion'}
-                    </button>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 10 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1 }}>
+                    <Text type="secondary" style={{ fontSize: 12, whiteSpace: 'nowrap' }}>Progress %</Text>
+                    <Input type="number" min={0} max={100} value={progress} onChange={(e) => setProgress(e.target.value)} placeholder={String(task.progress || 0)} style={{ width: 90 }} />
                   </div>
+                  <Button icon={<SendOutlined />} loading={updateMutation.isPending} disabled={!updateText.trim()} onClick={() => updateMutation.mutate({ content: updateText, progress })}>
+                    Post Update
+                  </Button>
+                  <Button type="primary" icon={<CheckOutlined />} loading={requestCompletionMutation.isPending} onClick={() => requestCompletionMutation.mutate()}>
+                    Request Completion
+                  </Button>
                 </div>
-              )}
+              </div>
+            )}
 
-              {/* APPROVAL PENDING → manager can approve or request changes */}
-              {task.status === 'Approval Pending' && canManage && pendingApproval && (
-                <div className="bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 rounded-xl p-4 space-y-3">
+            {task.status === 'Approval Pending' && canManage && pendingApproval && (
+              <div style={{ background: 'rgba(249,115,22,0.08)', border: '1px solid rgba(249,115,22,0.2)', borderRadius: 12, padding: 16 }}>
+                <Text strong style={{ color: '#9a3412' }}>Completion requested by {task.assignedTo?.firstName}</Text>
+                {pendingApproval.requestNotes && (
+                  <Paragraph italic type="secondary" style={{ fontSize: 12, marginTop: 4, marginBottom: 12 }}>"{pendingApproval.requestNotes}"</Paragraph>
+                )}
+                {showRejectBox ? (
                   <div>
-                    <p className="text-sm font-semibold text-orange-900 dark:text-orange-300">Completion requested by {task.assignedTo?.firstName}</p>
-                    {pendingApproval.requestNotes && (
-                      <p className="text-xs text-orange-700 dark:text-orange-400 mt-1 italic">"{pendingApproval.requestNotes}"</p>
-                    )}
-                  </div>
-
-                  {showRejectBox ? (
-                    <div className="space-y-2">
-                      <textarea
-                        value={approvalNotes}
-                        onChange={(e) => setApprovalNotes(e.target.value)}
-                        placeholder="Explain what changes are needed…"
-                        rows={3}
-                        className="input w-full resize-none text-sm"
-                      />
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => rejectMutation.mutate({ approvalId: pendingApproval._id, notes: approvalNotes })}
-                          disabled={!approvalNotes.trim() || rejectMutation.isPending}
-                          className="btn-danger flex items-center gap-1.5 text-sm"
-                        >
-                          <ArrowPathIcon className="w-4 h-4" />
-                          {rejectMutation.isPending ? 'Sending…' : 'Request Changes'}
-                        </button>
-                        <button onClick={() => setShowRejectBox(false)} className="btn-secondary text-sm">Cancel</button>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => approveMutation.mutate({ approvalId: pendingApproval._id, notes: '' })}
-                        disabled={approveMutation.isPending}
-                        className="btn-primary flex items-center gap-1.5 text-sm"
-                      >
-                        <CheckIcon className="w-4 h-4" />
-                        {approveMutation.isPending ? 'Approving…' : 'Approve & Complete'}
-                      </button>
-                      <button
-                        onClick={() => setShowRejectBox(true)}
-                        className="btn-danger flex items-center gap-1.5 text-sm"
-                      >
-                        <ArrowPathIcon className="w-4 h-4" />
+                    <Input.TextArea value={approvalNotes} onChange={(e) => setApprovalNotes(e.target.value)} placeholder="Explain what changes are needed…" rows={3} />
+                    <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+                      <Button danger icon={<RedoOutlined />} loading={rejectMutation.isPending} disabled={!approvalNotes.trim()} onClick={() => rejectMutation.mutate({ approvalId: pendingApproval._id, notes: approvalNotes })}>
                         Request Changes
-                      </button>
+                      </Button>
+                      <Button onClick={() => setShowRejectBox(false)}>Cancel</Button>
                     </div>
-                  )}
-                </div>
-              )}
-
-              {/* COMPLETED */}
-              {task.status === 'Completed' && (
-                <div className="flex items-center gap-3 text-green-700 dark:text-green-400">
-                  <CheckIcon className="w-5 h-5" />
-                  <span className="text-sm font-medium">
-                    Completed {task.completedAt ? formatDistanceToNow(new Date(task.completedAt), { addSuffix: true }) : ''}
-                  </span>
-                </div>
-              )}
-
-              {/* PENDING (not yet assigned) — manager can see it's unassigned */}
-              {task.status === 'Pending' && canManage && (
-                <p className="text-sm text-gray-500 italic">This task is not yet assigned to anyone.</p>
-              )}
-            </div>
-
-            {/* ── Tabs: Updates / Activity ── */}
-            <div className="px-5 pt-4">
-              <div className="flex gap-4 border-b border-gray-200 dark:border-[#1b2e4a] mb-4">
-                {[['updates', 'Updates'], ['activity', 'Activity Log']].map(([key, label]) => (
-                  <button
-                    key={key}
-                    onClick={() => setActiveTab(key)}
-                    className={clsx('pb-2 text-sm font-medium border-b-2 -mb-px transition-colors', activeTab === key
-                      ? 'border-brand-500 text-brand-600 dark:text-brand-400'
-                      : 'border-transparent text-gray-500 hover:text-gray-700'
-                    )}
-                  >
-                    {label} {key === 'updates' && dailyUpdates.length > 0 && <span className="ml-1 text-xs text-gray-400">({dailyUpdates.length})</span>}
-                  </button>
-                ))}
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <Button type="primary" icon={<CheckOutlined />} loading={approveMutation.isPending} onClick={() => approveMutation.mutate({ approvalId: pendingApproval._id, notes: '' })}>
+                      Approve &amp; Complete
+                    </Button>
+                    <Button danger icon={<RedoOutlined />} onClick={() => setShowRejectBox(true)}>Request Changes</Button>
+                  </div>
+                )}
               </div>
+            )}
 
-              {/* Daily Updates */}
-              {activeTab === 'updates' && (
-                <div className="space-y-3 pb-5">
-                  {dailyUpdates.length === 0 ? (
-                    <p className="text-sm text-gray-400 text-center py-6">No updates posted yet</p>
-                  ) : (
-                    [...dailyUpdates].reverse().map((upd, i) => (
-                      <div key={upd._id || i} className="bg-gray-50 dark:bg-[#0f1a2e]/50 rounded-lg p-3">
-                        <div className="flex items-center justify-between mb-1.5">
-                          <span className="text-xs font-semibold text-gray-800 dark:text-gray-200">
-                            {upd.author?.firstName} {upd.author?.lastName}
-                          </span>
-                          <div className="flex items-center gap-3">
-                            {upd.progress !== undefined && (
-                              <span className="text-xs text-brand-600 font-medium">{upd.progress}%</span>
-                            )}
-                            <span className="text-xs text-gray-400">
-                              {upd.createdAt ? formatDistanceToNow(new Date(upd.createdAt), { addSuffix: true }) : ''}
-                            </span>
+            {task.status === 'Completed' && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#16a34a' }}>
+                <CheckOutlined />
+                <Text strong style={{ color: 'inherit' }}>
+                  Completed {task.completedAt ? formatDistanceToNow(new Date(task.completedAt), { addSuffix: true }) : ''}
+                </Text>
+              </div>
+            )}
+
+            {task.status === 'Pending' && canManage && (
+              <Text type="secondary" italic>This task is not yet assigned to anyone.</Text>
+            )}
+          </div>
+
+          <Tabs
+            activeKey={activeTab}
+            onChange={setActiveTab}
+            style={{ marginTop: 12 }}
+            items={[
+              {
+                key: 'updates',
+                label: `Updates${dailyUpdates.length ? ` (${dailyUpdates.length})` : ''}`,
+                children: dailyUpdates.length === 0 ? (
+                  <Text type="secondary" style={{ display: 'block', textAlign: 'center', padding: 24 }}>No updates posted yet</Text>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                    {[...dailyUpdates].reverse().map((upd, i) => (
+                      <div key={upd._id || i} style={{ background: 'rgba(15,23,42,0.03)', borderRadius: 10, padding: 12 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+                          <Text strong style={{ fontSize: 12 }}>{upd.author?.firstName} {upd.author?.lastName}</Text>
+                          <div style={{ display: 'flex', gap: 10 }}>
+                            {upd.progress !== undefined && <Text style={{ fontSize: 12, color: '#a8781f', fontWeight: 600 }}>{upd.progress}%</Text>}
+                            <Text type="secondary" style={{ fontSize: 12 }}>{upd.createdAt ? formatDistanceToNow(new Date(upd.createdAt), { addSuffix: true }) : ''}</Text>
                           </div>
                         </div>
-                        <p className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap">{upd.content}</p>
+                        <Text style={{ fontSize: 13 }}>{upd.content}</Text>
                       </div>
-                    ))
-                  )}
-                </div>
-              )}
-
-              {/* Activity Log */}
-              {activeTab === 'activity' && (
-                <div className="space-y-2 pb-5">
-                  {activityLog.length === 0 ? (
-                    <p className="text-sm text-gray-400 text-center py-6">No activity yet</p>
-                  ) : (
-                    [...activityLog].reverse().map((act, i) => (
-                      <div key={i} className="flex items-start gap-2.5 text-xs text-gray-500">
-                        <div className="w-1.5 h-1.5 rounded-full bg-gray-300 mt-1.5 flex-shrink-0" />
-                        <div>
-                          <span className="text-gray-700 dark:text-gray-300 font-medium capitalize">
+                    ))}
+                  </div>
+                ),
+              },
+              {
+                key: 'activity',
+                label: 'Activity Log',
+                children: activityLog.length === 0 ? (
+                  <Text type="secondary" style={{ display: 'block', textAlign: 'center', padding: 24 }}>No activity yet</Text>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    {[...activityLog].reverse().map((act, i) => (
+                      <div key={i} style={{ display: 'flex', gap: 8, fontSize: 12, color: '#6b6155' }}>
+                        <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#d1d5db', marginTop: 5, flexShrink: 0 }} />
+                        <span>
+                          <Text strong style={{ fontSize: 12, textTransform: 'capitalize' }}>
                             {typeof act.action === 'string' ? act.action.replace(/_/g, ' ') : act.action}
-                          </span>
-                          {act.performedBy && (
-                            <span className="ml-1 text-gray-400">
-                              by {act.performedBy.firstName} {act.performedBy.lastName}
-                            </span>
-                          )}
-                          {act.createdAt && (
-                            <span className="ml-2 text-gray-400">
-                              {formatDistanceToNow(new Date(act.createdAt), { addSuffix: true })}
-                            </span>
-                          )}
-                        </div>
+                          </Text>
+                          {act.performedBy && <span> by {act.performedBy.firstName} {act.performedBy.lastName}</span>}
+                          {act.createdAt && <span> · {formatDistanceToNow(new Date(act.createdAt), { addSuffix: true })}</span>}
+                        </span>
                       </div>
-                    ))
-                  )}
-                </div>
-              )}
-            </div>
-          </div>
-        ) : (
-          <div className="flex-1 flex items-center justify-center py-12 text-gray-400 text-sm">
-            Task not found
-          </div>
-        )}
-      </div>
-    </div>
+                    ))}
+                  </div>
+                ),
+              },
+            ]}
+          />
+        </div>
+      ) : (
+        <Text type="secondary">Task not found</Text>
+      )}
+    </Modal>
   );
 }
 
@@ -462,50 +323,42 @@ function TaskCard({ task, onClick }) {
   return (
     <div
       onClick={onClick}
-      className={clsx(
-        'bg-white dark:bg-[#070c17] rounded-lg border border-gray-200 dark:border-[#1b2e4a] p-3 border-l-4',
-        'shadow-sm hover:shadow-md transition-all cursor-pointer hover:-translate-y-0.5 active:translate-y-0',
-        PRIORITY_BORDER[task.priority] || 'border-l-gray-300'
-      )}
+      style={{
+        background: '#fbfaf7',
+        borderRadius: 10,
+        border: '1px solid rgba(15,23,42,0.08)',
+        borderInlineStart: `3px solid ${PRIORITY_BORDER[task.priority] || '#e5e7eb'}`,
+        padding: 12,
+        marginBottom: 8,
+        cursor: 'pointer',
+        boxShadow: '0 1px 2px rgba(15,23,42,0.04)',
+      }}
     >
-      <div className="flex items-start justify-between gap-2 mb-1.5">
-        <span className="text-xs font-medium text-gray-400 uppercase tracking-wide truncate">{task.department}</span>
-        {task.platform && (
-          <span className="text-xs px-1.5 py-0.5 rounded bg-orange-100 text-orange-700 flex-shrink-0">{task.platform}</span>
-        )}
+      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, marginBottom: 6 }}>
+        <Text type="secondary" style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: 0.4 }} ellipsis>{task.department}</Text>
+        {task.platform && <Tag color="orange" style={{ fontSize: 10, marginInlineEnd: 0 }}>{task.platform}</Tag>}
       </div>
 
-      <p className="text-sm font-semibold text-gray-900 dark:text-white line-clamp-2 mb-2">{task.title}</p>
+      <Text strong style={{ fontSize: 13, display: 'block', marginBottom: 8 }}>{task.title}</Text>
 
       {task.progress > 0 && (
-        <div className="mb-2">
-          <div className="flex justify-between text-xs text-gray-400 mb-1">
-            <span>Progress</span><span>{task.progress}%</span>
-          </div>
-          <div className="h-1.5 bg-gray-100 dark:bg-[#0f1a2e] rounded-full overflow-hidden">
-            <div className="h-full bg-brand-500 rounded-full transition-all" style={{ width: `${task.progress}%` }} />
-          </div>
-        </div>
+        <Progress percent={task.progress} showInfo={false} size="small" style={{ marginBottom: 8 }} />
       )}
 
-      <div className="flex items-center justify-between mt-1">
-        <div className="flex items-center gap-1.5">
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           {task.assignedTo && (
-            <div className="w-5 h-5 rounded-full bg-brand-100 dark:bg-brand-900/30 flex items-center justify-center flex-shrink-0">
-              <span className="text-brand-700 dark:text-brand-400 text-xs font-semibold">
-                {task.assignedTo.firstName?.[0]}
-              </span>
-            </div>
-          )}
-          {dueDate && (
-            <span className={clsx('text-xs', isOverdue ? 'text-red-600 font-semibold' : isDueToday ? 'text-orange-600 font-medium' : 'text-gray-400')}>
-              {isOverdue ? '⚠ Overdue' : isDueToday ? 'Due Today' : format(dueDate, 'dd MMM')}
+            <span style={{ width: 20, height: 20, borderRadius: '50%', background: 'rgba(168,120,31,0.12)', color: '#a8781f', fontSize: 11, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              {task.assignedTo.firstName?.[0]}
             </span>
           )}
+          {dueDate && (
+            <Text style={{ fontSize: 11, color: isOverdue ? '#dc2626' : isDueToday ? '#ea580c' : '#94a3b8', fontWeight: isOverdue || isDueToday ? 600 : 400 }}>
+              {isOverdue ? '⚠ Overdue' : isDueToday ? 'Due Today' : format(dueDate, 'dd MMM')}
+            </Text>
+          )}
         </div>
-        <span className={clsx('text-xs font-medium px-1.5 py-0.5 rounded', PRIORITY_BADGE[task.priority])}>
-          {task.priority}
-        </span>
+        <Tag color={PRIORITY_TAG[task.priority]} style={{ fontSize: 10, marginInlineEnd: 0 }}>{task.priority}</Tag>
       </div>
     </div>
   );
@@ -535,49 +388,40 @@ export default function KanbanView() {
 
   return (
     <div className="h-full flex flex-col">
-      {/* Header */}
       <div className="page-header flex-shrink-0">
         <div>
-          <h1 className="page-title">Kanban Board</h1>
-          <p className="text-gray-500 text-sm">{tasks.length} tasks total</p>
+          <Title level={4} style={{ marginBottom: 0 }}>Kanban Board</Title>
+          <Text type="secondary">{tasks.length} tasks total</Text>
         </div>
-        <div className="flex items-center gap-3">
-          <select
-            value={department}
-            onChange={(e) => setDepartment(e.target.value)}
-            className="input w-auto"
-          >
-            <option value="">All Departments</option>
-            {DEPARTMENTS.map((d) => <option key={d} value={d}>{d}</option>)}
-          </select>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <Select
+            value={department || undefined}
+            onChange={(v) => setDepartment(v || '')}
+            allowClear
+            placeholder="All Departments"
+            style={{ width: 180 }}
+            options={DEPARTMENTS.map((d) => ({ label: d, value: d }))}
+          />
           {isManagerOrAbove() && (
-            <button onClick={() => setShowForm(true)} className="btn-primary">
-              <PlusIcon className="w-4 h-4" /> New Task
-            </button>
+            <Button type="primary" icon={<PlusOutlined />} onClick={() => setShowForm(true)}>New Task</Button>
           )}
         </div>
       </div>
 
       {isLoading ? (
-        <div className="flex justify-center py-20">
-          <div className="w-8 h-8 border-2 border-brand-500 border-t-transparent rounded-full animate-spin" />
-        </div>
+        <div style={{ textAlign: 'center', padding: 80 }}><Spin size="large" /></div>
       ) : (
         <div className="flex gap-4 overflow-x-auto pb-4 flex-1 min-h-0">
           {COLUMNS.map((col) => (
-            <div key={col.key} className="flex-shrink-0 w-72 flex flex-col">
-              <div className={clsx('rounded-xl p-3 flex-1 flex flex-col', col.color)}>
-                {/* Column header */}
-                <div className="flex items-center gap-2 mb-3">
-                  <div className={clsx('w-2 h-2 rounded-full flex-shrink-0', col.dot)} />
-                  <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">{col.label}</h3>
-                  <span className="ml-auto text-xs font-medium text-gray-500 bg-white dark:bg-[#0f1a2e] rounded-full px-2 py-0.5">
-                    {grouped[col.key]?.length || 0}
-                  </span>
+            <div key={col.key} style={{ flexShrink: 0, width: 288, display: 'flex', flexDirection: 'column' }}>
+              <div style={{ background: col.bg, borderRadius: 12, padding: 12, flex: 1, display: 'flex', flexDirection: 'column' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+                  <span style={{ width: 8, height: 8, borderRadius: '50%', background: col.dot, flexShrink: 0 }} />
+                  <Text strong style={{ fontSize: 13 }}>{col.label}</Text>
+                  <Tag style={{ marginInlineStart: 'auto', marginInlineEnd: 0 }}>{grouped[col.key]?.length || 0}</Tag>
                 </div>
 
-                {/* Cards */}
-                <div className="space-y-2 flex-1 overflow-y-auto min-h-[120px]">
+                <div style={{ flex: 1, overflowY: 'auto', minHeight: 120 }}>
                   <AnimatePresence>
                     {(grouped[col.key] || []).map((task) => (
                       <motion.div
@@ -587,15 +431,12 @@ export default function KanbanView() {
                         exit={{ opacity: 0, scale: 0.95 }}
                         layout
                       >
-                        <TaskCard
-                          task={task}
-                          onClick={() => setSelectedTaskId(task._id)}
-                        />
+                        <TaskCard task={task} onClick={() => setSelectedTaskId(task._id)} />
                       </motion.div>
                     ))}
                   </AnimatePresence>
                   {(grouped[col.key] || []).length === 0 && (
-                    <p className="text-xs text-gray-400 text-center py-6">No tasks</p>
+                    <Empty description="No tasks" image={Empty.PRESENTED_IMAGE_SIMPLE} style={{ marginTop: 24 }} />
                   )}
                 </div>
               </div>
@@ -604,19 +445,8 @@ export default function KanbanView() {
         </div>
       )}
 
-      {/* Task Detail Modal */}
-      <AnimatePresence>
-        {selectedTaskId && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-            <TaskDetailModal
-              taskId={selectedTaskId}
-              onClose={() => setSelectedTaskId(null)}
-            />
-          </motion.div>
-        )}
-      </AnimatePresence>
+      <TaskDetailModal taskId={selectedTaskId} onClose={() => setSelectedTaskId(null)} />
 
-      {/* New Task Form */}
       {showForm && (
         <TaskForm
           onClose={() => setShowForm(false)}

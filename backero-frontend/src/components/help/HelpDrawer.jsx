@@ -1,16 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
+import { Collapse, Drawer, FloatButton, Input, Tabs, Typography } from 'antd';
 import {
-  XMarkIcon,
-  QuestionMarkCircleIcon,
-  ChevronDownIcon,
-  ChevronRightIcon,
-  ChatBubbleLeftRightIcon,
-  PaperAirplaneIcon,
-  BookOpenIcon,
-} from '@heroicons/react/24/outline';
+  QuestionCircleOutlined, MessageOutlined, SendOutlined, BookOutlined,
+} from '@ant-design/icons';
 import HELP from './HelpContent';
 import { useAuthStore } from '../../store/useAuthStore';
+
+const { Text, Paragraph } = Typography;
 
 function matchRoute(pathname) {
   if (HELP[pathname]) return HELP[pathname];
@@ -32,48 +29,30 @@ function matchRoute(pathname) {
   return HELP['/'];
 }
 
-function Section({ title, steps }) {
-  const [open, setOpen] = useState(true);
-  return (
-    <div className="border border-gray-100 rounded-xl overflow-hidden">
-      <button
-        onClick={() => setOpen(p => !p)}
-        className="w-full flex items-center justify-between px-4 py-3 bg-gray-50 hover:bg-gray-100 transition-colors text-left"
-      >
-        <span className="text-sm font-semibold text-gray-800">{title}</span>
-        {open
-          ? <ChevronDownIcon className="w-4 h-4 text-gray-400 flex-shrink-0" />
-          : <ChevronRightIcon className="w-4 h-4 text-gray-400 flex-shrink-0" />}
-      </button>
-      {open && (
-        <ol className="px-4 py-3 space-y-2.5 bg-white">
-          {steps.map((step, i) => (
-            <li key={i} className="flex gap-3">
-              <span className="w-5 h-5 rounded-full bg-indigo-100 text-indigo-700 text-[10px] font-bold flex items-center justify-center flex-shrink-0 mt-0.5">
-                {i + 1}
-              </span>
-              <p className="text-sm text-gray-600 leading-relaxed">{step}</p>
-            </li>
-          ))}
-        </ol>
-      )}
-    </div>
-  );
-}
-
 function ChatMessage({ role, content, streaming }) {
   return (
-    <div className={`flex ${role === 'user' ? 'justify-end' : 'justify-start'}`}>
+    <div style={{ display: 'flex', justifyContent: role === 'user' ? 'flex-end' : 'flex-start' }}>
       <div
-        className={`max-w-[85%] px-3 py-2 rounded-2xl text-sm leading-relaxed ${
-          role === 'user'
-            ? 'bg-indigo-600 text-white rounded-br-sm'
-            : 'bg-gray-100 text-gray-800 rounded-bl-sm'
-        }`}
+        style={{
+          maxWidth: '85%',
+          padding: '8px 12px',
+          borderRadius: 16,
+          fontSize: 13,
+          lineHeight: 1.5,
+          background: role === 'user' ? '#a8781f' : 'rgba(15,23,42,0.06)',
+          color: role === 'user' ? '#fff' : '#1c1917',
+          borderBottomRightRadius: role === 'user' ? 4 : 16,
+          borderBottomLeftRadius: role === 'user' ? 16 : 4,
+        }}
       >
         {content}
         {streaming && (
-          <span className="inline-block w-1.5 h-3.5 ml-0.5 bg-gray-400 animate-pulse rounded-sm align-middle" />
+          <span
+            style={{
+              display: 'inline-block', width: 6, height: 14, marginLeft: 2,
+              background: 'rgba(0,0,0,0.3)', borderRadius: 2, verticalAlign: 'middle',
+            }}
+          />
         )}
       </div>
     </div>
@@ -95,12 +74,6 @@ export default function HelpDrawer() {
   const token = useAuthStore(s => s.token);
 
   useEffect(() => { setOpen(false); }, [location.pathname]);
-
-  useEffect(() => {
-    if (open && tab === 'ask') {
-      setTimeout(() => inputRef.current?.focus(), 100);
-    }
-  }, [open, tab]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -190,109 +163,90 @@ export default function HelpDrawer() {
     }
   }
 
+  const guideItems = (content?.sections || []).map((sec, i) => ({
+    key: String(i),
+    label: <Text strong style={{ fontSize: 13 }}>{sec.title}</Text>,
+    children: (
+      <ol style={{ margin: 0, paddingLeft: 0, listStyle: 'none' }}>
+        {sec.steps.map((step, j) => (
+          <li key={j} style={{ display: 'flex', gap: 10, marginBottom: 10 }}>
+            <span
+              style={{
+                width: 18, height: 18, borderRadius: '50%', background: 'rgba(168,120,31,0.14)',
+                color: '#a8781f', fontSize: 10, fontWeight: 700, flexShrink: 0,
+                display: 'flex', alignItems: 'center', justifyContent: 'center', marginTop: 2,
+              }}
+            >
+              {j + 1}
+            </span>
+            <Text style={{ fontSize: 13, lineHeight: 1.6 }}>{step}</Text>
+          </li>
+        ))}
+      </ol>
+    ),
+  }));
+
   return (
     <>
-      {/* Floating ? button */}
-      <button
-        onClick={() => setOpen(p => !p)}
-        className="fixed bottom-6 right-6 z-40 w-11 h-11 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg flex items-center justify-center transition-all hover:scale-105 active:scale-95"
-        title="Help"
-        aria-label="Open help"
+      <FloatButton
+        icon={<QuestionCircleOutlined />}
+        type="primary"
+        style={{ insetInlineEnd: 24, insetBlockEnd: 24 }}
+        onClick={() => setOpen((p) => !p)}
+      />
+
+      <Drawer
+        title={content?.page || 'Help'}
+        open={open}
+        onClose={() => setOpen(false)}
+        width={340}
+        styles={{ body: { padding: 0, display: 'flex', flexDirection: 'column' } }}
       >
-        <QuestionMarkCircleIcon className="w-6 h-6" />
-      </button>
-
-      {/* Backdrop */}
-      {open && (
-        <div
-          className="fixed inset-0 z-40 bg-black/20"
-          onClick={() => setOpen(false)}
+        <Tabs
+          activeKey={tab}
+          onChange={setTab}
+          centered
+          style={{ padding: '0 12px' }}
+          items={[
+            { key: 'guide', label: <span><BookOutlined /> Guide</span> },
+            { key: 'ask', label: <span><MessageOutlined /> Ask AI</span> },
+          ]}
         />
-      )}
 
-      {/* Drawer */}
-      <div className={`fixed top-0 right-0 h-full z-50 w-80 bg-white shadow-2xl flex flex-col transition-transform duration-300 ${open ? 'translate-x-0' : 'translate-x-full'}`}>
-        {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 bg-indigo-600 flex-shrink-0">
-          <div className="flex items-center gap-2">
-            <QuestionMarkCircleIcon className="w-5 h-5 text-indigo-200" />
-            <div>
-              <p className="text-[10px] font-semibold text-indigo-200 uppercase tracking-wider">Backero Help</p>
-              <h2 className="text-sm font-bold text-white">{content?.page || 'Help'}</h2>
-            </div>
-          </div>
-          <button onClick={() => setOpen(false)} className="p-1.5 rounded-lg hover:bg-indigo-500 transition-colors">
-            <XMarkIcon className="w-4 h-4 text-white" />
-          </button>
-        </div>
-
-        {/* Tabs */}
-        <div className="flex border-b border-gray-100 flex-shrink-0">
-          <button
-            onClick={() => setTab('guide')}
-            className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-semibold transition-colors ${
-              tab === 'guide'
-                ? 'text-indigo-600 border-b-2 border-indigo-600 bg-indigo-50'
-                : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
-            }`}
-          >
-            <BookOpenIcon className="w-3.5 h-3.5" />
-            Guide
-          </button>
-          <button
-            onClick={() => setTab('ask')}
-            className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-semibold transition-colors ${
-              tab === 'ask'
-                ? 'text-indigo-600 border-b-2 border-indigo-600 bg-indigo-50'
-                : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
-            }`}
-          >
-            <ChatBubbleLeftRightIcon className="w-3.5 h-3.5" />
-            Ask AI
-          </button>
-        </div>
-
-        {/* Guide Tab */}
         {tab === 'guide' && (
-          <>
+          <div style={{ flex: 1, overflowY: 'auto', padding: '0 16px 16px' }}>
             {content?.intro && (
-              <div className="px-5 py-3 bg-indigo-50 border-b border-indigo-100 flex-shrink-0">
-                <p className="text-sm text-indigo-800 leading-relaxed">{content.intro}</p>
-              </div>
+              <Paragraph style={{ background: 'rgba(168,120,31,0.08)', padding: 12, borderRadius: 10, fontSize: 13 }}>
+                {content.intro}
+              </Paragraph>
             )}
-            <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
-              {content?.sections?.map((sec, i) => (
-                <Section key={i} title={sec.title} steps={sec.steps} />
-              ))}
-              {!content?.sections?.length && (
-                <p className="text-sm text-gray-400 text-center py-8">No instructions available for this page yet.</p>
-              )}
-            </div>
-            <div className="px-5 py-3 border-t border-gray-100 bg-gray-50 flex-shrink-0">
-              <p className="text-[11px] text-gray-400 text-center">Instructions update automatically based on the page you're on.</p>
-            </div>
-          </>
+            {guideItems.length > 0 ? (
+              <Collapse items={guideItems} defaultActiveKey={['0']} ghost />
+            ) : (
+              <Text type="secondary" style={{ display: 'block', textAlign: 'center', padding: '32px 0', fontSize: 13 }}>
+                No instructions available for this page yet.
+              </Text>
+            )}
+          </div>
         )}
 
-        {/* Ask AI Tab */}
         {tab === 'ask' && (
-          <>
-            <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3 min-h-0">
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+            <div style={{ flex: 1, overflowY: 'auto', padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 10 }}>
               {messages.length === 0 && (
-                <div className="flex flex-col items-center justify-center h-full text-center py-8 gap-3">
-                  <div className="w-12 h-12 rounded-full bg-indigo-100 flex items-center justify-center">
-                    <ChatBubbleLeftRightIcon className="w-6 h-6 text-indigo-500" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-gray-700">Ask anything about Backero</p>
-                    <p className="text-xs text-gray-400 mt-1">I'll help you navigate and use the platform</p>
-                  </div>
-                  <div className="flex flex-col gap-1.5 w-full mt-2">
+                <div style={{ textAlign: 'center', padding: '32px 0', display: 'flex', flexDirection: 'column', gap: 10, alignItems: 'center' }}>
+                  <MessageOutlined style={{ fontSize: 28, color: '#a8781f' }} />
+                  <Text strong style={{ fontSize: 13 }}>Ask anything about Backero</Text>
+                  <Text type="secondary" style={{ fontSize: 12 }}>I'll help you navigate and use the platform</Text>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6, width: '100%', marginTop: 8 }}>
                     {['How do I create a task?', 'How does approval workflow work?', 'How to import marketplace plans?'].map(q => (
                       <button
                         key={q}
                         onClick={() => { setInput(q); inputRef.current?.focus(); }}
-                        className="text-xs text-left px-3 py-2 rounded-lg bg-gray-50 hover:bg-indigo-50 hover:text-indigo-700 text-gray-600 transition-colors border border-gray-100"
+                        style={{
+                          textAlign: 'left', fontSize: 12, padding: '8px 10px', borderRadius: 8,
+                          background: 'rgba(15,23,42,0.04)', border: '1px solid rgba(15,23,42,0.06)', cursor: 'pointer',
+                        }}
                       >
                         {q}
                       </button>
@@ -311,33 +265,34 @@ export default function HelpDrawer() {
               <div ref={messagesEndRef} />
             </div>
 
-            {/* Input */}
-            <div className="px-3 py-3 border-t border-gray-100 flex-shrink-0">
-              <div className="flex items-end gap-2">
-                <textarea
-                  ref={inputRef}
-                  value={input}
-                  onChange={e => setInput(e.target.value)}
-                  onKeyDown={handleKeyDown}
-                  placeholder="Ask a question..."
-                  rows={1}
-                  disabled={streaming}
-                  className="flex-1 resize-none rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent disabled:opacity-50 max-h-28 overflow-y-auto"
-                  style={{ lineHeight: '1.4' }}
-                />
-                <button
-                  onClick={sendMessage}
-                  disabled={!input.trim() || streaming}
-                  className="w-9 h-9 rounded-xl bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed text-white flex items-center justify-center flex-shrink-0 transition-colors"
-                >
-                  <PaperAirplaneIcon className="w-4 h-4" />
-                </button>
-              </div>
-              <p className="text-[10px] text-gray-400 mt-1.5 text-center">Press Enter to send · Shift+Enter for new line</p>
+            <div style={{ padding: 12, borderTop: '1px solid rgba(15,23,42,0.06)' }}>
+              <Input.TextArea
+                ref={inputRef}
+                value={input}
+                onChange={e => setInput(e.target.value)}
+                onKeyDown={handleKeyDown}
+                placeholder="Ask a question…"
+                autoSize={{ minRows: 1, maxRows: 3 }}
+                disabled={streaming}
+              />
+              <button
+                onClick={sendMessage}
+                disabled={!input.trim() || streaming}
+                style={{
+                  marginTop: 8, width: '100%', padding: '8px 0', borderRadius: 8, border: 'none',
+                  background: !input.trim() || streaming ? 'rgba(168,120,31,0.3)' : '#a8781f', color: '#fff',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, cursor: !input.trim() || streaming ? 'not-allowed' : 'pointer',
+                }}
+              >
+                <SendOutlined /> Send
+              </button>
+              <Text type="secondary" style={{ fontSize: 10, display: 'block', textAlign: 'center', marginTop: 6 }}>
+                Press Enter to send · Shift+Enter for new line
+              </Text>
             </div>
-          </>
+          </div>
         )}
-      </div>
+      </Drawer>
     </>
   );
 }

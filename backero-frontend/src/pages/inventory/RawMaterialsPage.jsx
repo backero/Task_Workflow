@@ -1,9 +1,17 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
-import { createPortal } from 'react-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-hot-toast';
 import QRCode from 'react-qr-code';
 import api from '../../api/axios';
+import {
+  FlaskConical, Upload, Cloud, Download, Plus, Package, IndianRupee, BarChart3,
+  AlertTriangle, CalendarClock, Search, TestTube2, QrCode, Pencil, Trash2, ImagePlus,
+  MapPin, Save, CheckCircle2, XCircle, FileText, ChevronsUpDown, ChevronUp, ChevronDown,
+  ClipboardList, ShieldCheck, Printer, Ban,
+} from 'lucide-react';
+import { Button, Card, Col, Drawer, Empty, Input, Modal, Row, Select, Space, Table, Tag, Typography } from 'antd';
+
+const { Text, Title } = Typography;
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 const LS_KEY = 'rawMaterialDB_v8';
@@ -86,11 +94,11 @@ function isExpiringSoon(m) {
   return (m.batches || []).some(b => { if (!b.expiryDate) return false; const e = new Date(b.expiryDate); return e <= in30 && e >= today; });
 }
 function batchExpLabel(b) {
-  if (!b.expiryDate) return { text: 'No expiry', cls: 'text-slate-400' };
+  if (!b.expiryDate) return { text: 'No expiry', color: '#94a3b8' };
   const days = Math.ceil((new Date(b.expiryDate) - new Date()) / (1000 * 60 * 60 * 24));
-  if (days < 0) return { text: `Expired (${Math.abs(days)}d ago)`, cls: 'text-red-600 font-bold' };
-  if (days <= 30) return { text: `Expiring in ${days}d`, cls: 'text-amber-600 font-semibold' };
-  return { text: `Exp: ${new Date(b.expiryDate).toLocaleDateString('en-IN')}`, cls: 'text-slate-500' };
+  if (days < 0) return { text: `Expired (${Math.abs(days)}d ago)`, color: '#dc2626', bold: true };
+  if (days <= 30) return { text: `Expiring in ${days}d`, color: '#d97706', bold: true };
+  return { text: `Exp: ${new Date(b.expiryDate).toLocaleDateString('en-IN')}`, color: '#64748b' };
 }
 function genBatchId() { return 'BATCH-' + Math.random().toString(36).substr(2, 9).toUpperCase(); }
 
@@ -106,24 +114,34 @@ const emptyBatch = () => ({
   qcCheckedBy: '', qcDate: new Date().toISOString().split('T')[0], qcStatus: 'pass', qcNotes: '',
 });
 
-// ── Status badge ─────────────────────────────────────────────────────────────
+const STATUS_COLOR = { Out: 'red', Low: 'orange', Medium: 'gold', In: 'green' };
+
 function StatusBadge({ m }) {
-  const s = stockStatus(m);
-  const map = { Out: 'bg-red-100 text-red-700', Low: 'bg-amber-100 text-amber-700', Medium: 'bg-amber-50 text-amber-600', In: 'bg-emerald-100 text-emerald-700' };
-  return <span className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full ${map[s] || map.In}`}>{s}</span>;
+  return <Tag color={STATUS_COLOR[stockStatus(m)] || 'default'}>{stockStatus(m)}</Tag>;
 }
 
-// ── Metric card ───────────────────────────────────────────────────────────────
-function MetricCard({ label, value, sub, icon, iconBg, onClick }) {
+function MetricCard({ label, value, sub, icon, color, onClick }) {
   return (
-    <div onClick={onClick} className={`bg-white rounded-2xl p-5 border border-slate-100 shadow-sm flex justify-between items-start transition-all hover:-translate-y-0.5 hover:shadow-md ${onClick ? 'cursor-pointer' : ''}`}>
-      <div className="flex flex-col gap-1.5">
-        <p className="text-xs text-slate-500 font-medium">{label}</p>
-        <p className="text-2xl font-bold text-slate-900 tracking-tight">{value}</p>
-        {sub && <p className="text-[11px] text-slate-400">{sub}</p>}
+    <Card hoverable={!!onClick} onClick={onClick} styles={{ body: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' } }}>
+      <div>
+        <Text type="secondary" style={{ fontSize: 12, fontWeight: 500 }}>{label}</Text>
+        <div style={{ fontSize: 22, fontWeight: 700, marginTop: 4 }}>{value}</div>
+        {sub && <Text type="secondary" style={{ fontSize: 11 }}>{sub}</Text>}
       </div>
-      <div className={`w-11 h-11 rounded-xl flex items-center justify-center text-xl ${iconBg}`}>{icon}</div>
-    </div>
+      <div style={{ width: 40, height: 40, borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', background: `${color}14`, color, flexShrink: 0 }}>
+        {icon}
+      </div>
+    </Card>
+  );
+}
+
+const inputStyle = { fontSize: 13 };
+function Field({ label, required, children, span }) {
+  return (
+    <Col span={span || 8}>
+      <Text strong style={{ display: 'block', marginBottom: 4, fontSize: 12 }}>{label}{required && <Text type="danger"> *</Text>}</Text>
+      {children}
+    </Col>
   );
 }
 
@@ -140,7 +158,7 @@ export default function RawMaterialsPage() {
   const [expandedId, setExpandedId]   = useState(null);
   const [editBatch, setEditBatch] = useState(null); // { mat, data }
 
-  // Modal state
+  // Drawer/Modal state
   const [showForm, setShowForm]       = useState(false);
   const [editMat, setEditMat]         = useState(null);
   const [form, setForm]               = useState(emptyForm());
@@ -148,16 +166,11 @@ export default function RawMaterialsPage() {
   const [showBatch, setShowBatch]     = useState(null);      // material object
   const [showLowStock, setShowLowStock] = useState(false);
   const [batchData, setBatchData]     = useState(emptyBatch());
-  const [inlineBatches, setInlineBatches] = useState([]);    // for edit modal
+  const [inlineBatches, setInlineBatches] = useState([]);    // for edit drawer
 
   // HSN / Category autocomplete
   const [hsnSuggestions, setHsnSuggestions] = useState([]);
   const [catSuggestions, setCatSuggestions] = useState([]);
-
-  // Voice
-  const [voiceStatus, setVoiceStatus] = useState('Click to record');
-  const [voiceTranscript, setVoiceTranscript] = useState('(Voice transcript...)');
-  const recognitionRef = useRef(null);
 
   // Image
   const [imagePreview, setImagePreview] = useState(null);
@@ -302,8 +315,8 @@ export default function RawMaterialsPage() {
     else { setSortKey(key); setSortDir(1); }
   }
   function SortIcon({ k }) {
-    if (sortKey !== k) return <span className="ml-1 opacity-30">⇅</span>;
-    return <span className="ml-1 text-slate-900">{sortDir === 1 ? '▲' : '▼'}</span>;
+    if (sortKey !== k) return <ChevronsUpDown size={12} style={{ opacity: 0.4, marginLeft: 4 }} />;
+    return sortDir === 1 ? <ChevronUp size={12} style={{ marginLeft: 4 }} /> : <ChevronDown size={12} style={{ marginLeft: 4 }} />;
   }
 
   // ── Form helpers ──────────────────────────────────────────────────────────────
@@ -366,36 +379,11 @@ export default function RawMaterialsPage() {
   function onBillImageChange(e) {
     const f = e.target.files[0]; if (!f) return;
     // Without tesseract.js installed, we prompt user to enter details manually
-    toast('Bill upload received. Fill in fields manually or install Tesseract for OCR.', { icon: '📄' });
+    toast('Bill upload received. Fill in fields manually or install Tesseract for OCR.');
     e.target.value = '';
   }
 
-  // ── Voice input ───────────────────────────────────────────────────────────────
-  function toggleVoice() {
-    if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
-      toast.error('Voice input not supported in this browser'); return;
-    }
-    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (recognitionRef.current && recognitionRef.current._running) {
-      recognitionRef.current.stop(); return;
-    }
-    const rec = new SR();
-    rec.continuous = true; rec.interimResults = true; rec.lang = 'en-IN';
-    rec._running = true;
-    rec.onresult = e => {
-      let t = '';
-      for (let i = e.resultIndex; i < e.results.length; i++) t += e.results[i][0].transcript;
-      setVoiceTranscript(t);
-    };
-    rec.onend = () => { setVoiceStatus('Click to record'); rec._running = false; };
-    rec.onerror = () => { setVoiceStatus('Error. Try again.'); rec._running = false; };
-    rec.start();
-    rec._running = true;
-    recognitionRef.current = rec;
-    setVoiceStatus('Recording...');
-  }
-
-  // ── Inline batch (edit modal) ─────────────────────────────────────────────────
+  // ── Inline batch (edit drawer) ─────────────────────────────────────────────────
   const [addBatchForm, setAddBatchForm] = useState(null); // null=hidden, object=open
   function addInlineBatch() {
     if (!addBatchForm || !addBatchForm.quantity) { toast.error('Enter quantity'); return; }
@@ -406,7 +394,7 @@ export default function RawMaterialsPage() {
     toast.success(`Batch added: +${nb.quantity} ${form.unit}`);
   }
 
-  // ── Batch modal ───────────────────────────────────────────────────────────────
+  // ── Batch drawer ───────────────────────────────────────────────────────────────
   function saveBatchModal() {
     if (!showBatch) return;
     const qty = parseFloat(batchData.quantity);
@@ -546,779 +534,575 @@ export default function RawMaterialsPage() {
     return () => window.removeEventListener('keydown', onKey);
   }, []);
 
-  // ── Render ────────────────────────────────────────────────────────────────────
-  const thCls = 'px-4 py-3 text-left text-[11px] font-semibold text-slate-500 uppercase tracking-wide cursor-pointer select-none whitespace-nowrap hover:text-slate-700 transition-colors';
-  const inputCls = 'w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-slate-400 focus:ring-2 focus:ring-slate-100 font-[Inter,sans-serif] bg-white transition-all';
-  const labelCls = 'block text-xs font-semibold text-slate-700 mb-1';
+  const columns = [
+    { title: <span onClick={() => sort('code')} style={{ cursor: 'pointer' }}>CODE<SortIcon k="code" /></span>, dataIndex: 'code', key: 'code', render: (v, m) => <Text strong style={{ fontSize: 12, cursor: 'pointer' }} onClick={() => setExpandedId(expandedId === (m._id || m.id) ? null : (m._id || m.id))}>{v}</Text> },
+    { title: <span onClick={() => sort('name')} style={{ cursor: 'pointer' }}>NAME<SortIcon k="name" /></span>, dataIndex: 'name', key: 'name', ellipsis: true, render: (v, m) => <Text strong style={{ cursor: 'pointer' }} onClick={() => setExpandedId(expandedId === (m._id || m.id) ? null : (m._id || m.id))}>{v}</Text> },
+    { title: <span onClick={() => sort('category')} style={{ cursor: 'pointer' }}>CATEGORY<SortIcon k="category" /></span>, dataIndex: 'category', key: 'category', render: (v) => <Tag>{v}</Tag> },
+    { title: 'HSN', dataIndex: 'hsnCode', key: 'hsnCode', render: (v) => <Text type="secondary" style={{ fontSize: 12 }}>{v || '—'}</Text> },
+    { title: 'UNIT', dataIndex: 'unit', key: 'unit', render: (v) => <Text type="secondary" style={{ fontSize: 12 }}>{v}</Text> },
+    { title: <span onClick={() => sort('value')} style={{ cursor: 'pointer' }}>PRICE<SortIcon k="value" /></span>, key: 'price', render: (_, m) => <Text strong>₹{weightedAvgPrice(m).toLocaleString('en-IN', { maximumFractionDigits: 2 })}</Text> },
+    { title: 'GST', dataIndex: 'gstRate', key: 'gstRate', render: (v) => <Text type="secondary" style={{ fontSize: 12 }}>{v}%</Text> },
+    {
+      title: <span onClick={() => sort('stock')} style={{ cursor: 'pointer' }}>STOCK<SortIcon k="stock" /></span>, key: 'stock',
+      render: (_, m) => {
+        const qty = totalStock(m);
+        const color = qty <= 0 ? '#dc2626' : (m.enableMinStock && qty <= (parseFloat(m.minStockLevel)||0)) ? '#ef4444' : qty <= (parseFloat(m.minStockLevel)||0)*2 ? '#d97706' : '#059669';
+        return <Text style={{ color, fontWeight: 600, fontSize: 12 }}>{qty.toLocaleString('en-IN')}</Text>;
+      },
+    },
+    { title: <span onClick={() => sort('status')} style={{ cursor: 'pointer' }}>STATUS<SortIcon k="status" /></span>, key: 'status', render: (_, m) => <StatusBadge m={m} /> },
+    {
+      title: 'ACTIONS', key: 'actions', width: 160,
+      render: (_, m) => (
+        <Space size={2}>
+          <Button type="text" size="small" icon={<TestTube2 size={14} color="#d97706" />} title="Add Batch" onClick={() => { setShowBatch(m); setBatchData(emptyBatch()); }} />
+          <Button type="text" size="small" icon={<QrCode size={14} color="#2563eb" />} title="Print QR" onClick={() => setShowQR(m)} />
+          <Button type="text" size="small" icon={<Pencil size={14} />} title="Edit" onClick={() => openEdit(m)} />
+          <Button type="text" size="small" icon={<Trash2 size={14} color="#ef4444" />} title="Delete" onClick={() => deleteMat(m)} />
+        </Space>
+      ),
+    },
+  ];
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      {/* ── Header ── */}
-      <div className="bg-white border-b border-slate-200 px-8 py-3.5 flex items-center justify-between sticky top-0 z-10">
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl flex items-center justify-center text-lg" style={{ background: '#2563eb' }}>🧪</div>
-          <div>
-            <h1 className="text-base font-bold text-slate-900">Raw Material Inventory</h1>
-            <p className="text-[11px] text-slate-500">BioTech / Cosmetic ERP — ISO 9001:2015</p>
+    <div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexWrap: 'wrap', gap: 12 }}>
+        <Space>
+          <div style={{ width: 36, height: 36, borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#2563eb14', color: '#2563eb' }}>
+            <FlaskConical size={18} />
           </div>
-        </div>
-        <div className="flex items-center gap-2">
-          <input ref={importInputRef} type="file" accept=".csv" className="hidden" onChange={importCSV} />
-          <button onClick={() => importInputRef.current?.click()} className="text-sm px-4 py-2 rounded-full border border-slate-200 text-slate-600 hover:bg-slate-50 font-semibold transition-all">📤 Bulk Import</button>
-          <button onClick={syncLS} disabled={syncing} className="text-sm px-4 py-2 rounded-full bg-amber-50 text-amber-700 border border-amber-200 font-semibold hover:bg-amber-100 disabled:opacity-50 transition-all">{syncing ? 'Syncing…' : '☁️ Sync LS'}</button>
-          <button onClick={exportCSV} className="text-sm px-4 py-2 rounded-full border border-slate-200 text-slate-600 hover:bg-slate-50 font-semibold transition-all">📥 Export CSV</button>
-          <button onClick={openCreate} className="text-sm px-4 py-2 rounded-full font-semibold text-white transition-all hover:brightness-95" style={{ background: '#2563eb' }}>➕ Add Material</button>
-        </div>
+          <div>
+            <Title level={5} style={{ marginBottom: 0 }}>Raw Material Inventory</Title>
+            <Text type="secondary" style={{ fontSize: 11 }}>BioTech / Cosmetic ERP — ISO 9001:2015</Text>
+          </div>
+        </Space>
+        <Space wrap>
+          <input ref={importInputRef} type="file" accept=".csv" style={{ display: 'none' }} onChange={importCSV} />
+          <Button icon={<Upload size={14} />} onClick={() => importInputRef.current?.click()}>Bulk Import</Button>
+          <Button icon={<Cloud size={14} />} loading={syncing} onClick={syncLS}>Sync LS</Button>
+          <Button icon={<Download size={14} />} onClick={exportCSV}>Export CSV</Button>
+          <Button type="primary" icon={<Plus size={14} />} onClick={openCreate}>Add Material</Button>
+        </Space>
       </div>
 
-      <div className="px-8 py-6 max-w-[1440px] mx-auto">
-
-        {/* ── 5 Dashboard Metrics ── */}
-        <div className="grid grid-cols-5 gap-4 mb-6">
-          <MetricCard label="Total Materials" value={stats.total} sub="📦 Active SKUs" icon="📦" iconBg="bg-purple-100" />
-          <MetricCard label="Total Inventory Value" value={`₹${stats.totalValue.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`} sub="↗ Across all batches" icon="₹" iconBg="bg-emerald-100" />
+      <Row gutter={[12, 12]} style={{ marginBottom: 16 }}>
+        <Col span={5}><MetricCard label="Total Materials" value={stats.total} sub="Active SKUs" icon={<Package size={18} />} color="#7c3aed" /></Col>
+        <Col span={5}><MetricCard label="Total Inventory Value" value={`₹${stats.totalValue.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`} sub="Across all batches" icon={<IndianRupee size={18} />} color="#059669" /></Col>
+        <Col span={5}>
           <MetricCard
             label="Avg Cost Change (MoM)"
             value={(stats.costChange >= 0 ? '+' : '') + stats.costChange.toFixed(1) + '%'}
-            sub={(stats.costChange >= 0 ? '↗ Up' : '↘ Down') + ' vs last month'}
-            icon="📊" iconBg="bg-blue-100"
+            sub={(stats.costChange >= 0 ? 'Up' : 'Down') + ' vs last month'}
+            icon={<BarChart3 size={18} />} color="#2563eb"
           />
-          <MetricCard label="Low Stock Alerts" value={stats.low} sub="⚠️ Items below min" icon="⚠️" iconBg="bg-red-100" onClick={() => setShowLowStock(true)} />
-          <MetricCard label="Expiring Soon" value={stats.expiring} sub="📅 Within 30 days" icon="📅" iconBg="bg-amber-100" />
-        </div>
+        </Col>
+        <Col span={5}><MetricCard label="Low Stock Alerts" value={stats.low} sub="Items below min" icon={<AlertTriangle size={18} />} color="#dc2626" onClick={() => setShowLowStock(true)} /></Col>
+        <Col span={4}><MetricCard label="Expiring Soon" value={stats.expiring} sub="Within 30 days" icon={<CalendarClock size={18} />} color="#d97706" /></Col>
+      </Row>
 
-        {/* ── Table Card ── */}
-        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
-          {/* Card header */}
-          <div className="px-6 py-4 border-b border-slate-100 flex flex-wrap items-center gap-3">
-            <h2 className="text-sm font-bold text-slate-900">📦 Materials Master</h2>
-            <div className="flex-1" />
-            <div className="relative">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">🔍</span>
-              <input
-                value={search} onChange={e => setSearch(e.target.value)}
-                placeholder="Search name, SKU, supplier, HSN..."
-                className="pl-9 pr-4 py-2 border border-slate-200 rounded-full text-sm w-80 bg-slate-50 focus:outline-none focus:border-slate-400 focus:bg-white transition-all"
-              />
-            </div>
-            <select value={catFilter} onChange={e => setCatFilter(e.target.value)} className="text-sm px-3 py-2 border border-slate-200 rounded-lg bg-slate-50 focus:outline-none">
-              <option value="All">All Categories</option>
-              {COSMETIC_CATEGORIES.map(c => <option key={c}>{c}</option>)}
-            </select>
-            <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className="text-sm px-3 py-2 border border-slate-200 rounded-lg bg-slate-50 focus:outline-none">
-              <option value="All">All Status</option>
-              <option value="In">In Stock</option>
-              <option value="Low">Low</option>
-              <option value="Out">Out</option>
-            </select>
-          </div>
+      <Card
+        title={<Space size={8}><Package size={16} />Materials Master</Space>}
+        extra={
+          <Space>
+            <Input
+              value={search} onChange={e => setSearch(e.target.value)}
+              placeholder="Search name, SKU, supplier, HSN..."
+              prefix={<Search size={14} color="#94a3b8" />}
+              style={{ width: 280 }}
+            />
+            <Select value={catFilter} onChange={setCatFilter} style={{ width: 160 }}
+              options={[{ label: 'All Categories', value: 'All' }, ...COSMETIC_CATEGORIES.map(c => ({ label: c, value: c }))]} />
+            <Select value={statusFilter} onChange={setStatusFilter} style={{ width: 130 }}
+              options={[{ label: 'All Status', value: 'All' }, { label: 'In Stock', value: 'In' }, { label: 'Low', value: 'Low' }, { label: 'Out', value: 'Out' }]} />
+          </Space>
+        }
+        styles={{ body: { padding: 0 } }}
+      >
+        <Table
+          rowKey={(m) => m._id || m.id}
+          columns={columns}
+          dataSource={sorted}
+          loading={isLoading}
+          pagination={false}
+          locale={{ emptyText: <Empty description={<><Text strong>No materials found</Text><div><Text type="secondary" style={{ fontSize: 12 }}>Try adjusting your search or add a new material.</Text></div></>} /> }}
+          expandable={{
+            expandedRowKeys: expandedId ? [expandedId] : [],
+            showExpandColumn: false,
+            expandedRowRender: (m) => {
+              const id = m._id || m.id;
+              return (
+                <Row gutter={24}>
+                  <Col span={12}>
+                    <Text type="secondary" style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase' }}>Product Image</Text>
+                    <div
+                      onClick={() => document.getElementById(`rmImg-${id}`).click()}
+                      style={{ width: 80, height: 80, border: '2px dashed #e2e8f0', borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', overflow: 'hidden', background: '#fff', marginTop: 8, marginBottom: 16 }}
+                    >
+                      {m.image ? <img src={m.image} alt="Product" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <ImagePlus size={20} color="#94a3b8" />}
+                    </div>
+                    <input type="file" id={`rmImg-${id}`} accept="image/*" style={{ display: 'none' }} onChange={e => { const f = e.target.files[0]; if (!f) return; const r = new FileReader(); r.onload = ev => updateMut.mutate({ id, d: { ...m, image: ev.target.result } }); r.readAsDataURL(f); e.target.value = ''; }} />
 
-          {/* Table */}
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm border-collapse">
-              <thead className="bg-slate-50">
-                <tr>
-                  {[['code','Code'],['name','Name'],['category','Category'],['hsnCode','HSN'],['unit','Unit'],['unitPrice','Price'],['gstRate','GST'],['stock','Stock'],['status','Status']].map(([k,label]) => (
-                    <th key={k} className={thCls} onClick={() => sort(k)}>
-                      {label}<SortIcon k={k} />
-                    </th>
-                  ))}
-                  <th className="px-4 py-3 text-left text-[11px] font-semibold text-slate-500 uppercase tracking-wide w-36">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {isLoading ? (
-                  <tr><td colSpan={10} className="text-center py-16 text-slate-400">Loading…</td></tr>
-                ) : sorted.length === 0 ? (
-                  <tr><td colSpan={10} className="text-center py-16">
-                    <p className="text-4xl mb-2">📦</p>
-                    <p className="text-sm font-semibold text-slate-600">No materials found</p>
-                    <p className="text-xs text-slate-400 mt-1">Try adjusting your search or add a new material.</p>
-                  </td></tr>
-                ) : sorted.map(m => {
-                  const id = m._id || m.id;
-                  const expanded = expandedId === id;
-                  const qty = totalStock(m);
-                  const qtyColor = qty <= 0 ? 'text-red-600 font-bold' : (m.enableMinStock && qty <= (parseFloat(m.minStockLevel)||0)) ? 'text-red-500 font-bold' : qty <= (parseFloat(m.minStockLevel)||0)*2 ? 'text-amber-600' : 'text-emerald-600';
-                  return [
-                    <tr key={id} className={`border-b border-slate-50 hover:bg-slate-50/60 transition-colors ${expanded ? 'bg-slate-50' : ''}`}>
-                      <td className="px-4 py-3 text-slate-900 font-bold text-xs cursor-pointer hover:underline" onClick={() => setExpandedId(expanded ? null : id)}>{m.code}</td>
-                      <td className="px-4 py-3 font-semibold text-slate-800 cursor-pointer hover:underline hover:text-slate-900 max-w-[180px] truncate" onClick={() => setExpandedId(expanded ? null : id)}>{m.name}</td>
-                      <td className="px-4 py-3"><span className="text-[11px] font-semibold px-2.5 py-1 rounded-full bg-slate-100 text-slate-600">{m.category}</span></td>
-                      <td className="px-4 py-3 text-slate-500 text-xs">{m.hsnCode || '—'}</td>
-                      <td className="px-4 py-3 text-slate-500 text-xs">{m.unit}</td>
-                      <td className="px-4 py-3 text-slate-700 font-semibold">₹{weightedAvgPrice(m).toLocaleString('en-IN', {maximumFractionDigits: 2})}</td>
-                      <td className="px-4 py-3 text-slate-500 text-xs">{m.gstRate}%</td>
-                      <td className={`px-4 py-3 text-xs ${qtyColor}`}>{qty.toLocaleString('en-IN')}</td>
-                      <td className="px-4 py-3"><StatusBadge m={m} /></td>
-                      <td className="px-4 py-3">
-                        <div className="flex gap-1 items-center">
-                          <button title="Add Batch" onClick={() => { setShowBatch(m); setBatchData(emptyBatch()); }} className="w-8 h-8 rounded-lg flex items-center justify-center text-amber-500 hover:bg-amber-50 transition-colors text-sm">🧪</button>
-                          <button title="Print QR" onClick={() => setShowQR(m)} className="w-8 h-8 rounded-lg flex items-center justify-center text-blue-500 hover:bg-blue-50 transition-colors text-sm">🔲</button>
-                          <button title="Edit" onClick={() => openEdit(m)} className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:bg-slate-100 transition-colors text-sm">✏️</button>
-                          <button title="Delete" onClick={() => deleteMat(m)} className="w-8 h-8 rounded-lg flex items-center justify-center text-red-400 hover:bg-red-50 transition-colors text-sm">🗑️</button>
-                        </div>
-                      </td>
-                    </tr>,
-                    expanded && (
-                      <tr key={`${id}-detail`} className="border-b border-slate-100">
-                        <td colSpan={10} className="px-0 py-0">
-                          <div className="bg-slate-50 px-6 py-5">
-                            <div className="grid grid-cols-2 gap-6">
-                              {/* LEFT: Image + Batches */}
-                              <div>
-                                <div className="mb-4">
-                                  <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide mb-2">🖼️ Product Image</p>
-                                  <div onClick={() => document.getElementById(`rmImg-${id}`).click()} className="w-20 h-20 border-2 border-dashed border-slate-200 rounded-xl flex items-center justify-center cursor-pointer overflow-hidden hover:border-slate-400 transition-colors bg-white">
-                                    {m.image ? <img src={m.image} alt="Product" className="w-full h-full object-cover" /> : <span className="text-slate-400 text-[10px] text-center px-1">📷 Upload</span>}
-                                  </div>
-                                  <input type="file" id={`rmImg-${id}`} accept="image/*" className="hidden" onChange={e => { const f = e.target.files[0]; if (!f) return; const r = new FileReader(); r.onload = ev => updateMut.mutate({ id, d: { ...m, image: ev.target.result } }); r.readAsDataURL(f); e.target.value = ''; }} />
-                                </div>
-                                <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide mb-3">🧪 Batches</p>
-                                {(m.batches || []).length === 0 ? (
-                                  <p className="text-xs text-slate-400">No batches recorded</p>
-                                ) : (m.batches || []).map((b, i) => {
-                                  const exp = batchExpLabel(b);
-                                  const qcPass = !b.qcStatus || b.qcStatus === 'pass';
-                                  return (
-                                    <div key={b.batchId || i} className="bg-white rounded-lg border border-slate-100 px-3 py-2 mb-2 cursor-pointer hover:border-slate-300 transition-colors" onClick={() => setEditBatch({ mat: m, data: { ...b, totalPrice: b.totalPrice || (b.price && b.quantity ? parseFloat((b.price * b.quantity).toFixed(2)) : '') } })}>
-                                      <div className="flex items-center justify-between mb-1">
-                                        <span className="text-slate-900 font-semibold text-xs truncate">{b.batchNumber || b.batchId}</span>
-                                        <div className="flex items-center gap-1.5">
-                                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${qcPass ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}`}>{qcPass ? '✓ QC Pass' : '✗ QC Fail'}</span>
-                                          <span className="text-[10px] text-slate-400 hover:text-slate-600">✏️</span>
-                                        </div>
-                                      </div>
-                                      <div className="flex items-center gap-3 text-xs text-slate-600">
-                                        <span className="font-bold text-slate-700">{b.quantity} {m.unit}</span>
-                                        <span className="text-emerald-600 font-semibold">₹{b.price || m.unitPrice}/unit</span>
-                                        <span className={exp.cls}>{exp.text}</span>
-                                      </div>
-                                      <p className="text-[11px] text-slate-400 mt-1">📍 <span className="text-slate-600 font-medium">{b.location || '—'}</span></p>
-                                      {b.qcCheckedBy && <p className="text-[11px] text-slate-400 mt-0.5">Checked by: <span className="text-slate-600 font-medium">{b.qcCheckedBy}</span>{b.qcDate ? ` · ${b.qcDate}` : ''}</p>}
-                                    </div>
-                                  );
-                                })}
-                              </div>
-                              {/* RIGHT: Basic Info */}
-                              <div>
-                                <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide mb-3">📋 Basic Info</p>
-                                {[['Supplier', m.supplier], ['Location', m.location], ['Min Stock', m.enableMinStock ? `${m.minStockLevel} ${m.unit}` : 'Disabled'], ['Inventory Value', `₹${inventoryValue(m).toLocaleString('en-IN', {maximumFractionDigits:0})}`]].map(([k,v]) => (
-                                  <div key={k} className="flex justify-between text-xs py-1.5 border-b border-slate-100 last:border-0">
-                                    <span className="text-slate-500">{k}</span>
-                                    <span className="font-semibold text-slate-700">{v || '—'}</span>
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
+                    <Text type="secondary" style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', display: 'block', marginBottom: 8 }}>Batches</Text>
+                    {(m.batches || []).length === 0 ? (
+                      <Text type="secondary" style={{ fontSize: 12 }}>No batches recorded</Text>
+                    ) : (m.batches || []).map((b, i) => {
+                      const exp = batchExpLabel(b);
+                      const qcPass = !b.qcStatus || b.qcStatus === 'pass';
+                      return (
+                        <Card
+                          key={b.batchId || i} size="small" style={{ marginBottom: 8, cursor: 'pointer' }}
+                          onClick={() => setEditBatch({ mat: m, data: { ...b, totalPrice: b.totalPrice || (b.price && b.quantity ? parseFloat((b.price * b.quantity).toFixed(2)) : '') } })}
+                        >
+                          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                            <Text strong style={{ fontSize: 12 }}>{b.batchNumber || b.batchId}</Text>
+                            <Space size={4}>
+                              <Tag color={qcPass ? 'green' : 'red'} icon={qcPass ? <CheckCircle2 size={11} /> : <XCircle size={11} />}>{qcPass ? 'QC Pass' : 'QC Fail'}</Tag>
+                              <Pencil size={11} color="#94a3b8" />
+                            </Space>
                           </div>
-                        </td>
-                      </tr>
-                    )
-                  ];
-                })}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </div>
+                          <Space size={12}>
+                            <Text strong style={{ fontSize: 12 }}>{b.quantity} {m.unit}</Text>
+                            <Text style={{ fontSize: 12, color: '#059669', fontWeight: 600 }}>₹{b.price || m.unitPrice}/unit</Text>
+                            <Text style={{ fontSize: 12, color: exp.color, fontWeight: exp.bold ? 700 : 400 }}>{exp.text}</Text>
+                          </Space>
+                          <div style={{ marginTop: 4 }}>
+                            <Text type="secondary" style={{ fontSize: 11 }}><MapPin size={10} style={{ marginRight: 2 }} />{b.location || '—'}</Text>
+                          </div>
+                          {b.qcCheckedBy && <Text type="secondary" style={{ fontSize: 11, display: 'block' }}>Checked by: {b.qcCheckedBy}{b.qcDate ? ` · ${b.qcDate}` : ''}</Text>}
+                        </Card>
+                      );
+                    })}
+                  </Col>
+                  <Col span={12}>
+                    <Text type="secondary" style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', display: 'block', marginBottom: 8 }}><ClipboardList size={12} style={{ marginRight: 4 }} />Basic Info</Text>
+                    {[['Supplier', m.supplier], ['Location', m.location], ['Min Stock', m.enableMinStock ? `${m.minStockLevel} ${m.unit}` : 'Disabled'], ['Inventory Value', `₹${inventoryValue(m).toLocaleString('en-IN', {maximumFractionDigits:0})}`]].map(([k,v]) => (
+                      <div key={k} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, padding: '6px 0', borderBottom: '1px solid #f1f5f9' }}>
+                        <Text type="secondary">{k}</Text>
+                        <Text strong>{v || '—'}</Text>
+                      </div>
+                    ))}
+                  </Col>
+                </Row>
+              );
+            },
+          }}
+        />
+      </Card>
 
-      {/* ════════════ ADD / EDIT MODAL ════════════ */}
-      {showForm && createPortal(
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 overflow-y-auto">
-          <div className="bg-white rounded-2xl w-full max-w-3xl my-4 shadow-2xl border border-slate-200">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-slate-50 rounded-t-2xl">
-              <h2 className="text-base font-bold text-slate-900">{editMat ? `✏️ Edit Material — ${editMat.name}` : '➕ Add New Raw Material'}</h2>
-              <button onClick={closeForm} className="w-9 h-9 rounded-xl flex items-center justify-center text-slate-400 hover:bg-slate-100 hover:text-slate-600 text-xl transition-all">✕</button>
+      {/* ════════════ ADD / EDIT DRAWER ════════════ */}
+      <Drawer
+        open={showForm} onClose={closeForm} width={720}
+        title={editMat ? `Edit Material — ${editMat.name}` : 'Add New Raw Material'}
+        footer={
+          <Space style={{ width: '100%' }}>
+            <Button onClick={closeForm} style={{ flex: 1 }}>Cancel</Button>
+            <Button type="primary" icon={<Save size={14} />} loading={createMut.isPending || updateMut.isPending} onClick={saveMat} style={{ flex: 1 }}>
+              {editMat ? 'Save Changes' : 'Add Material'}
+            </Button>
+          </Space>
+        }
+      >
+        <Space direction="vertical" style={{ width: '100%' }} size={20}>
+          {/* OCR Banner */}
+          <Card size="small" style={{ background: '#f0fdf4', borderColor: '#bbf7d0' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
+              <div>
+                <Text strong style={{ fontSize: 13, color: '#166534' }}><FileText size={13} style={{ marginRight: 4 }} />Auto-populate from Bill / Label</Text>
+                <div><Text style={{ fontSize: 12, color: '#16a34a' }}>Upload a photo of the product label or invoice to auto-fill fields</Text></div>
+              </div>
+              <input type="file" id="billImageInput" accept="image/*" style={{ display: 'none' }} onChange={onBillImageChange} />
+              <Button size="small" type="primary" style={{ background: '#059669' }} icon={<Upload size={12} />} onClick={() => document.getElementById('billImageInput').click()}>Upload Bill</Button>
             </div>
-            <div className="px-6 py-5 overflow-y-auto max-h-[75vh] space-y-5">
+          </Card>
 
-              {/* OCR Banner */}
-              <div className="flex items-center justify-between bg-emerald-50 border border-emerald-200 rounded-xl px-4 py-3 flex-wrap gap-3">
-                <div>
-                  <p className="text-sm font-bold text-emerald-800">📄 Auto-populate from Bill / Label</p>
-                  <p className="text-xs text-emerald-600 mt-0.5">Upload a photo of the product label or invoice to auto-fill fields</p>
-                </div>
-                <div className="flex gap-2">
-                  <input type="file" id="billImageInput" accept="image/*" className="hidden" onChange={onBillImageChange} />
-                  <button onClick={() => document.getElementById('billImageInput').click()} className="text-xs px-3 py-1.5 rounded-lg bg-emerald-600 text-white font-semibold hover:bg-emerald-700 transition-colors">📁 Upload Bill</button>
-                </div>
-              </div>
-
-              {/* Row 1: Code, Name, HSN */}
-              <div className="grid grid-cols-3 gap-4">
-                <div>
-                  <label className={labelCls}>Material Code</label>
-                  <input value={form.code} onChange={e => setF('code', e.target.value.toUpperCase())} className={`${inputCls} font-bold text-slate-900`} placeholder="Auto from name" />
-                </div>
-                <div>
-                  <label className={labelCls}>Product Name <span className="text-red-500">*</span></label>
-                  <input value={form.name} onChange={e => {
-                    const name = e.target.value;
-                    if (!editMat) {
-                      const stop = new Set(['and','or','the','of','in','for','a','an','with','by','to']);
-                      const words = name.trim().split(/\s+/).filter(w => w && !stop.has(w.toLowerCase()));
-                      const initials = words.map(w => w[0].toUpperCase()).join('').slice(0, 6);
-                      if (initials) {
-                        const existing = (data?.materials || []).map(m => m.code);
-                        let base = `RM-${initials}`, code = base, n = 1;
-                        while (existing.includes(code)) code = `${base}-${String(n++).padStart(2,'0')}`;
-                        setForm(f => ({ ...f, name, code }));
-                      } else { setF('name', name); }
-                    } else { setF('name', name); }
-                  }} className={inputCls} placeholder="e.g., Lavender Essential Oil" />
-                </div>
-                <div className="relative">
-                  <label className={labelCls}>HSN Code</label>
-                  <input value={form.hsnCode} onChange={e => onHsnInput(e.target.value)} onBlur={() => setTimeout(() => setHsnSuggestions([]), 200)} className={inputCls} placeholder="Auto-identified or enter manually" />
-                  {hsnSuggestions.length > 0 && (
-                    <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-slate-200 rounded-xl shadow-lg z-50 max-h-52 overflow-y-auto">
-                      {hsnSuggestions.map(h => (
-                        <button key={h.code} onMouseDown={() => { setF('hsnCode', h.code); setHsnSuggestions([]); }} className="w-full text-left px-3 py-2.5 hover:bg-slate-50 border-b border-slate-50 last:border-0">
-                          <span className="text-xs font-bold text-slate-900">{h.code}</span>
-                          <span className="text-xs text-slate-500 ml-2">{h.desc}</span>
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Row 2: Category, Supplier, Location */}
-              <div className="grid grid-cols-3 gap-4">
-                <div className="relative">
-                  <label className={labelCls}>Category <span className="text-red-500">*</span></label>
-                  <input value={form.category} onChange={e => onCatInput(e.target.value)} onBlur={() => setTimeout(() => setCatSuggestions([]), 200)} className={inputCls} placeholder="Type or select category" />
-                  {catSuggestions.length > 0 && (
-                    <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-slate-200 rounded-xl shadow-lg z-50 max-h-48 overflow-y-auto">
-                      {catSuggestions.map(c => (
-                        <button key={c} onMouseDown={() => { setF('category', c); setCatSuggestions([]); }} className="w-full text-left px-3 py-2 hover:bg-slate-50 text-xs font-semibold text-slate-700 border-b border-slate-50 last:border-0">{c}</button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-                <div>
-                  <label className={labelCls}>Supplier Name</label>
-                  <input value={form.supplier} onChange={e => setF('supplier', e.target.value)} className={inputCls} placeholder="e.g., ABC Chemicals Pvt Ltd" />
-                </div>
-                <div>
-                  <label className={labelCls}>Storage Location <span className="text-red-500">*</span></label>
-                  <input value={form.location} onChange={e => setF('location', e.target.value)} className={inputCls} placeholder="e.g., Warehouse A, Rack 12" />
-                </div>
-              </div>
-
-              {/* Row 3: Unit, Price, GST */}
-              <div className="grid grid-cols-3 gap-4">
-                <div>
-                  <label className={labelCls}>Unit <span className="text-red-500">*</span></label>
-                  <select value={form.unit} onChange={e => setF('unit', e.target.value)} className={inputCls}>
-                    {UNITS.map(u => <option key={u}>{u}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className={labelCls}>Unit Price (₹) <span className="text-red-500">*</span></label>
-                  <input type="number" value={form.unitPrice} onChange={e => setF('unitPrice', e.target.value)} step="0.01" min="0" className={inputCls} />
-                </div>
-                <div>
-                  <label className={labelCls}>GST Rate (%)</label>
-                  <select value={form.gstRate} onChange={e => setF('gstRate', Number(e.target.value))} className={inputCls}>
-                    {[0,5,12,18,28].map(r => <option key={r}>{r}</option>)}
-                  </select>
-                </div>
-              </div>
-
-              {/* Row 4: Initial Stock (add only) */}
-              {!editMat && (
-                <div className="grid grid-cols-3 gap-4">
-                  <div>
-                    <label className={labelCls}>Initial Stock</label>
-                    <input type="number" value={form.initialStock} onChange={e => setF('initialStock', e.target.value)} step="0.01" min="0" className={inputCls} />
+          <Row gutter={12}>
+            <Field label="Material Code" span={8}><Input value={form.code} onChange={e => setF('code', e.target.value.toUpperCase())} style={{ fontWeight: 700 }} placeholder="Auto from name" /></Field>
+            <Field label="Product Name" required span={8}>
+              <Input value={form.name} onChange={e => {
+                const name = e.target.value;
+                if (!editMat) {
+                  const stop = new Set(['and','or','the','of','in','for','a','an','with','by','to']);
+                  const words = name.trim().split(/\s+/).filter(w => w && !stop.has(w.toLowerCase()));
+                  const initials = words.map(w => w[0].toUpperCase()).join('').slice(0, 6);
+                  if (initials) {
+                    const existing = (data?.materials || []).map(m => m.code);
+                    let base = `RM-${initials}`, code = base, n = 1;
+                    while (existing.includes(code)) code = `${base}-${String(n++).padStart(2,'0')}`;
+                    setForm(f => ({ ...f, name, code }));
+                  } else { setF('name', name); }
+                } else { setF('name', name); }
+              }} placeholder="e.g., Lavender Essential Oil" />
+            </Field>
+            <Field label="HSN Code" span={8}>
+              <div style={{ position: 'relative' }}>
+                <Input value={form.hsnCode} onChange={e => onHsnInput(e.target.value)} onBlur={() => setTimeout(() => setHsnSuggestions([]), 200)} placeholder="Auto-identified or enter manually" />
+                {hsnSuggestions.length > 0 && (
+                  <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, marginTop: 4, background: '#fff', border: '1px solid #e2e8f0', borderRadius: 10, boxShadow: '0 8px 24px rgba(0,0,0,0.1)', zIndex: 50, maxHeight: 200, overflowY: 'auto' }}>
+                    {hsnSuggestions.map(h => (
+                      <div key={h.code} onMouseDown={() => { setF('hsnCode', h.code); setHsnSuggestions([]); }} style={{ padding: '8px 12px', cursor: 'pointer', borderBottom: '1px solid #f8fafc' }}>
+                        <Text strong style={{ fontSize: 12 }}>{h.code}</Text> <Text type="secondary" style={{ fontSize: 12 }}>{h.desc}</Text>
+                      </div>
+                    ))}
                   </div>
-                  <div>
-                    <label className={labelCls}>Initial Expiry</label>
-                    <input type="date" value={form.initialExpiry} onChange={e => setF('initialExpiry', e.target.value)} className={inputCls} />
-                  </div>
-                  <div>
-                    <label className={labelCls}>Initial Batch #</label>
-                    <input value={form.initialBatchNumber} onChange={e => setF('initialBatchNumber', e.target.value)} className={inputCls} placeholder="e.g., LOT-2026-001" />
-                  </div>
-                </div>
-              )}
-
-              {/* Min Stock */}
-              <div className="space-y-2">
-                <label className="flex items-center gap-2 cursor-pointer text-xs font-semibold text-slate-700">
-                  <input type="checkbox" checked={form.enableMinStock} onChange={e => setF('enableMinStock', e.target.checked)} className="rounded accent-slate-900" />
-                  Enable Min Stock Alert
-                </label>
-                {form.enableMinStock && (
-                  <input type="number" value={form.minStockLevel} onChange={e => setF('minStockLevel', e.target.value)} step="0.01" min="0" className={inputCls} placeholder={`Min stock (${form.unit})`} />
                 )}
               </div>
+            </Field>
+          </Row>
 
-              {/* QC Section */}
-              <div className="border border-slate-200 rounded-xl p-4 bg-slate-50">
-                <h4 className="text-xs font-bold text-slate-900 mb-3 flex items-center gap-1.5">🛡️ ISO 9001:2015 Quality Control</h4>
-                <div className="grid grid-cols-3 gap-4">
-                  <div>
-                    <label className={labelCls}>QC Checked By</label>
-                    <input value={form.qcChecker} onChange={e => setF('qcChecker', e.target.value)} className={inputCls} placeholder="Inspector name" />
+          <Row gutter={12}>
+            <Field label="Category" required span={8}>
+              <div style={{ position: 'relative' }}>
+                <Input value={form.category} onChange={e => onCatInput(e.target.value)} onBlur={() => setTimeout(() => setCatSuggestions([]), 200)} placeholder="Type or select category" />
+                {catSuggestions.length > 0 && (
+                  <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, marginTop: 4, background: '#fff', border: '1px solid #e2e8f0', borderRadius: 10, boxShadow: '0 8px 24px rgba(0,0,0,0.1)', zIndex: 50, maxHeight: 190, overflowY: 'auto' }}>
+                    {catSuggestions.map(c => (
+                      <div key={c} onMouseDown={() => { setF('category', c); setCatSuggestions([]); }} style={{ padding: '8px 12px', cursor: 'pointer', fontSize: 12, fontWeight: 600, borderBottom: '1px solid #f8fafc' }}>{c}</div>
+                    ))}
                   </div>
-                  <div>
-                    <label className={labelCls}>QC Number</label>
-                    <input value={form.qcNumber} onChange={e => setF('qcNumber', e.target.value)} className={inputCls} placeholder="QC-2026-001" />
-                  </div>
-                  <div>
-                    <label className={labelCls}>Reference Check #</label>
-                    <input value={form.refCheckNumber} onChange={e => setF('refCheckNumber', e.target.value)} className={inputCls} placeholder="REF-2026-001" />
-                  </div>
-                  <div className="col-span-3 flex items-center gap-2">
-                    <input type="checkbox" id="qcPassedCk" checked={form.qcPassed} onChange={e => setF('qcPassed', e.target.checked)} className="rounded accent-slate-900" />
-                    <label htmlFor="qcPassedCk" className="text-xs font-semibold text-slate-700 cursor-pointer">QC Passed / Approved</label>
-                  </div>
-                  <div className="col-span-3">
-                    <label className={labelCls}>QC Notes</label>
-                    <textarea value={form.qcNotes} onChange={e => setF('qcNotes', e.target.value)} className={`${inputCls} resize-none`} rows={2} placeholder="Quality observations..." />
-                  </div>
-                </div>
+                )}
               </div>
+            </Field>
+            <Field label="Supplier Name" span={8}><Input value={form.supplier} onChange={e => setF('supplier', e.target.value)} placeholder="e.g., ABC Chemicals Pvt Ltd" /></Field>
+            <Field label="Storage Location" required span={8}><Input value={form.location} onChange={e => setF('location', e.target.value)} placeholder="e.g., Warehouse A, Rack 12" /></Field>
+          </Row>
 
-              {/* Batch Management (Edit mode) */}
-              {editMat && (
-                <div className="border border-slate-200 rounded-xl p-4 bg-slate-50">
-                  <h4 className="text-xs font-bold text-slate-900 mb-3 flex items-center gap-1.5">🧪 Batch Management</h4>
-                  <div className="flex items-center justify-between mb-3 bg-white rounded-lg border border-slate-100 px-4 py-2.5">
-                    <span className="text-xs text-slate-500 font-medium">Current Total Stock</span>
-                    <span className="text-lg font-bold text-slate-900">{inlineBatches.reduce((s, b) => s + (parseFloat(b.quantity) || 0), 0).toLocaleString('en-IN')} {form.unit}</span>
-                  </div>
-                  <div className="space-y-2 mb-3">
-                    {inlineBatches.map((b, i) => {
-                      const exp = batchExpLabel(b);
-                      return (
-                        <div key={b.batchId || i} className="grid grid-cols-5 gap-2 text-xs bg-white rounded-lg border border-slate-100 px-3 py-2 items-center">
-                          <span className="font-semibold text-slate-900 truncate">{b.batchNumber || b.batchId}</span>
-                          <span className="font-bold text-slate-700">{b.quantity} {form.unit}</span>
-                          <span className="text-emerald-600 font-semibold">₹{b.price || form.unitPrice}</span>
-                          <span className="text-slate-500">{b.receivedDate ? new Date(b.receivedDate).toLocaleDateString('en-IN') : '—'}</span>
-                          <span className={exp.cls}>{exp.text}</span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                  {addBatchForm !== null ? (
-                    <div className="bg-white rounded-xl border border-slate-200 p-4">
-                      <p className="text-xs font-bold text-slate-700 mb-3">➕ Add New Batch</p>
-                      <div className="grid grid-cols-2 gap-3">
-                        <div><label className={labelCls}>Quantity <span className="text-red-500">*</span></label><input type="number" value={addBatchForm.quantity} onChange={e => setAddBatchForm(f => ({...f, quantity: e.target.value}))} className={inputCls} /></div>
-                        <div><label className={labelCls}>Batch / Lot #</label><input value={addBatchForm.batchNumber} onChange={e => setAddBatchForm(f => ({...f, batchNumber: e.target.value}))} className={inputCls} placeholder={`LOT-${form.code}-${inlineBatches.length + 1}`} /></div>
-                        <div><label className={labelCls}>Expiry Date</label><input type="date" value={addBatchForm.expiryDate} onChange={e => setAddBatchForm(f => ({...f, expiryDate: e.target.value}))} className={inputCls} /></div>
-                        <div><label className={labelCls}>Received Date</label><input type="date" value={addBatchForm.receivedDate} onChange={e => setAddBatchForm(f => ({...f, receivedDate: e.target.value}))} className={inputCls} /></div>
-                        <div><label className={labelCls}>Unit Price for this Batch (₹)</label><input type="number" value={addBatchForm.price} onChange={e => setAddBatchForm(f => ({...f, price: e.target.value}))} className={inputCls} placeholder="Leave blank to use current price" /></div>
-                        <div><label className={labelCls}>Storage Location</label><input value={addBatchForm.location} onChange={e => setAddBatchForm(f => ({...f, location: e.target.value}))} className={inputCls} placeholder={form.location || 'e.g. Warehouse A · Rack 12'} /></div>
-                        <div className="col-span-2"><label className={labelCls}>Notes</label><input value={addBatchForm.notes} onChange={e => setAddBatchForm(f => ({...f, notes: e.target.value}))} className={inputCls} placeholder="Supplier, Invoice Ref..." /></div>
-                      </div>
-                      <div className="flex gap-2 mt-3">
-                        <button onClick={addInlineBatch} className="text-xs px-4 py-2 rounded-lg bg-slate-900 text-white font-semibold hover:bg-slate-800">➕ Add Batch</button>
-                        <button onClick={() => setAddBatchForm(null)} className="text-xs px-4 py-2 rounded-lg border border-slate-200 text-slate-500">Clear</button>
-                      </div>
-                    </div>
-                  ) : (
-                    <button onClick={() => setAddBatchForm(emptyBatch())} className="text-xs px-4 py-2 rounded-lg bg-white border border-slate-200 text-slate-600 font-semibold hover:bg-slate-50 transition-colors">➕ Add New Batch</button>
-                  )}
-                </div>
-              )}
-            </div>
-            <div className="flex gap-3 px-6 py-4 border-t border-slate-100 bg-slate-50 rounded-b-2xl">
-              <button onClick={closeForm} className="px-5 py-2.5 rounded-xl text-sm font-semibold border border-slate-200 text-slate-500 hover:bg-slate-100 transition-colors">Cancel</button>
-              <button onClick={saveMat} disabled={createMut.isPending || updateMut.isPending}
-                className="flex-1 py-2.5 rounded-xl text-sm font-bold text-white disabled:opacity-60 transition-all hover:brightness-95"
-                style={{ background: '#2563eb' }}>
-                {(createMut.isPending || updateMut.isPending) ? 'Saving…' : editMat ? '💾 Save Changes' : '✅ Add Material'}
-              </button>
-            </div>
+          <Row gutter={12}>
+            <Field label="Unit" required span={8}><Select value={form.unit} onChange={v => setF('unit', v)} style={{ width: '100%' }} options={UNITS.map(u => ({ label: u, value: u }))} /></Field>
+            <Field label="Unit Price (₹)" required span={8}><Input type="number" value={form.unitPrice} onChange={e => setF('unitPrice', e.target.value)} step="0.01" min="0" /></Field>
+            <Field label="GST Rate (%)" span={8}><Select value={form.gstRate} onChange={v => setF('gstRate', v)} style={{ width: '100%' }} options={[0,5,12,18,28].map(r => ({ label: `${r}`, value: r }))} /></Field>
+          </Row>
+
+          {!editMat && (
+            <Row gutter={12}>
+              <Field label="Initial Stock" span={8}><Input type="number" value={form.initialStock} onChange={e => setF('initialStock', e.target.value)} step="0.01" min="0" /></Field>
+              <Field label="Initial Expiry" span={8}><Input type="date" value={form.initialExpiry} onChange={e => setF('initialExpiry', e.target.value)} /></Field>
+              <Field label="Initial Batch #" span={8}><Input value={form.initialBatchNumber} onChange={e => setF('initialBatchNumber', e.target.value)} placeholder="e.g., LOT-2026-001" /></Field>
+            </Row>
+          )}
+
+          <div>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 12, fontWeight: 600 }}>
+              <input type="checkbox" checked={form.enableMinStock} onChange={e => setF('enableMinStock', e.target.checked)} />
+              Enable Min Stock Alert
+            </label>
+            {form.enableMinStock && (
+              <Input type="number" value={form.minStockLevel} onChange={e => setF('minStockLevel', e.target.value)} step="0.01" min="0" placeholder={`Min stock (${form.unit})`} style={{ marginTop: 8, maxWidth: 240 }} />
+            )}
           </div>
-        </div>,
-        document.body
-      )}
+
+          {/* QC Section */}
+          <Card size="small" style={{ background: '#fafafa' }}>
+            <Text strong style={{ fontSize: 12, display: 'block', marginBottom: 12 }}><ShieldCheck size={13} style={{ marginRight: 4 }} />ISO 9001:2015 Quality Control</Text>
+            <Row gutter={12}>
+              <Field label="QC Checked By" span={8}><Input value={form.qcChecker} onChange={e => setF('qcChecker', e.target.value)} placeholder="Inspector name" /></Field>
+              <Field label="QC Number" span={8}><Input value={form.qcNumber} onChange={e => setF('qcNumber', e.target.value)} placeholder="QC-2026-001" /></Field>
+              <Field label="Reference Check #" span={8}><Input value={form.refCheckNumber} onChange={e => setF('refCheckNumber', e.target.value)} placeholder="REF-2026-001" /></Field>
+              <Col span={24} style={{ marginTop: 8 }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 12, fontWeight: 600 }}>
+                  <input type="checkbox" checked={form.qcPassed} onChange={e => setF('qcPassed', e.target.checked)} />
+                  QC Passed / Approved
+                </label>
+              </Col>
+              <Field label="QC Notes" span={24}><Input.TextArea value={form.qcNotes} onChange={e => setF('qcNotes', e.target.value)} rows={2} placeholder="Quality observations..." /></Field>
+            </Row>
+          </Card>
+
+          {/* Batch Management (Edit mode) */}
+          {editMat && (
+            <Card size="small" style={{ background: '#fafafa' }}>
+              <Text strong style={{ fontSize: 12, display: 'block', marginBottom: 12 }}><TestTube2 size={13} style={{ marginRight: 4 }} />Batch Management</Text>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#fff', borderRadius: 8, border: '1px solid #f1f5f9', padding: '10px 16px', marginBottom: 12 }}>
+                <Text type="secondary" style={{ fontSize: 12 }}>Current Total Stock</Text>
+                <Text strong style={{ fontSize: 18 }}>{inlineBatches.reduce((s, b) => s + (parseFloat(b.quantity) || 0), 0).toLocaleString('en-IN')} {form.unit}</Text>
+              </div>
+              <Space direction="vertical" style={{ width: '100%' }} size={8}>
+                {inlineBatches.map((b, i) => {
+                  const exp = batchExpLabel(b);
+                  return (
+                    <Row key={b.batchId || i} gutter={8} style={{ background: '#fff', borderRadius: 8, border: '1px solid #f1f5f9', padding: '8px 12px', margin: 0 }} align="middle">
+                      <Col span={5}><Text strong style={{ fontSize: 12 }} ellipsis>{b.batchNumber || b.batchId}</Text></Col>
+                      <Col span={5}><Text strong style={{ fontSize: 12 }}>{b.quantity} {form.unit}</Text></Col>
+                      <Col span={5}><Text style={{ fontSize: 12, color: '#059669', fontWeight: 600 }}>₹{b.price || form.unitPrice}</Text></Col>
+                      <Col span={5}><Text type="secondary" style={{ fontSize: 12 }}>{b.receivedDate ? new Date(b.receivedDate).toLocaleDateString('en-IN') : '—'}</Text></Col>
+                      <Col span={4}><Text style={{ fontSize: 12, color: exp.color, fontWeight: exp.bold ? 700 : 400 }}>{exp.text}</Text></Col>
+                    </Row>
+                  );
+                })}
+              </Space>
+              {addBatchForm !== null ? (
+                <Card size="small" style={{ marginTop: 12 }}>
+                  <Text strong style={{ fontSize: 12, display: 'block', marginBottom: 12 }}>Add New Batch</Text>
+                  <Row gutter={12}>
+                    <Field label="Quantity" required span={12}><Input type="number" value={addBatchForm.quantity} onChange={e => setAddBatchForm(f => ({...f, quantity: e.target.value}))} /></Field>
+                    <Field label="Batch / Lot #" span={12}><Input value={addBatchForm.batchNumber} onChange={e => setAddBatchForm(f => ({...f, batchNumber: e.target.value}))} placeholder={`LOT-${form.code}-${inlineBatches.length + 1}`} /></Field>
+                    <Field label="Expiry Date" span={12}><Input type="date" value={addBatchForm.expiryDate} onChange={e => setAddBatchForm(f => ({...f, expiryDate: e.target.value}))} /></Field>
+                    <Field label="Received Date" span={12}><Input type="date" value={addBatchForm.receivedDate} onChange={e => setAddBatchForm(f => ({...f, receivedDate: e.target.value}))} /></Field>
+                    <Field label="Unit Price for this Batch (₹)" span={12}><Input type="number" value={addBatchForm.price} onChange={e => setAddBatchForm(f => ({...f, price: e.target.value}))} placeholder="Leave blank to use current price" /></Field>
+                    <Field label="Storage Location" span={12}><Input value={addBatchForm.location} onChange={e => setAddBatchForm(f => ({...f, location: e.target.value}))} placeholder={form.location || 'e.g. Warehouse A · Rack 12'} /></Field>
+                    <Field label="Notes" span={24}><Input value={addBatchForm.notes} onChange={e => setAddBatchForm(f => ({...f, notes: e.target.value}))} placeholder="Supplier, Invoice Ref..." /></Field>
+                  </Row>
+                  <Space style={{ marginTop: 12 }}>
+                    <Button size="small" type="primary" icon={<Plus size={12} />} onClick={addInlineBatch}>Add Batch</Button>
+                    <Button size="small" onClick={() => setAddBatchForm(null)}>Clear</Button>
+                  </Space>
+                </Card>
+              ) : (
+                <Button style={{ marginTop: 12 }} icon={<Plus size={14} />} onClick={() => setAddBatchForm(emptyBatch())}>Add New Batch</Button>
+              )}
+            </Card>
+          )}
+        </Space>
+      </Drawer>
 
       {/* ════════════ QR MODAL ════════════ */}
-      {showQR && createPortal(
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-2xl w-full max-w-sm shadow-2xl border border-slate-200">
-            <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 bg-slate-50 rounded-t-2xl">
-              <h2 className="text-sm font-bold text-slate-900">🔲 Print QR Label</h2>
-              <button onClick={() => setShowQR(null)} className="text-slate-400 hover:text-slate-600 text-xl">✕</button>
+      <Modal
+        open={!!showQR} onCancel={() => setShowQR(null)} footer={null} width={380}
+        title={<Space size={8}><QrCode size={16} />Print QR Label</Space>}
+      >
+        {showQR && (
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16, padding: '8px 0' }}>
+            <div style={{ border: '2px solid #e2e8f0', borderRadius: 12, padding: 16, background: '#fff' }}>
+              <QRCode value={qrValue(showQR)} size={200} level="M" />
             </div>
-            <div className="p-6 flex flex-col items-center gap-4">
-              <div className="border-2 border-slate-200 rounded-xl p-4 bg-white shadow-sm">
-                <QRCode value={qrValue(showQR)} size={200} level="M" />
-              </div>
-              <div className="text-center">
-                <p className="text-base font-bold text-slate-900">{showQR.name}</p>
-                <p className="text-xs text-slate-500 mt-1.5 leading-relaxed">
-                  Code: {showQR.code} · HSN: {showQR.hsnCode || '—'}<br />
-                  Unit: {showQR.unit} · Price: ₹{showQR.unitPrice} · GST: {showQR.gstRate}%<br />
-                  Location: {showQR.location || '—'}
-                </p>
-              </div>
+            <div style={{ textAlign: 'center' }}>
+              <Text strong style={{ fontSize: 15 }}>{showQR.name}</Text>
+              <div><Text type="secondary" style={{ fontSize: 12, lineHeight: 1.6 }}>
+                Code: {showQR.code} · HSN: {showQR.hsnCode || '—'}<br />
+                Unit: {showQR.unit} · Price: ₹{showQR.unitPrice} · GST: {showQR.gstRate}%<br />
+                Location: {showQR.location || '—'}
+              </Text></div>
             </div>
-            <div className="flex gap-2 px-5 py-4 border-t border-slate-100">
-              <button onClick={() => window.print()} className="flex-1 py-2.5 rounded-xl text-sm font-bold text-white bg-slate-900 hover:bg-slate-800 transition-colors">🖨️ Print Label</button>
-              <button onClick={() => setShowQR(null)} className="px-5 py-2.5 rounded-xl text-sm font-semibold border border-slate-200 text-slate-500 hover:bg-slate-50 transition-colors">Close</button>
-            </div>
+            <Space style={{ width: '100%' }}>
+              <Button type="primary" icon={<Printer size={14} />} style={{ flex: 1 }} onClick={() => window.print()}>Print Label</Button>
+              <Button style={{ flex: 1 }} onClick={() => setShowQR(null)}>Close</Button>
+            </Space>
           </div>
-        </div>,
-        document.body
-      )}
+        )}
+      </Modal>
 
-      {/* ════════════ BATCH ADD MODAL ════════════ */}
-      {showBatch && createPortal(
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4" style={{ background: 'rgba(15,23,42,0.45)' }}>
-          <div className="bg-white rounded-[14px] w-full max-w-[400px] max-h-[92vh] flex flex-col shadow-2xl overflow-hidden" style={{ fontFamily: "'Inter','Segoe UI',system-ui,sans-serif" }}>
-
-            {/* Header */}
-            <div className="flex items-center justify-between px-4 py-3.5 border-b border-slate-100 bg-[#fbfcfe]">
-              <div className="flex items-center gap-2 font-semibold text-[15px] text-slate-900">
-                <span className="w-[22px] h-[22px] rounded-[7px] flex items-center justify-center text-white text-xs" style={{ background: 'linear-gradient(135deg,#34d399,#10b981)' }}>✎</span>
-                Add Batch to Material
-              </div>
-              <button onClick={() => setShowBatch(null)} className="text-slate-400 hover:bg-slate-100 hover:text-slate-600 px-2 py-1 rounded-md text-lg transition-all">✕</button>
-            </div>
-
-            {/* Body */}
-            <div className="px-4 py-3 overflow-y-auto flex-1 space-y-0" style={{ scrollbarWidth: 'thin' }}>
-
-              {/* Product summary card */}
-              <div className="flex items-start gap-2.5 px-3 py-2.5 rounded-[10px] border border-[#e5edf7] mb-3" style={{ background: '#f6faff' }}>
-                <div className="w-[38px] h-[38px] rounded-[8px] flex items-center justify-center text-lg flex-shrink-0" style={{ background: '#fef3c7', color: '#d97706' }}>📦</div>
-                <div className="flex-1 min-w-0">
-                  <p className="font-semibold text-[13.5px] text-slate-900 mb-0.5 truncate">
-                    {showBatch.name}
-                    <span className="text-slate-400 font-normal text-[11.5px] ml-1">({showBatch.code} | HSN: {showBatch.hsnCode||'—'})</span>
-                  </p>
-                  <div className="flex flex-wrap gap-1 text-[10.5px] text-slate-500">
-                    <span className="bg-white border border-slate-200 rounded px-1.5 py-0.5">Current: <strong>{totalStock(showBatch)} {showBatch.unit}</strong></span>
-                    {showBatch.location && <span className="bg-white border border-slate-200 rounded px-1.5 py-0.5">{showBatch.location}</span>}
-                    {showBatch.supplier && <span className="bg-white border border-slate-200 rounded px-1.5 py-0.5">{showBatch.supplier}</span>}
+      {/* ════════════ BATCH ADD DRAWER ════════════ */}
+      <Drawer
+        open={!!showBatch} onClose={() => setShowBatch(null)} width={460}
+        title={<Space size={8}><Pencil size={14} />Add Batch to Material</Space>}
+        footer={
+          <Space style={{ width: '100%' }}>
+            <Button style={{ flex: 1 }} onClick={() => setShowBatch(null)}>Cancel</Button>
+            <Button type="primary" style={{ flex: 1 }} loading={updateMut.isPending} onClick={saveBatchModal}>Add Batch</Button>
+          </Space>
+        }
+      >
+        {showBatch && (
+          <Space direction="vertical" style={{ width: '100%' }} size={16}>
+            <Card size="small" style={{ background: '#f6faff', borderColor: '#e5edf7' }}>
+              <div style={{ display: 'flex', gap: 10 }}>
+                <div style={{ width: 38, height: 38, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#fef3c7', color: '#d97706', flexShrink: 0 }}><Package size={16} /></div>
+                <div style={{ minWidth: 0 }}>
+                  <Text strong style={{ fontSize: 13 }}>{showBatch.name} <Text type="secondary" style={{ fontSize: 11, fontWeight: 400 }}>({showBatch.code} | HSN: {showBatch.hsnCode||'—'})</Text></Text>
+                  <div style={{ marginTop: 4 }}>
+                    <Space size={4} wrap>
+                      <Tag>Current: {totalStock(showBatch)} {showBatch.unit}</Tag>
+                      {showBatch.location && <Tag>{showBatch.location}</Tag>}
+                      {showBatch.supplier && <Tag>{showBatch.supplier}</Tag>}
+                    </Space>
                   </div>
                 </div>
               </div>
+            </Card>
 
-              {/* Section: Batch Details */}
-              <div className="flex items-center gap-1.5 text-[11.5px] font-semibold tracking-wide uppercase text-slate-500 my-3">
-                Batch Details
-                <span className="flex-1 h-px bg-slate-100" />
+            <Text type="secondary" style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase' }}>Batch Details</Text>
+
+            <Row gutter={8}>
+              <Field label="Quantity to Add" required span={12}>
+                <Input type="number" value={batchData.quantity} onChange={e => { const q = e.target.value; const t = batchData.totalPrice; setBatchData(b => ({ ...b, quantity: q, price: q && t ? parseFloat((parseFloat(t)/parseFloat(q)).toFixed(4)) : '' })); }} step="0.01" min="0" placeholder="e.g. 100" />
+              </Field>
+              <Field label="Unit" span={12}>
+                <Select value={batchData.unit || showBatch.unit} onChange={v => setBatchData(b => ({...b, unit: v}))} style={{ width: '100%' }} options={['kg','g','liter','ml','tonne','piece','box','drum','bag'].map(u => ({ label: u, value: u }))} />
+              </Field>
+            </Row>
+            <Row gutter={8}>
+              <Field label="Total Price (₹)" required span={12}>
+                <Input type="number" value={batchData.totalPrice} onChange={e => { const t = e.target.value; const q = batchData.quantity; setBatchData(b => ({ ...b, totalPrice: t, price: q && t ? parseFloat((parseFloat(t)/parseFloat(q)).toFixed(4)) : '' })); }} step="0.01" min="0" placeholder="e.g. 5000" />
+              </Field>
+              <Field label="Unit Price (auto)" span={12}>
+                <Input readOnly value={batchData.price ? `₹ ${batchData.price} / ${batchData.unit || showBatch.unit}` : ''} placeholder="₹ — / unit" style={{ color: '#059669', fontWeight: 600 }} />
+              </Field>
+            </Row>
+            <Row gutter={8}>
+              <Field label="Batch / Lot Number" span={12}><Input value={batchData.batchNumber} onChange={e => setBatchData(b => ({...b, batchNumber: e.target.value}))} placeholder={`LOT-${showBatch.code}-${(showBatch.batches?.length||0)+1}`} /></Field>
+              <Field label="Received Date" span={12}><Input type="date" value={batchData.receivedDate} onChange={e => setBatchData(b => ({...b, receivedDate: e.target.value}))} /></Field>
+            </Row>
+            <Row gutter={8}>
+              <Field label="Expiry Date" span={12}><Input type="date" value={batchData.expiryDate} onChange={e => setBatchData(b => ({...b, expiryDate: e.target.value}))} /></Field>
+              <Field label="Storage Location" required span={12}><Input value={batchData.location} onChange={e => setBatchData(b => ({...b, location: e.target.value}))} placeholder={showBatch.location || 'e.g. Warehouse A · CS1'} /></Field>
+            </Row>
+            <Row gutter={8}>
+              <Field label="Supplier Name" required span={12}><Input value={batchData.supplier} onChange={e => setBatchData(b => ({...b, supplier: e.target.value}))} placeholder={showBatch.supplier || 'e.g. Kerala Oils Ltd'} /></Field>
+              <Field label="Supplier Invoice" span={12}><Input value={batchData.invoice} onChange={e => setBatchData(b => ({...b, invoice: e.target.value}))} placeholder="INV-2026-123" /></Field>
+            </Row>
+
+            <Text type="secondary" style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase' }}>Quality Check</Text>
+            <Card size="small" style={{ background: '#f0fdf4', borderStyle: 'dashed', borderColor: '#86efac' }}>
+              <Text strong style={{ fontSize: 12, color: '#166534', display: 'block', marginBottom: 10 }}><CheckCircle2 size={13} style={{ marginRight: 4 }} />Mandatory before adding</Text>
+              <Row gutter={8}>
+                <Field label="QC Checked By" required span={12}>
+                  <Select value={batchData.qcCheckedBy || undefined} onChange={v => setBatchData(b => ({...b, qcCheckedBy: v}))} style={{ width: '100%' }} placeholder="Select QC person"
+                    options={['Ravi (QC Lead)', 'Priya (QC Analyst)', 'Karthik (Shift QC)', 'Divya (QC Manager)', 'Suresh (Sr. QC)'].map(v => ({ label: v, value: v }))} />
+                </Field>
+                <Field label="QC Check Date" required span={12}><Input type="date" value={batchData.qcDate} onChange={e => setBatchData(b => ({...b, qcDate: e.target.value}))} /></Field>
+              </Row>
+              <div style={{ marginTop: 8, marginBottom: 8 }}>
+                <Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 4 }}>QC Status</Text>
+                <Space.Compact style={{ width: '100%' }}>
+                  <Button style={{ flex: 1 }} type={batchData.qcStatus === 'pass' ? 'primary' : 'default'} onClick={() => setBatchData(b => ({...b, qcStatus: 'pass'}))} icon={<CheckCircle2 size={12} />}>QC Pass</Button>
+                  <Button style={{ flex: 1 }} danger type={batchData.qcStatus === 'fail' ? 'primary' : 'default'} onClick={() => setBatchData(b => ({...b, qcStatus: 'fail'}))} icon={<XCircle size={12} />}>QC Fail</Button>
+                </Space.Compact>
+                {batchData.qcStatus === 'fail' && <Text type="danger" style={{ fontSize: 11, display: 'block', marginTop: 4 }}>If QC fails, batch is rejected and will not be added to inventory.</Text>}
+                {batchData.qcStatus === 'pass' && <Text style={{ fontSize: 11, color: '#047857', display: 'block', marginTop: 4 }}>If QC fails, the batch is rejected and returned to the supplier — it will not be added to inventory.</Text>}
               </div>
+              <Field label="QC Notes" span={24}><Input.TextArea value={batchData.qcNotes} onChange={e => setBatchData(b => ({...b, qcNotes: e.target.value}))} placeholder="e.g. COA verified, aroma OK…" rows={2} /></Field>
+            </Card>
 
-              <div className="grid grid-cols-2 gap-2 mb-2">
-                <div className="flex flex-col gap-1">
-                  <label className="text-[11.5px] text-slate-500 font-medium">Quantity to Add <span className="text-red-500">*</span></label>
-                  <input type="number" value={batchData.quantity} onChange={e => { const q = e.target.value; const t = batchData.totalPrice; setBatchData(b => ({ ...b, quantity: q, price: q && t ? parseFloat((parseFloat(t)/parseFloat(q)).toFixed(4)) : '' })); }} step="0.01" min="0" placeholder="e.g. 100" className="px-2.5 py-2 border border-slate-200 rounded-lg text-[13px] font-[inherit] focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/10 text-slate-900" />
-                </div>
-                <div className="flex flex-col gap-1">
-                  <label className="text-[11.5px] text-slate-500 font-medium">Unit</label>
-                  <select value={batchData.unit || showBatch.unit} onChange={e => setBatchData(b => ({...b, unit: e.target.value}))} className="px-2.5 py-2 border border-slate-200 rounded-lg text-[13px] font-[inherit] focus:outline-none focus:border-emerald-500 bg-white text-slate-900">
-                    {['kg','g','liter','ml','tonne','piece','box','drum','bag'].map(u => <option key={u} value={u}>{u}</option>)}
-                  </select>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-2 mb-2">
-                <div className="flex flex-col gap-1">
-                  <label className="text-[11.5px] text-slate-500 font-medium">Total Price (₹) <span className="text-red-500">*</span></label>
-                  <input type="number" value={batchData.totalPrice} onChange={e => { const t = e.target.value; const q = batchData.quantity; setBatchData(b => ({ ...b, totalPrice: t, price: q && t ? parseFloat((parseFloat(t)/parseFloat(q)).toFixed(4)) : '' })); }} step="0.01" min="0" placeholder="e.g. 5000" className="px-2.5 py-2 border border-slate-200 rounded-lg text-[13px] font-[inherit] focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/10 text-slate-900" />
-                </div>
-                <div className="flex flex-col gap-1">
-                  <label className="text-[11.5px] text-slate-500 font-medium">Unit Price <span className="text-[10.5px] text-slate-400 font-normal">auto-calculated</span></label>
-                  <input type="text" value={batchData.price ? `₹ ${batchData.price} / ${batchData.unit || showBatch.unit}` : ''} readOnly placeholder="₹ — / unit" className="px-2.5 py-2 border border-slate-200 rounded-lg text-[13px] bg-slate-50 font-semibold text-emerald-600 cursor-default" />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-2 mb-2">
-                <div className="flex flex-col gap-1">
-                  <label className="text-[11.5px] text-slate-500 font-medium">Batch / Lot Number</label>
-                  <input value={batchData.batchNumber} onChange={e => setBatchData(b => ({...b, batchNumber: e.target.value}))} placeholder={`LOT-${showBatch.code}-${(showBatch.batches?.length||0)+1}`} className="px-2.5 py-2 border border-slate-200 rounded-lg text-[13px] font-[inherit] focus:outline-none focus:border-emerald-500 text-slate-900" />
-                </div>
-                <div className="flex flex-col gap-1">
-                  <label className="text-[11.5px] text-slate-500 font-medium">Received Date</label>
-                  <input type="date" value={batchData.receivedDate} onChange={e => setBatchData(b => ({...b, receivedDate: e.target.value}))} className="px-2.5 py-2 border border-slate-200 rounded-lg text-[13px] font-[inherit] focus:outline-none focus:border-emerald-500 text-slate-900" />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-2 mb-2">
-                <div className="flex flex-col gap-1">
-                  <label className="text-[11.5px] text-slate-500 font-medium">Expiry Date</label>
-                  <input type="date" value={batchData.expiryDate} onChange={e => setBatchData(b => ({...b, expiryDate: e.target.value}))} className="px-2.5 py-2 border border-slate-200 rounded-lg text-[13px] font-[inherit] focus:outline-none focus:border-emerald-500 text-slate-900" />
-                </div>
-                <div className="flex flex-col gap-1">
-                  <label className="text-[11.5px] text-slate-500 font-medium">Storage Location <span className="text-red-500">*</span></label>
-                  <input value={batchData.location} onChange={e => setBatchData(b => ({...b, location: e.target.value}))} placeholder={showBatch.location || 'e.g. Warehouse A · CS1'} className="px-2.5 py-2 border border-slate-200 rounded-lg text-[13px] font-[inherit] focus:outline-none focus:border-emerald-500 text-slate-900" />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-2 mb-2">
-                <div className="flex flex-col gap-1">
-                  <label className="text-[11.5px] text-slate-500 font-medium">Supplier Name <span className="text-red-500">*</span></label>
-                  <input value={batchData.supplier} onChange={e => setBatchData(b => ({...b, supplier: e.target.value}))} placeholder={showBatch.supplier || 'e.g. Kerala Oils Ltd'} className="px-2.5 py-2 border border-slate-200 rounded-lg text-[13px] font-[inherit] focus:outline-none focus:border-emerald-500 text-slate-900" />
-                </div>
-                <div className="flex flex-col gap-1">
-                  <label className="text-[11.5px] text-slate-500 font-medium">Supplier Invoice</label>
-                  <input value={batchData.invoice} onChange={e => setBatchData(b => ({...b, invoice: e.target.value}))} placeholder="INV-2026-123" className="px-2.5 py-2 border border-slate-200 rounded-lg text-[13px] font-[inherit] focus:outline-none focus:border-emerald-500 text-slate-900" />
-                </div>
-              </div>
-
-              {/* Section: Quality Check */}
-              <div className="flex items-center gap-1.5 text-[11.5px] font-semibold tracking-wide uppercase text-slate-500 mt-4 mb-2">
-                Quality Check
-                <span className="flex-1 h-px bg-slate-100" />
-              </div>
-              <div className="rounded-[10px] p-2.5 mb-3" style={{ background: '#f0fdf4', border: '1px dashed #86efac' }}>
-                <div className="flex items-center gap-1.5 text-xs font-semibold text-emerald-800 mb-2">
-                  <span className="w-4 h-4 rounded flex items-center justify-center text-white text-[10px]" style={{ background: '#10b981' }}>✓</span>
-                  Mandatory before adding
-                </div>
-
-                <div className="grid grid-cols-2 gap-2 mb-2">
-                  <div className="flex flex-col gap-1">
-                    <label className="text-[11.5px] text-slate-500 font-medium">QC Checked By <span className="text-red-500">*</span></label>
-                    <select value={batchData.qcCheckedBy} onChange={e => setBatchData(b => ({...b, qcCheckedBy: e.target.value}))} className="px-2.5 py-2 border border-slate-200 rounded-lg text-[13px] font-[inherit] focus:outline-none focus:border-emerald-500 bg-white text-slate-900">
-                      <option value="">Select QC person</option>
-                      <option>Ravi (QC Lead)</option>
-                      <option>Priya (QC Analyst)</option>
-                      <option>Karthik (Shift QC)</option>
-                      <option>Divya (QC Manager)</option>
-                      <option>Suresh (Sr. QC)</option>
-                    </select>
-                  </div>
-                  <div className="flex flex-col gap-1">
-                    <label className="text-[11.5px] text-slate-500 font-medium">QC Check Date <span className="text-red-500">*</span></label>
-                    <input type="date" value={batchData.qcDate} onChange={e => setBatchData(b => ({...b, qcDate: e.target.value}))} className="px-2.5 py-2 border border-slate-200 rounded-lg text-[13px] font-[inherit] focus:outline-none focus:border-emerald-500 text-slate-900" />
-                  </div>
-                </div>
-
-                <div className="flex flex-col gap-1 mb-2">
-                  <label className="text-[11.5px] text-slate-500 font-medium">QC Status</label>
-                  <div className="grid grid-cols-2 gap-1.5 p-0.5 rounded-lg" style={{ background: '#dcfce7', border: '1px solid #bbf7d0' }}>
-                    <button type="button" onClick={() => setBatchData(b => ({...b, qcStatus: 'pass'}))}
-                      className={`py-1.5 rounded-md text-[12.5px] font-medium transition-all ${batchData.qcStatus === 'pass' ? 'text-white shadow-sm' : 'text-slate-500 bg-transparent'}`}
-                      style={batchData.qcStatus === 'pass' ? { background: '#10b981', boxShadow: '0 2px 4px rgba(16,185,129,.3)' } : {}}>
-                      ✓ QC Pass
-                    </button>
-                    <button type="button" onClick={() => setBatchData(b => ({...b, qcStatus: 'fail'}))}
-                      className={`py-1.5 rounded-md text-[12.5px] font-medium transition-all ${batchData.qcStatus === 'fail' ? 'bg-red-500 text-white shadow-sm' : 'text-slate-500 bg-transparent'}`}>
-                      ✗ QC Fail
-                    </button>
-                  </div>
-                  {batchData.qcStatus === 'fail' && (
-                    <p className="text-[10.5px] text-red-600 mt-1">If QC fails, batch is <strong>rejected</strong> and will <strong>not</strong> be added to inventory.</p>
-                  )}
-                  {batchData.qcStatus === 'pass' && (
-                    <p className="text-[10.5px] mt-1" style={{ color: '#047857' }}>If QC fails, the batch is rejected and returned to the supplier — it will <b>not</b> be added to inventory.</p>
-                  )}
-                </div>
-
-                <div className="flex flex-col gap-1">
-                  <label className="text-[11.5px] text-slate-500 font-medium">QC Notes <span className="text-[10.5px] text-slate-400 font-normal">optional</span></label>
-                  <textarea value={batchData.qcNotes} onChange={e => setBatchData(b => ({...b, qcNotes: e.target.value}))} placeholder="e.g. COA verified, aroma OK…" rows={2} className="px-2.5 py-2 border border-slate-200 rounded-lg text-[13px] font-[inherit] focus:outline-none focus:border-emerald-500 resize-none text-slate-900" />
-                </div>
-              </div>
-
-              {/* Existing Batches */}
-              {(showBatch.batches||[]).length > 0 && (
-                <>
-                  <div className="flex items-center gap-1.5 text-[11.5px] font-semibold tracking-wide uppercase text-slate-500 mt-2 mb-2">
-                    Existing Batches
-                    <span className="text-[11px] text-slate-400 normal-case tracking-normal font-normal">— {showBatch.batches.length} total</span>
-                    <span className="flex-1 h-px bg-slate-100" />
-                  </div>
-                  <div className="space-y-1.5 mb-2">
-                    {showBatch.batches.map((b, i) => {
-                      const exp = batchExpLabel(b);
-                      const today = new Date();
-                      const days = b.expiryDate ? Math.ceil((new Date(b.expiryDate) - today) / (1000*60*60*24)) : null;
-                      const badgeCls = days === null ? '' : days < 0 ? 'bg-red-100 text-red-700' : days <= 30 ? 'bg-orange-100 text-orange-700' : 'bg-emerald-100 text-emerald-700';
-                      const badgeTxt = days === null ? '' : days < 0 ? 'Expired' : days <= 30 ? 'Expiring' : 'Active';
-                      return (
-                        <div key={b.batchId||i} className="grid text-[11.5px] px-2.5 py-2 rounded-lg border border-slate-100 bg-[#fafbfc]" style={{ gridTemplateColumns: '1fr auto auto auto', gap: '6px', alignItems: 'center' }}>
-                          <span className="font-semibold text-slate-900 truncate">{b.batchNumber||b.batchId}</span>
-                          <span className="text-slate-600">{b.quantity} {showBatch.unit}</span>
-                          <span className="font-semibold text-emerald-600">₹{b.price||showBatch.unitPrice}</span>
-                          {badgeTxt && <span className={`text-[9.5px] px-1.5 py-0.5 rounded font-semibold uppercase tracking-wide ${badgeCls}`}>{badgeTxt}</span>}
-                          <span className="text-[10.5px] text-slate-400 col-span-4">Rcvd: {b.receivedDate ? new Date(b.receivedDate).toLocaleDateString('en-IN') : '—'} · {exp.text}</span>
+            {(showBatch.batches||[]).length > 0 && (
+              <>
+                <Text type="secondary" style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase' }}>Existing Batches — {showBatch.batches.length} total</Text>
+                <Space direction="vertical" style={{ width: '100%' }} size={6}>
+                  {showBatch.batches.map((b, i) => {
+                    const today = new Date();
+                    const days = b.expiryDate ? Math.ceil((new Date(b.expiryDate) - today) / (1000*60*60*24)) : null;
+                    const badgeColor = days === null ? 'default' : days < 0 ? 'red' : days <= 30 ? 'orange' : 'green';
+                    const badgeTxt = days === null ? '' : days < 0 ? 'Expired' : days <= 30 ? 'Expiring' : 'Active';
+                    const exp = batchExpLabel(b);
+                    return (
+                      <div key={b.batchId||i} style={{ padding: '8px 10px', borderRadius: 8, border: '1px solid #f1f5f9', background: '#fafbfc' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
+                          <Text strong style={{ fontSize: 12 }} ellipsis>{b.batchNumber||b.batchId}</Text>
+                          <Text style={{ fontSize: 12 }}>{b.quantity} {showBatch.unit}</Text>
+                          <Text strong style={{ fontSize: 12, color: '#059669' }}>₹{b.price||showBatch.unitPrice}</Text>
+                          {badgeTxt && <Tag color={badgeColor} style={{ fontSize: 10 }}>{badgeTxt}</Tag>}
                         </div>
-                      );
-                    })}
-                  </div>
-                </>
-              )}
-            </div>
+                        <Text type="secondary" style={{ fontSize: 11 }}>Rcvd: {b.receivedDate ? new Date(b.receivedDate).toLocaleDateString('en-IN') : '—'} · {exp.text}</Text>
+                      </div>
+                    );
+                  })}
+                </Space>
+              </>
+            )}
+          </Space>
+        )}
+      </Drawer>
 
-            {/* Footer */}
-            <div className="flex gap-2 px-4 py-3 border-t border-slate-100 bg-[#fbfcfe]">
-              <button onClick={() => setShowBatch(null)} className="flex-1 py-2.5 rounded-[9px] text-[13.5px] font-semibold bg-white border border-slate-200 text-slate-500 hover:bg-slate-50 transition-all font-[inherit]">Cancel</button>
-              <button onClick={saveBatchModal} disabled={updateMut.isPending} className="flex-1 py-2.5 rounded-[9px] text-[13.5px] font-semibold text-white transition-all font-[inherit] disabled:opacity-60" style={{ background: '#0f172a' }}>
-                {updateMut.isPending ? 'Adding…' : '+ Add Batch'}
-              </button>
-            </div>
+      {/* ════════════ BATCH EDIT DRAWER ════════════ */}
+      <Drawer
+        open={!!editBatch} onClose={() => setEditBatch(null)} width={460}
+        title={<Space size={8}><Pencil size={14} />Edit Batch</Space>}
+        footer={
+          editBatch && (
+            <Space style={{ width: '100%' }}>
+              <Button style={{ flex: 1 }} onClick={() => setEditBatch(null)}>Cancel</Button>
+              <Button
+                type="primary" style={{ flex: 1 }} loading={updateBatchMut.isPending}
+                icon={<Save size={14} />}
+                onClick={() => { const { mat, data } = editBatch; updateBatchMut.mutate({ matId: mat._id||mat.id, batchId: data._id, d: { quantity: data.quantity, totalPrice: data.totalPrice, price: data.price, batchNumber: data.batchNumber, expiryDate: data.expiryDate||null, receivedDate: data.receivedDate||null, location: data.location, supplier: data.supplier, invoice: data.invoice, notes: data.notes, qcCheckedBy: data.qcCheckedBy, qcDate: data.qcDate, qcStatus: data.qcStatus, qcNotes: data.qcNotes } }); }}
+              >
+                Save Changes
+              </Button>
+            </Space>
+          )
+        }
+      >
+        {editBatch && (
+          <Space direction="vertical" style={{ width: '100%' }} size={16}>
+            <Card size="small" style={{ background: '#f6faff', borderColor: '#e5edf7' }}>
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                <div style={{ width: 32, height: 32, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#ede9fe', color: '#7c3aed', flexShrink: 0 }}><Package size={14} /></div>
+                <div style={{ minWidth: 0 }}>
+                  <Text strong style={{ fontSize: 13 }} ellipsis>{editBatch.mat.name}</Text>
+                  <div><Text type="secondary" style={{ fontSize: 11 }}>{editBatch.mat.code} · {editBatch.data.batchNumber || editBatch.data.batchId}</Text></div>
+                </div>
+              </div>
+            </Card>
+
+            <Text type="secondary" style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase' }}>Batch Details</Text>
+            <Row gutter={8}>
+              <Field label="Batch / Lot #" span={12}><Input value={editBatch.data.batchNumber || ''} onChange={e => setEditBatch(s => ({...s, data: {...s.data, batchNumber: e.target.value}}))} /></Field>
+              <Field label="Quantity" span={12}><Input type="number" value={editBatch.data.quantity || ''} onChange={e => { const q = e.target.value; const t = editBatch.data.totalPrice; setEditBatch(s => ({...s, data: {...s.data, quantity: q, price: q && t ? parseFloat((parseFloat(t)/parseFloat(q)).toFixed(4)) : s.data.price}})); }} /></Field>
+              <Field label="Total Price (₹)" span={12}><Input type="number" value={editBatch.data.totalPrice || ''} onChange={e => { const t = e.target.value; const q = editBatch.data.quantity; setEditBatch(s => ({...s, data: {...s.data, totalPrice: t, price: q && t ? parseFloat((parseFloat(t)/parseFloat(q)).toFixed(4)) : s.data.price}})); }} /></Field>
+              <Field label={`Unit Price (₹/${editBatch.mat.unit})`} span={12}><Input type="number" value={editBatch.data.price || ''} onChange={e => { const p = e.target.value; const q = editBatch.data.quantity; setEditBatch(s => ({...s, data: {...s.data, price: p, totalPrice: p && q ? parseFloat((parseFloat(p)*parseFloat(q)).toFixed(2)) : s.data.totalPrice}})); }} placeholder="e.g. 1250" style={{ color: '#059669', fontWeight: 600 }} /></Field>
+              <Field label="Received Date" span={12}><Input type="date" value={editBatch.data.receivedDate || ''} onChange={e => setEditBatch(s => ({...s, data: {...s.data, receivedDate: e.target.value}}))} /></Field>
+              <Field label="Expiry Date" span={12}><Input type="date" value={editBatch.data.expiryDate || ''} onChange={e => setEditBatch(s => ({...s, data: {...s.data, expiryDate: e.target.value}}))} /></Field>
+              <Field label="Storage Location" span={12}><Input value={editBatch.data.location || ''} onChange={e => setEditBatch(s => ({...s, data: {...s.data, location: e.target.value}}))} placeholder={editBatch.mat.location || 'e.g. Warehouse A · Rack 12'} /></Field>
+              <Field label="Supplier" span={12}><Input value={editBatch.data.supplier || ''} onChange={e => setEditBatch(s => ({...s, data: {...s.data, supplier: e.target.value}}))} placeholder={editBatch.mat.supplier || ''} /></Field>
+              <Field label="Supplier Invoice" span={24}><Input value={editBatch.data.invoice || ''} onChange={e => setEditBatch(s => ({...s, data: {...s.data, invoice: e.target.value}}))} placeholder="INV-2026-123" /></Field>
+            </Row>
+
+            <Text type="secondary" style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase' }}>Quality Check</Text>
+            <Card size="small" style={{ background: '#f0fdf4', borderStyle: 'dashed', borderColor: '#86efac' }}>
+              <Row gutter={8}>
+                <Field label="QC Checked By" span={12}>
+                  <Select value={editBatch.data.qcCheckedBy || undefined} onChange={v => setEditBatch(s => ({...s, data: {...s.data, qcCheckedBy: v}}))} style={{ width: '100%' }} placeholder="Select QC person"
+                    options={['Ravi (QC Lead)', 'Priya (QC Analyst)', 'Karthik (Shift QC)', 'Divya (QC Manager)', 'Suresh (Sr. QC)'].map(v => ({ label: v, value: v }))} />
+                </Field>
+                <Field label="QC Check Date" span={12}><Input type="date" value={editBatch.data.qcDate || ''} onChange={e => setEditBatch(s => ({...s, data: {...s.data, qcDate: e.target.value}}))} /></Field>
+              </Row>
+              <div style={{ margin: '8px 0' }}>
+                <Space.Compact style={{ width: '100%' }}>
+                  <Button style={{ flex: 1 }} type={editBatch.data.qcStatus === 'pass' ? 'primary' : 'default'} onClick={() => setEditBatch(s => ({...s, data: {...s.data, qcStatus: 'pass'}}))} icon={<CheckCircle2 size={12} />}>QC Pass</Button>
+                  <Button style={{ flex: 1 }} danger type={editBatch.data.qcStatus === 'fail' ? 'primary' : 'default'} onClick={() => setEditBatch(s => ({...s, data: {...s.data, qcStatus: 'fail'}}))} icon={<XCircle size={12} />}>QC Fail</Button>
+                </Space.Compact>
+              </div>
+              <Field label="QC Notes" span={24}><Input.TextArea value={editBatch.data.qcNotes || ''} onChange={e => setEditBatch(s => ({...s, data: {...s.data, qcNotes: e.target.value}}))} rows={2} placeholder="e.g. COA verified, aroma OK…" /></Field>
+            </Card>
+
+            <Field label="Notes" span={24}><Input value={editBatch.data.notes || ''} onChange={e => setEditBatch(s => ({...s, data: {...s.data, notes: e.target.value}}))} placeholder="Any notes…" /></Field>
+          </Space>
+        )}
+      </Drawer>
+
+      {/* ════════════ LOW STOCK DRAWER ════════════ */}
+      <Drawer
+        open={showLowStock} onClose={() => setShowLowStock(false)} width={460}
+        title={<Space size={8}><AlertTriangle size={16} color="#d97706" />Low Stock Alerts</Space>}
+        footer={<Button block onClick={() => setShowLowStock(false)}>Close</Button>}
+      >
+        {outOfStockMats.length === 0 && lowStockMats.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: '40px 0' }}>
+            <CheckCircle2 size={32} color="#22c55e" style={{ marginBottom: 8 }} />
+            <div><Text strong>All stock levels are healthy</Text></div>
+            <Text type="secondary" style={{ fontSize: 12 }}>No materials are below minimum stock levels.</Text>
           </div>
-        </div>,
-        document.body
-      )}
-
-      {/* ════════════ BATCH EDIT MODAL ════════════ */}
-      {editBatch && createPortal(
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4" style={{ background: 'rgba(15,23,42,0.45)' }}>
-          <div className="bg-white rounded-[14px] w-full max-w-[420px] max-h-[92vh] flex flex-col shadow-2xl overflow-hidden" style={{ fontFamily: "'Inter','Segoe UI',system-ui,sans-serif" }}>
-            <div className="flex items-center justify-between px-4 py-3.5 border-b border-slate-100 bg-[#fbfcfe]">
-              <div className="flex items-center gap-2 font-semibold text-[15px] text-slate-900">
-                <span className="w-[22px] h-[22px] rounded-[7px] flex items-center justify-center text-white text-xs" style={{ background: 'linear-gradient(135deg,#6366f1,#8b5cf6)' }}>✎</span>
-                Edit Batch
-              </div>
-              <button onClick={() => setEditBatch(null)} className="text-slate-400 hover:bg-slate-100 hover:text-slate-600 px-2 py-1 rounded-md text-lg transition-all">✕</button>
-            </div>
-            <div className="px-4 py-3 overflow-y-auto flex-1 space-y-2" style={{ scrollbarWidth: 'thin' }}>
-              {/* Material info */}
-              <div className="flex items-center gap-2 px-3 py-2.5 rounded-[10px] border border-[#e5edf7] mb-2" style={{ background: '#f6faff' }}>
-                <div className="w-8 h-8 rounded-lg flex items-center justify-center text-sm flex-shrink-0" style={{ background: '#ede9fe', color: '#7c3aed' }}>📦</div>
-                <div className="min-w-0">
-                  <p className="font-semibold text-[13px] text-slate-900 truncate">{editBatch.mat.name}</p>
-                  <p className="text-[11px] text-slate-400">{editBatch.mat.code} · {editBatch.data.batchNumber || editBatch.data.batchId}</p>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-1.5 text-[11px] font-semibold tracking-wide uppercase text-slate-500 mb-1">Batch Details <span className="flex-1 h-px bg-slate-100" /></div>
-
-              <div className="grid grid-cols-2 gap-2">
-                <div className="flex flex-col gap-1">
-                  <label className="text-[11px] text-slate-500 font-medium">Batch / Lot #</label>
-                  <input value={editBatch.data.batchNumber || ''} onChange={e => setEditBatch(s => ({...s, data: {...s.data, batchNumber: e.target.value}}))} className="px-2.5 py-2 border border-slate-200 rounded-lg text-[13px] focus:outline-none focus:border-violet-500 text-slate-900" />
-                </div>
-                <div className="flex flex-col gap-1">
-                  <label className="text-[11px] text-slate-500 font-medium">Quantity</label>
-                  <input type="number" value={editBatch.data.quantity || ''} onChange={e => { const q = e.target.value; const t = editBatch.data.totalPrice; setEditBatch(s => ({...s, data: {...s.data, quantity: q, price: q && t ? parseFloat((parseFloat(t)/parseFloat(q)).toFixed(4)) : s.data.price}})); }} className="px-2.5 py-2 border border-slate-200 rounded-lg text-[13px] focus:outline-none focus:border-violet-500 text-slate-900" />
-                </div>
-                <div className="flex flex-col gap-1">
-                  <label className="text-[11px] text-slate-500 font-medium">Total Price (₹)</label>
-                  <input type="number" value={editBatch.data.totalPrice || ''} onChange={e => { const t = e.target.value; const q = editBatch.data.quantity; setEditBatch(s => ({...s, data: {...s.data, totalPrice: t, price: q && t ? parseFloat((parseFloat(t)/parseFloat(q)).toFixed(4)) : s.data.price}})); }} className="px-2.5 py-2 border border-slate-200 rounded-lg text-[13px] focus:outline-none focus:border-violet-500 text-slate-900" />
-                </div>
-                <div className="flex flex-col gap-1">
-                  <label className="text-[11px] text-slate-500 font-medium">Unit Price (₹/{editBatch.mat.unit})</label>
-                  <input type="number" value={editBatch.data.price || ''} onChange={e => { const p = e.target.value; const q = editBatch.data.quantity; setEditBatch(s => ({...s, data: {...s.data, price: p, totalPrice: p && q ? parseFloat((parseFloat(p)*parseFloat(q)).toFixed(2)) : s.data.totalPrice}})); }} placeholder="e.g. 1250" className="px-2.5 py-2 border border-slate-200 rounded-lg text-[13px] focus:outline-none focus:border-violet-500 font-semibold text-emerald-600 text-slate-900" />
-                </div>
-                <div className="flex flex-col gap-1">
-                  <label className="text-[11px] text-slate-500 font-medium">Received Date</label>
-                  <input type="date" value={editBatch.data.receivedDate || ''} onChange={e => setEditBatch(s => ({...s, data: {...s.data, receivedDate: e.target.value}}))} className="px-2.5 py-2 border border-slate-200 rounded-lg text-[13px] focus:outline-none focus:border-violet-500 text-slate-900" />
-                </div>
-                <div className="flex flex-col gap-1">
-                  <label className="text-[11px] text-slate-500 font-medium">Expiry Date</label>
-                  <input type="date" value={editBatch.data.expiryDate || ''} onChange={e => setEditBatch(s => ({...s, data: {...s.data, expiryDate: e.target.value}}))} className="px-2.5 py-2 border border-slate-200 rounded-lg text-[13px] focus:outline-none focus:border-violet-500 text-slate-900" />
-                </div>
-                <div className="flex flex-col gap-1">
-                  <label className="text-[11px] text-slate-500 font-medium">Storage Location</label>
-                  <input value={editBatch.data.location || ''} onChange={e => setEditBatch(s => ({...s, data: {...s.data, location: e.target.value}}))} placeholder={editBatch.mat.location || 'e.g. Warehouse A · Rack 12'} className="px-2.5 py-2 border border-slate-200 rounded-lg text-[13px] focus:outline-none focus:border-violet-500 text-slate-900" />
-                </div>
-                <div className="flex flex-col gap-1">
-                  <label className="text-[11px] text-slate-500 font-medium">Supplier</label>
-                  <input value={editBatch.data.supplier || ''} onChange={e => setEditBatch(s => ({...s, data: {...s.data, supplier: e.target.value}}))} placeholder={editBatch.mat.supplier || ''} className="px-2.5 py-2 border border-slate-200 rounded-lg text-[13px] focus:outline-none focus:border-violet-500 text-slate-900" />
-                </div>
-                <div className="flex flex-col gap-1 col-span-2">
-                  <label className="text-[11px] text-slate-500 font-medium">Supplier Invoice</label>
-                  <input value={editBatch.data.invoice || ''} onChange={e => setEditBatch(s => ({...s, data: {...s.data, invoice: e.target.value}}))} placeholder="INV-2026-123" className="px-2.5 py-2 border border-slate-200 rounded-lg text-[13px] focus:outline-none focus:border-violet-500 text-slate-900" />
-                </div>
-              </div>
-
-              <div className="flex items-center gap-1.5 text-[11px] font-semibold tracking-wide uppercase text-slate-500 mt-3 mb-1">Quality Check <span className="flex-1 h-px bg-slate-100" /></div>
-              <div className="rounded-[10px] p-2.5" style={{ background: '#f0fdf4', border: '1px dashed #86efac' }}>
-                <div className="grid grid-cols-2 gap-2 mb-2">
-                  <div className="flex flex-col gap-1">
-                    <label className="text-[11px] text-slate-500 font-medium">QC Checked By</label>
-                    <select value={editBatch.data.qcCheckedBy || ''} onChange={e => setEditBatch(s => ({...s, data: {...s.data, qcCheckedBy: e.target.value}}))} className="px-2.5 py-2 border border-slate-200 rounded-lg text-[13px] focus:outline-none focus:border-violet-500 bg-white text-slate-900">
-                      <option value="">Select QC person</option>
-                      <option>Ravi (QC Lead)</option><option>Priya (QC Analyst)</option><option>Karthik (Shift QC)</option><option>Divya (QC Manager)</option><option>Suresh (Sr. QC)</option>
-                    </select>
-                  </div>
-                  <div className="flex flex-col gap-1">
-                    <label className="text-[11px] text-slate-500 font-medium">QC Check Date</label>
-                    <input type="date" value={editBatch.data.qcDate || ''} onChange={e => setEditBatch(s => ({...s, data: {...s.data, qcDate: e.target.value}}))} className="px-2.5 py-2 border border-slate-200 rounded-lg text-[13px] focus:outline-none focus:border-violet-500 text-slate-900" />
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-1.5 p-0.5 rounded-lg mb-2" style={{ background: '#dcfce7', border: '1px solid #bbf7d0' }}>
-                  <button type="button" onClick={() => setEditBatch(s => ({...s, data: {...s.data, qcStatus: 'pass'}}))} className={`py-1.5 rounded-md text-[12px] font-medium transition-all ${editBatch.data.qcStatus === 'pass' ? 'text-white shadow-sm' : 'text-slate-500'}`} style={editBatch.data.qcStatus === 'pass' ? { background: '#10b981' } : {}}>✓ QC Pass</button>
-                  <button type="button" onClick={() => setEditBatch(s => ({...s, data: {...s.data, qcStatus: 'fail'}}))} className={`py-1.5 rounded-md text-[12px] font-medium transition-all ${editBatch.data.qcStatus === 'fail' ? 'bg-red-500 text-white shadow-sm' : 'text-slate-500'}`}>✗ QC Fail</button>
-                </div>
-                <div className="flex flex-col gap-1">
-                  <label className="text-[11px] text-slate-500 font-medium">QC Notes</label>
-                  <textarea value={editBatch.data.qcNotes || ''} onChange={e => setEditBatch(s => ({...s, data: {...s.data, qcNotes: e.target.value}}))} rows={2} placeholder="e.g. COA verified, aroma OK…" className="px-2.5 py-2 border border-slate-200 rounded-lg text-[13px] focus:outline-none focus:border-violet-500 resize-none text-slate-900" />
-                </div>
-              </div>
-
-              <div className="flex flex-col gap-1 mt-2">
-                <label className="text-[11px] text-slate-500 font-medium">Notes</label>
-                <input value={editBatch.data.notes || ''} onChange={e => setEditBatch(s => ({...s, data: {...s.data, notes: e.target.value}}))} placeholder="Any notes…" className="px-2.5 py-2 border border-slate-200 rounded-lg text-[13px] focus:outline-none focus:border-violet-500 text-slate-900" />
-              </div>
-            </div>
-            <div className="flex gap-2 px-4 py-3 border-t border-slate-100 bg-[#fbfcfe]">
-              <button onClick={() => setEditBatch(null)} className="px-4 py-2.5 rounded-[9px] text-[13px] font-semibold border border-slate-200 text-slate-500 hover:bg-slate-50">Cancel</button>
-              <button onClick={() => { const { mat, data } = editBatch; updateBatchMut.mutate({ matId: mat._id||mat.id, batchId: data._id, d: { quantity: data.quantity, totalPrice: data.totalPrice, price: data.price, batchNumber: data.batchNumber, expiryDate: data.expiryDate||null, receivedDate: data.receivedDate||null, location: data.location, supplier: data.supplier, invoice: data.invoice, notes: data.notes, qcCheckedBy: data.qcCheckedBy, qcDate: data.qcDate, qcStatus: data.qcStatus, qcNotes: data.qcNotes } }); }} disabled={updateBatchMut.isPending} className="flex-1 py-2.5 rounded-[9px] text-[13px] font-semibold text-white disabled:opacity-60 transition-all" style={{ background: '#6366f1' }}>
-                {updateBatchMut.isPending ? 'Saving…' : '💾 Save Changes'}
-              </button>
-            </div>
-          </div>
-        </div>,
-        document.body
-      )}
-
-      {/* ════════════ LOW STOCK MODAL ════════════ */}
-      {showLowStock && createPortal(
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-2xl w-full max-w-lg shadow-2xl border border-slate-200">
-            <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 bg-slate-50 rounded-t-2xl">
-              <h2 className="text-sm font-bold text-slate-900">⚠️ Low Stock Alerts</h2>
-              <button onClick={() => setShowLowStock(false)} className="text-slate-400 hover:text-slate-600 text-xl">✕</button>
-            </div>
-            <div className="px-5 py-4 max-h-[60vh] overflow-y-auto">
-              {outOfStockMats.length === 0 && lowStockMats.length === 0 ? (
-                <div className="text-center py-10">
-                  <p className="text-3xl mb-2">✅</p>
-                  <p className="text-sm font-semibold text-slate-700">All stock levels are healthy</p>
-                  <p className="text-xs text-slate-400 mt-1">No materials are below minimum stock levels.</p>
-                </div>
-              ) : (
-                <>
-                  {outOfStockMats.length > 0 && (
-                    <div className="mb-4">
-                      <p className="text-xs font-bold text-red-600 mb-2">🚫 Out of Stock ({outOfStockMats.length})</p>
-                      {outOfStockMats.map(m => (
-                        <div key={m._id||m.id} className="flex items-center gap-3 py-2.5 border-b border-slate-50 text-xs">
-                          <span className="w-2 h-2 rounded-full bg-red-500 flex-shrink-0" />
-                          <div className="flex-1"><strong className="text-slate-800">{m.name}</strong> <span className="text-slate-400">({m.code}) — {m.location||'—'}</span></div>
-                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-red-100 text-red-700">OUT</span>
-                        </div>
-                      ))}
+        ) : (
+          <Space direction="vertical" style={{ width: '100%' }} size={20}>
+            {outOfStockMats.length > 0 && (
+              <div>
+                <Text strong style={{ fontSize: 12, color: '#dc2626', display: 'block', marginBottom: 8 }}><Ban size={13} style={{ marginRight: 4 }} />Out of Stock ({outOfStockMats.length})</Text>
+                <Space direction="vertical" style={{ width: '100%' }} size={0}>
+                  {outOfStockMats.map(m => (
+                    <div key={m._id||m.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 0', borderBottom: '1px solid #f8fafc', fontSize: 12 }}>
+                      <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#ef4444', flexShrink: 0 }} />
+                      <div style={{ flex: 1 }}><Text strong>{m.name}</Text> <Text type="secondary">({m.code}) — {m.location||'—'}</Text></div>
+                      <Tag color="red">OUT</Tag>
                     </div>
-                  )}
-                  {lowStockMats.length > 0 && (
-                    <div>
-                      <p className="text-xs font-bold text-amber-600 mb-2">⚠️ Low Stock ({lowStockMats.length})</p>
-                      {lowStockMats.map(m => (
-                        <div key={m._id||m.id} className="flex items-center gap-3 py-2.5 border-b border-slate-50 text-xs">
-                          <span className="w-2 h-2 rounded-full bg-amber-500 flex-shrink-0" />
-                          <div className="flex-1"><strong className="text-slate-800">{m.name}</strong> <span className="text-slate-400">({m.code}) — Stock: {totalStock(m)} / Min: {m.minStockLevel} {m.unit}</span></div>
-                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">LOW</span>
-                        </div>
-                      ))}
+                  ))}
+                </Space>
+              </div>
+            )}
+            {lowStockMats.length > 0 && (
+              <div>
+                <Text strong style={{ fontSize: 12, color: '#d97706', display: 'block', marginBottom: 8 }}><AlertTriangle size={13} style={{ marginRight: 4 }} />Low Stock ({lowStockMats.length})</Text>
+                <Space direction="vertical" style={{ width: '100%' }} size={0}>
+                  {lowStockMats.map(m => (
+                    <div key={m._id||m.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 0', borderBottom: '1px solid #f8fafc', fontSize: 12 }}>
+                      <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#f59e0b', flexShrink: 0 }} />
+                      <div style={{ flex: 1 }}><Text strong>{m.name}</Text> <Text type="secondary">({m.code}) — Stock: {totalStock(m)} / Min: {m.minStockLevel} {m.unit}</Text></div>
+                      <Tag color="orange">LOW</Tag>
                     </div>
-                  )}
-                </>
-              )}
-            </div>
-            <div className="px-5 py-4 border-t border-slate-100">
-              <button onClick={() => setShowLowStock(false)} className="w-full py-2.5 rounded-xl text-sm font-semibold border border-slate-200 text-slate-500 hover:bg-slate-50 transition-colors">Close</button>
-            </div>
-          </div>
-        </div>,
-        document.body
-      )}
+                  ))}
+                </Space>
+              </div>
+            )}
+          </Space>
+        )}
+      </Drawer>
     </div>
   );
 }

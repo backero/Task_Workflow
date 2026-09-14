@@ -1,7 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { XMarkIcon } from '@heroicons/react/24/outline';
+import { Button, Typography } from 'antd';
+import { CloseOutlined } from '@ant-design/icons';
 import { useTaskTimer } from '../../store/useTaskTimer';
+
+const { Text } = Typography;
 
 function fmtMs(ms) {
   if (!ms || ms < 0) return '00:00:00';
@@ -16,6 +19,7 @@ export default function GlobalTimerWidget() {
   const navigate = useNavigate();
   const { active, stopTimer, isStopping } = useTaskTimer();
   const [elapsed, setElapsed] = useState(0);
+  const [dismissed, setDismissed] = useState(false);
 
   useEffect(() => {
     if (!active?.startedAt) { setElapsed(0); return; }
@@ -27,37 +31,55 @@ export default function GlobalTimerWidget() {
     return () => clearInterval(id);
   }, [active?.startedAt, active?.totalTrackedMs]);
 
-  if (!active) return null;
+  useEffect(() => { setDismissed(false); }, [active?.taskId]);
+
+  if (!active || dismissed) return null;
 
   return (
-    <div className="fixed bottom-5 right-5 z-40 flex items-center gap-3 bg-gray-900 dark:bg-[#0f1a2e] text-white rounded-2xl shadow-2xl px-4 py-3 border border-white/10 animate-fade-in">
-      {/* Pulse dot */}
-      <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse flex-shrink-0" />
+    <div
+      style={{
+        position: 'fixed', bottom: 20, right: 20, zIndex: 40,
+        display: 'flex', alignItems: 'center', gap: 12,
+        background: '#1c1917', color: '#fff', borderRadius: 16,
+        padding: '10px 14px', boxShadow: '0 16px 48px rgba(0,0,0,0.35)',
+        border: '1px solid rgba(255,255,255,0.1)',
+      }}
+    >
+      <span
+        style={{
+          width: 8, height: 8, borderRadius: '50%', background: '#22c55e', flexShrink: 0,
+          boxShadow: '0 0 0 0 rgba(34,197,94,0.6)', animation: 'pulse 2s infinite',
+        }}
+      />
 
-      {/* Info — click to go to workflow */}
       <button
         onClick={() => navigate(`/workflow/${active.taskId}`)}
-        className="text-left min-w-0 flex-1"
+        style={{ background: 'none', border: 'none', textAlign: 'left', cursor: 'pointer', minWidth: 0, flex: 1 }}
       >
-        <p className="text-[11px] text-gray-400 truncate max-w-[150px] leading-tight">{active.title}</p>
-        <p className="font-mono font-bold text-base text-white leading-tight">{fmtMs(elapsed)}</p>
+        <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 11, display: 'block' }} ellipsis>
+          {active.title}
+        </Text>
+        <Text style={{ color: '#fff', fontFamily: 'monospace', fontWeight: 700, fontSize: 15, display: 'block' }}>
+          {fmtMs(elapsed)}
+        </Text>
       </button>
 
-      {/* Stop button */}
-      <button
+      <Button
+        size="small"
+        danger
+        ghost
+        loading={isStopping}
         onClick={() => stopTimer({ id: active.taskId?.toString() })}
-        disabled={isStopping}
-        className="flex-shrink-0 px-2.5 py-1.5 bg-red-500/20 hover:bg-red-500/30 text-red-400 rounded-lg text-xs font-bold transition-colors disabled:opacity-50"
+        style={{ flexShrink: 0 }}
       >
         Stop
-      </button>
+      </Button>
 
-      {/* Dismiss (just hides locally, timer keeps running) */}
       <button
-        onClick={(e) => { e.stopPropagation(); document.getElementById('global-timer-widget')?.remove(); }}
-        className="flex-shrink-0 text-gray-500 hover:text-gray-300 transition-colors"
+        onClick={(e) => { e.stopPropagation(); setDismissed(true); }}
+        style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', cursor: 'pointer', flexShrink: 0 }}
       >
-        <XMarkIcon className="w-3.5 h-3.5" />
+        <CloseOutlined style={{ fontSize: 12 }} />
       </button>
     </div>
   );

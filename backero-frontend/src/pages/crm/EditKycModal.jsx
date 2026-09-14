@@ -1,17 +1,11 @@
 import { useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
-import clsx from 'clsx';
 import api from '../../api/axios';
-import { FONT_IMPORT, PILL } from './SampleProduction';
+import { Zap, Mic, Paperclip, Square, MessageCircle, Eye, IdCard, CheckCircle2, Hand, Phone, Briefcase, Handshake, PartyPopper, UserPlus } from 'lucide-react';
+import { Alert, Button, Col, Drawer, Input, Row, Select, Space, Tag, Typography } from 'antd';
 
-const displayFont = { fontFamily: "'Zilla Slab', Georgia, serif" };
-const bodyFont = { fontFamily: "'IBM Plex Sans', -apple-system, sans-serif" };
-const outlineBtn = 'inline-flex items-center gap-1.5 px-4 py-2 rounded-full border-[1.5px] border-[#ddd6c4] text-[#6b6155] text-[13px] font-semibold hover:bg-[#f1ede4] hover:border-[#8a8171] hover:text-[#1c1917] transition';
-const successBtn = 'inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-[#2f6b4f] text-white text-[13px] font-semibold hover:brightness-95 transition disabled:opacity-50';
-const extractBtn = 'inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-[#1c1917] text-white text-xs font-semibold hover:brightness-125 transition';
-const fieldCls = 'w-full px-3.5 py-2.5 text-[13px] rounded-[10px] border-[1.5px] border-[#ddd6c4] bg-[#fbfaf7] text-[#1c1917] focus:outline-none focus:border-[#1c1917] focus:shadow-[0_0_0_3px_rgba(46,36,27,0.08)] placeholder:text-[#8a8171] disabled:opacity-60 disabled:cursor-not-allowed';
-const labelCls = 'text-xs font-semibold text-[#1c1917] mb-1 block';
+const { Text, Title } = Typography;
 
 const LANGUAGES = ['English', 'Hindi', 'Marathi', 'Tamil', 'Telugu', 'Other'];
 const BEST_TIMES = ['Anytime', 'Morning', 'Afternoon', 'Evening'];
@@ -28,24 +22,24 @@ function kycCompletion(lead) {
 function Field({ label, required, children }) {
   return (
     <div>
-      <label className={labelCls}>{label}{required && <span className="text-[#7c2b23] ml-0.5">*</span>}</label>
+      <Text strong style={{ display: 'block', marginBottom: 4, fontSize: 12 }}>{label}{required && <Text type="danger"> *</Text>}</Text>
       {children}
     </div>
   );
 }
 
-function StepSection({ emoji, title, sub, children }) {
+function StepSection({ icon: Icon, title, sub, children }) {
   return (
-    <div className="pb-5 mb-5 border-b border-dashed border-[#ddd6c4] last:border-0 last:pb-0 last:mb-0">
-      <p className="text-sm font-bold text-[#1c1917]">{emoji} {title}</p>
-      <p className="text-[11px] text-[#8a8171] mb-3">{sub}</p>
-      <div className="grid grid-cols-2 gap-4">{children}</div>
+    <div style={{ paddingBottom: 20, marginBottom: 20, borderBottom: '1px dashed #e5e7eb' }}>
+      <Text strong style={{ fontSize: 14 }}><Space size={6}>{Icon && <Icon size={14} />}{title}</Space></Text>
+      <div><Text type="secondary" style={{ fontSize: 11 }}>{sub}</Text></div>
+      <Row gutter={16} style={{ marginTop: 12 }}>{children}</Row>
     </div>
   );
 }
 
-// Sample Production's "➕ New Lead" / ✏️ / "➕ New KYC" wizard — replicated field-for-field,
-// color-for-color from the "Sample Development" reference file's openKycModal()/saveKyc().
+// Sample Production's "➕ New Lead" / ✏️ / "➕ New KYC" wizard — replicated field-for-field
+// from the "Sample Development" reference file's openKycModal()/saveKyc().
 // Shared between Sample Production and the CRM Lead Pipeline so a lead card opens the
 // identical form in both places. Fields map onto the real Lead schema: reference's
 // "kContact" = our contact-person `name`, reference's "kName" (brand/company) = our `company`.
@@ -54,7 +48,6 @@ function StepSection({ emoji, title, sub, children }) {
 export default function EditKycModal({ lead, onClose, readOnly = false }) {
   const isCreate = !lead;
   const qc = useQueryClient();
-  const [maximized, setMaximized] = useState(false);
   const [autofillOpen, setAutofillOpen] = useState(false);
   const [kycPaste, setKycPaste] = useState('');
   const [voiceOpen, setVoiceOpen] = useState(false);
@@ -73,6 +66,7 @@ export default function EditKycModal({ lead, onClose, readOnly = false }) {
     source: lead?.source || '', rapportNote: lead?.rapportNote || '', assignedTo: lead?.assignedTo?._id || lead?.assignedTo || '',
   });
   const set = (field) => (e) => setForm((f) => ({ ...f, [field]: e.target.value }));
+  const setSel = (field) => (value) => setForm((f) => ({ ...f, [field]: value || '' }));
 
   const [newQueryDesc, setNewQueryDesc] = useState('');
   const [replyDrafts, setReplyDrafts] = useState({});
@@ -109,7 +103,7 @@ export default function EditKycModal({ lead, onClose, readOnly = false }) {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['sample-production'] });
       qc.invalidateQueries({ queryKey: ['crm'] });
-      if (isCreate) toast.success(`Lead created for ${form.name} 🎉`);
+      if (isCreate) toast.success(`Lead created for ${form.name}`);
       else toast.success(`KYC updated for ${lead.customerId || lead.name} (${kycCompletion({ ...lead, ...form })}% complete)`);
       onClose();
     },
@@ -232,289 +226,236 @@ export default function EditKycModal({ lead, onClose, readOnly = false }) {
     setIsRecording(false);
   };
 
-  return (
-    <div className={clsx('fixed inset-0 z-[70] flex items-center justify-center', maximized ? 'p-0' : 'p-4')} style={bodyFont}>
-      <style>{FONT_IMPORT}</style>
-      <div className="absolute inset-0 bg-[#1c1917]/50 backdrop-blur-sm" onClick={onClose} />
-      <div className={clsx('relative bg-[#fbfaf7] shadow-[0_10px_40px_rgba(46,36,27,0.16)] w-full border border-[#ddd6c4] flex flex-col',
-        maximized ? 'w-screen h-screen max-w-none rounded-none' : 'rounded-2xl')}
-        style={maximized ? undefined : { maxWidth: '700px', maxHeight: '92vh' }}>
-        <div className={clsx('px-6 py-5 border-b border-[#e7e2d6] bg-[#f1ede4] flex items-center justify-between flex-shrink-0', !maximized && 'rounded-t-2xl')}>
-          <h3 className="text-base font-bold text-[#1c1917]" style={displayFont}>🪪 Customer KYC — {isCreate ? 'New Lead' : (lead.customerId || lead.name)}{readOnly && ' (View Only)'}</h3>
-          <div className="flex items-center gap-1.5">
-            <button onClick={() => setMaximized((m) => !m)} title={maximized ? 'Restore' : 'Maximize'} className="w-9 h-9 rounded-[10px] hover:bg-[#e7e2d6] flex items-center justify-center text-[#8a8171] hover:text-[#1c1917] text-base transition-colors">{maximized ? '🗗' : '🗖'}</button>
-            <button onClick={onClose} className="w-9 h-9 rounded-[10px] hover:bg-[#e7e2d6] flex items-center justify-center text-[#8a8171] hover:text-[#1c1917] text-lg transition-colors">✕</button>
-          </div>
-        </div>
+  const QUERY_STATUS_COLOR = { answered: 'green', closed: 'default', pending: 'orange' };
 
-        <div className="flex-1 overflow-y-auto p-6">
-          {readOnly && (
-            <div className="flex items-start gap-2.5 rounded-[10px] border-[1.5px] border-[#d8c391] bg-[#f3e6c8] text-[#7c5a17] text-[13px] font-medium px-4 py-3 mb-3.5">
-              <span className="text-base leading-[1.4]">👁️</span>
-              <span>CRM Pipeline is view-only. To edit details, log a follow-up, or raise a query, open this lead from <strong>Sample Production</strong>.</span>
+  return (
+    <Drawer
+      open
+      onClose={onClose}
+      width={640}
+      title={<>{isCreate ? 'New Lead' : (lead.customerId || lead.name)}{readOnly && ' (View Only)'}</>}
+      footer={
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+          <Button onClick={onClose}>{readOnly ? 'Close' : 'Cancel'}</Button>
+          <span style={{ flex: 1 }} />
+          {!readOnly && <Text type="secondary" style={{ fontSize: 11 }}>All sections on one page — scroll &amp; fill</Text>}
+          {!readOnly && (
+            <Button
+              type="primary"
+              icon={<CheckCircle2 size={14} />}
+              loading={saveKycMutation.isPending}
+              onClick={() => {
+                if (!form.name.trim() || !form.company.trim()) { toast.error('We need at least your name and the brand/company to save the KYC'); return; }
+                if (isCreate && !form.phone.trim()) { toast.error('Phone number is required to create a lead'); return; }
+                const productInterest = piText.split(',').map((s) => s.trim()).filter(Boolean);
+                const formWithPi = { ...form, productInterest };
+                if (audioAttachment) formWithPi.intakeAudio = audioAttachment;
+                const payload = isCreate ? Object.fromEntries(Object.entries(formWithPi).filter(([, v]) => v !== '')) : formWithPi;
+                saveKycMutation.mutate(payload);
+              }}
+            >
+              Save KYC
+            </Button>
+          )}
+        </div>
+      }
+    >
+      {readOnly && (
+        <Alert
+          type="info" showIcon icon={<Eye size={16} />} style={{ marginBottom: 14 }}
+          message="CRM Pipeline is view-only. To edit details, log a follow-up, or raise a query, open this lead from Sample Production."
+        />
+      )}
+
+      <fieldset disabled={readOnly} style={{ border: 'none', padding: 0, margin: 0 }}>
+        <Alert
+          type="warning" showIcon icon={<IdCard size={16} />} style={{ marginBottom: 14 }}
+          message={isCreate ? (
+            <>Customer ID is <strong>auto-assigned</strong> on save — never typed by hand. It is the golden thread across Q&amp;A, samples, formulas &amp; handoffs.</>
+          ) : (
+            <>Updating <strong>{lead.customerId || lead.name}</strong> — pre-filled from the existing record; the Customer ID stays unchanged. KYC completion: <strong>{kycCompletion({ ...lead, ...form, productInterest: piText.split(',').map((s) => s.trim()).filter(Boolean) })}%</strong>.</>
+          )}
+        />
+
+        <div style={{ border: '1px dashed #e5e7eb', borderRadius: 10, background: '#fafafa', marginBottom: 16 }}>
+          <button
+            type="button"
+            onClick={() => setAutofillOpen((o) => !o)}
+            style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', fontSize: 12.5, fontWeight: 700, flexWrap: 'wrap', textAlign: 'left', background: 'none', border: 'none', cursor: 'pointer' }}
+          >
+            <Zap size={14} /> Auto-fill assist
+            <span style={{ color: '#8c8c8c', fontWeight: 400, fontSize: 11, flex: 1 }}>Paste a WhatsApp chat or ad-lead snippet — we'll pick out what we can. <em>Assist only — please verify.</em></span>
+            <span>{autofillOpen ? '▾' : '▸'}</span>
+          </button>
+          {autofillOpen && (
+            <div style={{ padding: '0 14px 14px' }}>
+              <Space direction="vertical" style={{ width: '100%' }} size={8}>
+                <Input.TextArea value={kycPaste} onChange={(e) => setKycPaste(e.target.value)} rows={3} placeholder="Paste the WhatsApp chat, website enquiry or ad-lead email here..." />
+                <Button size="small" icon={<Zap size={12} />} onClick={extractFromPaste}>Extract</Button>
+              </Space>
             </div>
           )}
-        <fieldset disabled={readOnly} className="contents">
-          <div className="flex items-start gap-2.5 rounded-[10px] border-[1.5px] border-[#a39c8c] bg-[#f3e6c8] text-[#a8781f] text-[13px] font-medium px-4 py-3 mb-3.5">
-            <span className="text-base leading-[1.4]">🪪</span>
-            {isCreate ? (
-              <span>Customer ID is <strong>auto-assigned</strong> on save — never typed by hand. It is the golden thread across Q&amp;A, samples, formulas &amp; handoffs.</span>
-            ) : (
-              <span>Updating <strong>{lead.customerId || lead.name}</strong> — pre-filled from the existing record; the Customer ID stays unchanged. KYC completion: <strong>{kycCompletion({ ...lead, ...form, productInterest: piText.split(',').map((s) => s.trim()).filter(Boolean) })}%</strong>.</span>
-            )}
-          </div>
+        </div>
 
-          <div className="rounded-[10px] border-[1.5px] border-dashed border-[#ddd6c4] bg-[#f1ede4] mb-4">
-            <button
-              type="button"
-              onClick={() => setAutofillOpen((o) => !o)}
-              className="w-full flex items-center gap-2 px-3.5 py-2.5 text-[12.5px] font-bold text-[#1c1917] flex-wrap text-left"
-            >
-              <span>⚡ Auto-fill assist</span>
-              <span className="text-[#8a8171] font-normal text-[11px] flex-1">Paste a WhatsApp chat or ad-lead snippet — we'll pick out what we can. <em>Assist only — please verify.</em></span>
-              <span>{autofillOpen ? '▾' : '▸'}</span>
-            </button>
-            {autofillOpen && (
-              <div className="px-3.5 pb-3.5 space-y-2">
-                <textarea
-                  value={kycPaste}
-                  onChange={(e) => setKycPaste(e.target.value)}
-                  rows={3}
-                  placeholder="Paste the WhatsApp chat, website enquiry or ad-lead email here..."
-                  className={fieldCls}
-                />
-                <button type="button" onClick={extractFromPaste} className={extractBtn}>⚡ Extract</button>
-              </div>
-            )}
-          </div>
-
-          <div className="rounded-[10px] border-[1.5px] border-dashed border-[#ddd6c4] bg-[#f1ede4] mb-4">
-            <button
-              type="button"
-              onClick={() => setVoiceOpen((o) => !o)}
-              className="w-full flex items-center gap-2 px-3.5 py-2.5 text-[12.5px] font-bold text-[#1c1917] flex-wrap text-left"
-            >
-              <span>🎙️ Voice-note auto-fill</span>
-              <span className="text-[#8a8171] font-normal text-[11px] flex-1">Record or attach an audio file — we'll transcribe it and pick out what we can. <em>Assist only — please verify.</em></span>
-              <span>{voiceOpen ? '▾' : '▸'}</span>
-            </button>
-            {voiceOpen && (
-              <div className="px-3.5 pb-3.5 space-y-2">
-                <div className="flex items-center gap-2 flex-wrap">
+        <div style={{ border: '1px dashed #e5e7eb', borderRadius: 10, background: '#fafafa', marginBottom: 16 }}>
+          <button
+            type="button"
+            onClick={() => setVoiceOpen((o) => !o)}
+            style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', fontSize: 12.5, fontWeight: 700, flexWrap: 'wrap', textAlign: 'left', background: 'none', border: 'none', cursor: 'pointer' }}
+          >
+            <Mic size={14} /> Voice-note auto-fill
+            <span style={{ color: '#8c8c8c', fontWeight: 400, fontSize: 11, flex: 1 }}>Record or attach an audio file — we'll transcribe it and pick out what we can. <em>Assist only — please verify.</em></span>
+            <span>{voiceOpen ? '▾' : '▸'}</span>
+          </button>
+          {voiceOpen && (
+            <div style={{ padding: '0 14px 14px' }}>
+              <Space direction="vertical" style={{ width: '100%' }} size={8}>
+                <Space wrap>
                   <input
                     ref={fileInputRef}
                     type="file"
                     accept="audio/*"
-                    className="hidden"
+                    style={{ display: 'none' }}
                     onChange={(e) => { handleAudioFile(e.target.files?.[0]); e.target.value = ''; }}
                   />
-                  <button type="button" onClick={() => fileInputRef.current?.click()} disabled={transcribeMutation.isPending || isRecording} className={outlineBtn}>
-                    📎 Attach audio file
-                  </button>
+                  <Button size="small" icon={<Paperclip size={12} />} disabled={transcribeMutation.isPending || isRecording} onClick={() => fileInputRef.current?.click()}>Attach audio file</Button>
                   {!isRecording ? (
-                    <button type="button" onClick={startRecording} disabled={transcribeMutation.isPending} className={outlineBtn}>🎙️ Record</button>
+                    <Button size="small" icon={<Mic size={12} />} disabled={transcribeMutation.isPending} onClick={startRecording}>Record</Button>
                   ) : (
-                    <button type="button" onClick={stopRecording} className={clsx(outlineBtn, 'border-[#7c2b23] text-[#7c2b23]')}>⏹ Stop &amp; transcribe</button>
+                    <Button size="small" danger icon={<Square size={12} />} onClick={stopRecording}>Stop &amp; transcribe</Button>
                   )}
-                  {transcribeMutation.isPending && <span className="text-[11px] text-[#8a8171]">Transcribing…</span>}
-                </div>
+                  {transcribeMutation.isPending && <Text type="secondary" style={{ fontSize: 11 }}>Transcribing…</Text>}
+                </Space>
                 {audioAttachment && (
-                  <div className="text-[11px] text-[#6b6155] bg-[#fbfaf7] border border-[#e7e2d6] rounded-lg px-2.5 py-2">
-                    <p className="font-semibold text-[#1c1917] mb-1">🎧 {audioAttachment.name}</p>
-                    <audio controls src={audioAttachment.url} className="w-full h-8" />
-                    {voiceTranscript && <p className="mt-1.5 italic">"{voiceTranscript}"</p>}
+                  <div style={{ fontSize: 11, background: '#fff', border: '1px solid #f0f0f0', borderRadius: 8, padding: '8px 10px' }}>
+                    <Text strong style={{ fontSize: 11, display: 'block', marginBottom: 4 }}>{audioAttachment.name}</Text>
+                    <audio controls src={audioAttachment.url} style={{ width: '100%', height: 32 }} />
+                    {voiceTranscript && <p style={{ marginTop: 6, fontStyle: 'italic' }}>"{voiceTranscript}"</p>}
                   </div>
                 )}
-              </div>
-            )}
-          </div>
-
-          <StepSection emoji="👋" title="Intro" sub="Just the basics — no interrogation. 😊">
-            <Field label='"May I have your good name?"' required>
-              <input value={form.name} onChange={set('name')} placeholder="Contact person" className={fieldCls} />
-            </Field>
-            <Field label='"Which brand/company am I speaking with?"' required>
-              <input value={form.company} onChange={set('company')} placeholder="Brand / company name" className={fieldCls} />
-            </Field>
-            <Field label='"Your role there?"'>
-              <input value={form.designation} onChange={set('designation')} placeholder="e.g., Founder, Purchase Head" className={fieldCls} />
-            </Field>
-            <Field label='"What should we call you casually?"'>
-              <input value={form.preferredName} onChange={set('preferredName')} placeholder="e.g., Priya, Arjun bhai" className={fieldCls} />
-            </Field>
-            <Field label='"Preferred language for our chats?"'>
-              <select value={form.language} onChange={set('language')} className={fieldCls}>
-                <option value="">— select —</option>
-                {LANGUAGES.map((v) => <option key={v}>{v}</option>)}
-              </select>
-            </Field>
-            <Field label='"Best time to reach you?"'>
-              <select value={form.bestTime} onChange={set('bestTime')} className={fieldCls}>
-                <option value="">— select —</option>
-                {BEST_TIMES.map((v) => <option key={v}>{v}</option>)}
-              </select>
-            </Field>
-          </StepSection>
-
-          <StepSection emoji="📞" title="Contact" sub="Only what helps us reach you — nothing more.">
-            <Field label="Mobile">
-              <input value={form.phone} onChange={set('phone')} placeholder="e.g., +91 98200 12345" className={fieldCls} />
-            </Field>
-            <Field label='"An alternate number, just in case?"'>
-              <input value={form.phone2} onChange={set('phone2')} placeholder="Alternate contact number" className={fieldCls} />
-            </Field>
-            <Field label='"WhatsApp, if different?"'>
-              <input value={form.whatsapp} onChange={set('whatsapp')} placeholder="WhatsApp number" className={fieldCls} />
-            </Field>
-            <Field label="Email">
-              <input type="email" value={form.email} onChange={set('email')} placeholder="name@company.com" className={fieldCls} />
-            </Field>
-          </StepSection>
-
-          <StepSection emoji="💼" title="Work" sub="Helps us pitch at the right level.">
-            <Field label="Business type">
-              <select value={form.businessType} onChange={set('businessType')} className={fieldCls}>
-                <option value="">— select —</option>
-                {BUSINESS_TYPES.map((v) => <option key={v}>{v}</option>)}
-              </select>
-            </Field>
-            <Field label="City">
-              <input value={form.city} onChange={set('city')} placeholder="e.g., Mumbai" className={fieldCls} />
-            </Field>
-            <Field label="Team size">
-              <select value={form.teamSize} onChange={set('teamSize')} className={fieldCls}>
-                <option value="">— select —</option>
-                {TEAM_SIZES.map((v) => <option key={v}>{v}</option>)}
-              </select>
-            </Field>
-            <Field label="Assigned to">
-              <select value={form.assignedTo} onChange={set('assignedTo')} className={fieldCls}>
-                <option value="">Unassigned</option>
-                {assignableUsers.map((u) => <option key={u._id} value={u._id}>{u.firstName} {u.lastName}</option>)}
-              </select>
-              <p className="text-[10px] text-[#8a8171] mt-1">
-                {isNewIntake
-                  ? 'New leads can only go to the intake reps — once shifted to Production below, that person becomes the end-to-end owner through to dispatch.'
-                  : 'Production-dept only from here — whoever\'s set becomes this client\'s end-to-end owner: Q&A, samples, payment, production, dispatch.'}
-              </p>
-            </Field>
-            <div className="col-span-2">
-              <label className={labelCls}>"What product(s) are you interested in?"</label>
-              <input value={piText} onChange={(e) => setPiText(e.target.value)} placeholder="e.g., Herbal Face Wash, Vitamin C Serum (comma-separated)" className={fieldCls} />
+              </Space>
             </div>
-          </StepSection>
-
-          <StepSection emoji="🤝" title="Rapport" sub="Almost done — this bit is just for rapport.">
-            <Field label='"How did you hear about us?"'>
-              <select value={form.source} onChange={set('source')} className={fieldCls}>
-                <option value="">— select —</option>
-                {SOURCES.map((v) => <option key={v}>{v}</option>)}
-              </select>
-            </Field>
-            <div>
-              <label className={labelCls}>"Anything on your mind?" <span className="font-normal text-[#8a8171]">(totally optional)</span></label>
-              <textarea value={form.rapportNote} onChange={set('rapportNote')} rows={1} placeholder="Free note — preferences, context, anything worth remembering..." className={fieldCls} />
-            </div>
-          </StepSection>
-
-          <div>
-            <p className="text-sm font-bold text-[#1c1917]">💬 Queries</p>
-            <p className="text-[11px] text-[#8a8171] mb-3">The same Q&amp;A queries as the Queries tab — add or reply here and it updates in both places automatically.</p>
-
-            {isCreate ? (
-              <div className="text-center py-6">
-                <p className="text-2xl mb-1">💬</p>
-                <p className="text-[13px] font-bold text-[#1c1917]">Save the KYC first</p>
-                <p className="text-xs text-[#8a8171] mt-1">Once this lead is saved, queries can be logged here — and they'll appear in the Queries tab too.</p>
-              </div>
-            ) : (
-            <>
-            <div className="space-y-2 mb-3">
-              {(queries || []).length === 0 && (
-                <div className="text-center py-6">
-                  <p className="text-2xl mb-1">💬</p>
-                  <p className="text-[13px] font-bold text-[#1c1917]">No queries logged yet</p>
-                </div>
-              )}
-              {(queries || []).map((q) => (
-                <div key={q._id} className="rounded-[10px] border border-[#e7e2d6] bg-[#fbfaf7] p-3">
-                  <div className="flex items-center justify-between gap-2">
-                    <p className="text-[13px] font-semibold text-[#1c1917]">{q.title}</p>
-                    <span className={clsx('text-[10px] font-semibold px-2 py-0.5 rounded-full flex-shrink-0',
-                      q.status === 'answered' ? PILL.success : q.status === 'closed' ? PILL.gray : PILL.warning)}>
-                      {q.status}
-                    </span>
-                  </div>
-                  <p className="text-xs text-[#6b6155] mt-1">{q.description}</p>
-                  {q.answer && <p className="text-xs text-[#2f6b4f] mt-2 bg-[#e2ece5] rounded-lg px-2 py-1.5">✓ {q.answer}</p>}
-                  {q.status === 'pending' && (
-                    <div className="flex gap-2 mt-2">
-                      <input
-                        value={replyDrafts[q._id] || ''}
-                        onChange={(e) => setReplyDrafts((d) => ({ ...d, [q._id]: e.target.value }))}
-                        placeholder="Type a reply…"
-                        className={clsx(fieldCls, 'flex-1 !py-1.5')}
-                      />
-                      <button
-                        onClick={() => {
-                          const answer = (replyDrafts[q._id] || '').trim();
-                          if (!answer) { toast.error('Reply cannot be empty'); return; }
-                          replyQueryMutation.mutate({ queryId: q._id, answer });
-                        }}
-                        disabled={replyQueryMutation.isPending}
-                        className={successBtn}
-                      >
-                        Reply
-                      </button>
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-
-            <div className="rounded-[10px] border-[1.5px] border-dashed border-[#ddd6c4] p-3 space-y-2">
-              <textarea value={newQueryDesc} onChange={(e) => setNewQueryDesc(e.target.value)} rows={2} placeholder="Describe the question…" className={fieldCls} />
-              <button
-                type="button"
-                onClick={() => {
-                  if (!newQueryDesc.trim()) { toast.error('Question is required'); return; }
-                  raiseQueryMutation.mutate({ description: newQueryDesc.trim() });
-                }}
-                disabled={raiseQueryMutation.isPending}
-                className={outlineBtn}
-              >
-                + Add query
-              </button>
-            </div>
-            </>
-            )}
-          </div>
-        </fieldset>
-        </div>
-
-        <div className="flex items-center gap-2.5 px-6 py-4 border-t border-[#e7e2d6] flex-shrink-0 flex-wrap">
-          <button type="button" onClick={onClose} className={outlineBtn}>{readOnly ? 'Close' : 'Cancel'}</button>
-          <span className="flex-1" />
-          {!readOnly && <span className="text-[11px] text-[#8a8171]">All sections on one page — scroll &amp; fill</span>}
-          {!readOnly && (
-          <button
-            onClick={() => {
-              if (!form.name.trim() || !form.company.trim()) { toast.error('We need at least your name and the brand/company to save the KYC'); return; }
-              if (isCreate && !form.phone.trim()) { toast.error('Phone number is required to create a lead'); return; }
-              const productInterest = piText.split(',').map((s) => s.trim()).filter(Boolean);
-              const formWithPi = { ...form, productInterest };
-              if (audioAttachment) formWithPi.intakeAudio = audioAttachment;
-              const payload = isCreate ? Object.fromEntries(Object.entries(formWithPi).filter(([, v]) => v !== '')) : formWithPi;
-              saveKycMutation.mutate(payload);
-            }}
-            disabled={saveKycMutation.isPending}
-            className={successBtn}
-          >
-            {saveKycMutation.isPending ? 'Saving…' : '✅ Save KYC'}
-          </button>
           )}
         </div>
-      </div>
-    </div>
+
+        <StepSection icon={Hand} title="Intro" sub="Just the basics — no interrogation.">
+          <Col span={12}><Field label='"May I have your good name?"' required><Input value={form.name} onChange={set('name')} placeholder="Contact person" /></Field></Col>
+          <Col span={12}><Field label='"Which brand/company am I speaking with?"' required><Input value={form.company} onChange={set('company')} placeholder="Brand / company name" /></Field></Col>
+          <Col span={12} style={{ marginTop: 12 }}><Field label='"Your role there?"'><Input value={form.designation} onChange={set('designation')} placeholder="e.g., Founder, Purchase Head" /></Field></Col>
+          <Col span={12} style={{ marginTop: 12 }}><Field label='"What should we call you casually?"'><Input value={form.preferredName} onChange={set('preferredName')} placeholder="e.g., Priya, Arjun bhai" /></Field></Col>
+          <Col span={12} style={{ marginTop: 12 }}><Field label='"Preferred language for our chats?"'><Select style={{ width: '100%' }} allowClear value={form.language || undefined} onChange={setSel('language')} placeholder="— select —" options={LANGUAGES.map((v) => ({ label: v, value: v }))} /></Field></Col>
+          <Col span={12} style={{ marginTop: 12 }}><Field label='"Best time to reach you?"'><Select style={{ width: '100%' }} allowClear value={form.bestTime || undefined} onChange={setSel('bestTime')} placeholder="— select —" options={BEST_TIMES.map((v) => ({ label: v, value: v }))} /></Field></Col>
+        </StepSection>
+
+        <StepSection icon={Phone} title="Contact" sub="Only what helps us reach you — nothing more.">
+          <Col span={12}><Field label="Mobile"><Input value={form.phone} onChange={set('phone')} placeholder="e.g., +91 98200 12345" /></Field></Col>
+          <Col span={12}><Field label='"An alternate number, just in case?"'><Input value={form.phone2} onChange={set('phone2')} placeholder="Alternate contact number" /></Field></Col>
+          <Col span={12} style={{ marginTop: 12 }}><Field label='"WhatsApp, if different?"'><Input value={form.whatsapp} onChange={set('whatsapp')} placeholder="WhatsApp number" /></Field></Col>
+          <Col span={12} style={{ marginTop: 12 }}><Field label="Email"><Input type="email" value={form.email} onChange={set('email')} placeholder="name@company.com" /></Field></Col>
+        </StepSection>
+
+        <StepSection icon={Briefcase} title="Work" sub="Helps us pitch at the right level.">
+          <Col span={12}><Field label="Business type"><Select style={{ width: '100%' }} allowClear value={form.businessType || undefined} onChange={setSel('businessType')} placeholder="— select —" options={BUSINESS_TYPES.map((v) => ({ label: v, value: v }))} /></Field></Col>
+          <Col span={12}><Field label="City"><Input value={form.city} onChange={set('city')} placeholder="e.g., Mumbai" /></Field></Col>
+          <Col span={12} style={{ marginTop: 12 }}><Field label="Team size"><Select style={{ width: '100%' }} allowClear value={form.teamSize || undefined} onChange={setSel('teamSize')} placeholder="— select —" options={TEAM_SIZES.map((v) => ({ label: v, value: v }))} /></Field></Col>
+          <Col span={12} style={{ marginTop: 12 }}>
+            <Field label="Assigned to">
+              <Select style={{ width: '100%' }} allowClear value={form.assignedTo || undefined} onChange={setSel('assignedTo')} placeholder="Unassigned"
+                options={assignableUsers.map((u) => ({ label: `${u.firstName} ${u.lastName}`, value: u._id }))} />
+              <Text type="secondary" style={{ fontSize: 10, display: 'block', marginTop: 4 }}>
+                {isNewIntake
+                  ? 'New leads can only go to the intake reps — once shifted to Production below, that person becomes the end-to-end owner through to dispatch.'
+                  : "Production-dept only from here — whoever's set becomes this client's end-to-end owner: Q&A, samples, payment, production, dispatch."}
+              </Text>
+            </Field>
+          </Col>
+          <Col span={24} style={{ marginTop: 12 }}>
+            <Field label='"What product(s) are you interested in?"'>
+              <Input value={piText} onChange={(e) => setPiText(e.target.value)} placeholder="e.g., Herbal Face Wash, Vitamin C Serum (comma-separated)" />
+            </Field>
+          </Col>
+        </StepSection>
+
+        <StepSection icon={Handshake} title="Rapport" sub="Almost done — this bit is just for rapport.">
+          <Col span={12}><Field label='"How did you hear about us?"'><Select style={{ width: '100%' }} allowClear value={form.source || undefined} onChange={setSel('source')} placeholder="— select —" options={SOURCES.map((v) => ({ label: v, value: v }))} /></Field></Col>
+          <Col span={12}>
+            <Text strong style={{ display: 'block', marginBottom: 4, fontSize: 12 }}>"Anything on your mind?" <Text type="secondary" style={{ fontWeight: 400 }}>(totally optional)</Text></Text>
+            <Input.TextArea value={form.rapportNote} onChange={set('rapportNote')} rows={1} placeholder="Free note — preferences, context, anything worth remembering..." />
+          </Col>
+        </StepSection>
+
+        <div>
+          <Text strong style={{ fontSize: 14 }}><MessageCircle size={14} style={{ marginRight: 4 }} />Queries</Text>
+          <div><Text type="secondary" style={{ fontSize: 11 }}>The same Q&amp;A queries as the Queries tab — add or reply here and it updates in both places automatically.</Text></div>
+
+          {isCreate ? (
+            <div style={{ textAlign: 'center', padding: '24px 0' }}>
+              <Text strong style={{ fontSize: 13, display: 'block' }}>Save the KYC first</Text>
+              <Text type="secondary" style={{ fontSize: 12 }}>Once this lead is saved, queries can be logged here — and they'll appear in the Queries tab too.</Text>
+            </div>
+          ) : (
+            <>
+              <Space direction="vertical" style={{ width: '100%', marginTop: 12, marginBottom: 12 }}>
+                {(queries || []).length === 0 && (
+                  <div style={{ textAlign: 'center', padding: '24px 0', width: '100%' }}>
+                    <Text strong style={{ fontSize: 13 }}>No queries logged yet</Text>
+                  </div>
+                )}
+                {(queries || []).map((q) => (
+                  <div key={q._id} style={{ border: '1px solid #f0f0f0', borderRadius: 10, padding: 12, width: '100%' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                      <Text strong style={{ fontSize: 13 }}>{q.title}</Text>
+                      <Tag color={QUERY_STATUS_COLOR[q.status] || 'default'}>{q.status}</Tag>
+                    </div>
+                    <Text type="secondary" style={{ fontSize: 12, display: 'block', marginTop: 4 }}>{q.description}</Text>
+                    {q.answer && (
+                      <Text style={{ fontSize: 12, color: '#237804', background: '#f6ffed', borderRadius: 8, padding: '6px 8px', display: 'flex', alignItems: 'center', gap: 4, marginTop: 8 }}>
+                        <CheckCircle2 size={12} />{q.answer}
+                      </Text>
+                    )}
+                    {q.status === 'pending' && (
+                      <Space.Compact style={{ width: '100%', marginTop: 8 }}>
+                        <Input
+                          value={replyDrafts[q._id] || ''}
+                          onChange={(e) => setReplyDrafts((d) => ({ ...d, [q._id]: e.target.value }))}
+                          placeholder="Type a reply…"
+                        />
+                        <Button
+                          type="primary"
+                          loading={replyQueryMutation.isPending}
+                          onClick={() => {
+                            const answer = (replyDrafts[q._id] || '').trim();
+                            if (!answer) { toast.error('Reply cannot be empty'); return; }
+                            replyQueryMutation.mutate({ queryId: q._id, answer });
+                          }}
+                        >
+                          Reply
+                        </Button>
+                      </Space.Compact>
+                    )}
+                  </div>
+                ))}
+              </Space>
+
+              <div style={{ border: '1px dashed #e5e7eb', borderRadius: 10, padding: 12 }}>
+                <Space direction="vertical" style={{ width: '100%' }} size={8}>
+                  <Input.TextArea value={newQueryDesc} onChange={(e) => setNewQueryDesc(e.target.value)} rows={2} placeholder="Describe the question…" />
+                  <Button
+                    size="small"
+                    loading={raiseQueryMutation.isPending}
+                    onClick={() => {
+                      if (!newQueryDesc.trim()) { toast.error('Question is required'); return; }
+                      raiseQueryMutation.mutate({ description: newQueryDesc.trim() });
+                    }}
+                  >
+                    + Add query
+                  </Button>
+                </Space>
+              </div>
+            </>
+          )}
+        </div>
+      </fieldset>
+    </Drawer>
   );
 }

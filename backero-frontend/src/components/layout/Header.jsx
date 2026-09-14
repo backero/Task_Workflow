@@ -1,9 +1,10 @@
-﻿import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Avatar, AutoComplete, Badge, Button, Dropdown, Input, Popover, Typography } from 'antd';
 import {
-  Bars3Icon, BellIcon, MagnifyingGlassIcon,
-  ArrowRightOnRectangleIcon, DevicePhoneMobileIcon, XMarkIcon,
-} from '@heroicons/react/24/outline';
+  MenuOutlined, BellOutlined, SearchOutlined,
+  LogoutOutlined, MobileOutlined,
+} from '@ant-design/icons';
 import { useAuthStore } from '../../store/useAuthStore';
 import { usePermissions } from '../../store/usePermissions';
 import { useNotificationStore } from '../../store/useNotificationStore';
@@ -11,32 +12,16 @@ import NotificationCenter from '../common/NotificationCenter';
 import { useQuery } from '@tanstack/react-query';
 import api from '../../api/axios';
 
+const { Text } = Typography;
+
 export default function Header({ onMobileMenuToggle }) {
   const { user, logout } = useAuthStore();
   const { isAdmin } = usePermissions();
   const { unreadCount } = useNotificationStore();
   const [showNotifs, setShowNotifs] = useState(false);
-  const [showUserMenu, setShowUserMenu] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [showSearch, setShowSearch] = useState(false);
   const [debouncedSearch, setDebouncedSearch] = useState('');
-  const [avatarBroken, setAvatarBroken] = useState(false);
   const navigate = useNavigate();
-  const notifRef = useRef(null);
-  const userMenuRef = useRef(null);
-  const searchRef = useRef(null);
-
-  useEffect(() => { setAvatarBroken(false); }, [user?.avatar]);
-
-  useEffect(() => {
-    const handleClick = (e) => {
-      if (notifRef.current && !notifRef.current.contains(e.target)) setShowNotifs(false);
-      if (userMenuRef.current && !userMenuRef.current.contains(e.target)) setShowUserMenu(false);
-      if (searchRef.current && !searchRef.current.contains(e.target)) setShowSearch(false);
-    };
-    document.addEventListener('mousedown', handleClick);
-    return () => document.removeEventListener('mousedown', handleClick);
-  }, []);
 
   useEffect(() => {
     const t = setTimeout(() => setDebouncedSearch(searchQuery), 300);
@@ -68,160 +53,116 @@ export default function Header({ onMobileMenuToggle }) {
   const waConnected = waStatus?.connected;
   const initials = `${user?.firstName?.[0] || ''}${user?.lastName?.[0] || ''}`;
 
-  return (
-    <header className="relative z-20 h-14 flex-shrink-0 flex items-center px-4 lg:px-5 gap-3 header-surface">
+  const searchOptions = (searchResults?.data || []).map((task) => ({
+    value: task._id,
+    label: (
+      <div style={{ padding: '4px 0' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span
+            style={{
+              width: 6, height: 6, borderRadius: '50%', flexShrink: 0,
+              background: task.status === 'Completed' ? '#22c55e' : task.isOverdue ? '#ef4444' : '#3b82f6',
+            }}
+          />
+          <Text ellipsis style={{ fontSize: 13, fontWeight: 500 }}>{task.title}</Text>
+        </div>
+        <Text type="secondary" style={{ fontSize: 11, marginLeft: 14 }}>
+          {task.department} · {task.status}
+        </Text>
+      </div>
+    ),
+  }));
 
-      {/* Mobile menu toggle */}
-      <button
+  const userMenuItems = [
+    {
+      key: 'info',
+      label: (
+        <div style={{ padding: '4px 4px 8px' }}>
+          <Text strong style={{ display: 'block', fontSize: 13 }}>{user?.firstName} {user?.lastName}</Text>
+          <Text type="secondary" style={{ fontSize: 12, textTransform: 'capitalize' }}>{user?.role?.replace('_', ' ')}</Text>
+        </div>
+      ),
+      disabled: true,
+    },
+    { type: 'divider' },
+    { key: 'logout', icon: <LogoutOutlined />, label: 'Sign Out', danger: true, onClick: handleLogout },
+  ];
+
+  return (
+    <header
+      className="relative z-20 h-14 flex-shrink-0 flex items-center px-4 lg:px-5 gap-3"
+      style={{
+        background: 'rgba(255,255,255,0.92)',
+        backdropFilter: 'blur(24px) saturate(200%)',
+        borderBottom: '1px solid rgba(15,23,42,0.06)',
+      }}
+    >
+      <Button
+        type="text"
+        className="lg:hidden"
+        icon={<MenuOutlined />}
         onClick={onMobileMenuToggle}
-        className="lg:hidden p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-white/6 text-slate-500 dark:text-slate-400 transition-colors"
-      >
-        <Bars3Icon className="w-5 h-5" />
-      </button>
+      />
 
       {/* Global search */}
-      <div className="flex-1 max-w-xs relative" ref={searchRef}>
-        <div className="relative">
-          <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => { setSearchQuery(e.target.value); setShowSearch(true); }}
-            onFocus={() => setShowSearch(true)}
-            placeholder="Search…"
-            className="w-full pl-9 pr-8 py-1.5 bg-slate-100 dark:bg-white/6 border border-transparent focus:border-blue-400 dark:focus:border-blue-500/60 rounded-lg text-sm text-slate-700 dark:text-slate-300 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:bg-white dark:focus:bg-white/10 transition-all duration-200"
-          />
-          {searchQuery && (
-            <button
-              onClick={() => { setSearchQuery(''); setDebouncedSearch(''); setShowSearch(false); }}
-              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
-            >
-              <XMarkIcon className="w-3.5 h-3.5" />
-            </button>
-          )}
-        </div>
-
-        {showSearch && debouncedSearch.length >= 2 && (
-          <div className="absolute top-10 left-0 right-0 rounded-xl z-50 overflow-hidden animate-slide-down dropdown-panel">
-            {searching && !searchResults ? (
-              <div className="p-4 text-sm text-slate-400 text-center">Searching…</div>
-            ) : !searchResults?.data?.length ? (
-              <div className="p-4 text-sm text-slate-400 text-center">No results for "{debouncedSearch}"</div>
-            ) : (
-              <>
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider px-3 pt-3 pb-1">Tasks</p>
-                {searchResults.data.map((task) => (
-                  <button
-                    key={task._id}
-                    onClick={() => { navigate(`/workflow/${task._id}`); setShowSearch(false); setSearchQuery(''); }}
-                    className="w-full text-left px-3 py-2.5 transition-colors"
-                    style={{ borderBottom: '1px solid var(--b-default)' }}
-                    onMouseEnter={e => e.currentTarget.style.background = 'var(--s-hover)'}
-                    onMouseLeave={e => e.currentTarget.style.background = ''}
-                  >
-                    <div className="flex items-center gap-2">
-                      <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${
-                        task.status === 'Completed' ? 'bg-emerald-500' : task.isOverdue ? 'bg-red-500' : 'bg-blue-500'
-                      }`} />
-                      <p className="text-sm font-medium text-slate-800 dark:text-slate-200 truncate">{task.title}</p>
-                    </div>
-                    <div className="flex items-center gap-2 mt-0.5 ml-3.5 text-xs text-slate-400">
-                      <span>{task.department}</span>
-                      <span>·</span>
-                      <span>{task.status}</span>
-                    </div>
-                  </button>
-                ))}
-              </>
-            )}
-          </div>
-        )}
+      <div className="flex-1 max-w-xs">
+        <AutoComplete
+          value={searchQuery}
+          options={debouncedSearch.length >= 2 ? searchOptions : []}
+          onChange={setSearchQuery}
+          onSelect={(taskId) => { navigate(`/workflow/${taskId}`); setSearchQuery(''); }}
+          notFoundContent={
+            debouncedSearch.length >= 2
+              ? (searching ? 'Searching…' : `No results for "${debouncedSearch}"`)
+              : null
+          }
+          style={{ width: '100%' }}
+        >
+          <Input allowClear prefix={<SearchOutlined style={{ color: '#94a3b8' }} />} placeholder="Search…" />
+        </AutoComplete>
       </div>
 
-      <div className="flex items-center gap-0.5 ml-auto">
-
-        {/* WhatsApp status */}
+      <div className="flex items-center gap-1 ml-auto">
         {isAdmin && waStatus !== undefined && (
-          <button
-            onClick={() => navigate('/settings/whatsapp')}
+          <Button
+            type="text"
             title={waConnected ? 'WhatsApp connected' : 'WhatsApp disconnected'}
-            className="relative p-2 rounded-lg text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/6 transition-colors"
-          >
-            <DevicePhoneMobileIcon style={{ width: '17px', height: '17px' }} />
-            <span className={`absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full ${
-              waConnected ? 'bg-emerald-500' : 'bg-red-500'
-            }`} />
-          </button>
+            onClick={() => navigate('/settings/whatsapp')}
+            icon={
+              <Badge dot color={waConnected ? '#22c55e' : '#ef4444'} offset={[-2, 2]}>
+                <MobileOutlined style={{ fontSize: 17 }} />
+              </Badge>
+            }
+          />
         )}
 
-        {/* Notifications */}
-        <div className="relative" ref={notifRef}>
-          <button
-            onClick={() => setShowNotifs((p) => !p)}
-            className="relative p-2 rounded-lg text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/6 transition-colors"
-          >
-            <BellIcon style={{ width: '17px', height: '17px' }} />
-            {unreadCount > 0 && (
-              <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-1 bg-red-500 text-white text-[9px] rounded-full flex items-center justify-center font-bold">
-                {unreadCount > 9 ? '9+' : unreadCount}
-              </span>
-            )}
-          </button>
-          {showNotifs && (
-            <div className="absolute right-0 top-11 z-50 w-96 animate-slide-down">
-              <NotificationCenter onClose={() => setShowNotifs(false)} />
-            </div>
-          )}
-        </div>
+        <Popover
+          open={showNotifs}
+          onOpenChange={setShowNotifs}
+          trigger="click"
+          placement="bottomRight"
+          content={<div style={{ width: 380 }}><NotificationCenter onClose={() => setShowNotifs(false)} /></div>}
+        >
+          <Button type="text" icon={
+            <Badge count={unreadCount} size="small" offset={[-2, 2]}>
+              <BellOutlined style={{ fontSize: 17 }} />
+            </Badge>
+          } />
+        </Popover>
 
-        {/* Divider */}
-        <div className="w-px h-5 mx-1.5 bg-slate-200 dark:bg-white/8" />
+        <div className="w-px h-5 mx-1.5" style={{ background: 'rgba(15,23,42,0.08)' }} />
 
-        {/* User menu */}
-        <div className="relative" ref={userMenuRef}>
-          <button
-            onClick={() => setShowUserMenu((p) => !p)}
-            className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-white/6 transition-colors"
-          >
-            {user?.avatar && !avatarBroken ? (
-              <img
-                src={user.avatar}
-                alt="Profile"
-                className="w-7 h-7 rounded-lg object-cover flex-shrink-0"
-                onError={() => setAvatarBroken(true)}
-              />
-            ) : (
-              <div
-                className="w-7 h-7 rounded-lg flex items-center justify-center text-white text-xs font-bold flex-shrink-0"
-                style={{ background: 'linear-gradient(135deg,#1d4ed8,#1e40af)' }}
-              >
-                {initials}
-              </div>
-            )}
+        <Dropdown menu={{ items: userMenuItems }} placement="bottomRight" trigger={['click']}>
+          <div className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-black/5 transition-colors cursor-pointer">
+            <Avatar size={28} src={user?.avatar} style={{ background: 'linear-gradient(135deg,#7c5a17,#a8781f,#c2a35a)', fontSize: 11, fontWeight: 700 }}>
+              {initials}
+            </Avatar>
             <div className="hidden sm:block text-left">
-              <p className="text-[13px] font-semibold text-slate-700 dark:text-slate-200 leading-tight">{user?.firstName}</p>
-              <p className="text-[10px] text-slate-400 capitalize leading-tight">{user?.role?.replace('_', ' ')}</p>
+              <Text style={{ fontSize: 13, fontWeight: 600, display: 'block', lineHeight: 1.2 }}>{user?.firstName}</Text>
+              <Text type="secondary" style={{ fontSize: 10, textTransform: 'capitalize', lineHeight: 1.2 }}>{user?.role?.replace('_', ' ')}</Text>
             </div>
-          </button>
-
-          {showUserMenu && (
-            <div className="absolute right-0 top-11 z-50 w-52 rounded-xl overflow-hidden animate-slide-down dropdown-panel">
-              <div className="px-4 py-3 border-b border-slate-100 dark:border-[#1b2e4a]">
-                <p className="text-sm font-semibold text-slate-800 dark:text-white">{user?.firstName} {user?.lastName}</p>
-                <p className="text-xs text-slate-400 capitalize mt-0.5">{user?.role?.replace('_', ' ')}</p>
-              </div>
-              <div className="p-1.5">
-                <button
-                  onClick={handleLogout}
-                  className="flex items-center gap-2.5 w-full px-3 py-2 text-sm font-medium text-red-600 dark:text-red-400 rounded-lg hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors"
-                >
-                  <ArrowRightOnRectangleIcon className="w-4 h-4" />
-                  Sign Out
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
+          </div>
+        </Dropdown>
       </div>
     </header>
   );

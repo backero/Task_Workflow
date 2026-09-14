@@ -1,16 +1,18 @@
-﻿import React, { useEffect } from 'react';
+import React, { useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { BellIcon, CheckIcon, XMarkIcon } from '@heroicons/react/24/outline';
+import { Badge, Button, Empty, List, Spin, Typography } from 'antd';
+import { BellOutlined } from '@ant-design/icons';
 import { useNotificationStore } from '../../store/useNotificationStore';
 import { formatDistanceToNow } from 'date-fns';
 import api from '../../api/axios';
-import { clsx } from 'clsx';
 
-const PRIORITY_STYLES = {
-  critical: 'border-l-red-500 bg-red-50 dark:bg-red-900/10',
-  high: 'border-l-orange-500 bg-orange-50 dark:bg-orange-900/10',
-  medium: 'border-l-blue-500 bg-blue-50 dark:bg-blue-900/10',
-  low: 'border-l-gray-400',
+const { Text } = Typography;
+
+const PRIORITY_COLOR = {
+  critical: '#ef4444',
+  high: '#f97316',
+  medium: '#3b82f6',
+  low: '#94a3b8',
 };
 
 const TYPE_ICONS = {
@@ -52,67 +54,56 @@ export default function NotificationCenter({ onClose }) {
   });
 
   return (
-    <div className="card shadow-modal max-h-[480px] flex flex-col">
-      <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 dark:border-[#1b2e4a]">
-        <div className="flex items-center gap-2">
-          <BellIcon className="w-5 h-5 text-gray-600 dark:text-gray-400" />
-          <h3 className="font-semibold text-gray-900 dark:text-white">Notifications</h3>
+    <div style={{ maxHeight: 480, display: 'flex', flexDirection: 'column' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingBottom: 10, borderBottom: '1px solid rgba(15,23,42,0.08)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <BellOutlined />
+          <Text strong>Notifications</Text>
         </div>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => markAllMutation.mutate()}
-            className="text-xs text-brand-600 hover:text-brand-700 font-medium"
-          >
-            Mark all read
-          </button>
-          <button onClick={onClose} className="p-1 rounded hover:bg-gray-100 dark:hover:bg-[#17263d]">
-            <XMarkIcon className="w-4 h-4 text-gray-500" />
-          </button>
-        </div>
+        <Button type="link" size="small" onClick={() => markAllMutation.mutate()} style={{ padding: 0 }}>
+          Mark all read
+        </Button>
       </div>
 
-      <div className="overflow-y-auto flex-1">
+      <div style={{ overflowY: 'auto', flex: 1, marginTop: 4 }}>
         {isLoading ? (
-          <div className="flex items-center justify-center py-12">
-            <div className="w-6 h-6 border-2 border-brand-500 border-t-transparent rounded-full animate-spin" />
+          <div style={{ textAlign: 'center', padding: 32 }}>
+            <Spin />
           </div>
         ) : notifications.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-12 text-gray-400">
-            <BellIcon className="w-10 h-10 mb-2" />
-            <p className="text-sm">No notifications</p>
-          </div>
+          <Empty description="No notifications" style={{ padding: '24px 0' }} image={Empty.PRESENTED_IMAGE_SIMPLE} />
         ) : (
-          <div className="divide-y divide-gray-100 dark:divide-[#1b2e4a]">
-            {notifications.map((notif) => (
-              <div
+          <List
+            dataSource={notifications}
+            renderItem={(notif) => (
+              <List.Item
                 key={notif._id}
-                className={clsx(
-                  'px-4 py-3 border-l-4 transition-colors cursor-pointer hover:bg-gray-50 dark:hover:bg-[#17263d]/50',
-                  notif.isRead ? 'border-l-transparent' : PRIORITY_STYLES[notif.priority] || PRIORITY_STYLES.medium
-                )}
                 onClick={() => {
                   if (!notif.isRead) markReadMutation.mutate(notif._id);
                   if (notif.actionUrl) { window.location.href = notif.actionUrl; onClose(); }
                 }}
+                style={{
+                  cursor: 'pointer',
+                  padding: '10px 8px',
+                  borderInlineStart: `3px solid ${notif.isRead ? 'transparent' : (PRIORITY_COLOR[notif.priority] || PRIORITY_COLOR.medium)}`,
+                }}
               >
-                <div className="flex items-start gap-3">
-                  <span className="text-lg mt-0.5 flex-shrink-0">{TYPE_ICONS[notif.type] || '🔔'}</span>
-                  <div className="flex-1 min-w-0">
-                    <p className={clsx('text-sm font-medium', notif.isRead ? 'text-gray-600 dark:text-gray-400' : 'text-gray-900 dark:text-white')}>
-                      {notif.title}
-                    </p>
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 line-clamp-2">{notif.message}</p>
-                    <p className="text-xs text-gray-400 mt-1">
-                      {formatDistanceToNow(new Date(notif.createdAt), { addSuffix: true })}
-                    </p>
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, width: '100%' }}>
+                  <span style={{ fontSize: 17, flexShrink: 0 }}>{TYPE_ICONS[notif.type] || '🔔'}</span>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <Text strong={!notif.isRead} style={{ fontSize: 13, display: 'block' }}>{notif.title}</Text>
+                    <Text type="secondary" style={{ fontSize: 12 }} ellipsis>{notif.message}</Text>
+                    <div>
+                      <Text type="secondary" style={{ fontSize: 11 }}>
+                        {formatDistanceToNow(new Date(notif.createdAt), { addSuffix: true })}
+                      </Text>
+                    </div>
                   </div>
-                  {!notif.isRead && (
-                    <div className="w-2 h-2 rounded-full bg-brand-500 mt-1.5 flex-shrink-0" />
-                  )}
+                  {!notif.isRead && <Badge color="#a8781f" />}
                 </div>
-              </div>
-            ))}
-          </div>
+              </List.Item>
+            )}
+          />
         )}
       </div>
     </div>

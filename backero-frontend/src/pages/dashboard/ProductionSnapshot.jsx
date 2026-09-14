@@ -1,26 +1,33 @@
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
-import { clsx } from 'clsx';
+import { Card, Col, Row, Space, Tag, Typography } from 'antd';
+import {
+  IdCard, Inbox, Wallet, FlaskConical, Clock, Receipt,
+  Package, Scale, TestTube2, Gift, CheckCircle2, Truck,
+  Users, DollarSign, TriangleAlert, TrendingDown,
+} from 'lucide-react';
 import api from '../../api/axios';
 import { STAGE_NAMES } from '../crm/production/StageSteps';
 import { customerId } from '../../utils/leadHelpers';
+
+const { Text, Title } = Typography;
 
 // Same stat boxes as the Sample Production dashboard strip (/samples), same order/labels, each
 // linking straight into that tab there — kept independent (own queries) so this can sit on a
 // different page without rendering the whole thing.
 const TAB_CONFIG = [
-  { key: 'new', label: 'KYC', emoji: '🆕' },
-  { key: 'qa', label: 'Q&A Inbox', emoji: '📥' },
-  { key: 'payments', label: "RND's Payments", emoji: '💳' },
-  { key: 'sample', label: 'Sample', emoji: '🧪' },
-  { key: 'awaiting', label: 'Invoices', emoji: '⏳' },
-  { key: 'linked', label: 'Orders', emoji: '🧾' },
-  { key: 'procurement', label: 'Procurement', emoji: '📦', stage: 2 },
-  { key: 'weighing', label: 'Weighing', emoji: '⚖️', stage: 3 },
-  { key: 'bulkqc', label: 'Bulk QC', emoji: '🧫', stage: 4 },
-  { key: 'packing', label: 'Product Packaging', emoji: '🎁', stage: 5 },
-  { key: 'finalqc', label: 'Final QC', emoji: '✅', stage: 6 },
-  { key: 'dispatch', label: 'Dispatch', emoji: '🚚', stage: 7 },
+  { key: 'new', label: 'KYC', icon: IdCard },
+  { key: 'qa', label: 'Q&A Inbox', icon: Inbox },
+  { key: 'payments', label: "RND's Payments", icon: Wallet },
+  { key: 'sample', label: 'Sample', icon: FlaskConical },
+  { key: 'awaiting', label: 'Invoices', icon: Clock },
+  { key: 'linked', label: 'Orders', icon: Receipt },
+  { key: 'procurement', label: 'Procurement', icon: Package, stage: 2 },
+  { key: 'weighing', label: 'Weighing', icon: Scale, stage: 3 },
+  { key: 'bulkqc', label: 'Bulk QC', icon: TestTube2, stage: 4 },
+  { key: 'packing', label: 'Product Packaging', icon: Gift, stage: 5 },
+  { key: 'finalqc', label: 'Final QC', icon: CheckCircle2, stage: 6 },
+  { key: 'dispatch', label: 'Dispatch', icon: Truck, stage: 7 },
 ];
 
 function pad2(n) { return String(n).padStart(2, '0'); }
@@ -109,17 +116,23 @@ export function ProductionStatBoxes({ department }) {
   });
 
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+    <Row gutter={[12, 12]}>
       {TAB_CONFIG.map((t) => (
-        <Link key={t.key} to={`/samples?tab=${t.key}`} className="card px-4 py-3 hover:shadow-md transition-shadow">
-          <div className="flex items-center gap-2">
-            <span className="text-base">{t.emoji}</span>
-            <p className="text-xl font-bold text-gray-900 dark:text-white leading-none">{counts[t.key] || 0}</p>
-          </div>
-          <p className="text-xs text-gray-500 dark:text-gray-400 font-medium mt-1.5 truncate">{t.label}</p>
-        </Link>
+        <Col key={t.key} xs={12} sm={8} lg={4}>
+          <Link to={`/samples?tab=${t.key}`}>
+            <Card size="small" hoverable>
+              <Space size={8}>
+                <t.icon size={14} color="#8c8c8c" />
+                <span style={{ fontSize: 18, fontWeight: 700, lineHeight: 1 }}>{counts[t.key] || 0}</span>
+              </Space>
+              <div style={{ marginTop: 6 }}>
+                <Text type="secondary" style={{ fontSize: 12, fontWeight: 500 }} ellipsis>{t.label}</Text>
+              </div>
+            </Card>
+          </Link>
+        </Col>
       ))}
-    </div>
+    </Row>
   );
 }
 
@@ -219,118 +232,119 @@ export default function ProductionSnapshot({ department }) {
   });
 
   return (
-    <div className="space-y-4">
+    <Space direction="vertical" style={{ width: '100%' }} size={16}>
       <ProductionStatBoxes department={department} />
 
-      <div className="card p-5">
-        <div className="flex items-center justify-between mb-3">
-          <h3 className="text-sm font-bold text-gray-900 dark:text-white">👷 Who's Doing What — Today</h3>
-          <Link to="/production/kitchen" className="text-xs font-semibold text-blue-600 hover:underline">Kitchen Schedule →</Link>
-        </div>
+      <Card
+        title={<Title level={5} style={{ marginBottom: 0 }}><Space size={8}><Users size={16} />Who's Doing What — Today</Space></Title>}
+        extra={<Link to="/production/kitchen">Kitchen Schedule →</Link>}
+      >
         {workRows.length === 0 ? (
-          <p className="text-sm text-gray-400">No Production-department users found.</p>
+          <Text type="secondary">No Production-department users found.</Text>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          <Row gutter={[12, 12]}>
             {workRows.map((w) => (
-              <div
-                key={w.id}
-                className={clsx('rounded-xl border p-3', w.busy ? 'border-blue-200 bg-blue-50 dark:border-blue-900/40 dark:bg-blue-900/10' : 'border-gray-100 dark:border-[#1b2e4a]')}
-              >
-                <p className="text-sm font-semibold text-gray-900 dark:text-white">{w.name}</p>
-                {w.busy ? (
-                  <>
-                    <p className="text-xs text-blue-700 dark:text-blue-300 mt-1">🏭 {w.client || '—'}</p>
-                    <p className="text-xs text-gray-500 dark:text-gray-400">{w.product || w.orderNumber || '—'}</p>
-                    <span className="badge badge-blue mt-1.5 inline-block">{STAGE_NAMES[w.stage] || `Stage ${w.stage}`}</span>
-                  </>
-                ) : (
-                  <p className="text-xs text-gray-400 mt-1">Available</p>
-                )}
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-
-      <div className="card p-5">
-        <div className="flex items-center justify-between mb-3">
-          <h3 className="text-sm font-bold text-gray-900 dark:text-white">💰 Client Payment Status</h3>
-          <Link to="/samples" className="text-xs font-semibold text-blue-600 hover:underline">Open Batch Tracker →</Link>
-        </div>
-        {paymentRows.length === 0 ? (
-          <p className="text-sm text-gray-400">No active clients in the pipeline right now.</p>
-        ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            {paymentRows.map((p) => (
-              <div key={p.id} className="rounded-xl border border-gray-100 dark:border-[#1b2e4a] p-3">
-                <div className="flex items-center justify-between gap-2">
-                  <p className="text-sm font-semibold text-gray-900 dark:text-white truncate">{p.name}</p>
-                  <span className="font-mono text-[10px] text-gray-400 flex-shrink-0">{p.custId}</span>
-                </div>
-                <div className="flex items-center gap-1.5 mt-2 flex-wrap">
-                  <span className={clsx('badge', p.rndPaid ? 'badge-green' : 'badge-yellow')}>
-                    R&amp;D {p.rndPaid ? 'Paid' : 'Pending'}
-                  </span>
-                  {p.totalProducts === 0 ? (
-                    <span className="badge badge-gray">No products yet</span>
+              <Col key={w.id} xs={24} sm={12} lg={8}>
+                <Card size="small" style={w.busy ? { background: '#e6f4ff', borderColor: '#91caff' } : undefined}>
+                  <Text strong style={{ fontSize: 13 }}>{w.name}</Text>
+                  {w.busy ? (
+                    <>
+                      <div><Text style={{ fontSize: 12, color: '#1677ff' }}>{w.client || '—'}</Text></div>
+                      <div><Text type="secondary" style={{ fontSize: 12 }}>{w.product || w.orderNumber || '—'}</Text></div>
+                      <Tag color="blue" style={{ marginTop: 6 }}>{STAGE_NAMES[w.stage] || `Stage ${w.stage}`}</Tag>
+                    </>
                   ) : (
-                    <span className={clsx('badge', p.paidCount === p.totalProducts ? 'badge-green' : p.paidCount === 0 ? 'badge-yellow' : 'badge-blue')}>
-                      {p.paidCount}/{p.totalProducts} paid
-                    </span>
+                    <div><Text type="secondary" style={{ fontSize: 12 }}>Available</Text></div>
                   )}
-                </div>
-              </div>
+                </Card>
+              </Col>
             ))}
-          </div>
+          </Row>
         )}
-      </div>
+      </Card>
 
-      <div className="card p-5">
-        <div className="flex items-center justify-between mb-3">
-          <h3 className="text-sm font-bold text-gray-900 dark:text-white">⚠️ Delivery Risk</h3>
-          {riskOrders.length > 0 && <span className="badge badge-red">{riskOrders.length} at risk</span>}
-        </div>
-        {riskOrders.length === 0 ? (
-          <p className="text-sm text-gray-400">No batches at delivery risk right now.</p>
+      <Card
+        title={<Title level={5} style={{ marginBottom: 0 }}><Space size={8}><DollarSign size={16} />Client Payment Status</Space></Title>}
+        extra={<Link to="/samples">Open Batch Tracker →</Link>}
+      >
+        {paymentRows.length === 0 ? (
+          <Text type="secondary">No active clients in the pipeline right now.</Text>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          <Row gutter={[12, 12]}>
+            {paymentRows.map((p) => (
+              <Col key={p.id} xs={24} sm={12} lg={8}>
+                <Card size="small">
+                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
+                    <Text strong style={{ fontSize: 13 }} ellipsis>{p.name}</Text>
+                    <Text type="secondary" style={{ fontSize: 10, fontFamily: 'monospace', flexShrink: 0 }}>{p.custId}</Text>
+                  </div>
+                  <Space size={4} style={{ marginTop: 8 }} wrap>
+                    <Tag color={p.rndPaid ? 'green' : 'gold'}>R&amp;D {p.rndPaid ? 'Paid' : 'Pending'}</Tag>
+                    {p.totalProducts === 0 ? (
+                      <Tag>No products yet</Tag>
+                    ) : (
+                      <Tag color={p.paidCount === p.totalProducts ? 'green' : p.paidCount === 0 ? 'gold' : 'blue'}>
+                        {p.paidCount}/{p.totalProducts} paid
+                      </Tag>
+                    )}
+                  </Space>
+                </Card>
+              </Col>
+            ))}
+          </Row>
+        )}
+      </Card>
+
+      <Card
+        title={<Title level={5} style={{ marginBottom: 0 }}><Space size={8}><TriangleAlert size={16} />Delivery Risk</Space></Title>}
+        extra={riskOrders.length > 0 && <Tag color="red">{riskOrders.length} at risk</Tag>}
+      >
+        {riskOrders.length === 0 ? (
+          <Text type="secondary">No batches at delivery risk right now.</Text>
+        ) : (
+          <Row gutter={[12, 12]}>
             {riskOrders.map((o) => {
               const days = Math.round((new Date(o.deliveryDate) - now) / 86400000);
               return (
-                <Link key={o._id} to={openLink(o)} className="rounded-xl border border-red-200 bg-red-50 dark:border-red-900/40 dark:bg-red-900/10 p-3 hover:shadow-md transition-shadow">
-                  <p className="text-sm font-semibold text-gray-900 dark:text-white">{o.customer || o.orderNumber}</p>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">{o.catalogProduct?.name || o.orderNumber}</p>
-                  <span className="badge badge-red mt-1.5 inline-block">
-                    {days < 0 ? `${-days}d overdue` : days === 0 ? 'Due today' : `Due in ${days}d`} — {STAGE_NAMES[o.stage]}
-                  </span>
-                </Link>
+                <Col key={o._id} xs={24} sm={12} lg={8}>
+                  <Link to={openLink(o)}>
+                    <Card size="small" hoverable style={{ background: '#fff2f0', borderColor: '#ffccc7' }}>
+                      <Text strong style={{ fontSize: 13 }}>{o.customer || o.orderNumber}</Text>
+                      <div><Text type="secondary" style={{ fontSize: 12 }}>{o.catalogProduct?.name || o.orderNumber}</Text></div>
+                      <Tag color="red" style={{ marginTop: 6 }}>
+                        {days < 0 ? `${-days}d overdue` : days === 0 ? 'Due today' : `Due in ${days}d`} — {STAGE_NAMES[o.stage]}
+                      </Tag>
+                    </Card>
+                  </Link>
+                </Col>
               );
             })}
-          </div>
+          </Row>
         )}
-      </div>
+      </Card>
 
-      <div className="card p-5">
-        <div className="flex items-center justify-between mb-3">
-          <h3 className="text-sm font-bold text-gray-900 dark:text-white">📉 Raw Material Shortages</h3>
-          <Link to="/inventory/rawmaterials" className="text-xs font-semibold text-blue-600 hover:underline">Raw Materials →</Link>
-        </div>
+      <Card
+        title={<Title level={5} style={{ marginBottom: 0 }}><Space size={8}><TrendingDown size={16} />Raw Material Shortages</Space></Title>}
+        extra={<Link to="/inventory/rawmaterials">Raw Materials →</Link>}
+      >
         {shortageOrders.length === 0 ? (
-          <p className="text-sm text-gray-400">No stock shortages blocking a batch right now.</p>
+          <Text type="secondary">No stock shortages blocking a batch right now.</Text>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          <Row gutter={[12, 12]}>
             {shortageOrders.map(({ order: o, shortfalls }) => (
-              <Link key={o._id} to={openLink(o)} className="rounded-xl border border-orange-200 bg-orange-50 dark:border-orange-900/40 dark:bg-orange-900/10 p-3 hover:shadow-md transition-shadow">
-                <p className="text-sm font-semibold text-gray-900 dark:text-white">{o.customer || o.orderNumber}</p>
-                <p className="text-xs text-gray-500 dark:text-gray-400">{o.catalogProduct?.name || o.orderNumber} — {STAGE_NAMES[o.stage]}</p>
-                <p className="text-xs text-orange-700 dark:text-orange-300 mt-1.5">
-                  {shortfalls.map((s) => `${s.name}: short ${s.shortfall}${s.unit || ''}`).join(', ')}
-                </p>
-              </Link>
+              <Col key={o._id} xs={24} sm={12} lg={8}>
+                <Link to={openLink(o)}>
+                  <Card size="small" hoverable style={{ background: '#fff7e6', borderColor: '#ffd591' }}>
+                    <Text strong style={{ fontSize: 13 }}>{o.customer || o.orderNumber}</Text>
+                    <div><Text type="secondary" style={{ fontSize: 12 }}>{o.catalogProduct?.name || o.orderNumber} — {STAGE_NAMES[o.stage]}</Text></div>
+                    <div><Text style={{ fontSize: 12, color: '#d46b08' }}>{shortfalls.map((s) => `${s.name}: short ${s.shortfall}${s.unit || ''}`).join(', ')}</Text></div>
+                  </Card>
+                </Link>
+              </Col>
             ))}
-          </div>
+          </Row>
         )}
-      </div>
-    </div>
+      </Card>
+    </Space>
   );
 }

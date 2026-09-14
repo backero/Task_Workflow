@@ -53,4 +53,27 @@ const authorizeMarketingApprover = (req, res, next) => {
   return sendError(res, 'Access denied. Marketing department manager or admin required.', 403);
 };
 
-module.exports = { authorize, authorizeMinRole, authorizeManagerOrAbove, authorizeAdminOrAbove, authorizeFounderOrAbove, authorizeInventoryWrite, authorizeCatalogDelete, authorizeMarketingApprover };
+// Attendance Tracker permission-string gate: admin+ always passes (mirrors
+// the source's SUPER_ADMIN implicit-all-permissions rule); otherwise the
+// caller needs the exact permission string on their own User.permissions
+// array. Ported alongside utils/attendanceConstants.js's ATTENDANCE_PERMISSIONS.
+const requireAttendancePermission = (permissionCode) => (req, res, next) => {
+  if (!req.user) return sendError(res, 'Authentication required.', 401);
+  const level = ROLE_HIERARCHY[req.user.role] || 0;
+  if (level >= ROLE_HIERARCHY['admin'] || (req.user.permissions || []).includes(permissionCode)) {
+    return next();
+  }
+  return sendError(res, `Access denied. Permission required: ${permissionCode}.`, 403);
+};
+
+module.exports = {
+  authorize,
+  authorizeMinRole,
+  authorizeManagerOrAbove,
+  authorizeAdminOrAbove,
+  authorizeFounderOrAbove,
+  authorizeInventoryWrite,
+  authorizeCatalogDelete,
+  authorizeMarketingApprover,
+  requireAttendancePermission,
+};

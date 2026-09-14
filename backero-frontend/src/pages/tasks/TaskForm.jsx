@@ -1,7 +1,8 @@
-﻿import React, { useState } from 'react';
-import { useForm } from 'react-hook-form';
-import { useQuery, useMutation } from '@tanstack/react-query';
-import { XMarkIcon } from '@heroicons/react/24/outline';
+import React, { useState } from 'react';
+import { Controller, useForm } from 'react-hook-form';
+import { useQuery } from '@tanstack/react-query';
+import { Button, DatePicker, Input, Modal, Select } from 'antd';
+import dayjs from 'dayjs';
 import api from '../../api/axios';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '../../store/useAuthStore';
@@ -14,7 +15,9 @@ const TASK_TYPES = ['Instagram Reel', 'YouTube Video', 'Product Shoot', 'Ad Crea
 const ROLE_LEVEL = { super_admin: 7, chairman: 6, founder: 5, admin: 4, manager: 3, team_lead: 2, member: 1 };
 
 export default function TaskForm({ onClose, onSuccess, initialData }) {
-  const { register, handleSubmit, watch, formState: { errors } } = useForm({ defaultValues: initialData });
+  const { register, handleSubmit, watch, control, formState: { errors } } = useForm({
+    defaultValues: initialData ? { ...initialData, dueDate: initialData.dueDate ? dayjs(initialData.dueDate) : null } : {},
+  });
   const [loading, setLoading] = useState(false);
   const { user: currentUser } = useAuthStore();
 
@@ -27,7 +30,6 @@ export default function TaskForm({ onClose, onSuccess, initialData }) {
 
   const allUsers = usersData?.data || [];
   const isManagerOnly = (ROLE_LEVEL[currentUser?.role] || 0) === ROLE_LEVEL['manager'];
-  // Managers can only assign within their own department
   const users = isManagerOnly
     ? allUsers.filter((u) => u.department === currentUser?.department)
     : allUsers;
@@ -35,11 +37,12 @@ export default function TaskForm({ onClose, onSuccess, initialData }) {
   const onSubmit = async (data) => {
     setLoading(true);
     try {
+      const payload = { ...data, dueDate: data.dueDate ? dayjs(data.dueDate).toISOString() : undefined };
       if (initialData?._id) {
-        await api.put(`/tasks/${initialData._id}`, data);
+        await api.put(`/tasks/${initialData._id}`, payload);
         toast.success('Task updated');
       } else {
-        await api.post('/tasks', data);
+        await api.post('/tasks', payload);
         toast.success('Task created');
       }
       onSuccess?.();
@@ -51,93 +54,159 @@ export default function TaskForm({ onClose, onSuccess, initialData }) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-gray-900/60 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative card w-full max-w-2xl shadow-modal max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-[#1b2e4a]">
-          <h2 className="text-lg font-bold text-gray-900 dark:text-white">{initialData ? 'Edit Task' : 'Create New Task'}</h2>
-          <button onClick={onClose} className="p-1 rounded hover:bg-gray-100 dark:hover:bg-[#17263d]">
-            <XMarkIcon className="w-5 h-5 text-gray-500" />
-          </button>
+    <Modal
+      open
+      onCancel={onClose}
+      title={initialData ? 'Edit Task' : 'Create New Task'}
+      width={680}
+      footer={null}
+      destroyOnHidden
+    >
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" style={{ marginTop: 8 }}>
+        <div>
+          <label className="label">Task Title *</label>
+          <Input {...register('title', { required: 'Title is required' })} placeholder="Describe the task clearly..." size="large" status={errors.title ? 'error' : ''} />
+          {errors.title && <p className="text-red-500 text-xs mt-1">{errors.title.message}</p>}
         </div>
 
-        <form onSubmit={handleSubmit(onSubmit)} className="p-6 space-y-4">
+        <div>
+          <label className="label">Description</label>
+          <Input.TextArea {...register('description')} rows={3} placeholder="Detailed instructions..." />
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="label">Task Title *</label>
-            <input {...register('title', { required: 'Title is required' })} className="input" placeholder="Describe the task clearly..." />
-            {errors.title && <p className="text-red-500 text-xs mt-1">{errors.title.message}</p>}
+            <label className="label">Department *</label>
+            <Controller
+              name="department"
+              control={control}
+              rules={{ required: 'Required' }}
+              render={({ field }) => (
+                <Select
+                  {...field}
+                  placeholder="Select Department"
+                  style={{ width: '100%' }}
+                  size="large"
+                  status={errors.department ? 'error' : ''}
+                  options={DEPARTMENTS.map((d) => ({ label: d, value: d }))}
+                />
+              )}
+            />
+            {errors.department && <p className="text-red-500 text-xs mt-1">{errors.department.message}</p>}
           </div>
-
           <div>
-            <label className="label">Description</label>
-            <textarea {...register('description')} rows={3} className="input resize-none" placeholder="Detailed instructions..." />
+            <label className="label">Task Type</label>
+            <Controller
+              name="taskType"
+              control={control}
+              render={({ field }) => (
+                <Select
+                  {...field}
+                  allowClear
+                  placeholder="Select Type"
+                  style={{ width: '100%' }}
+                  size="large"
+                  options={TASK_TYPES.map((t) => ({ label: t, value: t }))}
+                />
+              )}
+            />
           </div>
+        </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="label">Department *</label>
-              <select {...register('department', { required: 'Required' })} className="input">
-                <option value="">Select Department</option>
-                {DEPARTMENTS.map((d) => <option key={d} value={d}>{d}</option>)}
-              </select>
-              {errors.department && <p className="text-red-500 text-xs mt-1">{errors.department.message}</p>}
-            </div>
-            <div>
-              <label className="label">Task Type</label>
-              <select {...register('taskType')} className="input">
-                <option value="">Select Type</option>
-                {TASK_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
-              </select>
-            </div>
+        {['Marketplace'].includes(dept) && (
+          <div>
+            <label className="label">Platform</label>
+            <Controller
+              name="platform"
+              control={control}
+              render={({ field }) => (
+                <Select
+                  {...field}
+                  allowClear
+                  placeholder="Select Platform"
+                  style={{ width: '100%' }}
+                  size="large"
+                  options={PLATFORMS.map((p) => ({ label: p, value: p }))}
+                />
+              )}
+            />
           </div>
+        )}
 
-          {['Marketplace'].includes(dept) && (
-            <div>
-              <label className="label">Platform</label>
-              <select {...register('platform')} className="input">
-                <option value="">Select Platform</option>
-                {PLATFORMS.map((p) => <option key={p} value={p}>{p}</option>)}
-              </select>
-            </div>
-          )}
-
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="label">Assign To *</label>
-              <select {...register('assignedTo', { required: 'Required' })} className="input">
-                <option value="">Select Employee</option>
-                {users.map((u) => <option key={u._id} value={u._id}>{u.firstName} {u.lastName} ({u.department})</option>)}
-              </select>
-              {errors.assignedTo && <p className="text-red-500 text-xs mt-1">{errors.assignedTo.message}</p>}
-            </div>
-            <div>
-              <label className="label">Priority *</label>
-              <select {...register('priority', { required: 'Required' })} className="input">
-                {PRIORITIES.map((p) => <option key={p} value={p}>{p.charAt(0).toUpperCase() + p.slice(1)}</option>)}
-              </select>
-            </div>
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="label">Assign To *</label>
+            <Controller
+              name="assignedTo"
+              control={control}
+              rules={{ required: 'Required' }}
+              render={({ field }) => (
+                <Select
+                  {...field}
+                  showSearch
+                  placeholder="Select Employee"
+                  style={{ width: '100%' }}
+                  size="large"
+                  status={errors.assignedTo ? 'error' : ''}
+                  optionFilterProp="label"
+                  options={users.map((u) => ({ label: `${u.firstName} ${u.lastName} (${u.department})`, value: u._id }))}
+                />
+              )}
+            />
+            {errors.assignedTo && <p className="text-red-500 text-xs mt-1">{errors.assignedTo.message}</p>}
           </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="label">Due Date *</label>
-              <input type="datetime-local" {...register('dueDate', { required: 'Required' })} className="input" />
-              {errors.dueDate && <p className="text-red-500 text-xs mt-1">{errors.dueDate.message}</p>}
-            </div>
-            <div>
-              <label className="label">Estimated Hours</label>
-              <input type="number" min="0" step="0.5" {...register('estimatedHours')} className="input" placeholder="e.g. 4" />
-            </div>
+          <div>
+            <label className="label">Priority *</label>
+            <Controller
+              name="priority"
+              control={control}
+              rules={{ required: 'Required' }}
+              defaultValue="medium"
+              render={({ field }) => (
+                <Select
+                  {...field}
+                  style={{ width: '100%' }}
+                  size="large"
+                  options={PRIORITIES.map((p) => ({ label: p.charAt(0).toUpperCase() + p.slice(1), value: p }))}
+                />
+              )}
+            />
           </div>
+        </div>
 
-          <div className="flex gap-3 pt-2">
-            <button type="button" onClick={onClose} className="btn-secondary flex-1 justify-center">Cancel</button>
-            <button type="submit" disabled={loading} className="btn-primary flex-1 justify-center">
-              {loading ? 'Saving...' : (initialData ? 'Update Task' : 'Create Task')}
-            </button>
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="label">Due Date *</label>
+            <Controller
+              name="dueDate"
+              control={control}
+              rules={{ required: 'Required' }}
+              render={({ field }) => (
+                <DatePicker
+                  {...field}
+                  showTime
+                  format="DD MMM YYYY, hh:mm A"
+                  style={{ width: '100%' }}
+                  size="large"
+                  status={errors.dueDate ? 'error' : ''}
+                />
+              )}
+            />
+            {errors.dueDate && <p className="text-red-500 text-xs mt-1">{errors.dueDate.message}</p>}
           </div>
-        </form>
-      </div>
-    </div>
+          <div>
+            <label className="label">Estimated Hours</label>
+            <Input type="number" min="0" step="0.5" {...register('estimatedHours')} placeholder="e.g. 4" size="large" />
+          </div>
+        </div>
+
+        <div className="flex gap-3 pt-2">
+          <Button onClick={onClose} block size="large">Cancel</Button>
+          <Button type="primary" htmlType="submit" loading={loading} block size="large">
+            {initialData ? 'Update Task' : 'Create Task'}
+          </Button>
+        </div>
+      </form>
+    </Modal>
   );
 }

@@ -1,7 +1,11 @@
 ﻿import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { PlusIcon, BoltIcon, MagnifyingGlassIcon, FunnelIcon, ChevronDownIcon, TrashIcon, ExclamationTriangleIcon, SparklesIcon, UserCircleIcon, XMarkIcon, ArrowPathIcon, ArrowDownTrayIcon, CloudArrowUpIcon, DocumentArrowDownIcon, CheckCircleIcon, ClockIcon, ArchiveBoxIcon } from '@heroicons/react/24/outline';
+import {
+  Plus, Zap, Search, Filter, ChevronDown, Trash2, AlertTriangle, Sparkles,
+  UserCircle, X, Loader2, UploadCloud, FileDown, CheckCircle2, Archive,
+  ClipboardList, RefreshCw, CircleCheck, XCircle, Pencil, Clock,
+} from 'lucide-react';
 import api from '../../api/axios';
 import { useAuthStore } from '../../store/useAuthStore';
 import { useSocketStore } from '../../store/useSocketStore';
@@ -15,15 +19,15 @@ import ConfirmDialog from '../../components/common/ConfirmDialog';
 const ROLE_LEVEL = { super_admin: 7, chairman: 6, founder: 5, admin: 4, manager: 3, team_lead: 2, member: 1 };
 
 const DEPT_COLORS = {
-  Marketing:           { bg: 'bg-purple-600',  light: 'bg-purple-50',  border: 'border-purple-200', text: 'text-purple-700',  ring: 'ring-purple-200'  },
-  Marketplace:         { bg: 'bg-orange-500',  light: 'bg-orange-50',  border: 'border-orange-200', text: 'text-orange-700',  ring: 'ring-orange-200'  },
-  Sales:               { bg: 'bg-green-600',   light: 'bg-green-50',   border: 'border-green-200',  text: 'text-green-700',   ring: 'ring-green-200'   },
-  Production:          { bg: 'bg-blue-600',    light: 'bg-blue-50',    border: 'border-blue-200',   text: 'text-blue-700',    ring: 'ring-blue-200'    },
-  'R&D':               { bg: 'bg-cyan-600',    light: 'bg-cyan-50',    border: 'border-cyan-200',   text: 'text-cyan-700',    ring: 'ring-cyan-200'    },
-  Operations:          { bg: 'bg-indigo-600',  light: 'bg-indigo-50',  border: 'border-indigo-200', text: 'text-indigo-700',  ring: 'ring-indigo-200'  },
-  'Accounts & Finance':{ bg: 'bg-emerald-600', light: 'bg-emerald-50', border: 'border-emerald-200',text: 'text-emerald-700', ring: 'ring-emerald-200' },
-  HR:                  { bg: 'bg-amber-500',   light: 'bg-amber-50',   border: 'border-amber-200',  text: 'text-amber-700',   ring: 'ring-amber-200'   },
-  Management:          { bg: 'bg-slate-700',   light: 'bg-slate-50',   border: 'border-slate-200',  text: 'text-slate-700',   ring: 'ring-slate-200'   },
+  Marketing:           { bg: 'bg-purple-600',  light: 'bg-purple-50',  border: 'border-purple-200', text: 'text-purple-700',  ring: 'ring-purple-200',  dot: 'bg-purple-500'  },
+  Marketplace:         { bg: 'bg-orange-500',  light: 'bg-orange-50',  border: 'border-orange-200', text: 'text-orange-700',  ring: 'ring-orange-200',  dot: 'bg-orange-500'  },
+  Sales:               { bg: 'bg-green-600',   light: 'bg-green-50',   border: 'border-green-200',  text: 'text-green-700',   ring: 'ring-green-200',   dot: 'bg-green-500'   },
+  Production:          { bg: 'bg-blue-600',    light: 'bg-blue-50',    border: 'border-blue-200',   text: 'text-blue-700',    ring: 'ring-blue-200',    dot: 'bg-blue-500'    },
+  'R&D':               { bg: 'bg-cyan-600',    light: 'bg-cyan-50',    border: 'border-cyan-200',   text: 'text-cyan-700',    ring: 'ring-cyan-200',    dot: 'bg-cyan-500'    },
+  Operations:          { bg: 'bg-indigo-600',  light: 'bg-indigo-50',  border: 'border-indigo-200', text: 'text-indigo-700',  ring: 'ring-indigo-200',  dot: 'bg-indigo-500'  },
+  'Accounts & Finance':{ bg: 'bg-emerald-600', light: 'bg-emerald-50', border: 'border-emerald-200',text: 'text-emerald-700', ring: 'ring-emerald-200', dot: 'bg-emerald-500' },
+  HR:                  { bg: 'bg-amber-500',   light: 'bg-amber-50',   border: 'border-amber-200',  text: 'text-amber-700',   ring: 'ring-amber-200',   dot: 'bg-amber-500'   },
+  Management:          { bg: 'bg-slate-700',   light: 'bg-slate-50',   border: 'border-slate-200',  text: 'text-slate-700',   ring: 'ring-slate-200',   dot: 'bg-slate-500'   },
 };
 
 const STATUS_STYLE = {
@@ -110,7 +114,7 @@ function TaskCard({ task, colors, canDelete, onDelete }) {
         {/* Chevron toggle */}
         <div className="mt-0.5 w-4 flex-shrink-0" onClick={() => hasSubs && setOpen(p => !p)}>
           {hasSubs
-            ? <ChevronDownIcon className={clsx('w-4 h-4 text-gray-400 transition-transform duration-200', !open && '-rotate-90')} />
+            ? <ChevronDown className={clsx('w-4 h-4 text-gray-400 transition-transform duration-200', !open && '-rotate-90')} />
             : <span className="w-4 block" />}
         </div>
 
@@ -161,7 +165,7 @@ function TaskCard({ task, colors, canDelete, onDelete }) {
                     title="Delete task"
                     className="p-1 rounded-md bg-red-50 text-red-400 hover:bg-red-100 hover:text-red-600 transition-colors"
                   >
-                    <TrashIcon className="w-3.5 h-3.5" />
+                    <Trash2 className="w-3.5 h-3.5" />
                   </button>
                 </>
               )}
@@ -178,8 +182,8 @@ function TaskCard({ task, colors, canDelete, onDelete }) {
               <div className="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center text-[9px] text-gray-400">—</div>
             )}
             {due && (
-              <span className={clsx('text-[10px] font-medium', isOverdue ? 'text-red-500' : 'text-gray-400')}>
-                {isOverdue ? '⚠ ' : ''}{format(due, 'dd MMM')}
+              <span className={clsx('text-[10px] font-medium flex items-center gap-0.5', isOverdue ? 'text-red-500' : 'text-gray-400')}>
+                {isOverdue && <AlertTriangle className="w-2.5 h-2.5" />}{format(due, 'dd MMM')}
               </span>
             )}
             <span className={clsx('text-[10px] font-bold ml-auto', isDone ? 'text-green-600' : 'text-gray-600')}>{progress}%</span>
@@ -226,8 +230,8 @@ function TaskCard({ task, colors, canDelete, onDelete }) {
                       <div className="w-5 h-5 rounded-full bg-gray-100 flex items-center justify-center text-[8px] text-gray-400">—</div>
                     )}
                     {sDue && (
-                      <span className={clsx('text-[9px]', sOverdue ? 'text-red-500' : 'text-gray-400')}>
-                        {sOverdue ? '⚠ ' : ''}{format(sDue, 'dd MMM')}
+                      <span className={clsx('text-[9px] flex items-center gap-0.5', sOverdue ? 'text-red-500' : 'text-gray-400')}>
+                        {sOverdue && <AlertTriangle className="w-2 h-2" />}{format(sDue, 'dd MMM')}
                       </span>
                     )}
                     <div className="flex-1 flex items-center gap-1.5 ml-auto">
@@ -276,28 +280,31 @@ function DeptColumn({ dept, tasks, colors, canDelete, onDelete }) {
   const overdue = tasks.filter(t => t.dueDate && isPast(new Date(t.dueDate)) && t.status !== 'Completed' && t.status !== 'Achieved').length;
 
   return (
-    <div className="flex-shrink-0 w-72 flex flex-col rounded-2xl overflow-hidden border border-gray-200 dark:border-[#1b2e4a] shadow-sm">
-      {/* Column header */}
-      <div className={clsx('px-4 pt-3.5 pb-3', colors.bg)}>
-        <div className="flex items-center justify-between mb-1">
-          <h3 className="text-sm font-bold text-white truncate">{dept}</h3>
-          <span className="text-xs font-bold text-white/90 bg-white/20 px-2 py-0.5 rounded-full">
+    <div className="flex-shrink-0 w-72 flex flex-col rounded-2xl overflow-hidden border border-gray-200 dark:border-[#1b2e4a] shadow-sm bg-white dark:bg-[#0f172a]">
+      {/* Column header — minimal white surface, colored accent dot only */}
+      <div className="px-4 pt-3.5 pb-3 border-b border-gray-100 dark:border-[#1b2e4a]">
+        <div className="flex items-center justify-between mb-1.5">
+          <h3 className="text-sm font-bold text-gray-800 dark:text-white truncate flex items-center gap-2">
+            <span className={clsx('w-2 h-2 rounded-full flex-shrink-0', colors.dot)} />
+            {dept}
+          </h3>
+          <span className="text-xs font-bold text-gray-600 dark:text-gray-300 bg-gray-100 dark:bg-[#1b2e4a] px-2 py-0.5 rounded-full">
             {tasks.length}
           </span>
         </div>
         <div className="flex items-center gap-3 text-[10px]">
-          <span className="text-white/75">✅ {completed} done</span>
-          {inProgress > 0 && <span className="text-yellow-200 font-semibold">🔄 {inProgress} active</span>}
-          {overdue > 0 && <span className="text-red-200 font-semibold">⚠ {overdue} overdue</span>}
+          <span className="text-gray-400 flex items-center gap-1"><CheckCircle2 className="w-3 h-3 text-green-500" /> {completed} done</span>
+          {inProgress > 0 && <span className="text-amber-600 font-semibold flex items-center gap-1"><RefreshCw className="w-3 h-3" /> {inProgress} active</span>}
+          {overdue > 0 && <span className="text-red-500 font-semibold flex items-center gap-1"><AlertTriangle className="w-3 h-3" /> {overdue} overdue</span>}
         </div>
       </div>
 
       {/* Task list */}
-      <div className={clsx('flex-1 overflow-y-auto p-3 space-y-2.5', colors.light)} style={{ maxHeight: 'calc(100vh - 260px)' }}>
+      <div className="flex-1 overflow-y-auto p-3 space-y-2.5 bg-gray-50/60 dark:bg-[#0f172a]" style={{ maxHeight: 'calc(100vh - 260px)' }}>
         {tasks.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-10">
             <div className={clsx('w-10 h-10 rounded-xl flex items-center justify-center mb-2', colors.light)}>
-              <BoltIcon className={clsx('w-5 h-5', colors.text)} />
+              <Zap className={clsx('w-5 h-5', colors.text)} />
             </div>
             <p className="text-xs text-gray-400 font-medium">No tasks yet</p>
           </div>
@@ -414,7 +421,7 @@ function DeptHubModal({ onClose, onCreated, prefill }) {
       <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
         <div className="bg-white dark:bg-[#070c17] rounded-2xl shadow-2xl w-full max-w-sm p-8 flex flex-col items-center text-center gap-4">
           <div className="w-16 h-16 rounded-full bg-amber-100 flex items-center justify-center">
-            <SparklesIcon className="w-8 h-8 text-amber-500" />
+            <Sparkles className="w-8 h-8 text-amber-500" />
           </div>
           <div>
             <h3 className="font-bold text-gray-900 dark:text-white text-base">Sent for Admin Approval</h3>
@@ -436,7 +443,7 @@ function DeptHubModal({ onClose, onCreated, prefill }) {
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-[#1b2e4a] flex-shrink-0">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-brand-500 to-purple-600 flex items-center justify-center shadow">
-              <SparklesIcon className="w-5 h-5 text-white" />
+              <Sparkles className="w-5 h-5 text-white" />
             </div>
             <div>
               <div className="flex items-center gap-2">
@@ -448,7 +455,7 @@ function DeptHubModal({ onClose, onCreated, prefill }) {
               {step === 2 && <p className="text-[10px] text-gray-400 truncate max-w-xs">"{main.title}"</p>}
             </div>
           </div>
-          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400"><XMarkIcon className="w-5 h-5" /></button>
+          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400"><X className="w-5 h-5" /></button>
         </div>
 
         {/* Step dots */}
@@ -497,7 +504,7 @@ function DeptHubModal({ onClose, onCreated, prefill }) {
             <div className="flex gap-3 px-6 py-4 border-t border-gray-200 dark:border-[#1b2e4a] flex-shrink-0">
               <button onClick={onClose} className="btn-secondary">Cancel</button>
               <button onClick={goNext} disabled={!main.title.trim()} className="btn-primary flex-1 flex items-center justify-center gap-2">
-                Next: Assign Departments <ChevronDownIcon className="w-4 h-4 -rotate-90" />
+                Next: Assign Departments <ChevronDown className="w-4 h-4 -rotate-90" />
               </button>
             </div>
           </>
@@ -513,7 +520,7 @@ function DeptHubModal({ onClose, onCreated, prefill }) {
                     <span className="text-xs font-bold text-gray-600">{row.dept || `Department ${idx + 1}`}</span>
                     {rows.length > 1 && (
                       <button onClick={() => removeRow(row.id)} className="p-1 rounded hover:bg-red-50 text-gray-300 hover:text-red-400">
-                        <XMarkIcon className="w-3.5 h-3.5" />
+                        <X className="w-3.5 h-3.5" />
                       </button>
                     )}
                   </div>
@@ -549,20 +556,20 @@ function DeptHubModal({ onClose, onCreated, prefill }) {
               ))}
               <button onClick={addRow}
                 className="w-full py-3 rounded-2xl border-2 border-dashed border-gray-200 text-xs font-semibold text-gray-400 hover:border-brand-400 hover:text-brand-500 flex items-center justify-center gap-2 transition-colors">
-                <PlusIcon className="w-4 h-4" /> Add Another Department
+                <Plus className="w-4 h-4" /> Add Another Department
               </button>
             </div>
             <div className="flex gap-3 px-6 py-4 border-t border-gray-200 dark:border-[#1b2e4a] flex-shrink-0">
               <button onClick={() => { setStep(1); setErr(''); }} className="btn-secondary flex items-center gap-1">
-                <ChevronDownIcon className="w-4 h-4 rotate-90" /> Back
+                <ChevronDown className="w-4 h-4 rotate-90" /> Back
               </button>
               <button onClick={submit} disabled={busy || !rows.some(r => r.dept && r.taskTitle.trim())}
                 className="btn-primary flex-1 flex items-center justify-center gap-2">
                 {busy
-                  ? <><ArrowPathIcon className="w-4 h-4 animate-spin" /> Submitting…</>
+                  ? <><Loader2 className="w-4 h-4 animate-spin" /> Submitting…</>
                   : isManagerRole
-                    ? <><SparklesIcon className="w-4 h-4" /> Submit for Admin Approval</>
-                    : <><SparklesIcon className="w-4 h-4" /> Create Project</>}
+                    ? <><Sparkles className="w-4 h-4" /> Submit for Admin Approval</>
+                    : <><Sparkles className="w-4 h-4" /> Create Project</>}
               </button>
             </div>
           </>
@@ -622,7 +629,7 @@ function IndividualModal({ onClose, onCreated }) {
       <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
         <div className="bg-white dark:bg-[#070c17] rounded-2xl shadow-2xl w-full max-w-sm p-8 flex flex-col items-center text-center gap-4">
           <div className="w-16 h-16 rounded-full bg-blue-100 flex items-center justify-center">
-            <UserCircleIcon className="w-8 h-8 text-blue-500" />
+            <UserCircle className="w-8 h-8 text-blue-500" />
           </div>
           <div>
             <h3 className="font-bold text-gray-900 dark:text-white text-base">Sent for Admin Approval</h3>
@@ -644,14 +651,14 @@ function IndividualModal({ onClose, onCreated }) {
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-[#1b2e4a]">
           <div className="flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-xl bg-green-500 flex items-center justify-center">
-              <UserCircleIcon className="w-4 h-4 text-white" />
+              <UserCircle className="w-4 h-4 text-white" />
             </div>
             <div>
               <h2 className="font-bold text-gray-900 dark:text-white text-sm">New Individual Task</h2>
               <p className="text-[10px] text-gray-400">Assign to a specific member</p>
             </div>
           </div>
-          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400"><XMarkIcon className="w-5 h-5" /></button>
+          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400"><X className="w-5 h-5" /></button>
         </div>
         <div className="px-6 py-5 space-y-4">
           {err && <p className="text-xs text-red-600 bg-red-50 border border-red-200 px-3 py-2 rounded-xl">{err}</p>}
@@ -703,7 +710,7 @@ function IndividualModal({ onClose, onCreated }) {
         <div className="flex gap-3 px-6 pb-6">
           <button onClick={onClose} className="btn-secondary flex-1">Cancel</button>
           <button onClick={submit} disabled={busy || !form.title.trim() || !form.department} className="btn-primary flex-1 flex items-center justify-center gap-2">
-            {busy ? <><ArrowPathIcon className="w-4 h-4 animate-spin" /> Creating…</> : <><UserCircleIcon className="w-4 h-4" /> Create</>}
+            {busy ? <><Loader2 className="w-4 h-4 animate-spin" /> Creating…</> : <><UserCircle className="w-4 h-4" /> Create</>}
           </button>
         </div>
       </div>
@@ -778,7 +785,7 @@ function ImportModal({ onClose, onImported }) {
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-[#1b2e4a] flex-shrink-0">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-xl bg-indigo-600 flex items-center justify-center shadow">
-              <CloudArrowUpIcon className="w-5 h-5 text-white" />
+              <UploadCloud className="w-5 h-5 text-white" />
             </div>
             <div>
               <h2 className="font-bold text-gray-900 dark:text-white text-sm">Bulk Task Import</h2>
@@ -786,7 +793,7 @@ function ImportModal({ onClose, onImported }) {
             </div>
           </div>
           <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400">
-            <XMarkIcon className="w-5 h-5" />
+            <X className="w-5 h-5" />
           </button>
         </div>
 
@@ -803,8 +810,8 @@ function ImportModal({ onClose, onImported }) {
               disabled={downloading}
               className="flex items-center gap-1.5 px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-lg transition-colors disabled:opacity-50 flex-shrink-0">
               {downloading
-                ? <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" />
-                : <DocumentArrowDownIcon className="w-3.5 h-3.5" />}
+                ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                : <FileDown className="w-3.5 h-3.5" />}
               {downloading ? 'Downloading…' : 'Download Template'}
             </button>
           </div>
@@ -831,13 +838,13 @@ function ImportModal({ onClose, onImported }) {
                 />
                 {file ? (
                   <>
-                    <CheckCircleIcon className="w-8 h-8 text-green-500 mb-2" />
+                    <CheckCircle2 className="w-8 h-8 text-green-500 mb-2" />
                     <p className="text-sm font-bold text-green-700">{file.name}</p>
                     <p className="text-[10px] text-green-500 mt-1">{(file.size / 1024).toFixed(1)} KB — click to change</p>
                   </>
                 ) : (
                   <>
-                    <CloudArrowUpIcon className="w-8 h-8 text-gray-300 mb-2" />
+                    <UploadCloud className="w-8 h-8 text-gray-300 mb-2" />
                     <p className="text-sm font-semibold text-gray-500">Drag & drop or click to browse</p>
                     <p className="text-[10px] text-gray-400 mt-1">.xlsx or .csv accepted</p>
                   </>
@@ -928,8 +935,8 @@ function ImportModal({ onClose, onImported }) {
                 disabled={!file || importing}
                 className="btn-primary flex-1 flex items-center justify-center gap-2">
                 {importing
-                  ? <><ArrowPathIcon className="w-4 h-4 animate-spin" /> Importing…</>
-                  : <><CloudArrowUpIcon className="w-4 h-4" /> Import Tasks</>}
+                  ? <><Loader2 className="w-4 h-4 animate-spin" /> Importing…</>
+                  : <><UploadCloud className="w-4 h-4" /> Import Tasks</>}
               </button>
             </>
           )}
@@ -1129,7 +1136,7 @@ export default function WorkflowLanding() {
       {/* ── Archived mode banner ── */}
       {showArchived && (
         <div className="flex items-center gap-3 px-4 py-3 bg-indigo-50 border border-indigo-200 rounded-2xl">
-          <ArchiveBoxIcon className="w-4 h-4 text-indigo-500 flex-shrink-0" />
+          <Archive className="w-4 h-4 text-indigo-500 flex-shrink-0" />
           <p className="text-xs font-semibold text-indigo-700 flex-1">Showing archived (completed) tasks. Active tasks are hidden.</p>
           <button onClick={() => setShowArchived(false)} className="text-xs text-indigo-500 hover:text-indigo-700 font-semibold">
             Back to Active
@@ -1144,7 +1151,7 @@ export default function WorkflowLanding() {
           {/* Title */}
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-brand-600 flex items-center justify-center shadow-sm flex-shrink-0">
-              <BoltIcon className="w-5 h-5 text-white" />
+              <Zap className="w-5 h-5 text-white" />
             </div>
             <div>
               <h1 className="text-lg font-bold text-gray-900 dark:text-white leading-tight">Workflow Board</h1>
@@ -1158,7 +1165,7 @@ export default function WorkflowLanding() {
           <div className="flex items-center gap-2 flex-wrap">
             {/* Search */}
             <div className="relative">
-              <MagnifyingGlassIcon className="absolute left-2.5 top-2.5 w-3.5 h-3.5 text-gray-400" />
+              <Search className="absolute left-2.5 top-2.5 w-3.5 h-3.5 text-gray-400" />
               <input
                 value={search}
                 onChange={e => setSearch(e.target.value)}
@@ -1169,7 +1176,7 @@ export default function WorkflowLanding() {
 
             {/* Status filter */}
             <div className="relative">
-              <FunnelIcon className="absolute left-2.5 top-2.5 w-3.5 h-3.5 text-gray-400 pointer-events-none" />
+              <Filter className="absolute left-2.5 top-2.5 w-3.5 h-3.5 text-gray-400 pointer-events-none" />
               <select
                 value={statusFilter}
                 onChange={e => setStatusFilter(e.target.value)}
@@ -1193,7 +1200,7 @@ export default function WorkflowLanding() {
                     : 'border-gray-200 text-gray-500 hover:bg-gray-50',
                 )}
               >
-                <ArchiveBoxIcon className="w-4 h-4" />
+                <Archive className="w-4 h-4" />
                 {showArchived ? 'Archived' : 'Archived'}
               </button>
             )}
@@ -1202,7 +1209,7 @@ export default function WorkflowLanding() {
             {isAdmin && (
               confirmDelAll ? (
                 <div className="flex items-center gap-1.5 bg-red-50 border border-red-200 rounded-xl px-3 py-1.5">
-                  <ExclamationTriangleIcon className="w-3.5 h-3.5 text-red-500 flex-shrink-0" />
+                  <AlertTriangle className="w-3.5 h-3.5 text-red-500 flex-shrink-0" />
                   <span className="text-xs text-red-600 font-semibold whitespace-nowrap">Delete all tasks?</span>
                   <button onClick={handleDeleteAll} disabled={deletingAll}
                     className="text-xs px-2.5 py-1 rounded-lg bg-red-500 hover:bg-red-600 text-white font-bold disabled:opacity-50">
@@ -1216,7 +1223,7 @@ export default function WorkflowLanding() {
               ) : (
                 <button onClick={() => setConfirmDelAll(true)}
                   className="flex items-center gap-1.5 px-3 py-2 border border-red-200 hover:bg-red-50 text-red-400 hover:text-red-600 text-sm font-semibold rounded-xl transition-colors">
-                  <TrashIcon className="w-4 h-4" /> Delete All
+                  <Trash2 className="w-4 h-4" /> Delete All
                 </button>
               )
             )}
@@ -1227,14 +1234,14 @@ export default function WorkflowLanding() {
                 <button onClick={() => setNewTaskOpen(p => !p)}
                   onBlur={() => setTimeout(() => setNewTaskOpen(false), 150)}
                   className="flex items-center gap-2 px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white text-sm font-semibold rounded-xl transition-colors shadow-sm">
-                  <PlusIcon className="w-4 h-4" /> New Task <ChevronDownIcon className={clsx('w-3.5 h-3.5 transition-transform', newTaskOpen && 'rotate-180')} />
+                  <Plus className="w-4 h-4" /> New Task <ChevronDown className={clsx('w-3.5 h-3.5 transition-transform', newTaskOpen && 'rotate-180')} />
                 </button>
                 {newTaskOpen && (
                   <div className="absolute right-0 top-full mt-2 z-50 bg-white dark:bg-[#0f1a2e] rounded-2xl shadow-2xl border border-gray-200 dark:border-[#1b2e4a] overflow-hidden w-56">
                     <button onMouseDown={() => { setShowDeptHub(true); setNewTaskOpen(false); }}
                       className="w-full flex items-start gap-3 px-4 py-3.5 hover:bg-gray-50 dark:hover:bg-[#132035] transition-colors border-b border-gray-100 dark:border-[#1b2e4a]">
                       <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-brand-500 to-purple-600 flex items-center justify-center flex-shrink-0 mt-0.5">
-                        <SparklesIcon className="w-4 h-4 text-white" />
+                        <Sparkles className="w-4 h-4 text-white" />
                       </div>
                       <div className="text-left">
                         <p className="text-sm font-bold text-gray-900 dark:text-white">Dept Hub</p>
@@ -1244,7 +1251,7 @@ export default function WorkflowLanding() {
                     <button onMouseDown={() => { setShowIndividual(true); setNewTaskOpen(false); }}
                       className="w-full flex items-start gap-3 px-4 py-3.5 hover:bg-gray-50 dark:hover:bg-[#132035] transition-colors border-b border-gray-100 dark:border-[#1b2e4a]">
                       <div className="w-8 h-8 rounded-xl bg-green-500 flex items-center justify-center flex-shrink-0 mt-0.5">
-                        <UserCircleIcon className="w-4 h-4 text-white" />
+                        <UserCircle className="w-4 h-4 text-white" />
                       </div>
                       <div className="text-left">
                         <p className="text-sm font-bold text-gray-900 dark:text-white">Individual</p>
@@ -1254,7 +1261,7 @@ export default function WorkflowLanding() {
                     <button onMouseDown={() => { setShowImport(true); setNewTaskOpen(false); }}
                       className="w-full flex items-start gap-3 px-4 py-3.5 hover:bg-gray-50 dark:hover:bg-[#132035] transition-colors">
                       <div className="w-8 h-8 rounded-xl bg-indigo-500 flex items-center justify-center flex-shrink-0 mt-0.5">
-                        <CloudArrowUpIcon className="w-4 h-4 text-white" />
+                        <UploadCloud className="w-4 h-4 text-white" />
                       </div>
                       <div className="text-left">
                         <p className="text-sm font-bold text-gray-900 dark:text-white">Import</p>
@@ -1271,12 +1278,12 @@ export default function WorkflowLanding() {
 
       {/* ── Stats row ── */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <StatCard label="Total Tasks"      value={totalTasks}      color="bg-brand-600"   icon="📋" />
-        <StatCard label="In Progress"      value={inProgressCount} color="bg-yellow-500"  icon="🔄" />
-        <StatCard label="Completed"        value={completedCount}  color="bg-green-500"   icon="✅" />
-        <StatCard label="Pending Approval" value={pendingApproval} color="bg-indigo-500"  icon="⏳" />
+        <StatCard label="Total Tasks"      value={totalTasks}      color="bg-brand-600"   icon={<ClipboardList className="w-4 h-4" />} />
+        <StatCard label="In Progress"      value={inProgressCount} color="bg-yellow-500"  icon={<RefreshCw className="w-4 h-4" />} />
+        <StatCard label="Completed"        value={completedCount}  color="bg-green-500"   icon={<CheckCircle2 className="w-4 h-4" />} />
+        <StatCard label="Pending Approval" value={pendingApproval} color="bg-indigo-500"  icon={<Clock className="w-4 h-4" />} />
         {overdueCount > 0 && (
-          <StatCard label="Overdue"        value={overdueCount}    color="bg-red-500"     icon="⚠️" />
+          <StatCard label="Overdue"        value={overdueCount}    color="bg-red-500"     icon={<AlertTriangle className="w-4 h-4" />} />
         )}
       </div>
 
@@ -1285,7 +1292,7 @@ export default function WorkflowLanding() {
         <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 space-y-3">
           <div className="flex items-center gap-2">
             <div className="w-7 h-7 rounded-lg bg-amber-400 flex items-center justify-center flex-shrink-0">
-              <SparklesIcon className="w-4 h-4 text-white" />
+              <Sparkles className="w-4 h-4 text-white" />
             </div>
             <div>
               <h3 className="text-sm font-bold text-amber-800">Pending Dept Hub Approvals</h3>
@@ -1309,13 +1316,13 @@ export default function WorkflowLanding() {
                     onClick={() => handleHubApprove(hub._id)}
                     disabled={!!hubBusy}
                     className="flex items-center gap-1.5 px-3 py-1.5 bg-green-500 hover:bg-green-600 disabled:opacity-50 text-white text-xs font-bold rounded-lg transition-colors">
-                    {hubBusy === hub._id ? <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" /> : '✓'} Approve
+                    {hubBusy === hub._id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CircleCheck className="w-3.5 h-3.5" />} Approve
                   </button>
                   <button
                     onClick={() => { setRejectModal({ taskId: hub._id, title: hub.title }); setRejectNote(''); }}
                     disabled={!!hubBusy}
                     className="flex items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-red-50 border border-red-200 text-red-500 hover:text-red-600 text-xs font-bold rounded-lg transition-colors disabled:opacity-50">
-                    ✕ Reject
+                    <XCircle className="w-3.5 h-3.5" /> Reject
                   </button>
                 </div>
               </div>
@@ -1329,7 +1336,7 @@ export default function WorkflowLanding() {
         <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4 space-y-3">
           <div className="flex items-center gap-2">
             <div className="w-7 h-7 rounded-lg bg-blue-500 flex items-center justify-center flex-shrink-0">
-              <UserCircleIcon className="w-4 h-4 text-white" />
+              <UserCircle className="w-4 h-4 text-white" />
             </div>
             <div>
               <h3 className="text-sm font-bold text-blue-800">Pending Manager Assignments</h3>
@@ -1356,13 +1363,13 @@ export default function WorkflowLanding() {
                       onClick={() => handleAssignApprove(task._id)}
                       disabled={!!assignBusy}
                       className="flex items-center gap-1.5 px-3 py-1.5 bg-green-500 hover:bg-green-600 disabled:opacity-50 text-white text-xs font-bold rounded-lg transition-colors">
-                      {assignBusy === task._id ? <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" /> : '✓'} Approve
+                      {assignBusy === task._id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CircleCheck className="w-3.5 h-3.5" />} Approve
                     </button>
                     <button
                       onClick={() => { setAssignRejectModal({ taskId: task._id, title: task.title }); setAssignRejectNote(''); }}
                       disabled={!!assignBusy}
                       className="flex items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-red-50 border border-red-200 text-red-500 hover:text-red-600 text-xs font-bold rounded-lg transition-colors disabled:opacity-50">
-                      ✕ Reject
+                      <XCircle className="w-3.5 h-3.5" /> Reject
                     </button>
                   </div>
                 </div>
@@ -1394,7 +1401,7 @@ export default function WorkflowLanding() {
                 onClick={handleAssignReject}
                 disabled={!!assignBusy}
                 className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-red-500 hover:bg-red-600 text-white text-xs font-bold rounded-xl transition-colors disabled:opacity-50">
-                {assignBusy ? <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" /> : null} Reject
+                {assignBusy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : null} Reject
               </button>
             </div>
           </div>
@@ -1423,7 +1430,7 @@ export default function WorkflowLanding() {
                 onClick={handleHubReject}
                 disabled={!!hubBusy}
                 className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-red-500 hover:bg-red-600 text-white text-xs font-bold rounded-xl transition-colors disabled:opacity-50">
-                {hubBusy ? <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" /> : null} Reject Hub
+                {hubBusy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : null} Reject Hub
               </button>
             </div>
           </div>
