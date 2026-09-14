@@ -13,6 +13,10 @@ import { format, isPast } from 'date-fns';
 import { clsx } from 'clsx';
 import CreateTaskModal from '../../components/workflow/CreateTaskModal';
 import ConfirmDialog from '../../components/common/ConfirmDialog';
+import { Button, Drawer, Input, Modal, Select, Space, Steps, Typography, Upload } from 'antd';
+
+const { Title: AntTitle, Text: AntText } = Typography;
+const { TextArea } = Input;
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -416,103 +420,91 @@ function DeptHubModal({ onClose, onCreated, prefill }) {
     }
   };
 
-  if (submitted) {
-    return (
-      <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-        <div className="bg-white dark:bg-[#070c17] rounded-2xl shadow-2xl w-full max-w-sm p-8 flex flex-col items-center text-center gap-4">
+  return (
+    <Drawer
+      open onClose={onClose} width={480} closeIcon={<X size={18} />}
+      title={
+        submitted ? 'Dept Hub Submitted' : (
+          <Space direction="vertical" size={0}>
+            <Space size={8}>
+              <span>{step === 1 ? 'New Cross-Dept Project' : 'Assign to Departments'}</span>
+              <span className="text-[10px] font-bold bg-brand-100 text-brand-600 px-2 py-0.5 rounded-full">Step {step}/2</span>
+            </Space>
+            {step === 2 && <AntText type="secondary" style={{ fontSize: 11 }}>"{main.title}"</AntText>}
+          </Space>
+        )
+      }
+      footer={submitted ? null : (
+        step === 1 ? (
+          <Space style={{ width: '100%', justifyContent: 'flex-end' }}>
+            <Button onClick={onClose}>Cancel</Button>
+            <Button type="primary" onClick={goNext} disabled={!main.title.trim()}>Next: Assign Departments</Button>
+          </Space>
+        ) : (
+          <Space style={{ width: '100%', justifyContent: 'flex-end' }}>
+            <Button onClick={() => { setStep(1); setErr(''); }}>Back</Button>
+            <Button
+              type="primary" loading={busy} onClick={submit}
+              disabled={busy || !rows.some(r => r.dept && r.taskTitle.trim())}
+              icon={<Sparkles size={14} />}
+            >
+              {isManagerRole ? 'Submit for Admin Approval' : 'Create Project'}
+            </Button>
+          </Space>
+        )
+      )}
+    >
+      {submitted ? (
+        <div className="flex flex-col items-center text-center gap-4" style={{ padding: '32px 0' }}>
           <div className="w-16 h-16 rounded-full bg-amber-100 flex items-center justify-center">
             <Sparkles className="w-8 h-8 text-amber-500" />
           </div>
           <div>
-            <h3 className="font-bold text-gray-900 dark:text-white text-base">Sent for Admin Approval</h3>
-            <p className="text-xs text-gray-500 mt-1.5 leading-relaxed">
-              Your Dept Hub <span className="font-semibold text-gray-700">"{main.title}"</span> has been submitted.<br/>
+            <AntTitle level={5} style={{ marginBottom: 4 }}>Sent for Admin Approval</AntTitle>
+            <AntText type="secondary" style={{ fontSize: 12 }}>
+              Your Dept Hub <AntText strong>"{main.title}"</AntText> has been submitted.<br/>
               It will go live once an admin approves it.
-            </p>
+            </AntText>
           </div>
-          <button onClick={() => { onCreated(null); }} className="btn-primary w-full">Done</button>
+          <Button type="primary" block onClick={() => onCreated(null)}>Done</Button>
         </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-      <div className="bg-white dark:bg-[#070c17] rounded-2xl shadow-2xl w-full max-w-xl flex flex-col" style={{ maxHeight: '92vh' }}>
-        {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-[#1b2e4a] flex-shrink-0">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-brand-500 to-purple-600 flex items-center justify-center shadow">
-              <Sparkles className="w-5 h-5 text-white" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h2 className="font-bold text-gray-900 dark:text-white text-sm">
-                  {step === 1 ? 'New Cross-Dept Project' : 'Assign to Departments'}
-                </h2>
-                <span className="text-[10px] font-bold bg-brand-100 text-brand-600 px-2 py-0.5 rounded-full">Step {step}/2</span>
-              </div>
-              {step === 2 && <p className="text-[10px] text-gray-400 truncate max-w-xs">"{main.title}"</p>}
-            </div>
-          </div>
-          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400"><X className="w-5 h-5" /></button>
-        </div>
-
-        {/* Step dots */}
-        <div className="flex-shrink-0 px-6 pt-4">
-          <div className="flex items-center gap-2">
-            <div className={clsx('flex items-center gap-1.5 text-xs font-semibold px-3 py-1 rounded-full', step >= 1 ? 'bg-brand-600 text-white' : 'bg-gray-100 text-gray-400')}>
-              <span className="w-4 h-4 rounded-full border-2 border-white/50 flex items-center justify-center text-[9px]">1</span> Project Details
-            </div>
-            <div className={clsx('h-px flex-1', step >= 2 ? 'bg-brand-400' : 'bg-gray-200')} />
-            <div className={clsx('flex items-center gap-1.5 text-xs font-semibold px-3 py-1 rounded-full', step >= 2 ? 'bg-brand-600 text-white' : 'bg-gray-100 text-gray-400')}>
-              <span className="w-4 h-4 rounded-full border-2 border-white/50 flex items-center justify-center text-[9px]">2</span> Dept Assignments
-            </div>
-          </div>
-        </div>
-
-        {step === 1 ? (
-          <>
-            <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4">
-              {err && <p className="text-xs text-red-600 bg-red-50 border border-red-200 px-3 py-2 rounded-xl">{err}</p>}
+      ) : (
+        <>
+          <Steps
+            size="small" current={step - 1} style={{ marginBottom: 20 }}
+            items={[{ title: 'Project Details' }, { title: 'Dept Assignments' }]}
+          />
+          {step === 1 ? (
+            <Space direction="vertical" style={{ width: '100%' }} size={14}>
+              {err && <AntText type="danger" style={{ fontSize: 12 }}>{err}</AntText>}
               <div>
-                <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1.5">Project Name <span className="text-red-500">*</span></label>
-                <input autoFocus value={main.title} onChange={e => setM('title', e.target.value)}
+                <AntText strong style={{ fontSize: 12, display: 'block', marginBottom: 6 }}>Project Name <AntText type="danger">*</AntText></AntText>
+                <Input autoFocus value={main.title} onChange={e => setM('title', e.target.value)}
                   onKeyDown={e => e.key === 'Enter' && goNext()}
-                  placeholder="e.g. Launch New Soap — 2026"
-                  className="input w-full text-sm font-semibold" />
-                <p className="text-[10px] text-gray-400 mt-1">This project will be split across all departments you assign.</p>
+                  placeholder="e.g. Launch New Soap — 2026" />
+                <AntText type="secondary" style={{ fontSize: 11, display: 'block', marginTop: 4 }}>This project will be split across all departments you assign.</AntText>
               </div>
               <div>
-                <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1.5">Description</label>
-                <textarea value={main.description} onChange={e => setM('description', e.target.value)}
-                  placeholder="Goal of this project…" rows={3} className="input w-full resize-none" />
+                <AntText strong style={{ fontSize: 12, display: 'block', marginBottom: 6 }}>Description</AntText>
+                <TextArea value={main.description} onChange={e => setM('description', e.target.value)}
+                  placeholder="Goal of this project…" rows={3} />
               </div>
-              <div className="grid grid-cols-2 gap-3">
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                 <div>
-                  <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1.5">Priority</label>
-                  <select value={main.priority} onChange={e => setM('priority', e.target.value)} className="input w-full capitalize">
-                    {PRIORITY_OPTS.map(p => <option key={p} value={p} className="capitalize">{p}</option>)}
-                  </select>
+                  <AntText strong style={{ fontSize: 12, display: 'block', marginBottom: 6 }}>Priority</AntText>
+                  <Select style={{ width: '100%' }} value={main.priority} onChange={v => setM('priority', v)}
+                    options={PRIORITY_OPTS.map(p => ({ label: p, value: p }))} />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1.5">Deadline</label>
-                  <input type="date" value={main.dueDate} onChange={e => setM('dueDate', e.target.value)} className="input w-full" />
+                  <AntText strong style={{ fontSize: 12, display: 'block', marginBottom: 6 }}>Deadline</AntText>
+                  <Input type="date" value={main.dueDate} onChange={e => setM('dueDate', e.target.value)} />
                 </div>
               </div>
-            </div>
-            <div className="flex gap-3 px-6 py-4 border-t border-gray-200 dark:border-[#1b2e4a] flex-shrink-0">
-              <button onClick={onClose} className="btn-secondary">Cancel</button>
-              <button onClick={goNext} disabled={!main.title.trim()} className="btn-primary flex-1 flex items-center justify-center gap-2">
-                Next: Assign Departments <ChevronDown className="w-4 h-4 -rotate-90" />
-              </button>
-            </div>
-          </>
-        ) : (
-          <>
-            <div className="flex-1 overflow-y-auto px-6 py-5 space-y-3">
-              {err && <p className="text-xs text-red-600 bg-red-50 border border-red-200 px-3 py-2 rounded-xl">{err}</p>}
-              <p className="text-xs text-gray-500">For each department, set the task and assign the manager who will lead it.</p>
+            </Space>
+          ) : (
+            <Space direction="vertical" style={{ width: '100%' }} size={12}>
+              {err && <AntText type="danger" style={{ fontSize: 12 }}>{err}</AntText>}
+              <AntText type="secondary" style={{ fontSize: 12 }}>For each department, set the task and assign the manager who will lead it.</AntText>
               {rows.map((row, idx) => (
                 <div key={row.id} className={clsx('rounded-2xl border-2 p-4 space-y-3',
                   row.dept ? 'border-brand-200 bg-brand-50/30' : 'border-dashed border-gray-200 bg-white')}>
@@ -527,30 +519,28 @@ function DeptHubModal({ onClose, onCreated, prefill }) {
                   <div className="grid grid-cols-2 gap-2">
                     <div>
                       <label className="block text-[10px] font-bold text-gray-500 mb-1">Department *</label>
-                      <select value={row.dept} onChange={e => updateRow(row.id, 'dept', e.target.value)} className="input w-full text-xs py-1.5">
-                        <option value="">— Select —</option>
-                        {DEPT_NAMES.map(d => <option key={d} value={d}>{d}</option>)}
-                      </select>
+                      <Select
+                        style={{ width: '100%' }} size="small" value={row.dept || undefined} placeholder="— Select —"
+                        onChange={v => updateRow(row.id, 'dept', v)} options={DEPT_NAMES.map(d => ({ label: d, value: d }))}
+                      />
                     </div>
                     <div>
                       <label className="block text-[10px] font-bold text-gray-500 mb-1">Due Date</label>
-                      <input type="date" value={row.dueDate} onChange={e => updateRow(row.id, 'dueDate', e.target.value)} className="input w-full text-xs py-1.5" />
+                      <Input type="date" size="small" value={row.dueDate} onChange={e => updateRow(row.id, 'dueDate', e.target.value)} />
                     </div>
                   </div>
                   <div>
                     <label className="block text-[10px] font-bold text-gray-500 mb-1">Task for this Dept *</label>
-                    <input value={row.taskTitle} onChange={e => updateRow(row.id, 'taskTitle', e.target.value)}
-                      placeholder={row.dept ? `What does ${row.dept} need to do?` : 'Task title…'}
-                      className="input w-full text-xs py-1.5" />
+                    <Input size="small" value={row.taskTitle} onChange={e => updateRow(row.id, 'taskTitle', e.target.value)}
+                      placeholder={row.dept ? `What does ${row.dept} need to do?` : 'Task title…'} />
                   </div>
                   <div>
                     <label className="block text-[10px] font-bold text-gray-500 mb-1">Assign to Manager</label>
-                    <select value={row.managerId} onChange={e => updateRow(row.id, 'managerId', e.target.value)} className="input w-full text-xs py-1.5">
-                      <option value="">— Select manager —</option>
-                      {managersFor(row.dept).map(m => (
-                        <option key={m._id} value={m._id}>{m.firstName} {m.lastName}{m.designation ? ` · ${m.designation}` : ''}</option>
-                      ))}
-                    </select>
+                    <Select
+                      style={{ width: '100%' }} size="small" value={row.managerId || undefined} placeholder="— Select manager —"
+                      onChange={v => updateRow(row.id, 'managerId', v)}
+                      options={managersFor(row.dept).map(m => ({ label: `${m.firstName} ${m.lastName}${m.designation ? ` · ${m.designation}` : ''}`, value: m._id }))}
+                    />
                   </div>
                 </div>
               ))}
@@ -558,24 +548,11 @@ function DeptHubModal({ onClose, onCreated, prefill }) {
                 className="w-full py-3 rounded-2xl border-2 border-dashed border-gray-200 text-xs font-semibold text-gray-400 hover:border-brand-400 hover:text-brand-500 flex items-center justify-center gap-2 transition-colors">
                 <Plus className="w-4 h-4" /> Add Another Department
               </button>
-            </div>
-            <div className="flex gap-3 px-6 py-4 border-t border-gray-200 dark:border-[#1b2e4a] flex-shrink-0">
-              <button onClick={() => { setStep(1); setErr(''); }} className="btn-secondary flex items-center gap-1">
-                <ChevronDown className="w-4 h-4 rotate-90" /> Back
-              </button>
-              <button onClick={submit} disabled={busy || !rows.some(r => r.dept && r.taskTitle.trim())}
-                className="btn-primary flex-1 flex items-center justify-center gap-2">
-                {busy
-                  ? <><Loader2 className="w-4 h-4 animate-spin" /> Submitting…</>
-                  : isManagerRole
-                    ? <><Sparkles className="w-4 h-4" /> Submit for Admin Approval</>
-                    : <><Sparkles className="w-4 h-4" /> Create Project</>}
-              </button>
-            </div>
-          </>
-        )}
-      </div>
-    </div>
+            </Space>
+          )}
+        </>
+      )}
+    </Drawer>
   );
 }
 
@@ -623,98 +600,76 @@ function IndividualModal({ onClose, onCreated }) {
     }
   };
 
-  // Success screen — sent for admin approval
-  if (pendingApproval) {
-    return (
-      <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-        <div className="bg-white dark:bg-[#070c17] rounded-2xl shadow-2xl w-full max-w-sm p-8 flex flex-col items-center text-center gap-4">
+  return (
+    <Drawer
+      open onClose={onClose} width={420} closeIcon={<X size={18} />}
+      title={pendingApproval ? 'Sent for Admin Approval' : 'New Individual Task'}
+      footer={pendingApproval ? null : (
+        <Space style={{ width: '100%', justifyContent: 'flex-end' }}>
+          <Button onClick={onClose}>Cancel</Button>
+          <Button type="primary" loading={busy} disabled={!form.title.trim() || !form.department} onClick={submit} icon={<UserCircle size={14} />}>
+            Create
+          </Button>
+        </Space>
+      )}
+    >
+      {pendingApproval ? (
+        <div className="flex flex-col items-center text-center gap-4" style={{ padding: '32px 0' }}>
           <div className="w-16 h-16 rounded-full bg-blue-100 flex items-center justify-center">
             <UserCircle className="w-8 h-8 text-blue-500" />
           </div>
-          <div>
-            <h3 className="font-bold text-gray-900 dark:text-white text-base">Sent for Admin Approval</h3>
-            <p className="text-xs text-gray-500 mt-1.5 leading-relaxed">
-              You assigned <span className="font-semibold text-gray-700">"{form.title}"</span> to a manager in another department.<br/>
-              An admin will review and approve the assignment.<br/>
-              <span className="text-blue-600 font-medium">The task will appear on the board only after approval.</span>
-            </p>
-          </div>
-          <button onClick={onClose} className="btn-primary w-full">Done</button>
+          <AntText type="secondary" style={{ fontSize: 12, lineHeight: 1.6 }}>
+            You assigned <AntText strong>"{form.title}"</AntText> to a manager in another department.<br/>
+            An admin will review and approve the assignment.<br/>
+            <AntText style={{ color: '#2563eb', fontWeight: 500 }}>The task will appear on the board only after approval.</AntText>
+          </AntText>
+          <Button type="primary" block onClick={onClose}>Done</Button>
         </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-      <div className="bg-white dark:bg-[#070c17] rounded-2xl shadow-2xl w-full max-w-md">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-[#1b2e4a]">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-green-500 flex items-center justify-center">
-              <UserCircle className="w-4 h-4 text-white" />
-            </div>
-            <div>
-              <h2 className="font-bold text-gray-900 dark:text-white text-sm">New Individual Task</h2>
-              <p className="text-[10px] text-gray-400">Assign to a specific member</p>
-            </div>
-          </div>
-          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400"><X className="w-5 h-5" /></button>
-        </div>
-        <div className="px-6 py-5 space-y-4">
-          {err && <p className="text-xs text-red-600 bg-red-50 border border-red-200 px-3 py-2 rounded-xl">{err}</p>}
+      ) : (
+        <Space direction="vertical" style={{ width: '100%' }} size={14}>
+          {err && <AntText type="danger" style={{ fontSize: 12 }}>{err}</AntText>}
           <div>
-            <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1.5">Task Title <span className="text-red-500">*</span></label>
-            <input autoFocus value={form.title} onChange={e => set('title', e.target.value)}
+            <AntText strong style={{ fontSize: 12, display: 'block', marginBottom: 6 }}>Task Title <AntText type="danger">*</AntText></AntText>
+            <Input autoFocus value={form.title} onChange={e => set('title', e.target.value)}
               onKeyDown={e => e.key === 'Enter' && submit()}
-              placeholder="e.g. Design packaging label"
-              className="input w-full" />
+              placeholder="e.g. Design packaging label" />
           </div>
           <div>
-            <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1.5">Description</label>
-            <textarea value={form.description} onChange={e => set('description', e.target.value)}
-              placeholder="Task details and instructions…" rows={2} className="input w-full resize-none" />
+            <AntText strong style={{ fontSize: 12, display: 'block', marginBottom: 6 }}>Description</AntText>
+            <TextArea value={form.description} onChange={e => set('description', e.target.value)}
+              placeholder="Task details and instructions…" rows={2} />
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
             <div>
-              <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1.5">Department <span className="text-red-500">*</span></label>
-              <select value={form.department} onChange={e => { set('department', e.target.value); set('assignedTo', ''); }} className="input w-full">
-                <option value="">— Select —</option>
-                {DEPT_NAMES.map(d => <option key={d} value={d}>{d}</option>)}
-              </select>
+              <AntText strong style={{ fontSize: 12, display: 'block', marginBottom: 6 }}>Department <AntText type="danger">*</AntText></AntText>
+              <Select
+                style={{ width: '100%' }} value={form.department || undefined} placeholder="— Select —"
+                onChange={v => { set('department', v); set('assignedTo', ''); }} options={DEPT_NAMES.map(d => ({ label: d, value: d }))}
+              />
             </div>
             <div>
-              <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1.5">Member</label>
-              <select value={form.assignedTo} onChange={e => set('assignedTo', e.target.value)} className="input w-full" disabled={!form.department}>
-                <option value="">— Unassigned —</option>
-                {members.map(m => (
-                  <option key={m._id} value={m._id}>
-                    {m.firstName} {m.lastName}{m.role === 'manager' ? ' (Manager)' : m.role === 'team_lead' ? ' (Lead)' : ''}
-                  </option>
-                ))}
-              </select>
+              <AntText strong style={{ fontSize: 12, display: 'block', marginBottom: 6 }}>Member</AntText>
+              <Select
+                style={{ width: '100%' }} value={form.assignedTo || undefined} placeholder="— Unassigned —" disabled={!form.department}
+                onChange={v => set('assignedTo', v)}
+                options={members.map(m => ({ label: `${m.firstName} ${m.lastName}${m.role === 'manager' ? ' (Manager)' : m.role === 'team_lead' ? ' (Lead)' : ''}`, value: m._id }))}
+              />
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
             <div>
-              <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1.5">Priority</label>
-              <select value={form.priority} onChange={e => set('priority', e.target.value)} className="input w-full capitalize">
-                {PRIORITY_OPTS.map(p => <option key={p} value={p} className="capitalize">{p}</option>)}
-              </select>
+              <AntText strong style={{ fontSize: 12, display: 'block', marginBottom: 6 }}>Priority</AntText>
+              <Select style={{ width: '100%' }} value={form.priority} onChange={v => set('priority', v)}
+                options={PRIORITY_OPTS.map(p => ({ label: p, value: p }))} />
             </div>
             <div>
-              <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1.5">Due Date</label>
-              <input type="date" value={form.dueDate} onChange={e => set('dueDate', e.target.value)} className="input w-full" />
+              <AntText strong style={{ fontSize: 12, display: 'block', marginBottom: 6 }}>Due Date</AntText>
+              <Input type="date" value={form.dueDate} onChange={e => set('dueDate', e.target.value)} />
             </div>
           </div>
-        </div>
-        <div className="flex gap-3 px-6 pb-6">
-          <button onClick={onClose} className="btn-secondary flex-1">Cancel</button>
-          <button onClick={submit} disabled={busy || !form.title.trim() || !form.department} className="btn-primary flex-1 flex items-center justify-center gap-2">
-            {busy ? <><Loader2 className="w-4 h-4 animate-spin" /> Creating…</> : <><UserCircle className="w-4 h-4" /> Create</>}
-          </button>
-        </div>
-      </div>
-    </div>
+        </Space>
+      )}
+    </Drawer>
   );
 }
 
@@ -778,26 +733,28 @@ function ImportModal({ onClose, onImported }) {
   const statusColor = { created: 'text-green-600 bg-green-50', pending_hub_approval: 'text-amber-600 bg-amber-50', pending_assignment: 'text-blue-600 bg-blue-50', failed: 'text-red-600 bg-red-50' };
 
   return (
-    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-      <div className="bg-white dark:bg-[#070c17] rounded-2xl shadow-2xl w-full max-w-lg flex flex-col" style={{ maxHeight: '90vh' }}>
-
-        {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-[#1b2e4a] flex-shrink-0">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-indigo-600 flex items-center justify-center shadow">
-              <UploadCloud className="w-5 h-5 text-white" />
-            </div>
-            <div>
-              <h2 className="font-bold text-gray-900 dark:text-white text-sm">Bulk Task Import</h2>
-              <p className="text-[10px] text-gray-400">Upload .xlsx or .csv — max 200 rows</p>
-            </div>
-          </div>
-          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400">
-            <X className="w-5 h-5" />
-          </button>
-        </div>
-
-        <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4">
+    <Drawer
+      open onClose={onClose} width={520} closeIcon={<X size={18} />}
+      title={
+        <Space direction="vertical" size={0}>
+          <span>Bulk Task Import</span>
+          <AntText type="secondary" style={{ fontSize: 11, fontWeight: 400 }}>Upload .xlsx or .csv — max 200 rows</AntText>
+        </Space>
+      }
+      footer={
+        result ? (
+          <Button type="primary" block onClick={onClose}>Done</Button>
+        ) : (
+          <Space style={{ width: '100%', justifyContent: 'flex-end' }}>
+            <Button onClick={onClose}>Cancel</Button>
+            <Button type="primary" loading={importing} disabled={!file || importing} onClick={submit} icon={<UploadCloud size={14} />}>
+              Import Tasks
+            </Button>
+          </Space>
+        )
+      }
+    >
+        <div className="space-y-4">
 
           {/* Download template */}
           <div className="flex items-center justify-between bg-indigo-50 border border-indigo-200 rounded-xl px-4 py-3">
@@ -922,27 +879,7 @@ function ImportModal({ onClose, onImported }) {
             </div>
           )}
         </div>
-
-        {/* Footer */}
-        <div className="flex gap-3 px-6 py-4 border-t border-gray-200 dark:border-[#1b2e4a] flex-shrink-0">
-          {result ? (
-            <button onClick={onClose} className="btn-primary flex-1">Done</button>
-          ) : (
-            <>
-              <button onClick={onClose} className="btn-secondary">Cancel</button>
-              <button
-                onClick={submit}
-                disabled={!file || importing}
-                className="btn-primary flex-1 flex items-center justify-center gap-2">
-                {importing
-                  ? <><Loader2 className="w-4 h-4 animate-spin" /> Importing…</>
-                  : <><UploadCloud className="w-4 h-4" /> Import Tasks</>}
-              </button>
-            </>
-          )}
-        </div>
-      </div>
-    </div>
+    </Drawer>
   );
 }
 
@@ -1380,62 +1317,60 @@ export default function WorkflowLanding() {
       )}
 
       {/* ── Reject assignment modal ── */}
-      {assignRejectModal && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-[#070c17] rounded-2xl shadow-2xl w-full max-w-sm p-6 space-y-4">
-            <h3 className="font-bold text-gray-900 dark:text-white text-sm">Reject Assignment</h3>
-            <p className="text-xs text-gray-500">Rejecting assignment for <span className="font-semibold text-gray-700">"{assignRejectModal.title}"</span>. The requesting manager will be notified.</p>
-            <div>
-              <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1.5">Reason (optional)</label>
-              <textarea
-                value={assignRejectNote}
-                onChange={e => setAssignRejectNote(e.target.value)}
-                placeholder="Why is this assignment not approved?"
-                rows={3}
-                className="input w-full resize-none text-xs"
-              />
-            </div>
-            <div className="flex gap-3">
-              <button onClick={() => setAssignRejectModal(null)} className="btn-secondary flex-1 text-xs">Cancel</button>
-              <button
-                onClick={handleAssignReject}
-                disabled={!!assignBusy}
-                className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-red-500 hover:bg-red-600 text-white text-xs font-bold rounded-xl transition-colors disabled:opacity-50">
-                {assignBusy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : null} Reject
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <Modal
+        title="Reject Assignment"
+        open={!!assignRejectModal}
+        onCancel={() => setAssignRejectModal(null)}
+        footer={
+          <Space>
+            <Button onClick={() => setAssignRejectModal(null)}>Cancel</Button>
+            <Button danger type="primary" loading={!!assignBusy} onClick={handleAssignReject}>Reject</Button>
+          </Space>
+        }
+      >
+        {assignRejectModal && (
+          <>
+            <AntText type="secondary" style={{ fontSize: 13, display: 'block', marginBottom: 12 }}>
+              Rejecting assignment for <AntText strong>"{assignRejectModal.title}"</AntText>. The requesting manager will be notified.
+            </AntText>
+            <AntText strong style={{ fontSize: 12, display: 'block', marginBottom: 6 }}>Reason (optional)</AntText>
+            <TextArea
+              value={assignRejectNote}
+              onChange={e => setAssignRejectNote(e.target.value)}
+              placeholder="Why is this assignment not approved?"
+              rows={3}
+            />
+          </>
+        )}
+      </Modal>
 
       {/* ── Reject hub modal ── */}
-      {rejectModal && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-[#070c17] rounded-2xl shadow-2xl w-full max-w-sm p-6 space-y-4">
-            <h3 className="font-bold text-gray-900 dark:text-white text-sm">Reject Dept Hub</h3>
-            <p className="text-xs text-gray-500">Rejecting <span className="font-semibold text-gray-700">"{rejectModal.title}"</span>. The manager will be notified.</p>
-            <div>
-              <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1.5">Reason (optional)</label>
-              <textarea
-                value={rejectNote}
-                onChange={e => setRejectNote(e.target.value)}
-                placeholder="Tell the manager why this hub was rejected…"
-                rows={3}
-                className="input w-full resize-none text-xs"
-              />
-            </div>
-            <div className="flex gap-3">
-              <button onClick={() => setRejectModal(null)} className="btn-secondary flex-1 text-xs">Cancel</button>
-              <button
-                onClick={handleHubReject}
-                disabled={!!hubBusy}
-                className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-red-500 hover:bg-red-600 text-white text-xs font-bold rounded-xl transition-colors disabled:opacity-50">
-                {hubBusy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : null} Reject Hub
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <Modal
+        title="Reject Dept Hub"
+        open={!!rejectModal}
+        onCancel={() => setRejectModal(null)}
+        footer={
+          <Space>
+            <Button onClick={() => setRejectModal(null)}>Cancel</Button>
+            <Button danger type="primary" loading={!!hubBusy} onClick={handleHubReject}>Reject Hub</Button>
+          </Space>
+        }
+      >
+        {rejectModal && (
+          <>
+            <AntText type="secondary" style={{ fontSize: 13, display: 'block', marginBottom: 12 }}>
+              Rejecting <AntText strong>"{rejectModal.title}"</AntText>. The manager will be notified.
+            </AntText>
+            <AntText strong style={{ fontSize: 12, display: 'block', marginBottom: 6 }}>Reason (optional)</AntText>
+            <TextArea
+              value={rejectNote}
+              onChange={e => setRejectNote(e.target.value)}
+              placeholder="Tell the manager why this hub was rejected…"
+              rows={3}
+            />
+          </>
+        )}
+      </Modal>
 
       {/* ── Board ── */}
       {isLoading ? (

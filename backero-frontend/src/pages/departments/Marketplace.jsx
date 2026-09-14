@@ -7,9 +7,10 @@ import api from '../../api/axios';
 import toast from 'react-hot-toast';
 import { useSocketStore } from '../../store/useSocketStore';
 import {
-  ExclamationTriangleIcon, CheckCircleIcon, ChartBarIcon,
-  ArrowDownTrayIcon, BoltIcon, ArrowPathIcon,
-} from '@heroicons/react/24/outline';
+  TriangleAlert, CheckCircle2, BarChart3, Download, Zap, RefreshCw,
+  Star, ClipboardPaste, X,
+} from 'lucide-react';
+import { Button, Drawer, Space } from 'antd';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -953,17 +954,17 @@ const PLATFORM_PLAN_CONFIG = {
     evalAlerts: (kpi) => {
       const a = [];
       const cvr = parseFloat(kpi.cvr), acos = parseFloat(kpi.acos);
-      if (!isNaN(cvr)  && cvr < 4  && kpi.cvr)  a.push({ level: 'red',   text: `⛔ STOP-LOSS RULE 1: CVR ${cvr}% — below 4%. Stop all listing/ad changes. Fix content FIRST.` });
-      if (!isNaN(acos) && acos > 40 && kpi.acos) a.push({ level: 'red',   text: `⛔ STOP-LOSS RULE 2: ACOS ${acos}% — above 40%. If 5 consecutive days → pause campaign immediately.` });
-      if (!isNaN(cvr)  && cvr < 8  && cvr >= 4 && kpi.cvr) a.push({ level: 'amber', text: `⚠️ CVR WARNING ${cvr}%: Below 8% — monitor closely. If drops below 4% for 2 days → Stop-Loss Rule 1 fires.` });
-      if (!isNaN(acos) && acos >= 30 && acos <= 40 && kpi.acos) a.push({ level: 'amber', text: `⚠️ ACOS WARNING ${acos}%: Approaching 40% danger zone. Monitor closely.` });
+      if (!isNaN(cvr)  && cvr < 4  && kpi.cvr)  a.push({ level: 'red',   text: `STOP-LOSS RULE 1: CVR ${cvr}% — below 4%. Stop all listing/ad changes. Fix content FIRST.` });
+      if (!isNaN(acos) && acos > 40 && kpi.acos) a.push({ level: 'red',   text: `STOP-LOSS RULE 2: ACOS ${acos}% — above 40%. If 5 consecutive days → pause campaign immediately.` });
+      if (!isNaN(cvr)  && cvr < 8  && cvr >= 4 && kpi.cvr) a.push({ level: 'amber', text: `CVR WARNING ${cvr}%: Below 8% — monitor closely. If drops below 4% for 2 days → Stop-Loss Rule 1 fires.` });
+      if (!isNaN(acos) && acos >= 30 && acos <= 40 && kpi.acos) a.push({ level: 'amber', text: `ACOS WARNING ${acos}%: Approaching 40% danger zone. Monitor closely.` });
       return a;
     },
     evalGood: (kpi) => {
       const g = [];
       const acos = parseFloat(kpi.acos), cvr = parseFloat(kpi.cvr);
-      if (!isNaN(acos) && acos < 20 && kpi.acos) g.push(`💰 ACOS ${acos}% — excellent! Eligible for budget increase on this campaign.`);
-      if (!isNaN(cvr)  && cvr >= 10 && kpi.cvr)  g.push(`🚀 CVR ${cvr}% — strong! Scale budget on winning campaigns.`);
+      if (!isNaN(acos) && acos < 20 && kpi.acos) g.push(`ACOS ${acos}% — excellent! Eligible for budget increase on this campaign.`);
+      if (!isNaN(cvr)  && cvr >= 10 && kpi.cvr)  g.push(`CVR ${cvr}% — strong! Scale budget on winning campaigns.`);
       return g;
     },
     inputColor: (key, kpi) => {
@@ -996,17 +997,17 @@ const PLATFORM_PLAN_CONFIG = {
     evalAlerts: (kpi) => {
       const a = [];
       const cvr = parseFloat(kpi.cvr), acos = parseFloat(kpi.acos);
-      if (!isNaN(cvr)  && cvr < 1.5 && kpi.cvr)  a.push({ level: 'red',   text: `⛔ STOP-LOSS RULE 2: CVR ${cvr}% — below 1.5%. Stop all image/ad changes. Fix listing content FIRST.` });
-      if (!isNaN(acos) && acos > 35 && kpi.acos)  a.push({ level: 'red',   text: `⛔ STOP-LOSS RULE 1: ACOS ${acos}% — above 35%. If 3 consecutive days → PAUSE immediately.` });
-      if (!isNaN(cvr)  && cvr < 3   && cvr >= 1.5 && kpi.cvr) a.push({ level: 'amber', text: `⚠️ CVR WARNING ${cvr}%: Below 3% — below target. Monitor closely.` });
-      if (!isNaN(acos) && acos > 25 && acos <= 35 && kpi.acos) a.push({ level: 'amber', text: `⚠️ ACOS WARNING ${acos}%: Approaching 35% danger zone. Monitor closely.` });
+      if (!isNaN(cvr)  && cvr < 1.5 && kpi.cvr)  a.push({ level: 'red',   text: `STOP-LOSS RULE 2: CVR ${cvr}% — below 1.5%. Stop all image/ad changes. Fix listing content FIRST.` });
+      if (!isNaN(acos) && acos > 35 && kpi.acos)  a.push({ level: 'red',   text: `STOP-LOSS RULE 1: ACOS ${acos}% — above 35%. If 3 consecutive days → PAUSE immediately.` });
+      if (!isNaN(cvr)  && cvr < 3   && cvr >= 1.5 && kpi.cvr) a.push({ level: 'amber', text: `CVR WARNING ${cvr}%: Below 3% — below target. Monitor closely.` });
+      if (!isNaN(acos) && acos > 25 && acos <= 35 && kpi.acos) a.push({ level: 'amber', text: `ACOS WARNING ${acos}%: Approaching 35% danger zone. Monitor closely.` });
       return a;
     },
     evalGood: (kpi) => {
       const g = [];
       const acos = parseFloat(kpi.acos), cvr = parseFloat(kpi.cvr);
-      if (!isNaN(acos) && acos < 20 && kpi.acos) g.push(`💰 ACOS ${acos}% — efficient! Eligible to increase ad budget 25%.`);
-      if (!isNaN(cvr)  && cvr >= 10 && kpi.cvr)  g.push(`🚀 CVR ${cvr}% — Hero SKU strong! Scale bid +10-15%.`);
+      if (!isNaN(acos) && acos < 20 && kpi.acos) g.push(`ACOS ${acos}% — efficient! Eligible to increase ad budget 25%.`);
+      if (!isNaN(cvr)  && cvr >= 10 && kpi.cvr)  g.push(`CVR ${cvr}% — Hero SKU strong! Scale bid +10-15%.`);
       return g;
     },
     inputColor: (key, kpi) => {
@@ -1043,18 +1044,18 @@ const PLATFORM_PLAN_CONFIG = {
     evalAlerts: (kpi) => {
       const a = [];
       const sq = parseFloat(kpi.styleQuotient), ret = parseFloat(kpi.returnRate), rat = parseFloat(kpi.rating);
-      if (!isNaN(sq)  && sq < 60   && kpi.styleQuotient) a.push({ level: 'red',   text: `⛔ STYLE QUOTIENT DANGER ${sq}: Emergency listing upgrade required.` });
-      if (!isNaN(sq)  && sq < 70   && kpi.styleQuotient) a.push({ level: 'amber', text: `⚠️ STYLE QUOTIENT WARNING ${sq}: Below 70 — add model shots and lifestyle images.` });
-      if (!isNaN(ret) && ret > 35  && kpi.returnRate)    a.push({ level: 'red',   text: `⛔ RETURN DANGER ${ret}%: Pause ads on this style, fix size chart immediately.` });
-      if (!isNaN(ret) && ret > 25  && ret <= 35 && kpi.returnRate) a.push({ level: 'amber', text: `⚠️ RETURN WARNING ${ret}%: Review size accuracy and product claims.` });
-      if (!isNaN(rat) && rat < 3.5 && kpi.rating)        a.push({ level: 'amber', text: `⚠️ RATING WARNING ${rat}: Reply to all negative reviews with resolution.` });
+      if (!isNaN(sq)  && sq < 60   && kpi.styleQuotient) a.push({ level: 'red',   text: `STYLE QUOTIENT DANGER ${sq}: Emergency listing upgrade required.` });
+      if (!isNaN(sq)  && sq < 70   && kpi.styleQuotient) a.push({ level: 'amber', text: `STYLE QUOTIENT WARNING ${sq}: Below 70 — add model shots and lifestyle images.` });
+      if (!isNaN(ret) && ret > 35  && kpi.returnRate)    a.push({ level: 'red',   text: `RETURN DANGER ${ret}%: Pause ads on this style, fix size chart immediately.` });
+      if (!isNaN(ret) && ret > 25  && ret <= 35 && kpi.returnRate) a.push({ level: 'amber', text: `RETURN WARNING ${ret}%: Review size accuracy and product claims.` });
+      if (!isNaN(rat) && rat < 3.5 && kpi.rating)        a.push({ level: 'amber', text: `RATING WARNING ${rat}: Reply to all negative reviews with resolution.` });
       return a;
     },
     evalGood: (kpi) => {
       const g = [];
       const sq = parseFloat(kpi.styleQuotient), cvr = parseFloat(kpi.cvr);
-      if (!isNaN(sq)  && sq >= 85)  g.push(`✨ Style Quotient ${sq} — Apply for Myntra editorial feature!`);
-      if (!isNaN(cvr) && cvr >= 12) g.push(`🚀 CVR ${cvr}% — Scale ad budget +25% on this style!`);
+      if (!isNaN(sq)  && sq >= 85)  g.push(`Style Quotient ${sq} — Apply for Myntra editorial feature!`);
+      if (!isNaN(cvr) && cvr >= 12) g.push(`CVR ${cvr}% — Scale ad budget +25% on this style!`);
       return g;
     },
     inputColor: (key, kpi) => {
@@ -1089,15 +1090,15 @@ const PLATFORM_PLAN_CONFIG = {
     evalAlerts: (kpi) => {
       const a = [];
       const sla = parseFloat(kpi.sla), rat = parseFloat(kpi.storeRating), ret = parseFloat(kpi.returnRate);
-      if (!isNaN(sla) && sla < 90  && kpi.sla)         a.push({ level: 'red',   text: `⛔ SLA DANGER ${sla}%: Fix dispatch process immediately — account at risk.` });
-      if (!isNaN(rat) && rat < 3.5 && kpi.storeRating) a.push({ level: 'red',   text: `⛔ STORE RATING DANGER ${rat}: Emergency review — audit delivery and quality.` });
-      if (!isNaN(ret) && ret > 10  && kpi.returnRate)  a.push({ level: 'amber', text: `⚠️ RETURN WARNING ${ret}%: Audit packaging quality and listing accuracy.` });
+      if (!isNaN(sla) && sla < 90  && kpi.sla)         a.push({ level: 'red',   text: `SLA DANGER ${sla}%: Fix dispatch process immediately — account at risk.` });
+      if (!isNaN(rat) && rat < 3.5 && kpi.storeRating) a.push({ level: 'red',   text: `STORE RATING DANGER ${rat}: Emergency review — audit delivery and quality.` });
+      if (!isNaN(ret) && ret > 10  && kpi.returnRate)  a.push({ level: 'amber', text: `RETURN WARNING ${ret}%: Audit packaging quality and listing accuracy.` });
       return a;
     },
     evalGood: (kpi) => {
       const g = [];
       const sla = parseFloat(kpi.sla), rat = parseFloat(kpi.storeRating);
-      if (!isNaN(sla) && sla >= 99) g.push(`🚀 SLA ${sla}% — Eligible for JioMart Priority Seller badge!`);
+      if (!isNaN(sla) && sla >= 99) g.push(`SLA ${sla}% — Eligible for JioMart Priority Seller badge!`);
       if (!isNaN(rat) && rat >= 4.5)g.push(`⭐ Store Rating ${rat} — Apply for JioMart Featured Slot!`);
       return g;
     },
@@ -1134,12 +1135,12 @@ const PLATFORM_PLAN_CONFIG = {
       const ctr = parseFloat(kpi.ctr), ret = parseFloat(kpi.returnRate), aov = parseFloat(kpi.aov);
       const spend = parseFloat(kpi.adSpend), rev = parseFloat(kpi.adRevenue);
       const roas = (!isNaN(spend) && !isNaN(rev) && spend > 0) ? rev / spend : NaN;
-      if (!isNaN(ctr) && ctr < 0.4  && kpi.ctr)        a.push({ level: 'red',   text: `⛔ STOP-LOSS RULE 3: CTR ${ctr}% — below 0.4% for 3 days → reduce bid 20% AND change main image.` });
-      if (!isNaN(ret) && ret > 15   && kpi.returnRate)  a.push({ level: 'red',   text: `⛔ STOP-LOSS RULE 5: Return rate ${ret}% — above 15%. Check reasons. Fix images/packaging/description.` });
-      if (!isNaN(roas) && roas < 1.5 && kpi.adSpend)   a.push({ level: 'red',   text: `⛔ STOP-LOSS RULE 2: ROAS ${roas.toFixed(2)}× — below 1.5×. If 5 consecutive days → PAUSE immediately.` });
-      if (!isNaN(ctr) && ctr < 0.8  && ctr >= 0.4 && kpi.ctr) a.push({ level: 'amber', text: `⚠️ CTR YELLOW ZONE ${ctr}%: 0.4-0.8% — improve main image. Target ≥0.8%.` });
-      if (!isNaN(ret) && ret > 12   && ret <= 15 && kpi.returnRate) a.push({ level: 'amber', text: `⚠️ RETURN YELLOW ZONE ${ret}%: 12-15% — audit return reasons, fix within 48h.` });
-      if (!isNaN(aov) && aov < 175  && kpi.aov)        a.push({ level: 'amber', text: `⚠️ AOV LOW ₹${aov}: Below ₹175. Push bundles in main images. Mention combo in first bullet.` });
+      if (!isNaN(ctr) && ctr < 0.4  && kpi.ctr)        a.push({ level: 'red',   text: `STOP-LOSS RULE 3: CTR ${ctr}% — below 0.4% for 3 days → reduce bid 20% AND change main image.` });
+      if (!isNaN(ret) && ret > 15   && kpi.returnRate)  a.push({ level: 'red',   text: `STOP-LOSS RULE 5: Return rate ${ret}% — above 15%. Check reasons. Fix images/packaging/description.` });
+      if (!isNaN(roas) && roas < 1.5 && kpi.adSpend)   a.push({ level: 'red',   text: `STOP-LOSS RULE 2: ROAS ${roas.toFixed(2)}× — below 1.5×. If 5 consecutive days → PAUSE immediately.` });
+      if (!isNaN(ctr) && ctr < 0.8  && ctr >= 0.4 && kpi.ctr) a.push({ level: 'amber', text: `CTR YELLOW ZONE ${ctr}%: 0.4-0.8% — improve main image. Target ≥0.8%.` });
+      if (!isNaN(ret) && ret > 12   && ret <= 15 && kpi.returnRate) a.push({ level: 'amber', text: `RETURN YELLOW ZONE ${ret}%: 12-15% — audit return reasons, fix within 48h.` });
+      if (!isNaN(aov) && aov < 175  && kpi.aov)        a.push({ level: 'amber', text: `AOV LOW ₹${aov}: Below ₹175. Push bundles in main images. Mention combo in first bullet.` });
       return a;
     },
     evalGood: (kpi) => {
@@ -1147,9 +1148,9 @@ const PLATFORM_PLAN_CONFIG = {
       const ctr = parseFloat(kpi.ctr), aov = parseFloat(kpi.aov);
       const spend = parseFloat(kpi.adSpend), rev = parseFloat(kpi.adRevenue);
       const roas = (!isNaN(spend) && !isNaN(rev) && spend > 0) ? rev / spend : NaN;
-      if (!isNaN(roas) && roas >= 3)  g.push(`🚀 ROAS ${roas.toFixed(2)}× — increase ad budget 25%! Execute Wednesday.`);
-      if (!isNaN(ctr)  && ctr >= 0.8) g.push(`🎯 CTR ${ctr}% — green zone! Maintain current image and keep ad running.`);
-      if (!isNaN(aov)  && aov >= 250) g.push(`💰 AOV ₹${aov} — green zone! Bundles are working.`);
+      if (!isNaN(roas) && roas >= 3)  g.push(`ROAS ${roas.toFixed(2)}× — increase ad budget 25%! Execute Wednesday.`);
+      if (!isNaN(ctr)  && ctr >= 0.8) g.push(`CTR ${ctr}% — green zone! Maintain current image and keep ad running.`);
+      if (!isNaN(aov)  && aov >= 250) g.push(`AOV ₹${aov} — green zone! Bundles are working.`);
       return g;
     },
     inputColor: (key, kpi) => {
@@ -1176,14 +1177,14 @@ function evalStopLoss(kpi) {
   const us   = parseFloat(kpi.unitSession);
   const acos = parseFloat(kpi.acos);
   if (!isNaN(us) && us < 4 && kpi.unitSession) {
-    alerts.push({ level: 'red', text: `⛔ STOP-LOSS RULE 1: Unit Session % ${us}% — below 4%. STOP all image and ad changes. Fix listing content FIRST. (2 consecutive days triggers Rule 1)` });
+    alerts.push({ level: 'red', text: `STOP-LOSS RULE 1: Unit Session % ${us}% — below 4%. STOP all image and ad changes. Fix listing content FIRST. (2 consecutive days triggers Rule 1)` });
   } else if (!isNaN(us) && us < 8 && kpi.unitSession) {
-    alerts.push({ level: 'amber', text: `⚠️ Unit Session % ${us}%: Below 8% — watch closely. If it drops below 4% for 2 days, Stop-Loss Rule 1 fires.` });
+    alerts.push({ level: 'amber', text: `Unit Session % ${us}%: Below 8% — watch closely. If it drops below 4% for 2 days, Stop-Loss Rule 1 fires.` });
   }
   if (!isNaN(acos) && acos > 40 && kpi.acos) {
-    alerts.push({ level: 'red', text: `⛔ STOP-LOSS RULE 2: ACOS ${acos}% — above 40%. If this continues for 5 consecutive days → PAUSE the campaign immediately. No exceptions.` });
+    alerts.push({ level: 'red', text: `STOP-LOSS RULE 2: ACOS ${acos}% — above 40%. If this continues for 5 consecutive days → PAUSE the campaign immediately. No exceptions.` });
   } else if (!isNaN(acos) && acos >= 30 && kpi.acos) {
-    alerts.push({ level: 'amber', text: `⚠️ ACOS ${acos}%: Approaching 40% danger zone. Monitor closely.` });
+    alerts.push({ level: 'amber', text: `ACOS ${acos}%: Approaching 40% danger zone. Monitor closely.` });
   }
   return alerts;
 }
@@ -1192,8 +1193,8 @@ function evalTriggers(kpi) {
   const good = [];
   const us   = parseFloat(kpi.unitSession);
   const acos = parseFloat(kpi.acos);
-  if (!isNaN(us)   && us >= 10 && kpi.unitSession) good.push(`🚀 Unit Session % ${us}% — strong CVR! Scale budget on winning campaigns.`);
-  if (!isNaN(acos) && acos < 20 && kpi.acos)       good.push(`💰 ACOS ${acos}% — excellent efficiency! Eligible for budget increase on this campaign.`);
+  if (!isNaN(us)   && us >= 10 && kpi.unitSession) good.push(`Unit Session % ${us}% — strong CVR! Scale budget on winning campaigns.`);
+  if (!isNaN(acos) && acos < 20 && kpi.acos)       good.push(`ACOS ${acos}% — excellent efficiency! Eligible for budget increase on this campaign.`);
   return good;
 }
 
@@ -1216,7 +1217,7 @@ function PlatformCard({ name, tasks, onSelect, active }) {
           <p className="text-xs font-bold text-gray-900">{name}</p>
           <p className="text-[10px] text-gray-400">{total} task{total !== 1 ? 's' : ''}</p>
         </div>
-        {overdue > 0 && <span className="text-[10px] font-bold text-red-600 bg-red-50 border border-red-100 px-1.5 py-0.5 rounded-full">{overdue} ⚠</span>}
+        {overdue > 0 && <span className="text-[10px] font-bold text-red-600 bg-red-50 border border-red-100 px-1.5 py-0.5 rounded-full inline-flex items-center gap-0.5">{overdue}<TriangleAlert size={9} /></span>}
       </div>
       {members.length > 0 && (
         <div className="flex gap-1 mb-2 flex-wrap">
@@ -1302,7 +1303,7 @@ function OverviewTab({ allTasks, tasksLoading, navigate }) {
         <div className="bg-white rounded-2xl border border-gray-200 p-5">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
-              <BoltIcon className="w-4 h-4 text-orange-500" />
+              <Zap className="w-4 h-4 text-orange-500" />
               <h3 className="font-bold text-gray-900 text-sm">{activePlatform ? `${activePlatform} Tasks` : 'All Marketplace Tasks'}</h3>
               <span className="text-[10px] text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">{displayTasks.length}</span>
             </div>
@@ -1311,7 +1312,7 @@ function OverviewTab({ allTasks, tasksLoading, navigate }) {
           {tasksLoading ? (
             <div className="space-y-2">{[1,2,3].map(i => <div key={i} className="h-14 bg-gray-100 rounded-xl animate-pulse" />)}</div>
           ) : displayTasks.length === 0 ? (
-            <div className="text-center py-10 text-gray-400"><ChartBarIcon className="w-10 h-10 mx-auto mb-3 opacity-20" /><p className="text-sm font-medium text-gray-500">No {activePlatform ? `${activePlatform} ` : ''}tasks yet</p><p className="text-xs mt-1">Create tasks in Workflow Builder → assign to Marketplace</p></div>
+            <div className="text-center py-10 text-gray-400"><BarChart3 className="w-10 h-10 mx-auto mb-3 opacity-20" /><p className="text-sm font-medium text-gray-500">No {activePlatform ? `${activePlatform} ` : ''}tasks yet</p><p className="text-xs mt-1">Create tasks in Workflow Builder → assign to Marketplace</p></div>
           ) : (
             <div className="space-y-1.5 max-h-80 overflow-y-auto">{displayTasks.map(task => <TaskRow key={task._id} task={task} navigate={navigate} />)}</div>
           )}
@@ -1321,14 +1322,14 @@ function OverviewTab({ allTasks, tasksLoading, navigate }) {
         <div className="bg-white rounded-2xl border border-gray-200 p-5">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
-              <ChartBarIcon className="w-4 h-4 text-orange-500" />
+              <BarChart3 className="w-4 h-4 text-orange-500" />
               <h3 className="font-bold text-gray-900 text-sm">Platform Task Breakdown</h3>
             </div>
             <button
               onClick={() => navigate('/workflow')}
               className="flex items-center gap-1.5 text-xs font-semibold text-orange-600 hover:text-orange-700 px-2.5 py-1.5 rounded-lg hover:bg-orange-50 transition-colors border border-orange-200"
             >
-              <BoltIcon className="w-3.5 h-3.5" />
+              <Zap className="w-3.5 h-3.5" />
               Assign in Workflow Builder
             </button>
           </div>
@@ -1857,61 +1858,58 @@ function PlanTab({ platform = 'Amazon' }) {
         {saveMutation.isSuccess && <span className="text-[10px] text-green-600 whitespace-nowrap">✓ Saved</span>}
         <button onClick={downloadTemplate}
           className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold border border-gray-200 bg-white text-gray-600 rounded-xl hover:bg-gray-50 whitespace-nowrap transition-colors">
-          <ArrowDownTrayIcon className="w-3.5 h-3.5" /> HTML Template
+          <Download className="w-3.5 h-3.5" /> HTML Template
         </button>
         <button onClick={() => fileInputRef.current?.click()} disabled={importing}
           className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-white rounded-xl whitespace-nowrap transition-colors disabled:opacity-50"
           style={{ background: platColor }}>
-          {importing ? <ArrowPathIcon className="w-3.5 h-3.5 animate-spin" /> : <ArrowDownTrayIcon className="w-3.5 h-3.5 rotate-180" />}
+          {importing ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5 rotate-180" />}
           {importing ? 'Importing…' : 'Import File'}
         </button>
         <button onClick={() => setShowPasteModal(true)} disabled={importing}
           className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold border-2 rounded-xl whitespace-nowrap transition-colors disabled:opacity-50"
           style={{ borderColor: platColor, color: platColor }}>
-          📋 Paste HTML
+          <ClipboardPaste size={13} />Paste HTML
         </button>
         <input ref={fileInputRef} type="file" accept=".html,.htm" className="hidden" onChange={handleImport} />
       </div>
 
-      {/* Paste HTML Modal */}
-      {showPasteModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl flex flex-col" style={{ maxHeight: '80vh' }}>
-            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
-              <div>
-                <p className="text-sm font-bold text-gray-900">📋 Paste HTML Plan</p>
-                <p className="text-[10px] text-gray-400 mt-0.5">Open your downloaded HTML template, select all (Ctrl+A), copy (Ctrl+C), then paste below</p>
-              </div>
-              <button onClick={() => { setShowPasteModal(false); setPasteHtml(''); }}
-                className="text-gray-400 hover:text-gray-600 text-lg font-bold leading-none">✕</button>
-            </div>
-            <div className="flex-1 overflow-hidden p-4">
-              <textarea
-                value={pasteHtml}
-                onChange={e => setPasteHtml(e.target.value)}
-                placeholder="Paste the full HTML content of your plan template here…"
-                className="w-full h-64 text-xs border border-gray-200 rounded-xl px-3 py-2.5 resize-none focus:outline-none focus:ring-2 font-mono"
-                style={{ focusRingColor: platColor }}
-                autoFocus
-              />
-              {pasteHtml && (
-                <p className="text-[10px] text-gray-400 mt-1">{pasteHtml.length.toLocaleString()} characters pasted</p>
-              )}
-            </div>
-            <div className="flex gap-2 px-5 py-4 border-t border-gray-100">
-              <button onClick={() => { setShowPasteModal(false); setPasteHtml(''); }}
-                className="flex-1 px-4 py-2.5 border border-gray-200 text-gray-600 text-xs font-bold rounded-xl hover:bg-gray-50 transition-colors">
-                Cancel
-              </button>
-              <button onClick={handlePasteImport} disabled={importing || !pasteHtml.trim()}
-                className="flex-1 px-4 py-2.5 text-white text-xs font-bold rounded-xl transition-colors disabled:opacity-50"
-                style={{ background: platColor }}>
-                {importing ? <span className="flex items-center justify-center gap-1.5"><ArrowPathIcon className="w-3.5 h-3.5 animate-spin" /> Importing…</span> : 'Import from Paste'}
-              </button>
-            </div>
+      {/* Paste HTML Drawer */}
+      <Drawer
+        open={showPasteModal}
+        onClose={() => { setShowPasteModal(false); setPasteHtml(''); }}
+        width={520}
+        closeIcon={<X size={18} />}
+        title={
+          <div>
+            <div className="flex items-center gap-1.5"><ClipboardPaste size={14} />Paste HTML Plan</div>
+            <p className="text-[10px] text-gray-400 mt-0.5 font-normal">Open your downloaded HTML template, select all (Ctrl+A), copy (Ctrl+C), then paste below</p>
           </div>
-        </div>
-      )}
+        }
+        footer={
+          <Space style={{ width: '100%', justifyContent: 'flex-end' }}>
+            <Button onClick={() => { setShowPasteModal(false); setPasteHtml(''); }}>Cancel</Button>
+            <Button
+              type="primary" loading={importing} disabled={importing || !pasteHtml.trim()} onClick={handlePasteImport}
+              style={{ background: platColor, borderColor: platColor }}
+            >
+              Import from Paste
+            </Button>
+          </Space>
+        }
+      >
+        <textarea
+          value={pasteHtml}
+          onChange={e => setPasteHtml(e.target.value)}
+          placeholder="Paste the full HTML content of your plan template here…"
+          className="w-full h-64 text-xs border border-gray-200 rounded-xl px-3 py-2.5 resize-none focus:outline-none focus:ring-2 font-mono"
+          style={{ focusRingColor: platColor }}
+          autoFocus
+        />
+        {pasteHtml && (
+          <p className="text-[10px] text-gray-400 mt-1">{pasteHtml.length.toLocaleString()} characters pasted</p>
+        )}
+      </Drawer>
 
       {/* Main content */}
       <div className="space-y-4">
@@ -1921,12 +1919,12 @@ function PlanTab({ platform = 'Amazon' }) {
           <div className="space-y-2">
             {stopLoss.map((a, i) => (
               <div key={i} className={clsx('rounded-xl px-4 py-2.5 text-sm font-semibold flex items-start gap-2', a.level === 'red' ? 'bg-red-50 border border-red-200 text-red-700' : 'bg-amber-50 border border-amber-200 text-amber-700')}>
-                <ExclamationTriangleIcon className="w-4 h-4 mt-0.5 flex-shrink-0" />{a.text}
+                <TriangleAlert className="w-4 h-4 mt-0.5 flex-shrink-0" />{a.text}
               </div>
             ))}
             {triggers.map((t, i) => (
               <div key={i} className="rounded-xl px-4 py-2.5 text-sm font-semibold flex items-start gap-2 bg-green-50 border border-green-200 text-green-700">
-                <CheckCircleIcon className="w-4 h-4 mt-0.5 flex-shrink-0" />{t}
+                <CheckCircle2 className="w-4 h-4 mt-0.5 flex-shrink-0" />{t}
               </div>
             ))}
           </div>
@@ -1942,7 +1940,7 @@ function PlanTab({ platform = 'Amazon' }) {
               </div>
               <p className="text-sm text-gray-500 mb-2">{week.desc}</p>
               <div className="flex items-start gap-2 bg-red-50 border border-red-200 rounded-xl px-3 py-2">
-                <span className="text-red-500 text-xs font-black mt-0.5 flex-shrink-0">⚡ NON-NEGOTIABLE:</span>
+                <span className="text-red-500 text-xs font-black mt-0.5 flex-shrink-0 inline-flex items-center gap-1"><Zap size={12} />NON-NEGOTIABLE:</span>
                 <span className="text-xs font-semibold text-red-700">{week.nonNeg}</span>
               </div>
             </div>
@@ -2045,7 +2043,7 @@ function PlanTab({ platform = 'Amazon' }) {
 
             {/* Daily constants */}
             <div className="rounded-2xl p-4 border" style={{ background: platColor + '0d', borderColor: platColor + '30' }}>
-              <p className="text-xs font-bold mb-3" style={{ color: platColor }}>🔄 Daily Constants (Every Day)</p>
+              <p className="text-xs font-bold mb-3 flex items-center gap-1.5" style={{ color: platColor }}><RefreshCw size={13} />Daily Constants (Every Day)</p>
               <div className="space-y-2">
                 {cfg.recurringTasks.map(t => (
                   <div key={t.id} onClick={() => toggleTask(t.id)}
@@ -2066,7 +2064,7 @@ function PlanTab({ platform = 'Amazon' }) {
 
             {/* Must complete */}
             <div className="bg-orange-50 border border-orange-200 rounded-2xl p-4">
-              <p className="text-xs font-bold text-orange-700 mb-3">✅ Must Complete Before EOD</p>
+              <p className="text-xs font-bold text-orange-700 mb-3 flex items-center gap-1.5"><CheckCircle2 size={13} />Must Complete Before EOD</p>
               <div className="space-y-1.5">
                 {mustItems.map((item, i) => (
                   <div key={i} className="flex items-start gap-2 text-xs text-orange-800">
@@ -2079,7 +2077,7 @@ function PlanTab({ platform = 'Amazon' }) {
 
             {/* Notes */}
             <div className="bg-white rounded-2xl border border-gray-200 p-4">
-              <p className="text-xs font-bold text-gray-700 mb-2">📝 Day Notes</p>
+              <p className="text-xs font-bold text-gray-700 mb-2 flex items-center gap-1.5"><ClipboardPaste size={13} />Day Notes</p>
               <textarea value={notes} onChange={e => saveNotes(e.target.value)} rows={4} placeholder="Observations, anomalies, decisions, numbers to remember…"
                 className="w-full text-xs border border-gray-200 rounded-xl px-3 py-2.5 resize-none focus:outline-none focus:ring-2 focus:ring-orange-400" />
             </div>
@@ -2090,7 +2088,7 @@ function PlanTab({ platform = 'Amazon' }) {
 
             {/* KPI entry */}
             <div className="bg-white rounded-2xl border border-gray-200 p-5">
-              <p className="text-sm font-bold text-gray-900 mb-1">📊 Numbers Entry</p>
+              <p className="text-sm font-bold text-gray-900 mb-1 flex items-center gap-1.5"><BarChart3 size={14} />Numbers Entry</p>
               <p className="text-[10px] text-gray-400 mb-4">Enter today's numbers — stop-loss alerts trigger automatically</p>
               <div className="space-y-2.5">
                 {kpiFields.map(({ key, label, hint, placeholder }) => (
@@ -2124,7 +2122,7 @@ function PlanTab({ platform = 'Amazon' }) {
             {/* Hero & Watch SKUs — Amazon only */}
             {cfg.heroes && (
             <div className="bg-white rounded-2xl border border-gray-200 p-4">
-              <p className="text-xs font-bold text-gray-900 mb-3">🎯 Hero & Watch SKUs</p>
+              <p className="text-xs font-bold text-gray-900 mb-3 flex items-center gap-1.5"><Star size={13} />Hero & Watch SKUs</p>
               <div className="space-y-2">
                 {cfg.heroes.map(h => (
                   <div key={h.asin} className={clsx('flex items-start gap-2 p-2 rounded-xl border text-xs', h.type === 'hero' ? 'bg-orange-50 border-orange-100' : h.type === 'watch' ? 'bg-blue-50 border-blue-100' : 'bg-purple-50 border-purple-100')}>
@@ -2142,7 +2140,7 @@ function PlanTab({ platform = 'Amazon' }) {
             {/* Triggered conditions */}
             <div className="bg-white rounded-2xl border border-gray-200 p-4">
               <button onClick={() => setShowTriggers(s => !s)} className="w-full flex items-center justify-between text-xs font-bold text-gray-900 mb-0">
-                <span>⚡ Triggered Conditions ({cfg.triggeredConditions.length} Rules)</span>
+                <span className="inline-flex items-center gap-1"><Zap size={13} />Triggered Conditions ({cfg.triggeredConditions.length} Rules)</span>
                 <span className="text-gray-400">{showTriggers ? '▲' : '▼'}</span>
               </button>
               {showTriggers && (
@@ -2161,12 +2159,12 @@ function PlanTab({ platform = 'Amazon' }) {
             <div className="flex gap-2">
               <button onClick={resetDay}
                 className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2.5 border border-gray-200 hover:border-red-200 hover:bg-red-50 text-gray-500 hover:text-red-500 text-xs font-bold rounded-xl transition-colors">
-                <ArrowPathIcon className="w-3.5 h-3.5" /> Reset Day
+                <RefreshCw className="w-3.5 h-3.5" /> Reset Day
               </button>
               <button onClick={exportDay}
                 className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2.5 text-white text-xs font-bold rounded-xl transition-colors shadow-sm"
                 style={{ background: platColor }}>
-                <ArrowDownTrayIcon className="w-3.5 h-3.5" /> Export Report
+                <Download className="w-3.5 h-3.5" /> Export Report
               </button>
             </div>
           </div>
@@ -2177,13 +2175,13 @@ function PlanTab({ platform = 'Amazon' }) {
           <div className="bg-white rounded-2xl border border-gray-200 p-5">
             <div className="flex items-center justify-between mb-4">
               <div>
-                <p className="text-sm font-bold text-gray-900">📋 Week {activeWeek} Scorecard</p>
+                <p className="text-sm font-bold text-gray-900 flex items-center gap-1.5"><ClipboardPaste size={14} />Week {activeWeek} Scorecard</p>
                 <p className="text-[10px] text-gray-400 mt-0.5">Pre-fill for Sunday founder review</p>
               </div>
               <button onClick={exportScorecard}
                 className="flex items-center gap-1.5 px-3 py-2 text-white text-xs font-bold rounded-xl transition-colors"
                 style={{ background: platColor }}>
-                <ArrowDownTrayIcon className="w-3.5 h-3.5" /> Generate Scorecard
+                <Download className="w-3.5 h-3.5" /> Generate Scorecard
               </button>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -2247,13 +2245,13 @@ function DashboardReport({ platform }) {
 
   if (isLoading) return (
     <div className="flex items-center justify-center py-16 text-gray-400">
-      <ArrowPathIcon className="w-5 h-5 animate-spin mr-2" /> Loading report…
+      <RefreshCw className="w-5 h-5 animate-spin mr-2" /> Loading report…
     </div>
   );
 
   if (!entries.length) return (
     <div className="text-center py-16 text-gray-400">
-      <ChartBarIcon className="w-10 h-10 mx-auto mb-3 opacity-20" />
+      <BarChart3 className="w-10 h-10 mx-auto mb-3 opacity-20" />
       <p className="text-sm font-medium text-gray-500">No numbers saved yet for {platform}</p>
       <p className="text-xs mt-1 text-gray-400">Open the {platform} dashboard, enter today's numbers, and click "Save Today's Numbers"</p>
     </div>
@@ -2290,8 +2288,8 @@ function DashboardReport({ platform }) {
                       hasAlert ? 'bg-red-50' : hasWarn ? 'bg-amber-50' : '')}>
                       <td className="px-4 py-2.5 font-bold text-gray-700">
                         {day}
-                        {hasAlert && <span className="ml-1 text-red-500 text-[9px]">⛔</span>}
-                        {hasWarn  && <span className="ml-1 text-amber-500 text-[9px]">⚠️</span>}
+                        {hasAlert && <TriangleAlert size={9} className="ml-1 inline text-red-500" />}
+                        {hasWarn  && <TriangleAlert size={9} className="ml-1 inline text-amber-500" />}
                       </td>
                       {kpiFields.map(f => {
                         const v = nums[f.key] ?? nums[f.key === 'adRevenue' ? 'adRev' : f.key];
@@ -2407,14 +2405,14 @@ export default function MarketplaceDept() {
               <div className="flex bg-gray-100 p-1 rounded-xl">
                 <button onClick={() => setActiveTab('overview')}
                   className={clsx('px-3 py-1.5 rounded-lg text-xs font-bold transition-all', activeTab === 'overview' ? 'bg-white shadow-sm text-orange-600' : 'text-gray-500 hover:text-gray-700')}>
-                  📊 Overview
+                  <BarChart3 size={13} className="inline -mt-0.5 mr-1" />Overview
                 </button>
               </div>
               <div className="relative" ref={dropdownRef}>
                 <button onClick={() => setShowPlanDropdown(s => !s)}
                   className={clsx('flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border transition-all', activeTab === 'plan' ? 'text-white border-transparent' : 'bg-white text-gray-600 border-gray-200 hover:border-gray-400')}
                   style={activeTab === 'plan' ? { background: PLATFORM_PLAN_CONFIG[activePlan]?.color || '#f97316' } : {}}>
-                  🗓️ {activeTab === 'plan' ? `${activePlan} Plan` : 'Platform Plans'} <span className="text-[10px] opacity-70">▾</span>
+                  {activeTab === 'plan' ? `${activePlan} Plan` : 'Platform Plans'} <span className="text-[10px] opacity-70">▾</span>
                 </button>
                 {showPlanDropdown && (
                   <div className="absolute right-0 top-full mt-1 bg-white border border-gray-200 rounded-xl shadow-lg z-50 py-1 min-w-[170px]">
@@ -2439,7 +2437,7 @@ export default function MarketplaceDept() {
                   className={clsx('flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border transition-all',
                     showReport ? 'text-white border-transparent' : 'bg-white text-gray-600 border-gray-200 hover:border-gray-400')}
                   style={showReport ? { background: PLATFORM_PLAN_CONFIG[activePlan]?.color || '#f97316' } : {}}>
-                  📊 {showReport ? 'Hide Report' : 'Numbers Report'}
+                  <BarChart3 size={13} className="inline -mt-0.5 mr-1" />{showReport ? 'Hide Report' : 'Numbers Report'}
                 </button>
               )}
             </div>
@@ -2453,7 +2451,7 @@ export default function MarketplaceDept() {
                 <div className="bg-white rounded-2xl border border-gray-200 px-4 py-3 flex items-center justify-between">
                   <div>
                     <h2 className="text-sm font-bold text-gray-800">
-                      📊 {activePlan} — Daily Numbers Report
+                      <BarChart3 size={14} className="inline -mt-0.5 mr-1" />{activePlan} — Daily Numbers Report
                     </h2>
                     <p className="text-xs text-gray-400 mt-0.5">All saved numbers from the {activePlan} dashboard</p>
                   </div>

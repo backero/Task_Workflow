@@ -4,12 +4,15 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useFieldArray, useForm, useWatch } from 'react-hook-form';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import {
-  PlusIcon, XMarkIcon, PencilIcon,
-  TrashIcon, EyeIcon, DocumentTextIcon,
-  BanknotesIcon, ArrowDownTrayIcon, CubeIcon, MagnifyingGlassIcon,
-  ArrowLeftIcon, UserIcon, ChatBubbleLeftEllipsisIcon,
-  ExclamationTriangleIcon, CheckBadgeIcon, ClockIcon,
-} from '@heroicons/react/24/outline';
+  Plus, X, Pencil,
+  Trash2, Eye, FileText,
+  Banknote, Download, Box, Search,
+  ArrowLeft, MessageCircle,
+  TriangleAlert, BadgeCheck, Clock,
+} from 'lucide-react';
+import { Button, Drawer, Modal, Space, Typography } from 'antd';
+
+const { Text: FinText } = Typography;
 import ReactDOMServer from 'react-dom/server';
 import QRCode from 'react-qr-code';
 import api from '../../api/axios';
@@ -363,7 +366,7 @@ function LeadPicker({ onSelect }) {
     <div className="relative mb-4">
       <label className="label">Auto-fill from CRM Lead</label>
       <div className="relative">
-        <MagnifyingGlassIcon className="w-4 h-4 absolute left-3 top-2.5 text-gray-400" />
+        <Search className="w-4 h-4 absolute left-3 top-2.5 text-gray-400" />
         <input
           value={search}
           onFocus={() => setOpen(true)}
@@ -458,21 +461,11 @@ function InvoiceForm({ existingInv, prefillLead, orgData, onClose, onSaved }) {
   const onSubmit = (data) => saveMutation.mutate(data);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto py-6 px-4">
-      <div className="absolute inset-0 bg-gray-900/70 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative bg-white dark:bg-[#070c17] w-full max-w-4xl rounded-2xl shadow-2xl">
-
-        {/* Modal Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-[#1b2e4a]">
-          <h2 className="text-lg font-bold text-gray-900 dark:text-white">
-            {existingInv ? `Edit ${existingInv.invoiceNumber}` : 'New Invoice'}
-          </h2>
-          <button onClick={onClose} className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-[#17263d]">
-            <XMarkIcon className="w-5 h-5 text-gray-500" />
-          </button>
-        </div>
-
-        <form onSubmit={handleSubmit(onSubmit)} className="p-6 space-y-6">
+    <Drawer
+      open onClose={onClose} width={880} closeIcon={<X size={18} />}
+      title={existingInv ? `Edit ${existingInv.invoiceNumber}` : 'New Invoice'}
+    >
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
 
           {/* Type + Status */}
           <div className="grid grid-cols-3 gap-4">
@@ -522,7 +515,7 @@ function InvoiceForm({ existingInv, prefillLead, orgData, onClose, onSaved }) {
           {/* Client Info */}
           <div>
             <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3 flex items-center gap-2">
-              <DocumentTextIcon className="w-4 h-4" /> Client / Bill To
+              <FileText className="w-4 h-4" /> Client / Bill To
             </h3>
             {!existingInv && (
               <LeadPicker onSelect={(lead) => {
@@ -610,7 +603,7 @@ function InvoiceForm({ existingInv, prefillLead, orgData, onClose, onSaved }) {
               onClick={() => append(defaultLineItem)}
               className="mt-3 flex items-center gap-1.5 text-sm text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 font-medium transition-colors"
             >
-              <PlusIcon className="w-4 h-4" /> Add Item
+              <Plus className="w-4 h-4" /> Add Item
             </button>
 
             {/* Totals */}
@@ -684,8 +677,7 @@ function InvoiceForm({ existingInv, prefillLead, orgData, onClose, onSaved }) {
             </button>
           </div>
         </form>
-      </div>
-    </div>
+    </Drawer>
   );
 }
 
@@ -737,14 +729,14 @@ function LineItemRow({ idx, control, register, remove, canRemove, setValue }) {
                 : 'border-slate-200 dark:border-[#1b2e4a] text-slate-400 hover:text-blue-600 hover:border-blue-300 dark:hover:border-blue-700'
             )}
           >
-            <CubeIcon className="w-4 h-4" />
+            <Box className="w-4 h-4" />
           </button>
 
           {pickerOpen && (
             <div className="absolute top-full left-0 z-50 w-80 bg-white dark:bg-[#0f1a2e] border border-gray-200 dark:border-[#1b2e4a] rounded-xl shadow-2xl mt-1 overflow-hidden">
               <div className="p-2 border-b border-gray-100 dark:border-[#1b2e4a]">
                 <div className="relative">
-                  <MagnifyingGlassIcon className="w-4 h-4 absolute left-2.5 top-2 text-gray-400" />
+                  <Search className="w-4 h-4 absolute left-2.5 top-2 text-gray-400" />
                   <input
                     type="text"
                     value={searchTerm}
@@ -821,7 +813,7 @@ function LineItemRow({ idx, control, register, remove, canRemove, setValue }) {
       <td className="p-1.5">
         {canRemove && (
           <button type="button" onClick={() => remove(idx)} className="p-1 text-red-400 hover:text-red-600">
-            <TrashIcon className="w-4 h-4" />
+            <Trash2 className="w-4 h-4" />
           </button>
         )}
       </td>
@@ -846,7 +838,7 @@ function InvoicePreview({ inv, orgData, onEdit, onClose }) {
               onClick={onClose}
               className="flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 font-medium transition-colors"
             >
-              <ArrowLeftIcon className="w-4 h-4" /> Back
+              <ArrowLeft className="w-4 h-4" /> Back
             </button>
             <div className="w-px h-4 bg-slate-200 dark:bg-[#132035]" />
             <span className={clsx('text-xs px-2 py-1 rounded-full font-semibold uppercase', STATUS_STYLES[inv.status])}>
@@ -862,22 +854,22 @@ function InvoicePreview({ inv, orgData, onEdit, onClose }) {
                 rel="noopener noreferrer"
                 className="btn-secondary gap-2 text-sm text-green-600 border-green-200 hover:bg-green-50 dark:border-green-800 dark:hover:bg-green-900/20"
               >
-                <ChatBubbleLeftEllipsisIcon className="w-4 h-4" /> WhatsApp
+                <MessageCircle className="w-4 h-4" /> WhatsApp
               </a>
             )}
             <button
               onClick={() => printInvoice(inv, org, user)}
               className="btn-secondary gap-2 text-sm"
             >
-              <ArrowDownTrayIcon className="w-4 h-4" /> Download PDF
+              <Download className="w-4 h-4" /> Download PDF
             </button>
             {inv.status !== 'paid' && (
               <button onClick={onEdit} className="btn-secondary gap-2 text-sm">
-                <PencilIcon className="w-4 h-4" /> Edit
+                <Pencil className="w-4 h-4" /> Edit
               </button>
             )}
             <button onClick={onClose} className="p-2 rounded-lg hover:bg-slate-200 dark:hover:bg-[#132035] transition-colors">
-              <XMarkIcon className="w-5 h-5 text-slate-500" />
+              <X className="w-5 h-5 text-slate-500" />
             </button>
           </div>
         </div>
@@ -1068,7 +1060,7 @@ function InvoicePreview({ inv, orgData, onEdit, onClose }) {
                 {inv.paymentHistory.map((p, i) => (
                   <div key={i} className="flex items-center justify-between bg-green-50 border border-green-100 rounded-lg px-3 py-2 text-sm">
                     <div className="flex items-center gap-2">
-                      <CheckBadgeIcon className="w-4 h-4 text-green-500 flex-shrink-0" />
+                      <BadgeCheck className="w-4 h-4 text-green-500 flex-shrink-0" />
                       <span className="text-green-700 font-semibold">{INR(p.amount)}</span>
                       <span className="text-gray-500 text-xs">via {p.method}</span>
                       {p.reference && <span className="text-gray-400 text-xs font-mono">#{p.reference}</span>}
@@ -1166,34 +1158,32 @@ function PaymentModal({ inv, onClose }) {
     onError: (e) => toast.error(e.response?.data?.message || 'Failed to record payment'),
   });
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-gray-900/60" onClick={onClose} />
-      <div className="relative card w-full max-w-sm p-6">
-        <h3 className="font-bold text-gray-900 dark:text-white mb-4">Record Payment</h3>
-        <form onSubmit={handleSubmit(mutation.mutate)} className="space-y-3">
-          <div>
-            <label className="label">Amount Received (₹) *</label>
-            <input {...register('amount', { required: true, valueAsNumber: true })} type="number" step="0.01" max={inv.balanceAmount} className="input" placeholder={inv.balanceAmount} />
-          </div>
-          <div>
-            <label className="label">Payment Method</label>
-            <select {...register('method')} className="input">
-              {['Bank Transfer', 'UPI', 'Cash', 'Cheque', 'Card', 'Other'].map(m => <option key={m} value={m}>{m}</option>)}
-            </select>
-          </div>
-          <div>
-            <label className="label">Reference / UTR</label>
-            <input {...register('reference')} className="input" placeholder="UTR123456" />
-          </div>
-          <div className="flex gap-3 pt-2">
-            <button type="button" onClick={onClose} className="btn-secondary flex-1 justify-center">Cancel</button>
-            <button type="submit" disabled={mutation.isPending} className="btn-primary flex-1 justify-center disabled:opacity-50">
-              {mutation.isPending ? 'Saving…' : 'Record Payment'}
-            </button>
-          </div>
-        </form>
+    <Drawer
+      open onClose={onClose} width={380} closeIcon={<X size={18} />} title="Record Payment"
+      footer={
+        <Space style={{ width: '100%', justifyContent: 'flex-end' }}>
+          <Button onClick={onClose}>Cancel</Button>
+          <Button type="primary" loading={mutation.isPending} onClick={handleSubmit(mutation.mutate)}>Record Payment</Button>
+        </Space>
+      }
+    >
+      <div className="space-y-3">
+        <div>
+          <label className="label">Amount Received (₹) *</label>
+          <input {...register('amount', { required: true, valueAsNumber: true })} type="number" step="0.01" max={inv.balanceAmount} className="input" placeholder={inv.balanceAmount} />
+        </div>
+        <div>
+          <label className="label">Payment Method</label>
+          <select {...register('method')} className="input">
+            {['Bank Transfer', 'UPI', 'Cash', 'Cheque', 'Card', 'Other'].map(m => <option key={m} value={m}>{m}</option>)}
+          </select>
+        </div>
+        <div>
+          <label className="label">Reference / UTR</label>
+          <input {...register('reference')} className="input" placeholder="UTR123456" />
+        </div>
       </div>
-    </div>
+    </Drawer>
   );
 }
 
@@ -1241,7 +1231,7 @@ function InvoiceCard({ inv, orgData, user, onView, onEdit, onPay, onDelete }) {
             </>
           ) : (
             <span className="inline-flex items-center gap-1 text-green-600 dark:text-green-400 text-xs font-bold bg-green-50 dark:bg-green-900/20 px-2 py-1 rounded-full">
-              <CheckBadgeIcon className="w-3.5 h-3.5" /> Paid
+              <BadgeCheck className="w-3.5 h-3.5" /> Paid
             </span>
           )}
         </div>
@@ -1250,7 +1240,7 @@ function InvoiceCard({ inv, orgData, user, onView, onEdit, onPay, onDelete }) {
       {/* Due date */}
       {inv.dueDate && (
         <div className="px-4 pb-3 flex items-center gap-1.5">
-          <ClockIcon className="w-3 h-3 text-gray-400 flex-shrink-0" />
+          <Clock className="w-3 h-3 text-gray-400 flex-shrink-0" />
           <span className="text-[10px] text-gray-500">Due {format(new Date(inv.dueDate), 'dd MMM yyyy')}</span>
           {isOverdue && (
             <span className="text-[9px] font-bold text-red-600 bg-red-50 dark:bg-red-900/20 px-1.5 py-0.5 rounded-full ml-1">
@@ -1270,16 +1260,16 @@ function InvoiceCard({ inv, orgData, user, onView, onEdit, onPay, onDelete }) {
       {/* Action row */}
       <div className="px-2 py-1.5 flex items-center gap-0.5" onClick={e => e.stopPropagation()}>
         <button onClick={onView} title="View" className="flex-1 flex flex-col items-center gap-0.5 py-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors text-[9px] font-semibold">
-          <EyeIcon className="w-3.5 h-3.5" /><span>View</span>
+          <Eye className="w-3.5 h-3.5" /><span>View</span>
         </button>
         {inv.status !== 'paid' && inv.status !== 'cancelled' && (
           <button onClick={onEdit} title="Edit" className="flex-1 flex flex-col items-center gap-0.5 py-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors text-[9px] font-semibold">
-            <PencilIcon className="w-3.5 h-3.5" /><span>Edit</span>
+            <Pencil className="w-3.5 h-3.5" /><span>Edit</span>
           </button>
         )}
         {inv.balanceAmount > 0 && inv.status !== 'cancelled' && (
           <button onClick={onPay} title="Record Payment" className="flex-1 flex flex-col items-center gap-0.5 py-1.5 text-gray-400 hover:text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 rounded-lg transition-colors text-[9px] font-semibold">
-            <BanknotesIcon className="w-3.5 h-3.5" /><span>Pay</span>
+            <Banknote className="w-3.5 h-3.5" /><span>Pay</span>
           </button>
         )}
         {inv.client?.phone && (
@@ -1288,15 +1278,15 @@ function InvoiceCard({ inv, orgData, user, onView, onEdit, onPay, onDelete }) {
             target="_blank" rel="noopener noreferrer" title="WhatsApp"
             className="flex-1 flex flex-col items-center gap-0.5 py-1.5 text-gray-400 hover:text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 rounded-lg transition-colors text-[9px] font-semibold"
           >
-            <ChatBubbleLeftEllipsisIcon className="w-3.5 h-3.5" /><span>WA</span>
+            <MessageCircle className="w-3.5 h-3.5" /><span>WA</span>
           </a>
         )}
         <button onClick={() => printInvoice(inv, orgData?.organization, user)} title="Print/Export" className="flex-1 flex flex-col items-center gap-0.5 py-1.5 text-gray-400 hover:text-gray-700 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-[#132035] rounded-lg transition-colors text-[9px] font-semibold">
-          <ArrowDownTrayIcon className="w-3.5 h-3.5" /><span>PDF</span>
+          <Download className="w-3.5 h-3.5" /><span>PDF</span>
         </button>
         {inv.status !== 'paid' && (
           <button onClick={onDelete} title="Delete" className="flex-1 flex flex-col items-center gap-0.5 py-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors text-[9px] font-semibold">
-            <TrashIcon className="w-3.5 h-3.5" /><span>Del</span>
+            <Trash2 className="w-3.5 h-3.5" /><span>Del</span>
           </button>
         )}
       </div>
@@ -1420,7 +1410,7 @@ export default function Invoices() {
           onClick={() => { setSelectedInv(null); setPrefillLead(null); setView('form'); }}
           className="btn-primary gap-2"
         >
-          <PlusIcon className="w-4 h-4" /> New Invoice
+          <Plus className="w-4 h-4" /> New Invoice
         </button>
       </div>
 
@@ -1429,7 +1419,7 @@ export default function Invoices() {
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           <div className="card p-4 flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center flex-shrink-0">
-              <ClockIcon className="w-5 h-5 text-orange-600 dark:text-orange-400" />
+              <Clock className="w-5 h-5 text-orange-600 dark:text-orange-400" />
             </div>
             <div>
               <p className="text-xs text-gray-500 font-medium">Outstanding</p>
@@ -1439,7 +1429,7 @@ export default function Invoices() {
           </div>
           <div className="card p-4 flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-green-100 dark:bg-green-900/30 flex items-center justify-center flex-shrink-0">
-              <CheckBadgeIcon className="w-5 h-5 text-green-600 dark:text-green-400" />
+              <BadgeCheck className="w-5 h-5 text-green-600 dark:text-green-400" />
             </div>
             <div>
               <p className="text-xs text-gray-500 font-medium">Paid This Month</p>
@@ -1449,7 +1439,7 @@ export default function Invoices() {
           </div>
           <div className="card p-4 flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-red-100 dark:bg-red-900/30 flex items-center justify-center flex-shrink-0">
-              <ExclamationTriangleIcon className="w-5 h-5 text-red-600 dark:text-red-400" />
+              <TriangleAlert className="w-5 h-5 text-red-600 dark:text-red-400" />
             </div>
             <div>
               <p className="text-xs text-gray-500 font-medium">Overdue</p>
@@ -1459,7 +1449,7 @@ export default function Invoices() {
           </div>
           <div className="card p-4 flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-gray-100 dark:bg-gray-800 flex items-center justify-center flex-shrink-0">
-              <DocumentTextIcon className="w-5 h-5 text-gray-500" />
+              <FileText className="w-5 h-5 text-gray-500" />
             </div>
             <div>
               <p className="text-xs text-gray-500 font-medium">Drafts</p>
@@ -1493,7 +1483,7 @@ export default function Invoices() {
         <div className="flex justify-center py-16"><div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" /></div>
       ) : invoices.length === 0 ? (
         <div className="card p-16 text-center">
-          <DocumentTextIcon className="w-12 h-12 mx-auto text-gray-300 dark:text-gray-600 mb-4" />
+          <FileText className="w-12 h-12 mx-auto text-gray-300 dark:text-gray-600 mb-4" />
           <p className="text-gray-500 font-medium">No invoices yet</p>
           <p className="text-sm text-gray-400 mt-1">Click "New Invoice" to create your first one</p>
         </div>
@@ -1515,21 +1505,19 @@ export default function Invoices() {
       )}
 
       {/* Delete confirm */}
-      {deletingId && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-gray-900/60" onClick={() => setDeletingId(null)} />
-          <div className="relative card p-6 w-full max-w-sm text-center">
-            <p className="font-semibold text-gray-900 dark:text-white mb-2">Delete this invoice?</p>
-            <p className="text-sm text-gray-500 mb-4">This action cannot be undone.</p>
-            <div className="flex gap-3">
-              <button onClick={() => setDeletingId(null)} className="btn-secondary flex-1 justify-center">Cancel</button>
-              <button onClick={() => deleteMutation.mutate(deletingId)} disabled={deleteMutation.isPending} className="flex-1 btn-primary bg-red-500 hover:bg-red-600 justify-center disabled:opacity-50">
-                {deleteMutation.isPending ? 'Deleting…' : 'Delete'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <Modal
+        open={!!deletingId}
+        onCancel={() => setDeletingId(null)}
+        title="Delete this invoice?"
+        footer={
+          <Space>
+            <Button onClick={() => setDeletingId(null)}>Cancel</Button>
+            <Button danger type="primary" loading={deleteMutation.isPending} onClick={() => deleteMutation.mutate(deletingId)}>Delete</Button>
+          </Space>
+        }
+      >
+        <FinText type="secondary">This action cannot be undone.</FinText>
+      </Modal>
 
       {/* Modals */}
       {view === 'form' && (

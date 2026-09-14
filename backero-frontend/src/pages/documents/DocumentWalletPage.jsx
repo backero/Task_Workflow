@@ -1,13 +1,14 @@
 import React, { useMemo, useState, useCallback, useEffect } from 'react';
-import { createPortal } from 'react-dom';
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { useDropzone } from 'react-dropzone';
 import toast from 'react-hot-toast';
 import {
-  FolderIcon, PlusIcon, MagnifyingGlassIcon, XMarkIcon, TrashIcon,
-  ArrowPathIcon, DocumentTextIcon, ArrowDownTrayIcon, ChevronLeftIcon, ChevronRightIcon,
-  BellAlertIcon, ArrowUpTrayIcon, EnvelopeIcon, ClipboardDocumentIcon, PencilSquareIcon, EyeIcon,
-} from '@heroicons/react/24/outline';
+  Folder, Plus, Search, X, Trash2, RefreshCw, FileText, Download, ChevronLeft, ChevronRight,
+  BellRing, Upload as UploadIcon, Mail, Clipboard, Pencil, Eye, TriangleAlert,
+} from 'lucide-react';
+import {
+  Button, Card, Drawer, Empty, Input, Menu, Modal, Select, Space, Spin, Statistic, Tag, Typography, Upload,
+} from 'antd';
 import documentsApi from '../../api/documents';
 import { useAuthStore } from '../../store/useAuthStore';
 import { BASE_CATEGORIES, TEMPLATES } from './documentTemplates';
@@ -15,7 +16,10 @@ import { docStatus, catName, latestFile, parseFilename, buildDocumentsCsv, docSu
 import ConfirmDialog from '../../components/common/ConfirmDialog';
 import './DocumentWalletPage.css';
 
-const STATUS_BADGE = { expired: 'badge-red', soon: 'badge-yellow', ok: 'badge-green', none: 'badge-gray' };
+const { Title, Text, Paragraph } = Typography;
+const { TextArea } = Input;
+
+const STATUS_COLOR = { expired: 'red', soon: 'gold', ok: 'green', none: 'default' };
 const emptyForm = { name: '', category: '', docNo: '', issueDate: '', expiryDate: '', issuer: '', keeper: '', location: '', notes: '' };
 
 export default function DocumentWalletPage() {
@@ -28,8 +32,6 @@ export default function DocumentWalletPage() {
   const [view, setView] = useState('docs'); // 'docs' | 'trash'
   const [query, setQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
-  const [sortKey, setSortKey] = useState('status');
-  const [sortDir, setSortDir] = useState(1);
   const [openDocId, setOpenDocId] = useState(null);
   const [newDocOpen, setNewDocOpen] = useState(false);
   const [editingDocId, setEditingDocId] = useState(null);
@@ -113,7 +115,7 @@ export default function DocumentWalletPage() {
 
   const openDoc = documents.find((d) => d._id === openDocId) || null;
 
-  // ── derived: filter + sort ──────────────────────────────────────────────
+  // ── derived: filter + sort (status priority, then name) ─────────────────
   const filtered = useMemo(() => {
     let list = documents;
     if (activeCat !== 'all') list = list.filter((d) => d.category === activeCat);
@@ -123,16 +125,8 @@ export default function DocumentWalletPage() {
       list = list.filter((d) => [d.name, d.docNo, d.issuer, d.keeper, d.notes].some((v) => (v || '').toLowerCase().includes(q)));
     }
     const statusRank = { expired: 0, soon: 1, ok: 2, none: 3 };
-    const sorted = [...list].sort((a, b) => {
-      let cmp = 0;
-      if (sortKey === 'status') cmp = statusRank[docStatus(a).k] - statusRank[docStatus(b).k];
-      else if (sortKey === 'name') cmp = a.name.localeCompare(b.name);
-      else if (sortKey === 'issue') cmp = (a.issueDate || '').localeCompare(b.issueDate || '');
-      else if (sortKey === 'expiry') cmp = (a.expiryDate || '').localeCompare(b.expiryDate || '');
-      return cmp * sortDir;
-    });
-    return sorted;
-  }, [documents, activeCat, statusFilter, query, sortKey, sortDir]);
+    return [...list].sort((a, b) => statusRank[docStatus(a).k] - statusRank[docStatus(b).k] || a.name.localeCompare(b.name));
+  }, [documents, activeCat, statusFilter, query]);
 
   const stats = useMemo(() => {
     const expired = documents.filter((d) => docStatus(d).k === 'expired').length;
@@ -158,13 +152,13 @@ export default function DocumentWalletPage() {
     return counts;
   }, [documents]);
 
-  // ── drag & drop overlay → prefill new-doc modal ────────────────────────
+  // ── drag & drop overlay → prefill new-doc drawer ────────────────────────
   const onDrop = useCallback((accepted) => {
     if (!accepted.length) return;
     const file = accepted[0];
     const parsed = parseFilename(file.name);
     setNewDocForm({ ...emptyForm, name: parsed.name || file.name, category: parsed.category || '', docNo: parsed.docNo || '', issueDate: parsed.issueDate || '' });
-    setNewDocFiles([file]);
+    setNewDocFiles([{ uid: file.name, name: file.name, originFileObj: file }]);
     setNewDocOpen(true);
   }, []);
   const { getRootProps, isDragActive } = useDropzone({ onDrop, noClick: true, noKeyboard: true });
@@ -187,10 +181,10 @@ export default function DocumentWalletPage() {
       } else {
         const doc = await createMutation.mutateAsync(newDocForm);
         let failed = 0;
-        for (const file of newDocFiles) {
-          await documentsApi.uploadFile(doc._id, file).catch((err) => {
+        for (const f of newDocFiles) {
+          await documentsApi.uploadFile(doc._id, f.originFileObj).catch((err) => {
             failed += 1;
-            toast.error(`"${file.name}" failed: ${err.response?.data?.message || err.message}`);
+            toast.error(`"${f.name}" failed: ${err.response?.data?.message || err.message}`);
           });
         }
         invalidateDocs();
@@ -278,10 +272,10 @@ export default function DocumentWalletPage() {
       const doc = await documentsApi.addVersion(newVersionDocId, newVersionForm);
       const newVersion = doc.versions[doc.versions.length - 1];
       let failed = 0;
-      for (const file of newVersionFiles) {
-        await documentsApi.uploadFile(newVersionDocId, file).catch((err) => {
+      for (const f of newVersionFiles) {
+        await documentsApi.uploadFile(newVersionDocId, f.originFileObj).catch((err) => {
           failed += 1;
-          toast.error(`"${file.name}" failed: ${err.response?.data?.message || err.message}`);
+          toast.error(`"${f.name}" failed: ${err.response?.data?.message || err.message}`);
         });
       }
       if (newVersionFiles.length && failed === newVersionFiles.length) {
@@ -360,74 +354,77 @@ export default function DocumentWalletPage() {
     }
   };
 
-  if (isLoading) return <div className="p-8 text-sm text-[var(--t-sub)]">Loading Document Wallet…</div>;
+  if (isLoading) return <div style={{ padding: 32 }}><Spin /></div>;
+
+  const CAP = 15 * 1024 * 1024 * 1024; // 15GB — standard Google account quota
+  const gaugePct = Math.min(100, (stats.storageBytes / CAP) * 100);
+  const R = 52, C = Math.PI * R, gaugeOff = C * (1 - gaugePct / 100);
+
+  const menuItems = [
+    ...allCats.map((c) => ({ key: `cat:${c.id}`, label: <Space style={{ width: '100%', justifyContent: 'space-between' }}><span>{c.name}</span>{c.id !== 'all' && <Tag style={{ marginRight: 0 }}>{catCounts[c.id] || 0}</Tag>}</Space> })),
+    ...(isAdminOrAbove ? [{ key: 'trash', label: <Space style={{ width: '100%', justifyContent: 'space-between' }}><Space size={6}><Trash2 size={13} />Recycle Bin</Space><Tag style={{ marginRight: 0 }}>{trash.length}</Tag></Space> }] : []),
+  ];
 
   return (
     <div className="doc-wallet" {...getRootProps()}>
       {isDragActive && (
         <div className="doc-wallet-dropmask">
-          <ArrowUpTrayIcon className="w-10 h-10" />
+          <UploadIcon className="w-10 h-10" />
           <p>Drop a file to start a new document</p>
         </div>
       )}
 
       <header className="doc-wallet-header">
         <div>
-          <h1 className="text-lg font-bold flex items-center gap-2"><FolderIcon className="w-5 h-5" /> Document Wallet</h1>
-          <p className="text-xs text-[var(--t-sub)]">Compliance & legal documents, with renewal tracking</p>
+          <Title level={4} style={{ marginBottom: 0, display: 'flex', alignItems: 'center', gap: 8 }}><Folder size={18} /> Document Wallet</Title>
+          <Text type="secondary" style={{ fontSize: 12 }}>Compliance & legal documents, with renewal tracking</Text>
         </div>
-        <div className="flex items-center gap-2">
-          <div className="doc-wallet-search">
-            <MagnifyingGlassIcon className="w-4 h-4" />
-            <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search documents…" />
-          </div>
-          <button className="btn-secondary" onClick={exportCsv}>Export CSV</button>
+        <Space wrap>
+          <Input
+            value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search documents…"
+            prefix={<Search size={14} color="#9ca3af" />} style={{ width: 200 }}
+          />
+          <Button onClick={exportCsv}>Export CSV</Button>
           {isManagerOrAbove && (
-            <button className="btn-secondary" onClick={() => { loadRemindersPreview(); }}>
-              <BellAlertIcon className="w-4 h-4" /> Reminders
-            </button>
+            <Button icon={<BellRing size={14} />} onClick={loadRemindersPreview}>Reminders</Button>
           )}
           {isManagerOrAbove && (
             driveStatus?.connected ? (
-              <span className="btn-secondary" title={`Connected as ${driveStatus.connectedEmail}`} style={{ cursor: 'default' }}>
-                <FolderIcon className="w-4 h-4" /> Drive: {driveStatus.connectedEmail}
-              </span>
+              <Tag icon={<Folder size={12} style={{ marginRight: 4 }} />} color="green" title={`Connected as ${driveStatus.connectedEmail}`}>
+                Drive: {driveStatus.connectedEmail}
+              </Tag>
             ) : (
-              <button className="btn-secondary" onClick={connectDrive}>
-                <FolderIcon className="w-4 h-4" /> Connect Google Drive
-              </button>
+              <Button icon={<Folder size={14} />} onClick={connectDrive}>Connect Google Drive</Button>
             )
           )}
-          <button className="btn-primary" onClick={() => { setEditingDocId(null); setNewDocForm(emptyForm); setNewDocFiles([]); setNewDocOpen(true); }}>
-            <PlusIcon className="w-4 h-4" /> New document
-          </button>
-        </div>
+          <Button type="primary" icon={<Plus size={14} />} onClick={() => { setEditingDocId(null); setNewDocForm(emptyForm); setNewDocFiles([]); setNewDocOpen(true); }}>
+            New document
+          </Button>
+        </Space>
       </header>
 
-      {isError && <div className="doc-wallet-error">⚠ Could not reach the backend — showing cached data if any.</div>}
+      {isError && (
+        <div className="doc-wallet-error">
+          <Space size={6}><TriangleAlert size={13} /> Could not reach the backend — showing cached data if any.</Space>
+        </div>
+      )}
 
       <div className="doc-wallet-body">
         <aside className="doc-wallet-sidebar">
-          {allCats.map((c) => (
-            <button
-              key={c.id}
-              className={`doc-wallet-cat ${activeCat === c.id && view === 'docs' ? 'active' : ''}`}
-              onClick={() => { setActiveCat(c.id); setView('docs'); }}
-            >
-              <span>{c.name}</span>
-              {c.id !== 'all' && <span className="doc-wallet-cat-count">{catCounts[c.id] || 0}</span>}
-            </button>
-          ))}
-          {isAdminOrAbove && (
-            <button className={`doc-wallet-cat ${view === 'trash' ? 'active' : ''}`} onClick={() => setView('trash')}>
-              <span className="flex items-center gap-1"><TrashIcon className="w-3.5 h-3.5" /> Recycle Bin</span>
-              <span className="doc-wallet-cat-count">{trash.length}</span>
-            </button>
-          )}
+          <Menu
+            mode="inline"
+            selectedKeys={[view === 'trash' ? 'trash' : `cat:${activeCat}`]}
+            items={menuItems}
+            onClick={({ key }) => {
+              if (key === 'trash') setView('trash');
+              else { setActiveCat(key.replace('cat:', '')); setView('docs'); }
+            }}
+            style={{ border: 'none' }}
+          />
           {isManagerOrAbove && (
-            <button className="doc-wallet-cat text-xs opacity-70" onClick={() => setAddCategoryOpen(true)}>
-              <span className="flex items-center gap-1"><PlusIcon className="w-3.5 h-3.5" /> Add folder</span>
-            </button>
+            <Button type="text" size="small" icon={<Plus size={13} />} style={{ marginTop: 8, color: 'var(--t-sub)' }} onClick={() => setAddCategoryOpen(true)}>
+              Add folder
+            </Button>
           )}
         </aside>
 
@@ -435,61 +432,54 @@ export default function DocumentWalletPage() {
           {view === 'docs' && activeCat === 'all' && !query && statusFilter === 'all' && (
             <>
               <div className="doc-wallet-stats">
-                <div className="stat-card"><div><div className="text-xs text-[var(--t-sub)]">Documents</div><div className="text-xl font-bold">{stats.total}</div></div></div>
-                <div className="stat-card"><div><div className="text-xs text-[var(--t-sub)]">Folders in use</div><div className="text-xl font-bold">{stats.foldersInUse}</div></div></div>
-                <div className="stat-card"><div><div className="text-xs text-[var(--t-sub)]">Expiring ≤90d</div><div className="text-xl font-bold text-amber-500">{stats.soon}</div></div></div>
-                <div className="stat-card"><div><div className="text-xs text-[var(--t-sub)]">Expired</div><div className="text-xl font-bold text-red-500">{stats.expired}</div></div></div>
-                <div className="stat-card doc-wallet-gauge-card">
+                <Card size="small" className="stat-card"><Statistic title="Documents" value={stats.total} /></Card>
+                <Card size="small" className="stat-card"><Statistic title="Folders in use" value={stats.foldersInUse} /></Card>
+                <Card size="small" className="stat-card"><Statistic title="Expiring ≤90d" value={stats.soon} valueStyle={{ color: '#d97706' }} /></Card>
+                <Card size="small" className="stat-card"><Statistic title="Expired" value={stats.expired} valueStyle={{ color: '#dc2626' }} /></Card>
+                <Card size="small" className="stat-card doc-wallet-gauge-card">
                   <div className="text-xs text-[var(--t-sub)] mb-1">Storage used</div>
-                  {(() => {
-                    const CAP = 15 * 1024 * 1024 * 1024; // 15GB — standard Google account quota
-                    const pct = Math.min(100, (stats.storageBytes / CAP) * 100);
-                    const R = 52, C = Math.PI * R, off = C * (1 - pct / 100);
-                    return (
-                      <div className="doc-wallet-gauge">
-                        <svg viewBox="0 0 118 62">
-                          <path d="M7 60 A52 52 0 0 1 111 60" fill="none" stroke="var(--b-default)" strokeWidth="9" strokeLinecap="round" />
-                          <path d="M7 60 A52 52 0 0 1 111 60" fill="none" stroke="var(--zone)" strokeWidth="9" strokeLinecap="round"
-                            strokeDasharray={C.toFixed(1)} strokeDashoffset={off.toFixed(1)} />
-                        </svg>
-                        <div className="doc-wallet-gauge-value">{fmtSize(stats.storageBytes)}</div>
-                      </div>
-                    );
-                  })()}
+                  <div className="doc-wallet-gauge">
+                    <svg viewBox="0 0 118 62">
+                      <path d="M7 60 A52 52 0 0 1 111 60" fill="none" stroke="var(--b-default)" strokeWidth="9" strokeLinecap="round" />
+                      <path d="M7 60 A52 52 0 0 1 111 60" fill="none" stroke="var(--zone)" strokeWidth="9" strokeLinecap="round"
+                        strokeDasharray={C.toFixed(1)} strokeDashoffset={gaugeOff.toFixed(1)} />
+                    </svg>
+                    <div className="doc-wallet-gauge-value">{fmtSize(stats.storageBytes)}</div>
+                  </div>
                   <div className="doc-wallet-gauge-cap">of 15 GB · {stats.filesInDrive} file{stats.filesInDrive === 1 ? '' : 's'}</div>
-                </div>
+                </Card>
                 {stats.recent.length > 0 && (
-                  <div className="stat-card doc-wallet-recent-card" style={{ flex: '2 1 240px' }}>
+                  <Card size="small" className="stat-card doc-wallet-recent-card" style={{ flex: '2 1 240px' }}>
                     <div className="text-xs text-[var(--t-sub)] mb-1">Recently updated</div>
                     <div className="doc-wallet-recent">
                       {stats.recent.map((d) => (
                         <button key={d._id} className="doc-wallet-recent-item" onClick={() => setOpenDocId(d._id)}>
-                          <span className="badge badge-green">{d.versions?.[d.versions.length - 1]?.v || 'v1.0'}</span>
+                          <Tag color="green" style={{ marginRight: 0 }}>{d.versions?.[d.versions.length - 1]?.v || 'v1.0'}</Tag>
                           <span className="n">{d.name}</span>
                           <span className="d">{d.updatedAt ? d.updatedAt.slice(0, 10) : ''}</span>
                         </button>
                       ))}
                     </div>
-                  </div>
+                  </Card>
                 )}
               </div>
 
               {radarItems.length > 0 && (
-                <div className="card doc-wallet-radar">
-                  <h3 className="text-sm font-bold mb-2">Renewal radar</h3>
+                <Card size="small" className="doc-wallet-radar">
+                  <Title level={5} style={{ marginBottom: 8 }}>Renewal radar</Title>
                   <ul>
                     {radarItems.map((d) => {
                       const s = docStatus(d);
                       return (
                         <li key={d._id} onClick={() => setOpenDocId(d._id)}>
-                          <span className={`badge ${STATUS_BADGE[s.k]}`}>{s.label}</span>
+                          <Tag color={STATUS_COLOR[s.k]}>{s.label}</Tag>
                           <span className="doc-wallet-radar-name">{d.name}</span>
                           <span className="doc-wallet-radar-days">{s.days}</span>
                         </li>
                       );
                     })}
                   </ul>
-                </div>
+                </Card>
               )}
             </>
           )}
@@ -498,75 +488,50 @@ export default function DocumentWalletPage() {
             <>
               <div className="doc-wallet-chips">
                 {['all', 'expired', 'soon', 'ok', 'none'].map((k) => (
-                  <button key={k} className={`doc-wallet-chip ${statusFilter === k ? 'active' : ''}`} onClick={() => setStatusFilter(k)}>
+                  <Tag.CheckableTag key={k} checked={statusFilter === k} onChange={() => setStatusFilter(k)}>
                     {{ all: 'All', expired: 'Expired', soon: 'Expiring', ok: 'Valid', none: 'No expiry' }[k]}
-                  </button>
+                  </Tag.CheckableTag>
                 ))}
               </div>
 
-              <table className="doc-wallet-table">
-                <thead>
-                  <tr>
-                    <th onClick={() => { setSortKey('name'); setSortDir((d) => (sortKey === 'name' ? -d : 1)); }}>Name</th>
-                    <th>Folder</th>
-                    <th onClick={() => { setSortKey('expiry'); setSortDir((d) => (sortKey === 'expiry' ? -d : 1)); }}>Expiry</th>
-                    <th onClick={() => { setSortKey('status'); setSortDir((d) => (sortKey === 'status' ? -d : 1)); }}>Status</th>
-                    <th>Custodian</th>
-                    <th style={{ width: '1%' }}>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filtered.map((d) => {
+              {!filtered.length ? (
+                <Card><Empty description="No documents match." /></Card>
+              ) : (
+                <Card size="small" styles={{ body: { padding: 0 } }}>
+                  {filtered.map((d, i) => {
                     const s = docStatus(d);
                     const f = latestFile(d);
                     return (
-                      <tr key={d._id} onClick={() => setOpenDocId(d._id)}>
-                        <td className="font-medium">{d.name}</td>
-                        <td className="text-[var(--t-sub)]">{catName(d.category, customCats)}</td>
-                        <td className="text-[var(--t-sub)]">{d.expiryDate ? d.expiryDate.slice(0, 10) : '—'}</td>
-                        <td><span className={`badge ${STATUS_BADGE[s.k]}`}>{s.label}</span></td>
-                        <td className="text-[var(--t-sub)]">{d.keeper || '—'}</td>
-                        <td className="doc-wallet-row-actions" onClick={(e) => e.stopPropagation()}>
-                          <button
-                            className={`doc-wallet-iconbtn ${f ? '' : 'off'}`}
-                            title={f ? 'Preview latest file' : 'No file attached yet'}
-                            onClick={() => { if (!f) return toast.error('No file attached yet'); openViewerForDoc(d, f); }}
-                          >
-                            <EyeIcon className="w-3.5 h-3.5" />
-                          </button>
-                          <button
-                            className={`doc-wallet-iconbtn ${f ? '' : 'off'}`}
-                            title={f ? 'Download latest file' : 'No file attached yet'}
-                            onClick={() => downloadLatestFile(d)}
-                          >
-                            <ArrowDownTrayIcon className="w-3.5 h-3.5" />
-                          </button>
-                          <button
-                            className="doc-wallet-iconbtn"
-                            title="Quick upload — attach as a new version"
+                      <div
+                        key={d._id}
+                        style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 16px', borderTop: i ? '1px solid #f0f0f0' : 'none', cursor: 'pointer' }}
+                        onClick={() => setOpenDocId(d._id)}
+                      >
+                        <div style={{ flex: '1 1 200px', minWidth: 0 }}>
+                          <Text strong style={{ fontSize: 13 }}>{d.name}</Text>
+                        </div>
+                        <Text type="secondary" style={{ fontSize: 12, flex: '0 0 120px' }}>{catName(d.category, customCats)}</Text>
+                        <Text type="secondary" style={{ fontSize: 12, flex: '0 0 100px' }}>{d.expiryDate ? d.expiryDate.slice(0, 10) : '—'}</Text>
+                        <Tag color={STATUS_COLOR[s.k]} style={{ flex: '0 0 auto' }}>{s.label}</Tag>
+                        <Text type="secondary" style={{ fontSize: 12, flex: '0 0 100px' }}>{d.keeper || '—'}</Text>
+                        <Space size={4} onClick={(e) => e.stopPropagation()} style={{ flex: '0 0 auto' }}>
+                          <Button size="small" type="text" disabled={!f} title={f ? 'Preview latest file' : 'No file attached yet'} icon={<Eye size={13} />} onClick={() => { if (!f) return toast.error('No file attached yet'); openViewerForDoc(d, f); }} />
+                          <Button size="small" type="text" title="Download latest file" icon={<Download size={13} />} onClick={() => downloadLatestFile(d)} />
+                          <Button
+                            size="small" type="text" title="Attach a new version" icon={<UploadIcon size={13} />}
                             onClick={() => {
                               setNewVersionDocId(d._id);
                               setNewVersionForm({ v: '', date: new Date().toISOString().slice(0, 10), note: '', expiryDate: d.expiryDate ? d.expiryDate.slice(0, 10) : '' });
                               setNewVersionFiles([]);
                             }}
-                          >
-                            ＋ver
-                          </button>
-                          <button className="doc-wallet-iconbtn" title="Share via email" onClick={() => shareViaEmail(d)}>
-                            <EnvelopeIcon className="w-3.5 h-3.5" />
-                          </button>
-                          <button className="doc-wallet-iconbtn" title="Open details" onClick={() => setOpenDocId(d._id)}>
-                            Open
-                          </button>
-                        </td>
-                      </tr>
+                          />
+                          <Button size="small" type="text" title="Share via email" icon={<Mail size={13} />} onClick={() => shareViaEmail(d)} />
+                        </Space>
+                      </div>
                     );
                   })}
-                  {!filtered.length && (
-                    <tr><td colSpan={6} className="text-center text-[var(--t-sub)] py-8">No documents match.</td></tr>
-                  )}
-                </tbody>
-              </table>
+                </Card>
+              )}
             </>
           )}
 
@@ -574,8 +539,8 @@ export default function DocumentWalletPage() {
             <>
               <div className="flex justify-end mb-2">
                 {isAdminOrAbove && trash.length > 0 && (
-                  <button
-                    className="btn-secondary text-red-600"
+                  <Button
+                    danger
                     onClick={() => setConfirmState({
                       title: 'Empty Recycle Bin?',
                       message: 'This permanently deletes every trashed document and file, including their Drive files. This cannot be undone.',
@@ -584,22 +549,25 @@ export default function DocumentWalletPage() {
                     })}
                   >
                     Empty Recycle Bin
-                  </button>
+                  </Button>
                 )}
               </div>
-              <table className="doc-wallet-table">
-                <thead><tr><th>Item</th><th>Type</th><th>Deleted</th><th /></tr></thead>
-                <tbody>
-                  {trash.map((t) => (
-                    <tr key={t._id}>
-                      <td className="font-medium">{t.type === 'doc' ? t.doc?.name : `${t.docName} — ${t.file?.name}`}</td>
-                      <td className="text-[var(--t-sub)]">{t.type === 'doc' ? 'Document' : 'File'}</td>
-                      <td className="text-[var(--t-sub)]">{new Date(t.deletedAt).toLocaleDateString('en-IN')}</td>
-                      <td className="flex gap-2 justify-end">
-                        <button className="btn-secondary" onClick={() => restoreMutation.mutate(t._id)}><ArrowPathIcon className="w-3.5 h-3.5" /> Restore</button>
+              {!trash.length ? (
+                <Card><Empty description="Recycle Bin is empty." /></Card>
+              ) : (
+                <Card size="small" styles={{ body: { padding: 0 } }}>
+                  {trash.map((t, i) => (
+                    <div key={t._id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 16px', borderTop: i ? '1px solid #f0f0f0' : 'none' }}>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <Text strong style={{ fontSize: 13 }}>{t.type === 'doc' ? t.doc?.name : `${t.docName} — ${t.file?.name}`}</Text>
+                      </div>
+                      <Text type="secondary" style={{ fontSize: 12, flex: '0 0 90px' }}>{t.type === 'doc' ? 'Document' : 'File'}</Text>
+                      <Text type="secondary" style={{ fontSize: 12, flex: '0 0 110px' }}>{new Date(t.deletedAt).toLocaleDateString('en-IN')}</Text>
+                      <Space size={8}>
+                        <Button size="small" icon={<RefreshCw size={13} />} onClick={() => restoreMutation.mutate(t._id)}>Restore</Button>
                         {isAdminOrAbove && (
-                          <button
-                            className="btn-secondary text-red-600"
+                          <Button
+                            size="small" danger
                             onClick={() => setConfirmState({
                               title: 'Permanently delete?',
                               message: 'This cannot be undone — the file will also be removed from Google Drive.',
@@ -607,217 +575,234 @@ export default function DocumentWalletPage() {
                             })}
                           >
                             Purge
-                          </button>
+                          </Button>
                         )}
-                      </td>
-                    </tr>
+                      </Space>
+                    </div>
                   ))}
-                  {!trash.length && <tr><td colSpan={4} className="text-center text-[var(--t-sub)] py-8">Recycle Bin is empty.</td></tr>}
-                </tbody>
-              </table>
+                </Card>
+              )}
             </>
           )}
         </main>
       </div>
 
       {/* ── Detail drawer ─────────────────────────────────────────────── */}
-      {openDoc && createPortal(
-        <div className="doc-wallet-drawer-overlay" onClick={() => setOpenDocId(null)}>
-          <div className="doc-wallet-drawer" onClick={(e) => e.stopPropagation()}>
-            <div className="doc-wallet-drawer-head">
-              <h2>{openDoc.name}</h2>
-              <button onClick={() => setOpenDocId(null)}><XMarkIcon className="w-5 h-5" /></button>
+      <Drawer
+        title={openDoc?.name}
+        open={!!openDoc}
+        onClose={() => setOpenDocId(null)}
+        width={480}
+        closeIcon={<X size={18} />}
+      >
+        {openDoc && (
+          <>
+            <div className="doc-wallet-meta-grid">
+              <div><label>Folder</label><span>{catName(openDoc.category, customCats)}</span></div>
+              <div><label>Doc No</label><span>{openDoc.docNo || '—'}</span></div>
+              <div><label>Issue date</label><span>{openDoc.issueDate ? openDoc.issueDate.slice(0, 10) : '—'}</span></div>
+              <div><label>Expiry date</label><span>{openDoc.expiryDate ? openDoc.expiryDate.slice(0, 10) : '—'}</span></div>
+              <div><label>Issuer</label><span>{openDoc.issuer || '—'}</span></div>
+              <div><label>Custodian</label><span>{openDoc.keeper || '—'}</span></div>
+              <div><label>Location</label><span>{openDoc.location || '—'}</span></div>
             </div>
-            <div className="doc-wallet-drawer-body">
-              <div className="doc-wallet-meta-grid">
-                <div><label>Folder</label><span>{catName(openDoc.category, customCats)}</span></div>
-                <div><label>Doc No</label><span>{openDoc.docNo || '—'}</span></div>
-                <div><label>Issue date</label><span>{openDoc.issueDate ? openDoc.issueDate.slice(0, 10) : '—'}</span></div>
-                <div><label>Expiry date</label><span>{openDoc.expiryDate ? openDoc.expiryDate.slice(0, 10) : '—'}</span></div>
-                <div><label>Issuer</label><span>{openDoc.issuer || '—'}</span></div>
-                <div><label>Custodian</label><span>{openDoc.keeper || '—'}</span></div>
-                <div><label>Location</label><span>{openDoc.location || '—'}</span></div>
-              </div>
-              {openDoc.notes && <p className="doc-wallet-notes">{openDoc.notes}</p>}
+            {openDoc.notes && <p className="doc-wallet-notes">{openDoc.notes}</p>}
 
-              <div className="doc-wallet-drawer-actions">
-                <button className="btn-secondary" onClick={() => downloadLatestFile(openDoc)}>
-                  <ArrowDownTrayIcon className="w-4 h-4" /> Download latest file
-                </button>
-                <button className="btn-secondary" onClick={() => { setNewVersionDocId(openDoc._id); setNewVersionForm({ v: '', date: new Date().toISOString().slice(0, 10), note: '', expiryDate: openDoc.expiryDate ? openDoc.expiryDate.slice(0, 10) : '' }); setNewVersionFiles([]); }}>
-                  <ArrowUpTrayIcon className="w-4 h-4" /> New version
-                </button>
-                <button className="btn-secondary" onClick={() => shareViaEmail(openDoc)}>
-                  <EnvelopeIcon className="w-4 h-4" /> Share via email
-                </button>
-                <button className="btn-secondary" onClick={() => copyDetails(openDoc)}>
-                  <ClipboardDocumentIcon className="w-4 h-4" /> Copy details
-                </button>
-                <button className="btn-secondary" onClick={() => openEditDetails(openDoc)}>
-                  <PencilSquareIcon className="w-4 h-4" /> Edit details
-                </button>
-                <button
-                  className="btn-secondary text-red-600"
-                  onClick={() => setConfirmState({
-                    title: 'Delete document?',
-                    message: 'Moves this document to the Recycle Bin — you can restore it later.',
-                    onConfirm: () => { softDeleteMutation.mutate(openDoc._id); setOpenDocId(null); setConfirmState(null); },
-                  })}
-                >
-                  <TrashIcon className="w-4 h-4" /> Delete
-                </button>
-              </div>
+            <Space wrap style={{ marginBottom: 16 }}>
+              <Button size="small" icon={<Download size={13} />} onClick={() => downloadLatestFile(openDoc)}>Download latest file</Button>
+              <Button
+                size="small" icon={<UploadIcon size={13} />}
+                onClick={() => { setNewVersionDocId(openDoc._id); setNewVersionForm({ v: '', date: new Date().toISOString().slice(0, 10), note: '', expiryDate: openDoc.expiryDate ? openDoc.expiryDate.slice(0, 10) : '' }); setNewVersionFiles([]); }}
+              >
+                New version
+              </Button>
+              <Button size="small" icon={<Mail size={13} />} onClick={() => shareViaEmail(openDoc)}>Share via email</Button>
+              <Button size="small" icon={<Clipboard size={13} />} onClick={() => copyDetails(openDoc)}>Copy details</Button>
+              <Button size="small" icon={<Pencil size={13} />} onClick={() => openEditDetails(openDoc)}>Edit details</Button>
+              <Button
+                size="small" danger icon={<Trash2 size={13} />}
+                onClick={() => setConfirmState({
+                  title: 'Delete document?',
+                  message: 'Moves this document to the Recycle Bin — you can restore it later.',
+                  onConfirm: () => { softDeleteMutation.mutate(openDoc._id); setOpenDocId(null); setConfirmState(null); },
+                })}
+              >
+                Delete
+              </Button>
+            </Space>
 
-              <h3 className="text-sm font-bold mt-4 mb-2">Versions</h3>
-              {(openDoc.versions || []).slice().reverse().map((v) => (
-                <div key={v._id} className="doc-wallet-version">
-                  <div className="doc-wallet-version-head">
-                    <span className="font-semibold">{v.v}</span>
-                    <span className="text-[var(--t-sub)]">{v.date || '—'}</span>
-                  </div>
-                  {v.note && <p className="text-xs text-[var(--t-sub)]">{v.note}</p>}
-                  <ul className="doc-wallet-file-list">
-                    {(v.files || []).map((f) => (
-                      <li key={f._id}>
-                        <DocumentTextIcon className="w-4 h-4" />
-                        <span className="flex-1 truncate">{f.name}</span>
-                        <button title="Preview" onClick={() => openViewerForDoc(openDoc, f)}><ArrowDownTrayIcon className="w-4 h-4" /></button>
-                        <button
-                          title="Delete file"
-                          onClick={() => setConfirmState({
-                            title: 'Delete file?',
-                            message: `Moves "${f.name}" to the Recycle Bin.`,
-                            onConfirm: () => { deleteVersionFileMutation.mutate({ docId: openDoc._id, versionId: v._id, fileId: f._id }); setConfirmState(null); },
-                          })}
-                        >
-                          <XMarkIcon className="w-4 h-4" />
-                        </button>
-                      </li>
-                    ))}
-                    {!v.files?.length && <li className="text-[var(--t-sub)] text-xs">No files</li>}
-                  </ul>
+            <Title level={5} style={{ marginBottom: 8 }}>Versions</Title>
+            {(openDoc.versions || []).slice().reverse().map((v) => (
+              <div key={v._id} className="doc-wallet-version">
+                <div className="doc-wallet-version-head">
+                  <span className="font-semibold">{v.v}</span>
+                  <span className="text-[var(--t-sub)]">{v.date || '—'}</span>
                 </div>
-              ))}
-            </div>
-          </div>
-        </div>,
-        document.body,
-      )}
+                {v.note && <p className="text-xs text-[var(--t-sub)]">{v.note}</p>}
+                <ul className="doc-wallet-file-list">
+                  {(v.files || []).map((f) => (
+                    <li key={f._id}>
+                      <FileText className="w-4 h-4" />
+                      <span className="flex-1 truncate">{f.name}</span>
+                      <button title="Preview" onClick={() => openViewerForDoc(openDoc, f)}><Eye className="w-4 h-4" /></button>
+                      <button
+                        title="Delete file"
+                        onClick={() => setConfirmState({
+                          title: 'Delete file?',
+                          message: `Moves "${f.name}" to the Recycle Bin.`,
+                          onConfirm: () => { deleteVersionFileMutation.mutate({ docId: openDoc._id, versionId: v._id, fileId: f._id }); setConfirmState(null); },
+                        })}
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </li>
+                  ))}
+                  {!v.files?.length && <li className="text-[var(--t-sub)] text-xs">No files</li>}
+                </ul>
+              </div>
+            ))}
+          </>
+        )}
+      </Drawer>
 
-      {/* ── New document / edit details modal ───────────────────────────── */}
-      {newDocOpen && createPortal(
-        <div className="doc-wallet-modal-overlay" onClick={closeNewDocModal}>
-          <form className="doc-wallet-modal" onClick={(e) => e.stopPropagation()} onSubmit={submitNewDoc}>
-            <h3>{editingDocId ? 'Edit document details' : 'New document'}</h3>
+      {/* ── New document / edit details drawer ──────────────────────────── */}
+      <Drawer
+        title={editingDocId ? 'Edit document details' : 'New document'}
+        open={newDocOpen}
+        onClose={closeNewDocModal}
+        width={420}
+        closeIcon={<X size={18} />}
+        footer={
+          <Space style={{ width: '100%', justifyContent: 'flex-end' }}>
+            <Button onClick={closeNewDocModal}>Cancel</Button>
+            <Button type="primary" loading={createMutation.isPending || updateMutation.isPending} onClick={submitNewDoc}>{editingDocId ? 'Save' : 'Create'}</Button>
+          </Space>
+        }
+      >
+        <form onSubmit={submitNewDoc}>
+          <Space direction="vertical" style={{ width: '100%' }} size={12}>
             {!editingDocId && (
-              <select onChange={(e) => applyTemplate(Number(e.target.value))} defaultValue="0">
-                {TEMPLATES.map((t, i) => <option key={i} value={i}>{t.label}</option>)}
-              </select>
+              <Select
+                style={{ width: '100%' }} defaultValue={0} onChange={(v) => applyTemplate(Number(v))}
+                options={TEMPLATES.map((t, i) => ({ label: t.label, value: i }))}
+              />
             )}
-            <input required placeholder="Document name" value={newDocForm.name} onChange={(e) => setNewDocForm({ ...newDocForm, name: e.target.value })} />
-            <select required value={newDocForm.category} onChange={(e) => setNewDocForm({ ...newDocForm, category: e.target.value })}>
-              <option value="">Select folder…</option>
-              {[...BASE_CATEGORIES, ...customCats].map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-            </select>
-            <input placeholder="Document number" value={newDocForm.docNo} onChange={(e) => setNewDocForm({ ...newDocForm, docNo: e.target.value })} />
+            <Input required placeholder="Document name" value={newDocForm.name} onChange={(e) => setNewDocForm({ ...newDocForm, name: e.target.value })} />
+            <Select
+              style={{ width: '100%' }} placeholder="Select folder…" value={newDocForm.category || undefined}
+              onChange={(v) => setNewDocForm({ ...newDocForm, category: v })}
+              options={[...BASE_CATEGORIES, ...customCats].map((c) => ({ label: c.name, value: c.id }))}
+            />
+            <Input placeholder="Document number" value={newDocForm.docNo} onChange={(e) => setNewDocForm({ ...newDocForm, docNo: e.target.value })} />
             <div className="doc-wallet-modal-row">
-              <label>Issue date<input type="date" value={newDocForm.issueDate} onChange={(e) => setNewDocForm({ ...newDocForm, issueDate: e.target.value })} /></label>
-              <label>Expiry date<input type="date" value={newDocForm.expiryDate} onChange={(e) => setNewDocForm({ ...newDocForm, expiryDate: e.target.value })} /></label>
+              <label>Issue date<Input type="date" value={newDocForm.issueDate} onChange={(e) => setNewDocForm({ ...newDocForm, issueDate: e.target.value })} /></label>
+              <label>Expiry date<Input type="date" value={newDocForm.expiryDate} onChange={(e) => setNewDocForm({ ...newDocForm, expiryDate: e.target.value })} /></label>
             </div>
-            <input placeholder="Issuer" value={newDocForm.issuer} onChange={(e) => setNewDocForm({ ...newDocForm, issuer: e.target.value })} />
-            <input placeholder="Custodian" value={newDocForm.keeper} onChange={(e) => setNewDocForm({ ...newDocForm, keeper: e.target.value })} />
-            <input placeholder="Location" value={newDocForm.location} onChange={(e) => setNewDocForm({ ...newDocForm, location: e.target.value })} />
-            <textarea placeholder="Notes" value={newDocForm.notes} onChange={(e) => setNewDocForm({ ...newDocForm, notes: e.target.value })} />
+            <Input placeholder="Issuer" value={newDocForm.issuer} onChange={(e) => setNewDocForm({ ...newDocForm, issuer: e.target.value })} />
+            <Input placeholder="Custodian" value={newDocForm.keeper} onChange={(e) => setNewDocForm({ ...newDocForm, keeper: e.target.value })} />
+            <Input placeholder="Location" value={newDocForm.location} onChange={(e) => setNewDocForm({ ...newDocForm, location: e.target.value })} />
+            <TextArea placeholder="Notes" rows={3} value={newDocForm.notes} onChange={(e) => setNewDocForm({ ...newDocForm, notes: e.target.value })} />
             {!editingDocId && (
-              <>
-                <input type="file" multiple onChange={(e) => setNewDocFiles([...e.target.files])} />
-                {newDocFiles.length > 0 && <p className="text-xs text-[var(--t-sub)]">{newDocFiles.length} file(s) selected</p>}
-              </>
+              <Upload multiple beforeUpload={() => false} fileList={newDocFiles} onChange={({ fileList }) => setNewDocFiles(fileList)}>
+                <Button icon={<UploadIcon size={14} />}>Select files</Button>
+              </Upload>
             )}
-            <div className="doc-wallet-modal-actions">
-              <button type="button" className="btn-secondary" onClick={closeNewDocModal}>Cancel</button>
-              <button type="submit" className="btn-primary" disabled={createMutation.isPending || updateMutation.isPending}>{editingDocId ? 'Save' : 'Create'}</button>
-            </div>
-          </form>
-        </div>,
-        document.body,
-      )}
+          </Space>
+        </form>
+      </Drawer>
 
-      {/* ── New version modal ─────────────────────────────────────────── */}
-      {newVersionDocId && createPortal(
-        <div className="doc-wallet-modal-overlay" onClick={() => setNewVersionDocId(null)}>
-          <form className="doc-wallet-modal" onClick={(e) => e.stopPropagation()} onSubmit={submitNewVersion}>
-            <h3>Upload new version</h3>
-            <input placeholder="Version label (auto-fills from file name, or type your own)" value={newVersionForm.v} onChange={(e) => setNewVersionForm({ ...newVersionForm, v: e.target.value })} />
-            <input type="date" value={newVersionForm.date} onChange={(e) => setNewVersionForm({ ...newVersionForm, date: e.target.value })} />
-            <textarea placeholder="Change note" value={newVersionForm.note} onChange={(e) => setNewVersionForm({ ...newVersionForm, note: e.target.value })} />
-            <label>Updated expiry<input type="date" value={newVersionForm.expiryDate} onChange={(e) => setNewVersionForm({ ...newVersionForm, expiryDate: e.target.value })} /></label>
-            <input type="file" multiple onChange={(e) => {
-              const files = [...e.target.files];
-              setNewVersionFiles(files);
-              if (files.length && !newVersionForm.v.trim()) {
-                setNewVersionForm((f) => ({ ...f, v: files[0].name.replace(/\.[^./]+$/, '') }));
-              }
-            }} />
-            <div className="doc-wallet-modal-actions">
-              <button type="button" className="btn-secondary" onClick={() => setNewVersionDocId(null)}>Cancel</button>
-              <button type="submit" className="btn-primary">Save version</button>
-            </div>
-          </form>
-        </div>,
-        document.body,
-      )}
+      {/* ── New version drawer ────────────────────────────────────────── */}
+      <Drawer
+        title="Upload new version"
+        open={!!newVersionDocId}
+        onClose={() => setNewVersionDocId(null)}
+        width={380}
+        closeIcon={<X size={18} />}
+        footer={
+          <Space style={{ width: '100%', justifyContent: 'flex-end' }}>
+            <Button onClick={() => setNewVersionDocId(null)}>Cancel</Button>
+            <Button type="primary" onClick={submitNewVersion}>Save version</Button>
+          </Space>
+        }
+      >
+        <form onSubmit={submitNewVersion}>
+          <Space direction="vertical" style={{ width: '100%' }} size={12}>
+            <Input placeholder="Version label (auto-fills from file name, or type your own)" value={newVersionForm.v} onChange={(e) => setNewVersionForm({ ...newVersionForm, v: e.target.value })} />
+            <Input type="date" value={newVersionForm.date} onChange={(e) => setNewVersionForm({ ...newVersionForm, date: e.target.value })} />
+            <TextArea placeholder="Change note" rows={3} value={newVersionForm.note} onChange={(e) => setNewVersionForm({ ...newVersionForm, note: e.target.value })} />
+            <label>Updated expiry<Input type="date" value={newVersionForm.expiryDate} onChange={(e) => setNewVersionForm({ ...newVersionForm, expiryDate: e.target.value })} /></label>
+            <Upload
+              multiple beforeUpload={() => false} fileList={newVersionFiles}
+              onChange={({ fileList }) => {
+                setNewVersionFiles(fileList);
+                if (fileList.length && !newVersionForm.v.trim()) {
+                  setNewVersionForm((f) => ({ ...f, v: fileList[0].name.replace(/\.[^./]+$/, '') }));
+                }
+              }}
+            >
+              <Button icon={<UploadIcon size={14} />}>Select files</Button>
+            </Upload>
+          </Space>
+        </form>
+      </Drawer>
 
-      {/* ── Add category modal ────────────────────────────────────────── */}
-      {addCategoryOpen && createPortal(
-        <div className="doc-wallet-modal-overlay" onClick={() => setAddCategoryOpen(false)}>
-          <form
-            className="doc-wallet-modal"
-            onClick={(e) => e.stopPropagation()}
-            onSubmit={(e) => { e.preventDefault(); if (!newCategoryName.trim()) return; addCategoryMutation.mutate(newCategoryName); setNewCategoryName(''); setAddCategoryOpen(false); }}
-          >
-            <h3>Add folder</h3>
-            <input required placeholder="Folder name" value={newCategoryName} onChange={(e) => setNewCategoryName(e.target.value)} />
-            <div className="doc-wallet-modal-actions">
-              <button type="button" className="btn-secondary" onClick={() => setAddCategoryOpen(false)}>Cancel</button>
-              <button type="submit" className="btn-primary">Add</button>
-            </div>
-          </form>
-        </div>,
-        document.body,
-      )}
+      {/* ── Add category drawer ───────────────────────────────────────── */}
+      <Drawer
+        title="Add folder"
+        open={addCategoryOpen}
+        onClose={() => setAddCategoryOpen(false)}
+        width={340}
+        closeIcon={<X size={18} />}
+        footer={
+          <Space style={{ width: '100%', justifyContent: 'flex-end' }}>
+            <Button onClick={() => setAddCategoryOpen(false)}>Cancel</Button>
+            <Button
+              type="primary" disabled={!newCategoryName.trim()}
+              onClick={() => { addCategoryMutation.mutate(newCategoryName); setNewCategoryName(''); setAddCategoryOpen(false); }}
+            >
+              Add
+            </Button>
+          </Space>
+        }
+      >
+        <Input required placeholder="Folder name" value={newCategoryName} onChange={(e) => setNewCategoryName(e.target.value)} />
+      </Drawer>
 
-      {/* ── Reminders preview panel ──────────────────────────────────── */}
-      {remindersPreview && createPortal(
-        <div className="doc-wallet-modal-overlay" onClick={() => setRemindersPreview(null)}>
-          <div className="doc-wallet-modal" onClick={(e) => e.stopPropagation()}>
-            <h3>Renewal reminders (next {remindersPreview.threshold} days)</h3>
-            <p className="text-xs text-[var(--t-sub)]">{remindersPreview.expired.length} expired, {remindersPreview.expiringSoon.length} expiring soon.</p>
+      {/* ── Reminders preview modal ──────────────────────────────────── */}
+      <Modal
+        title={remindersPreview ? `Renewal reminders (next ${remindersPreview.threshold} days)` : ''}
+        open={!!remindersPreview}
+        onCancel={() => setRemindersPreview(null)}
+        footer={
+          <Space>
+            <Button onClick={() => setRemindersPreview(null)}>Close</Button>
+            <Button type="primary" onClick={sendRemindersNow}>Send digest now</Button>
+          </Space>
+        }
+      >
+        {remindersPreview && (
+          <>
+            <Text type="secondary" style={{ fontSize: 12 }}>{remindersPreview.expired.length} expired, {remindersPreview.expiringSoon.length} expiring soon.</Text>
             <ul className="doc-wallet-reminder-list">
               {[...remindersPreview.expired, ...remindersPreview.expiringSoon].map((e, i) => (
                 <li key={i}><span>{e.name}</span><span className="text-[var(--t-sub)]">{e.folder}</span><span>{e.days < 0 ? `${Math.abs(e.days)}d overdue` : `${e.days}d left`}</span></li>
               ))}
               {!remindersPreview.expired.length && !remindersPreview.expiringSoon.length && <li className="text-[var(--t-sub)]">Nothing due.</li>}
             </ul>
-            <div className="doc-wallet-modal-actions">
-              <button className="btn-secondary" onClick={() => setRemindersPreview(null)}>Close</button>
-              <button className="btn-primary" onClick={sendRemindersNow}>Send digest now</button>
-            </div>
-          </div>
-        </div>,
-        document.body,
-      )}
+          </>
+        )}
+      </Modal>
 
-      {/* ── File preview viewer ──────────────────────────────────────── */}
-      {viewer && createPortal(
+      {/* ── File preview viewer (pure lightbox, not a form) ─────────────── */}
+      {viewer && (
         <div className="doc-wallet-viewer-overlay" onClick={closeViewer}>
           <div className="doc-wallet-viewer" onClick={(e) => e.stopPropagation()}>
-            <button className="doc-wallet-viewer-close" onClick={closeViewer}><XMarkIcon className="w-5 h-5" /></button>
+            <button className="doc-wallet-viewer-close" onClick={closeViewer}><X className="w-5 h-5" /></button>
             {viewer.index > 0 && (
-              <button className="doc-wallet-viewer-nav left" onClick={() => setViewer((v) => ({ ...v, index: v.index - 1 }))}><ChevronLeftIcon className="w-6 h-6" /></button>
+              <button className="doc-wallet-viewer-nav left" onClick={() => setViewer((v) => ({ ...v, index: v.index - 1 }))}><ChevronLeft className="w-6 h-6" /></button>
             )}
             {viewer.index < viewer.files.length - 1 && (
-              <button className="doc-wallet-viewer-nav right" onClick={() => setViewer((v) => ({ ...v, index: v.index + 1 }))}><ChevronRightIcon className="w-6 h-6" /></button>
+              <button className="doc-wallet-viewer-nav right" onClick={() => setViewer((v) => ({ ...v, index: v.index + 1 }))}><ChevronRight className="w-6 h-6" /></button>
             )}
             <div className="doc-wallet-viewer-content">
               {viewer.loading && <p className="text-white">Loading…</p>}
@@ -829,11 +814,10 @@ export default function DocumentWalletPage() {
             </div>
             <div className="doc-wallet-viewer-footer">
               <span>{viewer.files[viewer.index]?.name}</span>
-              {viewer.blobUrl && <a className="btn-secondary" href={viewer.blobUrl} download={viewer.files[viewer.index]?.name}><ArrowDownTrayIcon className="w-4 h-4" /> Download</a>}
+              {viewer.blobUrl && <a className="btn-secondary" href={viewer.blobUrl} download={viewer.files[viewer.index]?.name}><Download className="w-4 h-4" /> Download</a>}
             </div>
           </div>
-        </div>,
-        document.body,
+        </div>
       )}
 
       {confirmState && (

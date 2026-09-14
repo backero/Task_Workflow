@@ -7,9 +7,8 @@ import { usePermissions } from '../../store/usePermissions';
 import api from '../../api/axios';
 import { format, isPast } from 'date-fns';
 import clsx from 'clsx';
-import { ChevronDownIcon, ChevronRightIcon, PlusIcon, XMarkIcon, ArrowPathIcon } from '@heroicons/react/24/outline';
+import { ChevronDown, ChevronRight, Plus, X, ArrowLeft, Zap, Pencil, Trash2, CheckCircle2, Network, ListTree, Building2 } from 'lucide-react';
 import ConfirmDialog from '../../components/common/ConfirmDialog';
-import { CheckCircleIcon as CheckCircleSolid } from '@heroicons/react/24/solid';
 
 const STATUS_COLORS = {
   'Pending':          'bg-slate-100 text-slate-700',
@@ -72,9 +71,7 @@ export default function WorkflowView() {
               onClick={() => navigate('/workflow')}
               className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-800 dark:hover:text-gray-200 font-medium transition-colors flex-shrink-0 px-2.5 py-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-[#1b2e4a]"
             >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-              </svg>
+              <ArrowLeft className="w-4 h-4" />
               Board
             </button>
 
@@ -85,9 +82,7 @@ export default function WorkflowView() {
               <div className="flex items-center gap-3 min-w-0">
                 {/* Dept color dot */}
                 <div className={clsx('w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 shadow-sm', deptC.bg)}>
-                  <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                  </svg>
+                  <Zap className="w-4 h-4 text-white" />
                 </div>
                 <div className="min-w-0">
                   <h1 className="text-sm font-bold text-gray-900 dark:text-white leading-tight truncate max-w-xs">
@@ -133,18 +128,19 @@ export default function WorkflowView() {
             {/* View switcher */}
             <div className="flex items-center bg-gray-100 dark:bg-[#0f1a2e] rounded-xl p-0.5">
               {[
-                { key: 'workflow', label: '🌐 Canvas' },
-                { key: 'tree',     label: '🌲 Tree'   },
-                { key: 'dept',     label: '🏢 Dept Hub' },
+                { key: 'workflow', label: 'Canvas', icon: Network },
+                { key: 'tree',     label: 'Tree',   icon: ListTree },
+                { key: 'dept',     label: 'Dept Hub', icon: Building2 },
               ].map(v => (
                 <button
                   key={v.key}
                   onClick={() => setView(v.key)}
                   className={clsx(
-                    'px-3 py-1.5 text-xs font-semibold rounded-lg transition-all',
+                    'px-3 py-1.5 text-xs font-semibold rounded-lg transition-all flex items-center gap-1.5',
                     view === v.key ? 'bg-white dark:bg-[#132035] shadow text-gray-900 dark:text-white' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300',
                   )}
                 >
+                  <v.icon className="w-3.5 h-3.5" />
                   {v.label}
                 </button>
               ))}
@@ -237,7 +233,7 @@ function DeptInlineForm({ dept, onSave, onCancel }) {
           {saving ? '…' : 'Add'}
         </button>
         <button onMouseDown={onCancel} className="px-2 text-gray-400 hover:text-gray-600">
-          <XMarkIcon className="w-3.5 h-3.5" />
+          <X className="w-3.5 h-3.5" />
         </button>
       </div>
     </div>
@@ -284,7 +280,7 @@ function DeptTaskNode({ node, depth = 0, canEdit, onStatusChange, onAddSubtask, 
         {/* Chevron */}
         <div className="mt-0.5 w-4 flex-shrink-0">
           {hasKids
-            ? (open ? <ChevronDownIcon className="w-3.5 h-3.5 text-gray-400" /> : <ChevronRightIcon className="w-3.5 h-3.5 text-gray-400" />)
+            ? (open ? <ChevronDown className="w-3.5 h-3.5 text-gray-400" /> : <ChevronRight className="w-3.5 h-3.5 text-gray-400" />)
             : <span className="w-3.5 block" />}
         </div>
 
@@ -365,21 +361,17 @@ function DeptTaskNode({ node, depth = 0, canEdit, onStatusChange, onAddSubtask, 
             <button onClick={e => { e.stopPropagation(); setAddingHere(p => !p); setOpen(true); }}
               className="p-1 rounded-md bg-brand-50 text-brand-400 hover:bg-brand-100 hover:text-brand-600"
               title="Add subtask">
-              <PlusIcon className="w-3.5 h-3.5" />
+              <Plus className="w-3.5 h-3.5" />
             </button>
             <button onClick={startRename}
               className="p-1 rounded-md bg-indigo-50 text-indigo-400 hover:bg-indigo-100 hover:text-indigo-600"
               title="Rename task">
-              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-              </svg>
+              <Pencil className="w-3.5 h-3.5" />
             </button>
             <button onClick={e => { e.stopPropagation(); setConfirmDelete(true); }}
               className="p-1 rounded-md bg-red-50 text-red-400 hover:bg-red-100 hover:text-red-600"
               title="Delete task">
-              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-              </svg>
+              <Trash2 className="w-3.5 h-3.5" />
             </button>
           </div>
         )}
@@ -440,31 +432,34 @@ function DeptHubColumn({ dept, nodes, cfg, canEdit, onAddTask, onStatusChange, o
 
   return (
     <div className={clsx('flex-shrink-0 w-72 rounded-xl border-2 flex flex-col', cfg.border, allDone ? 'opacity-90' : '')}>
-      {/* Header */}
-      <div className={clsx('rounded-t-xl px-4 py-3', cfg.bg)}>
+      {/* Header — minimal white + accent dot, not a loud solid fill */}
+      <div className={clsx('rounded-t-xl px-4 py-3 border-b bg-white dark:bg-[#0f172a]', cfg.border)}>
         <div className="flex items-center justify-between gap-2">
-          <span className="font-bold text-sm text-white">{dept}</span>
-          <div className="flex items-center gap-1.5">
-            {allDone && <CheckCircleSolid className="w-4 h-4 text-green-300" />}
-            <span className="text-xs font-bold text-white">{progress}%</span>
+          <div className="flex items-center gap-2 min-w-0">
+            <span className={clsx('w-2.5 h-2.5 rounded-full flex-shrink-0', cfg.bar)} />
+            <span className="font-bold text-sm text-gray-800 dark:text-gray-100 truncate">{dept}</span>
+          </div>
+          <div className="flex items-center gap-1.5 flex-shrink-0">
+            {allDone && <CheckCircle2 className="w-4 h-4 text-green-500" />}
+            <span className={clsx('text-xs font-bold', cfg.text)}>{progress}%</span>
           </div>
         </div>
         {/* Manager row */}
         {manager ? (
           <div className="flex items-center gap-1.5 mt-1.5">
-            <div className="w-5 h-5 rounded-full bg-white/25 flex items-center justify-center text-[9px] font-bold text-white flex-shrink-0">
+            <div className={clsx('w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold text-white flex-shrink-0', cfg.bar)}>
               {managerInitials}
             </div>
-            <span className="text-[10px] text-white/85 font-medium">{manager.firstName} {manager.lastName}</span>
-            <span className="text-[10px] text-white/50 capitalize">{manager.role?.replace('_', ' ')}</span>
+            <span className="text-[10px] text-gray-600 dark:text-gray-300 font-medium">{manager.firstName} {manager.lastName}</span>
+            <span className="text-[10px] text-gray-400 capitalize">{manager.role?.replace('_', ' ')}</span>
           </div>
         ) : (
-          <p className="text-[10px] text-white/50 mt-1">No manager assigned</p>
+          <p className="text-[10px] text-gray-400 mt-1">No manager assigned</p>
         )}
-        <div className="mt-2 w-full bg-white/25 rounded-full h-1.5 overflow-hidden">
-          <div className="h-full rounded-full bg-white/80 transition-all duration-500" style={{ width: `${progress}%` }} />
+        <div className="mt-2 w-full bg-gray-100 dark:bg-[#1b2e4a] rounded-full h-1.5 overflow-hidden">
+          <div className={clsx('h-full rounded-full transition-all duration-500', cfg.bar)} style={{ width: `${progress}%` }} />
         </div>
-        <p className="text-[10px] text-white/70 mt-1">{allProg.done}/{allProg.total} tasks · {subtaskTotal} subtasks</p>
+        <p className="text-[10px] text-gray-400 mt-1">{allProg.done}/{allProg.total} tasks · {subtaskTotal} subtasks</p>
       </div>
 
       {/* Task list */}
@@ -491,7 +486,7 @@ function DeptHubColumn({ dept, nodes, cfg, canEdit, onAddTask, onStatusChange, o
             onClick={() => setAddingTask(p => !p)}
             className={clsx('w-full flex items-center justify-center gap-1.5 text-xs font-medium py-1.5 rounded-lg border transition-colors', cfg.border, cfg.light, cfg.text, 'hover:opacity-80')}
           >
-            <PlusIcon className="w-3.5 h-3.5" />
+            <Plus className="w-3.5 h-3.5" />
             Add Task to {dept}
           </button>
         </div>
@@ -674,7 +669,7 @@ function DeptHubView() {
             return (
               <span key={d} className={clsx('text-[10px] font-semibold px-2.5 py-1 rounded-full border flex items-center gap-1', cfg.light, cfg.border, cfg.text)}>
                 {d === 'Accounts & Finance' ? 'Finance' : d} <span className="font-bold">{p}%</span>
-                {p === 100 && <CheckCircleSolid className="w-3 h-3 text-green-500" />}
+                {p === 100 && <CheckCircle2 className="w-3 h-3 text-green-500" />}
               </span>
             );
           })}

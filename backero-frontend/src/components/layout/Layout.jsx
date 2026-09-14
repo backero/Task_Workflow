@@ -60,7 +60,7 @@ export default function Layout() {
           conditional rendering) avoids double-mounting the Outlet/queries. */}
       <div className="flex flex-col h-full overflow-hidden lg:ms-[72px]">
         <Header onMobileMenuToggle={() => setMobileSidebarOpen(true)} />
-        <main className="flex-1 overflow-y-auto p-4 lg:p-6 pb-20 lg:pb-6 dot-grid">
+        <main className="flex-1 overflow-y-auto p-4 lg:p-6 pb-20 lg:pb-6" style={{ background: '#f5f5f5' }}>
           <div className="w-full animate-page">
             <Outlet />
           </div>

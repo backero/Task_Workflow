@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import clsx from 'clsx';
 import api from '../../../api/axios';
-import { LockClosedIcon, TruckIcon } from '@heroicons/react/24/outline';
+import { Lock, Truck, CheckCircle2, LockOpen, TriangleAlert, Package, Tag as TagIcon, Printer, FileText, Receipt, ClipboardCheck } from 'lucide-react';
 import { Card, PILL } from '../sampleTheme';
 import OrderSpecTabs, {
   Field, inputCls, primaryBtn, secondaryBtn,
@@ -66,7 +66,7 @@ export function StageBar({ order, viewStage, setViewStage }) {
               'bg-[#fbfaf7] border-[#ddd6c4] text-[#6b6155]')}>
             <span className={clsx('w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold flex-shrink-0',
               done ? 'bg-[#2f6b4f] text-white' : active ? 'bg-[#a8781f] text-[#1c1917]' : 'bg-[#e7e2d6] text-[#6b6155]')}>
-              {done ? '✓' : displayIndex + 1}
+              {done ? <CheckCircle2 className="w-3 h-3" /> : displayIndex + 1}
             </span>
             {name}
           </button>
@@ -130,10 +130,10 @@ export function StageOrder({ order, onSaved, hideSidebar }) {
         {locked && (
           <Card className="border-[#c3d9c9] bg-[#e2ece5] flex items-center justify-between gap-3 flex-wrap">
             <div>
-              <p className="text-sm font-bold text-[#2f6b4f]">🔒 Job Sheet Confirmed &amp; Locked</p>
+              <p className="text-sm font-bold text-[#2f6b4f] flex items-center gap-1.5"><Lock className="w-4 h-4" /> Job Sheet Confirmed &amp; Locked</p>
               <p className="text-xs text-[#6b6155]">Confirmed {crmSpec.specsConfirmedAt ? new Date(crmSpec.specsConfirmedAt).toLocaleString('en-IN') : ''}</p>
             </div>
-            <button onClick={unlockJobSheet} disabled={busy} className={secondaryBtn}>🔓 Unlock &amp; Edit</button>
+            <button onClick={unlockJobSheet} disabled={busy} className={clsx(secondaryBtn, 'flex items-center gap-1.5')}><LockOpen className="w-3.5 h-3.5" /> Unlock &amp; Edit</button>
           </Card>
         )}
 
@@ -163,7 +163,7 @@ export function StageOrder({ order, onSaved, hideSidebar }) {
         <div className="flex items-center gap-3">
           <button onClick={() => save()} disabled={busy || locked} className={secondaryBtn}>{busy ? 'Saving…' : 'Save Draft'}</button>
           {!locked && (
-            <button onClick={confirmJobSheet} disabled={busy} className={primaryBtn}>✅ Confirm Job Sheet & Lock Specs</button>
+            <button onClick={confirmJobSheet} disabled={busy} className={clsx(primaryBtn, 'flex items-center gap-1.5')}><CheckCircle2 className="w-4 h-4" /> Confirm Job Sheet & Lock Specs</button>
           )}
         </div>
       </div>
@@ -250,8 +250,8 @@ export function StageWorkAssignment({ order, onSaved }) {
         {personField('packPerson', 'Packaging In-charge')}{personField('dispatchPerson', 'Dispatch In-charge')}{personField('supervisor', 'Supervisor')}
       </div>
       {paymentBlocked && (
-        <p className="text-xs text-[#a13d34] font-semibold mt-3 bg-[#f5e3e0] border border-[#e8c9c3] rounded-xl px-3 py-2">
-          ⚠ Needs ≥50% advance payment confirmed before Procurement can start ({paidPct}% paid so far — {inv.invoiceNumber}).
+        <p className="text-xs text-[#a13d34] font-semibold mt-3 bg-[#f5e3e0] border border-[#e8c9c3] rounded-xl px-3 py-2 flex items-center gap-1.5">
+          <TriangleAlert className="w-3.5 h-3.5 flex-shrink-0" /> Needs ≥50% advance payment confirmed before Procurement can start ({paidPct}% paid so far — {inv.invoiceNumber}).
         </p>
       )}
       <button onClick={save} disabled={busy || paymentBlocked} className={clsx(primaryBtn, 'mt-4')}>{busy ? 'Saving…' : paymentBlocked ? 'Awaiting Payment' : 'Confirm Schedule → Procurement'}</button>
@@ -309,7 +309,7 @@ export function StageProcurement({ order, onAdvanced }) {
       )}
       {shortRows.length > 0 && (
         <div className="mt-3 bg-[#f5e3e0] border border-[#e8c9c3] rounded-xl px-3 py-2 text-xs text-[#a13d34]">
-          ⚠ {shortRows.length} material(s) below required quantity — procure before proceeding, this blocks confirming until resolved:
+          <span className="inline-flex items-center gap-1.5"><TriangleAlert className="w-3.5 h-3.5" /> {shortRows.length} material(s) below required quantity — procure before proceeding, this blocks confirming until resolved:</span>
           <ul className="mt-1 ml-4 list-disc">
             {shortRows.map((r, i) => <li key={i}>{r.name}: need {r.shortfall} {r.unit} more (have {r.stock}, need {r.targetQty})</li>)}
           </ul>
@@ -395,13 +395,13 @@ export function StageWeighing({ order, onSaved }) {
               <div key={i} className={clsx('flex items-center justify-between px-3 py-2 rounded-lg border text-xs',
                 step.done ? 'border-[#c3d9c9] bg-[#e2ece5]' : locked ? 'border-[#e7e2d6] opacity-50' : 'border-[#ddd6c4]')}>
                 <span className="flex items-center gap-2 text-[#1c1917]">
-                  <span className={clsx('w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold', step.done ? 'bg-[#2f6b4f] text-white' : 'bg-[#e7e2d6] text-[#6b6155]')}>{step.done ? '✓' : i + 1}</span>
+                  <span className={clsx('w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold', step.done ? 'bg-[#2f6b4f] text-white' : 'bg-[#e7e2d6] text-[#6b6155]')}>{step.done ? <CheckCircle2 className="w-3 h-3" /> : i + 1}</span>
                   {step.name}
                 </span>
                 {!step.done && !locked && (
                   <button onClick={() => completeStep(i)} disabled={busyKey === 'step' + i} className="text-[#a8781f] font-semibold disabled:opacity-50">{busyKey === 'step' + i ? '…' : 'Mark Complete'}</button>
                 )}
-                {locked && <LockClosedIcon className="w-3.5 h-3.5 text-[#ddd6c4]" />}
+                {locked && <Lock className="w-3.5 h-3.5 text-[#ddd6c4]" />}
               </div>
             );
           })}
@@ -411,7 +411,7 @@ export function StageWeighing({ order, onSaved }) {
       {allWeighed && allSteps && (
         <Card className="border-[#c3d9c9]">
           <div className="flex items-center justify-between">
-            <div><p className="text-sm font-bold text-[#2f6b4f]">✓ All weighing & process steps complete</p><p className="text-xs text-[#6b6155]">Ready for Bulk QC</p></div>
+            <div><p className="text-sm font-bold text-[#2f6b4f] flex items-center gap-1.5"><CheckCircle2 className="w-4 h-4" /> All weighing & process steps complete</p><p className="text-xs text-[#6b6155]">Ready for Bulk QC</p></div>
             <button onClick={advance} disabled={busyKey === 'advance'} className={primaryBtn}>{busyKey === 'advance' ? 'Advancing…' : 'Complete → Bulk QC'}</button>
           </div>
         </Card>
@@ -562,7 +562,7 @@ export function StagePackaging({ order, onSaved }) {
   return (
     <div className="space-y-4">
       <Card>
-        <h3 className="text-sm font-bold text-[#1c1917] mb-3">📦 Packaging Specification (BOM)</h3>
+        <h3 className="text-sm font-bold text-[#1c1917] mb-3 flex items-center gap-1.5"><Package className="w-4 h-4" /> Packaging Specification (BOM)</h3>
         {PKG_SPEC_FIELDS.map((f) => (
           <PlainSpecRow
             key={f.key}
@@ -919,7 +919,7 @@ export function StageDispatch({ order, onSaved }) {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
         <div>
-          <p className="text-[10px] font-bold uppercase tracking-wide text-[#8a8171] mb-1.5">🏷️ Label — {cartonNumbers.length} carton{cartonNumbers.length !== 1 ? 's' : ''}</p>
+          <p className="text-[10px] font-bold uppercase tracking-wide text-[#8a8171] mb-1.5 flex items-center gap-1"><TagIcon className="w-3 h-3" /> Label — {cartonNumbers.length} carton{cartonNumbers.length !== 1 ? 's' : ''}</p>
           <div className="bg-[#f5f0e8] rounded-lg border border-[#d4c5a9] p-3">
             <div className="text-[#2C1810] mb-2 pb-2 border-b border-dashed border-[#d4c5a9]">
               <p className="text-[11px] font-bold uppercase tracking-wide">{order.catalogProduct?.name?.split(' ')[0] || 'BACKERO'}</p>
@@ -932,7 +932,7 @@ export function StageDispatch({ order, onSaved }) {
               {cartonNumbers.map((n) => (
                 <div key={n} className="flex items-center justify-between gap-2 px-2 py-1 rounded-md bg-white/60 border border-[#e7e2d6]">
                   <span className="text-[11px] font-semibold text-[#292521]">Carton {n} of {cartonNumbers.length}</span>
-                  <button onClick={() => printLabel(n, cartonNumbers.length)} className="text-[10px] font-semibold text-[#a8781f] hover:underline flex-shrink-0">🖨️ Print Label</button>
+                  <button onClick={() => printLabel(n, cartonNumbers.length)} className="text-[10px] font-semibold text-[#a8781f] hover:underline flex-shrink-0 inline-flex items-center gap-1"><Printer className="w-3 h-3" /> Print Label</button>
                 </div>
               ))}
             </div>
@@ -940,8 +940,8 @@ export function StageDispatch({ order, onSaved }) {
         </div>
         <div>
           <div className="flex items-center justify-between mb-1.5">
-            <p className="text-[10px] font-bold uppercase tracking-wide text-[#8a8171]">🚚 Shipping Label</p>
-            <button onClick={printShippingLabel} className="text-[10px] font-semibold text-[#a8781f] hover:underline">🖨️ Print Label</button>
+            <p className="text-[10px] font-bold uppercase tracking-wide text-[#8a8171] flex items-center gap-1"><Truck className="w-3 h-3" /> Shipping Label</p>
+            <button onClick={printShippingLabel} className="text-[10px] font-semibold text-[#a8781f] hover:underline inline-flex items-center gap-1"><Printer className="w-3 h-3" /> Print Label</button>
           </div>
           <div className="rounded-lg border border-[#2C1810]/30 p-3 text-[#2C1810] space-y-2">
             <div>
@@ -971,7 +971,7 @@ export function StageDispatch({ order, onSaved }) {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4">
         <div>
-          <p className="text-[10px] font-bold uppercase tracking-wide text-[#8a8171] mb-1.5">📄 Documentation — from Orders</p>
+          <p className="text-[10px] font-bold uppercase tracking-wide text-[#8a8171] mb-1.5 flex items-center gap-1"><FileText className="w-3 h-3" /> Documentation — from Orders</p>
           <div className="rounded-lg border border-[#ddd6c4] bg-[#fbfaf7] p-3 max-h-32 overflow-y-auto">
             {docRows.length === 0 ? (
               <p className="text-xs text-[#8a8171]">No documents attached in Orders — Documentation.</p>
@@ -985,7 +985,7 @@ export function StageDispatch({ order, onSaved }) {
           </div>
         </div>
         <div>
-          <p className="text-[10px] font-bold uppercase tracking-wide text-[#8a8171] mb-1.5">🧾 Invoice</p>
+          <p className="text-[10px] font-bold uppercase tracking-wide text-[#8a8171] mb-1.5 flex items-center gap-1"><Receipt className="w-3 h-3" /> Invoice</p>
           <div className="rounded-lg border border-[#ddd6c4] bg-[#fbfaf7] p-3">
             {!invoice ? (
               <p className="text-xs text-[#8a8171]">No invoice linked to this order.</p>
@@ -993,13 +993,13 @@ export function StageDispatch({ order, onSaved }) {
               <>
                 <p className="text-xs font-bold text-[#1c1917]">{invoice.invoiceNumber}</p>
                 <p className="text-[10px] text-[#6b6155] mt-0.5">₹{(invoice.paidAmount || 0).toLocaleString('en-IN')} / ₹{(invoice.totalAmount || 0).toLocaleString('en-IN')} — {invoice.status}</p>
-                <button onClick={printLinkedInvoice} disabled={printingInvoice} className="text-[10px] font-semibold text-[#a8781f] hover:underline mt-1.5 disabled:opacity-50">🖨️ {printingInvoice ? 'Loading…' : 'Print Invoice'}</button>
+                <button onClick={printLinkedInvoice} disabled={printingInvoice} className="text-[10px] font-semibold text-[#a8781f] hover:underline mt-1.5 disabled:opacity-50 inline-flex items-center gap-1"><Printer className="w-3 h-3" /> {printingInvoice ? 'Loading…' : 'Print Invoice'}</button>
               </>
             )}
           </div>
         </div>
         <div>
-          <p className="text-[10px] font-bold uppercase tracking-wide text-[#8a8171] mb-1.5">📋 Dispatch Checklist</p>
+          <p className="text-[10px] font-bold uppercase tracking-wide text-[#8a8171] mb-1.5 flex items-center gap-1"><ClipboardCheck className="w-3 h-3" /> Dispatch Checklist</p>
           <div className="rounded-lg border border-[#ddd6c4] bg-[#fbfaf7] p-3 space-y-1.5">
             {DISPATCH_CHECKLIST.map((c) => (
               <label key={c.key} className={clsx('flex items-center gap-2 text-xs text-[#1c1917]', !already && 'cursor-pointer')}>
@@ -1018,7 +1018,7 @@ export function StageDispatch({ order, onSaved }) {
       </div>
 
       <div className="mb-4">
-        <p className="text-[10px] font-bold uppercase tracking-wide text-[#8a8171] mb-1.5">✅ Test Summary — everything verified for this customer</p>
+        <p className="text-[10px] font-bold uppercase tracking-wide text-[#8a8171] mb-1.5 flex items-center gap-1"><CheckCircle2 className="w-3 h-3" /> Test Summary — everything verified for this customer</p>
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
           <TestResultGroup title="Bulk QC" rows={bulkQCRows} />
           <TestResultGroup title="Final QC" rows={finalQCRows} />
@@ -1047,7 +1047,7 @@ export function StageDispatch({ order, onSaved }) {
           </div>
           <div className="mt-3"><Field label="Notes"><textarea rows={2} value={form.notes} onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))} className={inputCls} /></Field></div>
           <button onClick={submit} disabled={busy || !allChecked} title={!allChecked ? 'Tick every checklist item first' : undefined} className={clsx(primaryBtn, 'mt-4 flex items-center gap-1.5')}>
-            <TruckIcon className="w-4 h-4" /> {busy ? 'Confirming…' : 'Confirm Dispatch'}
+            <Truck className="w-4 h-4" /> {busy ? 'Confirming…' : 'Confirm Dispatch'}
           </button>
         </>
       )}

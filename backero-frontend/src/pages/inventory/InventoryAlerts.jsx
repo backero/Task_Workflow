@@ -1,7 +1,10 @@
 import React from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { ExclamationTriangleIcon } from '@heroicons/react/24/outline';
+import { CheckCircle2 } from 'lucide-react';
+import { Card, Empty, Space, Spin, Tag, Typography } from 'antd';
 import api from '../../api/axios';
+
+const { Title, Text } = Typography;
 
 export default function InventoryAlerts() {
   const { data, isLoading } = useQuery({
@@ -13,41 +16,42 @@ export default function InventoryAlerts() {
   const alerts = data?.alerts || [];
 
   return (
-    <div className="space-y-6">
-      <div className="page-header">
-        <div>
-          <h1 className="page-title">Low Stock Alerts</h1>
-          <p className="text-gray-500 text-sm">{alerts.length} products below minimum</p>
-        </div>
+    <div>
+      <Title level={4} style={{ marginBottom: 0 }}>Low Stock Alerts</Title>
+      <Text type="secondary">{alerts.length} products below minimum</Text>
+
+      <div style={{ marginTop: 16 }}>
+        {isLoading ? (
+          <div style={{ textAlign: 'center', padding: 60 }}><Spin size="large" /></div>
+        ) : alerts.length === 0 ? (
+          <Card>
+            <Empty
+              image={<CheckCircle2 size={48} color="#4ade80" style={{ margin: '0 auto' }} />}
+              description={<Text strong>All stock levels are healthy!</Text>}
+            />
+          </Card>
+        ) : (
+          <Space direction="vertical" style={{ width: '100%' }} size={12}>
+            {alerts.map((product) => (
+              <Card key={product._id} style={{ borderInlineStart: `4px solid ${product.currentStock === 0 ? '#ef4444' : '#f97316'}` }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div>
+                    <Text strong>{product.name}</Text>
+                    <div><Text type="secondary" style={{ fontSize: 12 }}>SKU: {product.sku} • {product.category}</Text></div>
+                  </div>
+                  <div style={{ textAlign: 'right' }}>
+                    <div style={{ fontSize: 20, fontWeight: 700, color: product.currentStock === 0 ? '#dc2626' : '#ea580c' }}>
+                      {product.currentStock} {product.unit}
+                    </div>
+                    <Text type="secondary" style={{ fontSize: 12 }}>Min: {product.minStockLevel} {product.unit}</Text>
+                    {product.currentStock === 0 && <div><Tag color="red" style={{ marginTop: 4 }}>Out of Stock</Tag></div>}
+                  </div>
+                </div>
+              </Card>
+            ))}
+          </Space>
+        )}
       </div>
-      {isLoading ? (
-        <div className="flex justify-center py-12"><div className="w-8 h-8 border-2 border-brand-500 border-t-transparent rounded-full animate-spin" /></div>
-      ) : alerts.length === 0 ? (
-        <div className="card p-12 text-center">
-          <ExclamationTriangleIcon className="w-12 h-12 text-green-400 mx-auto mb-3" />
-          <h3 className="font-semibold text-gray-900 dark:text-white">All stock levels are healthy!</h3>
-        </div>
-      ) : (
-        <div className="space-y-3">
-          {alerts.map((product) => (
-            <div key={product._id} className={`card p-4 border-l-4 ${product.currentStock === 0 ? 'border-l-red-500' : 'border-l-orange-500'}`}>
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="font-semibold text-gray-900 dark:text-white">{product.name}</h3>
-                  <p className="text-xs text-gray-400 mt-0.5">SKU: {product.sku} • {product.category}</p>
-                </div>
-                <div className="text-right">
-                  <p className={`text-xl font-bold ${product.currentStock === 0 ? 'text-red-600' : 'text-orange-600'}`}>
-                    {product.currentStock} {product.unit}
-                  </p>
-                  <p className="text-xs text-gray-400">Min: {product.minStockLevel} {product.unit}</p>
-                  {product.currentStock === 0 && <span className="badge badge-red mt-1">Out of Stock</span>}
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
     </div>
   );
 }

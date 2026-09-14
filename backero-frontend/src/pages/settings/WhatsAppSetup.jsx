@@ -1,36 +1,38 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
 import {
-  CheckCircleIcon, ArrowPathIcon, ExclamationTriangleIcon,
-  DevicePhoneMobileIcon, BellAlertIcon, ClockIcon, UserGroupIcon,
-} from '@heroicons/react/24/outline';
+  CheckCircle2, RefreshCw, TriangleAlert, Smartphone, Bell, Clock, Users,
+  Pin, ClipboardList, BarChart3, Package, Phone, Megaphone, UserPlus,
+} from 'lucide-react';
 import api from '../../api/axios';
-import { clsx } from 'clsx';
+import { Button, Card, Input, Select, Space, Tag, Typography } from 'antd';
+
+const { Title, Text, Paragraph } = Typography;
 
 const STATUS_CONFIG = {
-  connected:    { label: 'Connected',     color: 'green',  icon: CheckCircleIcon },
-  qr_ready:     { label: 'Scan QR Code',  color: 'blue',   icon: DevicePhoneMobileIcon },
-  connecting:   { label: 'Connecting…',   color: 'yellow', icon: ArrowPathIcon },
-  disconnected: { label: 'Disconnected',  color: 'red',    icon: ExclamationTriangleIcon },
-  unavailable:  { label: 'Unavailable',   color: 'gray',   icon: ExclamationTriangleIcon },
+  connected: { label: 'Connected', color: '#22c55e', bg: '#f0fdf4', icon: CheckCircle2 },
+  qr_ready: { label: 'Scan QR Code', color: '#3b82f6', bg: '#eff6ff', icon: Smartphone },
+  connecting: { label: 'Connecting…', color: '#eab308', bg: '#fefce8', icon: RefreshCw },
+  disconnected: { label: 'Disconnected', color: '#ef4444', bg: '#fef2f2', icon: TriangleAlert },
+  unavailable: { label: 'Unavailable', color: '#9ca3af', bg: '#f9fafb', icon: TriangleAlert },
 };
 
 const DEFAULT_DEPARTMENTS = [
-  { name: 'Marketing',           code: 'MKT',  color: '#9333ea' },
-  { name: 'Marketplace',         code: 'MKTPL', color: '#f97316' },
-  { name: 'Sales',               code: 'SALES', color: '#16a34a' },
-  { name: 'Production',          code: 'PROD',  color: '#2563eb' },
-  { name: 'R&D',                 code: 'RND',   color: '#0891b2' },
-  { name: 'Operations',          code: 'OPS',   color: '#4f46e5' },
-  { name: 'Accounts & Finance',  code: 'ACCFIN', color: '#059669' },
-  { name: 'HR',                  code: 'HR',    color: '#d97706' },
-  { name: 'Management',          code: 'MGMT',  color: '#475569' },
+  { name: 'Marketing', code: 'MKT', color: '#9333ea' },
+  { name: 'Marketplace', code: 'MKTPL', color: '#f97316' },
+  { name: 'Sales', code: 'SALES', color: '#16a34a' },
+  { name: 'Production', code: 'PROD', color: '#2563eb' },
+  { name: 'R&D', code: 'RND', color: '#0891b2' },
+  { name: 'Operations', code: 'OPS', color: '#4f46e5' },
+  { name: 'Accounts & Finance', code: 'ACCFIN', color: '#059669' },
+  { name: 'HR', code: 'HR', color: '#d97706' },
+  { name: 'Management', code: 'MGMT', color: '#475569' },
 ];
 
 function SeedDepartments({ onDone }) {
-  const [loading, setLoading] = React.useState(false);
-  const [result, setResult] = React.useState(null);
+  const [loading, setLoading] = useState(false);
+  const [result, setResult] = useState(null);
 
   const handleSeed = async () => {
     setLoading(true);
@@ -49,18 +51,12 @@ function SeedDepartments({ onDone }) {
   };
 
   return (
-    <div className="text-center py-6">
-      <p className="text-sm text-gray-500 mb-3">No departments found. Auto-create standard departments.</p>
+    <div style={{ textAlign: 'center', padding: '24px 0' }}>
+      <Text type="secondary" style={{ fontSize: 13, display: 'block', marginBottom: 12 }}>No departments found. Auto-create standard departments.</Text>
       {result ? (
-        <p className="text-sm text-green-600 font-medium">{result.created} departments created, {result.skipped} already existed</p>
+        <Text style={{ fontSize: 13, color: '#16a34a', fontWeight: 500 }}>{result.created} departments created, {result.skipped} already existed</Text>
       ) : (
-        <button
-          onClick={handleSeed}
-          disabled={loading}
-          className="text-sm px-4 py-2 rounded-lg bg-brand-600 hover:bg-brand-700 text-white font-medium transition-colors disabled:opacity-50"
-        >
-          {loading ? 'Creating…' : 'Auto-create Departments from Tasks'}
-        </button>
+        <Button type="primary" loading={loading} onClick={handleSeed}>Auto-create Departments from Tasks</Button>
       )}
     </div>
   );
@@ -90,7 +86,7 @@ function DepartmentGroups({ isConnected }) {
     enabled: isConnected,
   });
 
-  const departments = deptsData?.data?.departments || [];
+  const departments = deptsData?.departments || [];
   const groups = groupsData?.data?.groups || [];
 
   useEffect(() => {
@@ -137,59 +133,41 @@ function DepartmentGroups({ isConnected }) {
   };
 
   return (
-    <div className="card p-6">
-      <div className="flex items-center gap-2 mb-1">
-        <UserGroupIcon className="w-5 h-5 text-gray-500" />
-        <h3 className="font-bold text-gray-900 dark:text-white">Department WhatsApp Groups</h3>
-      </div>
-      <p className="text-xs text-gray-500 mb-5">
-        When a task goes overdue, an alert is sent to the linked department group automatically.
-      </p>
+    <Card>
+      <Space size={8}><Users size={18} color="#6b7280" /><Title level={5} style={{ marginBottom: 0 }}>Department WhatsApp Groups</Title></Space>
+      <Paragraph type="secondary" style={{ fontSize: 12, marginTop: 4, marginBottom: 20 }}>When a task goes overdue, an alert is sent to the linked department group automatically.</Paragraph>
 
       {!isConnected && (
-        <div className="flex items-center gap-2 p-3 rounded-lg bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 mb-4">
-          <ExclamationTriangleIcon className="w-4 h-4 text-orange-500 flex-shrink-0" />
-          <p className="text-xs text-orange-700 dark:text-orange-400">WhatsApp not connected — connect first to link groups.</p>
-        </div>
+        <Card size="small" style={{ background: '#fff7ed', borderColor: '#fed7aa', marginBottom: 16 }}>
+          <Space size={8}><TriangleAlert size={14} color="#f97316" /><Text style={{ fontSize: 12, color: '#c2410c' }}>WhatsApp not connected — connect first to link groups.</Text></Space>
+        </Card>
       )}
 
       {departments.length === 0 ? (
         <SeedDepartments onDone={() => qc.invalidateQueries(['departments'])} />
-
       ) : (
-        <div className="space-y-3">
+        <Space direction="vertical" style={{ width: '100%' }} size={12}>
           {departments.map(dept => {
             const groupName = dept.whatsappGroupId ? linkedGroupName(dept.whatsappGroupId) : null;
             const isOpen = !!expanded[dept._id];
             return (
-              <div key={dept._id} className="rounded-xl border border-gray-200 dark:border-slate-700 overflow-hidden">
-                {/* Department row */}
-                <div className="flex items-center gap-3 px-4 py-3 bg-gray-50 dark:bg-[#0f1a2e]/50">
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-gray-900 dark:text-white">{dept.name}</p>
+              <Card key={dept._id} size="small" styles={{ body: { padding: 0 } }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px', background: '#fafafa' }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <Text strong style={{ fontSize: 13 }}>{dept.name}</Text>
                     {dept.whatsappGroupId ? (
-                      <p className="text-xs text-green-600 dark:text-green-400 mt-0.5 flex items-center gap-1">
-                        <span className="w-1.5 h-1.5 rounded-full bg-green-500 inline-block" />
-                        {groupName || 'Group linked'}
-                      </p>
+                      <div><Space size={4}><span style={{ width: 6, height: 6, borderRadius: '50%', background: '#22c55e', display: 'inline-block' }} /><Text style={{ fontSize: 11, color: '#16a34a' }}>{groupName || 'Group linked'}</Text></Space></div>
                     ) : (
-                      <p className="text-xs text-gray-400 mt-0.5">No group linked</p>
+                      <div><Text type="secondary" style={{ fontSize: 11 }}>No group linked</Text></div>
                     )}
                   </div>
-                  <div className="flex items-center gap-2">
-                    {joinSuccess[dept._id] && (
-                      <span className="text-xs text-green-600 font-medium flex items-center gap-1">
-                        <CheckCircleIcon className="w-3.5 h-3.5" /> Joined!
-                      </span>
-                    )}
-                    {saved[dept._id] && (
-                      <span className="text-xs text-green-600 font-medium">✓ Saved</span>
-                    )}
-                    {testResult[dept._id] && (
-                      <span className="text-xs text-green-600 font-medium">✓ Sent!</span>
-                    )}
+                  <Space size={8}>
+                    {joinSuccess[dept._id] && <Tag color="green">Joined!</Tag>}
+                    {saved[dept._id] && <Tag color="green">Saved</Tag>}
+                    {testResult[dept._id] && <Tag color="green">Sent!</Tag>}
                     {dept.whatsappGroupId && isConnected && (
-                      <button
+                      <Button
+                        size="small" loading={testing[dept._id]}
                         onClick={async () => {
                           setTesting(s => ({ ...s, [dept._id]: true }));
                           setTestResult(s => ({ ...s, [dept._id]: false }));
@@ -200,97 +178,58 @@ function DepartmentGroups({ isConnected }) {
                           } catch {}
                           setTesting(s => ({ ...s, [dept._id]: false }));
                         }}
-                        disabled={testing[dept._id]}
-                        className="text-xs px-3 py-1.5 rounded-lg border border-green-300 dark:border-green-700 text-green-700 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/20 transition-colors font-medium disabled:opacity-50"
                       >
-                        {testing[dept._id] ? 'Sending…' : 'Send Alert'}
-                      </button>
+                        Send Alert
+                      </Button>
                     )}
-                    <button
-                      onClick={() => isConnected && setExpanded(s => ({ ...s, [dept._id]: !s[dept._id] }))}
-                      disabled={!isConnected}
-                      className="text-xs px-3 py-1.5 rounded-lg border border-gray-300 dark:border-slate-600 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors font-medium disabled:opacity-40 disabled:cursor-not-allowed"
-                    >
+                    <Button size="small" disabled={!isConnected} onClick={() => isConnected && setExpanded(s => ({ ...s, [dept._id]: !s[dept._id] }))}>
                       {isOpen ? 'Cancel' : dept.whatsappGroupId ? 'Change' : 'Link Group'}
-                    </button>
-                  </div>
+                    </Button>
+                  </Space>
                 </div>
 
-                {/* Expanded panel */}
                 {isOpen && (
-                  <div className="px-4 py-4 border-t border-gray-200 dark:border-slate-700 bg-white dark:bg-[#0d1f38] space-y-4">
-
-                    {/* Option 1 — Invite link */}
-                    <div>
-                      <p className="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                        Paste WhatsApp group invite link
-                      </p>
-                      <div className="flex gap-2">
-                        <input
-                          type="text"
-                          placeholder="https://chat.whatsapp.com/XXXXXXXXXX"
-                          value={inviteLinks[dept._id] || ''}
-                          onChange={e => setInviteLinks(s => ({ ...s, [dept._id]: e.target.value }))}
-                          onKeyDown={e => e.key === 'Enter' && handleJoinLink(dept._id)}
-                          className="flex-1 text-sm border border-gray-200 dark:border-slate-600 rounded-lg px-3 py-2 bg-gray-50 dark:bg-[#0f1a2e] text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-brand-500"
-                        />
-                        <button
-                          onClick={() => handleJoinLink(dept._id)}
-                          disabled={joining[dept._id] || !inviteLinks[dept._id]?.trim()}
-                          className="text-xs px-4 py-2 rounded-lg bg-green-600 hover:bg-green-700 text-white font-medium disabled:opacity-50 transition-colors flex-shrink-0"
-                        >
-                          {joining[dept._id] ? 'Joining…' : 'Join & Link'}
-                        </button>
+                  <div style={{ padding: 16, borderTop: '1px solid #f0f0f0' }}>
+                    <Space direction="vertical" style={{ width: '100%' }} size={12}>
+                      <div>
+                        <Text strong style={{ fontSize: 12, display: 'block', marginBottom: 8 }}>Paste WhatsApp group invite link</Text>
+                        <Space.Compact style={{ width: '100%' }}>
+                          <Input
+                            placeholder="https://chat.whatsapp.com/XXXXXXXXXX" value={inviteLinks[dept._id] || ''}
+                            onChange={e => setInviteLinks(s => ({ ...s, [dept._id]: e.target.value }))}
+                            onKeyDown={e => e.key === 'Enter' && handleJoinLink(dept._id)}
+                          />
+                          <Button type="primary" style={{ background: '#16a34a', borderColor: '#16a34a' }} loading={joining[dept._id]} disabled={!inviteLinks[dept._id]?.trim()} onClick={() => handleJoinLink(dept._id)}>Join & Link</Button>
+                        </Space.Compact>
+                        {joinError[dept._id] && <Text type="danger" style={{ fontSize: 11, display: 'block', marginTop: 4 }}>{joinError[dept._id]}</Text>}
+                        <Text type="secondary" style={{ fontSize: 11, display: 'block', marginTop: 4 }}>WhatsApp group → ⋮ Menu → Invite to group → Copy link</Text>
                       </div>
-                      {joinError[dept._id] && (
-                        <p className="text-xs text-red-500 mt-1">{joinError[dept._id]}</p>
+
+                      {groups.length > 0 && (
+                        <>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                            <div style={{ flex: 1, height: 1, background: '#f0f0f0' }} />
+                            <Text type="secondary" style={{ fontSize: 11 }}>or pick from already joined groups</Text>
+                            <div style={{ flex: 1, height: 1, background: '#f0f0f0' }} />
+                          </div>
+                          <Space.Compact style={{ width: '100%' }}>
+                            <Select
+                              style={{ flex: 1 }} value={selections[dept._id] || undefined} onChange={v => setSelections(s => ({ ...s, [dept._id]: v }))}
+                              placeholder="— None —" options={groups.map(g => ({ label: `${g.name} (${g.participants} members)`, value: g.jid }))}
+                            />
+                            <Button type="primary" loading={saving[dept._id]} onClick={() => handlePickGroup(dept._id)}>Save</Button>
+                          </Space.Compact>
+                        </>
                       )}
-                      <p className="text-xs text-gray-400 mt-1">
-                        WhatsApp group → ⋮ Menu → Invite to group → Copy link
-                      </p>
-                    </div>
-
-                    {/* Divider */}
-                    {groups.length > 0 && (
-                      <>
-                        <div className="flex items-center gap-3">
-                          <div className="flex-1 h-px bg-gray-200 dark:bg-slate-700" />
-                          <span className="text-xs text-gray-400">or pick from already joined groups</span>
-                          <div className="flex-1 h-px bg-gray-200 dark:bg-slate-700" />
-                        </div>
-
-                        {/* Option 2 — Already joined groups */}
-                        <div className="flex gap-2">
-                          <select
-                            value={selections[dept._id] ?? ''}
-                            onChange={e => setSelections(s => ({ ...s, [dept._id]: e.target.value }))}
-                            className="flex-1 text-sm border border-gray-200 dark:border-slate-600 rounded-lg px-3 py-2 bg-gray-50 dark:bg-[#0f1a2e] text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-500"
-                          >
-                            <option value="">— None —</option>
-                            {groups.map(g => (
-                              <option key={g.jid} value={g.jid}>
-                                {g.name} ({g.participants} members)
-                              </option>
-                            ))}
-                          </select>
-                          <button
-                            onClick={() => handlePickGroup(dept._id)}
-                            disabled={saving[dept._id]}
-                            className="text-xs px-4 py-2 rounded-lg bg-brand-600 hover:bg-brand-700 text-white font-medium disabled:opacity-50 transition-colors flex-shrink-0"
-                          >
-                            {saving[dept._id] ? 'Saving…' : 'Save'}
-                          </button>
-                        </div>
-                      </>
-                    )}
+                    </Space>
                   </div>
                 )}
-              </div>
+              </Card>
             );
           })}
-        </div>
+        </Space>
       )}
-    </div>
+    </Card>
   );
 }
 
@@ -357,127 +296,98 @@ function CrmLeadGroup({ isConnected }) {
   };
 
   return (
-    <div className="card p-6">
-      <div className="flex items-center gap-2 mb-1">
-        <span className="text-lg">🆕</span>
-        <h3 className="font-bold text-gray-900 dark:text-white">New Lead Alerts — WhatsApp Group</h3>
-      </div>
-      <p className="text-xs text-gray-500 mb-5">
-        Whenever a new lead is added in CRM, a notification is sent to this WhatsApp group automatically.
-      </p>
+    <Card>
+      <Space size={8}><UserPlus size={18} color="#6b7280" /><Title level={5} style={{ marginBottom: 0 }}>New Lead Alerts — WhatsApp Group</Title></Space>
+      <Paragraph type="secondary" style={{ fontSize: 12, marginTop: 4, marginBottom: 20 }}>Whenever a new lead is added in CRM, a notification is sent to this WhatsApp group automatically.</Paragraph>
 
       {!isConnected && (
-        <div className="flex items-center gap-2 p-3 rounded-lg bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 mb-4">
-          <ExclamationTriangleIcon className="w-4 h-4 text-orange-500 flex-shrink-0" />
-          <p className="text-xs text-orange-700 dark:text-orange-400">WhatsApp not connected — connect first to link groups.</p>
-        </div>
+        <Card size="small" style={{ background: '#fff7ed', borderColor: '#fed7aa', marginBottom: 16 }}>
+          <Space size={8}><TriangleAlert size={14} color="#f97316" /><Text style={{ fontSize: 12, color: '#c2410c' }}>WhatsApp not connected — connect first to link groups.</Text></Space>
+        </Card>
       )}
 
-      <div className="rounded-xl border border-gray-200 dark:border-slate-700 overflow-hidden">
-        <div className="flex items-center gap-3 px-4 py-3 bg-gray-50 dark:bg-[#0f1a2e]/50">
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-semibold text-gray-900 dark:text-white">CRM Lead Notifications</p>
+      <Card size="small" styles={{ body: { padding: 0 } }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px', background: '#fafafa' }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <Text strong style={{ fontSize: 13 }}>CRM Lead Notifications</Text>
             {crmGroupId ? (
-              <p className="text-xs text-green-600 dark:text-green-400 mt-0.5 flex items-center gap-1">
-                <span className="w-1.5 h-1.5 rounded-full bg-green-500 inline-block" />
-                {linkedGroupName || 'Group linked'}
-              </p>
+              <div><Space size={4}><span style={{ width: 6, height: 6, borderRadius: '50%', background: '#22c55e', display: 'inline-block' }} /><Text style={{ fontSize: 11, color: '#16a34a' }}>{linkedGroupName || 'Group linked'}</Text></Space></div>
             ) : (
-              <p className="text-xs text-gray-400 mt-0.5">No group linked</p>
+              <div><Text type="secondary" style={{ fontSize: 11 }}>No group linked</Text></div>
             )}
           </div>
-          <div className="flex items-center gap-2">
-            {saved && <span className="text-xs text-green-600 font-medium">✓ Saved</span>}
-            {crmGroupId && (
-              <button
-                onClick={handleClear}
-                className="text-xs px-3 py-1.5 rounded-lg border border-red-200 text-red-500 hover:bg-red-50 transition-colors font-medium"
-              >
-                Clear
-              </button>
-            )}
-            <button
-              onClick={() => isConnected && setExpanded(p => !p)}
-              disabled={!isConnected}
-              className="text-xs px-3 py-1.5 rounded-lg border border-gray-300 dark:border-slate-600 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors font-medium disabled:opacity-40 disabled:cursor-not-allowed"
-            >
-              {expanded ? 'Cancel' : crmGroupId ? 'Change' : 'Link Group'}
-            </button>
-          </div>
+          <Space size={8}>
+            {saved && <Tag color="green">Saved</Tag>}
+            {crmGroupId && <Button size="small" danger onClick={handleClear}>Clear</Button>}
+            <Button size="small" disabled={!isConnected} onClick={() => isConnected && setExpanded(p => !p)}>{expanded ? 'Cancel' : crmGroupId ? 'Change' : 'Link Group'}</Button>
+          </Space>
         </div>
 
         {expanded && (
-          <div className="px-4 py-4 border-t border-gray-200 dark:border-slate-700 bg-white dark:bg-[#0d1f38] space-y-4">
-            <div>
-              <p className="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-2">Paste WhatsApp group invite link</p>
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  placeholder="https://chat.whatsapp.com/XXXXXXXXXX"
-                  value={inviteLink}
-                  onChange={e => setInviteLink(e.target.value)}
-                  onKeyDown={e => e.key === 'Enter' && handleJoinLink()}
-                  className="flex-1 text-sm border border-gray-200 dark:border-slate-600 rounded-lg px-3 py-2 bg-gray-50 dark:bg-[#0f1a2e] text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-brand-500"
-                />
-                <button
-                  onClick={handleJoinLink}
-                  disabled={joining || !inviteLink.trim()}
-                  className="text-xs px-4 py-2 rounded-lg bg-green-600 hover:bg-green-700 text-white font-medium disabled:opacity-50 transition-colors flex-shrink-0"
-                >
-                  {joining ? 'Joining…' : 'Join & Link'}
-                </button>
+          <div style={{ padding: 16, borderTop: '1px solid #f0f0f0' }}>
+            <Space direction="vertical" style={{ width: '100%' }} size={12}>
+              <div>
+                <Text strong style={{ fontSize: 12, display: 'block', marginBottom: 8 }}>Paste WhatsApp group invite link</Text>
+                <Space.Compact style={{ width: '100%' }}>
+                  <Input placeholder="https://chat.whatsapp.com/XXXXXXXXXX" value={inviteLink} onChange={e => setInviteLink(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleJoinLink()} />
+                  <Button type="primary" style={{ background: '#16a34a', borderColor: '#16a34a' }} loading={joining} disabled={!inviteLink.trim()} onClick={handleJoinLink}>Join & Link</Button>
+                </Space.Compact>
+                {joinError && <Text type="danger" style={{ fontSize: 11, display: 'block', marginTop: 4 }}>{joinError}</Text>}
+                <Text type="secondary" style={{ fontSize: 11, display: 'block', marginTop: 4 }}>WhatsApp group → ⋮ Menu → Invite to group → Copy link</Text>
               </div>
-              {joinError && <p className="text-xs text-red-500 mt-1">{joinError}</p>}
-              <p className="text-xs text-gray-400 mt-1">WhatsApp group → ⋮ Menu → Invite to group → Copy link</p>
-            </div>
 
-            {groups.length > 0 && (
-              <>
-                <div className="flex items-center gap-3">
-                  <div className="flex-1 h-px bg-gray-200 dark:bg-slate-700" />
-                  <span className="text-xs text-gray-400">or pick from already joined groups</span>
-                  <div className="flex-1 h-px bg-gray-200 dark:bg-slate-700" />
-                </div>
-                <div className="flex gap-2">
-                  <select
-                    value={selectedJid}
-                    onChange={e => setSelectedJid(e.target.value)}
-                    className="flex-1 text-sm border border-gray-200 dark:border-slate-600 rounded-lg px-3 py-2 bg-gray-50 dark:bg-[#0f1a2e] text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-500"
-                  >
-                    <option value="">— None —</option>
-                    {groups.map(g => (
-                      <option key={g.jid} value={g.jid}>{g.name} ({g.participants} members)</option>
-                    ))}
-                  </select>
-                  <button
-                    onClick={handlePickGroup}
-                    disabled={saving}
-                    className="text-xs px-4 py-2 rounded-lg bg-brand-600 hover:bg-brand-700 text-white font-medium disabled:opacity-50 transition-colors flex-shrink-0"
-                  >
-                    {saving ? 'Saving…' : 'Save'}
-                  </button>
-                </div>
-              </>
-            )}
+              {groups.length > 0 && (
+                <>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                    <div style={{ flex: 1, height: 1, background: '#f0f0f0' }} />
+                    <Text type="secondary" style={{ fontSize: 11 }}>or pick from already joined groups</Text>
+                    <div style={{ flex: 1, height: 1, background: '#f0f0f0' }} />
+                  </div>
+                  <Space.Compact style={{ width: '100%' }}>
+                    <Select style={{ flex: 1 }} value={selectedJid || undefined} onChange={setSelectedJid} placeholder="— None —" options={groups.map(g => ({ label: `${g.name} (${g.participants} members)`, value: g.jid }))} />
+                    <Button type="primary" loading={saving} onClick={handlePickGroup}>Save</Button>
+                  </Space.Compact>
+                </>
+              )}
+            </Space>
           </div>
         )}
-      </div>
-    </div>
+      </Card>
+    </Card>
   );
 }
+
+const NOTIFICATION_EVENTS = [
+  { icon: Pin, title: 'Task Assigned', desc: 'Employee gets a WhatsApp immediately when a task is assigned to them', always: true },
+  { icon: TriangleAlert, title: 'Task Overdue — Employee', desc: 'Employee gets WhatsApp when their task passes the due date, then every 24h', always: true },
+  { icon: TriangleAlert, title: 'Task Overdue — Manager', desc: 'Manager who assigned the task gets alerted when it goes overdue', always: true },
+  { icon: ClipboardList, title: 'Tasks Due Today — Department Group', desc: 'Department WhatsApp group gets a morning summary (9 AM) of all tasks due that day', always: false },
+  { icon: Users, title: 'Task Overdue — Department Group', desc: 'Department WhatsApp group gets an alert when any task in that department goes overdue', always: false },
+  { icon: BarChart3, title: 'Daily Report — 9 PM IST', desc: 'All admins & founders get a full daily summary every night at 9 PM', always: true },
+  { icon: Package, title: 'Low Stock Alerts', desc: 'Admins notified when product stock drops to zero', always: false },
+  { icon: Phone, title: 'Lead Follow-up Reminders', desc: "Sales staff reminded when a lead hasn't been contacted in 48 hours", always: false },
+];
+
+const SCHEDULE_ROWS = [
+  { time: 'Every 30 min', event: 'Check for newly overdue tasks' },
+  { time: 'Every hour', event: 'Check stale CRM leads (48h no contact)' },
+  { time: '9:00 AM IST', event: 'Due-today task reminders to department groups' },
+  { time: '9:00 PM IST', event: 'Daily report WhatsApp to all admins' },
+  { time: '8:00 AM IST', event: 'Follow-up reminders for CRM leads' },
+  { time: '10:00 AM IST', event: 'Daily WhatsApp updates to In Progress leads' },
+  { time: 'Every 6 hours', event: 'Low stock inventory check' },
+];
 
 export default function WhatsAppSetup() {
   const qc = useQueryClient();
   const [pollActive, setPollActive] = useState(true);
 
-  // Poll status every 3s while not connected
   const { data: statusData } = useQuery({
     queryKey: ['wa-status'],
     queryFn: () => api.get('/whatsapp/status').then((r) => r.data),
     refetchInterval: pollActive ? 3000 : false,
   });
 
-  // Fetch QR image
   const { data: qrData, refetch: refetchQR } = useQuery({
     queryKey: ['wa-qr'],
     queryFn: () => api.get('/whatsapp/qr').then((r) => r.data),
@@ -485,7 +395,6 @@ export default function WhatsAppSetup() {
     enabled: !statusData?.connected,
   });
 
-  // Stop polling when connected
   useEffect(() => {
     if (statusData?.connected) {
       setPollActive(false);
@@ -495,12 +404,7 @@ export default function WhatsAppSetup() {
     }
   }, [statusData?.connected]);
 
-  // Manual trigger daily report
-  const testReport = useMutation({
-    mutationFn: () => api.post('/whatsapp/test-report'),
-  });
-
-  // Force reconnect (clears stale session, generates new QR)
+  const testReport = useMutation({ mutationFn: () => api.post('/whatsapp/test-report') });
   const reconnect = useMutation({
     mutationFn: () => api.post('/whatsapp/reconnect'),
     onSuccess: () => {
@@ -517,231 +421,107 @@ export default function WhatsAppSetup() {
   const StatusIcon = cfg.icon;
 
   return (
-    <div className="max-w-2xl mx-auto space-y-6">
+    <div style={{ maxWidth: 640 }}>
+      <Title level={4} style={{ marginBottom: 0 }}>WhatsApp Notifications</Title>
+      <Text type="secondary">Connect your WhatsApp number to receive task alerts and daily reports</Text>
 
-      {/* Header */}
-      <div>
-        <h1 className="page-title">WhatsApp Notifications</h1>
-        <p className="text-gray-500 text-sm mt-1">
-          Connect your WhatsApp number to receive task alerts and daily reports
-        </p>
-      </div>
-
-      {/* Connection Status Card */}
-      <motion.div
-        initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
-        className="card p-6"
-      >
-        <div className="flex items-center gap-4 mb-6">
-          <div className={`w-12 h-12 rounded-xl bg-${cfg.color}-100 dark:bg-${cfg.color}-900/30 flex items-center justify-center`}>
-            <StatusIcon className={`w-6 h-6 text-${cfg.color}-600 dark:text-${cfg.color}-400 ${status === 'connecting' ? 'animate-spin' : ''}`} />
-          </div>
-          <div>
-            <h2 className="text-lg font-bold text-gray-900 dark:text-white">
-              WhatsApp Status
-            </h2>
-            <div className="flex items-center gap-2 mt-0.5">
-              <span className={`w-2 h-2 rounded-full bg-${cfg.color}-500 ${isConnected ? 'animate-pulse' : ''}`} />
-              <span className={`text-sm font-medium text-${cfg.color}-600 dark:text-${cfg.color}-400`}>
-                {cfg.label}
-              </span>
+      <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} style={{ marginTop: 16 }}>
+        <Card>
+          <Space size={16} style={{ marginBottom: 24 }} align="center">
+            <div style={{ width: 48, height: 48, borderRadius: 14, background: cfg.bg, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <StatusIcon size={22} color={cfg.color} className={status === 'connecting' ? 'animate-spin' : ''} />
             </div>
-          </div>
-        </div>
-
-        {/* QR Code Section */}
-        {!isConnected && (
-          <div>
-            <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl p-4 mb-5">
-              <h3 className="font-semibold text-blue-900 dark:text-blue-300 mb-2 flex items-center gap-2">
-                <DevicePhoneMobileIcon className="w-5 h-5" />
-                How to connect
-              </h3>
-              <ol className="text-sm text-blue-800 dark:text-blue-400 space-y-1 list-decimal list-inside">
-                <li>Open WhatsApp on your phone</li>
-                <li>Tap <strong>⋮ Menu → Linked Devices</strong></li>
-                <li>Tap <strong>Link a Device</strong></li>
-                <li>Scan the QR code below</li>
-              </ol>
+            <div>
+              <Title level={5} style={{ marginBottom: 0 }}>WhatsApp Status</Title>
+              <Space size={6}>
+                <span style={{ width: 8, height: 8, borderRadius: '50%', background: cfg.color, display: 'inline-block' }} />
+                <Text strong style={{ fontSize: 13, color: cfg.color }}>{cfg.label}</Text>
+              </Space>
             </div>
+          </Space>
 
-            {qrImage ? (
-              <div className="flex flex-col items-center gap-4">
-                <div className="bg-white p-4 rounded-2xl shadow-md border-2 border-gray-200">
-                  <img
-                    src={qrImage}
-                    alt="WhatsApp QR Code"
-                    className="w-64 h-64"
-                  />
+          {!isConnected && (
+            <div>
+              <Card size="small" style={{ background: '#eff6ff', borderColor: '#bfdbfe', marginBottom: 20 }}>
+                <Space size={8} style={{ marginBottom: 8 }}><Smartphone size={16} color="#1d4ed8" /><Text strong style={{ fontSize: 13, color: '#1e3a8a' }}>How to connect</Text></Space>
+                <ol style={{ fontSize: 13, color: '#1e40af', margin: 0, paddingLeft: 20 }}>
+                  <li>Open WhatsApp on your phone</li>
+                  <li>Tap <strong>⋮ Menu → Linked Devices</strong></li>
+                  <li>Tap <strong>Link a Device</strong></li>
+                  <li>Scan the QR code below</li>
+                </ol>
+              </Card>
+
+              {qrImage ? (
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}>
+                  <Card size="small" style={{ padding: 8 }}><img src={qrImage} alt="WhatsApp QR Code" style={{ width: 256, height: 256 }} /></Card>
+                  <Text type="secondary" style={{ fontSize: 13, textAlign: 'center' }}>QR code expires in ~60 seconds. It auto-refreshes.</Text>
+                  <Button type="link" icon={<RefreshCw size={14} />} onClick={() => { refetchQR(); qc.invalidateQueries(['wa-status']); }}>Refresh QR</Button>
                 </div>
-                <p className="text-sm text-gray-500 text-center">
-                  QR code expires in ~60 seconds. It auto-refreshes.
-                </p>
-                <button
-                  onClick={() => { refetchQR(); qc.invalidateQueries(['wa-status']); }}
-                  className="flex items-center gap-2 text-sm text-brand-600 hover:text-brand-700 font-medium"
-                >
-                  <ArrowPathIcon className="w-4 h-4" /> Refresh QR
-                </button>
-              </div>
-            ) : (
-              <div className="flex flex-col items-center justify-center py-12 text-gray-400">
-                <ArrowPathIcon className="w-8 h-8 animate-spin mb-3" />
-                <p className="text-sm">
-                  {status === 'unavailable'
-                    ? 'WhatsApp package not installed — run: npm install @whiskeysockets/baileys'
-                    : 'Generating QR code… (server is starting up)'}
-                </p>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Connected state */}
-        {isConnected && (
-          <div className="flex flex-col items-center justify-center py-8 gap-4">
-            <div className="w-20 h-20 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
-              <CheckCircleIcon className="w-10 h-10 text-green-600" />
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '48px 0', color: '#9ca3af' }}>
+                  <RefreshCw size={28} className="animate-spin" style={{ marginBottom: 12 }} />
+                  <Text type="secondary" style={{ fontSize: 13 }}>{status === 'unavailable' ? 'WhatsApp package not installed — run: npm install @whiskeysockets/baileys' : 'Generating QR code… (server is starting up)'}</Text>
+                </div>
+              )}
             </div>
-            <div className="text-center">
-              <p className="text-lg font-bold text-gray-900 dark:text-white">WhatsApp Connected!</p>
-              <p className="text-sm text-gray-500 mt-1">All notifications will be sent via WhatsApp</p>
-            </div>
-            <button
-              onClick={() => reconnect.mutate()}
-              disabled={reconnect.isPending}
-              className="flex items-center gap-2 text-sm text-red-600 hover:text-red-700 font-medium border border-red-200 hover:border-red-300 px-4 py-2 rounded-lg transition-colors disabled:opacity-50"
-            >
-              <ArrowPathIcon className={`w-4 h-4 ${reconnect.isPending ? 'animate-spin' : ''}`} />
-              {reconnect.isPending ? 'Reconnecting…' : 'Reconnect WhatsApp'}
-            </button>
-            {reconnect.isSuccess && (
-              <p className="text-xs text-orange-600">Session reset — scan the new QR code below in a few seconds</p>
-            )}
-          </div>
-        )}
-      </motion.div>
-
-      {/* What gets notified */}
-      <div className="card p-6">
-        <h3 className="font-bold text-gray-900 dark:text-white mb-4">Notification Events</h3>
-        <div className="space-y-3">
-          {[
-            {
-              icon: '📌',
-              title: 'Task Assigned',
-              desc: 'Employee gets a WhatsApp immediately when a task is assigned to them',
-              always: true,
-            },
-            {
-              icon: '⚠️',
-              title: 'Task Overdue — Employee',
-              desc: 'Employee gets WhatsApp when their task passes the due date, then every 24h',
-              always: true,
-            },
-            {
-              icon: '🚨',
-              title: 'Task Overdue — Manager',
-              desc: 'Manager who assigned the task gets alerted when it goes overdue',
-              always: true,
-            },
-            {
-              icon: '📋',
-              title: 'Tasks Due Today — Department Group',
-              desc: 'Department WhatsApp group gets a morning summary (9 AM) of all tasks due that day',
-              always: false,
-            },
-            {
-              icon: '👥',
-              title: 'Task Overdue — Department Group',
-              desc: 'Department WhatsApp group gets an alert when any task in that department goes overdue',
-              always: false,
-            },
-            {
-              icon: '📊',
-              title: 'Daily Report — 9 PM IST',
-              desc: 'All admins & founders get a full daily summary every night at 9 PM',
-              always: true,
-            },
-            {
-              icon: '📦',
-              title: 'Low Stock Alerts',
-              desc: 'Admins notified when product stock drops to zero',
-              always: false,
-            },
-            {
-              icon: '📞',
-              title: 'Lead Follow-up Reminders',
-              desc: 'Sales staff reminded when a lead hasn\'t been contacted in 48 hours',
-              always: false,
-            },
-          ].map((item) => (
-            <div key={item.title} className="flex items-start gap-3 p-3 rounded-lg bg-gray-50 dark:bg-[#0f1a2e]/50">
-              <span className="text-xl flex-shrink-0">{item.icon}</span>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-gray-900 dark:text-white">{item.title}</p>
-                <p className="text-xs text-gray-500 mt-0.5">{item.desc}</p>
-              </div>
-              <span className={clsx('text-xs px-2 py-0.5 rounded-full flex-shrink-0 font-medium', item.always ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500')}>
-                {item.always ? 'Active' : 'Conditional'}
-              </span>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Test Actions */}
-      {isConnected && (
-        <div className="card p-6">
-          <h3 className="font-bold text-gray-900 dark:text-white mb-1">Test Notifications</h3>
-          <p className="text-xs text-gray-500 mb-4">Manually trigger to verify WhatsApp delivery</p>
-          <button
-            onClick={() => testReport.mutate()}
-            disabled={testReport.isPending}
-            className="btn-primary flex items-center gap-2"
-          >
-            <BellAlertIcon className="w-4 h-4" />
-            {testReport.isPending ? 'Sending…' : 'Send Test Daily Report Now'}
-          </button>
-          {testReport.isSuccess && (
-            <p className="text-sm text-green-600 mt-2 flex items-center gap-1">
-              <CheckCircleIcon className="w-4 h-4" /> Report sent! Check your WhatsApp.
-            </p>
           )}
-        </div>
-      )}
 
-      {/* CRM Lead Alerts Group */}
-      <CrmLeadGroup isConnected={isConnected} />
-
-      {/* Department Groups */}
-      <DepartmentGroups isConnected={isConnected} />
-
-      {/* Schedule info */}
-      <div className="card p-5">
-        <h3 className="font-bold text-gray-900 dark:text-white mb-3 flex items-center gap-2">
-          <ClockIcon className="w-4 h-4" /> Automation Schedule
-        </h3>
-        <div className="space-y-2 text-sm">
-          {[
-            { time: 'Every 30 min',  event: 'Check for newly overdue tasks' },
-            { time: 'Every hour',    event: 'Check stale CRM leads (48h no contact)' },
-            { time: '9:00 AM IST',   event: 'Due-today task reminders to department groups' },
-            { time: '9:00 PM IST',   event: 'Daily report WhatsApp to all admins' },
-            { time: '8:00 AM IST',   event: 'Follow-up reminders for CRM leads' },
-            { time: '10:00 AM IST',  event: 'Daily WhatsApp updates to In Progress leads' },
-            { time: 'Every 6 hours', event: 'Low stock inventory check' },
-          ].map((row) => (
-            <div key={row.time} className="flex items-center gap-3">
-              <span className="text-xs font-mono bg-gray-100 dark:bg-[#0f1a2e] px-2 py-0.5 rounded text-gray-600 dark:text-gray-400 w-28 text-center flex-shrink-0">
-                {row.time}
-              </span>
-              <span className="text-gray-600 dark:text-gray-400">{row.event}</span>
+          {isConnected && (
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '32px 0', gap: 16 }}>
+              <div style={{ width: 80, height: 80, borderRadius: '50%', background: '#f0fdf4', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <CheckCircle2 size={40} color="#16a34a" />
+              </div>
+              <div style={{ textAlign: 'center' }}>
+                <Title level={5} style={{ marginBottom: 4 }}>WhatsApp Connected!</Title>
+                <Text type="secondary" style={{ fontSize: 13 }}>All notifications will be sent via WhatsApp</Text>
+              </div>
+              <Button danger icon={<RefreshCw size={14} className={reconnect.isPending ? 'animate-spin' : ''} />} loading={reconnect.isPending} onClick={() => reconnect.mutate()}>Reconnect WhatsApp</Button>
+              {reconnect.isSuccess && <Text style={{ fontSize: 12, color: '#ea580c' }}>Session reset — scan the new QR code below in a few seconds</Text>}
             </div>
-          ))}
-        </div>
-      </div>
+          )}
+        </Card>
 
+        <Card style={{ marginTop: 16 }}>
+          <Title level={5} style={{ marginBottom: 16 }}>Notification Events</Title>
+          <Space direction="vertical" style={{ width: '100%' }} size={8}>
+            {NOTIFICATION_EVENTS.map((item) => (
+              <div key={item.title} style={{ display: 'flex', alignItems: 'flex-start', gap: 12, padding: 12, borderRadius: 8, background: '#fafafa' }}>
+                <item.icon size={18} color="#6b7280" style={{ flexShrink: 0, marginTop: 2 }} />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <Text strong style={{ fontSize: 13 }}>{item.title}</Text>
+                  <div><Text type="secondary" style={{ fontSize: 12 }}>{item.desc}</Text></div>
+                </div>
+                <Tag color={item.always ? 'green' : 'default'}>{item.always ? 'Active' : 'Conditional'}</Tag>
+              </div>
+            ))}
+          </Space>
+        </Card>
+
+        {isConnected && (
+          <Card style={{ marginTop: 16 }}>
+            <Title level={5} style={{ marginBottom: 4 }}>Test Notifications</Title>
+            <Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 16 }}>Manually trigger to verify WhatsApp delivery</Text>
+            <Button type="primary" icon={<Bell size={14} />} loading={testReport.isPending} onClick={() => testReport.mutate()}>Send Test Daily Report Now</Button>
+            {testReport.isSuccess && <div style={{ marginTop: 8 }}><Space size={4}><CheckCircle2 size={14} color="#16a34a" /><Text style={{ fontSize: 13, color: '#16a34a' }}>Report sent! Check your WhatsApp.</Text></Space></div>}
+          </Card>
+        )}
+
+        <div style={{ marginTop: 16 }}><CrmLeadGroup isConnected={isConnected} /></div>
+        <div style={{ marginTop: 16 }}><DepartmentGroups isConnected={isConnected} /></div>
+
+        <Card style={{ marginTop: 16 }}>
+          <Space size={8} style={{ marginBottom: 12 }}><Clock size={16} /><Title level={5} style={{ marginBottom: 0 }}>Automation Schedule</Title></Space>
+          <Space direction="vertical" style={{ width: '100%' }} size={8}>
+            {SCHEDULE_ROWS.map((row) => (
+              <div key={row.time} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <Tag style={{ fontFamily: 'monospace', width: 112, textAlign: 'center' }}>{row.time}</Tag>
+                <Text type="secondary" style={{ fontSize: 13 }}>{row.event}</Text>
+              </div>
+            ))}
+          </Space>
+        </Card>
+      </motion.div>
     </div>
   );
 }

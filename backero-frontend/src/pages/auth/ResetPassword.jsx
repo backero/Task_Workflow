@@ -1,29 +1,31 @@
 import React, { useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { EyeIcon, EyeSlashIcon, LockClosedIcon } from '@heroicons/react/24/outline';
+import { Lock } from 'lucide-react';
+import { Button, Input, Typography } from 'antd';
 import api from '../../api/axios';
 import toast from 'react-hot-toast';
+import AuthLayout from '../../components/auth/AuthLayout';
+
+const { Title, Text } = Typography;
 
 export default function ResetPassword() {
-  const [searchParams]          = useSearchParams();
-  const token                   = searchParams.get('token');
+  const [searchParams] = useSearchParams();
+  const token = searchParams.get('token');
   const [password, setPassword] = useState('');
-  const [confirm, setConfirm]   = useState('');
-  const [showPass, setShowPass] = useState(false);
-  const [showConf, setShowConf] = useState(false);
-  const [loading, setLoading]   = useState(false);
-  const [done, setDone]         = useState(false);
-  const navigate                = useNavigate();
+  const [confirm, setConfirm] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [done, setDone] = useState(false);
+  const navigate = useNavigate();
 
   if (!token) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-900 via-gray-900 to-brand-950 p-4">
-        <div className="bg-white dark:bg-[#070c17] rounded-2xl p-8 shadow-modal text-center max-w-sm w-full">
-          <p className="text-red-500 font-medium mb-4">Invalid or missing reset token.</p>
-          <Link to="/forgot-password" className="btn-primary inline-flex justify-center px-6 py-2">Request a new link</Link>
+      <AuthLayout maxWidth={384}>
+        <div style={{ textAlign: 'center' }}>
+          <Text type="danger" strong style={{ display: 'block', marginBottom: 16 }}>Invalid or missing reset token.</Text>
+          <Link to="/forgot-password"><Button type="primary">Request a new link</Button></Link>
         </div>
-      </div>
+      </AuthLayout>
     );
   }
 
@@ -44,116 +46,40 @@ export default function ResetPassword() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-900 via-gray-900 to-brand-950 p-4">
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="w-full max-w-md"
-      >
-        <div className="text-center mb-8">
-          <div className="inline-flex w-16 h-16 rounded-2xl gradient-brand items-center justify-center mb-4">
-            <span className="text-white font-bold text-2xl">B</span>
+    <AuthLayout maxWidth={384}>
+      {!done ? (
+        <>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24 }}>
+            <div style={{ width: 40, height: 40, borderRadius: '50%', background: '#a8781f1f', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              <Lock size={18} color="#a8781f" />
+            </div>
+            <div>
+              <Title level={4} style={{ marginBottom: 0 }}>Set new password</Title>
+              <Text type="secondary" style={{ fontSize: 13 }}>Must be at least 8 characters</Text>
+            </div>
           </div>
-          <h1 className="text-3xl font-bold text-white">Backero</h1>
-          <p className="text-gray-400 mt-1">Enterprise Operations Platform</p>
-        </div>
 
-        <div className="bg-white dark:bg-[#070c17] rounded-2xl p-8 shadow-modal">
-          {!done ? (
-            <>
-              <div className="flex items-center gap-3 mb-6">
-                <div className="w-10 h-10 rounded-full bg-brand-100 dark:bg-brand-900/30 flex items-center justify-center shrink-0">
-                  <LockClosedIcon className="w-5 h-5 text-brand-600" />
-                </div>
-                <div>
-                  <h2 className="text-xl font-bold text-gray-900 dark:text-white">Set new password</h2>
-                  <p className="text-sm text-gray-500">Must be at least 8 characters</p>
-                </div>
-              </div>
+          <form onSubmit={handleSubmit}>
+            <Text strong style={{ display: 'block', marginBottom: 6, fontSize: 12 }}>New Password</Text>
+            <Input.Password value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" size="large" autoFocus autoComplete="new-password" style={{ marginBottom: 16 }} />
 
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <div>
-                  <label className="label">New Password</label>
-                  <div className="relative">
-                    <input
-                      type={showPass ? 'text' : 'password'}
-                      value={password}
-                      onChange={e => setPassword(e.target.value)}
-                      className="input pr-10"
-                      placeholder="••••••••"
-                      autoFocus
-                      autoComplete="new-password"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowPass(p => !p)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-                    >
-                      {showPass ? <EyeSlashIcon className="w-4 h-4" /> : <EyeIcon className="w-4 h-4" />}
-                    </button>
-                  </div>
-                </div>
+            <Text strong style={{ display: 'block', marginBottom: 6, fontSize: 12 }}>Confirm Password</Text>
+            <Input.Password value={confirm} onChange={(e) => setConfirm(e.target.value)} placeholder="••••••••" size="large" autoComplete="new-password" status={confirm && password !== confirm ? 'error' : undefined} />
+            {confirm && password !== confirm && <Text type="danger" style={{ fontSize: 11, display: 'block', marginTop: 4 }}>Passwords do not match</Text>}
 
-                <div>
-                  <label className="label">Confirm Password</label>
-                  <div className="relative">
-                    <input
-                      type={showConf ? 'text' : 'password'}
-                      value={confirm}
-                      onChange={e => setConfirm(e.target.value)}
-                      className="input pr-10"
-                      placeholder="••••••••"
-                      autoComplete="new-password"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowConf(p => !p)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-                    >
-                      {showConf ? <EyeSlashIcon className="w-4 h-4" /> : <EyeIcon className="w-4 h-4" />}
-                    </button>
-                  </div>
-                  {confirm && password !== confirm && (
-                    <p className="text-xs text-red-500 mt-1">Passwords do not match</p>
-                  )}
-                </div>
-
-                <button
-                  type="submit"
-                  disabled={loading || !password || !confirm || password !== confirm}
-                  className="btn-primary w-full justify-center py-2.5 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {loading ? (
-                    <span className="flex items-center gap-2">
-                      <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                      Resetting...
-                    </span>
-                  ) : 'Reset Password'}
-                </button>
-              </form>
-            </>
-          ) : (
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              className="text-center py-4"
-            >
-              <div className="w-16 h-16 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center mx-auto mb-4">
-                <LockClosedIcon className="w-8 h-8 text-green-600" />
-              </div>
-              <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-2">Password reset!</h2>
-              <p className="text-sm text-gray-500 mb-6">Your password has been updated. Redirecting to sign in...</p>
-              <Link to="/login" className="btn-primary inline-flex justify-center px-6 py-2.5">
-                Sign in now
-              </Link>
-            </motion.div>
-          )}
-        </div>
-
-        <p className="text-center text-gray-500 text-xs mt-6">
-          Secured by Backero Enterprise Security
-        </p>
-      </motion.div>
-    </div>
+            <Button type="primary" htmlType="submit" block size="large" style={{ marginTop: 16 }} loading={loading} disabled={!password || !confirm || password !== confirm}>Reset Password</Button>
+          </form>
+        </>
+      ) : (
+        <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} style={{ textAlign: 'center', padding: '16px 0' }}>
+          <div style={{ width: 64, height: 64, borderRadius: '50%', background: '#f6ffed', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
+            <Lock size={28} color="#22c55e" />
+          </div>
+          <Title level={4} style={{ marginBottom: 8 }}>Password reset!</Title>
+          <Text type="secondary" style={{ fontSize: 13, display: 'block', marginBottom: 24 }}>Your password has been updated. Redirecting to sign in...</Text>
+          <Link to="/login"><Button type="primary">Sign in now</Button></Link>
+        </motion.div>
+      )}
+    </AuthLayout>
   );
 }

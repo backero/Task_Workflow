@@ -7,25 +7,24 @@ import { usePermissions } from '../../store/usePermissions';
 import { format, isPast } from 'date-fns';
 import { clsx } from 'clsx';
 import {
-  ChevronDownIcon, ChevronRightIcon, PlusIcon, XMarkIcon,
-  ArrowPathIcon, TrashIcon, CheckIcon, UserCircleIcon, ExclamationTriangleIcon,
-  PaperAirplaneIcon, MegaphoneIcon, BuildingStorefrontIcon,
-  ShoppingBagIcon, BeakerIcon, WrenchScrewdriverIcon,
-  UserGroupIcon, BanknotesIcon, BoltIcon, CogIcon,
-  ChartBarIcon, SparklesIcon,
-} from '@heroicons/react/24/outline';
-import { CheckCircleIcon } from '@heroicons/react/24/solid';
+  ChevronDown, ChevronRight, Plus, X,
+  RefreshCw, Trash2, Check, UserCircle, TriangleAlert,
+  Send, Megaphone, Store,
+  ShoppingBag, FlaskConical, Wrench,
+  Users, Banknote, Zap, Settings as CogIcon,
+  BarChart3, Sparkles, CheckCircle2,
+} from 'lucide-react';
 
 // ─── Dept config ──────────────────────────────────────────────────────────────
 const DEPT_CONFIG = {
-  'Marketing':          { icon: MegaphoneIcon,          color: 'bg-purple-500', border: 'border-purple-200', light: 'bg-purple-50',  text: 'text-purple-700',  bar: 'bg-purple-400',  tag: 'bg-purple-100 text-purple-700'  },
-  'Marketplace':        { icon: BuildingStorefrontIcon, color: 'bg-orange-500', border: 'border-orange-200', light: 'bg-orange-50',  text: 'text-orange-700',  bar: 'bg-orange-400',  tag: 'bg-orange-100 text-orange-700'  },
-  'Sales':              { icon: ShoppingBagIcon,        color: 'bg-green-500',  border: 'border-green-200',  light: 'bg-green-50',   text: 'text-green-700',   bar: 'bg-green-400',   tag: 'bg-green-100 text-green-700'    },
-  'Production':         { icon: BoltIcon,               color: 'bg-blue-500',   border: 'border-blue-200',   light: 'bg-blue-50',    text: 'text-blue-700',    bar: 'bg-blue-400',    tag: 'bg-blue-100 text-blue-700'      },
-  'R&D':                { icon: BeakerIcon,             color: 'bg-cyan-500',   border: 'border-cyan-200',   light: 'bg-cyan-50',    text: 'text-cyan-700',    bar: 'bg-cyan-400',    tag: 'bg-cyan-100 text-cyan-700'      },
-  'Operations':         { icon: WrenchScrewdriverIcon,  color: 'bg-indigo-500', border: 'border-indigo-200', light: 'bg-indigo-50',  text: 'text-indigo-700',  bar: 'bg-indigo-400',  tag: 'bg-indigo-100 text-indigo-700'  },
-  'Accounts & Finance': { icon: BanknotesIcon,          color: 'bg-yellow-500', border: 'border-yellow-200', light: 'bg-yellow-50',  text: 'text-yellow-700',  bar: 'bg-yellow-400',  tag: 'bg-yellow-100 text-yellow-700'  },
-  'HR':                 { icon: UserGroupIcon,          color: 'bg-pink-500',   border: 'border-pink-200',   light: 'bg-pink-50',    text: 'text-pink-700',    bar: 'bg-pink-400',    tag: 'bg-pink-100 text-pink-700'      },
+  'Marketing':          { icon: Megaphone,          color: 'bg-purple-500', border: 'border-purple-200', light: 'bg-purple-50',  text: 'text-purple-700',  bar: 'bg-purple-400',  tag: 'bg-purple-100 text-purple-700'  },
+  'Marketplace':        { icon: Store, color: 'bg-orange-500', border: 'border-orange-200', light: 'bg-orange-50',  text: 'text-orange-700',  bar: 'bg-orange-400',  tag: 'bg-orange-100 text-orange-700'  },
+  'Sales':              { icon: ShoppingBag,        color: 'bg-green-500',  border: 'border-green-200',  light: 'bg-green-50',   text: 'text-green-700',   bar: 'bg-green-400',   tag: 'bg-green-100 text-green-700'    },
+  'Production':         { icon: Zap,               color: 'bg-blue-500',   border: 'border-blue-200',   light: 'bg-blue-50',    text: 'text-blue-700',    bar: 'bg-blue-400',    tag: 'bg-blue-100 text-blue-700'      },
+  'R&D':                { icon: FlaskConical,             color: 'bg-cyan-500',   border: 'border-cyan-200',   light: 'bg-cyan-50',    text: 'text-cyan-700',    bar: 'bg-cyan-400',    tag: 'bg-cyan-100 text-cyan-700'      },
+  'Operations':         { icon: Wrench,  color: 'bg-indigo-500', border: 'border-indigo-200', light: 'bg-indigo-50',  text: 'text-indigo-700',  bar: 'bg-indigo-400',  tag: 'bg-indigo-100 text-indigo-700'  },
+  'Accounts & Finance': { icon: Banknote,          color: 'bg-yellow-500', border: 'border-yellow-200', light: 'bg-yellow-50',  text: 'text-yellow-700',  bar: 'bg-yellow-400',  tag: 'bg-yellow-100 text-yellow-700'  },
+  'HR':                 { icon: Users,          color: 'bg-pink-500',   border: 'border-pink-200',   light: 'bg-pink-50',    text: 'text-pink-700',    bar: 'bg-pink-400',    tag: 'bg-pink-100 text-pink-700'      },
   'Management':         { icon: CogIcon,                color: 'bg-slate-500',  border: 'border-slate-200',  light: 'bg-slate-50',   text: 'text-slate-700',   bar: 'bg-slate-400',   tag: 'bg-slate-100 text-slate-700'    },
 };
 const DEPT_NAMES = Object.keys(DEPT_CONFIG);
@@ -125,7 +124,7 @@ function StatusPill({ task, editable, onChange }) {
               className="w-full text-left px-3 py-1.5 text-xs hover:bg-gray-50 dark:hover:bg-[#1b2e4a] flex items-center gap-2">
               <span className={clsx('w-2 h-2 rounded-full flex-shrink-0', STATUS_DOT[s])} />
               <span className={task.status === s ? 'font-bold text-brand-600' : 'text-gray-700 dark:text-gray-300'}>{s}</span>
-              {task.status === s && <CheckIcon className="w-3 h-3 ml-auto text-brand-500" />}
+              {task.status === s && <Check className="w-3 h-3 ml-auto text-brand-500" />}
             </button>
           ))}
         </div>
@@ -186,7 +185,7 @@ function SubRow({ task, depth, dept, editable, onStatus, onAddSub, onDelete }) {
         {/* toggle / dot */}
         <button onClick={() => kids.length && setOpen(p => !p)} className="w-4 flex items-center justify-center flex-shrink-0">
           {kids.length
-            ? (open ? <ChevronDownIcon className="w-3 h-3 text-gray-400" /> : <ChevronRightIcon className="w-3 h-3 text-gray-400" />)
+            ? (open ? <ChevronDown className="w-3 h-3 text-gray-400" /> : <ChevronRight className="w-3 h-3 text-gray-400" />)
             : <span className={clsx('w-2.5 h-2.5 rounded-full border-2', done ? 'bg-green-500 border-green-500' : 'border-gray-300')} />}
         </button>
         {/* title */}
@@ -204,8 +203,8 @@ function SubRow({ task, depth, dept, editable, onStatus, onAddSub, onDelete }) {
           del
             ? <DelConfirm onConfirm={() => { onDelete(task._id); setDel(false); }} onCancel={() => setDel(false)} />
             : <>
-                <button onClick={e => { e.stopPropagation(); setAdd(p => !p); setOpen(true); }} className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-brand-50 text-brand-400"><PlusIcon className="w-3 h-3" /></button>
-                <button onClick={e => { e.stopPropagation(); setDel(true); }} className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-red-50 text-gray-300 hover:text-red-400"><TrashIcon className="w-3 h-3" /></button>
+                <button onClick={e => { e.stopPropagation(); setAdd(p => !p); setOpen(true); }} className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-brand-50 text-brand-400"><Plus className="w-3 h-3" /></button>
+                <button onClick={e => { e.stopPropagation(); setDel(true); }} className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-red-50 text-gray-300 hover:text-red-400"><Trash2 className="w-3 h-3" /></button>
               </>
         )}
       </div>
@@ -256,11 +255,11 @@ function MemberCard({ task, dept, editable, onStatus, onAddSub, onDelete }) {
             del
               ? <DelConfirm onConfirm={() => { onDelete(task._id); setDel(false); }} onCancel={() => setDel(false)} />
               : <>
-                  <button onClick={e => { e.stopPropagation(); setAdd(p => !p); setOpen(true); }} className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-brand-50 text-brand-400"><PlusIcon className="w-3 h-3" /></button>
-                  <button onClick={e => { e.stopPropagation(); setDel(true); }} className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-red-50 text-gray-300 hover:text-red-400"><TrashIcon className="w-3.5 h-3.5" /></button>
+                  <button onClick={e => { e.stopPropagation(); setAdd(p => !p); setOpen(true); }} className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-brand-50 text-brand-400"><Plus className="w-3 h-3" /></button>
+                  <button onClick={e => { e.stopPropagation(); setDel(true); }} className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-red-50 text-gray-300 hover:text-red-400"><Trash2 className="w-3.5 h-3.5" /></button>
                 </>
           )}
-          {kids.length > 0 && <button onClick={e => { e.stopPropagation(); setOpen(p => !p); }} className="p-1 text-gray-400">{open ? <ChevronDownIcon className="w-3.5 h-3.5" /> : <ChevronRightIcon className="w-3.5 h-3.5" />}</button>}
+          {kids.length > 0 && <button onClick={e => { e.stopPropagation(); setOpen(p => !p); }} className="p-1 text-gray-400">{open ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}</button>}
         </div>
       </div>
       {kids.length > 0 && open && (
@@ -299,11 +298,11 @@ function ManagerCard({ task, dept, cfg, editable, onStatus, onAddSub, onDelete }
             <div className="flex items-start justify-between gap-1">
               <p className={clsx('text-sm font-bold leading-snug', done ? 'line-through text-gray-400' : 'text-gray-900 dark:text-white')}>{task.title}</p>
               <div className="flex items-center gap-1 flex-shrink-0">
-                {done && <CheckCircleIcon className="w-4 h-4 text-green-500" />}
+                {done && <CheckCircle2 className="w-4 h-4 text-green-500" />}
                 {editable && (
                   del
                     ? <DelConfirm onConfirm={() => { onDelete(task._id); setDel(false); }} onCancel={() => setDel(false)} />
-                    : <button onClick={() => setDel(true)} className="p-1 rounded hover:bg-red-50 text-gray-300 hover:text-red-400"><TrashIcon className="w-3.5 h-3.5" /></button>
+                    : <button onClick={() => setDel(true)} className="p-1 rounded hover:bg-red-50 text-gray-300 hover:text-red-400"><Trash2 className="w-3.5 h-3.5" /></button>
                 )}
               </div>
             </div>
@@ -324,7 +323,7 @@ function ManagerCard({ task, dept, cfg, editable, onStatus, onAddSub, onDelete }
         {kids.length > 0 && (
           <button onClick={() => setOpen(p => !p)}
             className="mt-2 w-full flex items-center justify-center gap-1 text-[10px] font-medium text-gray-500 hover:text-gray-700 py-1 rounded-lg hover:bg-white/60 transition-colors">
-            {open ? <><ChevronDownIcon className="w-3 h-3" /> Hide</> : <><ChevronRightIcon className="w-3 h-3" /> Show {kids.length} subtasks</>}
+            {open ? <><ChevronDown className="w-3 h-3" /> Hide</> : <><ChevronRight className="w-3 h-3" /> Show {kids.length} subtasks</>}
           </button>
         )}
       </div>
@@ -350,7 +349,7 @@ function ManagerCard({ task, dept, cfg, editable, onStatus, onAddSub, onDelete }
         <div className={clsx('px-3 py-2 flex gap-1.5 border-t', cfg.border, cfg.light)}>
           <button onClick={() => { setAdd(p => !p); setOpen(true); }}
             className={clsx('flex-1 flex items-center justify-center gap-1.5 text-xs font-semibold py-1.5 rounded-xl', cfg.tag, 'hover:opacity-80 transition-opacity')}>
-            <PlusIcon className="w-3.5 h-3.5" /> Add Subtask
+            <Plus className="w-3.5 h-3.5" /> Add Subtask
           </button>
         </div>
       )}
@@ -388,7 +387,7 @@ function DeptColumn({ dept, tasks, editable, filter, rootId, onStatus, onAddTask
             <p className={clsx('font-bold text-sm', cfg.text)}>{dept}</p>
             <p className="text-[10px] text-gray-400">{tasks.length} task{tasks.length !== 1 ? 's' : ''}</p>
           </div>
-          {allDone && <CheckCircleIcon className="w-5 h-5 text-green-500 flex-shrink-0" />}
+          {allDone && <CheckCircle2 className="w-5 h-5 text-green-500 flex-shrink-0" />}
         </div>
         <div className="flex items-center gap-2 mt-2">
           <Bar value={progress} cls={allDone ? 'bg-green-500' : cfg.bar} h="h-2" />
@@ -419,15 +418,15 @@ function DeptColumn({ dept, tasks, editable, filter, rootId, onStatus, onAddTask
         <div className={clsx('px-3 py-2.5 border-t space-y-1.5', cfg.border, cfg.light)}>
           <button onClick={() => setAddingTask(p => !p)}
             className={clsx('w-full flex items-center justify-center gap-1.5 text-xs font-semibold py-2 rounded-xl border-2 transition-opacity hover:opacity-80', cfg.border, cfg.tag)}>
-            <PlusIcon className="w-3.5 h-3.5" /> Add Task
+            <Plus className="w-3.5 h-3.5" /> Add Task
           </button>
           <button onClick={() => onAssign({ dept, tasks, parentId: rootId })}
             className="w-full flex items-center justify-center gap-1.5 text-xs font-semibold py-2 rounded-xl bg-brand-600 hover:bg-brand-700 text-white transition-colors">
-            <UserCircleIcon className="w-3.5 h-3.5" /> Assign Member Subtask
+            <UserCircle className="w-3.5 h-3.5" /> Assign Member Subtask
           </button>
           <button onClick={() => onUpdate(dept, progress)}
             className="w-full flex items-center justify-center gap-1.5 text-xs font-medium py-1.5 rounded-xl bg-white dark:bg-[#0f1a2e] border border-gray-200 dark:border-[#1b2e4a] text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-[#1b2e4a] transition-colors">
-            <PaperAirplaneIcon className="w-3.5 h-3.5" /> Send Update
+            <Send className="w-3.5 h-3.5" /> Send Update
           </button>
         </div>
       )}
@@ -499,7 +498,7 @@ function NewProjectModal({ onClose, onCreated }) {
             </div>
             {step === 2 && <p className="text-xs text-gray-400 mt-0.5 truncate max-w-sm">"{main.title}"</p>}
           </div>
-          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400"><XMarkIcon className="w-5 h-5" /></button>
+          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400"><X className="w-5 h-5" /></button>
         </div>
 
         {step === 1 ? (
@@ -538,7 +537,7 @@ function NewProjectModal({ onClose, onCreated }) {
             <div className="flex gap-3 px-6 py-4 border-t border-gray-200 dark:border-[#1b2e4a]">
               <button onClick={onClose} className="btn-secondary">Cancel</button>
               <button onClick={goNext} disabled={!main.title.trim()} className="btn-primary flex-1 flex items-center justify-center gap-2">
-                Next: Dept Assignments <ChevronRightIcon className="w-4 h-4" />
+                Next: Dept Assignments <ChevronRight className="w-4 h-4" />
               </button>
             </div>
           </>
@@ -557,7 +556,7 @@ function NewProjectModal({ onClose, onCreated }) {
                         <div className={clsx('w-7 h-7 rounded-xl flex items-center justify-center', c?.color || 'bg-gray-300')}><DI className="w-4 h-4 text-white" /></div>
                         <span className={clsx('text-xs font-bold', c?.text || 'text-gray-400')}>{row.dept || `Dept ${idx + 1}`}</span>
                       </div>
-                      {rows.length > 1 && <button onClick={() => removeRow(row.id)} className="p-1 rounded hover:bg-red-50 text-gray-300 hover:text-red-400"><TrashIcon className="w-3.5 h-3.5" /></button>}
+                      {rows.length > 1 && <button onClick={() => removeRow(row.id)} className="p-1 rounded hover:bg-red-50 text-gray-300 hover:text-red-400"><Trash2 className="w-3.5 h-3.5" /></button>}
                     </div>
                     <div className="grid grid-cols-2 gap-2">
                       <div>
@@ -589,16 +588,16 @@ function NewProjectModal({ onClose, onCreated }) {
               })}
               <button onClick={addRow}
                 className="w-full py-3 rounded-2xl border-2 border-dashed border-gray-200 text-xs font-semibold text-gray-400 hover:border-brand-400 hover:text-brand-500 flex items-center justify-center gap-2 transition-colors">
-                <PlusIcon className="w-4 h-4" /> Add Another Department
+                <Plus className="w-4 h-4" /> Add Another Department
               </button>
             </div>
             <div className="flex gap-3 px-6 py-4 border-t border-gray-200 dark:border-[#1b2e4a]">
               <button onClick={() => { setStep(1); setErr(''); }} className="btn-secondary flex items-center gap-1">
-                <ChevronRightIcon className="w-4 h-4 rotate-180" /> Back
+                <ChevronRight className="w-4 h-4 rotate-180" /> Back
               </button>
               <button onClick={submit} disabled={busy || !rows.some(r => r.dept && r.taskTitle.trim())}
                 className="btn-primary flex-1 flex items-center justify-center gap-2">
-                {busy ? <><ArrowPathIcon className="w-4 h-4 animate-spin" /> Creating…</> : <><CheckIcon className="w-4 h-4" /> Create Project</>}
+                {busy ? <><RefreshCw className="w-4 h-4 animate-spin" /> Creating…</> : <><Check className="w-4 h-4" /> Create Project</>}
               </button>
             </div>
           </>
@@ -655,7 +654,7 @@ function AssignMemberModal({ dept, deptTasks, onClose, onCreated }) {
               <p className={clsx('text-xs font-semibold', cfg.text)}>{dept}</p>
             </div>
           </div>
-          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400"><XMarkIcon className="w-5 h-5" /></button>
+          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400"><X className="w-5 h-5" /></button>
         </div>
         <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4">
           {err && <p className="text-xs text-red-600 bg-red-50 border border-red-200 px-3 py-2 rounded-xl">{err}</p>}
@@ -670,7 +669,7 @@ function AssignMemberModal({ dept, deptTasks, onClose, onCreated }) {
           )}
           {deptTasks?.length === 1 && (
             <div className={clsx('flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-medium', cfg.light, cfg.text)}>
-              <ChevronRightIcon className="w-3.5 h-3.5" /> Under: {deptTasks[0].title}
+              <ChevronRight className="w-3.5 h-3.5" /> Under: {deptTasks[0].title}
             </div>
           )}
           <div>
@@ -712,7 +711,7 @@ function AssignMemberModal({ dept, deptTasks, onClose, onCreated }) {
           <button onClick={onClose} className="btn-secondary flex-1">Cancel</button>
           <button onClick={submit} disabled={busy || !form.title.trim() || !form.parentTaskId}
             className="btn-primary flex-1 flex items-center justify-center gap-2">
-            {busy ? <><ArrowPathIcon className="w-4 h-4 animate-spin" /> Assigning…</> : <><UserCircleIcon className="w-4 h-4" /> Assign</>}
+            {busy ? <><RefreshCw className="w-4 h-4 animate-spin" /> Assigning…</> : <><UserCircle className="w-4 h-4" /> Assign</>}
           </button>
         </div>
       </div>
@@ -755,7 +754,7 @@ function WhatsAppUpdateModal({ lead, onClose }) {
         <div className="p-5 border-b border-gray-200 dark:border-[#1b2e4a] flex items-center justify-between">
           <div>
             <h2 className="font-bold text-gray-900 dark:text-white flex items-center gap-2">
-              <PaperAirplaneIcon className="w-4 h-4 text-green-600" />
+              <Send className="w-4 h-4 text-green-600" />
               Send WhatsApp Update
             </h2>
             <p className="text-xs text-gray-500 mt-0.5">
@@ -763,7 +762,7 @@ function WhatsAppUpdateModal({ lead, onClose }) {
             </p>
           </div>
           <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-[#17263d] text-gray-400">
-            <XMarkIcon className="w-5 h-5" />
+            <X className="w-5 h-5" />
           </button>
         </div>
         <div className="p-5 space-y-4">
@@ -788,7 +787,7 @@ function WhatsAppUpdateModal({ lead, onClose }) {
           <div className="flex gap-3">
             <button onClick={onClose} className="btn-secondary flex-1 justify-center">Cancel</button>
             <button onClick={send} disabled={mutation.isPending} className="btn-primary flex-1 justify-center gap-2 disabled:opacity-50">
-              <PaperAirplaneIcon className="w-4 h-4" />
+              <Send className="w-4 h-4" />
               {mutation.isPending ? 'Sending…' : 'Send via WhatsApp'}
             </button>
           </div>
@@ -816,7 +815,7 @@ function UpdateModal({ dept, progress, projectId, onClose }) {
             <h2 className="font-bold text-gray-900 dark:text-white">Send Update</h2>
             <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">{dept} — {progress}% complete</p>
           </div>
-          <button onClick={() => onClose(false)} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400"><XMarkIcon className="w-5 h-5" /></button>
+          <button onClick={() => onClose(false)} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400"><X className="w-5 h-5" /></button>
         </div>
         <div className="p-5">
           <textarea value={msg} onChange={e => setMsg(e.target.value)} rows={4} className="input w-full resize-none text-sm" placeholder="Describe progress, blockers, next steps…" />
@@ -824,7 +823,7 @@ function UpdateModal({ dept, progress, projectId, onClose }) {
         <div className="flex gap-3 px-5 pb-5">
           <button onClick={() => onClose(false)} className="btn-secondary flex-1">Cancel</button>
           <button onClick={send} disabled={busy || !msg.trim()} className="btn-primary flex-1 flex items-center justify-center gap-2">
-            {busy ? <ArrowPathIcon className="w-4 h-4 animate-spin" /> : <><PaperAirplaneIcon className="w-4 h-4" /> Send</>}
+            {busy ? <RefreshCw className="w-4 h-4 animate-spin" /> : <><Send className="w-4 h-4" /> Send</>}
           </button>
         </div>
       </div>
@@ -951,7 +950,7 @@ export default function DeptWorkflow() {
 
           {projectId && (
             <button onClick={() => refetch()} className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-[#17263d] flex-shrink-0">
-              <ArrowPathIcon className={clsx('w-4 h-4 text-gray-400', treeLoading && 'animate-spin')} />
+              <RefreshCw className={clsx('w-4 h-4 text-gray-400', treeLoading && 'animate-spin')} />
             </button>
           )}
 
@@ -983,7 +982,7 @@ export default function DeptWorkflow() {
               onClick={() => setWaModal(true)}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-green-600 hover:bg-green-700 text-white text-xs font-bold transition-all flex-shrink-0"
             >
-              <PaperAirplaneIcon className="w-3.5 h-3.5" /> Send Client Update
+              <Send className="w-3.5 h-3.5" /> Send Client Update
             </button>
           )}
 
@@ -991,7 +990,7 @@ export default function DeptWorkflow() {
           {isAdmin && (
             <button onClick={() => setShowNew(true)}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-brand-600 hover:bg-brand-700 text-white text-xs font-bold transition-all flex-shrink-0">
-              <PlusIcon className="w-3.5 h-3.5" /> New Project
+              <Plus className="w-3.5 h-3.5" /> New Project
             </button>
           )}
 
@@ -999,7 +998,7 @@ export default function DeptWorkflow() {
           {projectId && isAdmin && (
             confirmDel ? (
               <div className="flex items-center gap-1.5 bg-red-50 border border-red-200 rounded-xl px-2.5 py-1.5">
-                <ExclamationTriangleIcon className="w-3.5 h-3.5 text-red-500 flex-shrink-0" />
+                <TriangleAlert className="w-3.5 h-3.5 text-red-500 flex-shrink-0" />
                 <span className="text-xs text-red-600 font-semibold whitespace-nowrap">Delete project?</span>
                 <button onClick={handleDeleteProject} disabled={deleting}
                   className="text-xs px-2 py-0.5 rounded bg-red-500 text-white font-bold disabled:opacity-50">
@@ -1010,7 +1009,7 @@ export default function DeptWorkflow() {
             ) : (
               <button onClick={() => setConfirmDel(true)}
                 className="p-1.5 rounded-lg hover:bg-red-50 text-gray-300 hover:text-red-400 transition-colors flex-shrink-0">
-                <TrashIcon className="w-4 h-4" />
+                <Trash2 className="w-4 h-4" />
               </button>
             )
           )}
@@ -1020,7 +1019,7 @@ export default function DeptWorkflow() {
         {tree && (
           <div className="mt-2.5 flex items-center gap-3 flex-wrap">
             <div className="flex items-center gap-2 min-w-0">
-              <ChartBarIcon className="w-4 h-4 text-brand-500 flex-shrink-0" />
+              <BarChart3 className="w-4 h-4 text-brand-500 flex-shrink-0" />
               <span className="text-sm font-bold text-gray-900 dark:text-white truncate">{tree.title}</span>
               {tree.priority && <span className={clsx('text-[10px] font-bold px-2 py-0.5 rounded-full uppercase flex-shrink-0', PRIORITY_CLS[tree.priority])}>{tree.priority}</span>}
               {tree.dueDate && <span className="text-xs text-gray-400 flex-shrink-0">· Due {format(new Date(tree.dueDate), 'd MMM yyyy')}</span>}
@@ -1040,7 +1039,7 @@ export default function DeptWorkflow() {
                   <span key={d} className={clsx('flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full border', c.tag, c.border)}>
                     <c.icon className="w-2.5 h-2.5" />
                     {d === 'Accounts & Finance' ? 'Finance' : d} {dp}%
-                    {dp === 100 && <CheckCircleIcon className="w-2.5 h-2.5 text-green-500" />}
+                    {dp === 100 && <CheckCircle2 className="w-2.5 h-2.5 text-green-500" />}
                   </span>
                 );
               })}
@@ -1058,14 +1057,14 @@ export default function DeptWorkflow() {
         ) : !projectId ? (
           <div className="flex flex-col items-center justify-center h-full gap-3 text-center px-8">
             <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-brand-100 to-purple-100 flex items-center justify-center">
-              <SparklesIcon className="w-7 h-7 text-brand-400" />
+              <Sparkles className="w-7 h-7 text-brand-400" />
             </div>
             <p className="text-sm font-semibold text-gray-600 dark:text-gray-300">Select a project to view the workflow</p>
-            {isAdmin && <button onClick={() => setShowNew(true)} className="btn-primary text-sm px-5 py-2"><PlusIcon className="w-4 h-4 inline mr-1.5" />Create New Project</button>}
+            {isAdmin && <button onClick={() => setShowNew(true)} className="btn-primary text-sm px-5 py-2"><Plus className="w-4 h-4 inline mr-1.5" />Create New Project</button>}
           </div>
         ) : !tree || depts.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-gray-400 gap-2">
-            <ChartBarIcon className="w-10 h-10 opacity-40" />
+            <BarChart3 className="w-10 h-10 opacity-40" />
             <p className="text-sm">No department tasks yet for this project</p>
           </div>
         ) : visibleDepts.length === 0 ? (

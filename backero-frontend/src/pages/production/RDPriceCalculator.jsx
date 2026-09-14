@@ -1,6 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Link } from 'react-router-dom';
+import {
+  Calculator, Settings as SettingsIcon, TriangleAlert, Info, Lightbulb, CircleCheck, Briefcase, Bot,
+  Coins, Dna, Download, Trash2, Plus, Package, Factory, Save, Printer, Clipboard, RefreshCw, FolderOpen, CircleX, X,
+} from 'lucide-react';
+import { Button, Drawer, Space } from 'antd';
 import './RDPriceCalculator.css';
 
 // ========== DATA (ported 1:1 from public/rd-price-calculator.html) ==========
@@ -624,21 +628,16 @@ export default function RDPriceCalculator({ presetProduct } = {}) {
   return (
     <div className="rd-price-calculator">
       {!presetProduct && (
-      <div className="header">
+      <div className="page-header-inline">
         <div className="brand">
-          <div className="brand-icon">🧮</div>
+          <div className="brand-icon"><Calculator size={18} /></div>
           <div className="brand-text">
-            <h1>R&amp;D Price Calculator — Backero BioTech</h1>
+            <h1>R&amp;D Price Calculator</h1>
             <span>BioTech / Cosmetic ERP</span>
           </div>
         </div>
-        <div className="header-nav">
-          <Link className="nav-link" to="/inventory/catalog">Product Catalogue</Link>
-          <Link className="nav-link" to="/samples">Sample Flow</Link>
-          <Link className="nav-link" to="/inventory/rawmaterials">Raw Materials</Link>
-        </div>
         <div className="header-actions">
-          <button className="btn btn-outline" onClick={openSettings}>⚙️ Settings</button>
+          <button className="btn btn-outline" onClick={openSettings}><SettingsIcon size={14} /> Settings</button>
         </div>
       </div>
       )}
@@ -646,9 +645,9 @@ export default function RDPriceCalculator({ presetProduct } = {}) {
       <div className="main">
         {!presetProduct && (
         <>
-        <div className={`db-banner${!hasRmDb ? ' show' : ''}`}><span className="icon">⚠️</span><span><strong>Raw Materials DB not found</strong> — enter material costs manually (formula mode will use manual prices).</span></div>
-        <div className={`db-banner${!hasCatalogDb ? ' show' : ''}`}><span className="icon">ℹ️</span><span>Product Catalogue DB not found — type the product name yourself.</span></div>
-        <div className={`db-banner${!hasCustomerDb ? ' show' : ''}`}><span className="icon">ℹ️</span><span>Sample Dev DB not found — type the customer name yourself.</span></div>
+        <div className={`db-banner${!hasRmDb ? ' show' : ''}`}><TriangleAlert size={15} className="icon" /><span><strong>Raw Materials DB not found</strong> — enter material costs manually (formula mode will use manual prices).</span></div>
+        <div className={`db-banner${!hasCatalogDb ? ' show' : ''}`}><Info size={15} className="icon" /><span>Product Catalogue DB not found — type the product name yourself.</span></div>
+        <div className={`db-banner${!hasCustomerDb ? ' show' : ''}`}><Info size={15} className="icon" /><span>Sample Dev DB not found — type the customer name yourself.</span></div>
         </>
         )}
 
@@ -683,7 +682,7 @@ export default function RDPriceCalculator({ presetProduct } = {}) {
                       <select value={customerSelect} onChange={e => { setCustomerSelect(e.target.value); }}>
                         <option value="">— Select customer —</option>
                         {devCustomers.map(c => <option key={c.name} value={c.name}>{c.id ? c.id + ' — ' : ''}{c.name}</option>)}
-                        <option value="__custom">✏️ Other (type manually)</option>
+                        <option value="__custom">Other (type manually)</option>
                       </select>
                       <div className="help">Pick the customer from the list.</div>
                     </div>
@@ -714,7 +713,7 @@ export default function RDPriceCalculator({ presetProduct } = {}) {
                       }}>
                         <option value="">— Select product —</option>
                         {catalogProducts.map(p => <option key={p.name} value={p.name}>{p.code ? p.code + ' — ' : ''}{p.name}</option>)}
-                        <option value="__custom">✏️ Other (type manually)</option>
+                        <option value="__custom">Other (type manually)</option>
                       </select>
                       <div className="help">Pick the product if it is in our catalogue.</div>
                     </div>
@@ -748,7 +747,7 @@ export default function RDPriceCalculator({ presetProduct } = {}) {
               <div className="card-body">
                 <div className="picker-box">
                   <button type="button" className="picker-toggle" onClick={() => setPickerOpen(o => !o)}>
-                    💡 Not sure which type? Answer 3 quick questions
+                    <Lightbulb size={14} style={{ verticalAlign: '-2px', marginRight: 4 }} />Not sure which type? Answer 3 quick questions
                     <span style={{ marginLeft: 'auto', fontWeight: 500, color: 'var(--text-muted)', fontSize: '11px' }}>{pickerOpen ? 'hide' : 'show'}</span>
                   </button>
                   <div className={`picker-body${pickerOpen ? '' : ' hidden'}`}>
@@ -775,7 +774,7 @@ export default function RDPriceCalculator({ presetProduct } = {}) {
                     </div>
                     {pickerResultTier && (
                       <div className="picker-result show">
-                        ✅ We picked for you: <strong>{TIER_DEFS[pickerResultTier].name}</strong>
+                        <CircleCheck size={14} style={{ verticalAlign: '-2px', marginRight: 4 }} />We picked for you: <strong>{TIER_DEFS[pickerResultTier].name}</strong>
                         {pickerResultTier === 'T3' ? ' — quote a monthly retainer after a scope discussion (not priced here).' : ' — the hours below are pre-filled, you can just continue to Step 3.'}
                       </div>
                     )}
@@ -798,7 +797,7 @@ export default function RDPriceCalculator({ presetProduct } = {}) {
                     );
                   })}
                 </div>
-                <div className={`tier-advisory${tier === 'T3' ? ' show' : ''}`}><span>💼</span><span><strong>Long research project</strong> has no fixed end — do NOT price it here. <strong>Quote a monthly retainer after a scope discussion</strong> with the customer.</span></div>
+                <div className={`tier-advisory${tier === 'T3' ? ' show' : ''}`}><Briefcase size={14} /><span><strong>Long research project</strong> has no fixed end — do NOT price it here. <strong>Quote a monthly retainer after a scope discussion</strong> with the customer.</span></div>
               </div>
             </div>
 
@@ -806,7 +805,7 @@ export default function RDPriceCalculator({ presetProduct } = {}) {
             <div className="card">
               <div className="card-header"><h2><span className="step-no">3</span>Lab Time</h2><span className="tag tag-info">AI + 1 lab executive</span></div>
               <div className="card-body">
-                <div className="info-note">🤖 The formula is made by AI + 1 lab executive — <strong>you only pay for the executive's working hours</strong> (AI time is free).</div>
+                <div className="info-note"><Bot size={14} style={{ verticalAlign: '-2px', marginRight: 4 }} />The formula is made by AI + 1 lab executive — <strong>you only pay for the executive's working hours</strong> (AI time is free).</div>
                 <div className="form-grid">
                   <div className="form-group">
                     <label>Hours to make the first version</label>
@@ -841,14 +840,14 @@ export default function RDPriceCalculator({ presetProduct } = {}) {
             <div className="card">
               <div className="card-header"><h2><span className="step-no">4</span>Trial Materials</h2>
                 <div className="mode-toggle">
-                  <button className={matMode === 'estimate' ? 'active' : ''} onClick={() => setMatMode('estimate')}>💰 Rough estimate (₹)</button>
-                  <button className={matMode === 'formula' ? 'active' : ''} onClick={() => setMatMode('formula')}>🧬 From the actual formula</button>
+                  <button className={matMode === 'estimate' ? 'active' : ''} onClick={() => setMatMode('estimate')}><Coins size={13} style={{ verticalAlign: '-2px', marginRight: 4 }} />Rough estimate (₹)</button>
+                  <button className={matMode === 'formula' ? 'active' : ''} onClick={() => setMatMode('formula')}><Dna size={13} style={{ verticalAlign: '-2px', marginRight: 4 }} />From the actual formula</button>
                 </div>
               </div>
               <div className="card-body">
                 {matMode === 'estimate' && (
                   <div>
-                    <div className="info-note">💰 Easiest way — type one rough amount for all the raw materials needed for the trials.</div>
+                    <div className="info-note"><Coins size={14} style={{ verticalAlign: '-2px', marginRight: 4 }} />Easiest way — type one rough amount for all the raw materials needed for the trials.</div>
                     <div className="form-grid">
                       <div className="form-group">
                         <label>Rough materials cost for all trials (₹)</label>
@@ -865,7 +864,7 @@ export default function RDPriceCalculator({ presetProduct } = {}) {
                 )}
                 {matMode === 'formula' && (
                   <div>
-                    <div className="info-note">🧬 Most accurate way — use the real formula once it is decided. Each row is one ingredient; qty is per trial batch in <strong>g/ml</strong>. Materials priced per kg/L are auto-divided by 1000.</div>
+                    <div className="info-note"><Dna size={14} style={{ verticalAlign: '-2px', marginRight: 4 }} />Most accurate way — use the real formula once it is decided. Each row is one ingredient; qty is per trial batch in <strong>g/ml</strong>. Materials priced per kg/L are auto-divided by 1000.</div>
                     <div className="form-grid" style={{ marginBottom: '12px' }}>
                       <div className="form-group">
                         <label>Trial batch size (g)</label>
@@ -874,7 +873,7 @@ export default function RDPriceCalculator({ presetProduct } = {}) {
                       </div>
                       <div className="form-group">
                         <label>Use a catalogue product's formula</label>
-                        <button type="button" className="btn btn-sm btn-primary" disabled={!selectedCatalogProduct} style={{ opacity: selectedCatalogProduct ? 1 : 0.5 }} onClick={handleLoadProductFormula}>📥 Load ingredients from this product's formula</button>
+                        <button type="button" className="btn btn-sm btn-primary" disabled={!selectedCatalogProduct} style={{ opacity: selectedCatalogProduct ? 1 : 0.5 }} onClick={handleLoadProductFormula}><Download size={13} style={{ verticalAlign: '-2px', marginRight: 4 }} />Load ingredients from this product's formula</button>
                         <div className="help">{selectedCatalogProduct ? `Will pull the latest formula of "${selectedCatalogProduct.name}" from the Product Catalogue.` : 'Pick a catalogue product in Step 1 first, then click to pull its latest formula rows here.'}</div>
                       </div>
                     </div>
@@ -905,7 +904,7 @@ export default function RDPriceCalculator({ presetProduct } = {}) {
                                     <td style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>{r.unit || '—'}</td>
                                     <td style={{ fontSize: '11px' }}>{r.code ? fmtMoney(r.unitPrice) : '—'}</td>
                                     <td className="f-cost">{fmtMoney(cost)}</td>
-                                    <td><button className="f-del" onClick={() => removeFormulaRow(i)}>🗑️</button></td>
+                                    <td><button className="f-del" onClick={() => removeFormulaRow(i)}><Trash2 size={13} /></button></td>
                                   </>
                                 ) : (
                                   <>
@@ -913,7 +912,7 @@ export default function RDPriceCalculator({ presetProduct } = {}) {
                                     <td><input type="number" min="0" step="0.01" value={r.unitPrice} onChange={e => updateFormulaRow(i, { unitPrice: parseFloat(e.target.value) || 0 })} /></td>
                                     <td><input type="number" min="0" step="0.1" value={r.qty} onChange={e => updateFormulaRow(i, { qty: parseFloat(e.target.value) || 0 })} /></td>
                                     <td className="f-cost">{fmtMoney(cost)}</td>
-                                    <td><button className="f-del" onClick={() => removeFormulaRow(i)}>🗑️</button></td>
+                                    <td><button className="f-del" onClick={() => removeFormulaRow(i)}><Trash2 size={13} /></button></td>
                                   </>
                                 )}
                               </tr>
@@ -923,7 +922,7 @@ export default function RDPriceCalculator({ presetProduct } = {}) {
                       </table>
                     </div>
                     <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
-                      <button className="btn btn-sm btn-outline" onClick={addFormulaRow}>➕ Add Ingredient Row</button>
+                      <button className="btn btn-sm btn-outline" onClick={addFormulaRow}><Plus size={13} style={{ verticalAlign: '-2px', marginRight: 4 }} />Add Ingredient Row</button>
                       <div className="form-group" style={{ flexDirection: 'row', alignItems: 'center', gap: '8px', marginLeft: 'auto' }}>
                         <label style={{ whiteSpace: 'nowrap' }}>Trial batches:</label>
                         <input type="number" min="0" step="1" style={{ width: '90px' }} value={trialBatchesF} onChange={handleTrialBatchesFChange} />
@@ -945,7 +944,7 @@ export default function RDPriceCalculator({ presetProduct } = {}) {
             <div className="card">
               <div className="card-header"><h2><span className="step-no">5</span>Samples You Send to the Customer</h2></div>
               <div className="card-body">
-                <div className="info-note">📦 These costs are charged <strong>once per correction round</strong> — every time we make a new sample set and courier it.</div>
+                <div className="info-note"><Package size={14} style={{ verticalAlign: '-2px', marginRight: 4 }} />These costs are charged <strong>once per correction round</strong> — every time we make a new sample set and courier it.</div>
                 <div className="form-grid">
                   <div className="form-group">
                     <label>Sample pieces sent each time</label>
@@ -989,7 +988,7 @@ export default function RDPriceCalculator({ presetProduct } = {}) {
                       <input type="number" min="0" step="100" title="Price (₹)" value={t.price} onChange={e => setTestLines(lines => lines.map((x, idx) => idx === i ? { ...x, price: parseFloat(e.target.value) || 0 } : x))} />
                       <span className="t-amount">
                         {t.checked ? fmtMoney(t.qty * t.price) : '—'}
-                        {t.custom && <button className="t-del" onClick={() => removeTestLine(i)}>🗑️</button>}
+                        {t.custom && <button className="t-del" onClick={() => removeTestLine(i)}><Trash2 size={12} /></button>}
                       </span>
                     </div>
                   ))}
@@ -998,7 +997,7 @@ export default function RDPriceCalculator({ presetProduct } = {}) {
                   <input type="text" placeholder="Custom test name" style={{ flex: 1, minWidth: '160px' }} value={customTestName} onChange={e => setCustomTestName(e.target.value)} />
                   <input type="number" min="0" step="1" style={{ width: '70px' }} title="Qty" value={customTestQty} onChange={e => setCustomTestQty(e.target.value)} />
                   <input type="number" min="0" step="100" placeholder="₹ Price" style={{ width: '110px' }} value={customTestPrice} onChange={e => setCustomTestPrice(e.target.value)} />
-                  <button className="btn btn-sm btn-outline" onClick={addCustomTest}>➕ Add Custom Line</button>
+                  <button className="btn btn-sm btn-outline" onClick={addCustomTest}><Plus size={13} style={{ verticalAlign: '-2px', marginRight: 4 }} />Add Custom Line</button>
                 </div>
                 <div className="pricing-highlight" style={{ marginTop: '14px', marginBottom: 0 }}>
                   <div><div className="label">Paid Tests Total</div><div className="value">{fmtMoney(displayCalc ? displayCalc.externalTests : 0)}</div></div>
@@ -1029,7 +1028,7 @@ export default function RDPriceCalculator({ presetProduct } = {}) {
                 </div>
 
                 <div className="settings-section" style={{ marginTop: '4px' }}>Standard assumptions (industry standard %)</div>
-                <div className="info-note">🏭 Small extra % on the material cost that every factory adds — <strong>keep the recommended values if unsure</strong>.</div>
+                <div className="info-note"><Factory size={14} style={{ verticalAlign: '-2px', marginRight: 4 }} />Small extra % on the material cost that every factory adds — <strong>keep the recommended values if unsure</strong>.</div>
                 <div className="form-grid" style={{ marginBottom: '14px' }}>
                   {ASSUMPTION_DEFS.map(d => (
                     <div className="form-group" key={d.key}>
@@ -1047,9 +1046,9 @@ export default function RDPriceCalculator({ presetProduct } = {}) {
                 </div>
                 <div style={{ marginBottom: '16px' }}>
                   {displayCalc && ((displayCalc.assPct < 15 || displayCalc.assPct > 30) ? (
-                    <div className="industry-warning"><span className="icon">⚠️</span><span>Industry range for total indirect % is 15%–30%. Your total is {displayCalc.assPct}% — adjust the sliders if this was not intentional.</span></div>
+                    <div className="industry-warning"><TriangleAlert size={15} className="icon" /><span>Industry range for total indirect % is 15%–30%. Your total is {displayCalc.assPct}% — adjust the sliders if this was not intentional.</span></div>
                   ) : (
-                    <div className="band-ok"><span>✅</span><span>Total extra {displayCalc.assPct}% is inside the normal industry range (15%–30%).</span></div>
+                    <div className="band-ok"><CircleCheck size={15} /><span>Total extra {displayCalc.assPct}% is inside the normal industry range (15%–30%).</span></div>
                   ))}
                 </div>
 
@@ -1075,7 +1074,7 @@ export default function RDPriceCalculator({ presetProduct } = {}) {
 
             {/* SAVED QUOTES */}
             <div className="card">
-              <div className="card-header"><h2>💾 Saved Quotes</h2><span className="tag tag-gray">{quotes.length} saved</span></div>
+              <div className="card-header"><h2><Save size={14} style={{ verticalAlign: '-2px', marginRight: 6 }} />Saved Quotes</h2><span className="tag tag-gray">{quotes.length} saved</span></div>
               <div className="card-body">
                 <div className="table-wrap">
                   <table>
@@ -1084,7 +1083,7 @@ export default function RDPriceCalculator({ presetProduct } = {}) {
                     </thead>
                     <tbody>
                       {quotes.length === 0 ? (
-                        <tr><td colSpan={8} className="empty"><div className="icon">💾</div><h4>No saved quotes yet</h4><p>Save a quote to see it here.</p></td></tr>
+                        <tr><td colSpan={8} className="empty"><div className="icon"><Save size={32} /></div><h4>No saved quotes yet</h4><p>Save a quote to see it here.</p></td></tr>
                       ) : (
                         quotes.slice().reverse().map(q => {
                           const statusClass = q.status === 'Accepted' ? 'tag-success' : q.status === 'Rejected' ? 'tag-danger' : 'tag-info';
@@ -1099,8 +1098,8 @@ export default function RDPriceCalculator({ presetProduct } = {}) {
                               <td style={{ fontWeight: 700 }}>{fmtMoney(q.fee)}</td>
                               <td><span className={`tag ${statusClass}`}>{q.status}</span></td>
                               <td className="actions">
-                                <button className="load-btn" title="Load into calculator" onClick={() => loadQuote(q.id)}>📂</button>
-                                <button className="delete-btn" title="Delete" onClick={() => deleteQuote(q.id)}>🗑️</button>
+                                <button className="load-btn" title="Load into calculator" onClick={() => loadQuote(q.id)}><FolderOpen size={14} /></button>
+                                <button className="delete-btn" title="Delete" onClick={() => deleteQuote(q.id)}><Trash2 size={14} /></button>
                               </td>
                             </tr>
                           );
@@ -1119,7 +1118,7 @@ export default function RDPriceCalculator({ presetProduct } = {}) {
             <div className="card">
               <div className="card-header">
                 <h2><span className="step-no">★</span>Final: Quote Summary</h2>
-                {displayCalc && (displayCalc.fee < GUARD_LOW || displayCalc.fee > GUARD_HIGH) && <span className="tag tag-warning">⚠️ Outside ₹5k–₹20k</span>}
+                {displayCalc && (displayCalc.fee < GUARD_LOW || displayCalc.fee > GUARD_HIGH) && <span className="tag tag-warning"><TriangleAlert size={11} style={{ verticalAlign: '-1px', marginRight: 3 }} />Outside ₹5k–₹20k</span>}
               </div>
               {tier !== 'T3' && liveCalc ? (
                 <div className="card-body">
@@ -1163,25 +1162,25 @@ export default function RDPriceCalculator({ presetProduct } = {}) {
                     <div className="recovery-item"><div className="r-label">@ 500 pcs</div><div className="r-value">{fmtMoney(liveCalc.fee / 500)}/unit</div></div>
                     <div className="recovery-item"><div className="r-label">@ 1000 pcs</div><div className="r-value">{fmtMoney(liveCalc.fee / 1000)}/unit</div></div>
                   </div>
-                  <div className="info-note" style={{ marginBottom: '14px' }}>💡 Recover the whole fee within the first order — customers reorder slowly.</div>
+                  <div className="info-note" style={{ marginBottom: '14px' }}><Lightbulb size={14} style={{ verticalAlign: '-2px', marginRight: 4 }} />Recover the whole fee within the first order — customers reorder slowly.</div>
                   <div style={{ marginBottom: '16px' }}>
-                    <div className="info-note" style={{ marginBottom: '8px' }}>💡 {TIER_DEFS[liveCalc.tier].typical} for "{TIER_DEFS[liveCalc.tier].name}".</div>
+                    <div className="info-note" style={{ marginBottom: '8px' }}><Lightbulb size={14} style={{ verticalAlign: '-2px', marginRight: 4 }} />{TIER_DEFS[liveCalc.tier].typical} for "{TIER_DEFS[liveCalc.tier].name}".</div>
                     {(liveCalc.fee < GUARD_LOW || liveCalc.fee > GUARD_HIGH) ? (
-                      <div className="industry-warning"><span className="icon">⚠️</span><span>{fmtMoney(liveCalc.fee)} is outside the usual <strong>₹5,000–₹20,000</strong> range — double-check the inputs before quoting.</span></div>
+                      <div className="industry-warning"><TriangleAlert size={15} className="icon" /><span>{fmtMoney(liveCalc.fee)} is outside the usual <strong>₹5,000–₹20,000</strong> range — double-check the inputs before quoting.</span></div>
                     ) : (
-                      <div className="band-ok"><span>✅</span><span>Inside the usual ₹5,000–₹20,000 quote range.</span></div>
+                      <div className="band-ok"><CircleCheck size={15} /><span>Inside the usual ₹5,000–₹20,000 quote range.</span></div>
                     )}
                   </div>
                   <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                    <button className="btn btn-accent" onClick={saveQuote}>💾 Save Quote</button>
-                    <button className="btn btn-primary" onClick={printQuotation}>🖨️ Print Quotation</button>
-                    <button className="btn btn-outline" onClick={copySummary}>📋 Copy Summary</button>
-                    <button className="btn btn-outline" onClick={resetForm}>🔄 Reset</button>
+                    <button className="btn btn-accent" onClick={saveQuote}><Save size={14} style={{ verticalAlign: '-2px', marginRight: 4 }} />Save Quote</button>
+                    <button className="btn btn-primary" onClick={printQuotation}><Printer size={14} style={{ verticalAlign: '-2px', marginRight: 4 }} />Print Quotation</button>
+                    <button className="btn btn-outline" onClick={copySummary}><Clipboard size={14} style={{ verticalAlign: '-2px', marginRight: 4 }} />Copy Summary</button>
+                    <button className="btn btn-outline" onClick={resetForm}><RefreshCw size={14} style={{ verticalAlign: '-2px', marginRight: 4 }} />Reset</button>
                   </div>
                 </div>
               ) : (
                 <div className="card-body">
-                  <div className="tier-advisory show" style={{ marginTop: 0 }}><span>💼</span><span><strong>Long research project:</strong> quote a monthly retainer after a scope discussion. This type is not priced by the calculator.</span></div>
+                  <div className="tier-advisory show" style={{ marginTop: 0 }}><Briefcase size={14} /><span><strong>Long research project:</strong> quote a monthly retainer after a scope discussion. This type is not priced by the calculator.</span></div>
                 </div>
               )}
             </div>
@@ -1189,18 +1188,22 @@ export default function RDPriceCalculator({ presetProduct } = {}) {
         </div>
       </div>
 
-      {/* SETTINGS MODAL — portaled to <body> so it isn't trapped as position:fixed inside the
-          app shell's transformed page-transition wrapper (transform creates a new containing
-          block, which would otherwise pin the overlay far off-screen instead of centering it). */}
-      {createPortal(
-      <div className="rd-price-calculator">
-      <div className={`modal-overlay${settingsOpen ? ' show' : ''}`}>
-        <div className="modal">
-          <div className="modal-header">
-            <h2>⚙️ Calculator Settings &amp; Defaults</h2>
-            <button className="modal-close" onClick={closeSettingsModal}>&times;</button>
-          </div>
-          <div className="modal-body">
+      {/* SETTINGS DRAWER */}
+      <Drawer
+        open={settingsOpen}
+        onClose={closeSettingsModal}
+        width={860}
+        closeIcon={<X size={18} />}
+        title={<><SettingsIcon size={15} style={{ verticalAlign: '-2px', marginRight: 6 }} />Calculator Settings &amp; Defaults</>}
+        footer={
+          <Space style={{ width: '100%', justifyContent: 'flex-end' }}>
+            <Button onClick={closeSettingsModal}>Cancel</Button>
+            <Button type="primary" onClick={saveSettings} icon={<Save size={14} />}>Save Settings</Button>
+          </Space>
+        }
+        className="rd-price-calculator"
+      >
+        <div className="modal-body" style={{ padding: 0 }}>
             {settingsDraft && (
               <>
                 <div className="settings-section">Work Types (default hours &amp; included corrections)</div>
@@ -1251,19 +1254,11 @@ export default function RDPriceCalculator({ presetProduct } = {}) {
                     <div className="form-group" key={i}><label>{t.name} (₹)</label><input type="number" min="0" step="100" value={t.price} onChange={e => updateDraftTestPrice(i, parseFloat(e.target.value) || 0)} /></div>
                   ))}
                 </div>
-                <div className="info-note" style={{ marginTop: '14px', marginBottom: 0 }}>ℹ️ Settings persist in <strong>rndPricingDB_v1</strong> and are applied as the new calculator defaults on save.</div>
+                <div className="info-note" style={{ marginTop: '14px', marginBottom: 0 }}><Info size={13} style={{ verticalAlign: '-2px', marginRight: 4 }} />Settings persist in <strong>rndPricingDB_v1</strong> and are applied as the new calculator defaults on save.</div>
               </>
             )}
-          </div>
-          <div className="modal-footer">
-            <button className="btn btn-outline" onClick={closeSettingsModal}>Cancel</button>
-            <button className="btn btn-primary" onClick={saveSettings}>💾 Save Settings</button>
-          </div>
         </div>
-      </div>
-      </div>,
-      document.body
-      )}
+      </Drawer>
 
       {/* TOASTS — also portaled to <body> for the same fixed-positioning reason as the modal. */}
       {createPortal(
@@ -1271,7 +1266,8 @@ export default function RDPriceCalculator({ presetProduct } = {}) {
       <div className="toast-container">
         {toasts.map(t => (
           <div key={t.id} className={`toast ${t.type || ''}`}>
-            {(t.type === 'success' ? '✅ ' : t.type === 'error' ? '❌ ' : '⚠️ ') + t.msg}
+            {t.type === 'success' ? <CircleCheck size={14} /> : t.type === 'error' ? <CircleX size={14} /> : <TriangleAlert size={14} />}
+            {t.msg}
           </div>
         ))}
       </div>

@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { format } from 'date-fns';
-import { CheckIcon, XMarkIcon, PhotoIcon, FilmIcon, CalendarDaysIcon } from '@heroicons/react/24/outline';
+import { Check, X, Image, Film, CalendarDays } from 'lucide-react';
+import { Button, Card, Empty, Input, Radio, Space, Spin, Tag, Typography } from 'antd';
 import api from '../../api/axios';
 import toast from 'react-hot-toast';
-import { clsx } from 'clsx';
+
+const { Title, Text, Paragraph } = Typography;
 
 const TABS = [
   { key: 'pending', label: 'Pending' },
@@ -23,124 +25,94 @@ const PLATFORM_LABELS = {
   other: 'Other',
 };
 
+const STATUS_STYLE = {
+  rejected: { color: '#cf1322', bg: '#fff1f0', border: '#ffccc7' },
+  publish_failed: { color: '#d46b08', bg: '#fff7e6', border: '#ffd591' },
+  default: { color: '#389e0d', bg: '#f6ffed', border: '#b7eb8f' },
+};
+
 function RequestCard({ request, onApprove, onReject, isMutating }) {
   const [rejecting, setRejecting] = useState(false);
   const [notes, setNotes] = useState('');
+  const statusStyle = STATUS_STYLE[request.status] || STATUS_STYLE.default;
 
   return (
-    <div className="card p-5 space-y-3">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <span className="badge-blue">{PLATFORM_LABELS[request.platform] || request.platform}</span>
-          {request.campaignName && (
-            <span className="ml-2 text-sm font-semibold text-gray-900 dark:text-white">{request.campaignName}</span>
+    <Card>
+      <Space direction="vertical" style={{ width: '100%' }} size={12}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}>
+          <div>
+            <Tag color="blue">{PLATFORM_LABELS[request.platform] || request.platform}</Tag>
+            {request.campaignName && <Text strong style={{ marginLeft: 8 }}>{request.campaignName}</Text>}
+          </div>
+          {request.scheduledFor && (
+            <Space size={4} style={{ flexShrink: 0 }}>
+              <CalendarDays size={13} color="#9ca3af" />
+              <Text type="secondary" style={{ fontSize: 12 }}>{format(new Date(request.scheduledFor), 'dd MMM, HH:mm')}</Text>
+            </Space>
           )}
         </div>
-        {request.scheduledFor && (
-          <div className="flex items-center gap-1 text-xs text-gray-400 flex-shrink-0">
-            <CalendarDaysIcon className="w-3.5 h-3.5" />
-            {format(new Date(request.scheduledFor), 'dd MMM, HH:mm')}
-          </div>
+
+        {request.caption && <Paragraph style={{ fontSize: 13, whiteSpace: 'pre-wrap', marginBottom: 0 }}>{request.caption}</Paragraph>}
+
+        {request.mediaUrls?.length > 0 && (
+          <Space size={8} wrap>
+            {request.mediaUrls.map((m, i) => (
+              <a key={i} href={m.url} target="_blank" rel="noreferrer" style={{ width: 80, height: 80, borderRadius: 8, overflow: 'hidden', border: '1px solid #f0f0f0', background: '#fafafa', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                {m.type === 'video' ? <Film size={22} color="#9ca3af" /> : <img src={m.url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={(e) => { e.target.style.display = 'none'; }} />}
+              </a>
+            ))}
+          </Space>
         )}
-      </div>
 
-      {request.caption && (
-        <p className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap">{request.caption}</p>
-      )}
-
-      {request.mediaUrls?.length > 0 && (
-        <div className="flex gap-2 flex-wrap">
-          {request.mediaUrls.map((m, i) => (
-            <a key={i} href={m.url} target="_blank" rel="noreferrer" className="relative w-20 h-20 rounded-lg overflow-hidden border border-gray-200 dark:border-[#1b2e4a] bg-gray-50 dark:bg-[#0f1a2e] flex items-center justify-center">
-              {m.type === 'video' ? (
-                <FilmIcon className="w-6 h-6 text-gray-400" />
-              ) : (
-                <img src={m.url} alt="" className="w-full h-full object-cover" onError={(e) => { e.target.style.display = 'none'; }} />
-              )}
-            </a>
-          ))}
-        </div>
-      )}
-
-      {request.status === 'pending' && (
-        <>
-          {!rejecting ? (
-            <div className="flex gap-2 pt-1">
-              <button
-                onClick={() => onApprove(request._id)}
-                disabled={isMutating}
-                className="btn-primary flex-1 justify-center"
-              >
-                <CheckIcon className="w-4 h-4 inline mr-1" />Approve
-              </button>
-              <button
-                onClick={() => setRejecting(true)}
-                disabled={isMutating}
-                className="btn-secondary flex-1 justify-center text-red-600 border-red-300 hover:bg-red-50"
-              >
-                <XMarkIcon className="w-4 h-4 inline mr-1" />Reject
-              </button>
-            </div>
+        {request.status === 'pending' && (
+          !rejecting ? (
+            <Space style={{ width: '100%' }}>
+              <Button type="primary" icon={<Check size={14} />} style={{ flex: 1 }} disabled={isMutating} onClick={() => onApprove(request._id)}>Approve</Button>
+              <Button danger icon={<X size={14} />} style={{ flex: 1 }} disabled={isMutating} onClick={() => setRejecting(true)}>Reject</Button>
+            </Space>
           ) : (
-            <div className="space-y-2 pt-1">
-              <textarea
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                rows={2}
-                className="input resize-none"
-                placeholder="Why is this being rejected?"
-                autoFocus
-              />
-              <div className="flex gap-2">
-                <button onClick={() => { setRejecting(false); setNotes(''); }} className="btn-secondary flex-1 justify-center">Cancel</button>
-                <button
+            <Space direction="vertical" style={{ width: '100%' }} size={8}>
+              <Input.TextArea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} placeholder="Why is this being rejected?" autoFocus />
+              <Space style={{ width: '100%' }}>
+                <Button style={{ flex: 1 }} onClick={() => { setRejecting(false); setNotes(''); }}>Cancel</Button>
+                <Button
+                  danger type="primary" style={{ flex: 1 }} disabled={isMutating}
                   onClick={() => {
                     if (!notes.trim()) return toast.error('Rejection reason is required');
                     onReject(request._id, notes);
-                    setRejecting(false);
-                    setNotes('');
+                    setRejecting(false); setNotes('');
                   }}
-                  disabled={isMutating}
-                  className="btn-danger flex-1 justify-center"
                 >
                   Send Rejection
-                </button>
-              </div>
-            </div>
-          )}
-        </>
-      )}
+                </Button>
+              </Space>
+            </Space>
+          )
+        )}
 
-      {request.status !== 'pending' && (
-        <div className={clsx('text-xs rounded-lg px-3 py-2 border space-y-1',
-          request.status === 'rejected'
-            ? 'text-red-700 bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800'
-            : request.status === 'publish_failed'
-            ? 'text-orange-700 bg-orange-50 dark:bg-orange-900/20 border-orange-200 dark:border-orange-800'
-            : 'text-green-700 bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800')}
-        >
-          <div>
-            {request.status === 'approved' && `Approved by ${request.reviewedBy?.firstName || 'Unknown'} — awaiting publish`}
-            {request.status === 'rejected' && `Rejected by ${request.reviewedBy?.firstName || 'Unknown'}`}
-            {request.status === 'published' && 'Published live'}
-            {request.status === 'publish_failed' && 'Publish failed'}
-            {request.reviewNotes ? ` — ${request.reviewNotes}` : ''}
-          </div>
-          {request.status === 'publish_failed' && request.publishError && (
-            <div className="text-orange-800 dark:text-orange-300">{request.publishError}</div>
-          )}
-          {request.status === 'published' && request.publishedUrls?.length > 0 && (
-            <div className="flex flex-wrap gap-x-3">
-              {request.publishedUrls.map((p, i) => (
-                <a key={i} href={p.url} target="_blank" rel="noreferrer" className="underline">
-                  {PLATFORM_LABELS[p.platform] || p.platform}
-                </a>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-    </div>
+        {request.status !== 'pending' && (
+          <Card size="small" style={{ background: statusStyle.bg, borderColor: statusStyle.border }}>
+            <Text style={{ fontSize: 12, color: statusStyle.color }}>
+              {request.status === 'approved' && `Approved by ${request.reviewedBy?.firstName || 'Unknown'} — awaiting publish`}
+              {request.status === 'rejected' && `Rejected by ${request.reviewedBy?.firstName || 'Unknown'}`}
+              {request.status === 'published' && 'Published live'}
+              {request.status === 'publish_failed' && 'Publish failed'}
+              {request.reviewNotes ? ` — ${request.reviewNotes}` : ''}
+            </Text>
+            {request.status === 'publish_failed' && request.publishError && (
+              <div><Text style={{ fontSize: 12, color: '#ad6800' }}>{request.publishError}</Text></div>
+            )}
+            {request.status === 'published' && request.publishedUrls?.length > 0 && (
+              <Space size={12} wrap style={{ marginTop: 4 }}>
+                {request.publishedUrls.map((p, i) => (
+                  <a key={i} href={p.url} target="_blank" rel="noreferrer">{PLATFORM_LABELS[p.platform] || p.platform}</a>
+                ))}
+              </Space>
+            )}
+          </Card>
+        )}
+      </Space>
+    </Card>
   );
 }
 
@@ -168,35 +140,23 @@ export default function SocialApprovals() {
   const isMutating = approveMutation.isPending || rejectMutation.isPending;
 
   return (
-    <div className="max-w-3xl mx-auto space-y-6">
-      <div className="page-header">
-        <h1 className="page-title">Social Media Approvals</h1>
-        <p className="text-sm text-gray-500 mt-1">Posts submitted by the social automation system, awaiting review.</p>
-      </div>
+    <div style={{ maxWidth: 720 }}>
+      <Title level={4} style={{ marginBottom: 0 }}>Social Media Approvals</Title>
+      <Text type="secondary">Posts submitted by the social automation system, awaiting review.</Text>
 
-      <div className="flex gap-1 border-b border-gray-200 dark:border-[#1b2e4a]">
-        {TABS.map((t) => (
-          <button
-            key={t.key}
-            onClick={() => setTab(t.key)}
-            className={clsx('px-4 py-2 text-sm font-medium border-b-2 transition-colors -mb-px',
-              tab === t.key ? 'border-brand-600 text-brand-600' : 'border-transparent text-gray-500 hover:text-gray-700 dark:hover:text-gray-300')}
-          >
-            {t.label}
-          </button>
-        ))}
-      </div>
+      <Radio.Group value={tab} onChange={(e) => setTab(e.target.value)} style={{ display: 'block', margin: '16px 0' }}>
+        {TABS.map((t) => <Radio.Button key={t.key} value={t.key}>{t.label}</Radio.Button>)}
+      </Radio.Group>
 
-      {isLoading && <p className="text-sm text-gray-400">Loading...</p>}
+      {isLoading && <div style={{ textAlign: 'center', padding: 60 }}><Spin size="large" /></div>}
 
       {!isLoading && (!data || data.length === 0) && (
-        <div className="empty-state">
-          <PhotoIcon className="w-10 h-10 text-gray-300 mb-2" />
-          <p className="text-sm text-gray-500">No {tab} requests.</p>
-        </div>
+        <Card>
+          <Empty image={<Image size={40} color="#d1d5db" style={{ margin: '0 auto' }} />} description={`No ${tab} requests.`} />
+        </Card>
       )}
 
-      <div className="space-y-4">
+      <Space direction="vertical" style={{ width: '100%' }} size={16}>
         {data?.map((request) => (
           <RequestCard
             key={request._id}
@@ -206,7 +166,7 @@ export default function SocialApprovals() {
             onReject={(id, reviewNotes) => rejectMutation.mutate({ id, reviewNotes })}
           />
         ))}
-      </div>
+      </Space>
     </div>
   );
 }

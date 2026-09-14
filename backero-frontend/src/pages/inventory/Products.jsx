@@ -1,23 +1,16 @@
 import React, { useState, useMemo } from 'react';
-import { createPortal } from 'react-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { ExclamationTriangleIcon, MagnifyingGlassIcon, QrCodeIcon, TrashIcon } from '@heroicons/react/24/outline';
+import { TriangleAlert, Search, QrCode, Trash2, Package, CheckCircle2, IndianRupee, Plus } from 'lucide-react';
 import ImportButton from '../../components/common/ImportButton';
 import api from '../../api/axios';
-import { clsx } from 'clsx';
 import toast from 'react-hot-toast';
 import { useForm } from 'react-hook-form';
 import { useAuthStore } from '../../store/useAuthStore';
 import QRLabelModal from '../../components/inventory/QRLabelModal';
 import QRScannerModal from '../../components/inventory/QRScannerModal';
+import { Avatar, Button, Card, Col, Drawer, Input, Modal, Row, Select, Space, Spin, Table, Tabs, Tag, Typography } from 'antd';
 
-// ── Add / Edit Modal ───────────────────────────────────────────────────────
-
-const FORM_TABS = [
-  { id: 'basic',   label: 'Basic Info',  icon: '📋' },
-  { id: 'pricing', label: 'Pricing',     icon: '💰' },
-  { id: 'stock',   label: 'Stock',       icon: '📦' },
-];
+const { Title, Text } = Typography;
 
 const CATEGORIES = [
   'Hair Care','Skin Care','Face Care','Body Care','Oral Care',
@@ -32,43 +25,46 @@ const PRODUCT_TYPES = [
   'Toothpaste','Hair Spray','Other',
 ];
 
-function ProductFormModal({ onClose, onSuccess, initial }) {
+function Field({ label, required, children, span = 8 }) {
+  return (
+    <Col span={span}>
+      <Text strong style={{ display: 'block', marginBottom: 6, fontSize: 12 }}>{label}{required && <Text type="danger"> *</Text>}</Text>
+      {children}
+    </Col>
+  );
+}
+
+// ── Add / Edit Drawer ───────────────────────────────────────────────────────
+
+function ProductFormDrawer({ open, onClose, onSuccess, initial }) {
   const [activeTab, setActiveTab] = useState('basic');
   const [loading, setLoading] = useState(false);
   const [purchaseAmt, setPurchaseAmt] = useState('');
   const [purchaseQty, setPurchaseQty] = useState('');
 
-  const { register, handleSubmit, watch, setValue } = useForm({
-    defaultValues: {
-      name:              initial?.name || '',
-      sku:               initial?.sku || '',
-      category:          initial?.category || '',
-      subCategory:       initial?.subCategory || '',
-      productType:       initial?.productType || '',
-      unit:              initial?.unit || 'pcs',
-      description:       initial?.description || '',
-      hsnCode:           initial?.hsnCode || '',
-      batchNumber:       initial?.batchNumber || '',
-      gstRate:           initial?.gstRate ?? 18,
-      costPrice:         initial?.costPrice || '',
-      sellingPrice:      initial?.sellingPrice || '',
-      mrp:               initial?.mrp || '',
-      minStockLevel:     initial?.minStockLevel || 0,
-      currentStock:      initial?.currentStock || 0,
-      warehouseLocation: initial?.warehouseLocation || '',
-      certifications:    initial?.certifications || '',
-      storageConditions: initial?.storageConditions || '',
-      barcode:           initial?.barcode || '',
-      shelfLife:         initial?.shelfLife || '',
-      imageUrl:          initial?.images?.[0] || '',
-    },
-  });
+  const { register, handleSubmit, watch, setValue, reset } = useForm();
+
+  React.useEffect(() => {
+    if (open) {
+      reset({
+        name: initial?.name || '', sku: initial?.sku || '', category: initial?.category || '',
+        subCategory: initial?.subCategory || '', productType: initial?.productType || '', unit: initial?.unit || 'pcs',
+        description: initial?.description || '', hsnCode: initial?.hsnCode || '', batchNumber: initial?.batchNumber || '',
+        gstRate: initial?.gstRate ?? 18, costPrice: initial?.costPrice || '', sellingPrice: initial?.sellingPrice || '',
+        mrp: initial?.mrp || '', minStockLevel: initial?.minStockLevel || 0, currentStock: initial?.currentStock || 0,
+        warehouseLocation: initial?.warehouseLocation || '', certifications: initial?.certifications || '',
+        storageConditions: initial?.storageConditions || '', barcode: initial?.barcode || '', shelfLife: initial?.shelfLife || '',
+        imageUrl: initial?.images?.[0] || '',
+      });
+      setActiveTab('basic');
+      setPurchaseAmt(''); setPurchaseQty('');
+    }
+  }, [open, initial, reset]);
 
   const watchedUnit = watch('unit');
   const watchedImageUrl = watch('imageUrl');
-  const isWeightUnit = ['g','kg','ml','litre','L'].includes(watchedUnit);
-  const calcPerUnit = purchaseAmt && purchaseQty && Number(purchaseQty) > 0
-    ? Number(purchaseAmt) / Number(purchaseQty) : null;
+  const isWeightUnit = ['g', 'kg', 'ml', 'litre', 'L'].includes(watchedUnit);
+  const calcPerUnit = purchaseAmt && purchaseQty && Number(purchaseQty) > 0 ? Number(purchaseAmt) / Number(purchaseQty) : null;
 
   const onSubmit = async (data) => {
     setLoading(true);
@@ -90,228 +86,106 @@ function ProductFormModal({ onClose, onSuccess, initial }) {
     }
   };
 
-  return createPortal(
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/70 backdrop-blur-sm" onClick={onClose}>
-      <div className="relative w-full max-w-xl card shadow-2xl" onClick={e => e.stopPropagation()}>
-        {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-700">
-          <h2 className="font-bold text-gray-900 dark:text-gray-100 text-base">
-            {initial ? `Edit — ${initial.name}` : 'Add New Product'}
-          </h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 text-2xl w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700">&times;</button>
-        </div>
-
-        {/* Tabs */}
-        <div className="flex border-b border-gray-700 px-6">
-          {FORM_TABS.map(t => (
-            <button key={t.id} type="button" onClick={() => setActiveTab(t.id)}
-              className={`flex items-center gap-1.5 px-4 py-3 text-xs font-semibold border-b-2 transition-colors -mb-px ${
-                activeTab === t.id ? 'border-indigo-500 text-indigo-400' : 'border-transparent text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
-              }`}>
-              {t.icon} {t.label}
-            </button>
-          ))}
-        </div>
-
-        <form onSubmit={handleSubmit(onSubmit)}>
-          <div className="p-6 space-y-4 max-h-[55vh] overflow-y-auto">
-
-            {/* Tab: Basic Info */}
-            {activeTab === 'basic' && (
-              <>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="label">Product Name <span className="text-red-400">*</span></label>
-                    <input {...register('name', { required: true })} className="input" placeholder="e.g. Turmeric Shampoo" />
-                  </div>
-                  {!initial && (
-                    <div>
-                      <label className="label">SKU <span className="text-red-400">*</span></label>
-                      <input {...register('sku', { required: true })} className="input" placeholder="e.g. FG-HC-001" />
-                    </div>
-                  )}
-                  {initial && (
-                    <div>
-                      <label className="label">SKU</label>
-                      <input value={initial.sku} readOnly className="input opacity-50 cursor-not-allowed" />
-                    </div>
-                  )}
-                </div>
-                <div className="grid grid-cols-3 gap-4">
-                  <div>
-                    <label className="label">Category <span className="text-red-400">*</span></label>
-                    <select {...register('category', { required: true })} className="input">
-                      <option value="">Select</option>
-                      {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="label">Sub-Category</label>
-                    <input {...register('subCategory')} className="input" placeholder="e.g. Shampoo" />
-                  </div>
-                  <div>
-                    <label className="label">Product Type</label>
-                    <select {...register('productType')} className="input">
-                      <option value="">Select</option>
-                      {PRODUCT_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
-                    </select>
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="label">Unit <span className="text-red-400">*</span></label>
-                    <select {...register('unit', { required: true })} className="input">
-                      {['pcs','kg','g','litre','ml','L','box','pack','set','pair'].map(u => <option key={u} value={u}>{u}</option>)}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="label">Shelf Life (months)</label>
-                    <input {...register('shelfLife')} type="number" min="0" className="input" placeholder="e.g. 36" />
-                  </div>
-                </div>
-                <div>
-                  <label className="label">Description</label>
-                  <textarea {...register('description')} className="input resize-none" rows={2} placeholder="Key claims, benefits..." />
-                </div>
-                <div>
-                  <label className="label">Product Image URL</label>
-                  <input {...register('imageUrl')} className="input" placeholder="https://example.com/product.jpg" />
-                  {watchedImageUrl && (
-                    <div className="mt-2 rounded-xl overflow-hidden bg-gray-700/20 h-32 flex items-center justify-center">
-                      <img src={watchedImageUrl} alt="Preview" className="max-h-full max-w-full object-contain" onError={e => { e.currentTarget.style.display = 'none'; }} />
-                    </div>
-                  )}
-                </div>
-              </>
+  const items = [
+    {
+      key: 'basic', label: 'Basic Info',
+      children: (
+        <Row gutter={[12, 16]}>
+          <Field label="Product Name" required span={12}><Input {...register('name', { required: true })} placeholder="e.g. Turmeric Shampoo" /></Field>
+          {!initial ? (
+            <Field label="SKU" required span={12}><Input {...register('sku', { required: true })} placeholder="e.g. FG-HC-001" /></Field>
+          ) : (
+            <Field label="SKU" span={12}><Input value={initial.sku} readOnly disabled /></Field>
+          )}
+          <Field label="Category" required><Select style={{ width: '100%' }} defaultValue={initial?.category || undefined} onChange={(v) => setValue('category', v, { shouldValidate: true })} placeholder="Select" options={CATEGORIES.map((c) => ({ label: c, value: c }))} /></Field>
+          <Field label="Sub-Category"><Input {...register('subCategory')} placeholder="e.g. Shampoo" /></Field>
+          <Field label="Product Type"><Select style={{ width: '100%' }} defaultValue={initial?.productType || undefined} onChange={(v) => setValue('productType', v)} placeholder="Select" options={PRODUCT_TYPES.map((t) => ({ label: t, value: t }))} /></Field>
+          <Field label="Unit" required span={12}><Select style={{ width: '100%' }} defaultValue={initial?.unit || 'pcs'} onChange={(v) => setValue('unit', v)} options={['pcs', 'kg', 'g', 'litre', 'ml', 'L', 'box', 'pack', 'set', 'pair'].map((u) => ({ label: u, value: u }))} /></Field>
+          <Field label="Shelf Life (months)" span={12}><Input {...register('shelfLife')} type="number" min="0" placeholder="e.g. 36" /></Field>
+          <Field label="Description" span={24}><Input.TextArea {...register('description')} rows={2} placeholder="Key claims, benefits..." /></Field>
+          <Field label="Product Image URL" span={24}>
+            <Input {...register('imageUrl')} placeholder="https://example.com/product.jpg" />
+            {watchedImageUrl && (
+              <div style={{ marginTop: 8, borderRadius: 8, overflow: 'hidden', background: '#fafafa', height: 128, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <img src={watchedImageUrl} alt="Preview" style={{ maxHeight: '100%', maxWidth: '100%', objectFit: 'contain' }} onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+              </div>
             )}
+          </Field>
+        </Row>
+      ),
+    },
+    {
+      key: 'pricing', label: 'Pricing',
+      children: (
+        <Row gutter={[12, 16]}>
+          <Field label="HSN Code" span={12}><Input {...register('hsnCode')} placeholder="e.g. 33049910" /></Field>
+          <Field label="GST Rate (%)" span={12}><Select style={{ width: '100%' }} defaultValue={initial?.gstRate ?? 18} onChange={(v) => setValue('gstRate', v)} options={[0, 5, 12, 18, 28].map((r) => ({ label: `${r}%`, value: r }))} /></Field>
 
-            {/* Tab: Pricing */}
-            {activeTab === 'pricing' && (
-              <>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="label">HSN Code</label>
-                    <input {...register('hsnCode')} className="input" placeholder="e.g. 33049910" />
-                  </div>
-                  <div>
-                    <label className="label">GST Rate (%)</label>
-                    <select {...register('gstRate')} className="input">
-                      {[0,5,12,18,28].map(r => <option key={r} value={r}>{r}%</option>)}
-                    </select>
-                  </div>
-                </div>
-
-                {/* Purchase Price Calculator */}
-                {isWeightUnit && (
-                  <div className="rounded-lg border border-blue-500/30 bg-blue-500/5 p-3 space-y-2">
-                    <p className="text-xs font-semibold text-blue-400 uppercase tracking-wide">Purchase Price Calculator</p>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <label className="label text-xs">Total Amount Paid (₹)</label>
-                        <input type="number" min="0" className="input" placeholder="e.g. 500" value={purchaseAmt} onChange={e => setPurchaseAmt(e.target.value)} />
-                      </div>
-                      <div>
-                        <label className="label text-xs">Total Quantity ({watchedUnit})</label>
-                        <input type="number" min="0" className="input" placeholder="e.g. 1000" value={purchaseQty} onChange={e => setPurchaseQty(e.target.value)} />
-                      </div>
-                    </div>
-                    {calcPerUnit !== null && (
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm font-bold text-blue-300">= ₹{calcPerUnit.toFixed(4)} per {watchedUnit}</span>
-                        <button type="button" onClick={() => setValue('costPrice', parseFloat(calcPerUnit.toFixed(4)))} className="text-xs px-3 py-1 rounded-md bg-blue-600 text-white font-semibold hover:bg-blue-700 transition-colors">Apply as Cost Price</button>
-                      </div>
-                    )}
+          {isWeightUnit && (
+            <Col span={24}>
+              <Card size="small" style={{ background: '#eff6ff', borderColor: '#bfdbfe' }}>
+                <Text strong style={{ fontSize: 11, color: '#1d4ed8', textTransform: 'uppercase' }}>Purchase Price Calculator</Text>
+                <Row gutter={12} style={{ marginTop: 8 }}>
+                  <Col span={12}>
+                    <Text style={{ fontSize: 11, display: 'block', marginBottom: 4 }}>Total Amount Paid (₹)</Text>
+                    <Input type="number" min="0" placeholder="e.g. 500" value={purchaseAmt} onChange={(e) => setPurchaseAmt(e.target.value)} />
+                  </Col>
+                  <Col span={12}>
+                    <Text style={{ fontSize: 11, display: 'block', marginBottom: 4 }}>Total Quantity ({watchedUnit})</Text>
+                    <Input type="number" min="0" placeholder="e.g. 1000" value={purchaseQty} onChange={(e) => setPurchaseQty(e.target.value)} />
+                  </Col>
+                </Row>
+                {calcPerUnit !== null && (
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 8 }}>
+                    <Text strong style={{ color: '#1d4ed8' }}>= ₹{calcPerUnit.toFixed(4)} per {watchedUnit}</Text>
+                    <Button size="small" type="primary" onClick={() => setValue('costPrice', parseFloat(calcPerUnit.toFixed(4)))}>Apply as Cost Price</Button>
                   </div>
                 )}
+              </Card>
+            </Col>
+          )}
 
-                <div className="grid grid-cols-3 gap-4">
-                  <div>
-                    <label className="label">Cost Price (₹)</label>
-                    <input {...register('costPrice')} type="number" min="0" step="0.0001" className="input" />
-                  </div>
-                  <div>
-                    <label className="label">Selling Price (₹)</label>
-                    <input {...register('sellingPrice')} type="number" min="0" step="0.01" className="input" />
-                  </div>
-                  <div>
-                    <label className="label">MRP (₹)</label>
-                    <input {...register('mrp')} type="number" min="0" step="0.01" className="input" />
-                  </div>
-                </div>
-                <div>
-                  <label className="label">Barcode</label>
-                  <input {...register('barcode')} className="input" placeholder="e.g. 8901234567890" />
-                </div>
-              </>
-            )}
+          <Field label="Cost Price (₹)"><Input {...register('costPrice')} type="number" min="0" step="0.0001" /></Field>
+          <Field label="Selling Price (₹)"><Input {...register('sellingPrice')} type="number" min="0" step="0.01" /></Field>
+          <Field label="MRP (₹)"><Input {...register('mrp')} type="number" min="0" step="0.01" /></Field>
+          <Field label="Barcode" span={24}><Input {...register('barcode')} placeholder="e.g. 8901234567890" /></Field>
+        </Row>
+      ),
+    },
+    {
+      key: 'stock', label: 'Stock',
+      children: (
+        <Row gutter={[12, 16]}>
+          <Field label="Min Stock Level" span={12}><Input {...register('minStockLevel')} type="number" min="0" /></Field>
+          {!initial && <Field label="Opening Stock" span={12}><Input {...register('currentStock')} type="number" min="0" /></Field>}
+          <Field label="Warehouse Location" span={24}><Input {...register('warehouseLocation')} placeholder="e.g. Shelf A-3" /></Field>
+          <Field label="Batch Number" span={24}><Input {...register('batchNumber')} placeholder="e.g. BATCH-2026-01" /></Field>
+          <Field label="Certifications" span={24}><Input {...register('certifications')} placeholder="e.g. Organic, GMP, Cruelty-Free" /></Field>
+          <Field label="Storage Conditions" span={24}><Input {...register('storageConditions')} placeholder="e.g. Store in cool, dry place" /></Field>
+        </Row>
+      ),
+    },
+  ];
 
-            {/* Tab: Stock */}
-            {activeTab === 'stock' && (
-              <>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="label">Min Stock Level</label>
-                    <input {...register('minStockLevel')} type="number" min="0" className="input" />
-                  </div>
-                  {!initial && (
-                    <div>
-                      <label className="label">Opening Stock</label>
-                      <input {...register('currentStock')} type="number" min="0" className="input" />
-                    </div>
-                  )}
-                </div>
-                <div>
-                  <label className="label">Warehouse Location</label>
-                  <input {...register('warehouseLocation')} className="input" placeholder="e.g. Shelf A-3" />
-                </div>
-                <div>
-                  <label className="label">Batch Number</label>
-                  <input {...register('batchNumber')} className="input" placeholder="e.g. BATCH-2026-01" />
-                </div>
-                <div>
-                  <label className="label">Certifications</label>
-                  <input {...register('certifications')} className="input" placeholder="e.g. Organic, GMP, Cruelty-Free" />
-                </div>
-                <div>
-                  <label className="label">Storage Conditions</label>
-                  <input {...register('storageConditions')} className="input" placeholder="e.g. Store in cool, dry place" />
-                </div>
-              </>
-            )}
-          </div>
-
-          {/* Footer */}
-          <div className="flex items-center justify-between px-6 py-4 border-t border-gray-700">
-            <div className="flex gap-1">
-              {FORM_TABS.map(t => (
-                <button key={t.id} type="button" onClick={() => setActiveTab(t.id)}
-                  className={`w-2 h-2 rounded-full transition-colors ${activeTab === t.id ? 'bg-indigo-500' : 'bg-gray-600 hover:bg-gray-500'}`} />
-              ))}
-            </div>
-            <div className="flex gap-3">
-              <button type="button" onClick={onClose} className="btn btn-ghost">Cancel</button>
-              {activeTab !== 'stock' ? (
-                <button type="button" onClick={() => {
-                  const idx = FORM_TABS.findIndex(t => t.id === activeTab);
-                  setActiveTab(FORM_TABS[idx + 1].id);
-                }} className="btn btn-primary">Next →</button>
-              ) : (
-                <button type="submit" disabled={loading} className="btn btn-primary">
-                  {loading ? 'Saving…' : initial ? 'Update Product' : 'Add Product'}
-                </button>
-              )}
-            </div>
-          </div>
-        </form>
-      </div>
-    </div>,
-    document.body
+  return (
+    <Drawer
+      open={open} onClose={onClose} width={560}
+      title={initial ? `Edit — ${initial.name}` : 'Add New Product'}
+      footer={
+        <Space style={{ width: '100%' }}>
+          <Button style={{ flex: 1 }} onClick={onClose}>Cancel</Button>
+          <Button type="primary" style={{ flex: 1 }} loading={loading} onClick={handleSubmit(onSubmit)}>{initial ? 'Update Product' : 'Add Product'}</Button>
+        </Space>
+      }
+    >
+      <Tabs activeKey={activeTab} onChange={setActiveTab} items={items} />
+    </Drawer>
   );
 }
 
-// ── Stock Adjust Modal ─────────────────────────────────────────────────────
+// ── Stock Adjust Drawer ─────────────────────────────────────────────────────
 
-function StockAdjustModal({ product, onClose, onSuccess }) {
+function StockAdjustDrawer({ product, onClose, onSuccess }) {
   const [qty, setQty] = useState('');
   const [type, setType] = useState('IN');
   const [notes, setNotes] = useState('');
@@ -336,39 +210,43 @@ function StockAdjustModal({ product, onClose, onSuccess }) {
     }
   };
 
-  return createPortal(
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/70 backdrop-blur-sm" onClick={onClose}>
-      <div className="relative card w-full max-w-sm shadow-2xl p-6 space-y-4" onClick={e => e.stopPropagation()}>
-        <div className="flex items-center justify-between">
-          <h3 className="font-bold text-gray-900 dark:text-gray-100">Stock Movement</h3>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 text-2xl w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700">&times;</button>
-        </div>
-        <p className="text-sm text-gray-400">{product.name} · <span className="font-semibold text-gray-800 dark:text-gray-200">{product.currentStock} {product.unit}</span> current</p>
-        <div className="flex gap-2">
-          <button onClick={() => setType('IN')} className={clsx('flex-1 py-2 rounded-lg text-sm font-medium border-2 transition-colors', type === 'IN' ? 'bg-emerald-600 text-white border-emerald-600' : 'border-gray-600 text-gray-400 hover:border-gray-500')}>Stock In</button>
-          <button onClick={() => setType('OUT')} className={clsx('flex-1 py-2 rounded-lg text-sm font-medium border-2 transition-colors', type === 'OUT' ? 'bg-red-600 text-white border-red-600' : 'border-gray-600 text-gray-400 hover:border-gray-500')}>Stock Out</button>
-        </div>
-        <div>
-          <label className="label">Quantity ({product.unit})</label>
-          <input type="number" min="1" value={qty} onChange={e => setQty(e.target.value)} className="input" placeholder="Enter quantity" />
-        </div>
-        {type === 'IN' && (
+  return (
+    <Drawer
+      open={!!product} onClose={onClose} width={400}
+      title="Stock Movement"
+      footer={
+        product && (
+          <Space style={{ width: '100%' }}>
+            <Button style={{ flex: 1 }} onClick={onClose}>Cancel</Button>
+            <Button type="primary" style={{ flex: 1 }} loading={loading} onClick={handleSubmit}>Confirm</Button>
+          </Space>
+        )
+      }
+    >
+      {product && (
+        <Space direction="vertical" style={{ width: '100%' }} size={16}>
+          <Text type="secondary">{product.name} · <Text strong>{product.currentStock} {product.unit}</Text> current</Text>
+          <Space.Compact style={{ width: '100%' }}>
+            <Button type={type === 'IN' ? 'primary' : 'default'} style={{ flex: 1, background: type === 'IN' ? '#059669' : undefined, borderColor: type === 'IN' ? '#059669' : undefined }} onClick={() => setType('IN')}>Stock In</Button>
+            <Button danger type={type === 'OUT' ? 'primary' : 'default'} style={{ flex: 1 }} onClick={() => setType('OUT')}>Stock Out</Button>
+          </Space.Compact>
           <div>
-            <label className="label">Batch Number</label>
-            <input type="text" value={batch} onChange={e => setBatch(e.target.value)} className="input" placeholder="e.g. BATCH-2026-01" />
+            <Text strong style={{ display: 'block', marginBottom: 6, fontSize: 12 }}>Quantity ({product.unit})</Text>
+            <Input type="number" min="1" value={qty} onChange={(e) => setQty(e.target.value)} placeholder="Enter quantity" />
           </div>
-        )}
-        <div>
-          <label className="label">Notes</label>
-          <input type="text" value={notes} onChange={e => setNotes(e.target.value)} className="input" placeholder="Reason..." />
-        </div>
-        <div className="flex gap-2 pt-2">
-          <button onClick={onClose} className="btn btn-ghost flex-1">Cancel</button>
-          <button onClick={handleSubmit} disabled={loading} className="btn btn-primary flex-1">{loading ? 'Processing…' : 'Confirm'}</button>
-        </div>
-      </div>
-    </div>,
-    document.body
+          {type === 'IN' && (
+            <div>
+              <Text strong style={{ display: 'block', marginBottom: 6, fontSize: 12 }}>Batch Number</Text>
+              <Input value={batch} onChange={(e) => setBatch(e.target.value)} placeholder="e.g. BATCH-2026-01" />
+            </div>
+          )}
+          <div>
+            <Text strong style={{ display: 'block', marginBottom: 6, fontSize: 12 }}>Notes</Text>
+            <Input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Reason..." />
+          </div>
+        </Space>
+      )}
+    </Drawer>
   );
 }
 
@@ -383,99 +261,7 @@ function timeAgo(date) {
   if (hrs < 24) return `${hrs}h ago`;
   const days = Math.floor(hrs / 24);
   if (days < 30) return `${days}d ago`;
-  return new Date(date).toLocaleDateString('en-IN', { day:'numeric', month:'short', year:'2-digit' });
-}
-
-// ── Product Table ──────────────────────────────────────────────────────────
-
-function ProductTable({ products, canWrite, canDelete, onStock, onEdit, onQr, onDelete }) {
-  return (
-    <div className="card overflow-hidden">
-      <div className="overflow-x-auto">
-      <table className="w-full text-sm">
-        <thead className="bg-gray-50 dark:bg-[#0f1a2e]">
-          <tr>
-            <th className="text-left py-3 px-4 text-gray-500 font-medium">Product</th>
-            <th className="text-left py-3 px-4 text-gray-500 font-medium">SKU</th>
-            <th className="text-left py-3 px-4 text-gray-500 font-medium">Category</th>
-            <th className="text-center py-3 px-4 text-gray-500 font-medium">Stock</th>
-            <th className="text-right py-3 px-4 text-gray-500 font-medium">Price & GST</th>
-            <th className="text-center py-3 px-4 text-gray-500 font-medium">Status</th>
-            <th className="text-center py-3 px-4 text-gray-500 font-medium">Last Stock In</th>
-            {canWrite && <th className="text-right py-3 px-4 text-gray-500 font-medium">Actions</th>}
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-gray-100 dark:divide-[#1b2e4a]">
-          {products.map(product => {
-            const isLow = product.currentStock <= product.minStockLevel;
-            const isOut = product.currentStock === 0;
-            return (
-              <tr key={product._id} className="hover:bg-gray-50 dark:hover:bg-[#17263d]/50 transition-colors">
-                <td className="py-3 px-4">
-                  <div className="flex items-center gap-3">
-                    {product.images?.[0] ? (
-                      <img src={product.images[0]} alt="" className="w-10 h-10 rounded-lg object-cover flex-shrink-0 border border-gray-200 dark:border-gray-700/60" />
-                    ) : (
-                      <div className="w-10 h-10 rounded-lg bg-gray-100 dark:bg-gray-700/40 flex items-center justify-center text-lg flex-shrink-0">🧴</div>
-                    )}
-                    <div>
-                      <p className="font-medium text-gray-900 dark:text-white">{product.name}</p>
-                      <p className="text-xs text-gray-400">{product.productType || product.subCategory || '—'}</p>
-                    </div>
-                  </div>
-                </td>
-                <td className="py-3 px-4 font-mono text-xs text-gray-500">{product.sku}</td>
-                <td className="py-3 px-4">
-                  <span className="text-xs px-2 py-0.5 bg-gray-100 dark:bg-gray-700/60 text-gray-600 dark:text-gray-300 rounded-full">{product.category}</span>
-                </td>
-                <td className="py-3 px-4 text-center">
-                  <span className={clsx('font-semibold', isOut ? 'text-red-500' : isLow ? 'text-orange-500' : 'text-gray-900 dark:text-white')}>
-                    {product.currentStock}
-                  </span>
-                  <span className="text-xs text-gray-400 ml-1">{product.unit}</span>
-                </td>
-                <td className="py-3 px-4 text-right">
-                  {product.mrp > 0 && <p className="text-gray-900 dark:text-white font-medium">MRP ₹{product.mrp?.toLocaleString('en-IN')}</p>}
-                  <p className="text-xs text-gray-400">
-                    SP: ₹{product.sellingPrice?.toLocaleString('en-IN') || '—'}
-                    {product.gstRate != null && <span className="ml-1 text-blue-500">GST {product.gstRate}%</span>}
-                  </p>
-                </td>
-                <td className="py-3 px-4 text-center">
-                  {isOut
-                    ? <span className="badge badge-red">Out of Stock</span>
-                    : isLow
-                    ? <span className="badge badge-orange">Low Stock</span>
-                    : <span className="badge badge-green">In Stock</span>}
-                </td>
-                <td className="py-3 px-4 text-center text-xs text-gray-500">
-                  {product.lastStockIn ? timeAgo(product.lastStockIn) : <span className="text-gray-300">—</span>}
-                </td>
-                {canWrite && (
-                  <td className="py-3 px-4 text-right">
-                    <div className="flex gap-1 justify-end">
-                      <button onClick={() => onStock(product)} className="btn-secondary text-xs px-2 py-1">Stock</button>
-                      <button onClick={() => onQr(product)} className="btn-ghost text-xs px-2 py-1" title="QR Label"><QrCodeIcon className="w-4 h-4" /></button>
-                      <button onClick={() => onEdit(product)} className="btn-ghost text-xs px-2 py-1">Edit</button>
-                      {canDelete && (
-                        <button onClick={() => onDelete(product)} className="btn-ghost text-xs px-2 py-1 text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20" title="Delete">
-                          <TrashIcon className="w-4 h-4" />
-                        </button>
-                      )}
-                    </div>
-                  </td>
-                )}
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
-      </div>
-      {products.length === 0 && (
-        <div className="text-center py-12 text-gray-400">No products found</div>
-      )}
-    </div>
-  );
+  return new Date(date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: '2-digit' });
 }
 
 // ── Main Page ──────────────────────────────────────────────────────────────
@@ -497,37 +283,29 @@ export default function Products() {
   const { data, isLoading } = useQuery({
     queryKey: ['inventory', 'products', 'finished', search, lowStockOnly],
     queryFn: () =>
-      api.get('/inventory/products', {
-        params: {
-          search: search || undefined,
-          isLowStock: lowStockOnly || undefined,
-          isRawMaterial: false,
-          limit: 100,
-        },
-      }).then(r => r.data),
+      api.get('/inventory/products', { params: { search: search || undefined, isLowStock: lowStockOnly || undefined, isRawMaterial: false, limit: 100 } }).then((r) => r.data),
     refetchInterval: 5 * 60 * 1000,
   });
 
-  const allProducts = (data?.data?.products || data?.data || []).filter(p => !p.isRawMaterial);
+  const allProducts = (data?.data?.products || data?.data || []).filter((p) => !p.isRawMaterial);
 
   const products = useMemo(() => {
     let list = allProducts;
-    if (filterCat) list = list.filter(p => p.category === filterCat);
+    if (filterCat) list = list.filter((p) => p.category === filterCat);
     return list;
   }, [allProducts, filterCat]);
 
-  const categories = useMemo(() => [...new Set(allProducts.map(p => p.category).filter(Boolean))].sort(), [allProducts]);
+  const categories = useMemo(() => [...new Set(allProducts.map((p) => p.category).filter(Boolean))].sort(), [allProducts]);
 
   const stats = useMemo(() => ({
-    total:    allProducts.length,
-    inStock:  allProducts.filter(p => p.currentStock > (p.minStockLevel || 0)).length,
-    lowStock: allProducts.filter(p => p.currentStock > 0 && p.currentStock <= (p.minStockLevel || 0)).length,
-    outStock: allProducts.filter(p => p.currentStock === 0).length,
-    value:    allProducts.reduce((s, p) => s + ((p.currentStock || 0) * (p.costPrice || 0)), 0),
+    total: allProducts.length,
+    inStock: allProducts.filter((p) => p.currentStock > (p.minStockLevel || 0)).length,
+    lowStock: allProducts.filter((p) => p.currentStock > 0 && p.currentStock <= (p.minStockLevel || 0)).length,
+    outStock: allProducts.filter((p) => p.currentStock === 0).length,
+    value: allProducts.reduce((s, p) => s + ((p.currentStock || 0) * (p.costPrice || 0)), 0),
   }), [allProducts]);
 
   const lowStockCount = stats.lowStock + stats.outStock;
-
   const invalidate = () => qc.invalidateQueries({ queryKey: ['inventory'] });
 
   const handleDelete = async () => {
@@ -545,161 +323,147 @@ export default function Products() {
     }
   };
 
-  return (
-    <div className="space-y-6">
-      <div className="page-header">
-        <div>
-          <h1 className="page-title">Products</h1>
-          <p className="text-gray-500 text-sm">{products.length} products · {lowStockCount} low stock</p>
-        </div>
-        {hasInventoryWrite() && (
-          <div className="flex items-center gap-2">
-            {isAdminOrAbove() && (
-              <ImportButton
-                templateUrl="/inventory/import/template"
-                importUrl="/inventory/import"
-                onSuccess={invalidate}
-                label="Import"
-              />
-            )}
-            <button onClick={() => setShowForm(true)} className="btn-primary gap-2">
-              + Add Product
-            </button>
+  const canWrite = hasInventoryWrite();
+
+  const columns = [
+    {
+      title: 'Product', key: 'product',
+      render: (_, p) => (
+        <Space>
+          {p.images?.[0] ? <Avatar shape="square" src={p.images[0]} /> : <Avatar shape="square" icon={<Package size={16} />} style={{ background: '#f1f5f9', color: '#94a3b8' }} />}
+          <div>
+            <Text strong>{p.name}</Text>
+            <div><Text type="secondary" style={{ fontSize: 12 }}>{p.productType || p.subCategory || '—'}</Text></div>
           </div>
+        </Space>
+      ),
+    },
+    { title: 'SKU', dataIndex: 'sku', key: 'sku', render: (v) => <Text style={{ fontFamily: 'monospace', fontSize: 12 }} type="secondary">{v}</Text> },
+    { title: 'Category', dataIndex: 'category', key: 'category', render: (v) => <Tag>{v}</Tag> },
+    {
+      title: 'Stock', key: 'stock', align: 'center',
+      render: (_, p) => {
+        const isLow = p.currentStock <= p.minStockLevel;
+        const isOut = p.currentStock === 0;
+        return <Text strong style={{ color: isOut ? '#ef4444' : isLow ? '#f97316' : undefined }}>{p.currentStock} <Text type="secondary" style={{ fontSize: 12, fontWeight: 400 }}>{p.unit}</Text></Text>;
+      },
+    },
+    {
+      title: 'Price & GST', key: 'price', align: 'right',
+      render: (_, p) => (
+        <div>
+          {p.mrp > 0 && <div><Text strong style={{ fontSize: 13 }}>MRP ₹{p.mrp?.toLocaleString('en-IN')}</Text></div>}
+          <Text type="secondary" style={{ fontSize: 12 }}>SP: ₹{p.sellingPrice?.toLocaleString('en-IN') || '—'}{p.gstRate != null && <Text style={{ fontSize: 12, color: '#3b82f6' }}> GST {p.gstRate}%</Text>}</Text>
+        </div>
+      ),
+    },
+    {
+      title: 'Status', key: 'status', align: 'center',
+      render: (_, p) => {
+        const isLow = p.currentStock <= p.minStockLevel;
+        const isOut = p.currentStock === 0;
+        return isOut ? <Tag color="red">Out of Stock</Tag> : isLow ? <Tag color="orange">Low Stock</Tag> : <Tag color="green">In Stock</Tag>;
+      },
+    },
+    { title: 'Last Stock In', key: 'lastStockIn', align: 'center', render: (_, p) => <Text type="secondary" style={{ fontSize: 12 }}>{p.lastStockIn ? timeAgo(p.lastStockIn) : '—'}</Text> },
+    ...(canWrite ? [{
+      title: 'Actions', key: 'actions', align: 'right',
+      render: (_, p) => (
+        <Space size={4}>
+          <Button size="small" onClick={() => setStockProduct(p)}>Stock</Button>
+          <Button size="small" type="text" icon={<QrCode size={14} />} title="QR Label" onClick={() => setQrProduct(p)} />
+          <Button size="small" type="text" onClick={() => setEditProduct(p)}>Edit</Button>
+          {canWrite && <Button size="small" type="text" danger icon={<Trash2 size={14} />} title="Delete" onClick={() => setDeleteProduct(p)} />}
+        </Space>
+      ),
+    }] : []),
+  ];
+
+  return (
+    <div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+        <div>
+          <Title level={4} style={{ marginBottom: 0 }}>Products</Title>
+          <Text type="secondary">{products.length} products · {lowStockCount} low stock</Text>
+        </div>
+        {canWrite && (
+          <Space>
+            {isAdminOrAbove() && <ImportButton templateUrl="/inventory/import/template" importUrl="/inventory/import" onSuccess={invalidate} label="Import" />}
+            <Button type="primary" icon={<Plus size={14} />} onClick={() => setShowForm(true)}>Add Product</Button>
+          </Space>
         )}
       </div>
 
-      {/* Stat cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
-        <div className="card p-4 flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-blue-500/15 flex items-center justify-center text-xl flex-shrink-0">📦</div>
-          <div><p className="text-xs text-gray-400 font-medium">Total</p><p className="text-xl font-bold text-gray-900 dark:text-white">{stats.total}</p></div>
-        </div>
-        <div className="card p-4 flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-emerald-500/15 flex items-center justify-center text-xl flex-shrink-0">✅</div>
-          <div><p className="text-xs text-gray-400 font-medium">In Stock</p><p className="text-xl font-bold text-emerald-600">{stats.inStock}</p></div>
-        </div>
-        <div className="card p-4 flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-orange-500/15 flex items-center justify-center text-xl flex-shrink-0">⚠️</div>
-          <div><p className="text-xs text-gray-400 font-medium">Low Stock</p><p className="text-xl font-bold text-orange-500">{stats.lowStock}</p></div>
-        </div>
-        <div className="card p-4 flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-red-500/15 flex items-center justify-center text-xl flex-shrink-0">🔴</div>
-          <div><p className="text-xs text-gray-400 font-medium">Out of Stock</p><p className="text-xl font-bold text-red-500">{stats.outStock}</p></div>
-        </div>
-        <div className="card p-4 flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-indigo-500/15 flex items-center justify-center text-xl flex-shrink-0">₹</div>
-          <div><p className="text-xs text-gray-400 font-medium">Inventory Value</p><p className="text-lg font-bold text-indigo-500">₹{stats.value.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</p></div>
-        </div>
-      </div>
+      <Row gutter={16} style={{ marginBottom: 16 }}>
+        <Col span={5}>
+          <Card size="small"><Space><div style={{ width: 40, height: 40, borderRadius: 10, background: '#3b82f61f', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Package size={18} color="#3b82f6" /></div><div><Text type="secondary" style={{ fontSize: 12, display: 'block' }}>Total</Text><Text strong style={{ fontSize: 18 }}>{stats.total}</Text></div></Space></Card>
+        </Col>
+        <Col span={5}>
+          <Card size="small"><Space><div style={{ width: 40, height: 40, borderRadius: 10, background: '#10b9811f', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><CheckCircle2 size={18} color="#10b981" /></div><div><Text type="secondary" style={{ fontSize: 12, display: 'block' }}>In Stock</Text><Text strong style={{ fontSize: 18, color: '#059669' }}>{stats.inStock}</Text></div></Space></Card>
+        </Col>
+        <Col span={5}>
+          <Card size="small"><Space><div style={{ width: 40, height: 40, borderRadius: 10, background: '#f973161f', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><TriangleAlert size={18} color="#f97316" /></div><div><Text type="secondary" style={{ fontSize: 12, display: 'block' }}>Low Stock</Text><Text strong style={{ fontSize: 18, color: '#ea580c' }}>{stats.lowStock}</Text></div></Space></Card>
+        </Col>
+        <Col span={5}>
+          <Card size="small"><Space><div style={{ width: 40, height: 40, borderRadius: 10, background: '#ef44441f', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><TriangleAlert size={18} color="#ef4444" /></div><div><Text type="secondary" style={{ fontSize: 12, display: 'block' }}>Out of Stock</Text><Text strong style={{ fontSize: 18, color: '#dc2626' }}>{stats.outStock}</Text></div></Space></Card>
+        </Col>
+        <Col span={4}>
+          <Card size="small"><Space><div style={{ width: 40, height: 40, borderRadius: 10, background: '#6366f11f', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><IndianRupee size={18} color="#6366f1" /></div><div><Text type="secondary" style={{ fontSize: 12, display: 'block' }}>Inventory Value</Text><Text strong style={{ fontSize: 15, color: '#4f46e5' }}>₹{stats.value.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</Text></div></Space></Card>
+        </Col>
+      </Row>
 
-      {/* Filters */}
-      <div className="flex gap-3 flex-wrap">
-        <div className="relative flex-1 max-w-sm">
-          <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-          <input
-            type="text"
-            placeholder="Search products, SKU..."
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            className="input pl-9"
-          />
-        </div>
-        <select value={filterCat} onChange={e => setFilterCat(e.target.value)} className="input w-44 text-sm">
-          <option value="">All Categories</option>
-          {categories.map(c => <option key={c} value={c}>{c}</option>)}
-        </select>
-        <button
-          onClick={() => setLowStockOnly(p => !p)}
-          className={clsx('btn-secondary gap-2', lowStockOnly && 'bg-red-50 text-red-600 border-red-200')}
-        >
-          <ExclamationTriangleIcon className="w-4 h-4" />
-          Low Stock Only
-        </button>
-      </div>
+      <Space style={{ marginBottom: 16 }} wrap>
+        <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search products, SKU..." prefix={<Search size={14} color="#9ca3af" />} style={{ width: 260 }} />
+        <Select value={filterCat} onChange={setFilterCat} style={{ width: 180 }} options={[{ label: 'All Categories', value: '' }, ...categories.map((c) => ({ label: c, value: c }))]} />
+        <Button type={lowStockOnly ? 'primary' : 'default'} danger={lowStockOnly} icon={<TriangleAlert size={14} />} onClick={() => setLowStockOnly((p) => !p)}>Low Stock Only</Button>
+      </Space>
 
-      {isLoading ? (
-        <div className="flex justify-center py-12">
-          <div className="w-8 h-8 border-2 border-brand-500 border-t-transparent rounded-full animate-spin" />
-        </div>
-      ) : (
-        <ProductTable
-          products={products}
-          canWrite={hasInventoryWrite()}
-          canDelete={hasInventoryWrite()}
-          onStock={setStockProduct}
-          onEdit={setEditProduct}
-          onQr={setQrProduct}
-          onDelete={setDeleteProduct}
-        />
-      )}
+      <Card styles={{ body: { padding: 0 } }}>
+        {isLoading ? (
+          <div style={{ textAlign: 'center', padding: 60 }}><Spin size="large" /></div>
+        ) : (
+          <Table rowKey="_id" columns={columns} dataSource={products} pagination={false} locale={{ emptyText: 'No products found' }} />
+        )}
+      </Card>
 
-      {/* Modals */}
-      {(showForm || editProduct) && (
-        <ProductFormModal
-          initial={editProduct}
-          onClose={() => { setShowForm(false); setEditProduct(null); }}
-          onSuccess={() => { setShowForm(false); setEditProduct(null); invalidate(); }}
-        />
-      )}
+      <ProductFormDrawer
+        open={showForm || !!editProduct}
+        initial={editProduct}
+        onClose={() => { setShowForm(false); setEditProduct(null); }}
+        onSuccess={() => { setShowForm(false); setEditProduct(null); invalidate(); }}
+      />
 
-      {stockProduct && (
-        <StockAdjustModal
-          product={stockProduct}
-          onClose={() => setStockProduct(null)}
-          onSuccess={() => { setStockProduct(null); invalidate(); }}
-        />
-      )}
+      <StockAdjustDrawer product={stockProduct} onClose={() => setStockProduct(null)} onSuccess={() => { setStockProduct(null); invalidate(); }} />
 
-      {qrProduct && (
-        <QRLabelModal
-          products={[qrProduct]}
-          onClose={() => setQrProduct(null)}
-        />
-      )}
+      {qrProduct && <QRLabelModal products={[qrProduct]} onClose={() => setQrProduct(null)} />}
+      {showScanner && <QRScannerModal onClose={() => setShowScanner(false)} onSuccess={invalidate} />}
 
-      {showScanner && (
-        <QRScannerModal
-          onClose={() => setShowScanner(false)}
-          onSuccess={invalidate}
-        />
-      )}
-
-      <button
+      <Button
+        shape="round" type="primary" icon={<QrCode size={16} />} size="large"
+        style={{ position: 'fixed', bottom: 24, right: 24, zIndex: 30, background: '#f97316', borderColor: '#f97316' }}
         onClick={() => setShowScanner(true)}
-        className="fixed bottom-6 right-6 z-30 flex items-center gap-2 bg-orange-500 hover:bg-orange-600 text-white font-semibold px-4 py-3 rounded-full shadow-lg transition-colors"
-        title="Scan QR Code"
       >
-        <QrCodeIcon className="w-5 h-5" />
-        <span className="text-sm hidden sm:inline">Scan QR</span>
-      </button>
+        Scan QR
+      </Button>
 
-      {deleteProduct && createPortal(
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/70 backdrop-blur-sm" onClick={() => setDeleteProduct(null)}>
-          <div className="relative card w-full max-w-sm shadow-2xl p-6 space-y-4" onClick={e => e.stopPropagation()}>
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center shrink-0">
-                <TrashIcon className="w-5 h-5 text-red-600" />
-              </div>
-              <div>
-                <h3 className="font-bold text-gray-900 dark:text-white">Delete Product?</h3>
-                <p className="text-sm text-gray-500 mt-0.5">This cannot be undone.</p>
-              </div>
-            </div>
-            <div className="rounded-lg bg-gray-50 dark:bg-[#0f1a2e] px-4 py-3">
-              <p className="font-semibold text-gray-900 dark:text-white">{deleteProduct.name}</p>
-              <p className="text-xs text-gray-500 mt-0.5">SKU: {deleteProduct.sku} · Stock: {deleteProduct.currentStock} {deleteProduct.unit}</p>
-            </div>
-            <div className="flex gap-3">
-              <button onClick={() => setDeleteProduct(null)} className="btn btn-ghost flex-1">Cancel</button>
-              <button onClick={handleDelete} disabled={deleting} className="flex-1 bg-red-600 hover:bg-red-700 text-white font-medium py-2 px-4 rounded-lg transition-colors disabled:opacity-50">
-                {deleting ? 'Deleting…' : 'Delete'}
-              </button>
-            </div>
-          </div>
-        </div>,
-        document.body
-      )}
+      <Modal
+        open={!!deleteProduct} onCancel={() => setDeleteProduct(null)} footer={null} width={380}
+        title={<Space size={8}><Trash2 size={16} color="#ef4444" />Delete Product?</Space>}
+      >
+        {deleteProduct && (
+          <Space direction="vertical" style={{ width: '100%' }} size={16}>
+            <Text type="secondary">This cannot be undone.</Text>
+            <Card size="small" style={{ background: '#fafafa' }}>
+              <Text strong>{deleteProduct.name}</Text>
+              <div><Text type="secondary" style={{ fontSize: 12 }}>SKU: {deleteProduct.sku} · Stock: {deleteProduct.currentStock} {deleteProduct.unit}</Text></div>
+            </Card>
+            <Space style={{ width: '100%' }}>
+              <Button style={{ flex: 1 }} onClick={() => setDeleteProduct(null)}>Cancel</Button>
+              <Button danger type="primary" style={{ flex: 1 }} loading={deleting} onClick={handleDelete}>Delete</Button>
+            </Space>
+          </Space>
+        )}
+      </Modal>
     </div>
   );
 }

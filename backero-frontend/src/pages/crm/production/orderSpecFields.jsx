@@ -1,6 +1,8 @@
-﻿import { useState } from 'react';
-import clsx from 'clsx';
-import { Card } from '../sampleTheme';
+import { useState } from 'react';
+import { Button, Card, Input, Segmented, Space, Tag, Typography } from 'antd';
+import { Paperclip, Wind, FlaskConical, Target, CheckCircle2, FileText, FolderCog, X, Plus } from 'lucide-react';
+
+const { Text } = Typography;
 
 // Leaf module (no imports from StageSteps.jsx / NewOrderModal.jsx / SampleLeadDetail.jsx) so
 // both the Stage 0 "Orders" edit panel (StageSteps.jsx, existing orders) and the
@@ -73,7 +75,7 @@ export const PKG_SPEC_FIELDS = [
   { key: 'pkgBatchCoding', label: 'Batch Coding Convention', placeholder: 'e.g. BATCH: M/Y/####; MFG & EXP inkjet on base' },
 ];
 export function Field({ label, children }) {
-  return <div><label className="text-xs font-semibold text-[#8a8171] uppercase tracking-wide mb-1 block">{label}</label>{children}</div>;
+  return <div><Text type="secondary" style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', display: 'block', marginBottom: 4 }}>{label}</Text>{children}</div>;
 }
 
 export const inputCls = 'w-full px-3 py-2 text-sm rounded-[10px] border-[1.5px] border-[#ddd6c4] bg-[#fbfaf7] text-[#1c1917] focus:outline-none focus:border-[#8a8171] placeholder:text-[#8a8171] disabled:opacity-50';
@@ -85,14 +87,13 @@ export const secondaryBtn = 'px-4 py-2 bg-[#e7e2d6] hover:bg-[#ddd6c4] text-[#29
 function PresetChips({ presets, disabled, onPick }) {
   if (!presets || !presets.length) return null;
   return (
-    <div className="flex flex-wrap gap-1 mb-1.5">
+    <Space size={4} wrap style={{ marginBottom: 4 }}>
       {presets.map((p) => (
-        <button key={p} type="button" disabled={disabled} onClick={() => onPick(p)}
-          className="border border-dashed border-[#c9a227] text-[#a8781f] rounded-full px-2.5 py-0.5 text-[10px] hover:bg-[#f3e6c8] disabled:opacity-50 disabled:pointer-events-none">
+        <Tag.CheckableTag key={p} checked={false} disabled={disabled} onClick={() => !disabled && onPick(p)} style={{ fontSize: 10, borderStyle: 'dashed' }}>
           {p}
-        </button>
+        </Tag.CheckableTag>
       ))}
-    </div>
+    </Space>
   );
 }
 
@@ -101,62 +102,50 @@ function PresetChips({ presets, disabled, onPick }) {
 export function YesNoToggle({ value, onChange, disabled, className }) {
   const isRequired = value !== 'Not Required';
   return (
-    <div className={clsx('inline-flex rounded-full border border-[#ddd6c4] overflow-hidden flex-shrink-0', className)}>
-      <button type="button" disabled={disabled} onClick={() => onChange('Required')}
-        className={clsx('px-2.5 py-1 text-[10px] font-bold transition-colors disabled:opacity-50 disabled:pointer-events-none',
-          isRequired ? 'bg-[#2f6b4f] text-white' : 'bg-[#fbfaf7] text-[#6b6155] hover:bg-[#f1ede4]')}>
-        Required
-      </button>
-      <button type="button" disabled={disabled} onClick={() => onChange('Not Required')}
-        className={clsx('px-2.5 py-1 text-[10px] font-bold transition-colors disabled:opacity-50 disabled:pointer-events-none',
-          !isRequired ? 'bg-[#a13d34] text-white' : 'bg-[#fbfaf7] text-[#6b6155] hover:bg-[#f1ede4]')}>
-        N/A
-      </button>
-    </div>
+    <Segmented
+      className={className}
+      disabled={disabled}
+      size="small"
+      value={isRequired ? 'Required' : 'Not Required'}
+      onChange={onChange}
+      options={[{ label: 'Required', value: 'Required' }, { label: 'N/A', value: 'Not Required' }]}
+    />
   );
 }
 
-// Same row shape as the reference file's .spec-item (grid-template-columns: 240px 1fr 112px) —
-// label+hint, chips+input, and the Required/N/A toggle (+ attach button) all sit on one
-// row/line instead of stacking, collapsing to a single column on narrow screens. Widened the
-// third column from 104px to 150px to fit the Required/N-A toggle AND the attach button
-// without wrapping — the border lives on the outer wrapper (see PlainSpecRow/SpecSectionRow),
-// not here, since that wrapper also needs to contain the expandable per-field attachment box.
-const gridRowCls = 'grid grid-cols-1 sm:grid-cols-[220px_1fr_150px] gap-x-3 gap-y-1 sm:items-center';
+// Same row shape as the reference file's .spec-item — label+hint, chips+input, and the
+// Required/N/A toggle (+ attach button) all sit on one row/line instead of stacking.
+const rowStyle = { display: 'grid', gridTemplateColumns: '220px 1fr 170px', gap: '8px 12px', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid #f1f5f9' };
 
 // Small paperclip toggle shared by PlainSpecRow/SpecSectionRow — expands to that ONE field's
 // own AttachmentBox underneath the row instead of only having one shared attachment box per
 // whole section, so e.g. a specific shade card can sit on "Color Check" itself, not buried in
 // a general Sensory Targets attachments pile.
-function FieldAttachToggle({ fieldKey, crmSpec, onChange, locked, open, setOpen }) {
+function FieldAttachToggle({ fieldKey, crmSpec, locked, open, setOpen }) {
   const count = (crmSpec[fieldKey + 'Attachments'] || []).length;
   return (
-    <button
-      type="button"
+    <Button
+      size="small" type={count > 0 ? 'primary' : 'default'} ghost={count > 0}
+      icon={<Paperclip size={11} />}
       onClick={() => setOpen((v) => !v)}
       title={count > 0 ? `${count} attachment(s)` : 'Attach a file to this field'}
-      className={clsx('flex-shrink-0 text-xs px-1.5 py-1 rounded-md border transition-colors',
-        count > 0 ? 'border-[#a8781f] bg-[#f3e6c8] text-[#a8781f]' : 'border-[#ddd6c4] bg-white text-[#8a8171] hover:bg-[#fbfaf7]')}
     >
-      📎{count > 0 ? ` ${count}` : ''}
-    </button>
+      {count > 0 ? count : ''}
+    </Button>
   );
 }
 
 export function PlainSpecRow({ field, crmSpec, onChange, locked, extra }) {
   const [attachOpen, setAttachOpen] = useState(false);
   return (
-    <div className="py-2 border-b border-[#e7e2d6] last:border-none">
-      <div className={gridRowCls}>
-        <label className="text-xs text-[#6b6155] self-center">{field.label}</label>
-        <div className="min-w-0">
-          <input disabled={locked} value={crmSpec[field.key] || ''} placeholder={field.placeholder} onChange={(e) => onChange(field.key, e.target.value)}
-            className="w-full text-xs border border-[#ddd6c4] rounded-lg px-2 py-1.5 bg-[#fbfaf7] disabled:opacity-50" />
-        </div>
-        <div className="sm:justify-self-end flex items-center gap-1.5">
+    <div>
+      <div style={rowStyle}>
+        <Text style={{ fontSize: 12 }}>{field.label}</Text>
+        <Input disabled={locked} size="small" value={crmSpec[field.key] || ''} placeholder={field.placeholder} onChange={(e) => onChange(field.key, e.target.value)} />
+        <Space size={4} style={{ justifySelf: 'end' }}>
           {extra}
-          <FieldAttachToggle fieldKey={field.key} crmSpec={crmSpec} onChange={onChange} locked={locked} open={attachOpen} setOpen={setAttachOpen} />
-        </div>
+          <FieldAttachToggle fieldKey={field.key} crmSpec={crmSpec} locked={locked} open={attachOpen} setOpen={setAttachOpen} />
+        </Space>
       </div>
       {attachOpen && <AttachmentBox category={field.key} crmSpec={crmSpec} onChange={onChange} locked={locked} />}
     </div>
@@ -169,24 +158,23 @@ export function SpecSectionRow({ spec, crmSpec, onChange, locked }) {
   const value = crmSpec[spec.key + 'Spec'] ?? spec.defaultSpec;
   const fieldDisabled = locked || status === 'Not Required';
   return (
-    <div className="border-b border-[#e7e2d6] last:border-none">
-      <div className={clsx(gridRowCls, 'py-2', fieldDisabled && 'opacity-60')}>
-        <div className="min-w-0 self-center">
-          <span className="text-xs text-[#6b6155]">{spec.label}</span>
-          {spec.iso && <span className="inline-block ml-1.5 bg-[#f3e6c8] text-[#a8781f] border border-[#c9a227]/30 rounded px-1 text-[9px] font-bold align-middle">{spec.iso}</span>}
-          {spec.hint && <p className="text-[10px] text-[#8a8171] mt-0.5">{spec.hint}</p>}
+    <div>
+      <div style={{ ...rowStyle, opacity: fieldDisabled ? 0.6 : 1 }}>
+        <div>
+          <Text style={{ fontSize: 12 }}>{spec.label}</Text>
+          {spec.iso && <Tag style={{ marginInlineStart: 6, fontSize: 9, fontWeight: 700 }} color="gold">{spec.iso}</Tag>}
+          {spec.hint && <div><Text type="secondary" style={{ fontSize: 10 }}>{spec.hint}</Text></div>}
         </div>
-        <div className="min-w-0">
+        <div>
           <PresetChips presets={spec.presets} disabled={fieldDisabled} onPick={(p) => onChange(spec.key + 'Spec', p)} />
-          <input disabled={fieldDisabled} value={value} onChange={(e) => onChange(spec.key + 'Spec', e.target.value)}
-            className="w-full text-xs border border-[#ddd6c4] rounded-lg px-2 py-1.5 bg-[#fbfaf7] disabled:opacity-40" />
+          <Input disabled={fieldDisabled} size="small" value={value} onChange={(e) => onChange(spec.key + 'Spec', e.target.value)} />
         </div>
-        <div className="flex items-center gap-1.5 sm:justify-self-end">
+        <Space size={4} style={{ justifySelf: 'end' }}>
           <YesNoToggle value={status} disabled={locked} onChange={(v) => onChange(spec.key + 'Status', v)} />
-          <FieldAttachToggle fieldKey={spec.key} crmSpec={crmSpec} onChange={onChange} locked={locked} open={attachOpen} setOpen={setAttachOpen} />
-        </div>
+          <FieldAttachToggle fieldKey={spec.key} crmSpec={crmSpec} locked={locked} open={attachOpen} setOpen={setAttachOpen} />
+        </Space>
       </div>
-      {attachOpen && <div className="pb-2"><AttachmentBox category={spec.key} crmSpec={crmSpec} onChange={onChange} locked={locked} /></div>}
+      {attachOpen && <div style={{ paddingBottom: 8 }}><AttachmentBox category={spec.key} crmSpec={crmSpec} onChange={onChange} locked={locked} /></div>}
     </div>
   );
 }
@@ -195,21 +183,19 @@ export function DynamicSpecFields({ category, crmSpec, onChange, locked }) {
   const list = crmSpec[category + 'Extra'] || [];
   const update = (list2) => onChange(category + 'Extra', list2);
   return (
-    <div className="mt-2 space-y-2">
+    <Space direction="vertical" style={{ width: '100%', marginTop: 8 }} size={8}>
       {list.map((f, i) => (
-        <div key={i} className="flex items-center gap-2 p-2 rounded-lg bg-[#f1ede4]">
-          <input disabled={locked} value={f.label} onChange={(e) => { const l = [...list]; l[i] = { ...l[i], label: e.target.value }; update(l); }}
-            placeholder="Parameters" className="text-xs border border-[#ddd6c4] rounded-lg px-2 py-1.5 bg-[#fbfaf7] flex-1 min-w-0" />
-          <input disabled={locked} value={f.spec} onChange={(e) => { const l = [...list]; l[i] = { ...l[i], spec: e.target.value }; update(l); }}
-            placeholder="Requirements" className="text-xs border border-[#ddd6c4] rounded-lg px-2 py-1.5 bg-[#fbfaf7] flex-1 min-w-0" />
+        <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: 8, borderRadius: 8, background: '#fafafa' }}>
+          <Input size="small" disabled={locked} value={f.label} onChange={(e) => { const l = [...list]; l[i] = { ...l[i], label: e.target.value }; update(l); }} placeholder="Parameters" style={{ flex: 1 }} />
+          <Input size="small" disabled={locked} value={f.spec} onChange={(e) => { const l = [...list]; l[i] = { ...l[i], spec: e.target.value }; update(l); }} placeholder="Requirements" style={{ flex: 1 }} />
           <YesNoToggle value={f.status || 'Required'} disabled={locked} onChange={(v) => { const l = [...list]; l[i] = { ...l[i], status: v }; update(l); }} />
-          {!locked && <button onClick={() => update(list.filter((_, idx) => idx !== i))} className="text-red-500 text-sm flex-shrink-0 px-1">×</button>}
+          {!locked && <Button size="small" type="text" danger icon={<X size={13} />} onClick={() => update(list.filter((_, idx) => idx !== i))} />}
         </div>
       ))}
       {!locked && (
-        <button onClick={() => update([...list, { label: '', status: 'Required', spec: '' }])} className="text-xs font-semibold text-[#a8781f]">+ Add More Spec</button>
+        <Button size="small" icon={<Plus size={12} />} onClick={() => update([...list, { label: '', status: 'Required', spec: '' }])}>Add More Spec</Button>
       )}
-    </div>
+    </Space>
   );
 }
 
@@ -226,33 +212,33 @@ export function AttachmentBox({ category, crmSpec, onChange, locked, hint }) {
   };
   const removeAt = (i) => onChange(category + 'Attachments', list.filter((_, idx) => idx !== i));
   return (
-    <div className="mt-2 p-2.5 rounded-lg border border-dashed border-[#ddd6c4] bg-[#fbfaf7]">
-      <div className="flex items-center justify-between gap-2 flex-wrap">
-        <label className="text-xs font-bold uppercase tracking-wide text-[#6b6155]">Attachments</label>
-        {!locked && <input type="file" multiple onChange={addFiles} className="text-[11px] text-[#8a8171] max-w-[220px]" />}
+    <Card size="small" style={{ borderStyle: 'dashed', background: '#fafafa' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
+        <Text type="secondary" style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase' }}>Attachments</Text>
+        {!locked && <input type="file" multiple onChange={addFiles} style={{ fontSize: 11, maxWidth: 220 }} />}
       </div>
-      {hint && <p className="text-[10px] text-[#8a8171] mt-1">{hint} Files stay on this device — only the name/size is saved with the order.</p>}
+      {hint && <Text type="secondary" style={{ fontSize: 10, display: 'block', marginTop: 4 }}>{hint} Files stay on this device — only the name/size is saved with the order.</Text>}
       {list.length > 0 && (
-        <div className="mt-1.5 space-y-1">
+        <Space direction="vertical" size={4} style={{ marginTop: 6, width: '100%' }}>
           {list.map((f, i) => {
             const kb = f.size > 1048576 ? (f.size / 1048576).toFixed(1) + ' MB' : Math.max(1, Math.round((f.size || 0) / 1024)) + ' KB';
             return (
-              <div key={i} className="flex items-center justify-between gap-2 text-xs text-[#1c1917]">
-                <span className="truncate">{f.name} <span className="text-[#8a8171]">({kb})</span></span>
-                {!locked && <button onClick={() => removeAt(i)} className="text-[#a13d34] flex-shrink-0 px-1">×</button>}
+              <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, fontSize: 12 }}>
+                <Text ellipsis style={{ fontSize: 12 }}>{f.name} <Text type="secondary" style={{ fontSize: 11 }}>({kb})</Text></Text>
+                {!locked && <Button size="small" type="text" danger icon={<X size={12} />} onClick={() => removeAt(i)} />}
               </div>
             );
           })}
-        </div>
+        </Space>
       )}
-    </div>
+    </Card>
   );
 }
 
-// ── ORDER SPEC TABS ── top-tab navigation across every SPEC/QC/Packaging/Payment/Custom
-// section, one visible at a time — mirrors the "New Order Sheet" reference file's layout.
-// Shared by StageOrder (editing an existing order's Stage 0 "Orders") and
-// NewOrderModal (creating a brand-new order) so both read the exact same field set.
+// ── ORDER SPEC TABS ── every SPEC/QC/Packaging/Payment/Custom section, all visible on one
+// continuously-scrolling page (no tab switcher) — mirrors the "New Order Sheet" reference file's
+// layout. Shared by StageOrder (editing an existing order's Stage 0 "Orders") and NewOrderModal
+// (creating a brand-new order) so both read the exact same field set.
 
 export const byKeys = (list, keys) => list.filter((s) => keys.includes(s.key));
 
@@ -262,8 +248,13 @@ export const MICRO_KEYS = ['qcMicrobial', 'qcTpc', 'qcYm', 'qcPathogen'];
 export const STABILITY_KEYS = ['labStability', 'labAccelerated', 'labDuration', 'labFreezeThaw', 'labPackCompat', 'labPreservative', 'labHeavyMetal', 'labDermatological'];
 export const DOC_KEYS = ['labDocumentation', 'labCoa', 'labMethod', 'docAllergen', 'docStabReport'];
 
-function SectionHeading({ children }) {
-  return <h4 className="text-xs font-bold uppercase tracking-wide text-[#6b6155] mb-2 pb-1.5 border-b border-[#e7e2d6]">{children}</h4>;
+function SectionHeading({ icon: Icon, children }) {
+  return (
+    <Space size={6} style={{ marginBottom: 8 }}>
+      <Icon size={13} color="#8a8171" />
+      <Text type="secondary" style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase' }}>{children}</Text>
+    </Space>
+  );
 }
 
 // All sections render on one continuously-scrolling page — matches the "New Order Sheet"
@@ -271,59 +262,57 @@ function SectionHeading({ children }) {
 // at once, no per-section tab switcher — just section headings down the page.
 export default function OrderSpecTabs({ crmSpec, onChange, locked, detailsContent }) {
   return (
-    <div>
-      <div className="space-y-6">
-        <section>{detailsContent}</section>
+    <Space direction="vertical" style={{ width: '100%' }} size={24}>
+      <section>{detailsContent}</section>
 
-        <section>
-          <SectionHeading>👃 Sensory Targets</SectionHeading>
-          <Card>
-            {byKeys(QC_SPECS, SENSORY_KEYS).map((s) => <SpecSectionRow key={s.key} spec={s} crmSpec={crmSpec} onChange={onChange} locked={locked} />)}
-          </Card>
-        </section>
+      <section>
+        <SectionHeading icon={Wind}>Sensory Targets</SectionHeading>
+        <Card size="small">
+          {byKeys(QC_SPECS, SENSORY_KEYS).map((s) => <SpecSectionRow key={s.key} spec={s} crmSpec={crmSpec} onChange={onChange} locked={locked} />)}
+        </Card>
+      </section>
 
-        <section>
-          <SectionHeading>🧪 Physicochemical</SectionHeading>
-          <Card>
-            {byKeys(QC_SPECS, PHYSICO_KEYS).map((s) => <SpecSectionRow key={s.key} spec={s} crmSpec={crmSpec} onChange={onChange} locked={locked} />)}
-          </Card>
-        </section>
+      <section>
+        <SectionHeading icon={FlaskConical}>Physicochemical</SectionHeading>
+        <Card size="small">
+          {byKeys(QC_SPECS, PHYSICO_KEYS).map((s) => <SpecSectionRow key={s.key} spec={s} crmSpec={crmSpec} onChange={onChange} locked={locked} />)}
+        </Card>
+      </section>
 
-        <section>
-          <SectionHeading>🎯 QC Plan — Micro &amp; Stability</SectionHeading>
-          <Card>
-            <p className="text-[10px] font-bold text-[#8a8171] uppercase mb-1">Microbiological &amp; Safety</p>
-            {byKeys(QC_SPECS, MICRO_KEYS).map((s) => <SpecSectionRow key={s.key} spec={s} crmSpec={crmSpec} onChange={onChange} locked={locked} />)}
-            <p className="text-[10px] font-bold text-[#8a8171] uppercase mt-3 mb-1">Stability &amp; Compatibility</p>
-            {byKeys(LAB_SPECS, STABILITY_KEYS).map((s) => <SpecSectionRow key={s.key} spec={s} crmSpec={crmSpec} onChange={onChange} locked={locked} />)}
-            <DynamicSpecFields category="qcplan" crmSpec={crmSpec} onChange={onChange} locked={locked} />
-          </Card>
-        </section>
+      <section>
+        <SectionHeading icon={Target}>QC Plan — Micro &amp; Stability</SectionHeading>
+        <Card size="small">
+          <Text type="secondary" style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase' }}>Microbiological &amp; Safety</Text>
+          {byKeys(QC_SPECS, MICRO_KEYS).map((s) => <SpecSectionRow key={s.key} spec={s} crmSpec={crmSpec} onChange={onChange} locked={locked} />)}
+          <div style={{ marginTop: 12 }}><Text type="secondary" style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase' }}>Stability &amp; Compatibility</Text></div>
+          {byKeys(LAB_SPECS, STABILITY_KEYS).map((s) => <SpecSectionRow key={s.key} spec={s} crmSpec={crmSpec} onChange={onChange} locked={locked} />)}
+          <DynamicSpecFields category="qcplan" crmSpec={crmSpec} onChange={onChange} locked={locked} />
+        </Card>
+      </section>
 
-        <section>
-          <SectionHeading>✅ Final QC</SectionHeading>
-          <Card>
-            {FQC_SPECS.map((s) => <SpecSectionRow key={s.key} spec={s} crmSpec={crmSpec} onChange={onChange} locked={locked} />)}
-            <DynamicSpecFields category="fqc" crmSpec={crmSpec} onChange={onChange} locked={locked} />
-          </Card>
-        </section>
+      <section>
+        <SectionHeading icon={CheckCircle2}>Final QC</SectionHeading>
+        <Card size="small">
+          {FQC_SPECS.map((s) => <SpecSectionRow key={s.key} spec={s} crmSpec={crmSpec} onChange={onChange} locked={locked} />)}
+          <DynamicSpecFields category="fqc" crmSpec={crmSpec} onChange={onChange} locked={locked} />
+        </Card>
+      </section>
 
-        <section>
-          <SectionHeading>📄 Documentation</SectionHeading>
-          <Card>
-            {byKeys(LAB_SPECS, DOC_KEYS).map((s) => <SpecSectionRow key={s.key} spec={s} crmSpec={crmSpec} onChange={onChange} locked={locked} />)}
-            <DynamicSpecFields category="docs" crmSpec={crmSpec} onChange={onChange} locked={locked} />
-          </Card>
-        </section>
+      <section>
+        <SectionHeading icon={FileText}>Documentation</SectionHeading>
+        <Card size="small">
+          {byKeys(LAB_SPECS, DOC_KEYS).map((s) => <SpecSectionRow key={s.key} spec={s} crmSpec={crmSpec} onChange={onChange} locked={locked} />)}
+          <DynamicSpecFields category="docs" crmSpec={crmSpec} onChange={onChange} locked={locked} />
+        </Card>
+      </section>
 
-        <section>
-          <SectionHeading>🗂️ Custom Checks &amp; Requirements</SectionHeading>
-          <Card>
-            <p className="text-[11px] text-[#8a8171] mb-2">Examples: SPF in-vivo (ISO 24444), HRIPT patch test, heavy-metal screen, vegan/halal/organic certification, customer audit rights, third-party lab witness.</p>
-            <DynamicSpecFields category="custom" crmSpec={crmSpec} onChange={onChange} locked={locked} />
-          </Card>
-        </section>
-      </div>
-    </div>
+      <section>
+        <SectionHeading icon={FolderCog}>Custom Checks &amp; Requirements</SectionHeading>
+        <Card size="small">
+          <Text type="secondary" style={{ fontSize: 11, display: 'block', marginBottom: 8 }}>Examples: SPF in-vivo (ISO 24444), HRIPT patch test, heavy-metal screen, vegan/halal/organic certification, customer audit rights, third-party lab witness.</Text>
+          <DynamicSpecFields category="custom" crmSpec={crmSpec} onChange={onChange} locked={locked} />
+        </Card>
+      </section>
+    </Space>
   );
 }

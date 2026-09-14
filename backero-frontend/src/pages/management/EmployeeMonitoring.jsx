@@ -1,7 +1,10 @@
-﻿import React from 'react';
+import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import api from '../../api/axios';
 import { formatDistanceToNow } from 'date-fns';
+import { Avatar, Card, Space, Table, Tag, Typography } from 'antd';
+
+const { Title, Text } = Typography;
 
 export default function EmployeeMonitoring() {
   const { data } = useQuery({
@@ -11,54 +14,35 @@ export default function EmployeeMonitoring() {
 
   const users = data?.data || [];
 
+  const columns = [
+    {
+      title: 'Employee', key: 'employee',
+      render: (_, user) => (
+        <Space>
+          <Avatar style={{ backgroundColor: '#a8781f1f', color: '#a8781f' }}>{user.firstName?.[0]}{user.lastName?.[0]}</Avatar>
+          <div>
+            <div><Text strong>{user.firstName} {user.lastName}</Text></div>
+            <Text type="secondary" style={{ fontSize: 12 }}>{user.email}</Text>
+          </div>
+        </Space>
+      ),
+    },
+    { title: 'Department', dataIndex: 'department', key: 'department', render: (v) => v || '—' },
+    { title: 'Role', dataIndex: 'role', key: 'role', align: 'center', render: (v) => <Tag color="blue">{v?.replace('_', ' ')}</Tag> },
+    { title: 'Status', dataIndex: 'isActive', key: 'isActive', align: 'center', render: (v) => <Tag color={v ? 'green' : 'default'}>{v ? 'Active' : 'Inactive'}</Tag> },
+    {
+      title: 'Last Active', dataIndex: 'lastActive', key: 'lastActive', align: 'right',
+      render: (v) => <Text type="secondary" style={{ fontSize: 12 }}>{v ? formatDistanceToNow(new Date(v), { addSuffix: true }) : 'Never'}</Text>,
+    },
+  ];
+
   return (
-    <div className="space-y-6">
-      <div className="page-header">
-        <h1 className="page-title">Employee Monitoring</h1>
-        <p className="text-gray-500 text-sm">{users.length} employees</p>
-      </div>
-      <div className="card overflow-hidden">
-        <div className="overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead className="bg-gray-50 dark:bg-[#0f1a2e]">
-            <tr>
-              <th className="text-left py-3 px-4 text-gray-500 font-medium">Employee</th>
-              <th className="text-left py-3 px-4 text-gray-500 font-medium">Department</th>
-              <th className="text-center py-3 px-4 text-gray-500 font-medium">Role</th>
-              <th className="text-center py-3 px-4 text-gray-500 font-medium">Status</th>
-              <th className="text-right py-3 px-4 text-gray-500 font-medium">Last Active</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-100 dark:divide-[#1b2e4a]">
-            {users.map((user) => (
-              <tr key={user._id} className="hover:bg-gray-50 dark:hover:bg-[#17263d]/50">
-                <td className="py-3 px-4">
-                  <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 rounded-full bg-brand-100 dark:bg-brand-900/30 flex items-center justify-center">
-                      <span className="text-brand-700 dark:text-brand-400 text-xs font-semibold">{user.firstName?.[0]}{user.lastName?.[0]}</span>
-                    </div>
-                    <div>
-                      <p className="font-medium text-gray-900 dark:text-white">{user.firstName} {user.lastName}</p>
-                      <p className="text-xs text-gray-400">{user.email}</p>
-                    </div>
-                  </div>
-                </td>
-                <td className="py-3 px-4 text-gray-600 dark:text-gray-400">{user.department || '—'}</td>
-                <td className="py-3 px-4 text-center">
-                  <span className="badge badge-blue capitalize">{user.role?.replace('_', ' ')}</span>
-                </td>
-                <td className="py-3 px-4 text-center">
-                  <span className={`badge ${user.isActive ? 'badge-green' : 'badge-gray'}`}>{user.isActive ? 'Active' : 'Inactive'}</span>
-                </td>
-                <td className="py-3 px-4 text-right text-gray-400 text-xs">
-                  {user.lastActive ? formatDistanceToNow(new Date(user.lastActive), { addSuffix: true }) : 'Never'}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        </div>
-      </div>
+    <div>
+      <Title level={4} style={{ marginBottom: 0 }}>Employee Monitoring</Title>
+      <Text type="secondary">{users.length} employees</Text>
+      <Card style={{ marginTop: 16 }} styles={{ body: { padding: 0 } }}>
+        <Table rowKey="_id" columns={columns} dataSource={users} pagination={false} />
+      </Card>
     </div>
   );
 }

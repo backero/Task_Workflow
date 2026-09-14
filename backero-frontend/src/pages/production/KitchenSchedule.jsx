@@ -2,14 +2,15 @@ import React, { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
-import clsx from 'clsx';
 import api from '../../api/axios';
 import { usePermissions } from '../../store/usePermissions';
 import { STAGE_NAMES } from '../crm/production/StageSteps';
 import {
-  ChevronLeftIcon, ChevronRightIcon, LockClosedIcon, LockOpenIcon, XMarkIcon,
-  ExclamationTriangleIcon, TruckIcon, UserGroupIcon, Squares2X2Icon, ArrowPathIcon,
-} from '@heroicons/react/24/outline';
+  ChevronLeft, ChevronRight, Lock, LockOpen, TriangleAlert, Truck, Users, LayoutGrid, Factory, CheckCircle2, XCircle,
+} from 'lucide-react';
+import { Button, Card, Col, Drawer, Row, Select, Spin, Tag, Typography } from 'antd';
+
+const { Title, Text } = Typography;
 
 // ── Week helpers ──────────────────────────────────────────────────────────
 // weekKey format: 'YYYY-Www' (ISO 8601 week, Monday-start), computed with the
@@ -18,8 +19,9 @@ import {
 const DAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const SLOTS = ['AM', 'PM'];
 const BLOCK_TYPES = ['RD', 'Client', 'Docs', 'Leave'];
-const BLOCK_BADGE = { RD: 'badge-purple', Client: 'badge-blue', Docs: 'badge-gray', Leave: 'badge-red' };
-const STATUS_BADGE = { Planned: 'badge-gray', Confirmed: 'badge-blue', 'In Progress': 'badge-yellow', Done: 'badge-green', Removed: 'badge-red' };
+const BLOCK_COLOR = { RD: '#f5f0ff', Client: '#eff6ff', Docs: '#f5f5f5', Leave: '#fff1f0' };
+const BLOCK_TEXT = { RD: '#7c3aed', Client: '#2563eb', Docs: '#6b7280', Leave: '#ef4444' };
+const STATUS_COLOR = { Planned: 'default', Confirmed: 'blue', 'In Progress': 'gold', Done: 'green', Removed: 'red' };
 
 function pad2(n) { return String(n).padStart(2, '0'); }
 function toDateStr(d) { return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`; }
@@ -27,15 +29,15 @@ function toDateStr(d) { return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${p
 function mondayOf(date) {
   const d = new Date(date);
   d.setHours(0, 0, 0, 0);
-  const day = (d.getDay() + 6) % 7; // Mon=0..Sun=6
+  const day = (d.getDay() + 6) % 7;
   d.setDate(d.getDate() - day);
   return d;
 }
 
 function weekKeyOf(date) {
   const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
-  const dayNum = (d.getUTCDay() + 6) % 7; // Mon=0..Sun=6
-  d.setUTCDate(d.getUTCDate() - dayNum + 3); // Thursday of this ISO week
+  const dayNum = (d.getUTCDay() + 6) % 7;
+  d.setUTCDate(d.getUTCDate() - dayNum + 3);
   const firstThursday = new Date(Date.UTC(d.getUTCFullYear(), 0, 4));
   const firstDayNum = (firstThursday.getUTCDay() + 6) % 7;
   firstThursday.setUTCDate(firstThursday.getUTCDate() - firstDayNum + 3);
@@ -163,8 +165,6 @@ export default function KitchenSchedule() {
     queryFn: () => api.get('/users', { params: { department: 'Production', isActive: true, limit: 200 } }).then((r) => r.data),
   });
 
-  // Defensive unwrap — the routes are new, follow this app's `{ success, message, ...data }`
-  // convention, but tolerate a couple of reasonable shapes for the payload key.
   const weekDoc = scheduleQuery.data?.week || scheduleQuery.data || {};
   const slots = weekDoc.slots || [];
   const blocks = weekDoc.blocks || [];
@@ -204,7 +204,6 @@ export default function KitchenSchedule() {
     onSuccess: () => { invalidateWeek(); toast.success('Week unfrozen'); },
   });
 
-  // Frozen-week edits get rejected with a 400 asking for a reason — prompt once and retry.
   const runWithReason = async (mutation, payload) => {
     try {
       await mutation.mutateAsync(payload);
@@ -253,67 +252,53 @@ export default function KitchenSchedule() {
   const loading = scheduleQuery.isLoading || trayQuery.isLoading;
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between flex-wrap gap-3">
+    <div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12, marginBottom: 4 }}>
         <div>
-          <h1 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
-            <Squares2X2Icon className="w-5 h-5 text-blue-500" />
-            Kitchen Schedule
-          </h1>
-          <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">Weekly production timetable — place batches, assign teams, track readiness</p>
+          <Title level={4} style={{ marginBottom: 0 }}><LayoutGrid size={18} color="#3b82f6" style={{ marginRight: 8, verticalAlign: -3 }} />Kitchen Schedule</Title>
+          <Text type="secondary">Weekly production timetable — place batches, assign teams, track readiness</Text>
         </div>
-
-        <div className="flex items-center gap-2">
-          <div className="flex items-center gap-1 bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-lg p-1">
-            <button onClick={() => setWeekOffset((o) => o - 1)} className="p-1.5 rounded-md hover:bg-white dark:hover:bg-white/10 text-gray-500 dark:text-gray-300 transition-colors">
-              <ChevronLeftIcon className="w-4 h-4" />
-            </button>
-            <button onClick={() => setWeekOffset(0)} className={clsx('px-3 py-1 text-xs font-semibold rounded-md transition-colors', weekOffset === 0 ? 'bg-blue-600 text-white' : 'text-gray-600 dark:text-gray-300 hover:bg-white dark:hover:bg-white/10')}>
-              This Week
-            </button>
-            <button onClick={() => setWeekOffset((o) => o + 1)} className="p-1.5 rounded-md hover:bg-white dark:hover:bg-white/10 text-gray-500 dark:text-gray-300 transition-colors">
-              <ChevronRightIcon className="w-4 h-4" />
-            </button>
+        <Space_>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4, background: '#fafafa', border: '1px solid #f0f0f0', borderRadius: 8, padding: 4 }}>
+            <Button type="text" size="small" icon={<ChevronLeft size={14} />} onClick={() => setWeekOffset((o) => o - 1)} />
+            <Button type={weekOffset === 0 ? 'primary' : 'text'} size="small" onClick={() => setWeekOffset(0)}>This Week</Button>
+            <Button type="text" size="small" icon={<ChevronRight size={14} />} onClick={() => setWeekOffset((o) => o + 1)} />
           </div>
           {isManager ? (
             weekDoc.frozen ? (
-              <button onClick={() => unfreezeMutation.mutate()} disabled={unfreezeMutation.isPending} className="btn-secondary">
-                <LockOpenIcon className="w-4 h-4" />{unfreezeMutation.isPending ? 'Unfreezing…' : 'Unfreeze Week'}
-              </button>
+              <Button icon={<LockOpen size={14} />} loading={unfreezeMutation.isPending} onClick={() => unfreezeMutation.mutate()}>Unfreeze Week</Button>
             ) : (
-              <button
+              <Button
+                type="primary" icon={<Lock size={14} />} loading={freezeMutation.isPending}
                 onClick={() => {
                   if (!window.confirm('Freeze this week? Editing after freezing will require a reason.')) return;
                   freezeMutation.mutate(undefined, { onError: (err) => toast.error(err?.response?.data?.message || 'Cannot freeze — some slots are not ready') });
                 }}
-                disabled={freezeMutation.isPending}
-                className="btn-primary"
               >
-                <LockClosedIcon className="w-4 h-4" />{freezeMutation.isPending ? 'Freezing…' : 'Freeze Week'}
-              </button>
+                Freeze Week
+              </Button>
             )
           ) : null}
-        </div>
+        </Space_>
       </div>
 
-      <p className="text-sm text-gray-600 dark:text-gray-300 -mt-3">
-        Week of <strong>{fmtShort(weekDates[0])} – {fmtShort(weekDates[5])}, {weekDates[0].getFullYear()}</strong>
-        <span className="text-gray-400 ml-2 font-mono text-xs">{weekKey}</span>
-        {weekDoc.frozen && <span className="badge badge-blue ml-3"><LockClosedIcon className="w-3 h-3" />Frozen</span>}
-      </p>
+      <Text style={{ fontSize: 13, display: 'block', marginBottom: 16 }}>
+        Week of <Text strong>{fmtShort(weekDates[0])} – {fmtShort(weekDates[5])}, {weekDates[0].getFullYear()}</Text>
+        <Text type="secondary" style={{ marginLeft: 8, fontFamily: 'monospace', fontSize: 11 }}>{weekKey}</Text>
+        {weekDoc.frozen && <Tag color="blue" icon={<Lock size={10} style={{ marginRight: 2 }} />} style={{ marginLeft: 8 }}>Frozen</Tag>}
+      </Text>
 
       {!isManager && (
-        <div className="rounded-xl px-4 py-2.5 text-sm bg-blue-50 dark:bg-blue-500/10 border border-blue-200 dark:border-blue-500/20 text-blue-700 dark:text-blue-300">
-          View-only — placing batches, assigning teams, and freezing the week require a manager.
-        </div>
+        <Card size="small" style={{ background: '#eff6ff', borderColor: '#bfdbfe', marginBottom: 16 }}>
+          <Text style={{ fontSize: 13, color: '#1d4ed8' }}>View-only — placing batches, assigning teams, and freezing the week require a manager.</Text>
+        </Card>
       )}
 
       {loading ? (
-        <div className="flex items-center justify-center h-48"><ArrowPathIcon className="w-6 h-6 animate-spin text-gray-400" /></div>
+        <div style={{ textAlign: 'center', padding: 80 }}><Spin size="large" /></div>
       ) : (
         <>
-          {/* KPI row */}
-          <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+          <Row gutter={12} style={{ marginBottom: 16 }}>
             {[
               { label: 'Slots Filled', value: `${filledCount}/${totalCells}` },
               { label: 'Tray (Unscheduled)', value: tray.length },
@@ -321,170 +306,164 @@ export default function KitchenSchedule() {
               { label: 'Credit Spread', value: creditSpread },
               { label: 'Delivery Risks', value: deliveryRisks.length, danger: deliveryRisks.length > 0 },
             ].map((kpi) => (
-              <div key={kpi.label} className="stat-card">
-                <div>
-                  <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide">{kpi.label}</p>
-                  <p className={clsx('text-2xl font-bold mt-1', kpi.danger ? 'text-red-500' : 'text-gray-900 dark:text-white')}>{kpi.value}</p>
-                </div>
-              </div>
+              <Col span={24 / 5} key={kpi.label}>
+                <Card size="small">
+                  <Text type="secondary" style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase' }}>{kpi.label}</Text>
+                  <div style={{ fontSize: 22, fontWeight: 700, marginTop: 4, color: kpi.danger ? '#ef4444' : undefined }}>{kpi.value}</div>
+                </Card>
+              </Col>
             ))}
-          </div>
+          </Row>
 
-          <div className="grid grid-cols-1 xl:grid-cols-[1fr_280px] gap-4">
-            {/* Timetable grid */}
-            <div className="card overflow-hidden">
-              <div className="flex items-center justify-between px-5 py-3.5 border-b border-gray-100 dark:border-[#1b2e4a]">
-                <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-300">Timetable</h2>
-                {selectedTray && isManager && (
-                  <span className="text-xs text-blue-600 dark:text-blue-400 font-medium">Selected: {selectedTray.catalogProduct?.name || selectedTray.orderNumber} — click an empty cell to place</span>
-                )}
-              </div>
-              <div className="overflow-x-auto">
-                <table className="w-full border-collapse">
-                  <thead>
-                    <tr className="border-b border-gray-100 dark:border-[#1b2e4a]">
-                      <th className="text-left text-[11px] font-semibold text-gray-400 uppercase px-4 py-2.5 w-14"></th>
-                      {weekDates.map((d, i) => (
-                        <th key={i} className="text-left text-[11px] font-semibold text-gray-400 uppercase px-3 py-2.5 whitespace-nowrap">
-                          {DAY_LABELS[i]} <span className="text-gray-500 dark:text-gray-400 normal-case font-medium">{fmtShort(d)}</span>
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {SLOTS.map((slotName) => (
-                      <tr key={slotName} className="border-b border-gray-50 dark:border-[#1b2e4a]/60">
-                        <td className="px-4 py-2 text-xs font-bold text-gray-400 align-top">{slotName}</td>
-                        {weekDates.map((d) => {
-                          const dateStr = toDateStr(d);
-                          const slot = slotAt(dateStr, slotName);
-                          return (
-                            <td key={dateStr + slotName} className="px-1.5 py-1.5 align-top">
-                              {slot ? (
-                                <button
-                                  onClick={() => setActiveSlot(slot)}
-                                  className="w-full text-left p-2 rounded-lg border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-white/5 hover:bg-white dark:hover:bg-white/10 transition-colors min-h-[76px]"
-                                >
-                                  <div className="flex items-center gap-1.5">
-                                    <span className={clsx('w-2 h-2 rounded-full flex-shrink-0', slot.readiness?.ready ? 'bg-emerald-500' : 'bg-red-500')} title={slot.readiness?.ready ? 'Ready' : 'Not ready'} />
-                                    <span className="text-xs font-semibold text-gray-800 dark:text-gray-200 truncate">{slot.productionOrderId?.catalogProduct?.name || slot.productionOrderId?.orderNumber || 'Batch'}</span>
-                                  </div>
-                                  <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-1 truncate">{personName(slot.leader) || 'No leader'}{slot.support?.length ? ` +${slot.support.length}` : ''}</p>
-                                  <span className={clsx('badge mt-1.5', STATUS_BADGE[slot.status] || 'badge-gray')}>{slot.status}</span>
-                                </button>
-                              ) : (
-                                <button
-                                  onClick={() => placeOnCell(dateStr, slotName)}
-                                  disabled={!isManager || !selectedTray}
-                                  className={clsx('w-full min-h-[76px] rounded-lg border border-dashed flex items-center justify-center text-xs transition-colors',
-                                    isManager && selectedTray
-                                      ? 'border-blue-300 dark:border-blue-500/40 text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-500/10 cursor-pointer'
-                                      : 'border-gray-200 dark:border-white/10 text-gray-300 dark:text-gray-600 cursor-default')}
-                                >
-                                  {isManager ? '+ Place' : '—'}
-                                </button>
-                              )}
-                            </td>
-                          );
-                        })}
+          <Row gutter={16} style={{ marginBottom: 16 }}>
+            <Col span={17}>
+              <Card
+                styles={{ body: { padding: 0 } }}
+                title="Timetable"
+                extra={selectedTray && isManager && <Text style={{ fontSize: 12, color: '#2563eb' }}>Selected: {selectedTray.catalogProduct?.name || selectedTray.orderNumber} — click an empty cell to place</Text>}
+              >
+                <div style={{ overflowX: 'auto' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                    <thead>
+                      <tr style={{ borderBottom: '1px solid #f0f0f0' }}>
+                        <th style={{ textAlign: 'left', fontSize: 11, fontWeight: 600, color: '#9ca3af', textTransform: 'uppercase', padding: '10px 16px', width: 56 }}></th>
+                        {weekDates.map((d, i) => (
+                          <th key={i} style={{ textAlign: 'left', fontSize: 11, fontWeight: 600, color: '#9ca3af', textTransform: 'uppercase', padding: '10px 12px', whiteSpace: 'nowrap' }}>
+                            {DAY_LABELS[i]} <span style={{ color: '#6b7280', textTransform: 'none', fontWeight: 500 }}>{fmtShort(d)}</span>
+                          </th>
+                        ))}
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
+                    </thead>
+                    <tbody>
+                      {SLOTS.map((slotName) => (
+                        <tr key={slotName} style={{ borderBottom: '1px solid #fafafa' }}>
+                          <td style={{ padding: '8px 16px', fontSize: 12, fontWeight: 700, color: '#9ca3af', verticalAlign: 'top' }}>{slotName}</td>
+                          {weekDates.map((d) => {
+                            const dateStr = toDateStr(d);
+                            const slot = slotAt(dateStr, slotName);
+                            return (
+                              <td key={dateStr + slotName} style={{ padding: '6px', verticalAlign: 'top' }}>
+                                {slot ? (
+                                  <button
+                                    onClick={() => setActiveSlot(slot)}
+                                    style={{ width: '100%', textAlign: 'left', padding: 8, borderRadius: 8, border: '1px solid #e5e7eb', background: '#fafafa', minHeight: 76, cursor: 'pointer' }}
+                                  >
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                      <span style={{ width: 8, height: 8, borderRadius: '50%', flexShrink: 0, background: slot.readiness?.ready ? '#10b981' : '#ef4444' }} title={slot.readiness?.ready ? 'Ready' : 'Not ready'} />
+                                      <Text strong style={{ fontSize: 12 }} ellipsis>{slot.productionOrderId?.catalogProduct?.name || slot.productionOrderId?.orderNumber || 'Batch'}</Text>
+                                    </div>
+                                    <Text type="secondary" style={{ fontSize: 11, display: 'block', marginTop: 4 }} ellipsis>{personName(slot.leader) || 'No leader'}{slot.support?.length ? ` +${slot.support.length}` : ''}</Text>
+                                    <Tag color={STATUS_COLOR[slot.status] || 'default'} style={{ marginTop: 6, fontSize: 10 }}>{slot.status}</Tag>
+                                  </button>
+                                ) : (
+                                  <button
+                                    onClick={() => placeOnCell(dateStr, slotName)}
+                                    disabled={!isManager || !selectedTray}
+                                    style={{
+                                      width: '100%', minHeight: 76, borderRadius: 8, border: '1px dashed', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12,
+                                      borderColor: isManager && selectedTray ? '#93c5fd' : '#e5e7eb', color: isManager && selectedTray ? '#3b82f6' : '#d1d5db',
+                                      cursor: isManager && selectedTray ? 'pointer' : 'default', background: 'transparent',
+                                    }}
+                                  >
+                                    {isManager ? '+ Place' : '—'}
+                                  </button>
+                                )}
+                              </td>
+                            );
+                          })}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </Card>
+            </Col>
 
-            {/* Tray sidebar */}
-            <div className="card overflow-hidden flex flex-col">
-              <div className="px-4 py-3.5 border-b border-gray-100 dark:border-[#1b2e4a]">
-                <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-300">Tray — Unscheduled Batches</h2>
-                <p className="text-xs text-gray-400 mt-0.5">{tray.length} waiting</p>
-              </div>
-              <div className="p-2 space-y-1.5 overflow-y-auto max-h-[520px]">
-                {tray.length === 0 ? (
-                  <p className="text-center text-gray-400 text-xs py-8">Tray is empty</p>
-                ) : tray.map((order) => (
-                  <button
-                    key={order._id}
-                    onClick={() => isManager && setSelectedTray((cur) => (cur?._id === order._id ? null : order))}
-                    disabled={!isManager}
-                    className={clsx('w-full text-left p-2.5 rounded-lg border transition-colors',
-                      selectedTray?._id === order._id
-                        ? 'border-blue-400 bg-blue-50 dark:bg-blue-500/10 ring-1 ring-blue-400'
-                        : 'border-gray-200 dark:border-white/10 hover:bg-gray-50 dark:hover:bg-white/5')}
-                  >
-                    <p className="text-xs font-semibold text-gray-800 dark:text-gray-200 truncate">{order.catalogProduct?.name || order.orderNumber}</p>
-                    <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5 truncate">{order.customer || '—'} · {order.batchSizeKg ? `${order.batchSizeKg}kg` : ''}</p>
-                    <p className="text-[11px] text-gray-400 mt-0.5">Delivery: {fmtDateStr(order.deliveryDate)}</p>
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          {/* Conflicts + Delivery risks + Credits */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-            <div className="card p-4">
-              <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 flex items-center gap-1.5 mb-2">
-                <ExclamationTriangleIcon className="w-4 h-4 text-amber-500" />Conflicts ({conflicts.length})
-              </h3>
-              {conflicts.length === 0 ? <p className="text-xs text-gray-400">None</p> : (
-                <ul className="space-y-1.5">
-                  {conflicts.map((c, i) => <li key={i} className="text-xs text-gray-600 dark:text-gray-300">{c.date} {c.slot} — {c.message}</li>)}
-                </ul>
-              )}
-            </div>
-            <div className="card p-4">
-              <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 flex items-center gap-1.5 mb-2">
-                <TruckIcon className="w-4 h-4 text-red-500" />Delivery Risks ({deliveryRisks.length})
-              </h3>
-              {deliveryRisks.length === 0 ? <p className="text-xs text-gray-400">None</p> : (
-                <ul className="space-y-1.5">
-                  {deliveryRisks.map((c, i) => <li key={i} className="text-xs text-gray-600 dark:text-gray-300">{c.date} {c.slot} — {c.message}</li>)}
-                </ul>
-              )}
-            </div>
-            <div className="card p-4">
-              <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 flex items-center gap-1.5 mb-2">
-                <UserGroupIcon className="w-4 h-4 text-blue-500" />Support Credits (this week)
-              </h3>
-              {credits.length === 0 ? <p className="text-xs text-gray-400">None yet</p> : (
-                <ul className="space-y-1">
-                  {credits.map((c) => (
-                    <li key={c.id} className="flex items-center justify-between text-xs text-gray-600 dark:text-gray-300">
-                      <span>{c.name}</span><span className="font-semibold">{c.count}</span>
-                    </li>
+            <Col span={7}>
+              <Card styles={{ body: { padding: 8 } }} title="Tray — Unscheduled Batches" extra={<Text type="secondary" style={{ fontSize: 12 }}>{tray.length} waiting</Text>}>
+                <div style={{ maxHeight: 480, overflowY: 'auto' }}>
+                  {tray.length === 0 ? (
+                    <Text type="secondary" style={{ fontSize: 12, textAlign: 'center', display: 'block', padding: '32px 0' }}>Tray is empty</Text>
+                  ) : tray.map((order) => (
+                    <button
+                      key={order._id}
+                      onClick={() => isManager && setSelectedTray((cur) => (cur?._id === order._id ? null : order))}
+                      disabled={!isManager}
+                      style={{
+                        width: '100%', textAlign: 'left', padding: 10, borderRadius: 8, border: '1px solid', marginBottom: 6, cursor: isManager ? 'pointer' : 'default',
+                        borderColor: selectedTray?._id === order._id ? '#60a5fa' : '#e5e7eb',
+                        background: selectedTray?._id === order._id ? '#eff6ff' : '#fff',
+                      }}
+                    >
+                      <Text strong style={{ fontSize: 12 }} ellipsis>{order.catalogProduct?.name || order.orderNumber}</Text>
+                      <div><Text type="secondary" style={{ fontSize: 11 }} ellipsis>{order.customer || '—'} · {order.batchSizeKg ? `${order.batchSizeKg}kg` : ''}</Text></div>
+                      <Text type="secondary" style={{ fontSize: 11 }}>Delivery: {fmtDateStr(order.deliveryDate)}</Text>
+                    </button>
                   ))}
-                </ul>
-              )}
-            </div>
-          </div>
+                </div>
+              </Card>
+            </Col>
+          </Row>
 
-          {/* Availability strip */}
-          <div className="card overflow-hidden">
-            <div className="px-5 py-3.5 border-b border-gray-100 dark:border-[#1b2e4a]">
-              <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-300">Availability — Production Team</h2>
-              <p className="text-xs text-gray-400 mt-0.5">
-                Blue "Busy" cells are real batch assignments from this schedule — click to open that order.{' '}
-                {isManager ? 'Other cells cycle: RD → Client → Docs → Leave → clear' : 'Read-only'}
-              </p>
+          <Row gutter={16} style={{ marginBottom: 16 }}>
+            <Col span={8}>
+              <Card size="small" title={<Space_><TriangleAlert size={14} color="#f59e0b" />Conflicts ({conflicts.length})</Space_>}>
+                {conflicts.length === 0 ? <Text type="secondary" style={{ fontSize: 12 }}>None</Text> : (
+                  <ul style={{ margin: 0, paddingLeft: 16 }}>
+                    {conflicts.map((c, i) => <li key={i}><Text style={{ fontSize: 12 }}>{c.date} {c.slot} — {c.message}</Text></li>)}
+                  </ul>
+                )}
+              </Card>
+            </Col>
+            <Col span={8}>
+              <Card size="small" title={<Space_><Truck size={14} color="#ef4444" />Delivery Risks ({deliveryRisks.length})</Space_>}>
+                {deliveryRisks.length === 0 ? <Text type="secondary" style={{ fontSize: 12 }}>None</Text> : (
+                  <ul style={{ margin: 0, paddingLeft: 16 }}>
+                    {deliveryRisks.map((c, i) => <li key={i}><Text style={{ fontSize: 12 }}>{c.date} {c.slot} — {c.message}</Text></li>)}
+                  </ul>
+                )}
+              </Card>
+            </Col>
+            <Col span={8}>
+              <Card size="small" title={<Space_><Users size={14} color="#3b82f6" />Support Credits (this week)</Space_>}>
+                {credits.length === 0 ? <Text type="secondary" style={{ fontSize: 12 }}>None yet</Text> : (
+                  <div>
+                    {credits.map((c) => (
+                      <div key={c.id} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, padding: '2px 0' }}>
+                        <Text style={{ fontSize: 12 }}>{c.name}</Text><Text strong style={{ fontSize: 12 }}>{c.count}</Text>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </Card>
+            </Col>
+          </Row>
+
+          <Card
+            styles={{ body: { padding: 0 } }}
+            title="Availability — Production Team"
+          >
+            <div style={{ padding: '0 16px 12px' }}>
+              <Text type="secondary" style={{ fontSize: 12 }}>
+                Blue "Busy" cells are real batch assignments from this schedule — click to open that order. {isManager ? 'Other cells cycle: RD → Client → Docs → Leave → clear' : 'Read-only'}
+              </Text>
             </div>
-            <div className="overflow-x-auto">
-              <table className="w-full border-collapse">
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <thead>
-                  <tr className="border-b border-gray-100 dark:border-[#1b2e4a]">
-                    <th className="text-left text-[11px] font-semibold text-gray-400 uppercase px-4 py-2.5 whitespace-nowrap">Person</th>
+                  <tr style={{ borderBottom: '1px solid #f0f0f0' }}>
+                    <th style={{ textAlign: 'left', fontSize: 11, fontWeight: 600, color: '#9ca3af', textTransform: 'uppercase', padding: '10px 16px', whiteSpace: 'nowrap' }}>Person</th>
                     {weekDates.map((d, i) => (
-                      <th key={i} className="text-left text-[11px] font-semibold text-gray-400 uppercase px-3 py-2.5 whitespace-nowrap">{DAY_LABELS[i]}</th>
+                      <th key={i} style={{ textAlign: 'left', fontSize: 11, fontWeight: 600, color: '#9ca3af', textTransform: 'uppercase', padding: '10px 12px', whiteSpace: 'nowrap' }}>{DAY_LABELS[i]}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
                   {prodUsers.length === 0 ? (
-                    <tr><td colSpan={7} className="text-center text-gray-400 py-8 text-sm">No active Production-dept users found</td></tr>
+                    <tr><td colSpan={7} style={{ textAlign: 'center', padding: '32px 0' }}><Text type="secondary">No active Production-dept users found</Text></td></tr>
                   ) : prodUsers.map((u) => (
-                    <tr key={u._id} className="border-b border-gray-50 dark:border-[#1b2e4a]/60">
-                      <td className="px-4 py-2 text-xs font-medium text-gray-700 dark:text-gray-300 whitespace-nowrap">{u.firstName} {u.lastName}</td>
+                    <tr key={u._id} style={{ borderBottom: '1px solid #fafafa' }}>
+                      <td style={{ padding: '8px 16px', fontSize: 12, fontWeight: 500, whiteSpace: 'nowrap' }}>{u.firstName} {u.lastName}</td>
                       {weekDates.map((d) => {
                         const dateStr = toDateStr(d);
                         const assignedSlot = assignedSlotFor(slots, u._id, dateStr);
@@ -492,29 +471,31 @@ export default function KitchenSchedule() {
                           const order = assignedSlot.productionOrderId || {};
                           const label = order.customer || order.orderNumber || 'Batch';
                           return (
-                            <td key={dateStr} className="px-1.5 py-1.5">
+                            <td key={dateStr} style={{ padding: 6 }}>
                               <button
                                 onClick={() => {
                                   if (order.leadId) navigate(`/samples?open=${order.leadId?._id || order.leadId}&leadTab=Production`);
                                   else setActiveSlot(assignedSlot);
                                 }}
                                 title={`${label} — currently at ${STAGE_NAMES[order.stage] ?? 'stage ' + order.stage}`}
-                                className="w-full py-1.5 rounded-md text-[11px] font-semibold bg-blue-100 text-blue-700 hover:brightness-95 truncate px-1"
+                                style={{ width: '100%', padding: '6px 4px', borderRadius: 6, fontSize: 11, fontWeight: 600, background: '#dbeafe', color: '#1d4ed8', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4, justifyContent: 'center' }}
                               >
-                                🏭 {label}
+                                <Factory size={11} />{label}
                               </button>
                             </td>
                           );
                         }
                         const block = blocks.find((b) => personId(b.userId) === u._id && b.date === dateStr);
                         return (
-                          <td key={dateStr} className="px-1.5 py-1.5">
+                          <td key={dateStr} style={{ padding: 6 }}>
                             <button
                               onClick={() => cycleBlock(dateStr, u._id)}
                               disabled={!isManager}
-                              className={clsx('w-full py-1.5 rounded-md text-[11px] font-semibold transition-colors',
-                                block ? BLOCK_BADGE[block.type] : 'bg-gray-50 dark:bg-white/5 text-gray-300 dark:text-gray-600',
-                                isManager && 'cursor-pointer hover:brightness-95')}
+                              style={{
+                                width: '100%', padding: '6px 4px', borderRadius: 6, fontSize: 11, fontWeight: 600, border: 'none',
+                                background: block ? BLOCK_COLOR[block.type] : '#fafafa', color: block ? BLOCK_TEXT[block.type] : '#d1d5db',
+                                cursor: isManager ? 'pointer' : 'default',
+                              }}
                             >
                               {block ? block.type : '—'}
                             </button>
@@ -526,140 +507,126 @@ export default function KitchenSchedule() {
                 </tbody>
               </table>
             </div>
-          </div>
+          </Card>
         </>
       )}
 
-      {activeSlot && (
-        <SlotModal
-          slot={activeSlot}
-          slots={slots}
-          prodUsers={prodUsers}
-          isManager={isManager}
-          onClose={() => setActiveSlot(null)}
-          onPatch={(body) => runWithReason(patchSlotMutation, { slotId: activeSlot._id, ...body })}
-          onRemove={() => {
-            if (!window.confirm('Remove this batch from the schedule?')) return;
-            runWithReason(removeSlotMutation, { slotId: activeSlot._id });
-          }}
-          busy={patchSlotMutation.isPending || removeSlotMutation.isPending}
-        />
-      )}
+      <SlotDrawer
+        slot={activeSlot}
+        slots={slots}
+        prodUsers={prodUsers}
+        isManager={isManager}
+        onClose={() => setActiveSlot(null)}
+        onPatch={(body) => activeSlot && runWithReason(patchSlotMutation, { slotId: activeSlot._id, ...body })}
+        onRemove={() => {
+          if (!window.confirm('Remove this batch from the schedule?')) return;
+          runWithReason(removeSlotMutation, { slotId: activeSlot._id });
+        }}
+        busy={patchSlotMutation.isPending || removeSlotMutation.isPending}
+      />
     </div>
   );
 }
 
-// ── Slot detail modal ────────────────────────────────────────────────────
+function Space_({ children }) {
+  return <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>{children}</div>;
+}
 
-function SlotModal({ slot, slots, prodUsers, isManager, onClose, onPatch, onRemove, busy }) {
-  const [leaderId, setLeaderId] = useState(personId(slot.leader) || '');
-  const [support1, setSupport1] = useState(personId(slot.support?.[0]) || '');
+// ── Slot detail drawer ────────────────────────────────────────────────────
+
+function SlotDrawer({ slot, slots, prodUsers, isManager, onClose, onPatch, onRemove, busy }) {
+  const [leaderId, setLeaderId] = useState('');
+  const [support1, setSupport1] = useState('');
+
+  React.useEffect(() => {
+    if (slot) {
+      setLeaderId(personId(slot.leader) || '');
+      setSupport1(personId(slot.support?.[0]) || '');
+    }
+  }, [slot]);
+
+  if (!slot) {
+    return <Drawer open={false} onClose={onClose} width={480} />;
+  }
+
   const readiness = readinessEntries(slot.readiness);
   const order = slot.productionOrderId || {};
 
-  // Double-booking guard — people already leader/support on another batch in this exact
-  // date+slot don't show up here, so a manager can't accidentally assign them twice.
-  const busyIds = useMemo(() => busyUserIdsAt(slots, slot.date, slot._id), [slots, slot.date, slot._id]);
+  const busyIds = busyUserIdsAt(slots, slot.date, slot._id);
   const availableUsers = (excludeId) => prodUsers.filter((u) => u._id === excludeId || !busyIds.has(u._id));
 
-  const saveAssignment = () => {
-    onPatch({ leader: leaderId || null, support: support1 ? [support1] : [] });
-  };
+  const saveAssignment = () => onPatch({ leader: leaderId || null, support: support1 ? [support1] : [] });
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-gray-900/60 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative card w-full max-w-lg shadow-modal max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between p-5 border-b border-gray-100 dark:border-[#1b2e4a]">
-          <div>
-            <h3 className="font-bold text-gray-900 dark:text-white">{order.catalogProduct?.name || order.orderNumber || 'Batch'}</h3>
-            <p className="text-xs text-gray-400 mt-0.5">{slot.date} · {slot.slot} · <span className={clsx('badge', STATUS_BADGE[slot.status] || 'badge-gray')}>{slot.status}</span></p>
-          </div>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors">
-            <XMarkIcon className="w-5 h-5" />
-          </button>
+    <Drawer
+      open={!!slot} onClose={onClose} width={480}
+      title={
+        <div>
+          <div>{order.catalogProduct?.name || order.orderNumber || 'Batch'}</div>
+          <Text type="secondary" style={{ fontSize: 12, fontWeight: 400 }}>{slot.date} · {slot.slot} · <Tag color={STATUS_COLOR[slot.status] || 'default'}>{slot.status}</Tag></Text>
         </div>
-
-        <div className="p-5 space-y-4">
-          <div className="grid grid-cols-2 gap-3 text-xs">
-            <div><p className="text-gray-400 uppercase text-[10px]">Customer</p><p className="text-gray-700 dark:text-gray-300 font-medium">{order.customer || '—'}</p></div>
-            <div><p className="text-gray-400 uppercase text-[10px]">Delivery</p><p className="text-gray-700 dark:text-gray-300 font-medium">{fmtDateStr(order.deliveryDate)}</p></div>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-              <label className="label">Batch Leader</label>
-              {isManager ? (
-                <select value={leaderId} onChange={(e) => setLeaderId(e.target.value)} className="input">
-                  <option value="">Select leader</option>
-                  {availableUsers(leaderId).map((u) => <option key={u._id} value={u._id}>{u.firstName} {u.lastName}</option>)}
-                </select>
-              ) : (
-                <p className="text-sm text-gray-700 dark:text-gray-300">{personName(slot.leader) || '—'}</p>
-              )}
-            </div>
-            <div>
-              <label className="label">Support</label>
-              {isManager ? (
-                <select value={support1} onChange={(e) => setSupport1(e.target.value)} className="input">
-                  <option value="">None</option>
-                  {availableUsers(support1).map((u) => <option key={u._id} value={u._id}>{u.firstName} {u.lastName}</option>)}
-                </select>
-              ) : (
-                <p className="text-sm text-gray-700 dark:text-gray-300">{personName(slot.support?.[0]) || '—'}</p>
-              )}
-            </div>
-            {isManager && (
-              <div className="flex items-end col-span-1 sm:col-span-2">
-                <button onClick={saveAssignment} disabled={busy} className="btn-secondary w-full justify-center">Save Assignment</button>
-              </div>
+      }
+      footer={
+        isManager && (
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
+            {slot.status === 'Planned' && (
+              <Button type="primary" disabled={busy || !slot.readiness?.ready} title={!slot.readiness?.ready ? 'Not all readiness checks pass yet' : undefined} onClick={() => onPatch({ status: 'Confirmed' })}>Confirm</Button>
             )}
+            {slot.status === 'Confirmed' && <Button type="primary" disabled={busy} onClick={() => onPatch({ status: 'In Progress' })}>Start</Button>}
+            {slot.status === 'In Progress' && <Button type="primary" disabled={busy} onClick={() => onPatch({ status: 'Done' })}>Done</Button>}
+            <Button danger disabled={busy} style={{ marginLeft: 'auto' }} onClick={onRemove}>Remove</Button>
           </div>
-          {isManager && busyIds.size > 0 && (
-            <p className="text-[11px] text-gray-400">
-              {busyIds.size} {busyIds.size === 1 ? 'person is' : 'people are'} already on another batch that day — hidden from these lists.
-            </p>
-          )}
+        )
+      }
+    >
+      <Row gutter={[12, 16]}>
+        <Col span={12}><Text type="secondary" style={{ fontSize: 11, textTransform: 'uppercase', display: 'block' }}>Customer</Text><Text strong style={{ fontSize: 13 }}>{order.customer || '—'}</Text></Col>
+        <Col span={12}><Text type="secondary" style={{ fontSize: 11, textTransform: 'uppercase', display: 'block' }}>Delivery</Text><Text strong style={{ fontSize: 13 }}>{fmtDateStr(order.deliveryDate)}</Text></Col>
 
+        <Col span={12}>
+          <Text strong style={{ display: 'block', marginBottom: 6, fontSize: 12 }}>Batch Leader</Text>
+          {isManager ? (
+            <Select
+              style={{ width: '100%' }} value={leaderId || undefined} onChange={setLeaderId} allowClear placeholder="Select leader"
+              options={availableUsers(leaderId).map((u) => ({ label: `${u.firstName} ${u.lastName}`, value: u._id }))}
+            />
+          ) : <Text style={{ fontSize: 13 }}>{personName(slot.leader) || '—'}</Text>}
+        </Col>
+        <Col span={12}>
+          <Text strong style={{ display: 'block', marginBottom: 6, fontSize: 12 }}>Support</Text>
+          {isManager ? (
+            <Select
+              style={{ width: '100%' }} value={support1 || undefined} onChange={setSupport1} allowClear placeholder="None"
+              options={availableUsers(support1).map((u) => ({ label: `${u.firstName} ${u.lastName}`, value: u._id }))}
+            />
+          ) : <Text style={{ fontSize: 13 }}>{personName(slot.support?.[0]) || '—'}</Text>}
+        </Col>
+        {isManager && (
+          <Col span={24}>
+            <Button block onClick={saveAssignment} loading={busy}>Save Assignment</Button>
+          </Col>
+        )}
+      </Row>
+
+      {isManager && busyIds.size > 0 && (
+        <Text type="secondary" style={{ fontSize: 11, display: 'block', marginTop: 8 }}>
+          {busyIds.size} {busyIds.size === 1 ? 'person is' : 'people are'} already on another batch that day — hidden from these lists.
+        </Text>
+      )}
+
+      <div style={{ marginTop: 20 }}>
+        <Text strong style={{ display: 'block', marginBottom: 8, fontSize: 12 }}>Readiness</Text>
+        {readiness.length === 0 ? <Text type="secondary" style={{ fontSize: 12 }}>No readiness data</Text> : (
           <div>
-            <p className="label mb-2">Readiness</p>
-            <div className="space-y-1.5">
-              {readiness.length === 0 ? <p className="text-xs text-gray-400">No readiness data</p> : readiness.map((r) => (
-                <div key={r.key} className="flex items-start gap-2 text-xs">
-                  <span className={clsx('mt-0.5 w-3.5 h-3.5 rounded-full flex-shrink-0 flex items-center justify-center text-[9px] font-bold text-white', r.ok ? 'bg-emerald-500' : 'bg-red-500')}>
-                    {r.ok ? '✓' : '✕'}
-                  </span>
-                  <span className="text-gray-700 dark:text-gray-300">
-                    {r.label}{r.detail ? <span className="text-gray-400"> — {r.detail}</span> : null}
-                  </span>
-                </div>
-              ))}
-            </div>
+            {readiness.map((r) => (
+              <div key={r.key} style={{ display: 'flex', alignItems: 'flex-start', gap: 8, fontSize: 12, marginBottom: 6 }}>
+                {r.ok ? <CheckCircle2 size={14} color="#10b981" style={{ marginTop: 1, flexShrink: 0 }} /> : <XCircle size={14} color="#ef4444" style={{ marginTop: 1, flexShrink: 0 }} />}
+                <Text style={{ fontSize: 12 }}>{r.label}{r.detail ? <Text type="secondary" style={{ fontSize: 12 }}> — {r.detail}</Text> : null}</Text>
+              </div>
+            ))}
           </div>
-
-          {isManager && (
-            <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-gray-100 dark:border-[#1b2e4a]">
-              {slot.status === 'Planned' && (
-                <button
-                  onClick={() => onPatch({ status: 'Confirmed' })}
-                  disabled={busy || !slot.readiness?.ready}
-                  title={!slot.readiness?.ready ? 'Not all readiness checks pass yet' : undefined}
-                  className="btn-primary"
-                >
-                  Confirm
-                </button>
-              )}
-              {slot.status === 'Confirmed' && (
-                <button onClick={() => onPatch({ status: 'In Progress' })} disabled={busy} className="btn-primary">Start</button>
-              )}
-              {slot.status === 'In Progress' && (
-                <button onClick={() => onPatch({ status: 'Done' })} disabled={busy} className="btn-primary">Done</button>
-              )}
-              <button onClick={onRemove} disabled={busy} className="btn-danger ml-auto">Remove</button>
-            </div>
-          )}
-        </div>
+        )}
       </div>
-    </div>
+    </Drawer>
   );
 }

@@ -19,6 +19,11 @@ export const workflowTheme = {
     borderRadius: 10,
     borderRadiusLG: 14,
     borderRadiusSM: 8,
+    // Sidebar.jsx's desktop rail is position:fixed with z-index 1100 (so it floats above
+    // content when hover-expanded, per Layout.jsx) — that's higher than antd's default
+    // popup base (1000), so every Modal/Drawer/Dropdown in the app rendered *underneath*
+    // the sidebar. Raise the base so all antd overlays clear it.
+    zIndexPopupBase: 1200,
     fontFamily:
       "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
     fontSize: 14,

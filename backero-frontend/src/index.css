@@ -63,6 +63,18 @@
   /* lucide-react icons scale with surrounding text, matching @ant-design/icons' 1em sizing */
   svg.lucide { width: 1em; height: 1em; stroke-width: 2; vertical-align: -0.125em; flex-shrink: 0; }
 
+  /* Inside antd's own flex icon slots (Button/Drawer-title/Modal-title/etc.), antd already
+     centers the icon via align-items:center on the wrapping span — the inline vertical-align
+     offset above was fighting that centering and nudging the icon down relative to its label. */
+  .ant-btn-icon svg.lucide,
+  .ant-drawer-header-title svg.lucide,
+  .ant-modal-title svg.lucide,
+  .ant-tabs-tab svg.lucide,
+  .ant-menu-item svg.lucide,
+  .ant-menu-submenu-title svg.lucide {
+    vertical-align: middle;
+  }
+
   body {
     background: var(--zone-bg, var(--s-page));
     color: var(--t-primary);

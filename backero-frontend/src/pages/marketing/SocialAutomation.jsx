@@ -1,26 +1,31 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
-  SparklesIcon, UserGroupIcon, ChatBubbleLeftRightIcon, ChartBarIcon,
-  SignalIcon, CheckIcon, XMarkIcon, PaperAirplaneIcon,
-  MegaphoneIcon, CalendarDaysIcon, EyeIcon, Cog6ToothIcon,
-} from '@heroicons/react/24/outline';
+  Sparkles, Users, MessageCircle, BarChart3, Radio, Check, X, Send,
+  Megaphone, CalendarDays, Eye, Settings as SettingsIcon, TriangleAlert, Lock, CheckCircle2,
+} from 'lucide-react';
 import api from '../../api/axios';
 import toast from 'react-hot-toast';
-import { clsx } from 'clsx';
 import { useAuthStore } from '../../store/useAuthStore';
+import {
+  Button, Card, Checkbox, Empty as AntEmpty, Input, Progress, Select, Space, Spin,
+  Statistic, Table, Tabs, Tag, Typography, Upload,
+} from 'antd';
+
+const { Title, Text, Paragraph } = Typography;
+const { TextArea } = Input;
 
 const TABS = [
-  { key: 'overview',    label: 'Overview',    icon: SparklesIcon },
-  { key: 'create',      label: 'Create Post', icon: SparklesIcon },
-  { key: 'leads',       label: 'Leads',       icon: UserGroupIcon },
-  { key: 'engagement',  label: 'Engagement',  icon: ChatBubbleLeftRightIcon },
-  { key: 'analytics',   label: 'Analytics',   icon: ChartBarIcon },
-  { key: 'accounts',    label: 'Accounts',    icon: SignalIcon },
-  { key: 'ads',         label: 'Ads',         icon: MegaphoneIcon },
-  { key: 'festivals',   label: 'Festivals',   icon: CalendarDaysIcon },
-  { key: 'competitors', label: 'Competitors', icon: EyeIcon },
-  { key: 'settings',    label: 'Settings',    icon: Cog6ToothIcon },
+  { key: 'overview', label: 'Overview', icon: Sparkles },
+  { key: 'create', label: 'Create Post', icon: Sparkles },
+  { key: 'leads', label: 'Leads', icon: Users },
+  { key: 'engagement', label: 'Engagement', icon: MessageCircle },
+  { key: 'analytics', label: 'Analytics', icon: BarChart3 },
+  { key: 'accounts', label: 'Accounts', icon: Radio },
+  { key: 'ads', label: 'Ads', icon: Megaphone },
+  { key: 'festivals', label: 'Festivals', icon: CalendarDays },
+  { key: 'competitors', label: 'Competitors', icon: Eye },
+  { key: 'settings', label: 'Settings', icon: SettingsIcon },
 ];
 
 const PILLARS = ['product', 'tutorial', 'behind-the-scenes', 'testimonial', 'industry-education'];
@@ -34,80 +39,57 @@ const PLATFORM_OPTIONS = [
 ];
 
 const LEAD_STAGES = ['new', 'nurturing', 'booked', 'won', 'lost'];
-const STAGE_BADGE = { new: 'badge-gray', nurturing: 'badge-blue', booked: 'badge-purple', won: 'badge-green', lost: 'badge-red' };
+const STAGE_COLOR = { new: 'default', nurturing: 'blue', booked: 'purple', won: 'green', lost: 'red' };
 
 const REPLY_STATES = ['draft', 'escalated', 'approved', 'sent', 'skipped'];
-const REPLY_STATE_BADGE = { draft: 'badge-amber', escalated: 'badge-red', approved: 'badge-blue', sent: 'badge-green', skipped: 'badge-gray' };
-const URGENCY_BADGE = { high: 'badge-red', medium: 'badge-amber', low: 'badge-gray' };
+const REPLY_STATE_COLOR = { draft: 'gold', escalated: 'red', approved: 'blue', sent: 'green', skipped: 'default' };
+const URGENCY_COLOR = { high: 'red', medium: 'gold', low: 'default' };
 
 export default function SocialAutomation() {
-  const [tab, setTab] = useState('overview');
-
   return (
-    <div className="space-y-6">
-      <div className="page-header">
-        <div>
-          <h1 className="page-title">Social Automation</h1>
-          <p className="text-sm mt-1" style={{ color: 'var(--t-sub)' }}>
-            Content generation, leads, engagement AI, and analytics — powered by the marketing engine. Looking to
-            approve a post? That's under <span className="font-semibold">Social Approvals</span>.
-          </p>
-        </div>
-      </div>
+    <div>
+      <Title level={4} style={{ marginBottom: 0 }}>Social Automation</Title>
+      <Text type="secondary">
+        Content generation, leads, engagement AI, and analytics — powered by the marketing engine. Looking to
+        approve a post? That's under <Text strong>Social Approvals</Text>.
+      </Text>
 
-      <div className="flex gap-1 border-b" style={{ borderColor: 'rgba(15,23,42,0.08)' }}>
-        {TABS.map((t) => (
-          <button
-            key={t.key}
-            onClick={() => setTab(t.key)}
-            className={clsx('px-4 py-2 text-sm font-medium border-b-2 transition-colors -mb-px flex items-center gap-1.5',
-              tab === t.key ? 'border-brand-600 text-brand-600' : 'border-transparent hover:opacity-80')}
-            style={tab !== t.key ? { color: 'var(--t-sub)' } : undefined}
-          >
-            <t.icon className="w-4 h-4" />
-            {t.label}
-          </button>
-        ))}
-      </div>
-
-      {tab === 'overview' && <OverviewTab />}
-      {tab === 'create' && <CreateTab />}
-      {tab === 'leads' && <LeadsTab />}
-      {tab === 'engagement' && <EngagementTab />}
-      {tab === 'analytics' && <AnalyticsTab />}
-      {tab === 'accounts' && <AccountsTab />}
-      {tab === 'ads' && <AdsTab />}
-      {tab === 'festivals' && <FestivalsTab />}
-      {tab === 'competitors' && <CompetitorsTab />}
-      {tab === 'settings' && <SettingsTab />}
+      <Tabs
+        style={{ marginTop: 12 }}
+        items={TABS.map((t) => ({
+          key: t.key,
+          label: <Space size={6}><t.icon size={14} />{t.label}</Space>,
+          children: <TabContent tabKey={t.key} />,
+        }))}
+      />
     </div>
   );
+}
+
+function TabContent({ tabKey }) {
+  switch (tabKey) {
+    case 'overview': return <OverviewTab />;
+    case 'create': return <CreateTab />;
+    case 'leads': return <LeadsTab />;
+    case 'engagement': return <EngagementTab />;
+    case 'analytics': return <AnalyticsTab />;
+    case 'accounts': return <AccountsTab />;
+    case 'ads': return <AdsTab />;
+    case 'festivals': return <FestivalsTab />;
+    case 'competitors': return <CompetitorsTab />;
+    case 'settings': return <SettingsTab />;
+    default: return null;
+  }
 }
 
 /* ── Small pieces ─────────────────────────────────────────────────────────── */
 
-function StatCard({ label, value, badge }) {
-  return (
-    <div className="stat-card">
-      <div>
-        <div className="text-xs mb-1" style={{ color: 'var(--t-muted)' }}>{label}</div>
-        <div className="text-2xl font-bold" style={{ color: 'var(--t-primary)' }}>{value}</div>
-        {badge && <span className={clsx('badge mt-1', badge)}>{badge.replace('badge-', '')}</span>}
-      </div>
-    </div>
-  );
-}
-
 function Loading() {
-  return <p className="text-sm py-8 text-center" style={{ color: 'var(--t-muted)' }}>Loading…</p>;
+  return <div style={{ textAlign: 'center', padding: 48 }}><Spin /></div>;
 }
 
 function Empty({ children }) {
-  return (
-    <div className="empty-state">
-      <p className="text-sm" style={{ color: 'var(--t-muted)' }}>{children}</p>
-    </div>
-  );
+  return <Card><AntEmpty description={children} /></Card>;
 }
 
 /* ── Overview ─────────────────────────────────────────────────────────────── */
@@ -124,25 +106,23 @@ function OverviewTab() {
   const costPct = data.cost_budget_total ? Math.round((data.cost_spent_this_month / data.cost_budget_total) * 100) : 0;
 
   return (
-    <div className="space-y-6">
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-        <StatCard label="Pending review" value={data.pending_review} />
-        <StatCard label="Approved & queued" value={data.approved_queued} />
-        <StatCard label="Failed — needs review" value={data.failed} />
-        <StatCard label="New leads" value={data.new_leads} />
-        <StatCard label="Comments needing a human" value={data.comments_needing_human} />
+    <Space direction="vertical" style={{ width: '100%' }} size={16}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 12 }}>
+        <Card size="small"><Statistic title="Pending review" value={data.pending_review} /></Card>
+        <Card size="small"><Statistic title="Approved & queued" value={data.approved_queued} /></Card>
+        <Card size="small"><Statistic title="Failed — needs review" value={data.failed} /></Card>
+        <Card size="small"><Statistic title="New leads" value={data.new_leads} /></Card>
+        <Card size="small"><Statistic title="Comments needing a human" value={data.comments_needing_human} /></Card>
       </div>
-      <div className="card p-4 max-w-sm">
-        <div className="text-xs mb-1" style={{ color: 'var(--t-muted)' }}>Cost spent this month</div>
-        <div className="text-2xl font-bold" style={{ color: 'var(--t-primary)' }}>
+      <Card size="small" style={{ maxWidth: 320 }}>
+        <Text type="secondary" style={{ fontSize: 12 }}>Cost spent this month</Text>
+        <Title level={4} style={{ margin: '4px 0' }}>
           ${data.cost_spent_this_month.toFixed(2)}
-          <span className="text-sm font-normal" style={{ color: 'var(--t-muted)' }}> / ${data.cost_budget_total.toFixed(2)}</span>
-        </div>
-        <div className="w-full h-1.5 rounded-full mt-2 overflow-hidden" style={{ background: 'var(--zone-bg, #f1f5f9)' }}>
-          <div className={clsx('h-full', costPct > 80 ? 'bg-red-500' : 'bg-emerald-500')} style={{ width: `${Math.min(costPct, 100)}%` }} />
-        </div>
-      </div>
-    </div>
+          <Text type="secondary" style={{ fontSize: 13, fontWeight: 400 }}> / ${data.cost_budget_total.toFixed(2)}</Text>
+        </Title>
+        <Progress percent={Math.min(costPct, 100)} showInfo={false} status={costPct > 80 ? 'exception' : 'active'} strokeColor={costPct > 80 ? undefined : '#22c55e'} />
+      </Card>
+    </Space>
   );
 }
 
@@ -150,21 +130,19 @@ function OverviewTab() {
 
 function CreateTab() {
   return (
-    <div className="max-w-lg space-y-8">
+    <Space direction="vertical" style={{ width: '100%', maxWidth: 560 }} size={16}>
       <GenerateSection />
-      <div className="divider" />
       <VideoIngestSection />
-      <div className="divider" />
       <ManualPostSection />
-    </div>
+    </Space>
   );
 }
 
 function SuccessBanner({ children }) {
   return (
-    <div className="rounded-lg px-4 py-3 text-sm" style={{ background: 'rgba(16,185,129,0.08)', color: '#059669', border: '1px solid rgba(16,185,129,0.2)' }}>
-      {children}
-    </div>
+    <Card size="small" style={{ background: '#f0fdf4', borderColor: '#bbf7d0' }}>
+      <Text style={{ fontSize: 13, color: '#059669' }}>{children}</Text>
+    </Card>
   );
 }
 
@@ -179,28 +157,25 @@ function GenerateSection() {
   });
 
   return (
-    <div className="card p-5 space-y-4">
-      <h3 className="section-title">Generate with AI</h3>
-      <div>
-        <label className="label">Content pillar</label>
-        <select value={pillar} onChange={(e) => setPillar(e.target.value)} className="input">
-          {PILLARS.map((p) => <option key={p} value={p}>{p}</option>)}
-        </select>
-      </div>
-      <button
-        onClick={() => { setResult(null); generateMutation.mutate(); }}
-        disabled={generateMutation.isPending}
-        className="btn-primary w-full justify-center"
-      >
-        <SparklesIcon className="w-4 h-4" />
-        {generateMutation.isPending ? 'Generating… (image/video can take a minute)' : 'Generate post'}
-      </button>
-      {result && (
-        <SuccessBanner>
-          Created post #{result.post_id} — <em>{result.topic}</em>. It's been sent to <strong>Social Approvals</strong> for review.
-        </SuccessBanner>
-      )}
-    </div>
+    <Card title="Generate with AI">
+      <Space direction="vertical" style={{ width: '100%' }} size={12}>
+        <div>
+          <Text strong style={{ fontSize: 12, display: 'block', marginBottom: 6 }}>Content pillar</Text>
+          <Select style={{ width: '100%' }} value={pillar} onChange={setPillar} options={PILLARS.map((p) => ({ label: p, value: p }))} />
+        </div>
+        <Button
+          type="primary" icon={<Sparkles size={14} />} block loading={generateMutation.isPending}
+          onClick={() => { setResult(null); generateMutation.mutate(); }}
+        >
+          {generateMutation.isPending ? 'Generating… (image/video can take a minute)' : 'Generate post'}
+        </Button>
+        {result && (
+          <SuccessBanner>
+            Created post #{result.post_id} — <em>{result.topic}</em>. It's been sent to <Text strong>Social Approvals</Text> for review.
+          </SuccessBanner>
+        )}
+      </Space>
+    </Card>
   );
 }
 
@@ -223,40 +198,41 @@ function VideoIngestSection() {
   });
 
   return (
-    <div className="card p-5 space-y-4">
-      <h3 className="section-title">Auto-analyze a raw video</h3>
-      <p className="text-sm" style={{ color: 'var(--t-sub)' }}>
-        Upload a raw video and the pipeline transcribes it, writes the caption/hashtags from what's said,
-        auto-edits it (trim, 9:16 crop, captions, music), picks fitting platforms, and schedules it. Lands in
-        <strong> Social Approvals</strong> — nothing publishes without approval.
-      </p>
-      <div>
-        <label className="label">Raw video (mp4, mov)</label>
-        <input type="file" accept="video/mp4,video/quicktime" onChange={(e) => setFile(e.target.files?.[0] || null)} className="input" />
-      </div>
-      <div className="grid grid-cols-2 gap-3">
+    <Card title="Auto-analyze a raw video">
+      <Space direction="vertical" style={{ width: '100%' }} size={12}>
+        <Text type="secondary" style={{ fontSize: 13 }}>
+          Upload a raw video and the pipeline transcribes it, writes the caption/hashtags from what's said,
+          auto-edits it (trim, 9:16 crop, captions, music), picks fitting platforms, and schedules it. Lands in
+          <Text strong> Social Approvals</Text> — nothing publishes without approval.
+        </Text>
         <div>
-          <label className="label">Pillar</label>
-          <input className="input" value={pillar} onChange={(e) => setPillar(e.target.value)} />
+          <Text strong style={{ fontSize: 12, display: 'block', marginBottom: 6 }}>Raw video (mp4, mov)</Text>
+          <Upload beforeUpload={(f) => { setFile(f); return false; }} onRemove={() => setFile(null)} fileList={file ? [file] : []} accept="video/mp4,video/quicktime" maxCount={1}>
+            <Button>Select video</Button>
+          </Upload>
         </div>
-        <div className="flex items-center gap-2 mt-5">
-          <input type="checkbox" id="auto-edit" checked={autoEdit} onChange={(e) => setAutoEdit(e.target.checked)} />
-          <label htmlFor="auto-edit" className="text-sm" style={{ color: 'var(--t-sub)' }}>Run auto-edit pass</label>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          <div>
+            <Text strong style={{ fontSize: 12, display: 'block', marginBottom: 6 }}>Pillar</Text>
+            <Input value={pillar} onChange={(e) => setPillar(e.target.value)} />
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', marginTop: 20 }}>
+            <Checkbox checked={autoEdit} onChange={(e) => setAutoEdit(e.target.checked)}>Run auto-edit pass</Checkbox>
+          </div>
         </div>
-      </div>
-      <button
-        onClick={() => { setResult(null); ingestMutation.mutate(); }}
-        disabled={!file || ingestMutation.isPending}
-        className="btn-primary w-full justify-center"
-      >
-        {ingestMutation.isPending ? 'Analyzing… (can take a few minutes)' : 'Analyze & queue for review'}
-      </button>
-      {result && (
-        <SuccessBanner>
-          ✅ Post #{result.post_id} created — fits {result.platforms.join(', ') || 'no platform'}, transcript via {result.transcript_source}.
-        </SuccessBanner>
-      )}
-    </div>
+        <Button
+          type="primary" block disabled={!file} loading={ingestMutation.isPending}
+          onClick={() => { setResult(null); ingestMutation.mutate(); }}
+        >
+          {ingestMutation.isPending ? 'Analyzing… (can take a few minutes)' : 'Analyze & queue for review'}
+        </Button>
+        {result && (
+          <SuccessBanner>
+            Post #{result.post_id} created — fits {result.platforms.join(', ') || 'no platform'}, transcript via {result.transcript_source}.
+          </SuccessBanner>
+        )}
+      </Space>
+    </Card>
   );
 }
 
@@ -299,64 +275,54 @@ function ManualPostSection() {
   const canSave = file && caption.trim() && platforms.length > 0 && (publishNow || scheduledAt);
 
   return (
-    <div className="card p-5 space-y-4">
-      <h3 className="section-title">Create & schedule a post manually</h3>
-      <div>
-        <label className="label">Media (image or video)</label>
-        <input type="file" accept="image/*,video/*" onChange={(e) => setFile(e.target.files?.[0] || null)} className="input" />
-      </div>
-      <div>
-        <label className="label">Pillar</label>
-        <input className="input" value={pillar} onChange={(e) => setPillar(e.target.value)} placeholder="e.g. product, tips" />
-      </div>
-      <div>
-        <label className="label">Topic</label>
-        <input className="input" value={topic} onChange={(e) => setTopic(e.target.value)} placeholder="e.g. 5 mistakes beginners make" />
-      </div>
-      <div>
-        <label className="label">Caption</label>
-        <textarea className="input" rows={4} value={caption} onChange={(e) => setCaption(e.target.value)} placeholder="Write your caption..." />
-      </div>
-      <div>
-        <label className="label">Hashtags</label>
-        <input className="input" value={hashtagsRaw} onChange={(e) => setHashtagsRaw(e.target.value)} placeholder="#growth #smallbiz" />
-      </div>
-      <div>
-        <label className="label">Publish to</label>
-        <div className="flex flex-wrap gap-2">
-          {PLATFORM_OPTIONS.map((p) => (
-            <button
-              key={p.value}
-              type="button"
-              onClick={() => togglePlatform(p.value)}
-              className={clsx('badge cursor-pointer', platforms.includes(p.value) ? 'badge-blue' : 'badge-gray')}
-            >
-              {p.label}
-            </button>
-          ))}
-        </div>
-      </div>
-      <div className="flex items-center gap-2">
-        <input type="checkbox" id="publish-now" checked={publishNow} onChange={(e) => setPublishNow(e.target.checked)} />
-        <label htmlFor="publish-now" className="text-sm" style={{ color: 'var(--t-sub)' }}>Publish ASAP</label>
-      </div>
-      {!publishNow && (
+    <Card title="Create & schedule a post manually">
+      <Space direction="vertical" style={{ width: '100%' }} size={12}>
         <div>
-          <label className="label">Scheduled time</label>
-          <input type="datetime-local" className="input" value={scheduledAt} onChange={(e) => setScheduledAt(e.target.value)} />
+          <Text strong style={{ fontSize: 12, display: 'block', marginBottom: 6 }}>Media (image or video)</Text>
+          <Upload beforeUpload={(f) => { setFile(f); return false; }} onRemove={() => setFile(null)} fileList={file ? [file] : []} accept="image/*,video/*" maxCount={1}>
+            <Button>Select media</Button>
+          </Upload>
         </div>
-      )}
-      <div className="flex items-center gap-2">
-        <input type="checkbox" id="send-for-review" checked={sendForReview} onChange={(e) => setSendForReview(e.target.checked)} />
-        <label htmlFor="send-for-review" className="text-sm" style={{ color: 'var(--t-sub)' }}>Send for review first (recommended)</label>
-      </div>
-      <button onClick={() => { setResult(null); saveMutation.mutate(); }} disabled={!canSave || saveMutation.isPending} className="btn-primary w-full justify-center">
-        {saveMutation.isPending ? 'Saving…' : 'Save post'}
-      </button>
-      {result && (
-        <SuccessBanner>Post #{result.post_id} saved as {result.state === 'review' ? 'review' : 'approved & scheduled'}.</SuccessBanner>
-      )}
-    </div>
+        <div>
+          <Text strong style={{ fontSize: 12, display: 'block', marginBottom: 6 }}>Pillar</Text>
+          <Input value={pillar} onChange={(e) => setPillar(e.target.value)} placeholder="e.g. product, tips" />
+        </div>
+        <div>
+          <Text strong style={{ fontSize: 12, display: 'block', marginBottom: 6 }}>Topic</Text>
+          <Input value={topic} onChange={(e) => setTopic(e.target.value)} placeholder="e.g. 5 mistakes beginners make" />
+        </div>
+        <div>
+          <Text strong style={{ fontSize: 12, display: 'block', marginBottom: 6 }}>Caption</Text>
+          <TextArea rows={4} value={caption} onChange={(e) => setCaption(e.target.value)} placeholder="Write your caption..." />
+        </div>
+        <div>
+          <Text strong style={{ fontSize: 12, display: 'block', marginBottom: 6 }}>Hashtags</Text>
+          <Input value={hashtagsRaw} onChange={(e) => setHashtagsRaw(e.target.value)} placeholder="#growth #smallbiz" />
+        </div>
+        <div>
+          <Text strong style={{ fontSize: 12, display: 'block', marginBottom: 6 }}>Publish to</Text>
+          <Space size={8} wrap>
+            {PLATFORM_OPTIONS.map((p) => (
+              <Tag.CheckableTag key={p.value} checked={platforms.includes(p.value)} onChange={() => togglePlatform(p.value)}>
+                {p.label}
+              </Tag.CheckableTag>
+            ))}
+          </Space>
+        </div>
+        <Checkbox checked={publishNow} onChange={(e) => setPublishNow(e.target.checked)}>Publish ASAP</Checkbox>
+        {!publishNow && (
+          <div>
+            <Text strong style={{ fontSize: 12, display: 'block', marginBottom: 6 }}>Scheduled time</Text>
+            <Input type="datetime-local" value={scheduledAt} onChange={(e) => setScheduledAt(e.target.value)} />
+          </div>
+        )}
+        <Checkbox checked={sendForReview} onChange={(e) => setSendForReview(e.target.checked)}>Send for review first (recommended)</Checkbox>
+        <Button type="primary" block disabled={!canSave} loading={saveMutation.isPending} onClick={() => { setResult(null); saveMutation.mutate(); }}>
+          {saveMutation.isPending ? 'Saving…' : 'Save post'}
+        </Button>
+        {result && <SuccessBanner>Post #{result.post_id} saved as {result.state === 'review' ? 'review' : 'approved & scheduled'}.</SuccessBanner>}
+      </Space>
+    </Card>
   );
 }
 
@@ -381,41 +347,30 @@ function LeadsTab() {
 
   const wonCount = data.filter((l) => l.stage === 'won').length;
 
+  const columns = [
+    { title: 'Source', dataIndex: 'source' },
+    { title: 'Handle', dataIndex: 'handle', render: (v) => <Text strong>{v || '—'}</Text> },
+    { title: 'Email', dataIndex: 'email', render: (v) => v || '—' },
+    {
+      title: 'Stage', dataIndex: 'stage',
+      render: (v, r) => (
+        <Select
+          size="small" value={v} disabled={stageMutation.isPending} style={{ width: 120 }}
+          onChange={(stage) => stageMutation.mutate({ id: r.id, stage })}
+          options={LEAD_STAGES.map((s) => ({ label: <Tag color={STAGE_COLOR[s]}>{s}</Tag>, value: s }))}
+        />
+      ),
+    },
+    { title: 'HubSpot', dataIndex: 'hubspot_contact_id', render: (v, r) => (v ? 'synced' : r.email ? 'not synced' : 'no email') },
+    { title: 'Created', dataIndex: 'created_at', render: (v) => (v ? new Date(v).toLocaleDateString() : '—') },
+  ];
+
   return (
     <div>
-      <div className="text-sm mb-3" style={{ color: 'var(--t-sub)' }}>
+      <Text type="secondary" style={{ fontSize: 13, display: 'block', marginBottom: 12 }}>
         {wonCount} of {data.length} leads won ({data.length ? Math.round((wonCount / data.length) * 100) : 0}%)
-      </div>
-      <div className="table-container">
-        <table className="data-table">
-          <thead>
-            <tr>
-              <th>Source</th><th>Handle</th><th>Email</th><th>Stage</th><th>HubSpot</th><th>Created</th>
-            </tr>
-          </thead>
-          <tbody>
-            {data.map((l) => (
-              <tr key={l.id}>
-                <td>{l.source}</td>
-                <td className="font-medium" style={{ color: 'var(--t-primary)' }}>{l.handle || '—'}</td>
-                <td>{l.email || '—'}</td>
-                <td>
-                  <select
-                    value={l.stage}
-                    disabled={stageMutation.isPending}
-                    onChange={(e) => stageMutation.mutate({ id: l.id, stage: e.target.value })}
-                    className={clsx('badge border-0', STAGE_BADGE[l.stage] || 'badge-gray')}
-                  >
-                    {LEAD_STAGES.map((s) => <option key={s} value={s}>{s}</option>)}
-                  </select>
-                </td>
-                <td className="text-xs">{l.hubspot_contact_id ? '✅ synced' : (l.email ? 'not synced' : 'no email')}</td>
-                <td className="text-xs">{l.created_at ? new Date(l.created_at).toLocaleDateString() : '—'}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      </Text>
+      <Table rowKey="id" dataSource={data} columns={columns} pagination={false} size="small" />
     </div>
   );
 }
@@ -453,57 +408,50 @@ function EngagementTab() {
 
   return (
     <div>
-      <div className="flex gap-1.5 mb-4">
+      <Space size={6} wrap style={{ marginBottom: 16 }}>
         {REPLY_STATES.map((s) => (
-          <button
-            key={s}
-            onClick={() => setFilter(s)}
-            className={clsx('badge cursor-pointer', filter === s ? 'badge-blue' : 'badge-gray')}
-          >
-            {s}
-          </button>
+          <Tag.CheckableTag key={s} checked={filter === s} onChange={() => setFilter(s)}>{s}</Tag.CheckableTag>
         ))}
-      </div>
+      </Space>
 
-      {isLoading ? <Loading /> : !data?.length ? <Empty>No {filter} comments right now.</Empty> : (
-        <div className="space-y-3">
+      {isLoading ? <Loading /> : !data?.length ? <Empty>{`No ${filter} comments right now.`}</Empty> : (
+        <Space direction="vertical" style={{ width: '100%' }} size={12}>
           {data.map((c) => (
-            <div key={c.id} className="card p-4">
-              <div className="flex items-start justify-between gap-4">
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="badge badge-gray uppercase">{c.platform}</span>
-                    <span className="text-sm font-semibold" style={{ color: 'var(--t-primary)' }}>{c.author}</span>
-                    <span className={clsx('badge', URGENCY_BADGE[c.urgency] || 'badge-gray')}>{c.urgency}</span>
-                  </div>
-                  <p className="text-sm" style={{ color: 'var(--t-sub)' }}>{c.text}</p>
-                  {c.risk_reason && <div className="text-xs mt-1 text-red-600">⚠ {c.risk_reason}</div>}
+            <Card key={c.id} size="small">
+              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <Space size={6} style={{ marginBottom: 4 }}>
+                    <Tag>{c.platform?.toUpperCase()}</Tag>
+                    <Text strong style={{ fontSize: 13 }}>{c.author}</Text>
+                    <Tag color={URGENCY_COLOR[c.urgency] || 'default'}>{c.urgency}</Tag>
+                  </Space>
+                  <Paragraph style={{ fontSize: 13, marginBottom: 0 }}>{c.text}</Paragraph>
+                  {c.risk_reason && (
+                    <Space size={4} style={{ marginTop: 4 }}>
+                      <TriangleAlert size={12} color="#dc2626" />
+                      <Text style={{ fontSize: 12, color: '#dc2626' }}>{c.risk_reason}</Text>
+                    </Space>
+                  )}
                   {c.reply_draft && (
-                    <div className="mt-2 text-sm rounded-lg px-3 py-2 whitespace-pre-wrap" style={{ background: 'var(--zone-bg, #f8fafc)', color: 'var(--t-sub)' }}>
+                    <div style={{ marginTop: 8, fontSize: 13, borderRadius: 8, padding: '8px 12px', background: '#f8fafc', color: '#475569', whiteSpace: 'pre-wrap' }}>
                       {c.reply_draft}
                     </div>
                   )}
                 </div>
-                <span className={clsx('badge flex-shrink-0', REPLY_STATE_BADGE[c.reply_state] || 'badge-gray')}>{c.reply_state}</span>
+                <Tag color={REPLY_STATE_COLOR[c.reply_state] || 'default'} style={{ flexShrink: 0 }}>{c.reply_state}</Tag>
               </div>
               {(c.reply_state === 'draft' || c.reply_state === 'escalated') && (
-                <div className="mt-3 flex gap-2">
-                  <button onClick={() => approveMutation.mutate(c.id)} disabled={busy} className="btn-primary">
-                    <CheckIcon className="w-4 h-4" />Approve
-                  </button>
-                  <button onClick={() => skipMutation.mutate(c.id)} disabled={busy} className="btn-secondary">
-                    <XMarkIcon className="w-4 h-4" />Skip
-                  </button>
+                <Space style={{ marginTop: 12 }}>
+                  <Button type="primary" size="small" icon={<Check size={13} />} disabled={busy} onClick={() => approveMutation.mutate(c.id)}>Approve</Button>
+                  <Button size="small" icon={<X size={13} />} disabled={busy} onClick={() => skipMutation.mutate(c.id)}>Skip</Button>
                   {c.is_lead && (
-                    <button onClick={() => dmMutation.mutate(c.id)} disabled={busy} className="btn-secondary">
-                      <PaperAirplaneIcon className="w-4 h-4" />Send DM flow
-                    </button>
+                    <Button size="small" icon={<Send size={13} />} disabled={busy} onClick={() => dmMutation.mutate(c.id)}>Send DM flow</Button>
                   )}
-                </div>
+                </Space>
               )}
-            </div>
+            </Card>
           ))}
-        </div>
+        </Space>
       )}
     </div>
   );
@@ -520,57 +468,48 @@ function AnalyticsTab() {
   if (isLoading) return <Loading />;
   if (error) return <Empty>Failed to load analytics.</Empty>;
 
+  const platformColumns = [
+    { title: 'Platform', dataIndex: 'platform', render: (v) => <Text strong style={{ textTransform: 'capitalize' }}>{v}</Text> },
+    { title: 'Impressions', dataIndex: 'impressions', render: (v) => v.toLocaleString() },
+    { title: 'Reach', dataIndex: 'reach', render: (v) => v.toLocaleString() },
+    { title: 'Likes', dataIndex: 'likes', render: (v) => v.toLocaleString() },
+    { title: 'Comments', dataIndex: 'comments', render: (v) => v.toLocaleString() },
+  ];
+
   return (
-    <div className="space-y-6">
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <StatCard label="Impressions" value={data.totals.impressions.toLocaleString()} />
-        <StatCard label="Reach" value={data.totals.reach.toLocaleString()} />
-        <StatCard label="Likes" value={data.totals.likes.toLocaleString()} />
-        <StatCard label="Comments" value={data.totals.comments.toLocaleString()} />
-        <StatCard label="Shares" value={data.totals.shares.toLocaleString()} />
-        <StatCard label="Saves" value={data.totals.saves.toLocaleString()} />
-        <StatCard label="Video views" value={data.totals.video_views.toLocaleString()} />
+    <Space direction="vertical" style={{ width: '100%' }} size={20}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: 12 }}>
+        <Card size="small"><Statistic title="Impressions" value={data.totals.impressions} /></Card>
+        <Card size="small"><Statistic title="Reach" value={data.totals.reach} /></Card>
+        <Card size="small"><Statistic title="Likes" value={data.totals.likes} /></Card>
+        <Card size="small"><Statistic title="Comments" value={data.totals.comments} /></Card>
+        <Card size="small"><Statistic title="Shares" value={data.totals.shares} /></Card>
+        <Card size="small"><Statistic title="Saves" value={data.totals.saves} /></Card>
+        <Card size="small"><Statistic title="Video views" value={data.totals.video_views} /></Card>
       </div>
 
       <div>
-        <h2 className="section-title">By platform</h2>
-        <div className="table-container">
-          <table className="data-table">
-            <thead>
-              <tr><th>Platform</th><th>Impressions</th><th>Reach</th><th>Likes</th><th>Comments</th></tr>
-            </thead>
-            <tbody>
-              {data.by_platform.map((p) => (
-                <tr key={p.platform}>
-                  <td className="font-medium capitalize" style={{ color: 'var(--t-primary)' }}>{p.platform}</td>
-                  <td>{p.impressions.toLocaleString()}</td>
-                  <td>{p.reach.toLocaleString()}</td>
-                  <td>{p.likes.toLocaleString()}</td>
-                  <td>{p.comments.toLocaleString()}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <Title level={5}>By platform</Title>
+        <Table rowKey="platform" dataSource={data.by_platform} columns={platformColumns} pagination={false} size="small" />
       </div>
 
       <div>
-        <h2 className="section-title">Top posts by engagement</h2>
+        <Title level={5}>Top posts by engagement</Title>
         {!data.top_posts.length ? <Empty>No published posts with metrics yet.</Empty> : (
-          <div className="card divide-y" style={{ borderColor: 'rgba(15,23,42,0.06)' }}>
-            {data.top_posts.map((p) => (
-              <div key={p.post_id} className="px-4 py-3 flex items-center justify-between">
-                <div>
-                  <span className="badge badge-gray uppercase mr-2">{p.pillar}</span>
-                  <span className="text-sm" style={{ color: 'var(--t-primary)' }}>{p.topic}</span>
-                </div>
-                <span className="text-sm font-semibold" style={{ color: '#059669' }}>{p.engagement.toLocaleString()}</span>
+          <Card size="small" styles={{ body: { padding: 0 } }}>
+            {data.top_posts.map((p, i) => (
+              <div key={p.post_id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 16px', borderTop: i ? '1px solid #f0f0f0' : 'none' }}>
+                <Space size={8}>
+                  <Tag>{p.pillar}</Tag>
+                  <Text style={{ fontSize: 13 }}>{p.topic}</Text>
+                </Space>
+                <Text strong style={{ fontSize: 13, color: '#059669' }}>{p.engagement.toLocaleString()}</Text>
               </div>
             ))}
-          </div>
+          </Card>
         )}
       </div>
-    </div>
+    </Space>
   );
 }
 
@@ -592,42 +531,36 @@ function AccountsTab() {
   const activityByPlatform = Object.fromEntries((activityData || []).map((a) => [a.platform, a]));
 
   return (
-    <div className="space-y-3">
+    <Space direction="vertical" style={{ width: '100%' }} size={12}>
       {accountsData.map((a) => {
         const act = activityByPlatform[a.platform];
         return (
-          <div key={a.platform} className="card p-4">
-            <div className="flex items-center justify-between gap-4">
+          <Card key={a.platform} size="small">
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
               <div>
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className="font-semibold capitalize" style={{ color: 'var(--t-primary)' }}>{a.platform}</span>
-                  {!a.configured ? (
-                    <span className="badge badge-gray">not configured</span>
-                  ) : a.ok ? (
-                    <span className="badge badge-green">connected</span>
-                  ) : (
-                    <span className="badge badge-red">error</span>
-                  )}
-                  {act?.stale && <span className="badge badge-amber">gone quiet</span>}
-                  {act?.reach_dropped && <span className="badge badge-red">reach dropped</span>}
-                </div>
-                <div className="text-sm mt-0.5" style={{ color: 'var(--t-sub)' }}>
-                  {a.error || a.detail || (a.configured ? '' : 'Add credentials to connect this platform.')}
+                <Space size={6} wrap>
+                  <Text strong style={{ textTransform: 'capitalize' }}>{a.platform}</Text>
+                  {!a.configured ? <Tag>not configured</Tag> : a.ok ? <Tag color="green">connected</Tag> : <Tag color="red">error</Tag>}
+                  {act?.stale && <Tag color="gold">gone quiet</Tag>}
+                  {act?.reach_dropped && <Tag color="red">reach dropped</Tag>}
+                </Space>
+                <div style={{ marginTop: 4 }}>
+                  <Text type="secondary" style={{ fontSize: 13 }}>
+                    {a.error || a.detail || (a.configured ? '' : 'Add credentials to connect this platform.')}
+                  </Text>
                 </div>
                 {a.handle && (
-                  <div className="text-xs mt-1" style={{ color: 'var(--t-muted)' }}>
+                  <Text type="secondary" style={{ fontSize: 12 }}>
                     {a.handle}{a.followers != null ? ` — ${a.followers.toLocaleString()} followers` : ''}
-                  </div>
+                  </Text>
                 )}
               </div>
-              {a.followers != null && (
-                <div className="text-2xl font-bold flex-shrink-0" style={{ color: 'var(--t-primary)' }}>{a.followers.toLocaleString()}</div>
-              )}
+              {a.followers != null && <Title level={3} style={{ margin: 0, flexShrink: 0 }}>{a.followers.toLocaleString()}</Title>}
             </div>
-          </div>
+          </Card>
         );
       })}
-    </div>
+    </Space>
   );
 }
 
@@ -659,70 +592,61 @@ function AdsTab() {
     },
     onError: (err) => toast.error(err.response?.data?.message || 'Failed to create draft campaign'),
   });
-  const reviewedMutation = useMutation({
-    mutationFn: (id) => api.post(`/social-engine/ads/suggestions/${id}/mark-reviewed`),
-    onSuccess: invalidate,
-  });
-  const dismissMutation = useMutation({
-    mutationFn: (id) => api.post(`/social-engine/ads/suggestions/${id}/dismiss`),
-    onSuccess: invalidate,
-  });
+  const reviewedMutation = useMutation({ mutationFn: (id) => api.post(`/social-engine/ads/suggestions/${id}/mark-reviewed`), onSuccess: invalidate });
+  const dismissMutation = useMutation({ mutationFn: (id) => api.post(`/social-engine/ads/suggestions/${id}/dismiss`), onSuccess: invalidate });
 
   const busy = scanMutation.isPending || draftMutation.isPending || reviewedMutation.isPending || dismissMutation.isPending;
 
   return (
-    <div className="space-y-4">
-      <div className="card p-4">
-        <p className="text-sm mb-3" style={{ color: 'var(--t-sub)' }}>
+    <Space direction="vertical" style={{ width: '100%' }} size={16}>
+      <Card size="small">
+        <Paragraph style={{ fontSize: 13, marginBottom: 12 }}>
           Organic posts that out-performed this account's own baseline get an LLM-drafted ad brief. This is a
           suggestion only — nothing here ever spends money automatically. Creating a draft campaign only ever
-          creates a <strong>PAUSED</strong> campaign in Meta Ads Manager, for you to review and launch by hand.
-        </p>
-        <button onClick={() => scanMutation.mutate()} disabled={busy} className="btn-secondary">
-          Scan for new candidates
-        </button>
-      </div>
+          creates a <Text strong>PAUSED</Text> campaign in Meta Ads Manager, for you to review and launch by hand.
+        </Paragraph>
+        <Button loading={scanMutation.isPending} onClick={() => scanMutation.mutate()}>Scan for new candidates</Button>
+      </Card>
 
       {isLoading ? <Loading /> : !data?.length ? <Empty>No new suggestions yet. Scan for candidates, or wait for the weekly job.</Empty> : (
-        <div className="space-y-3">
+        <Space direction="vertical" style={{ width: '100%' }} size={12}>
           {data.map((s) => (
-            <div key={s.id} className="card p-4 space-y-2">
-              <div className="flex items-center justify-between">
-                <div className="font-semibold" style={{ color: 'var(--t-primary)' }}>
-                  {s.topic || `Post #${s.post_id}`} <span className="badge badge-gray uppercase ml-1">{s.platform}</span>
-                </div>
-              </div>
-              <div className="text-xs" style={{ color: 'var(--t-muted)' }}>
-                Reach: {s.reach.toLocaleString()} · Engagement rate: {(s.engagement_rate * 100).toFixed(1)}% ·
-                Top {Math.round((1 - s.percentile) * 100)}% of this platform's posts
-              </div>
-              <div className="text-sm space-y-1" style={{ color: 'var(--t-sub)' }}>
-                <div><strong>Objective:</strong> {s.objective}</div>
-                <div><strong>Budget:</strong> {s.budget_band}</div>
-                <div><strong>Targeting angle:</strong> {s.targeting_angle}</div>
-                <div><strong>Creative notes:</strong> {s.creative_notes}</div>
-                <div><strong>Suggested duration:</strong> {s.duration_days} days</div>
-              </div>
+            <Card key={s.id} size="small">
+              <Space direction="vertical" style={{ width: '100%' }} size={8}>
+                <Space size={6}>
+                  <Text strong>{s.topic || `Post #${s.post_id}`}</Text>
+                  <Tag>{s.platform}</Tag>
+                </Space>
+                <Text type="secondary" style={{ fontSize: 12 }}>
+                  Reach: {s.reach.toLocaleString()} · Engagement rate: {(s.engagement_rate * 100).toFixed(1)}% ·
+                  Top {Math.round((1 - s.percentile) * 100)}% of this platform's posts
+                </Text>
+                <Space direction="vertical" size={2} style={{ fontSize: 13 }}>
+                  <Text style={{ fontSize: 13 }}><Text strong>Objective:</Text> {s.objective}</Text>
+                  <Text style={{ fontSize: 13 }}><Text strong>Budget:</Text> {s.budget_band}</Text>
+                  <Text style={{ fontSize: 13 }}><Text strong>Targeting angle:</Text> {s.targeting_angle}</Text>
+                  <Text style={{ fontSize: 13 }}><Text strong>Creative notes:</Text> {s.creative_notes}</Text>
+                  <Text style={{ fontSize: 13 }}><Text strong>Suggested duration:</Text> {s.duration_days} days</Text>
+                </Space>
 
-              {s.meta_campaign_id ? (
-                <div className="badge badge-green">✅ Draft campaign created — id {s.meta_campaign_id} (PAUSED, review before launch)</div>
-              ) : !isAdminOrAbove() ? (
-                <p className="text-xs" style={{ color: 'var(--t-muted)' }}>🔒 Creating a draft ad campaign requires an admin account.</p>
-              ) : (
-                <button onClick={() => draftMutation.mutate(s.id)} disabled={busy} className="btn-primary">
-                  Create draft campaign (PAUSED — no spend)
-                </button>
-              )}
+                {s.meta_campaign_id ? (
+                  <Space size={4}><CheckCircle2 size={14} color="#16a34a" /><Text style={{ fontSize: 12, color: '#16a34a' }}>Draft campaign created — id {s.meta_campaign_id} (PAUSED, review before launch)</Text></Space>
+                ) : !isAdminOrAbove() ? (
+                  <Space size={4}><Lock size={12} color="#9ca3af" /><Text type="secondary" style={{ fontSize: 12 }}>Creating a draft ad campaign requires an admin account.</Text></Space>
+                ) : (
+                  <Button type="primary" size="small" disabled={busy} onClick={() => draftMutation.mutate(s.id)}>Create draft campaign (PAUSED — no spend)</Button>
+                )}
 
-              <div className="flex gap-2 pt-1">
-                <button onClick={() => reviewedMutation.mutate(s.id)} disabled={busy} className="btn-secondary">Mark reviewed</button>
-                <button onClick={() => dismissMutation.mutate(s.id)} disabled={busy} className="btn-secondary">Dismiss</button>
-              </div>
-            </div>
+                <Space size={8}>
+                  <Button size="small" disabled={busy} onClick={() => reviewedMutation.mutate(s.id)}>Mark reviewed</Button>
+                  <Button size="small" disabled={busy} onClick={() => dismissMutation.mutate(s.id)}>Dismiss</Button>
+                </Space>
+              </Space>
+            </Card>
           ))}
-        </div>
+        </Space>
       )}
-    </div>
+    </Space>
   );
 }
 
@@ -745,36 +669,27 @@ function FestivalsTab() {
     onError: (err) => toast.error(err.response?.data?.message || 'Generation failed'),
   });
 
+  const columns = [
+    { title: 'Festival', dataIndex: 'name', render: (v) => <Text strong>{v}</Text> },
+    { title: 'Date', dataIndex: 'date' },
+    { title: 'Days until', dataIndex: 'days_until' },
+    { title: 'Generates on', dataIndex: 'generates_on' },
+  ];
+
   return (
-    <div className="space-y-4">
-      <div className="card p-4">
-        <p className="text-sm mb-3" style={{ color: 'var(--t-sub)' }}>
+    <Space direction="vertical" style={{ width: '100%' }} size={16}>
+      <Card size="small">
+        <Paragraph style={{ fontSize: 13, marginBottom: 12 }}>
           Auto-generates a branded image + caption for each upcoming festival, a few days ahead of its date. Lands
-          in <strong>Social Approvals</strong> for review — nothing posts without approval (unless auto-approve is on).
-        </p>
-        <button onClick={() => genMutation.mutate()} disabled={genMutation.isPending} className="btn-primary">
-          Generate due festivals now
-        </button>
-      </div>
+          in <Text strong>Social Approvals</Text> for review — nothing posts without approval (unless auto-approve is on).
+        </Paragraph>
+        <Button type="primary" loading={genMutation.isPending} onClick={() => genMutation.mutate()}>Generate due festivals now</Button>
+      </Card>
 
       {isLoading ? <Loading /> : !data?.length ? <Empty>No upcoming festivals configured.</Empty> : (
-        <div className="table-container">
-          <table className="data-table">
-            <thead><tr><th>Festival</th><th>Date</th><th>Days until</th><th>Generates on</th></tr></thead>
-            <tbody>
-              {data.map((f) => (
-                <tr key={f.name}>
-                  <td className="font-medium" style={{ color: 'var(--t-primary)' }}>{f.name}</td>
-                  <td>{f.date}</td>
-                  <td>{f.days_until}</td>
-                  <td>{f.generates_on}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <Table rowKey="name" dataSource={data} columns={columns} pagination={false} size="small" />
       )}
-    </div>
+    </Space>
   );
 }
 
@@ -803,70 +718,59 @@ function CompetitorsTab() {
   if (!data) return <Empty>Failed to load competitor data.</Empty>;
 
   const statusFor = (c) => {
-    if (!c.last_post_at) return { label: 'No post date', badge: 'badge-gray' };
+    if (!c.last_post_at) return { label: 'No post date', color: 'default' };
     const days = (Date.now() - new Date(c.last_post_at).getTime()) / 86400000;
-    if (days <= 7) return { label: 'Active', badge: 'badge-green' };
-    if (days <= 30) return { label: 'Slowing down', badge: 'badge-amber' };
-    return { label: 'Gone quiet', badge: 'badge-red' };
+    if (days <= 7) return { label: 'Active', color: 'green' };
+    if (days <= 30) return { label: 'Slowing down', color: 'gold' };
+    return { label: 'Gone quiet', color: 'red' };
   };
 
+  const columns = [
+    { title: 'Status', dataIndex: 'status', render: (_, c) => { const st = statusFor(c); return <Tag color={st.color}>{st.label}</Tag>; } },
+    { title: 'Competitor', dataIndex: 'competitor', render: (v) => <Text strong>{v}</Text> },
+    { title: 'Followers', dataIndex: 'follower_count', render: (v) => (v != null ? v.toLocaleString() : '—') },
+    { title: 'Posts', dataIndex: 'post_count', render: (v) => v ?? '—' },
+    { title: 'Last post', dataIndex: 'last_post_at', render: (v) => (v ? new Date(v).toLocaleDateString() : '—') },
+    { title: 'Avg. days between posts', dataIndex: 'avg_days_between_posts', render: (v) => v ?? '—' },
+    { title: 'Running ads?', dataIndex: 'is_running_ads', render: (v) => (v == null ? '—' : v ? 'Yes' : 'No') },
+  ];
+
   return (
-    <div className="space-y-4">
-      <p className="text-sm" style={{ color: 'var(--t-sub)' }}>
-        Tracking <strong>{data.tracked.length}</strong> competitors for {data.brand}. Meta's Ad Library API doesn't
+    <Space direction="vertical" style={{ width: '100%' }} size={16}>
+      <Text type="secondary" style={{ fontSize: 13 }}>
+        Tracking <Text strong>{data.tracked.length}</Text> competitors for {data.brand}. Meta's Ad Library API doesn't
         cover regular commercial ads in India, so this is hand-logged — a quick weekly look at each competitor's public page.
-      </p>
+      </Text>
 
-      <div className="table-container">
-        <table className="data-table">
-          <thead><tr><th>Status</th><th>Competitor</th><th>Followers</th><th>Posts</th><th>Last post</th><th>Avg. days between posts</th><th>Running ads?</th></tr></thead>
-          <tbody>
-            {data.competitors.map((c) => {
-              const st = statusFor(c);
-              return (
-                <tr key={c.competitor}>
-                  <td><span className={clsx('badge', st.badge)}>{st.label}</span></td>
-                  <td className="font-medium" style={{ color: 'var(--t-primary)' }}>{c.competitor}</td>
-                  <td>{c.follower_count != null ? c.follower_count.toLocaleString() : '—'}</td>
-                  <td>{c.post_count ?? '—'}</td>
-                  <td>{c.last_post_at ? new Date(c.last_post_at).toLocaleDateString() : '—'}</td>
-                  <td>{c.avg_days_between_posts ?? '—'}</td>
-                  <td>{c.is_running_ads == null ? '—' : c.is_running_ads ? 'Yes' : 'No'}</td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
+      <Table rowKey="competitor" dataSource={data.competitors} columns={columns} pagination={false} size="small" />
 
-      <div className="card p-4">
-        <h3 className="section-title">Log this week's check-in</h3>
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+      <Card size="small" title="Log this week's check-in">
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 12 }}>
           <div>
-            <label className="label">Competitor</label>
-            <select value={form.competitor} onChange={(e) => setForm({ ...form, competitor: e.target.value })} className="input">
-              <option value="">Select…</option>
-              {data.tracked.map((c) => <option key={c} value={c}>{c}</option>)}
-            </select>
-          </div>
-          <div>
-            <label className="label">Follower count</label>
-            <input type="number" className="input" value={form.followerCount} onChange={(e) => setForm({ ...form, followerCount: e.target.value })} />
+            <Text strong style={{ fontSize: 12, display: 'block', marginBottom: 6 }}>Competitor</Text>
+            <Select
+              style={{ width: '100%' }} value={form.competitor || undefined} placeholder="Select…"
+              onChange={(v) => setForm({ ...form, competitor: v })} options={data.tracked.map((c) => ({ label: c, value: c }))}
+            />
           </div>
           <div>
-            <label className="label">Total post count</label>
-            <input type="number" className="input" value={form.postCount} onChange={(e) => setForm({ ...form, postCount: e.target.value })} />
+            <Text strong style={{ fontSize: 12, display: 'block', marginBottom: 6 }}>Follower count</Text>
+            <Input type="number" value={form.followerCount} onChange={(e) => setForm({ ...form, followerCount: e.target.value })} />
           </div>
-          <div className="flex items-center gap-2 mt-5">
-            <input type="checkbox" id="running-ads" checked={form.isRunningAds} onChange={(e) => setForm({ ...form, isRunningAds: e.target.checked })} />
-            <label htmlFor="running-ads" className="text-sm" style={{ color: 'var(--t-sub)' }}>Currently running a paid/boosted ad?</label>
+          <div>
+            <Text strong style={{ fontSize: 12, display: 'block', marginBottom: 6 }}>Total post count</Text>
+            <Input type="number" value={form.postCount} onChange={(e) => setForm({ ...form, postCount: e.target.value })} />
           </div>
-          <div className="md:col-span-2">
-            <label className="label">Notes</label>
-            <input className="input" value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} placeholder="New launch, sale, campaign, etc." />
+          <div style={{ display: 'flex', alignItems: 'center', marginTop: 20 }}>
+            <Checkbox checked={form.isRunningAds} onChange={(e) => setForm({ ...form, isRunningAds: e.target.checked })}>Currently running a paid/boosted ad?</Checkbox>
+          </div>
+          <div style={{ gridColumn: 'span 2' }}>
+            <Text strong style={{ fontSize: 12, display: 'block', marginBottom: 6 }}>Notes</Text>
+            <Input value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} placeholder="New launch, sale, campaign, etc." />
           </div>
         </div>
-        <button
+        <Button
+          type="primary" style={{ marginTop: 16 }} disabled={!form.competitor} loading={checkinMutation.isPending}
           onClick={() => checkinMutation.mutate({
             competitor: form.competitor,
             followerCount: form.followerCount ? Number(form.followerCount) : null,
@@ -875,13 +779,11 @@ function CompetitorsTab() {
             adNotes: form.adNotes,
             notes: form.notes,
           })}
-          disabled={!form.competitor || checkinMutation.isPending}
-          className="btn-primary mt-4"
         >
           Log check-in
-        </button>
-      </div>
-    </div>
+        </Button>
+      </Card>
+    </Space>
   );
 }
 
@@ -901,77 +803,60 @@ function SettingsTab() {
     queryFn: () => api.get('/social-engine/strategy/best-time').then((r) => r.data),
   });
 
+  const costColumns = [
+    { title: 'Service', dataIndex: 'service', render: (v) => <Text strong style={{ textTransform: 'capitalize' }}>{v}</Text> },
+    { title: 'Spent', dataIndex: 'spent', render: (v) => `$${v.toFixed(4)}` },
+    { title: 'Budget', dataIndex: 'budget', render: (v) => `$${v.toFixed(2)}` },
+  ];
+
+  const strategyColumns = [
+    { title: 'Platform', dataIndex: 'platform', render: (v) => <Text strong>{v}</Text> },
+    { title: 'Day type', dataIndex: 'day_type' },
+    { title: 'Hour (local)', dataIndex: 'hour', render: (v) => `${String(v).padStart(2, '0')}:00` },
+    { title: 'Source', dataIndex: 'source', render: (v) => <Tag color={v === 'learned' ? 'green' : 'default'}>{v}</Tag> },
+  ];
+
   return (
-    <div className="space-y-6">
+    <Space direction="vertical" style={{ width: '100%' }} size={24}>
       <div>
-        <h3 className="section-title">API spend this month</h3>
+        <Title level={5}>API spend this month</Title>
         {loadingCost ? <Loading /> : (
           <>
-            <div className="table-container mb-3">
-              <table className="data-table">
-                <thead><tr><th>Service</th><th>Spent</th><th>Budget</th></tr></thead>
-                <tbody>
-                  {cost.rows.map((r) => (
-                    <tr key={r.service}>
-                      <td className="font-medium capitalize" style={{ color: 'var(--t-primary)' }}>{r.service}</td>
-                      <td>${r.spent.toFixed(4)}</td>
-                      <td>${r.budget.toFixed(2)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            <div className="stat-card inline-flex">
-              <div>
-                <div className="text-xs mb-1" style={{ color: 'var(--t-muted)' }}>Total this month</div>
-                <div className="text-xl font-bold" style={{ color: 'var(--t-primary)' }}>
-                  ${cost.total_spent.toFixed(2)} <span className="text-sm font-normal" style={{ color: 'var(--t-muted)' }}>of ${cost.total_budget.toFixed(2)}</span>
-                </div>
-              </div>
-            </div>
+            <Table rowKey="service" dataSource={cost.rows} columns={costColumns} pagination={false} size="small" style={{ marginBottom: 12 }} />
+            <Card size="small" style={{ display: 'inline-block' }}>
+              <Statistic title="Total this month" value={cost.total_spent} precision={2} prefix="$" suffix={<Text type="secondary" style={{ fontSize: 13 }}> of ${cost.total_budget.toFixed(2)}</Text>} />
+            </Card>
           </>
         )}
       </div>
 
       <div>
-        <h3 className="section-title">Feature flags</h3>
-        <p className="text-xs mb-2" style={{ color: 'var(--t-muted)' }}>Edit .env on the engine server and restart it to change these.</p>
+        <Title level={5}>Feature flags</Title>
+        <Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 8 }}>Edit .env on the engine server and restart it to change these.</Text>
         {loadingFlags ? <Loading /> : (
-          <div className="card p-4 grid grid-cols-2 gap-3 text-sm">
-            <div><span style={{ color: 'var(--t-muted)' }}>Auto-approve posts:</span> <strong>{String(flags.auto_approve_posts)}</strong></div>
-            <div><span style={{ color: 'var(--t-muted)' }}>Auto-approve replies:</span> <strong>{String(flags.auto_approve_replies)}</strong></div>
-            <div><span style={{ color: 'var(--t-muted)' }}>Auto-approve festival posts:</span> <strong>{String(flags.auto_approve_festival_posts)}</strong></div>
-            <div><span style={{ color: 'var(--t-muted)' }}>Daily post target:</span> <strong>{flags.daily_post_target}</strong></div>
-            <div><span style={{ color: 'var(--t-muted)' }}>Cost budget total:</span> <strong>${flags.cost_budget_total}</strong></div>
-            <div><span style={{ color: 'var(--t-muted)' }}>DM trigger keywords:</span> <strong>{flags.dm_trigger_keywords}</strong></div>
-          </div>
+          <Card size="small">
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, fontSize: 13 }}>
+              <div><Text type="secondary">Auto-approve posts:</Text> <Text strong>{String(flags.auto_approve_posts)}</Text></div>
+              <div><Text type="secondary">Auto-approve replies:</Text> <Text strong>{String(flags.auto_approve_replies)}</Text></div>
+              <div><Text type="secondary">Auto-approve festival posts:</Text> <Text strong>{String(flags.auto_approve_festival_posts)}</Text></div>
+              <div><Text type="secondary">Daily post target:</Text> <Text strong>{flags.daily_post_target}</Text></div>
+              <div><Text type="secondary">Cost budget total:</Text> <Text strong>${flags.cost_budget_total}</Text></div>
+              <div><Text type="secondary">DM trigger keywords:</Text> <Text strong>{flags.dm_trigger_keywords}</Text></div>
+            </div>
+          </Card>
         )}
       </div>
 
       <div>
-        <h3 className="section-title">Posting-time strategy</h3>
-        <p className="text-xs mb-2" style={{ color: 'var(--t-muted)' }}>
+        <Title level={5}>Posting-time strategy</Title>
+        <Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 8 }}>
           Starts from industry-average defaults, switches to hours learned from your own metrics once a platform
           has enough measured posts{strategy ? ` (${strategy.min_samples}+ measured posts, ${strategy.min_samples_per_bucket}+ per hour)` : ''}.
-        </p>
+        </Text>
         {loadingStrategy ? <Loading /> : (
-          <div className="table-container">
-            <table className="data-table">
-              <thead><tr><th>Platform</th><th>Day type</th><th>Hour (local)</th><th>Source</th></tr></thead>
-              <tbody>
-                {strategy.rows.map((r, i) => (
-                  <tr key={i}>
-                    <td className="font-medium" style={{ color: 'var(--t-primary)' }}>{r.platform}</td>
-                    <td>{r.day_type}</td>
-                    <td>{String(r.hour).padStart(2, '0')}:00</td>
-                    <td><span className={clsx('badge', r.source === 'learned' ? 'badge-green' : 'badge-gray')}>{r.source}</span></td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <Table rowKey={(r, i) => i} dataSource={strategy.rows} columns={strategyColumns} pagination={false} size="small" />
         )}
       </div>
-    </div>
+    </Space>
   );
 }

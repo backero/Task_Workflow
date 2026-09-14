@@ -6,6 +6,14 @@ import { clsx } from 'clsx';
 import QRCode from 'react-qr-code';
 import api from '../../api/axios';
 import RDPriceCalculator from '../production/RDPriceCalculator';
+import {
+  ShoppingCart, Package, Tag, Circle, RefreshCw, Download, Upload as UploadIcon, Plus, CircleCheck,
+  Search, List, LayoutGrid, Eye, Pencil, Trash2, X, Camera, Save, Image as ImageIcon, Clipboard, Ruler,
+  IndianRupee, Calendar, Award, FlaskConical, BarChart3, Scale, Link2, Lock, Archive, Minimize2, Maximize2,
+  Calculator, QrCode, Printer, Video, Mic, FileText, Paperclip, Microscope, Factory, FileEdit, TriangleAlert,
+  Square, Clock, ScrollText,
+} from 'lucide-react';
+import { Drawer } from 'antd';
 
 export const CATEGORIES = ['Hair Care', 'Skin Care', 'Face Care', 'Body Care', 'Oral Care', "Men's Care", 'Baby Care', 'Sun Care', 'Makeup', 'Fragrance', 'Wellness', 'Professional', 'Other'];
 export const PRODUCT_TYPES = ['Shampoo', 'Conditioner', 'Hair Oil', 'Serum', 'Cream', 'Lotion', 'Face Wash', 'Mask', 'Scrub', 'Toner', 'Moisturizer', 'Cleanser', 'Soap', 'Body Wash', 'Sunscreen', 'Lip Balm', 'Deodorant', 'Perfume', 'Other'];
@@ -27,7 +35,7 @@ function fmtDate(d) {
   return d ? new Date(d).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—';
 }
 const PLATFORMS = ['flipkart', 'amazon', 'meesho', 'snapdeal'];
-const PLATFORM_ICONS = { flipkart: '🛒', amazon: '📦', meesho: '🏷️', snapdeal: '🔵' };
+const PLATFORM_ICONS = { flipkart: <ShoppingCart size={14} />, amazon: <Package size={14} />, meesho: <Tag size={14} />, snapdeal: <Circle size={14} /> };
 
 const defaultPackaging = () => ([
   { name: 'Primary Box', qty: 1, rate: 0, amount: 0, optional: false },
@@ -440,32 +448,32 @@ export default function ProductCatalogPage() {
   const thCls = 'px-4 py-3 text-left text-[11px] font-semibold text-slate-500 uppercase tracking-wide cursor-pointer select-none whitespace-nowrap hover:text-slate-700 transition-colors';
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div>
 
       {/* ── Header ── */}
-      <div className="bg-white border-b border-slate-200 px-8 py-3.5 flex items-center justify-between sticky top-0 z-10">
+      <div className="flex items-center justify-between flex-wrap gap-3 pb-5">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl flex items-center justify-center text-lg bg-amber-100">📦</div>
+          <div className="w-9 h-9 rounded-xl flex items-center justify-center bg-amber-100"><Package size={18} /></div>
           <div>
             <h1 className="text-base font-bold text-slate-900">Product Catalog</h1>
             <p className="text-[11px] text-slate-500">Finished Goods — B2B Cosmetic Manufacturing</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <button onClick={importFromLocalStorage} disabled={importing} className="text-xs px-3 py-1.5 rounded-full text-slate-400 hover:text-slate-600 hover:bg-slate-50 font-semibold transition-all disabled:opacity-50">{importing ? 'Syncing…' : '☁️ Sync LS'}</button>
-          <button onClick={exportCSV} disabled={products.length === 0} className="text-sm px-4 py-2 rounded-full border border-slate-200 text-slate-600 hover:bg-slate-50 font-semibold transition-all disabled:opacity-40">📥 Export CSV</button>
-          <button onClick={importCSVFile} disabled={importing} className="text-sm px-4 py-2 rounded-full border border-slate-200 text-slate-600 hover:bg-slate-50 font-semibold transition-all disabled:opacity-50">📤 Import CSV</button>
-          <button onClick={openCreate} className="text-sm px-4 py-2 rounded-full font-semibold text-white hover:brightness-95 transition-all" style={{ background: '#2563eb' }}>➕ Add Product</button>
+          <button onClick={importFromLocalStorage} disabled={importing} className="text-xs px-3 py-1.5 rounded-full text-slate-400 hover:text-slate-600 hover:bg-slate-50 font-semibold transition-all disabled:opacity-50">{importing ? 'Syncing…' : <><RefreshCw size={13} className="inline -mt-0.5 mr-1" />Sync LS</>}</button>
+          <button onClick={exportCSV} disabled={products.length === 0} className="text-sm px-4 py-2 rounded-full border border-slate-200 text-slate-600 hover:bg-slate-50 font-semibold transition-all disabled:opacity-40"><Download size={13} className="inline -mt-0.5 mr-1" />Export CSV</button>
+          <button onClick={importCSVFile} disabled={importing} className="text-sm px-4 py-2 rounded-full border border-slate-200 text-slate-600 hover:bg-slate-50 font-semibold transition-all disabled:opacity-50"><UploadIcon size={13} className="inline -mt-0.5 mr-1" />Import CSV</button>
+          <button onClick={openCreate} className="text-sm px-4 py-2 rounded-full font-semibold text-white hover:brightness-95 transition-all" style={{ background: '#2563eb' }}><Plus size={13} className="inline -mt-0.5 mr-1" />Add Product</button>
         </div>
       </div>
 
-      <div className="px-8 py-6 max-w-[1440px] mx-auto">
+      <div className="w-full">
 
         {/* ── 3 Metric Cards ── */}
         <div className="grid grid-cols-3 gap-4 mb-6">
-          <MetricCard label="Total Products" value={stats.total} sub="📦 SKUs" icon="📦" iconBg="bg-purple-100" />
-          <MetricCard label="Active" value={stats.active} sub="✅ In production" icon="✅" iconBg="bg-emerald-100" />
-          <MetricCard label="Categories" value={stats.byCategory?.length || 0} sub="🏷️ Unique" icon="🏷️" iconBg="bg-orange-100" />
+          <MetricCard label="Total Products" value={stats.total} sub="SKUs" icon={<Package size={18} />} iconBg="bg-purple-100" />
+          <MetricCard label="Active" value={stats.active} sub="In production" icon={<CircleCheck size={18} />} iconBg="bg-emerald-100" />
+          <MetricCard label="Categories" value={stats.byCategory?.length || 0} sub="Unique" icon={<Tag size={18} />} iconBg="bg-orange-100" />
         </div>
 
         {/* ── Table Card ── */}
@@ -473,10 +481,10 @@ export default function ProductCatalogPage() {
 
           {/* Card header */}
           <div className="px-6 py-4 border-b border-slate-100 flex flex-wrap items-center gap-3">
-            <h2 className="text-sm font-bold text-slate-900">📦 Products Master</h2>
+            <h2 className="text-sm font-bold text-slate-900 flex items-center gap-1.5"><Package size={15} />Products Master</h2>
             <div className="flex-1" />
             <div className="relative">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">🔍</span>
+              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
               <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search name, SKU, category..." className="pl-9 pr-4 py-2 border border-slate-200 rounded-full text-sm w-64 bg-slate-50 focus:outline-none focus:border-slate-400 focus:bg-white transition-all" />
             </div>
             <select value={categoryFilter} onChange={e => setCategoryFilter(e.target.value)} className="text-sm px-3 py-2 border border-slate-200 rounded-lg bg-slate-50 focus:outline-none">
@@ -489,8 +497,8 @@ export default function ProductCatalogPage() {
             </select>
             {/* View toggle */}
             <div className="flex border border-slate-200 rounded-lg overflow-hidden">
-              <button onClick={() => setView('list')} className={`w-9 h-9 flex items-center justify-center text-sm transition-colors ${view === 'list' ? 'bg-slate-900 text-white' : 'text-slate-500 hover:bg-slate-50'}`} title="List View">☰</button>
-              <button onClick={() => setView('grid')} className={`w-9 h-9 flex items-center justify-center text-sm transition-colors ${view === 'grid' ? 'bg-slate-900 text-white' : 'text-slate-500 hover:bg-slate-50'}`} title="Grid View">⊞</button>
+              <button onClick={() => setView('list')} className={`w-9 h-9 flex items-center justify-center text-sm transition-colors ${view === 'list' ? 'bg-slate-900 text-white' : 'text-slate-500 hover:bg-slate-50'}`} title="List View"><List size={14} className="mx-auto" /></button>
+              <button onClick={() => setView('grid')} className={`w-9 h-9 flex items-center justify-center text-sm transition-colors ${view === 'grid' ? 'bg-slate-900 text-white' : 'text-slate-500 hover:bg-slate-50'}`} title="Grid View"><LayoutGrid size={14} className="mx-auto" /></button>
             </div>
           </div>
 
@@ -511,7 +519,7 @@ export default function ProductCatalogPage() {
                     <tr><td colSpan={7} className="text-center py-16 text-slate-400">Loading…</td></tr>
                   ) : products.length === 0 ? (
                     <tr><td colSpan={7} className="text-center py-16">
-                      <p className="text-4xl mb-2">📦</p>
+                      <Package size={36} className="mx-auto mb-2 text-slate-300" />
                       <p className="text-sm font-semibold text-slate-600">No products found</p>
                       <p className="text-xs text-slate-400 mt-1">Add a product or import from CSV</p>
                     </td></tr>
@@ -524,7 +532,7 @@ export default function ProductCatalogPage() {
                             {p.image ? (
                               <img src={p.image} alt={p.name} className="w-8 h-8 rounded-lg object-cover border border-slate-200 flex-shrink-0" />
                             ) : (
-                              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-purple-100 to-blue-100 flex items-center justify-center text-sm flex-shrink-0">🧴</div>
+                              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-purple-100 to-blue-100 flex items-center justify-center flex-shrink-0"><Package size={14} className="text-purple-400" /></div>
                             )}
                             <span className="font-bold text-slate-900 text-xs font-mono">{p.code}</span>
                           </div>
@@ -536,9 +544,9 @@ export default function ProductCatalogPage() {
                         <td className="px-4 py-3"><StatusBadge status={p.status} /></td>
                         <td className="px-4 py-3">
                           <div className="flex gap-1">
-                            <button title="View Details" onClick={() => openDetail(p)} className="w-8 h-8 rounded-lg flex items-center justify-center text-blue-500 hover:bg-blue-50 transition-colors text-sm">👁️</button>
-                            <button title="Edit" onClick={() => openEdit(p)} className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:bg-slate-100 transition-colors text-sm">✏️</button>
-                            <button title="Delete" onClick={() => { if (window.confirm(`Delete "${p.name}"?`)) deleteMutation.mutate(p._id); }} className="w-8 h-8 rounded-lg flex items-center justify-center text-red-400 hover:bg-red-50 transition-colors text-sm">🗑️</button>
+                            <button title="View Details" onClick={() => openDetail(p)} className="w-8 h-8 rounded-lg flex items-center justify-center text-blue-500 hover:bg-blue-50 transition-colors"><Eye size={14} /></button>
+                            <button title="Edit" onClick={() => openEdit(p)} className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:bg-slate-100 transition-colors"><Pencil size={14} /></button>
+                            <button title="Delete" onClick={() => { if (window.confirm(`Delete "${p.name}"?`)) deleteMutation.mutate(p._id); }} className="w-8 h-8 rounded-lg flex items-center justify-center text-red-400 hover:bg-red-50 transition-colors"><Trash2 size={14} /></button>
                           </div>
                         </td>
                       </tr>
@@ -556,7 +564,7 @@ export default function ProductCatalogPage() {
                 <div className="text-center py-16 text-slate-400">Loading…</div>
               ) : products.length === 0 ? (
                 <div className="text-center py-16">
-                  <p className="text-4xl mb-2">📦</p>
+                  <Package size={36} className="mx-auto mb-2 text-slate-300" />
                   <p className="text-sm font-semibold text-slate-600">No products found</p>
                 </div>
               ) : (
@@ -569,7 +577,7 @@ export default function ProductCatalogPage() {
                           {p.image ? (
                             <img src={p.image} alt={p.name} className="w-full h-full object-cover" />
                           ) : (
-                            <span className="text-4xl">🧴</span>
+                            <Package size={36} className="text-purple-300" />
                           )}
                           <div className="absolute top-2 right-2"><StatusBadge status={p.status} /></div>
                         </div>
@@ -580,7 +588,7 @@ export default function ProductCatalogPage() {
                           {cost > 0 && <p className="text-xs font-bold text-emerald-600">₹{numF(cost)} / unit</p>}
                           <div className="flex gap-1 mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
                             <button onClick={e => { e.stopPropagation(); openEdit(p); }} className="flex-1 text-xs py-1 rounded-lg bg-slate-100 text-slate-600 hover:bg-slate-200 transition-colors font-semibold">Edit</button>
-                            <button onClick={e => { e.stopPropagation(); if (window.confirm(`Delete "${p.name}"?`)) deleteMutation.mutate(p._id); }} className="w-7 flex items-center justify-center rounded-lg bg-red-50 text-red-400 hover:bg-red-100 transition-colors text-xs">🗑️</button>
+                            <button onClick={e => { e.stopPropagation(); if (window.confirm(`Delete "${p.name}"?`)) deleteMutation.mutate(p._id); }} className="w-7 flex items-center justify-center rounded-lg bg-red-50 text-red-400 hover:bg-red-100 transition-colors"><Trash2 size={12} /></button>
                           </div>
                         </div>
                       </div>
@@ -593,16 +601,23 @@ export default function ProductCatalogPage() {
         </div>
       </div>
 
-      {/* ════════════ ADD / EDIT PRODUCT MODAL ════════════ */}
-      {showForm && createPortal(
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 overflow-y-auto">
-          <div className="bg-white rounded-2xl w-full max-w-3xl my-4 shadow-2xl border border-slate-200">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-slate-50 rounded-t-2xl">
-              <h2 className="text-base font-bold text-slate-900">{editingProduct ? `✏️ Edit — ${editingProduct.name}` : '➕ Add New Product'}</h2>
-              <button onClick={closeForm} className="w-9 h-9 rounded-xl flex items-center justify-center text-slate-400 hover:bg-slate-100 hover:text-slate-600 text-xl transition-all">✕</button>
-            </div>
-
-            <div className="px-6 py-5 overflow-y-auto max-h-[75vh] space-y-4">
+      {/* ════════════ ADD / EDIT PRODUCT DRAWER ════════════ */}
+      <Drawer
+        open={showForm}
+        onClose={closeForm}
+        width={640}
+        closeIcon={<X size={18} />}
+        title={editingProduct ? <><Pencil size={14} className="inline -mt-0.5 mr-1" />Edit — {editingProduct.name}</> : <><Plus size={14} className="inline -mt-0.5 mr-1" />Add New Product</>}
+        footer={
+          <div className="flex gap-3">
+            <button onClick={closeForm} className="px-5 py-2.5 rounded-xl text-sm font-semibold border border-slate-200 text-slate-500 hover:bg-slate-100 transition-colors">Cancel</button>
+            <button onClick={saveBasicInfo} disabled={isPending} className="flex-1 py-2.5 rounded-xl text-sm font-bold text-white disabled:opacity-60 transition-all hover:brightness-95" style={{ background: '#2563eb' }}>
+              {isPending ? 'Saving…' : editingProduct ? <><Save size={14} className="inline -mt-0.5 mr-1" />Save Changes</> : <><CircleCheck size={14} className="inline -mt-0.5 mr-1" />Create Product</>}
+            </button>
+          </div>
+        }
+      >
+            <div className="space-y-4">
 
               {/* Row 1: Code, Name, Category */}
               <div className="grid grid-cols-3 gap-4">
@@ -660,10 +675,10 @@ export default function ProductCatalogPage() {
                 <div>
                   <label className={labelCls}>Product Image</label>
                   <div onClick={() => document.getElementById('pcProdImgInput').click()} className="w-24 h-24 border-2 border-dashed border-slate-200 rounded-xl flex items-center justify-center cursor-pointer overflow-hidden hover:border-slate-400 transition-colors bg-slate-50">
-                    {imagePreview ? <img src={imagePreview} alt="Product" className="w-full h-full object-cover" /> : <span className="text-slate-400 text-xs text-center px-2">📷 Click to upload</span>}
+                    {imagePreview ? <img src={imagePreview} alt="Product" className="w-full h-full object-cover" /> : <span className="text-slate-400 text-xs text-center px-2 flex flex-col items-center gap-1"><Camera size={16} />Click to upload</span>}
                   </div>
                   <input type="file" id="pcProdImgInput" accept="image/*" className="hidden" onChange={onImageChange} />
-                  {imagePreview && <button onClick={() => setImagePreview(null)} className="mt-1 text-[10px] text-red-400 hover:text-red-600">✕ Remove</button>}
+                  {imagePreview && <button onClick={() => setImagePreview(null)} className="mt-1 text-[10px] text-red-400 hover:text-red-600 inline-flex items-center gap-0.5"><X size={10} />Remove</button>}
                 </div>
               </div>
 
@@ -675,17 +690,7 @@ export default function ProductCatalogPage() {
               </div>
 
             </div>
-
-            <div className="flex gap-3 px-6 py-4 border-t border-slate-100 bg-slate-50 rounded-b-2xl">
-              <button onClick={closeForm} className="px-5 py-2.5 rounded-xl text-sm font-semibold border border-slate-200 text-slate-500 hover:bg-slate-100 transition-colors">Cancel</button>
-              <button onClick={saveBasicInfo} disabled={isPending} className="flex-1 py-2.5 rounded-xl text-sm font-bold text-white disabled:opacity-60 transition-all hover:brightness-95" style={{ background: '#2563eb' }}>
-                {isPending ? 'Saving…' : editingProduct ? '💾 Save Changes' : '✅ Create Product'}
-              </button>
-            </div>
-          </div>
-        </div>,
-        document.body
-      )}
+      </Drawer>
 
       {/* ════════════ DETAIL MODAL ════════════ */}
       {selectedId && detail && createPortal(
@@ -699,11 +704,11 @@ export default function ProductCatalogPage() {
                 {detail.image ? (
                   <img src={detail.image} alt={detail.name} className="w-14 h-14 rounded-xl object-cover border border-slate-200" />
                 ) : (
-                  <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-purple-100 to-blue-100 flex items-center justify-center text-2xl">🧴</div>
+                  <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-purple-100 to-blue-100 flex items-center justify-center"><Package size={22} className="text-purple-400" /></div>
                 )}
                 <label className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-xl opacity-0 group-hover:opacity-100 cursor-pointer transition-opacity">
                   <input type="file" accept="image/*" className="hidden" onChange={e => { if (e.target.files[0]) imgMutation.mutate({ id: detail._id, file: e.target.files[0] }); }} />
-                  <span className="text-white text-xs">📷</span>
+                  <Camera size={14} className="text-white" />
                 </label>
               </div>
               <div className="flex-1 min-w-0">
@@ -712,10 +717,10 @@ export default function ProductCatalogPage() {
               </div>
               <div className="flex items-center gap-2 flex-shrink-0">
                 <StatusBadge status={detail.status} />
-                <button onClick={() => { closeDetail(); openEdit(detail); }} className="text-xs px-3 py-1.5 rounded-lg bg-slate-100 text-slate-600 font-semibold hover:bg-slate-200 transition-colors">✏️ Edit</button>
-                <button onClick={() => { if (window.confirm('Delete ' + detail.name + '?')) { deleteMutation.mutate(detail._id); closeDetail(); }}} className="text-xs px-3 py-1.5 rounded-lg bg-red-50 text-red-500 font-semibold hover:bg-red-100 transition-colors">🗑️</button>
-                <button onClick={() => setDetailMaximized(m => !m)} title={detailMaximized ? 'Restore' : 'Maximize'} className="text-slate-400 hover:text-slate-600 p-1 text-lg">{detailMaximized ? '⤡' : '⛶'}</button>
-                <button onClick={closeDetail} className="text-slate-400 hover:text-slate-600 p-1 text-xl">✕</button>
+                <button onClick={() => { closeDetail(); openEdit(detail); }} className="text-xs px-3 py-1.5 rounded-lg bg-slate-100 text-slate-600 font-semibold hover:bg-slate-200 transition-colors inline-flex items-center gap-1"><Pencil size={12} />Edit</button>
+                <button onClick={() => { if (window.confirm('Delete ' + detail.name + '?')) { deleteMutation.mutate(detail._id); closeDetail(); }}} className="text-xs px-3 py-1.5 rounded-lg bg-red-50 text-red-500 font-semibold hover:bg-red-100 transition-colors"><Trash2 size={12} /></button>
+                <button onClick={() => setDetailMaximized(m => !m)} title={detailMaximized ? 'Restore' : 'Maximize'} className="text-slate-400 hover:text-slate-600 p-1">{detailMaximized ? <Minimize2 size={16} /> : <Maximize2 size={16} />}</button>
+                <button onClick={closeDetail} className="text-slate-400 hover:text-slate-600 p-1"><X size={18} /></button>
               </div>
             </div>
 
@@ -727,7 +732,7 @@ export default function ProductCatalogPage() {
                   onClick={() => setActiveTab(tab)}
                   className={clsx('px-4 py-3 text-xs font-semibold whitespace-nowrap border-b-2 transition-colors', activeTab === tab ? 'border-slate-900 text-slate-900' : 'border-transparent text-slate-400 hover:text-slate-600')}
                 >
-                  {tab === 'R&D Price Calculator' ? '🧮 R&D Price Calculator' : tab}
+                  {tab === 'R&D Price Calculator' ? <><Calculator size={12} className="inline -mt-0.5 mr-1" />R&D Price Calculator</> : tab}
                 </button>
               ))}
             </div>
@@ -793,14 +798,14 @@ function BasicInfoTab({ product: p }) {
   return (
     <div className="grid grid-cols-3 gap-6">
       <div>
-        <DetailSection icon="🖼️" title="Product Image">
+        <DetailSection icon={<ImageIcon size={13} />} title="Product Image">
           {p.image ? (
             <img src={p.image} alt={p.name} className="w-28 h-28 rounded-xl object-cover border border-slate-200" />
           ) : (
-            <div className="w-28 h-28 rounded-xl bg-gradient-to-br from-purple-100 to-blue-100 flex items-center justify-center text-3xl">🧴</div>
+            <div className="w-28 h-28 rounded-xl bg-gradient-to-br from-purple-100 to-blue-100 flex items-center justify-center"><Package size={28} className="text-purple-400" /></div>
           )}
         </DetailSection>
-        <DetailSection icon="📋" title="Basic Info">
+        <DetailSection icon={<Clipboard size={13} />} title="Basic Info">
           <InfoRow label="SKU" value={p.code} mono />
           <InfoRow label="Category" value={p.category} />
           <InfoRow label="Sub-Category" value={p.subCategory} />
@@ -809,7 +814,7 @@ function BasicInfoTab({ product: p }) {
       </div>
 
       <div>
-        <DetailSection icon="📐" title="Specifications">
+        <DetailSection icon={<Ruler size={13} />} title="Specifications">
           <InfoRow label="Base Unit" value={p.unit} />
           <InfoRow label="Reference Weight" value={p.weight ? `${p.weight} ${p.unit}` : '-'} />
           <InfoRow label="Shelf Life" value={p.shelfLife ? `${p.shelfLife} months` : '-'} />
@@ -820,14 +825,14 @@ function BasicInfoTab({ product: p }) {
       </div>
 
       <div>
-        <DetailSection icon="💰" title="Cost Per Unit">
+        <DetailSection icon={<IndianRupee size={13} />} title="Cost Per Unit">
           <InfoRow label="Formulation Cost" value={formulationCost} accent />
         </DetailSection>
-        <DetailSection icon="📅" title="Dates">
+        <DetailSection icon={<Calendar size={13} />} title="Dates">
           <InfoRow label="Discontinued" value={p.discontinuedDate ? new Date(p.discontinuedDate).toLocaleDateString('en-IN') : '-'} />
           <InfoRow label="Status" value={p.status} badge={p.status === 'Active' ? 'green' : p.status === 'Draft' ? 'yellow' : 'gray'} />
         </DetailSection>
-        <DetailSection icon="🏅" title="Certifications">
+        <DetailSection icon={<Award size={13} />} title="Certifications">
           <p className="text-xs text-gray-700 dark:text-gray-300">{p.certifications || 'None'}</p>
         </DetailSection>
       </div>
@@ -1051,8 +1056,8 @@ function FormulationTab({ product, form, setForm, onSave, isPending }) {
   const linkedCount = rows.filter(r => r.rawMaterialId).length;
   const pctDiff = totalPct - 100;
   const alertBanner = Math.abs(pctDiff) < 0.1 ? null : pctDiff > 0
-    ? { cls: 'bg-red-50 text-red-700 border-red-200', text: '⚠ Total percentage exceeds 100%' }
-    : { cls: 'bg-amber-50 text-amber-700 border-amber-200', text: `ℹ Total percentage is ${numF(totalPct, 2)}% (should be 100%)` };
+    ? { cls: 'bg-red-50 text-red-700 border-red-200', text: 'Total percentage exceeds 100%' }
+    : { cls: 'bg-amber-50 text-amber-700 border-amber-200', text: `Total percentage is ${numF(totalPct, 2)}% (should be 100%)` };
 
   return (
     <div className="space-y-4">
@@ -1074,10 +1079,10 @@ function FormulationTab({ product, form, setForm, onSave, isPending }) {
 
       {/* ── Formulation Dashboard (4 metric cards) ── */}
       <div className="grid grid-cols-4 gap-3">
-        <MetricCard label="Total Ingredients" value={rows.length} icon="🧪" iconBg="bg-blue-100" />
-        <MetricCard label="Total Percentage" value={`${numF(totalPct, 2)}%`} icon="📊" iconBg="bg-emerald-100" />
-        <MetricCard label="Total Quantity" value={numF(totalQty, 2)} icon="⚖️" iconBg="bg-orange-100" />
-        <MetricCard label="Reference Weight" value={`${refWeight} ${refUnit}`} icon="📐" iconBg="bg-purple-100" />
+        <MetricCard label="Total Ingredients" value={rows.length} icon={<FlaskConical size={18} />} iconBg="bg-blue-100" />
+        <MetricCard label="Total Percentage" value={`${numF(totalPct, 2)}%`} icon={<BarChart3 size={18} />} iconBg="bg-emerald-100" />
+        <MetricCard label="Total Quantity" value={numF(totalQty, 2)} icon={<Scale size={18} />} iconBg="bg-orange-100" />
+        <MetricCard label="Reference Weight" value={`${refWeight} ${refUnit}`} icon={<Ruler size={18} />} iconBg="bg-purple-100" />
       </div>
 
       <div className="overflow-x-auto rounded-xl border border-gray-200 dark:border-[#1b2e4a]">
@@ -1118,7 +1123,7 @@ function FormulationTab({ product, form, setForm, onSave, isPending }) {
                     <td className="px-3 py-1.5"><input type="text" value={r.notes || ''} onChange={e => updateRow(i, { notes: e.target.value })} placeholder="Notes" className="input text-xs w-24" /></td>
                     <td className="px-3 py-1.5"><input type="number" value={r.costPerKg} onChange={e => updateRow(i, { costPerKg: e.target.value })} className="input text-xs w-20" /></td>
                     <td className="px-3 py-1.5 text-blue-600 font-mono">₹{numF((r.costPerKg || 0) * (r.percentage || 0) / 100 * conv)}</td>
-                    <td className="px-3 py-1.5"><button onClick={() => removeRow(i)} className="text-red-400 hover:text-red-600">✕</button></td>
+                    <td className="px-3 py-1.5"><button onClick={() => removeRow(i)} className="text-red-400 hover:text-red-600"><X size={13} /></button></td>
                   </tr>
                   {isOpen && (
                     <tr className="border-t border-gray-100 dark:border-[#1b2e4a] bg-gray-50/60 dark:bg-[#0f1a2e]/60">
@@ -1172,7 +1177,7 @@ function FormulationTab({ product, form, setForm, onSave, isPending }) {
           <span><span className="text-orange-400 font-bold">+</span> Will auto-create as raw material</span>
         </div>
         <button onClick={handleSave} disabled={isPending || resolving} className="btn-primary text-sm disabled:opacity-50 ml-auto">
-          {resolving ? '🔗 Linking…' : isPending ? 'Saving…' : '💾 Save Formulation'}
+          {resolving ? <><Link2 size={13} className="inline -mt-0.5 mr-1" />Linking…</> : isPending ? 'Saving…' : <><Save size={13} className="inline -mt-0.5 mr-1" />Save Formulation</>}
         </button>
       </div>
     </div>
@@ -1196,7 +1201,7 @@ function FormulationProcedureTab({ product, form, setForm, isPending, onSaveForm
       />
       <hr className="border-gray-100 dark:border-[#1b2e4a]" />
       <div>
-        <p className="text-sm font-bold text-gray-700 dark:text-gray-200 mb-3">🧪 Product Formulation</p>
+        <p className="text-sm font-bold text-gray-700 dark:text-gray-200 mb-3 flex items-center gap-1.5"><FlaskConical size={14} />Product Formulation</p>
         <div className="flex gap-4 items-start">
           <FormulationVersionSidebar product={product} selectedVersionId={selectedVersionId} setSelectedVersionId={setSelectedVersionId} versionActions={versionActions} />
           <div className="flex-1 min-w-0">
@@ -1257,7 +1262,7 @@ function FormulationVersionSidebar({ product, selectedVersionId, setSelectedVers
 
       <button onClick={() => versionActions.onCreateVersion({ cloneFrom: selectedVersionId, onCreated: setSelectedVersionId })} disabled={versionActions.state.creating}
         className="w-full text-xs px-3 py-2 rounded-lg bg-slate-900 text-white font-semibold hover:bg-slate-700 disabled:opacity-50 transition-colors">
-        {versionActions.state.creating ? 'Cloning…' : '📋 Clone to V(n+1)'}
+        {versionActions.state.creating ? 'Cloning…' : <><Clipboard size={12} className="inline -mt-0.5 mr-1" />Clone to V(n+1)</>}
       </button>
     </div>
   );
@@ -1309,7 +1314,7 @@ function BranchedFormulationEditor({ product, selectedVersionId, setSelectedVers
       {!editable && (
         <div className={clsx('px-3 py-2 rounded-lg text-xs font-semibold',
           selected.status === 'locked' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-slate-100 text-slate-500 border border-slate-200')}>
-          {selected.status === 'locked' ? '🔒 LOCKED — this version is Active. Create a new version to iterate.' : '🗄 ARCHIVED — read-only historical version.'}
+          {selected.status === 'locked' ? <><Lock size={12} className="inline -mt-0.5 mr-1" />LOCKED — this version is Active. Create a new version to iterate.</> : <><Archive size={12} className="inline -mt-0.5 mr-1" />ARCHIVED — read-only historical version.</>}
         </div>
       )}
 
@@ -1322,33 +1327,33 @@ function BranchedFormulationEditor({ product, selectedVersionId, setSelectedVers
           {editable && (
             <button onClick={() => onUpdateVersion(selected._id, { rows: withComputedQuantity(draftRows, draftMeta.refWeight), refWeight: draftMeta.refWeight, refUnit: draftMeta.refUnit, changeNotes })}
               disabled={state.updating} className="text-xs px-3 py-1.5 rounded-lg border border-slate-200 dark:border-[#1b2e4a] hover:bg-slate-50 dark:hover:bg-[#0f1a2e] font-semibold disabled:opacity-50 transition-colors">
-              {state.updating ? 'Saving…' : '💾 Save'}
+              {state.updating ? 'Saving…' : <><Save size={12} className="inline -mt-0.5 mr-1" />Save</>}
             </button>
           )}
           {selected.status === 'draft' && (
             <button onClick={() => onUpdateVersion(selected._id, { status: 'testing' })} disabled={state.updating}
               className="text-xs px-3 py-1.5 rounded-lg border border-blue-200 text-blue-600 hover:bg-blue-50 font-semibold disabled:opacity-50 transition-colors">
-              🧪 Mark In Testing
+              <FlaskConical size={12} className="inline -mt-0.5 mr-1" />Mark In Testing
             </button>
           )}
           {editable && (
             <button onClick={() => onActivateVersion(selected._id)} disabled={state.activating}
               className="text-xs px-3 py-1.5 rounded-lg bg-emerald-600 text-white font-semibold hover:bg-emerald-700 disabled:opacity-50 transition-colors">
-              {state.activating ? 'Activating…' : '🔒 Approve & Lock'}
+              {state.activating ? 'Activating…' : <><Lock size={12} className="inline -mt-0.5 mr-1" />Approve & Lock</>}
             </button>
           )}
           {editable && (
             <button onClick={() => { if (window.confirm(`Delete ${selected.versionLabel}?`)) { onDeleteVersion(selected._id); setSelectedVersionId(null); } }} disabled={state.deleting}
-              className="text-xs px-2 py-1.5 rounded-lg text-red-500 hover:bg-red-50 disabled:opacity-50 transition-colors">🗑️</button>
+              className="text-xs px-2 py-1.5 rounded-lg text-red-500 hover:bg-red-50 disabled:opacity-50 transition-colors"><Trash2 size={13} /></button>
           )}
         </div>
       </div>
 
       <div className="grid grid-cols-4 gap-3">
-        <MetricCard label="Total Ingredients" value={dashRows.length} icon="🧪" iconBg="bg-blue-100" />
-        <MetricCard label="Total Percentage" value={`${numF(dashTotalPct, 2)}%`} icon="📊" iconBg="bg-emerald-100" />
-        <MetricCard label="Total Quantity" value={numF(dashTotalQty, 2)} icon="⚖️" iconBg="bg-orange-100" />
-        <MetricCard label="Reference Weight" value={`${dashRefWeight} ${dashRefUnit}`} icon="📐" iconBg="bg-purple-100" />
+        <MetricCard label="Total Ingredients" value={dashRows.length} icon={<FlaskConical size={18} />} iconBg="bg-blue-100" />
+        <MetricCard label="Total Percentage" value={`${numF(dashTotalPct, 2)}%`} icon={<BarChart3 size={18} />} iconBg="bg-emerald-100" />
+        <MetricCard label="Total Quantity" value={numF(dashTotalQty, 2)} icon={<Scale size={18} />} iconBg="bg-orange-100" />
+        <MetricCard label="Reference Weight" value={`${dashRefWeight} ${dashRefUnit}`} icon={<Ruler size={18} />} iconBg="bg-purple-100" />
       </div>
 
       {editable ? (
@@ -1396,7 +1401,7 @@ function VersionRowsTable({ rows, refWeight, rawMaterials, onUpdate, onAdd, onRe
                 <td className="px-3 py-1.5">{editable ? <input type="number" step="0.01" value={r.convFactor ?? 1} onChange={e => onUpdate(i, { convFactor: e.target.value })} className="input text-xs w-16" /> : (r.convFactor ?? 1)}</td>
                 <td className="px-3 py-1.5">{editable ? <input value={r.phase || ''} onChange={e => onUpdate(i, { phase: e.target.value })} placeholder="A/B/C" className="input text-xs w-16" /> : (r.phase || '—')}</td>
                 <td className="px-3 py-1.5">{editable ? <input type="number" value={r.costPerKg} onChange={e => onUpdate(i, { costPerKg: e.target.value })} className="input text-xs w-20" /> : `₹${numF(r.costPerKg)}`}</td>
-                {editable && <td className="px-3 py-1.5"><button onClick={() => onRemove(i)} className="text-red-400 hover:text-red-600">✕</button></td>}
+                {editable && <td className="px-3 py-1.5"><button onClick={() => onRemove(i)} className="text-red-400 hover:text-red-600"><X size={13} /></button></td>}
               </tr>
             ))}
             {!rows.length && <tr><td colSpan={headers.length} className="px-3 py-6 text-center text-gray-400">No ingredients in this version</td></tr>}
@@ -1448,7 +1453,7 @@ function VariantsTab({ product, form, setForm, onSave, isPending }) {
                 <td className="px-2 py-1.5"><input type="number" value={v.mrp} onChange={e => updateV(i, 'mrp', e.target.value)} className="input text-xs w-20" /></td>
                 <td className="px-2 py-1.5"><input type="number" value={v.sellingPrice} onChange={e => updateV(i, 'sellingPrice', e.target.value)} className="input text-xs w-20" /></td>
                 <td className="px-2 py-1.5"><input type="number" value={v.b2bPrice} onChange={e => updateV(i, 'b2bPrice', e.target.value)} className="input text-xs w-20" /></td>
-                <td className="px-2 py-1.5"><button onClick={() => removeV(i)} className="text-red-400 hover:text-red-600">✕</button></td>
+                <td className="px-2 py-1.5"><button onClick={() => removeV(i)} className="text-red-400 hover:text-red-600"><X size={13} /></button></td>
               </tr>
             ))}
           </tbody>
@@ -1457,7 +1462,7 @@ function VariantsTab({ product, form, setForm, onSave, isPending }) {
       </div>
       <div className="flex gap-3">
         <button onClick={addVariant} className="btn-secondary text-sm">+ Add Variant</button>
-        <button onClick={onSave} disabled={isPending} className="btn-primary text-sm disabled:opacity-50 ml-auto">{isPending ? 'Saving…' : '💾 Save Variants'}</button>
+        <button onClick={onSave} disabled={isPending} className="btn-primary text-sm disabled:opacity-50 ml-auto">{isPending ? 'Saving…' : <><Save size={13} className="inline -mt-0.5 mr-1" />Save Variants</>}</button>
       </div>
     </div>
   );
@@ -1498,17 +1503,17 @@ function CostingTab({ product, form, setForm, onSave, isPending }) {
     <div className="space-y-5">
       {/* Cost Inputs */}
       <div className="rounded-xl border border-gray-200 dark:border-[#1b2e4a] p-4 space-y-2">
-        <p className="text-xs font-bold text-gray-600 dark:text-gray-300 mb-1">📥 Cost Inputs</p>
-        <div className="flex justify-between text-xs"><span className="text-gray-500">🧪 Ingredients Cost Per Unit (from Formulation)</span><span className="font-mono font-semibold">₹{numF(b.formCost, 4)}</span></div>
+        <p className="text-xs font-bold text-gray-600 dark:text-gray-300 mb-1 flex items-center gap-1"><Download size={12} />Cost Inputs</p>
+        <div className="flex justify-between text-xs"><span className="text-gray-500 inline-flex items-center gap-1"><FlaskConical size={12} />Ingredients Cost Per Unit (from Formulation)</span><span className="font-mono font-semibold">₹{numF(b.formCost, 4)}</span></div>
         <div className="flex justify-between text-xs bg-slate-900 text-white rounded-lg px-3 py-2 mt-2">
-          <span className="text-white/80">📊 Total Input Cost Per Unit (Formulation + R&amp;D + Overheads)</span>
+          <span className="text-white/80 inline-flex items-center gap-1"><BarChart3 size={12} />Total Input Cost Per Unit (Formulation + R&amp;D + Overheads)</span>
           <span className="font-mono font-bold text-amber-300">₹{numF(totalInputPerUnit, 4)}</span>
         </div>
       </div>
 
       {/* Unit Cost Summary */}
       <div>
-        <p className="text-xs font-bold text-gray-600 dark:text-gray-300 mb-2">📊 Unit Cost Summary</p>
+        <p className="text-xs font-bold text-gray-600 dark:text-gray-300 mb-2 flex items-center gap-1"><BarChart3 size={12} />Unit Cost Summary</p>
         <HighlightStrip tone="dark" items={[
           { label: 'Ingredients', value: `₹${numF(b.formCost)}` },
           { label: 'Packaging', value: `₹${numF(b.pkgCost)}` },
@@ -1578,7 +1583,7 @@ function CostingTab({ product, form, setForm, onSave, isPending }) {
       {/* GST-inclusive panel */}
       {showGST && firstVariantPricing && (
         <div className="rounded-xl border border-gray-200 dark:border-[#1b2e4a] p-4">
-          <p className="text-xs font-bold text-gray-600 dark:text-gray-300 mb-3">💰 GST Inclusive Prices (First Variant)</p>
+          <p className="text-xs font-bold text-gray-600 dark:text-gray-300 mb-3 flex items-center gap-1"><IndianRupee size={12} />GST Inclusive Prices (First Variant)</p>
           <div className="grid grid-cols-3 gap-3 text-xs">
             <div className="flex justify-between"><span className="text-gray-500">Ex-Factory (with GST)</span><span className="font-mono font-semibold">₹{numF(firstVariantPricing.exFactory * (1 + gstRate))}</span></div>
             <div className="flex justify-between"><span className="text-gray-500">Selling (with GST)</span><span className="font-mono font-semibold">₹{numF(firstVariantPricing.selling * (1 + gstRate))}</span></div>
@@ -1588,7 +1593,7 @@ function CostingTab({ product, form, setForm, onSave, isPending }) {
         </div>
       )}
 
-      <button onClick={onSave} disabled={isPending} className="btn-primary text-sm disabled:opacity-50">{isPending ? 'Saving…' : '💾 Save Costing'}</button>
+      <button onClick={onSave} disabled={isPending} className="btn-primary text-sm disabled:opacity-50">{isPending ? 'Saving…' : <><Save size={13} className="inline -mt-0.5 mr-1" />Save Costing</>}</button>
     </div>
   );
 }
@@ -1619,7 +1624,7 @@ function PackagingTab({ product, form, setForm, onSave, isPending }) {
                 <td className="px-2 py-1.5"><input type="number" value={item.rate} onChange={e => updateItem(i, 'rate', Number(e.target.value))} className="input text-xs w-20" /></td>
                 <td className="px-2 py-1.5"><input type="number" value={item.amount || item.qty * item.rate} onChange={e => updateItem(i, 'amount', Number(e.target.value))} className="input text-xs w-20" /></td>
                 <td className="px-2 py-1.5"><input type="checkbox" checked={item.optional} onChange={e => updateItem(i, 'optional', e.target.checked)} className="w-4 h-4" /></td>
-                <td className="px-2 py-1.5"><button onClick={() => removeItem(i)} className="text-red-400 hover:text-red-600">✕</button></td>
+                <td className="px-2 py-1.5"><button onClick={() => removeItem(i)} className="text-red-400 hover:text-red-600"><X size={13} /></button></td>
               </tr>
             ))}
           </tbody>
@@ -1635,7 +1640,7 @@ function PackagingTab({ product, form, setForm, onSave, isPending }) {
       </div>
       <div className="flex gap-3">
         <button onClick={addItem} className="btn-secondary text-sm">+ Add Item</button>
-        <button onClick={onSave} disabled={isPending} className="btn-primary text-sm disabled:opacity-50 ml-auto">{isPending ? 'Saving…' : '💾 Save Packaging'}</button>
+        <button onClick={onSave} disabled={isPending} className="btn-primary text-sm disabled:opacity-50 ml-auto">{isPending ? 'Saving…' : <><Save size={13} className="inline -mt-0.5 mr-1" />Save Packaging</>}</button>
       </div>
     </div>
   );
@@ -1646,17 +1651,17 @@ function CostingPackagingTab({ product, form, setForm, isPending, onSavePackagin
   return (
     <div className="space-y-8">
       <div>
-        <p className="text-sm font-bold text-gray-700 dark:text-gray-200 mb-3">📦 Packaging & Labeling</p>
+        <p className="text-sm font-bold text-gray-700 dark:text-gray-200 mb-3 flex items-center gap-1.5"><Package size={14} />Packaging & Labeling</p>
         <PackagingTab product={product} form={form} setForm={setForm} onSave={onSavePackaging} isPending={isPending} />
       </div>
       <hr className="border-gray-100 dark:border-[#1b2e4a]" />
       <div>
-        <p className="text-sm font-bold text-gray-700 dark:text-gray-200 mb-3">📐 Variants</p>
+        <p className="text-sm font-bold text-gray-700 dark:text-gray-200 mb-3 flex items-center gap-1.5"><Ruler size={14} />Variants</p>
         <VariantsTab product={product} form={form} setForm={setForm} onSave={onSaveVariants} isPending={isPending} />
       </div>
       <hr className="border-gray-100 dark:border-[#1b2e4a]" />
       <div>
-        <p className="text-sm font-bold text-gray-700 dark:text-gray-200 mb-3">📊 Costing &amp; Variant Pricing</p>
+        <p className="text-sm font-bold text-gray-700 dark:text-gray-200 mb-3 flex items-center gap-1.5"><BarChart3 size={14} />Costing &amp; Variant Pricing</p>
         <CostingTab product={product} form={form} setForm={setForm} onSave={onSaveCosting} isPending={isPending} />
       </div>
     </div>
@@ -1712,7 +1717,7 @@ function MarketplaceTab({ product, form, setForm, onSave, isPending }) {
     <div className="space-y-4">
       {/* Imported Costs */}
       <div className="rounded-xl border border-gray-200 dark:border-[#1b2e4a] p-4 space-y-1.5 text-xs">
-        <p className="text-xs font-bold text-gray-600 dark:text-gray-300 mb-2">📥 Imported Costs</p>
+        <p className="text-xs font-bold text-gray-600 dark:text-gray-300 mb-2 flex items-center gap-1"><Download size={12} />Imported Costs</p>
         <div className="flex justify-between"><span className="text-gray-400">Ingredients Cost Per Unit</span><span className="font-mono">₹{numF(b.formCost, 4)}</span></div>
         <div className="flex justify-between"><span className="text-gray-400">Standard Assumptions Indirect Amount</span><span className="font-mono">₹{numF(b.saAmount, 4)}</span></div>
         <div className="flex justify-between"><span className="text-gray-400">Production Overhead Per Unit</span><span className="font-mono">₹{numF(b.overheadPerUnit, 4)}</span></div>
@@ -1721,7 +1726,7 @@ function MarketplaceTab({ product, form, setForm, onSave, isPending }) {
 
       {/* Marketplace Packaging */}
       <div className="rounded-xl border border-gray-200 dark:border-[#1b2e4a] p-4">
-        <p className="text-xs font-bold text-gray-600 dark:text-gray-300 mb-3">📦 Marketplace Packaging &amp; Labeling</p>
+        <p className="text-xs font-bold text-gray-600 dark:text-gray-300 mb-3 flex items-center gap-1"><Package size={12} />Marketplace Packaging &amp; Labeling</p>
         <div className="overflow-x-auto">
           <table className="w-full text-xs">
             <thead><tr>{['Item', 'Qty', 'Rate (₹)', 'Amount (₹)', 'Optional', ''].map(h => <th key={h} className="px-2 py-1 text-left font-semibold text-gray-500">{h}</th>)}</tr></thead>
@@ -1733,7 +1738,7 @@ function MarketplaceTab({ product, form, setForm, onSave, isPending }) {
                   <td className="px-2 py-1"><input type="number" value={item.rate} onChange={e => updateMPItem(i, 'rate', e.target.value)} className="input text-xs w-16" /></td>
                   <td className="px-2 py-1 font-mono">₹{numF((Number(item.qty) || 0) * (Number(item.rate) || 0))}</td>
                   <td className="px-2 py-1 text-center"><input type="checkbox" checked={!!item.optional} onChange={e => updateMPItem(i, 'optional', e.target.checked)} className="w-4 h-4" /></td>
-                  <td className="px-2 py-1"><button onClick={() => removeMPItem(i)} className="text-red-400 hover:text-red-600">✕</button></td>
+                  <td className="px-2 py-1"><button onClick={() => removeMPItem(i)} className="text-red-400 hover:text-red-600"><X size={13} /></button></td>
                 </tr>
               ))}
             </tbody>
@@ -1772,7 +1777,7 @@ function MarketplaceTab({ product, form, setForm, onSave, isPending }) {
           );
         })}
       </div>
-      <button onClick={onSave} disabled={isPending} className="btn-primary text-sm disabled:opacity-50">{isPending ? 'Saving…' : '💾 Save Marketplace'}</button>
+      <button onClick={onSave} disabled={isPending} className="btn-primary text-sm disabled:opacity-50">{isPending ? 'Saving…' : <><Save size={13} className="inline -mt-0.5 mr-1" />Save Marketplace</>}</button>
     </div>
   );
 }
@@ -1797,7 +1802,7 @@ function LastUpdatedBadge({ date, onChange }) {
   return (
     <div className="flex items-center gap-2 flex-wrap">
       <span className="inline-flex items-center px-3 py-1 rounded-full text-[11px] font-semibold bg-blue-100 text-blue-700 dark:bg-blue-500/10 dark:text-blue-300">
-        🕐 Last updated: {fmtDate(date)}
+        <Clock size={11} className="inline -mt-0.5 mr-1" />Last updated: {fmtDate(date)}
       </span>
       <input type="date" value={date ? new Date(date).toISOString().split('T')[0] : ''} onChange={e => onChange(e.target.value ? new Date(e.target.value).toISOString() : null)}
         className="text-[11px] px-2 py-1 border border-gray-200 dark:border-[#1b2e4a] rounded-lg bg-white dark:bg-[#0d1b2e]" title="Edit last updated date" />
@@ -1827,7 +1832,7 @@ function RndOverheadsTab({ product, form, setForm, onSave, isPending }) {
       {/* Production Overhead */}
       <div>
         <div className="flex items-center justify-between flex-wrap gap-3 mb-3">
-          <p className="text-sm font-bold text-gray-700 dark:text-gray-200">🏭 Production Overhead</p>
+          <p className="text-sm font-bold text-gray-700 dark:text-gray-200 flex items-center gap-1.5"><Factory size={14} />Production Overhead</p>
           <LastUpdatedBadge date={po.lastUpdated} onChange={setPODate} />
         </div>
         <div className="grid grid-cols-2 gap-3 mb-4">
@@ -1846,7 +1851,7 @@ function RndOverheadsTab({ product, form, setForm, onSave, isPending }) {
 
       {/* Standard Assumptions */}
       <div>
-        <p className="text-sm font-bold text-gray-700 dark:text-gray-200 mb-3">📝 Standard Assumptions (Industry STD%)</p>
+        <p className="text-sm font-bold text-gray-700 dark:text-gray-200 mb-3 flex items-center gap-1.5"><FileEdit size={14} />Standard Assumptions (Industry STD%)</p>
         <div className="grid grid-cols-3 gap-4 mb-4">
           {ASSUMPTION_FIELDS.map(({ key, label, max, hint }) => (
             <div key={key}>
@@ -1866,13 +1871,13 @@ function RndOverheadsTab({ product, form, setForm, onSave, isPending }) {
         ]} />
         {(b.saPct < 15 || b.saPct > 30) && (
           <div className="mt-3 flex items-start gap-2 text-xs bg-amber-50 dark:bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800/40 rounded-lg px-3 py-2">
-            <span>⚠️</span><span>Industry range for total indirect: 15% – 30%. Adjust sliders if your total is outside this range.</span>
+            <TriangleAlert size={13} /><span>Industry range for total indirect: 15% – 30%. Adjust sliders if your total is outside this range.</span>
           </div>
         )}
         <div className="mt-4">
-          <label className="label">📷 Reference Image / Basis</label>
+          <label className="label flex items-center gap-1"><Camera size={12} />Reference Image / Basis</label>
           <div onClick={() => document.getElementById('saImageInput').click()} className="w-full h-28 border-2 border-dashed border-gray-200 dark:border-[#1b2e4a] rounded-xl flex items-center justify-center cursor-pointer overflow-hidden bg-gray-50 dark:bg-[#0f1a2e] hover:border-gray-400 transition-colors">
-            {sa.image ? <img src={sa.image} alt="Basis" className="w-full h-full object-cover" /> : <span className="text-xs text-gray-400">📷 Click to upload reference image / basis document</span>}
+            {sa.image ? <img src={sa.image} alt="Basis" className="w-full h-full object-cover" /> : <span className="text-xs text-gray-400 inline-flex items-center gap-1"><Camera size={12} />Click to upload reference image / basis document</span>}
           </div>
           <input type="file" id="saImageInput" accept="image/*" className="hidden" onChange={onImage} />
         </div>
@@ -1882,7 +1887,7 @@ function RndOverheadsTab({ product, form, setForm, onSave, isPending }) {
 
       {/* Grand Total Summary */}
       <div>
-        <p className="text-sm font-bold text-gray-700 dark:text-gray-200 mb-3">📊 Total Overhead &amp; R&amp;D Cost Summary</p>
+        <p className="text-sm font-bold text-gray-700 dark:text-gray-200 mb-3 flex items-center gap-1.5"><BarChart3 size={14} />Total Overhead &amp; R&amp;D Cost Summary</p>
         <HighlightStrip tone="dark" items={[
           { label: 'Production Overhead Per Unit', value: `₹${numF(b.overheadPerUnit, 4)}` },
           { label: 'Standard Assumptions Per Unit', value: `₹${numF(b.saAmount, 4)}` },
@@ -1896,7 +1901,7 @@ function RndOverheadsTab({ product, form, setForm, onSave, isPending }) {
         </div>
       </div>
 
-      <button onClick={onSave} disabled={isPending} className="btn-primary text-sm disabled:opacity-50">{isPending ? 'Saving…' : '💾 Save R&D & Overheads'}</button>
+      <button onClick={onSave} disabled={isPending} className="btn-primary text-sm disabled:opacity-50">{isPending ? 'Saving…' : <><Save size={13} className="inline -mt-0.5 mr-1" />Save R&D & Overheads</>}</button>
     </div>
   );
 }
@@ -1906,7 +1911,7 @@ function QRCodeTab({ product: p }) {
   const qrData = JSON.stringify({ code: p.code, name: p.name, category: p.category || '', unit: p.unit || '' });
   return (
     <div className="flex flex-col items-center gap-4 py-6">
-      <p className="text-sm font-bold text-gray-700 dark:text-gray-200 self-start">🔲 Product QR Code</p>
+      <p className="text-sm font-bold text-gray-700 dark:text-gray-200 self-start flex items-center gap-1.5"><QrCode size={14} />Product QR Code</p>
       <div className="bg-white p-6 rounded-xl border border-gray-200 dark:border-[#1b2e4a]">
         <QRCode value={qrData} size={200} fgColor="#0f172a" bgColor="#ffffff" />
       </div>
@@ -1915,7 +1920,7 @@ function QRCodeTab({ product: p }) {
         <p className="text-gray-400">SKU: {p.code}</p>
         <p className="text-gray-400">{p.unit || ''}</p>
       </div>
-      <button onClick={() => window.print()} className="btn-primary text-sm">🖨️ Print Label</button>
+      <button onClick={() => window.print()} className="btn-primary text-sm inline-flex items-center gap-1"><Printer size={13} />Print Label</button>
     </div>
   );
 }
@@ -1923,7 +1928,7 @@ function QRCodeTab({ product: p }) {
 // ─── Attachment list (shared by Procedure tab) ──────────────────────────────────
 function AttachmentList({ attachments, onRemove }) {
   if (!attachments?.length) return null;
-  const icon = (t) => t === 'video' ? '🎬' : t === 'audio' ? '🎙️' : '📄';
+  const icon = (t) => t === 'video' ? <Video size={14} /> : t === 'audio' ? <Mic size={14} /> : <FileText size={14} />;
   return (
     <div className="flex flex-col gap-2 mt-3">
       {attachments.map((a) => (
@@ -1933,7 +1938,7 @@ function AttachmentList({ attachments, onRemove }) {
             <a href={a.url} target="_blank" rel="noreferrer" className="font-semibold text-blue-600 dark:text-blue-400 hover:underline truncate block">{a.name || 'Attachment'}</a>
             <p className="text-gray-400">{a.type || 'file'} · {fmtDate(a.createdAt)}</p>
           </div>
-          <button onClick={() => onRemove(a._id)} title="Remove" className="text-red-400 hover:text-red-600">🗑️</button>
+          <button onClick={() => onRemove(a._id)} title="Remove" className="text-red-400 hover:text-red-600"><Trash2 size={13} /></button>
         </div>
       ))}
     </div>
@@ -1975,14 +1980,14 @@ function RndResearchGuidePanel({ product, selectedVersionId, form, setForm, onSa
       <div>
         <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
           <p className="text-sm font-bold text-gray-700 dark:text-gray-200">
-            📝 R&amp;D Documentation &amp; Research Guide
+            <FileEdit size={13} className="inline -mt-0.5 mr-1" />R&amp;D Documentation &amp; Research Guide
             <span className="ml-2 text-[11px] font-semibold text-gray-400">
               · {version ? `${version.versionLabel} (${(FORM_VERSION_STATUS[version.status] || {}).label || version.status})` : 'Live'}
             </span>
           </p>
           <div>
             <input type="file" id="rndDocFile" accept=".pdf,.doc,.docx,.xlsx,.jpg,.png" className="hidden" onChange={onFile} disabled={locked} />
-            <button onClick={() => document.getElementById('rndDocFile').click()} disabled={locked} className="btn-secondary text-xs disabled:opacity-50">📎 Attach R&amp;D Doc</button>
+            <button onClick={() => document.getElementById('rndDocFile').click()} disabled={locked} className="btn-secondary text-xs disabled:opacity-50 inline-flex items-center gap-1"><Paperclip size={12} />Attach R&amp;D Doc</button>
           </div>
         </div>
         <textarea
@@ -1993,7 +1998,7 @@ function RndResearchGuidePanel({ product, selectedVersionId, form, setForm, onSa
       </div>
 
       <div>
-        <p className="text-sm font-bold text-gray-700 dark:text-gray-200 mb-2">🔬 Research Guide</p>
+        <p className="text-sm font-bold text-gray-700 dark:text-gray-200 mb-2 flex items-center gap-1.5"><Microscope size={14} />Research Guide</p>
         <textarea
           value={guideText} disabled={locked} onBlur={handleBlur}
           onChange={e => version ? setVGuide(e.target.value) : setForm(prev => ({ ...prev, researchGuide: { ...prev.researchGuide, text: e.target.value } }))}
@@ -2050,13 +2055,13 @@ function ManufacturingProcedureTab({ product, form, setForm, onSave, isPending, 
     <div className="space-y-6">
       <div>
         <div className="flex items-center justify-between flex-wrap gap-2 mb-2">
-          <p className="text-sm font-bold text-gray-700 dark:text-gray-200">🏭 Manufacturing Procedure</p>
+          <p className="text-sm font-bold text-gray-700 dark:text-gray-200 flex items-center gap-1.5"><Factory size={14} />Manufacturing Procedure</p>
           <div className="flex gap-2">
             <input type="file" id="procFile" accept=".pdf,.doc,.docx" className="hidden" onChange={onFile('procedure')} />
-            <button onClick={() => document.getElementById('procFile').click()} className="btn-secondary text-xs">📎 Attach File</button>
+            <button onClick={() => document.getElementById('procFile').click()} className="btn-secondary text-xs inline-flex items-center gap-1"><Paperclip size={12} />Attach File</button>
             <input type="file" id="procVideo" accept="video/*" className="hidden" onChange={onFile('procedure')} />
-            <button onClick={() => document.getElementById('procVideo').click()} className="btn-secondary text-xs">🎬 Attach Video</button>
-            <button onClick={toggleAudioRecord} className="btn-secondary text-xs">{recording ? '⏹ Stop Recording' : '🎙️ Record Audio'}</button>
+            <button onClick={() => document.getElementById('procVideo').click()} className="btn-secondary text-xs inline-flex items-center gap-1"><Video size={12} />Attach Video</button>
+            <button onClick={toggleAudioRecord} className="btn-secondary text-xs inline-flex items-center gap-1">{recording ? <><Square size={12} />Stop Recording</> : <><Mic size={12} />Record Audio</>}</button>
           </div>
         </div>
         <textarea value={form.procedure?.text || ''} onChange={e => setText('procedure', e.target.value)} rows={6} className="input resize-none text-sm w-full" placeholder="Step-by-step manufacturing procedure…" />
@@ -2070,7 +2075,7 @@ function ManufacturingProcedureTab({ product, form, setForm, onSave, isPending, 
         <AttachmentList attachments={product.procedure?.attachments} onRemove={(id) => onRemoveAttach('procedure', id)} />
       </div>
 
-      <button onClick={onSave} disabled={isPending} className="btn-primary text-sm disabled:opacity-50">{isPending ? 'Saving…' : '💾 Save Procedure'}</button>
+      <button onClick={onSave} disabled={isPending} className="btn-primary text-sm disabled:opacity-50">{isPending ? 'Saving…' : <><Save size={13} className="inline -mt-0.5 mr-1" />Save Procedure</>}</button>
     </div>
   );
 }
@@ -2087,7 +2092,7 @@ function DocumentsTab({ product, onAttach, onRemoveAttach }) {
 
   return (
     <div className="space-y-4">
-      <p className="text-sm font-bold text-gray-700 dark:text-gray-200">📄 Documents &amp; Certificates</p>
+      <p className="text-sm font-bold text-gray-700 dark:text-gray-200 flex items-center gap-1.5"><FileText size={14} />Documents &amp; Certificates</p>
       <div className="grid grid-cols-2 gap-4">
         {slots.map(([key, label, accept]) => {
           const doc = docs[key];
@@ -2098,12 +2103,12 @@ function DocumentsTab({ product, onAttach, onRemoveAttach }) {
                 <div className="flex items-center gap-2 text-xs mt-1">
                   <a href={doc.url} target="_blank" rel="noreferrer" className="font-semibold text-blue-600 dark:text-blue-400 hover:underline truncate flex-1">{doc.name || 'Document'}</a>
                   <span className="text-gray-400">{fmtDate(doc.uploadedAt)}</span>
-                  <button onClick={() => onRemoveAttach(`documents.${key}`)} className="text-red-400 hover:text-red-600">🗑️</button>
+                  <button onClick={() => onRemoveAttach(`documents.${key}`)} className="text-red-400 hover:text-red-600"><Trash2 size={13} /></button>
                 </div>
               ) : (
                 <div className="mt-1">
                   <input type="file" id={`doc-${key}`} accept={accept} className="hidden" onChange={e => { const f = e.target.files[0]; if (f) onAttach(f, `documents.${key}`); e.target.value = ''; }} />
-                  <button onClick={() => document.getElementById(`doc-${key}`).click()} className="btn-secondary text-xs">📎 Upload</button>
+                  <button onClick={() => document.getElementById(`doc-${key}`).click()} className="btn-secondary text-xs inline-flex items-center gap-1"><Paperclip size={12} />Upload</button>
                 </div>
               )}
             </div>
@@ -2134,7 +2139,7 @@ function HistoryTab({ product: p }) {
   return (
     <div className="space-y-6">
       <div className="space-y-4">
-        <p className="text-sm font-bold text-gray-700 dark:text-gray-200">📜 Certificate History</p>
+        <p className="text-sm font-bold text-gray-700 dark:text-gray-200 flex items-center gap-1.5"><ScrollText size={14} />Certificate History</p>
         {!certEvents.length ? (
           <p className="text-xs text-gray-400 bg-gray-50 dark:bg-[#0f1a2e] rounded-lg px-4 py-3">No certificates uploaded yet. Upload COA, MSDS, Registration or Brochure in the Documents tab.</p>
         ) : (
@@ -2152,7 +2157,7 @@ function HistoryTab({ product: p }) {
         )}
       </div>
       <div className="space-y-4">
-        <p className="text-sm font-bold text-gray-700 dark:text-gray-200">🕐 Activity History</p>
+        <p className="text-sm font-bold text-gray-700 dark:text-gray-200 flex items-center gap-1.5"><Clock size={14} />Activity History</p>
         {!events.length ? (
           <p className="text-xs text-gray-400 bg-gray-50 dark:bg-[#0f1a2e] rounded-lg px-4 py-3">No activity history recorded yet. Changes to R&D, overhead, procedures, and documents will be tracked automatically.</p>
         ) : (

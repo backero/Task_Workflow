@@ -1,14 +1,16 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { TrophyIcon, GiftIcon, ClockIcon, SparklesIcon, XMarkIcon, CheckCircleIcon, XCircleIcon } from '@heroicons/react/24/outline';
+import { Trophy, Gift, Clock, Sparkles, CheckCircle2, XCircle } from 'lucide-react';
+import { Button, Card, Col, Drawer, Empty, Input, Radio, Row, Space, Spin, Tag, Typography } from 'antd';
 import api from '../../api/axios';
 import toast from 'react-hot-toast';
-import { clsx } from 'clsx';
+
+const { Title, Text, Paragraph } = Typography;
 
 const REWARD_TYPES = [
-  { value: 'congrats_game', label: 'Congrats note + game outing', icon: SparklesIcon },
-  { value: 'refreshments', label: 'Refreshments', icon: GiftIcon },
-  { value: 'early_leave', label: '1 hour paid early leave', icon: ClockIcon },
+  { value: 'congrats_game', label: 'Congrats note + game outing', icon: Sparkles },
+  { value: 'refreshments', label: 'Refreshments', icon: Gift },
+  { value: 'early_leave', label: '1 hour paid early leave', icon: Clock },
 ];
 
 const STATUS_TABS = [
@@ -16,6 +18,8 @@ const STATUS_TABS = [
   { value: 'granted', label: 'Granted' },
   { value: 'skipped', label: 'Skipped' },
 ];
+
+const STATUS_COLOR = { pending: 'orange', granted: 'green', skipped: 'default' };
 
 function fmtDate(d) {
   return new Date(d).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
@@ -25,7 +29,7 @@ function rewardLabel(type) {
   return REWARD_TYPES.find((r) => r.value === type)?.label || type;
 }
 
-function GrantModal({ open, reward, onClose }) {
+function GrantDrawer({ open, reward, onClose }) {
   const qc = useQueryClient();
   const [rewardType, setRewardType] = useState('congrats_game');
   const [note, setNote] = useState('');
@@ -44,73 +48,37 @@ function GrantModal({ open, reward, onClose }) {
     onError: (err) => toast.error(err.response?.data?.message || 'Failed to grant reward'),
   });
 
-  if (!open) return null;
-
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="bg-white dark:bg-[#070c17] rounded-2xl shadow-modal w-full max-w-md">
-        <div className="flex items-center justify-between p-6 border-b border-gray-100 dark:border-[#1b2e4a]">
-          <h3 className="text-lg font-bold text-gray-900 dark:text-white">Grant Reward — {reward.department}</h3>
-          <button onClick={onClose} className="p-1 rounded hover:bg-gray-100 dark:hover:bg-[#17263d]">
-            <XMarkIcon className="w-5 h-5 text-gray-500" />
-          </button>
-        </div>
-
-        <div className="p-6 space-y-4">
-          <div>
-            <label className="label">Reward Type *</label>
-            <div className="space-y-2 mt-1.5">
+    <Drawer
+      open={open} onClose={onClose} width={420}
+      title={`Grant Reward — ${reward.department || ''}`}
+      footer={
+        <Space style={{ width: '100%' }}>
+          <Button style={{ flex: 1 }} onClick={onClose}>Cancel</Button>
+          <Button type="primary" style={{ flex: 1 }} loading={mutation.isPending} onClick={() => mutation.mutate()}>Grant Reward</Button>
+        </Space>
+      }
+    >
+      <Space direction="vertical" style={{ width: '100%' }} size={20}>
+        <div>
+          <Text strong style={{ display: 'block', marginBottom: 10, fontSize: 12 }}>Reward Type *</Text>
+          <Radio.Group value={rewardType} onChange={(e) => setRewardType(e.target.value)} style={{ width: '100%' }}>
+            <Space direction="vertical" style={{ width: '100%' }} size={8}>
               {REWARD_TYPES.map((r) => (
-                <label
-                  key={r.value}
-                  className={clsx(
-                    'flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors',
-                    rewardType === r.value
-                      ? 'border-brand-500 bg-brand-50 dark:bg-brand-900/20'
-                      : 'border-gray-200 dark:border-[#1b2e4a] hover:border-gray-300'
-                  )}
-                >
-                  <input
-                    type="radio"
-                    name="rewardType"
-                    value={r.value}
-                    checked={rewardType === r.value}
-                    onChange={() => setRewardType(r.value)}
-                    className="accent-brand-600"
-                  />
-                  <r.icon className="w-4 h-4 text-brand-600 flex-shrink-0" />
-                  <span className="text-sm font-medium text-gray-800 dark:text-gray-200">{r.label}</span>
-                </label>
+                <Radio key={r.value} value={r.value} style={{ width: '100%', padding: '8px 12px', border: `1px solid ${rewardType === r.value ? '#a8781f' : '#f0f0f0'}`, borderRadius: 8, background: rewardType === r.value ? '#fffbe6' : undefined }}>
+                  <Space size={8}><r.icon size={14} color="#a8781f" />{r.label}</Space>
+                </Radio>
               ))}
-            </div>
-          </div>
-
-          <div>
-            <label className="label">Note to the team <span className="text-gray-400 font-normal">(optional)</span></label>
-            <textarea
-              value={note}
-              onChange={(e) => setNote(e.target.value)}
-              className="input"
-              rows={3}
-              maxLength={500}
-              placeholder="Great work this week, team!"
-            />
-          </div>
-
-          <div className="flex gap-3 pt-2">
-            <button type="button" onClick={onClose} className="btn-secondary flex-1 justify-center py-2.5">Cancel</button>
-            <button
-              type="button"
-              onClick={() => mutation.mutate()}
-              disabled={mutation.isPending}
-              className="btn-primary flex-1 justify-center py-2.5"
-            >
-              {mutation.isPending ? 'Granting...' : 'Grant Reward'}
-            </button>
-          </div>
+            </Space>
+          </Radio.Group>
         </div>
-      </div>
-    </div>
+
+        <div>
+          <Text strong style={{ display: 'block', marginBottom: 6, fontSize: 12 }}>Note to the team <Text type="secondary" style={{ fontWeight: 400 }}>(optional)</Text></Text>
+          <Input.TextArea value={note} onChange={(e) => setNote(e.target.value)} rows={3} maxLength={500} placeholder="Great work this week, team!" />
+        </div>
+      </Space>
+    </Drawer>
   );
 }
 
@@ -136,109 +104,61 @@ export default function TeamRewards() {
   });
 
   return (
-    <div className="space-y-6">
-      <div className="page-header">
-        <div>
-          <h1 className="page-title flex items-center gap-2">
-            <TrophyIcon className="w-6 h-6 text-amber-500" />
-            Team Rewards
-          </h1>
-          <p className="text-sm text-gray-500 mt-0.5">
-            Teams that hit every task and daily update on time, every day for 2 straight weeks — one missed update or late task cancels it for everyone. Runs twice a month.
-          </p>
-        </div>
-      </div>
+    <div>
+      <Title level={4} style={{ marginBottom: 4 }}><Trophy size={20} color="#f59e0b" style={{ marginRight: 8, verticalAlign: -3 }} />Team Rewards</Title>
+      <Text type="secondary" style={{ fontSize: 13 }}>Teams that hit every task and daily update on time, every day for 2 straight weeks — one missed update or late task cancels it for everyone. Runs twice a month.</Text>
 
-      <div className="flex gap-2 border-b border-gray-200 dark:border-[#1b2e4a]">
-        {STATUS_TABS.map((tab) => (
-          <button
-            key={tab.value}
-            onClick={() => setStatusTab(tab.value)}
-            className={clsx(
-              'px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors',
-              statusTab === tab.value
-                ? 'border-brand-600 text-brand-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
-            )}
-          >
-            {tab.label}
-          </button>
-        ))}
-      </div>
+      <Radio.Group value={statusTab} onChange={(e) => setStatusTab(e.target.value)} style={{ display: 'block', margin: '16px 0' }}>
+        {STATUS_TABS.map((tab) => <Radio.Button key={tab.value} value={tab.value}>{tab.label}</Radio.Button>)}
+      </Radio.Group>
 
       {isLoading ? (
-        <div className="card p-12 text-center text-gray-400">Loading...</div>
+        <div style={{ textAlign: 'center', padding: 60 }}><Spin size="large" /></div>
       ) : rewards.length === 0 ? (
-        <div className="card p-12 text-center">
-          <TrophyIcon className="w-10 h-10 text-gray-300 mx-auto mb-2" />
-          <p className="text-gray-400">
-            {statusTab === 'pending' ? 'No teams are awaiting review right now.' : `No ${statusTab} rewards yet.`}
-          </p>
-        </div>
+        <Card>
+          <Empty
+            image={<Trophy size={40} color="#d1d5db" style={{ margin: '0 auto' }} />}
+            description={statusTab === 'pending' ? 'No teams are awaiting review right now.' : `No ${statusTab} rewards yet.`}
+          />
+        </Card>
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2">
+        <Row gutter={[16, 16]}>
           {rewards.map((r) => (
-            <div key={r._id} className="card p-5 space-y-3">
-              <div className="flex items-start justify-between">
-                <div>
-                  <h3 className="font-bold text-gray-900 dark:text-white">{r.department}</h3>
-                  <p className="text-xs text-gray-500 mt-0.5">
-                    {fmtDate(r.weekStart)} – {fmtDate(r.weekEnd)}
-                  </p>
+            <Col xs={24} sm={12} key={r._id}>
+              <Card>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
+                  <div>
+                    <Text strong>{r.department}</Text>
+                    <div><Text type="secondary" style={{ fontSize: 12 }}>{fmtDate(r.weekStart)} – {fmtDate(r.weekEnd)}</Text></div>
+                  </div>
+                  <Tag color={STATUS_COLOR[r.status]}>{r.status === 'pending' ? 'Pending' : r.status === 'granted' ? 'Granted' : 'Skipped'}</Tag>
                 </div>
-                <span className={clsx('badge', {
-                  'badge-orange': r.status === 'pending',
-                  'badge-green': r.status === 'granted',
-                  'badge-gray': r.status === 'skipped',
-                })}>
-                  {r.status === 'pending' ? 'Pending' : r.status === 'granted' ? 'Granted' : 'Skipped'}
-                </span>
-              </div>
 
-              <div className="flex items-center gap-1.5 flex-wrap">
-                {(r.memberIds || []).map((m) => (
-                  <span key={m._id} className="badge badge-blue">
-                    {m.firstName} {m.lastName}
-                  </span>
-                ))}
-              </div>
+                <Space size={4} wrap style={{ marginBottom: 12 }}>
+                  {(r.memberIds || []).map((m) => <Tag color="blue" key={m._id}>{m.firstName} {m.lastName}</Tag>)}
+                </Space>
 
-              {r.status === 'granted' && (
-                <div className="text-sm text-gray-600 dark:text-gray-400 bg-green-50 dark:bg-green-900/10 rounded-lg p-3">
-                  <p className="font-medium text-green-700 dark:text-green-400">{rewardLabel(r.rewardType)}</p>
-                  {r.note && <p className="mt-1 italic">&ldquo;{r.note}&rdquo;</p>}
-                  {r.grantedBy && (
-                    <p className="text-xs text-gray-400 mt-1.5">
-                      Granted by {r.grantedBy.firstName} {r.grantedBy.lastName} on {fmtDate(r.grantedAt)}
-                    </p>
-                  )}
-                </div>
-              )}
+                {r.status === 'granted' && (
+                  <Card size="small" style={{ background: '#f6ffed', borderColor: '#b7eb8f' }}>
+                    <Text strong style={{ color: '#389e0d', fontSize: 13 }}>{rewardLabel(r.rewardType)}</Text>
+                    {r.note && <Paragraph italic style={{ fontSize: 12, marginTop: 4, marginBottom: 0 }}>"{r.note}"</Paragraph>}
+                    {r.grantedBy && <Text type="secondary" style={{ fontSize: 11, display: 'block', marginTop: 6 }}>Granted by {r.grantedBy.firstName} {r.grantedBy.lastName} on {fmtDate(r.grantedAt)}</Text>}
+                  </Card>
+                )}
 
-              {r.status === 'pending' && (
-                <div className="flex gap-2 pt-1">
-                  <button
-                    onClick={() => setGrantTarget(r)}
-                    className="btn-primary flex-1 justify-center py-2 gap-1.5"
-                  >
-                    <CheckCircleIcon className="w-4 h-4" /> Grant Reward
-                  </button>
-                  <button
-                    onClick={() => skipMutation.mutate(r._id)}
-                    disabled={skipMutation.isPending}
-                    className="btn-secondary py-2 px-3"
-                    title="Dismiss without granting"
-                  >
-                    <XCircleIcon className="w-4 h-4" />
-                  </button>
-                </div>
-              )}
-            </div>
+                {r.status === 'pending' && (
+                  <Space style={{ width: '100%' }}>
+                    <Button type="primary" icon={<CheckCircle2 size={14} />} style={{ flex: 1 }} onClick={() => setGrantTarget(r)}>Grant Reward</Button>
+                    <Button icon={<XCircle size={14} />} loading={skipMutation.isPending} title="Dismiss without granting" onClick={() => skipMutation.mutate(r._id)} />
+                  </Space>
+                )}
+              </Card>
+            </Col>
           ))}
-        </div>
+        </Row>
       )}
 
-      <GrantModal open={!!grantTarget} reward={grantTarget || {}} onClose={() => setGrantTarget(null)} />
+      <GrantDrawer open={!!grantTarget} reward={grantTarget || {}} onClose={() => setGrantTarget(null)} />
     </div>
   );
 }

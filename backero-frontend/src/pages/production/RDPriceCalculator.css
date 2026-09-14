@@ -12,14 +12,11 @@
 .rd-price-calculator, .rd-price-calculator * { box-sizing: border-box; margin: 0; padding: 0; }
 .rd-price-calculator { font-family: var(--font); background: var(--bg); color: var(--text); font-size: 13.5px; line-height: 1.5; }
 
-.rd-price-calculator .header { background: var(--card-bg); padding: 12px 24px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; border-bottom: 1px solid var(--border); box-shadow: 0 1px 3px rgba(0,0,0,0.04); flex-wrap: wrap; gap: 10px; }
+.rd-price-calculator .page-header-inline { padding: 0 0 16px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; }
 .rd-price-calculator .brand { display: flex; align-items: center; gap: 12px; }
 .rd-price-calculator .brand-icon { width: 36px; height: 36px; background: var(--accent); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 18px; }
-.rd-price-calculator .brand-text h1 { font-size: 16px; font-weight: 700; letter-spacing: -0.3px; }
-.rd-price-calculator .brand-text span { font-size: 11px; color: var(--text-secondary); font-weight: 500; }
-.rd-price-calculator .header-nav { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
-.rd-price-calculator .nav-link { font-size: 12px; font-weight: 600; color: var(--text-secondary); text-decoration: none; padding: 6px 10px; border-radius: 8px; transition: all 0.15s; }
-.rd-price-calculator .nav-link:hover { background: var(--surface); color: var(--primary); }
+.rd-price-calculator .brand-text h1 { font-size: 18px; font-weight: 700; letter-spacing: -0.3px; color: var(--text); }
+.rd-price-calculator .brand-text span { font-size: 12px; color: var(--text-secondary); font-weight: 500; }
 .rd-price-calculator .header-actions { display: flex; gap: 10px; align-items: center; }
 
 .rd-price-calculator .btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; border-radius: 50px; border: none; font-size: 13px; cursor: pointer; transition: all 0.2s; font-weight: 600; font-family: var(--font); }
@@ -34,7 +31,7 @@
 .rd-price-calculator .btn-ghost { background: transparent; color: var(--text-secondary); border: none; padding: 6px 10px; }
 .rd-price-calculator .btn-ghost:hover { background: var(--surface); color: var(--text); }
 
-.rd-price-calculator .main { padding: 20px; max-width: 1400px; margin: 0 auto; }
+.rd-price-calculator .main { padding: 20px 0; width: 100%; }
 
 .rd-price-calculator .card { background: var(--card-bg); border-radius: var(--radius); box-shadow: var(--shadow); border: 1px solid var(--border-light); margin-bottom: 16px; overflow: hidden; }
 .rd-price-calculator .card-header { padding: 14px 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-light); flex-wrap: wrap; gap: 12px; }
@@ -222,7 +219,7 @@
 @media (max-width: 768px) {
   .rd-price-calculator .form-grid { grid-template-columns: 1fr; }
   .rd-price-calculator .tier-grid { grid-template-columns: 1fr; }
-  .rd-price-calculator .header { flex-direction: column; align-items: flex-start; }
+  .rd-price-calculator .page-header-inline { flex-direction: column; align-items: flex-start; }
   .rd-price-calculator .main { padding: 14px; }
   .rd-price-calculator .test-row { grid-template-columns: 24px 1fr 60px 90px; }
   .rd-price-calculator .test-row .t-amount { display: none; }
