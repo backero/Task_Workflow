@@ -71,6 +71,7 @@ export default function EditKycModal({ lead, onClose, readOnly = false }) {
     phone: lead?.phone || '', phone2: lead?.phone2 || '', whatsapp: lead?.whatsapp || '', email: lead?.email || '',
     businessType: lead?.businessType || '', city: lead?.city || '', teamSize: lead?.teamSize || '',
     source: lead?.source || '', rapportNote: lead?.rapportNote || '', assignedTo: lead?.assignedTo?._id || lead?.assignedTo || '',
+    notes: lead?.notes || '',
   });
   const set = (field) => (e) => setForm((f) => ({ ...f, [field]: e.target.value }));
 
@@ -180,7 +181,7 @@ export default function EditKycModal({ lead, onClose, readOnly = false }) {
       fd.append('audio', file, file.name || 'voice-note.webm');
       return api.post('/crm/leads/transcribe', fd, { headers: { 'Content-Type': 'multipart/form-data' } }).then((r) => r.data);
     },
-    onSuccess: ({ transcript, fields, audio }) => {
+    onSuccess: ({ transcript, fields, summary, audio }) => {
       setVoiceTranscript(transcript || '');
       setAudioAttachment(audio || null);
       const found = [];
@@ -190,6 +191,7 @@ export default function EditKycModal({ lead, onClose, readOnly = false }) {
           if (key === 'productInterest' || !val) continue;
           if (!next[key]) { next[key] = val; found.push(key); }
         }
+        if (summary) next.notes = next.notes ? `${next.notes}\n\n${summary}` : summary;
         return next;
       });
       if (fields?.productInterest?.length && !piText.trim()) {
@@ -197,7 +199,7 @@ export default function EditKycModal({ lead, onClose, readOnly = false }) {
         found.push('product interest');
       }
       if (found.length) toast.success('Voice note auto-fill found: ' + found.join(', ') + ' — please verify');
-      else toast('Transcribed — no clear fields found, please fill in manually');
+      else toast('Transcribed — call summary added to Notes, please verify');
     },
     onError: (e) => toast.error(e.response?.data?.message || 'Failed to transcribe audio'),
   });
@@ -414,6 +416,10 @@ export default function EditKycModal({ lead, onClose, readOnly = false }) {
             <div>
               <label className={labelCls}>"Anything on your mind?" <span className="font-normal text-[#8a8171]">(totally optional)</span></label>
               <textarea value={form.rapportNote} onChange={set('rapportNote')} rows={1} placeholder="Free note — preferences, context, anything worth remembering..." className={fieldCls} />
+            </div>
+            <div>
+              <label className={labelCls}>Call notes / summary <span className="font-normal text-[#8a8171]">(auto-filled from the voice-note recording above, editable)</span></label>
+              <textarea value={form.notes} onChange={set('notes')} rows={3} placeholder="What was discussed on the call..." className={fieldCls} />
             </div>
           </StepSection>
 

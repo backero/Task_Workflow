@@ -722,6 +722,12 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab, initialO
   const [fuNotes, setFuNotes] = useState('');
   const [fuNextAction, setFuNextAction] = useState('');
   const [fuScheduledAt, setFuScheduledAt] = useState('');
+  const [fuAudioAttachment, setFuAudioAttachment] = useState(null);
+  const [fuTranscript, setFuTranscript] = useState('');
+  const [isRecordingFu, setIsRecordingFu] = useState(false);
+  const fuFileInputRef = useRef(null);
+  const fuMediaRecorderRef = useRef(null);
+  const fuAudioChunksRef = useRef([]);
 
   const [viewStage, setViewStage] = useState(null);
   const [activeProductId, setActiveProductId] = useState(null);
@@ -892,10 +898,56 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab, initialO
     onSuccess: () => {
       toast.success('Follow-up logged');
       setShowFollowUpModal(false); setFuNotes(''); setFuNextAction(''); setFuScheduledAt('');
+      setFuAudioAttachment(null); setFuTranscript('');
       invalidate();
     },
     onError: (e) => toast.error(e.response?.data?.message || 'Failed to save follow-up'),
   });
+
+  const fuTranscribeMutation = useMutation({
+    mutationFn: (file) => {
+      const fd = new FormData();
+      fd.append('audio', file, file.name || 'recording.webm');
+      return api.post(`/crm/leads/${leadId}/followup/transcribe`, fd, { headers: { 'Content-Type': 'multipart/form-data' } }).then((r) => r.data);
+    },
+    onSuccess: ({ transcript, summary, audio }) => {
+      setFuTranscript(transcript || '');
+      setFuAudioAttachment(audio || null);
+      if (summary) setFuNotes(summary);
+      toast.success('Recording transcribed — summary filled in, please verify');
+    },
+    onError: (e) => toast.error(e.response?.data?.message || 'Failed to transcribe recording'),
+  });
+
+  const handleFuAudioFile = (file) => {
+    if (!file) return;
+    if (!file.type.startsWith('audio/')) { toast.error('Please attach an audio file'); return; }
+    fuTranscribeMutation.mutate(file);
+  };
+
+  const startFuRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const recorder = new MediaRecorder(stream);
+      fuAudioChunksRef.current = [];
+      recorder.ondataavailable = (e) => { if (e.data.size > 0) fuAudioChunksRef.current.push(e.data); };
+      recorder.onstop = () => {
+        stream.getTracks().forEach((t) => t.stop());
+        const blob = new Blob(fuAudioChunksRef.current, { type: 'audio/webm' });
+        handleFuAudioFile(new File([blob], `call-recording-${Date.now()}.webm`, { type: 'audio/webm' }));
+      };
+      recorder.start();
+      fuMediaRecorderRef.current = recorder;
+      setIsRecordingFu(true);
+    } catch {
+      toast.error('Microphone access denied or unavailable');
+    }
+  };
+
+  const stopFuRecording = () => {
+    fuMediaRecorderRef.current?.stop();
+    setIsRecordingFu(false);
+  };
 
   const startQueryMutation = useMutation({
     mutationFn: (queryId) => api.put(`/crm/queries/${queryId}/status`, { status: 'in_progress' }),
@@ -1343,7 +1395,7 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab, initialO
                     Follow-ups {(lead?.followUps || []).length > 0 && `(${lead.followUps.length})`}
                   </p>
                   <button
-                    onClick={() => { setFuType('call'); setFuNotes(''); setFuNextAction(''); setFuScheduledAt(''); setShowFollowUpModal(true); }}
+                    onClick={() => { setFuType('call'); setFuNotes(''); setFuNextAction(''); setFuScheduledAt(''); setFuAudioAttachment(null); setFuTranscript(''); setShowFollowUpModal(true); }}
                     className={outlineBtn}
                   >
                     + Log Follow-up
@@ -1361,6 +1413,17 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab, initialO
                         </div>
                         {fu.notes && <p className="text-[#292521] mt-0.5">{fu.notes}</p>}
                         {fu.nextAction && <p className="text-[#8a8171] mt-0.5">Next: {fu.nextAction}</p>}
+                        {fu.audioFiles?.length > 0 && (
+                          <div className="mt-1.5 space-y-1">
+                            {fu.audioFiles.map((a, j) => <audio key={j} controls src={a.url} className="w-full h-7" />)}
+                          </div>
+                        )}
+                        {fu.transcript && (
+                          <details className="mt-1">
+                            <summary className="text-[11px] text-[#a8781f] cursor-pointer select-none">📝 View transcript</summary>
+                            <p className="text-[11px] text-[#8a8171] whitespace-pre-wrap mt-1">{fu.transcript}</p>
+                          </details>
+                        )}
                       </div>
                     ))}
                   </div>
@@ -2357,6 +2420,34 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab, initialO
                   <input type="datetime-local" value={fuScheduledAt} onChange={(e) => setFuScheduledAt(e.target.value)} className={clsx(inputCls, 'w-full')} />
                 </div>
               </div>
+              <div className="rounded-[10px] border border-dashed border-[#ddd6c4] bg-[#f1ede4] p-3">
+                <label className="text-xs font-semibold text-[#8a8171] uppercase tracking-wide mb-1.5 block">🎙️ Recording — upload or record, we'll transcribe &amp; summarize</label>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <input
+                    ref={fuFileInputRef}
+                    type="file"
+                    accept="audio/*"
+                    className="hidden"
+                    onChange={(e) => { handleFuAudioFile(e.target.files?.[0]); e.target.value = ''; }}
+                  />
+                  <button type="button" onClick={() => fuFileInputRef.current?.click()} disabled={fuTranscribeMutation.isPending || isRecordingFu} className={outlineBtn}>
+                    📎 Attach recording
+                  </button>
+                  {!isRecordingFu ? (
+                    <button type="button" onClick={startFuRecording} disabled={fuTranscribeMutation.isPending} className={outlineBtn}>🎙️ Record</button>
+                  ) : (
+                    <button type="button" onClick={stopFuRecording} className={clsx(outlineBtn, 'border-[#7c2b23] text-[#7c2b23]')}>⏹ Stop &amp; transcribe</button>
+                  )}
+                  {fuTranscribeMutation.isPending && <span className="text-[11px] text-[#8a8171]">Transcribing…</span>}
+                </div>
+                {fuAudioAttachment && (
+                  <div className="mt-2 text-[11px] text-[#6b6155] bg-[#fbfaf7] border border-[#e7e2d6] rounded-lg px-2.5 py-2">
+                    <p className="font-semibold text-[#1c1917] mb-1">🎧 {fuAudioAttachment.name}</p>
+                    <audio controls src={fuAudioAttachment.url} className="w-full h-8" />
+                    {fuTranscript && <p className="mt-1.5 italic whitespace-pre-wrap">"{fuTranscript}"</p>}
+                  </div>
+                )}
+              </div>
               <div>
                 <label className="text-xs font-semibold text-[#8a8171] uppercase tracking-wide mb-1 block">Notes / Outcome</label>
                 <textarea value={fuNotes} onChange={(e) => setFuNotes(e.target.value)} rows={4} placeholder="What was discussed, how the client responded…" className={clsx(inputCls, 'w-full')} autoFocus />
@@ -2377,6 +2468,8 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab, initialO
                       notes: fuNotes,
                       outcome: fuNotes,
                       nextAction: fuNextAction,
+                      transcript: fuTranscript || undefined,
+                      audioMeta: fuAudioAttachment ? JSON.stringify(fuAudioAttachment) : undefined,
                     });
                   }}
                   disabled={followUpMutation.isPending}

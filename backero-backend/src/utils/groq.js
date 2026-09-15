@@ -50,4 +50,21 @@ async function extractLeadFieldsFromTranscript(transcript) {
   return fields;
 }
 
-module.exports = { transcribeAudio, extractLeadFieldsFromTranscript };
+// Produces a short human-readable summary of a call/meeting transcript for the comm-log timeline.
+// Clients call in whatever language they're comfortable with (Tamil, Telugu, Hindi, English,
+// or mixed) — the summary must always come back in English no matter the input language.
+async function summarizeTranscript(transcript) {
+  const prompt = `The following is a transcribed sales call/meeting. The speakers may be talking in Tamil, Telugu, Hindi, English, or a mix of these — whatever language it's in, translate fully. Write the summary ONLY in English, regardless of the transcript's language. Never leave any non-English words or phrases untranslated.\n\nSummarize in 2-4 concise sentences: what was discussed, any commitments made, and next steps. Do not add information that isn't in the transcript.\n\nTranscript:\n${transcript}`;
+
+  const { data } = await axios.post(`${GROQ_BASE}/chat/completions`, {
+    model: 'openai/gpt-oss-120b',
+    messages: [{ role: 'user', content: prompt }],
+    temperature: 0,
+  }, {
+    headers: { Authorization: `Bearer ${process.env.GROQ_API_KEY}`, 'Content-Type': 'application/json' },
+  });
+
+  return data.choices?.[0]?.message?.content?.trim() || '';
+}
+
+module.exports = { transcribeAudio, extractLeadFieldsFromTranscript, summarizeTranscript };

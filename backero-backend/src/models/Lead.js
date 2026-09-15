@@ -14,6 +14,8 @@ const followUpSchema = new mongoose.Schema({
   notes: { type: String },
   outcome: { type: String },
   nextAction: { type: String },
+  transcript: { type: String },
+  audioFiles: [{ url: String, publicId: String, name: String }],
   performedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   isCompleted: { type: Boolean, default: false },
 }, { timestamps: true });

@@ -123,6 +123,7 @@ router.post('/leads/:id/comm-log', authorizeManagerOrAbove, commLogUpload.array(
 router.put('/leads/:id/comm-log/:logId', authorizeAdminOrAbove, ctrl.editCommLog);
 router.delete('/leads/:id/comm-log/:logId', authorizeAdminOrAbove, ctrl.deleteCommLog);
 router.post('/leads/:id/sample-invoice', ctrl.createSampleInvoice);
+router.post('/leads/:id/followup/transcribe', authorizeManagerOrAbove, commLogUpload.single('audio'), ctrl.transcribeFollowUpAudio);
 router.post('/leads/:id/followup', authorizeManagerOrAbove, ctrl.addFollowUp);
 router.post('/leads/:id/assign', authorizeManagerOrAbove, ctrl.assignLead);
 router.post('/leads/:id/convert-to-task', authorizeManagerOrAbove, ctrl.convertToTask);
