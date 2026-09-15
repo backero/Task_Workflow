@@ -1,4 +1,5 @@
 ﻿import React, { useState, useEffect, useRef } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { format, formatDistanceToNow } from 'date-fns';
 import clsx from 'clsx';
 import toast from 'react-hot-toast';
@@ -46,6 +47,7 @@ export default function TaskDetailPanel({ onAddSubtask }) {
   const { selectedNode, closeDetailPanel, startTask, addUpdate, requestCompletion,
           completeTask, rejectTask, reopenTask, achieveTask, updateProgress: storeUpdateProgress, checkCompletion, deleteTask } = useWorkflowStore();
   const { user } = useAuthStore();
+  const qc = useQueryClient();
 
   const [activeTab, setActiveTab] = useState('info');
   const [taskDetail, setTaskDetail] = useState(null);
@@ -135,6 +137,10 @@ export default function TaskDetailPanel({ onAddSubtask }) {
       // Re-sync task detail/eligibility/approval after a successful action — otherwise the
       // panel keeps showing the status/buttons from when the node was first selected.
       if (taskId) await refreshDetail(taskId);
+      // The Board's task list is a separate react-query cache from this panel's zustand-backed
+      // graph state — without this, a status change here (e.g. completing a root task, which
+      // auto-archives it) never reflects on the Board until its own 5-minute refetch interval.
+      qc.invalidateQueries({ queryKey: ['tasks'] });
     } catch (err) {
       const errData = err?.response?.data;
       const reasons = errData?.reasons?.length ? ` — ${errData.reasons.join('; ')}` : '';

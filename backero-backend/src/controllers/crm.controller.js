@@ -83,20 +83,22 @@ exports.transcribeLeadAudio = asyncHandler(async (req, res) => {
   if (!req.file) return sendError(res, 'No audio file uploaded', 400);
   if (!process.env.GROQ_API_KEY) return sendError(res, 'Transcription is not configured (missing GROQ_API_KEY).', 503);
 
-  const { transcribeAudio, extractLeadFieldsFromTranscript } = require('../utils/groq');
+  const { transcribeAudio, extractLeadFieldsFromTranscript, summarizeTranscript } = require('../utils/groq');
   const { uploadBuffer } = require('../utils/cloudinary');
 
   const transcript = await transcribeAudio(req.file.buffer, req.file.originalname, req.file.mimetype);
   if (!transcript.trim()) return sendError(res, 'Could not transcribe any speech from that audio.', 422);
 
-  const [fields, uploadResult] = await Promise.all([
+  const [fields, summary, uploadResult] = await Promise.all([
     extractLeadFieldsFromTranscript(transcript),
+    summarizeTranscript(transcript),
     uploadBuffer(req.file.buffer, { folder: `backero/crm-intake/${req.user.organizationId}`, resourceType: 'video' }),
   ]);
 
   sendSuccess(res, {
     transcript,
     fields,
+    summary,
     audio: { url: uploadResult.secure_url, publicId: uploadResult.public_id, name: req.file.originalname, transcript },
   });
 });
@@ -931,12 +933,47 @@ exports.addSampleImage = asyncHandler(async (req, res) => {
 });
 
 // POST /api/crm/leads/:id/followup
+// POST /api/crm/leads/:id/followup/transcribe  (multipart 'audio') — transcribes a follow-up
+// call/meeting recording and summarizes it before the follow-up is saved, so the user can
+// review/edit the summary (which pre-fills the Notes field) before hitting Save Follow-up.
+exports.transcribeFollowUpAudio = asyncHandler(async (req, res) => {
+  const lead = await Lead.findOne({ _id: req.params.id, organizationId: req.user.organizationId });
+  if (!lead) return sendError(res, 'Lead not found.', 404);
+  if (!req.file) return sendError(res, 'No audio file uploaded', 400);
+  if (!process.env.GROQ_API_KEY) return sendError(res, 'Transcription is not configured (missing GROQ_API_KEY).', 503);
+
+  const { transcribeAudio, summarizeTranscript } = require('../utils/groq');
+  const { uploadBuffer } = require('../utils/cloudinary');
+
+  const transcript = await transcribeAudio(req.file.buffer, req.file.originalname, req.file.mimetype);
+  if (!transcript.trim()) return sendError(res, 'Could not transcribe any speech from that audio.', 422);
+
+  const [summary, uploadResult] = await Promise.all([
+    summarizeTranscript(transcript),
+    uploadBuffer(req.file.buffer, { folder: `backero/followups/${req.params.id}`, resourceType: 'video' }),
+  ]);
+
+  sendSuccess(res, {
+    transcript,
+    summary,
+    audio: { url: uploadResult.secure_url, publicId: uploadResult.public_id, name: req.file.originalname },
+  });
+});
+
 exports.addFollowUp = asyncHandler(async (req, res) => {
-  const { scheduledAt, type, notes, outcome, nextAction } = req.body;
+  const { scheduledAt, type, notes, outcome, nextAction, transcript, audioMeta } = req.body;
   const lead = await Lead.findOne({ _id: req.params.id, organizationId: req.user.organizationId });
   if (!lead) return sendError(res, 'Lead not found.', 404);
 
-  lead.followUps.push({ scheduledAt, type, notes, outcome, nextAction, performedBy: req.user._id, isCompleted: true, completedAt: new Date() });
+  const audioFiles = [];
+  if (audioMeta) {
+    try {
+      const parsed = JSON.parse(audioMeta);
+      if (parsed?.url) audioFiles.push({ url: parsed.url, publicId: parsed.publicId, name: parsed.name });
+    } catch { /* ignore malformed audioMeta */ }
+  }
+
+  lead.followUps.push({ scheduledAt, type, notes, outcome, nextAction, transcript, audioFiles, performedBy: req.user._id, isCompleted: true, completedAt: new Date() });
   lead.lastContactedAt = new Date();
   if (nextAction) lead.nextFollowUpAt = new Date(scheduledAt);
   lead.isStale = false;

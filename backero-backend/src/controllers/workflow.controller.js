@@ -173,7 +173,10 @@ const addUpdate = async (req, res) => {
       const { uploadBuffer } = require('../utils/cloudinary');
       for (const file of req.files) {
         const resourceType = file.mimetype.startsWith('image/') ? 'image' : 'raw';
-        const result = await uploadBuffer(file.buffer, { folder: `backero/task-updates/${taskId}`, resourceType, filename: file.originalname });
+        // PDF/ZIP raw delivery is blocked account-wide (401 "deny or ACL failure") —
+        // authenticated+signed delivery sidesteps that restriction. See cloudinary.js.
+        const authenticated = ['application/pdf', 'application/zip', 'application/x-zip-compressed'].includes(file.mimetype);
+        const result = await uploadBuffer(file.buffer, { folder: `backero/task-updates/${taskId}`, resourceType, filename: file.originalname, authenticated });
         attachments.push({ url: result.secure_url, name: file.originalname, type: file.mimetype, size: file.size });
       }
     }
@@ -459,11 +462,6 @@ const completeTask = async (req, res) => {
       });
     }
 
-    const { eligible, reasons } = await workflowEngine.checkCompletionEligibility(taskId);
-    if (!eligible) {
-      return res.status(400).json({ success: false, message: 'Cannot complete task', reasons });
-    }
-
     // Resolve the approval that actually belongs to this task — never trust a client-supplied
     // approvalId blindly, since an approval for a different task would otherwise be marked
     // approved while this task's own pending approval is left dangling forever.
@@ -473,6 +471,14 @@ const completeTask = async (req, res) => {
     }
     if (!approval) {
       approval = await TaskApproval.findOne({ taskId, status: 'pending' }).sort({ round: -1 });
+    }
+
+    // Exclude the approval being decided right now — it's still 'pending' at this point (only
+    // flipped to 'approved' below), so without this every completion would fail with "1 approval
+    // request(s) pending" against itself.
+    const { eligible, reasons } = await workflowEngine.checkCompletionEligibility(taskId, { excludeApprovalId: approval?._id });
+    if (!eligible) {
+      return res.status(400).json({ success: false, message: 'Cannot complete task', reasons });
     }
 
     task.status = TASK_STATUS.COMPLETED;
