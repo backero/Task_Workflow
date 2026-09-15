@@ -375,6 +375,14 @@ exports.updateTask = asyncHandler(async (req, res) => {
   Object.assign(task, safeUpdate);
   task.updatedBy = req.user._id;
   task.activity.push(activityEntry);
+  // Auto-archive root tasks (no parent) the moment they land on Completed/Achieved here too —
+  // mirrors workflow.controller.js's complete/achieve endpoints so archiving is consistent no
+  // matter which path a task's status came through.
+  const justFinished = [TASK_STATUS.COMPLETED, TASK_STATUS.ACHIEVED].includes(task.status) && task.status !== previousStatus;
+  if (justFinished && !task.parentTask) {
+    task.isArchived = true;
+    task.archivedAt = new Date();
+  }
   await task.save();
 
   const populatedTask = await Task.findById(task._id)
