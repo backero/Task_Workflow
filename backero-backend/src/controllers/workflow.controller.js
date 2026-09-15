@@ -173,7 +173,10 @@ const addUpdate = async (req, res) => {
       const { uploadBuffer } = require('../utils/cloudinary');
       for (const file of req.files) {
         const resourceType = file.mimetype.startsWith('image/') ? 'image' : 'raw';
-        const result = await uploadBuffer(file.buffer, { folder: `backero/task-updates/${taskId}`, resourceType, filename: file.originalname });
+        // PDF/ZIP raw delivery is blocked account-wide (401 "deny or ACL failure") —
+        // authenticated+signed delivery sidesteps that restriction. See cloudinary.js.
+        const authenticated = ['application/pdf', 'application/zip', 'application/x-zip-compressed'].includes(file.mimetype);
+        const result = await uploadBuffer(file.buffer, { folder: `backero/task-updates/${taskId}`, resourceType, filename: file.originalname, authenticated });
         attachments.push({ url: result.secure_url, name: file.originalname, type: file.mimetype, size: file.size });
       }
     }
