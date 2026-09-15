@@ -1,0 +1,77 @@
+name: Deploy to DigitalOcean
+
+# Manual trigger only for now — flip to `push: { branches: [main] }` once the
+# Droplet deployment has been running reliably for a while. There was no
+# CI/CD in this repo before (Render/Vercel/Netlify deployed via their own
+# git-integration), so this is deliberately conservative on day one.
+on:
+  workflow_dispatch:
+    inputs:
+      deploy_backend:
+        description: "Deploy backend"
+        type: boolean
+        default: true
+      deploy_frontend:
+        description: "Deploy frontend"
+        type: boolean
+        default: true
+
+jobs:
+  backend:
+    if: ${{ inputs.deploy_backend }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Copy backend source to Droplet
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.DROPLET_HOST }}
+          username: ${{ secrets.DROPLET_USER }}
+          key: ${{ secrets.DROPLET_SSH_KEY }}
+          source: "backero-backend/**"
+          target: "/opt/backero/backend"
+          strip_components: 1
+
+      - name: Build and restart the backend container
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.DROPLET_HOST }}
+          username: ${{ secrets.DROPLET_USER }}
+          key: ${{ secrets.DROPLET_SSH_KEY }}
+          script: |
+            cd /opt/backero/backend
+            docker compose -f docker-compose.prod.yml up -d --build
+            sleep 5
+            curl -f http://127.0.0.1:8080/health
+
+  frontend:
+    if: ${{ inputs.deploy_frontend }}
+    runs-on: ubuntu-latest
+    steps:
+      # Full repo checkout (not sparse) — vite.config.js's dashboardSyncPlugin
+      # reads ../tools/dashboards, a sibling directory outside backero-frontend.
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install and build
+        working-directory: backero-frontend
+        env:
+          VITE_API_URL: ${{ secrets.VITE_API_URL }}
+          VITE_WORKFLOW_API_URL: ${{ secrets.VITE_WORKFLOW_API_URL }}
+        run: |
+          npm ci
+          npm run build
+
+      - name: Upload dist/ to the Droplet's Nginx web root
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.DROPLET_HOST }}
+          username: ${{ secrets.DROPLET_USER }}
+          key: ${{ secrets.DROPLET_SSH_KEY }}
+          source: "backero-frontend/dist/**"
+          target: "/opt/backero/frontend"
+          strip_components: 2

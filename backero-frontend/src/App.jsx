@@ -17,6 +17,15 @@ import ResetPassword from './pages/auth/ResetPassword';
 import Onboarding from './pages/auth/Onboarding';
 import AuthCallback from './pages/auth/AuthCallback';
 
+// Attendance Tracker pages
+import AttEmployees from './pages/attendance/Employees';
+import AttendanceBoard from './pages/attendance/AttendanceBoard';
+import AttDevices from './pages/attendance/Devices';
+import AttLocation from './pages/attendance/Location';
+import AttPayroll from './pages/attendance/Payroll';
+import MyAttendance from './pages/attendance/MyAttendance';
+import MyPayroll from './pages/attendance/MyPayroll';
+
 // Dashboard pages
 import FounderDashboard from './pages/dashboard/FounderDashboard';
 import ManagerDashboard from './pages/dashboard/ManagerDashboard';
@@ -199,6 +208,15 @@ export default function App() {
 
           {/* Documents */}
           <Route path="/documents" element={<PermissionRoute module="finance"><DocumentWalletPage /></PermissionRoute>} />
+
+          {/* Attendance Tracker */}
+          <Route path="/attendance/employees" element={<PermissionRoute permission={['employee:read', 'employee:manage']}><AttEmployees /></PermissionRoute>} />
+          <Route path="/attendance/today" element={<PermissionRoute permission="attendance:read"><AttendanceBoard /></PermissionRoute>} />
+          <Route path="/attendance/devices" element={<PermissionRoute permission={['device:read', 'device:manage']}><AttDevices /></PermissionRoute>} />
+          <Route path="/attendance/location" element={<PermissionRoute permission={['location:view_live', 'location:view_history']}><AttLocation /></PermissionRoute>} />
+          <Route path="/attendance/payroll" element={<PermissionRoute permission={['payroll:read', 'payroll:manage_config']}><AttPayroll /></PermissionRoute>} />
+          <Route path="/my-attendance" element={<MyAttendance />} />
+          <Route path="/my-payroll" element={<MyPayroll />} />
         </Route>
 
         {/* workflow-v2 retired: its Tasks-board/my-tasks/approvals pages

@@ -10,6 +10,7 @@ import {
   Box, Zap, BarChart3, Settings, Megaphone,
   Store, FlaskConical, Banknote, UsersRound,
   Wrench, Trophy, Sparkles, X,
+  Fingerprint, ClipboardCheck, Receipt,
 } from 'lucide-react';
 
 const { Text } = Typography;
@@ -35,7 +36,7 @@ export default function Sidebar({ variant = 'desktop', onNavigate, onClose }) {
   const {
     can, isAdmin,
     canCRM, canInventory, canFinance,
-    canManagement, canApprovals,
+    canManagement, canApprovals, canAttendance,
   } = usePermissions();
 
   // Mobile overlay is always fully expanded (no hover-collapse); desktop
@@ -48,7 +49,11 @@ export default function Sidebar({ variant = 'desktop', onNavigate, onClose }) {
 
   groups.push({
     label: 'Overview',
-    items: [{ label: 'Dashboard', to: '/', icon: Home, exact: true }],
+    items: [
+      { label: 'Dashboard', to: '/', icon: Home, exact: true },
+      { label: 'My Attendance', to: '/my-attendance', icon: ClipboardCheck },
+      { label: 'My Payroll', to: '/my-payroll', icon: Receipt },
+    ],
   });
 
   const workItems = [
@@ -112,6 +117,21 @@ export default function Sidebar({ variant = 'desktop', onNavigate, onClose }) {
   if (can('dept.operations'))  deptItems.push({ label: 'Operations',  to: '/departments/operations',  icon: Wrench });
   if (can('dept.hr'))          deptItems.push({ label: 'HR',          to: '/departments/hr',          icon: UsersRound });
   if (deptItems.length > 0) groups.push({ label: 'Departments', items: deptItems });
+
+  if (canAttendance) {
+    groups.push({
+      label: 'Attendance',
+      items: [{
+        label: 'Attendance', icon: Fingerprint, children: [
+          { label: 'Employees', to: '/attendance/employees' },
+          { label: "Today's Board", to: '/attendance/today' },
+          { label: 'Devices', to: '/attendance/devices' },
+          { label: 'Location', to: '/attendance/location' },
+          { label: 'Payroll', to: '/attendance/payroll' },
+        ],
+      }],
+    });
+  }
 
   if (canManagement) {
     groups.push({

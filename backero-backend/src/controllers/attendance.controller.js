@@ -11,6 +11,7 @@ const Employee = require('../models/Employee');
 const { asyncHandler, sendSuccess, sendError, paginate, paginateResponse } = require('../utils/helpers');
 const { recordAuditEvent } = require('../services/attendanceAudit.service');
 const processor = require('../services/attendanceProcessor.service');
+const { getOrCreatePeriodForDate } = require('../services/attendancePeriods.service');
 
 function toUTCDate(value) {
   const d = new Date(value);
@@ -28,6 +29,44 @@ exports.getMyAttendance = asyncHandler(async (req, res) => {
 
   const rows = await Attendance.find(q).sort({ attendanceDate: -1 });
   sendSuccess(res, { attendance: rows });
+});
+
+// --- POST /attendance/punch --- self-service check-in/check-out toggle.
+exports.punch = asyncHandler(async (req, res) => {
+  const orgId = req.user.organizationId;
+  const employee = await Employee.findOne({ organizationId: orgId, userId: req.user._id, deletedAt: null });
+  if (!employee) return sendError(res, 'No employee profile is linked to your account yet.', 404);
+
+  const targetDate = toUTCDate(new Date());
+  const period = await getOrCreatePeriodForDate(orgId, targetDate);
+  if (period.status === 'FINALIZED') {
+    return sendError(res, "Today's attendance period is finalized; contact HR.", 409);
+  }
+
+  const existing = await Attendance.findOne({ organizationId: orgId, employeeId: employee._id, attendanceDate: targetDate });
+  let eventType;
+  if (!existing || !existing.checkIn) eventType = 'CHECK_IN';
+  else if (!existing.checkOut) eventType = 'CHECK_OUT';
+  else return sendError(res, "You've already completed attendance for today.", 409);
+
+  const { latitude, longitude } = req.body || {};
+  const dedupeKey = `self:${employee._id}:${targetDate.toISOString().slice(0, 10)}:${eventType}`;
+
+  try {
+    await AttendanceEvent.create({
+      organizationId: orgId, deviceId: null, deviceEmployeeRef: employee.employeeCode, employeeId: employee._id,
+      eventType, rawEvent: { self_service: true, ...(latitude != null && longitude != null ? { latitude, longitude } : {}) },
+      source: 'SELF_SERVICE', dedupeKey, eventTimestamp: new Date(),
+    });
+  } catch (err) {
+    if (err.code === 11000) return sendError(res, 'Already logged — please refresh.', 409);
+    throw err;
+  }
+
+  const io = req.app.get('io');
+  const updated = await processor.process(orgId, employee._id, targetDate, { io });
+
+  sendSuccess(res, { attendance: updated, punched: eventType }, eventType === 'CHECK_IN' ? 'Checked in' : 'Checked out');
 });
 
 // --- GET /attendance/today ---

@@ -43,25 +43,6 @@ const startAutomationEngine = (socketIo) => {
   io = socketIo;
   logger.info('Starting Backero automation engine...');
 
-  // ── Keep Render alive 24/7: self-ping every 14 min (Render sleeps after 15 min idle) ──
-  const keepAliveUrl = process.env.RENDER_EXTERNAL_URL || process.env.BACKEND_URL;
-  if (keepAliveUrl) {
-    const https = require('https');
-    const http = require('http');
-    cron.schedule('*/14 * * * *', () => {
-      const url = `${keepAliveUrl}/health`;
-      const mod = url.startsWith('https') ? https : http;
-      mod.get(url, (res) => {
-        logger.info(`[KeepAlive] ping → ${res.statusCode}`);
-      }).on('error', (err) => {
-        logger.warn(`[KeepAlive] ping failed: ${err.message}`);
-      });
-    });
-    logger.info(`[KeepAlive] Self-ping enabled → ${keepAliveUrl}/health every 14 min`);
-  } else {
-    logger.warn('[KeepAlive] RENDER_EXTERNAL_URL not set — add it in Render env vars to enable 24/7 uptime');
-  }
-
   // Every 30 minutes: check overdue tasks
   cron.schedule('*/30 * * * *', () => {
     runOverdueTaskCheck().catch(logger.error);

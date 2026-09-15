@@ -14,7 +14,10 @@ const GoogleDriveAuth = require('../models/GoogleDriveAuth');
 const REDIRECT_PATH = '/api/documents/drive/callback';
 
 function getRedirectUri() {
-  const base = process.env.RENDER_EXTERNAL_URL || process.env.BACKEND_URL || 'http://localhost:5000';
+  // BACKEND_URL is the portable name (set explicitly on non-Render hosts);
+  // RENDER_EXTERNAL_URL is auto-injected by Render for every web service and
+  // is what currently makes this work there without any manual config.
+  const base = process.env.BACKEND_URL || process.env.RENDER_EXTERNAL_URL || 'http://localhost:5000';
   return `${base}${REDIRECT_PATH}`;
 }
 

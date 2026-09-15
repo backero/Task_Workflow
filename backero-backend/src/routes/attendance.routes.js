@@ -3,6 +3,7 @@
 // Route order matters: literal paths (me/today/exceptions/periods/admin/...)
 // must be registered before the /:employeeId param route.
 const router = require('express').Router();
+const rateLimit = require('express-rate-limit');
 const attendanceCtrl = require('../controllers/attendance.controller');
 const periodsCtrl = require('../controllers/attendancePeriods.controller');
 const adminCtrl = require('../controllers/attendanceAdmin.controller');
@@ -14,6 +15,16 @@ const { ATTENDANCE_PERMISSIONS } = require('../utils/attendanceConstants');
 router.use(authenticate);
 
 const P = ATTENDANCE_PERMISSIONS;
+
+const isDev = process.env.NODE_ENV !== 'production';
+const noopMiddleware = (_req, _res, next) => next();
+const punchLimiter = isDev ? noopMiddleware : rateLimit({
+  windowMs: 60 * 1000,
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { success: false, message: 'Too many attendance punches. Please slow down.' },
+});
 
 // --- Periods (mounted under /attendance/periods) ---
 // period:read is granted to EVERY default role tier in the source (SUPER_ADMIN,
@@ -32,6 +43,7 @@ router.get('/audit-logs', requireAttendancePermission(P.AUDIT_READ), auditCtrl.l
 
 // --- Self-service / exceptions / today ---
 router.get('/me', attendanceCtrl.getMyAttendance);
+router.post('/punch', punchLimiter, attendanceCtrl.punch);
 router.get('/today', requireAttendancePermission(P.ATTENDANCE_READ), attendanceCtrl.listToday);
 router.get('/exceptions', requireAttendancePermission(P.ATTENDANCE_REVIEW_EXCEPTIONS), attendanceCtrl.listExceptions);
 

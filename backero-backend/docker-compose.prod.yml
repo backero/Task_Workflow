@@ -1,0 +1,18 @@
+# Production compose file for the DigitalOcean Droplet. Documents the
+# container's shape; real secret values live only in .env.production on the
+# Droplet (never committed) — this file references env var *names* only.
+# Bound to 127.0.0.1 — only the host's Nginx is internet-facing; Nginx
+# reverse-proxies /api and the Socket.io WebSocket upgrade to this container.
+services:
+  backend:
+    build: .
+    restart: unless-stopped
+    env_file: .env.production
+    ports:
+      - "127.0.0.1:8080:8080"
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:8080/health', r => process.exit(r.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      start_period: 15s
+      retries: 3

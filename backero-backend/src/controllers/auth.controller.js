@@ -117,6 +117,7 @@ exports.login = asyncHandler(async (req, res) => {
 
   sendSuccess(res, {
     accessToken,
+    refreshToken,
     user: sanitizeUser(user),
     organization: user.organizationId,
   }, 'Login successful');
@@ -142,7 +143,7 @@ exports.refresh = asyncHandler(async (req, res) => {
   await user.save({ validateBeforeSave: false });
 
   setRefreshCookie(res, newRefresh);
-  sendSuccess(res, { accessToken }, 'Token refreshed');
+  sendSuccess(res, { accessToken, refreshToken: newRefresh }, 'Token refreshed');
 });
 
 // POST /api/auth/logout
@@ -254,6 +255,7 @@ exports.verifyLoginOTP = asyncHandler(async (req, res) => {
 
   sendSuccess(res, {
     accessToken,
+    refreshToken,
     user: sanitizeUser(user),
     organization: user.organizationId,
   }, 'Login successful');

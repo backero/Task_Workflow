@@ -12,11 +12,19 @@ RUN npm install --omit=dev
 
 COPY . .
 
-# WhatsApp session lives on persistent volume mounted at /data/wa_session
-ENV WA_SESSION_PATH=/data/wa_session
+# WhatsApp (Baileys) session persists in MongoDB (see src/services/whatsappMongoAuth.js),
+# not local disk — no persistent volume needed for it.
 ENV NODE_ENV=production
 ENV PORT=8080
 
+# node:20-slim already ships a non-root "node" user (uid/gid 1000) — reuse it
+# rather than creating a new one.
+RUN chown -R node:node /app
+USER node
+
 EXPOSE 8080
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
+    CMD node -e "require('http').get('http://localhost:8080/health', r => process.exit(r.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))"
 
 CMD ["node", "server.js"]

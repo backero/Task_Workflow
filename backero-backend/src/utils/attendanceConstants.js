@@ -71,7 +71,7 @@ const ATTENDANCE_STATUSES = [
 ];
 
 const ATTENDANCE_EVENT_TYPES = ['CHECK_IN', 'CHECK_OUT', 'UNKNOWN'];
-const ATTENDANCE_EVENT_SOURCES = ['DEVICE', 'MOCK', 'MANUAL_CORRECTION'];
+const ATTENDANCE_EVENT_SOURCES = ['DEVICE', 'MOCK', 'MANUAL_CORRECTION', 'SELF_SERVICE'];
 
 // REJECTED is defined for schema completeness (mirrors the source) — no
 // endpoint transitions a correction to REJECTED today, only PENDING_APPROVAL -> APPROVED.
