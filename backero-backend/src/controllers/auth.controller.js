@@ -343,7 +343,7 @@ exports.forgotPassword = asyncHandler(async (req, res) => {
     resetPasswordExpires: new Date(Date.now() + 60 * 60 * 1000), // 1 hour
   });
 
-  const frontendUrl = process.env.FRONTEND_URL || 'https://task-workflow-liart.vercel.app';
+  const frontendUrl = process.env.FRONTEND_URL || 'https://workflow.backero.in';
   const resetUrl = `${frontendUrl}/reset-password?token=${plainToken}`;
 
   const { sendPasswordResetEmail } = require('../services/email.service');
@@ -379,7 +379,7 @@ exports.resetPassword = asyncHandler(async (req, res) => {
 // GET /api/auth/google  — redirects to Google consent (handled by passport middleware in routes)
 // GET /api/auth/google/callback
 exports.googleCallback = (req, res, next) => {
-  const frontendUrl = process.env.FRONTEND_URL || 'https://task-workflow-liart.vercel.app';
+  const frontendUrl = process.env.FRONTEND_URL || 'https://workflow.backero.in';
 
   passport.authenticate('google', { session: false }, async (err, user, info) => {
     try {

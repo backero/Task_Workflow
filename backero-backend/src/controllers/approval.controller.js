@@ -170,7 +170,7 @@ exports.approveTask = asyncHandler(async (req, res) => {
   // Email the task owner
   User.findById(approval.requestedBy).select('email settings').then((requester) => {
     if (requester?.email && !requester.email.endsWith('@backero.internal') && requester.settings?.notifications?.email !== false) {
-      const taskUrl = `${process.env.FRONTEND_URL || 'https://task-workflow-liart.vercel.app'}/workflow/${task._id}`;
+      const taskUrl = `${process.env.FRONTEND_URL || 'https://workflow.backero.in'}/workflow/${task._id}`;
       sendTaskNotificationEmail(requester.email, {
         type: 'approved',
         taskTitle: task.title,
@@ -236,7 +236,7 @@ exports.rejectTask = asyncHandler(async (req, res) => {
   // Email the task owner
   User.findById(approval.requestedBy).select('email settings').then((requester) => {
     if (requester?.email && !requester.email.endsWith('@backero.internal') && requester.settings?.notifications?.email !== false) {
-      const taskUrl = `${process.env.FRONTEND_URL || 'https://task-workflow-liart.vercel.app'}/workflow/${task._id}`;
+      const taskUrl = `${process.env.FRONTEND_URL || 'https://workflow.backero.in'}/workflow/${task._id}`;
       sendTaskNotificationEmail(requester.email, {
         type: 'rejected',
         taskTitle: task.title,

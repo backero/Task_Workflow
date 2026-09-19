@@ -9,7 +9,8 @@ const initSocket = (server) => {
     'http://localhost:5173',
     'http://localhost:5174',
     'http://localhost:3000',
-    'https://task-workflow-liart.vercel.app',
+    'https://workflow.backero.in',
+    'https://backero-frontend-beta.vercel.app',
     ...(process.env.FRONTEND_URL ? [process.env.FRONTEND_URL] : []),
   ];
 
@@ -17,7 +18,7 @@ const initSocket = (server) => {
     cors: {
       origin: (origin, callback) => {
         if (!origin || allowedSocketOrigins.includes(origin)) return callback(null, true);
-        if (/^https:\/\/task-workflow[a-z0-9-]*\.vercel\.app$/.test(origin)) return callback(null, true);
+        if (/^https:\/\/(task-workflow|backero-frontend)[a-z0-9-]*\.vercel\.app$/.test(origin)) return callback(null, true);
         callback(new Error(`Socket CORS: origin ${origin} not allowed`));
       },
       credentials: true,

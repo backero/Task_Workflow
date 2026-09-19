@@ -1,7 +1,7 @@
 const logger = require('../utils/logger');
 
 const GRAPH_VERSION = 'v20.0';
-const APP_URL = process.env.APP_URL || process.env.FRONTEND_URL || 'https://task-workflow-liart.vercel.app';
+const APP_URL = process.env.APP_URL || process.env.FRONTEND_URL || 'https://workflow.backero.in';
 const PRIORITY_EMOJI = { critical: '🔴', urgent: '🟠', high: '🟡', medium: '🔵', low: '⚪' };
 const fmtDate = (d) => d ? new Date(d).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : 'No due date';
 

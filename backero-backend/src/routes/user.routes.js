@@ -79,7 +79,7 @@ router.post('/', authorizeAdminOrAbove, asyncHandler(async (req, res) => {
     createdBy: req.user._id,
   });
 
-  const loginUrl = process.env.FRONTEND_URL || 'https://task-workflow-liart.vercel.app';
+  const loginUrl = process.env.FRONTEND_URL || 'https://workflow.backero.in';
   sendWelcomeEmail(user.email, firstName, loginUrl).catch(() => {});
 
   sendSuccess(res, { user: sanitizeUser(user) }, 'User created', 201);

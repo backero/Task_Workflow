@@ -269,7 +269,7 @@ exports.createTask = asyncHandler(async (req, res) => {
       const emailEnabled = assigneeUser.settings?.notifications?.email !== false;
       const hasRealEmail = assigneeUser.email && !assigneeUser.email.endsWith('@backero.internal');
       if (emailEnabled && hasRealEmail) {
-        const taskUrl = `${process.env.FRONTEND_URL || 'https://task-workflow-liart.vercel.app'}/workflow/${task._id}`;
+        const taskUrl = `${process.env.FRONTEND_URL || 'https://workflow.backero.in'}/workflow/${task._id}`;
         sendTaskNotificationEmail(assigneeUser.email, {
           type: 'assigned',
           taskTitle: title,

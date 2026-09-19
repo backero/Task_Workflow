@@ -343,7 +343,7 @@ exports.driveConnectUrl = asyncHandler(async (req, res) => {
 });
 
 exports.driveCallback = asyncHandler(async (req, res) => {
-  const frontendUrl = process.env.FRONTEND_URL || 'https://task-workflow-liart.vercel.app';
+  const frontendUrl = process.env.FRONTEND_URL || 'https://workflow.backero.in';
   const { code, state } = req.query;
   if (!code || !verifyOAuthState(state)) {
     return res.redirect(`${frontendUrl}/documents?driveError=${encodeURIComponent('Invalid or expired connect link — try again')}`);
