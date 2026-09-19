@@ -18,7 +18,7 @@ const initSocket = (server) => {
     cors: {
       origin: (origin, callback) => {
         if (!origin || allowedSocketOrigins.includes(origin)) return callback(null, true);
-        if (/^https:\/\/(task-workflow|backero-frontend)[a-z0-9-]*\.vercel\.app$/.test(origin)) return callback(null, true);
+        if (/^https:\/\/(task-workflow|backero-frontend|backero-employee-portal)[a-z0-9-]*\.vercel\.app$/.test(origin)) return callback(null, true);
         callback(new Error(`Socket CORS: origin ${origin} not allowed`));
       },
       credentials: true,

@@ -123,6 +123,10 @@ app.use(cors({
     if (/^https:\/\/backero-frontend[a-z0-9-]*\.vercel\.app$/.test(origin)) {
       return callback(null, true);
     }
+    // Allow all Vercel deployments for the backero-employee-portal project (preview + production)
+    if (/^https:\/\/backero-employee-portal[a-z0-9-]*\.vercel\.app$/.test(origin)) {
+      return callback(null, true);
+    }
     callback(new Error(`CORS: origin ${origin} not allowed`));
   },
   credentials: true,
