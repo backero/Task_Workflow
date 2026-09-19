@@ -19,7 +19,7 @@ export default function EmployeeMonitoring() {
       title: 'Employee', key: 'employee',
       render: (_, user) => (
         <Space>
-          <Avatar style={{ backgroundColor: '#a8781f1f', color: '#a8781f' }}>{user.firstName?.[0]}{user.lastName?.[0]}</Avatar>
+          <Avatar style={{ backgroundColor: '#669c2c1f', color: '#669c2c' }}>{user.firstName?.[0]}{user.lastName?.[0]}</Avatar>
           <div>
             <div><Text strong>{user.firstName} {user.lastName}</Text></div>
             <Text type="secondary" style={{ fontSize: 12 }}>{user.email}</Text>
@@ -38,8 +38,8 @@ export default function EmployeeMonitoring() {
 
   return (
     <div>
-      <Title level={4} style={{ marginBottom: 0 }}>Employee Monitoring</Title>
-      <Text type="secondary">{users.length} employees</Text>
+      <Title level={4} style={{ marginBottom: 0 }}>Team Status</Title>
+      <Text type="secondary">{users.length} team members — online status &amp; last active</Text>
       <Card style={{ marginTop: 16 }} styles={{ body: { padding: 0 } }}>
         <Table rowKey="_id" columns={columns} dataSource={users} pagination={false} />
       </Card>

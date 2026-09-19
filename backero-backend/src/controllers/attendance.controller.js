@@ -43,20 +43,30 @@ exports.punch = asyncHandler(async (req, res) => {
     return sendError(res, "Today's attendance period is finalized; contact HR.", 409);
   }
 
-  const existing = await Attendance.findOne({ organizationId: orgId, employeeId: employee._id, attendanceDate: targetDate });
-  let eventType;
-  if (!existing || !existing.checkIn) eventType = 'CHECK_IN';
-  else if (!existing.checkOut) eventType = 'CHECK_OUT';
-  else return sendError(res, "You've already completed attendance for today.", 409);
+  // Toggle CHECK_IN/CHECK_OUT off the raw event log, not the derived
+  // Attendance.checkIn/checkOut (those only track the FIRST/last-CLOSED
+  // session, so they stay truthy across a whole multi-punch day and can't
+  // tell "is a session open right now"). Last event today was CHECK_IN ->
+  // next is CHECK_OUT; anything else (CHECK_OUT, or no events yet) -> CHECK_IN.
+  const { start: dayStart, end: dayEnd } = processor.dayBoundsUTC(targetDate);
+  const lastEvent = await AttendanceEvent.findOne({
+    organizationId: orgId, employeeId: employee._id, eventTimestamp: { $gte: dayStart, $lt: dayEnd },
+  }).sort({ eventTimestamp: -1 });
+  const eventType = lastEvent?.eventType === 'CHECK_IN' ? 'CHECK_OUT' : 'CHECK_IN';
 
   const { latitude, longitude } = req.body || {};
-  const dedupeKey = `self:${employee._id}:${targetDate.toISOString().slice(0, 10)}:${eventType}`;
+  const eventTimestamp = new Date();
+  // Bucketed to a 3s window so an accidental double-tap/network-retry dedupes
+  // (same key), while legitimately separate punches later in the day (always
+  // >3s apart) each get their own key instead of colliding on eventType alone.
+  const dedupeBucket = Math.floor(eventTimestamp.getTime() / 3000);
+  const dedupeKey = `self:${employee._id}:${targetDate.toISOString().slice(0, 10)}:${eventType}:${dedupeBucket}`;
 
   try {
     await AttendanceEvent.create({
       organizationId: orgId, deviceId: null, deviceEmployeeRef: employee.employeeCode, employeeId: employee._id,
       eventType, rawEvent: { self_service: true, ...(latitude != null && longitude != null ? { latitude, longitude } : {}) },
-      source: 'SELF_SERVICE', dedupeKey, eventTimestamp: new Date(),
+      source: 'SELF_SERVICE', dedupeKey, eventTimestamp,
     });
   } catch (err) {
     if (err.code === 11000) return sendError(res, 'Already logged — please refresh.', 409);

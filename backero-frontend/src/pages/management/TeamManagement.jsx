@@ -207,7 +207,7 @@ export default function TeamManagement() {
       title: 'Member', key: 'member',
       render: (_, u) => (
         <Space>
-          <Avatar style={{ backgroundColor: '#a8781f1f', color: '#a8781f' }}>{u.firstName?.[0]}{u.lastName?.[0]}</Avatar>
+          <Avatar style={{ backgroundColor: '#669c2c1f', color: '#669c2c' }}>{u.firstName?.[0]}{u.lastName?.[0]}</Avatar>
           <div>
             <Text strong delete={!u.isActive} type={!u.isActive ? 'secondary' : undefined}>{u.firstName} {u.lastName}</Text>
             {u.designation && <div><Text type="secondary" style={{ fontSize: 12 }}>{u.designation}</Text></div>}
@@ -267,7 +267,7 @@ export default function TeamManagement() {
         {[
           { label: 'Total Members', value: stats.total, color: '#1f2937' },
           { label: 'Active', value: stats.active, color: '#16a34a' },
-          { label: 'Admins & Managers', value: stats.admins, color: '#a8781f' },
+          { label: 'Admins & Managers', value: stats.admins, color: '#669c2c' },
           { label: 'Members', value: stats.members, color: '#6b7280' },
         ].map((s) => (
           <Col span={6} key={s.label}>

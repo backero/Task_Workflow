@@ -270,7 +270,7 @@ function TaskDetailModal({ taskId, onClose }) {
                         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
                           <Text strong style={{ fontSize: 12 }}>{upd.author?.firstName} {upd.author?.lastName}</Text>
                           <div style={{ display: 'flex', gap: 10 }}>
-                            {upd.progress !== undefined && <Text style={{ fontSize: 12, color: '#a8781f', fontWeight: 600 }}>{upd.progress}%</Text>}
+                            {upd.progress !== undefined && <Text style={{ fontSize: 12, color: '#669c2c', fontWeight: 600 }}>{upd.progress}%</Text>}
                             <Text type="secondary" style={{ fontSize: 12 }}>{upd.createdAt ? formatDistanceToNow(new Date(upd.createdAt), { addSuffix: true }) : ''}</Text>
                           </div>
                         </div>
@@ -348,7 +348,7 @@ function TaskCard({ task, onClick }) {
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           {task.assignedTo && (
-            <span style={{ width: 20, height: 20, borderRadius: '50%', background: 'rgba(168,120,31,0.12)', color: '#a8781f', fontSize: 11, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <span style={{ width: 20, height: 20, borderRadius: '50%', background: 'rgba(102,156,44,0.12)', color: '#669c2c', fontSize: 11, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               {task.assignedTo.firstName?.[0]}
             </span>
           )}

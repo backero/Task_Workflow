@@ -228,7 +228,7 @@ export default function NewOrderModal({ onClose, onCreated, initialCustomerSearc
               <div key={i}
                 onClick={() => setActiveLine(i)}
                 className={clsx('rounded-lg border-[1.5px] px-2.5 py-2 cursor-pointer flex items-start justify-between gap-1.5',
-                  i === activeLine ? 'border-[#a8781f] bg-[#f3e6c8]' : 'border-[#ddd6c4] bg-[#fff] hover:border-[#8a8171]')}>
+                  i === activeLine ? 'border-[#669c2c] bg-[#f3e6c8]' : 'border-[#ddd6c4] bg-[#fff] hover:border-[#8a8171]')}>
                 <div className="min-w-0">
                   <p className="text-xs font-bold text-[#1c1917] truncate">{l.catalogProduct ? l.catalogProduct.name : 'New line — select product'}</p>
                   <p className="text-[10px] text-[#8a8171] truncate">{l.catalogProduct ? l.catalogProduct.code : `Line ${i + 1}`}{l.plannedQuantity ? ` · ${l.plannedQuantity} units` : ''}</p>
@@ -239,7 +239,7 @@ export default function NewOrderModal({ onClose, onCreated, initialCustomerSearc
               </div>
             ))}
           </div>
-          <button onClick={addLine} className="w-full mt-2 border-2 border-dashed border-[#8a8171] text-[#a8781f] rounded-lg py-2 text-xs font-bold hover:bg-[#f3e6c8] flex items-center justify-center gap-1"><Plus size={12} /> Add product</button>
+          <button onClick={addLine} className="w-full mt-2 border-2 border-dashed border-[#8a8171] text-[#669c2c] rounded-lg py-2 text-xs font-bold hover:bg-[#f3e6c8] flex items-center justify-center gap-1"><Plus size={12} /> Add product</button>
           <p className="text-[9.5px] text-[#8a8171] mt-2 leading-relaxed">Each product becomes its own order &amp; job sheet under the same customer ID and order group.</p>
         </div>
 

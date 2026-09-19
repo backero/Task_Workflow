@@ -15,6 +15,8 @@ const ATTENDANCE_PERMISSION_CODES = new Set([
   'field_session:start', 'location:view_live', 'location:view_history',
   'payroll:read', 'payroll:finalize', 'payroll:manage_config',
   'audit:read',
+  'rules:configure',
+  'leave:read', 'leave:manage', 'leave:approve',
 ]);
 
 // Which modules each department can access

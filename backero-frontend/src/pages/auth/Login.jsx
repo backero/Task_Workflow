@@ -55,9 +55,9 @@ export default function Login() {
         <Text type="secondary" style={{ fontSize: 12 }}>or sign in with email</Text>
       </Divider>
 
-      <Form layout="vertical" onFinish={handleLogin} requiredMark={false}>
+      <Form layout="vertical" onFinish={handleLogin} requiredMark={false} autoComplete="off">
         <Form.Item name="email" label="Email" rules={[{ required: true, message: 'Enter your email' }]}>
-          <Input prefix={<MailOutlined />} placeholder="you@company.com" size="large" autoFocus autoComplete="email" />
+          <Input prefix={<MailOutlined />} placeholder="you@company.com" size="large" autoFocus autoComplete="off" id="login-email-field" name="login-email-field" />
         </Form.Item>
         <Form.Item
           name="password"
@@ -65,7 +65,7 @@ export default function Login() {
           style={{ marginBottom: 8 }}
           rules={[{ required: true, message: 'Enter your password' }]}
         >
-          <Input.Password prefix={<LockOutlined />} placeholder="••••••••" size="large" autoComplete="current-password" />
+          <Input.Password prefix={<LockOutlined />} placeholder="••••••••" size="large" autoComplete="new-password" id="login-password-field" name="login-password-field" />
         </Form.Item>
         <div style={{ textAlign: 'right', marginBottom: 16 }}>
           <Link to="/forgot-password" style={{ fontSize: 13, fontWeight: 500 }}>Forgot password?</Link>

@@ -43,6 +43,17 @@ const authorizeCatalogDelete = (req, res, next) => {
   return sendError(res, 'Access denied. Catalog delete permission required.', 403);
 };
 
+// admin+ OR explicit department:manage permission (e.g. HR onboarding new
+// employees needs to create a missing Department on the fly)
+const authorizeDepartmentWrite = (req, res, next) => {
+  if (!req.user) return sendError(res, 'Authentication required.', 401);
+  const level = ROLE_HIERARCHY[req.user.role] || 0;
+  if (level >= ROLE_HIERARCHY['admin'] || (req.user.permissions || []).includes('department:manage')) {
+    return next();
+  }
+  return sendError(res, 'Access denied. Department management permission required.', 403);
+};
+
 // Marketing dept manager+ OR admin+ — gates the social-media approval queue,
 // which is scoped to Marketing only (unlike the general Approval Queue).
 const authorizeMarketingApprover = (req, res, next) => {
@@ -74,6 +85,7 @@ module.exports = {
   authorizeFounderOrAbove,
   authorizeInventoryWrite,
   authorizeCatalogDelete,
+  authorizeDepartmentWrite,
   authorizeMarketingApprover,
   requireAttendancePermission,
 };

@@ -25,6 +25,8 @@ import AttLocation from './pages/attendance/Location';
 import AttPayroll from './pages/attendance/Payroll';
 import MyAttendance from './pages/attendance/MyAttendance';
 import MyPayroll from './pages/attendance/MyPayroll';
+import LeaveManagement from './pages/attendance/LeaveManagement';
+import MyLeave from './pages/attendance/MyLeave';
 
 // Dashboard pages
 import FounderDashboard from './pages/dashboard/FounderDashboard';
@@ -215,17 +217,18 @@ export default function App() {
           <Route path="/attendance/devices" element={<PermissionRoute permission={['device:read', 'device:manage']}><AttDevices /></PermissionRoute>} />
           <Route path="/attendance/location" element={<PermissionRoute permission={['location:view_live', 'location:view_history']}><AttLocation /></PermissionRoute>} />
           <Route path="/attendance/payroll" element={<PermissionRoute permission={['payroll:read', 'payroll:manage_config']}><AttPayroll /></PermissionRoute>} />
+          <Route path="/attendance/leave" element={<PermissionRoute permission={['leave:read', 'leave:manage', 'leave:approve']}><LeaveManagement /></PermissionRoute>} />
           <Route path="/my-attendance" element={<MyAttendance />} />
           <Route path="/my-payroll" element={<MyPayroll />} />
+          <Route path="/my-leave" element={<MyLeave />} />
         </Route>
 
-        {/* workflow-v2 retired: its Tasks-board/my-tasks/approvals pages
-            were built against the (now-abandoned) FastAPI backend and
+        {/* workflow-v2 retired and removed: its Tasks-board/my-tasks/approvals
+            pages were built against the (now-abandoned) FastAPI backend and
             duplicated functionality that /tasks/kanban, /tasks/my, and
             /tasks/approvals already have — in Ant Design, already wired to
             this real Node backend, with strictly more features (timers,
-            daily updates, dependency-aware completion, etc). Its files stay
-            on disk (not deleted) but are no longer routed to. */}
+            daily updates, dependency-aware completion, etc). */}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>

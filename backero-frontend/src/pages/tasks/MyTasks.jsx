@@ -183,7 +183,7 @@ function TaskDrawer({ task: initialTask, onClose, onUpdated }) {
             <Empty description="No updates yet — post your first daily update below" image={Empty.PRESENTED_IMAGE_SIMPLE} />
           ) : updates.map((upd, i) => (
             <div key={upd._id || i} style={{ display: 'flex', gap: 10 }}>
-              <span style={{ width: 26, height: 26, borderRadius: '50%', background: 'rgba(168,120,31,0.12)', color: '#a8781f', fontSize: 11, fontWeight: 700, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', marginTop: 2 }}>
+              <span style={{ width: 26, height: 26, borderRadius: '50%', background: 'rgba(102,156,44,0.12)', color: '#669c2c', fontSize: 11, fontWeight: 700, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', marginTop: 2 }}>
                 {upd.author?.firstName?.[0]}{upd.author?.lastName?.[0]}
               </span>
               <div style={{ flex: 1, background: 'rgba(15,23,42,0.03)', borderRadius: 10, padding: 10 }}>
@@ -191,7 +191,7 @@ function TaskDrawer({ task: initialTask, onClose, onUpdated }) {
                   <Text strong style={{ fontSize: 12 }}>{upd.author?.firstName} {upd.author?.lastName}</Text>
                   <div style={{ display: 'flex', gap: 8 }}>
                     {upd.hoursWorked > 0 && <Text type="secondary" style={{ fontSize: 11 }}><ClockCircleOutlined /> {upd.hoursWorked}h</Text>}
-                    {upd.progress !== undefined && <Text style={{ fontSize: 11, color: '#a8781f', fontWeight: 600 }}>{upd.progress}%</Text>}
+                    {upd.progress !== undefined && <Text style={{ fontSize: 11, color: '#669c2c', fontWeight: 600 }}>{upd.progress}%</Text>}
                     <Text type="secondary" style={{ fontSize: 11 }}>{upd.createdAt ? formatDistanceToNow(new Date(upd.createdAt), { addSuffix: true }) : ''}</Text>
                   </div>
                 </div>
@@ -329,7 +329,7 @@ function TaskDrawer({ task: initialTask, onClose, onUpdated }) {
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 10 }}>
               <div style={{ flex: 1 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11 }}>
-                  <span>Progress</span><Text strong style={{ fontSize: 11, color: '#a8781f' }}>{progress}%</Text>
+                  <span>Progress</span><Text strong style={{ fontSize: 11, color: '#669c2c' }}>{progress}%</Text>
                 </div>
                 <Slider min={0} max={100} step={5} value={progress} onChange={setProgress} />
               </div>
@@ -549,8 +549,8 @@ export default function MyTasks() {
                   </div>
 
                   <div style={{ flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
-                    <Progress type="circle" percent={task.progress || 0} size={48} strokeColor="#a8781f" />
-                    <Text style={{ fontSize: 11, color: '#a8781f', fontWeight: 600 }}>Update</Text>
+                    <Progress type="circle" percent={task.progress || 0} size={48} strokeColor="#669c2c" />
+                    <Text style={{ fontSize: 11, color: '#669c2c', fontWeight: 600 }}>Update</Text>
                   </div>
                 </div>
               </motion.div>

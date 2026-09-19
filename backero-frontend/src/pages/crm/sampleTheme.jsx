@@ -16,10 +16,10 @@ export function Card({ children, className = '', ...rest }) {
 
 export const PILL = {
   success: 'bg-[#e2ece5] text-[#2f6b4f]',
-  warning: 'bg-[#f3e6c8] text-[#a8781f]',
+  warning: 'bg-[#f3e6c8] text-[#669c2c]',
   danger: 'bg-[#f5e3e0] text-[#a13d34]',
-  info: 'bg-[#f3e6c8] text-[#a8781f]',
-  purple: 'bg-[#ece2ea] text-[#7c5a17]',
+  info: 'bg-[#f3e6c8] text-[#669c2c]',
+  purple: 'bg-[#ece2ea] text-[#4b7320]',
   gray: 'bg-[#e7e2d6] text-[#6b6155]',
 };
 
@@ -28,7 +28,7 @@ export function StatCard({ emoji, iconTone, label, value, hint, valueTone = 'tex
     <Card
       className={clsx(
         'flex items-start justify-between gap-3 hover:-translate-y-0.5 hover:shadow-[0_10px_40px_rgba(28,25,23,0.12)] transition-transform',
-        onClick && 'cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-[#a8781f]'
+        onClick && 'cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-[#669c2c]'
       )}
       {...(onClick ? {
         role: 'button',

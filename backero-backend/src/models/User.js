@@ -1,6 +1,7 @@
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
-const { ROLES } = require('../utils/constants');
+const { ROLES, DEPARTMENTS } = require('../utils/constants');
+const { HR_AUTO_GRANT_PERMISSIONS } = require('../utils/attendanceConstants');
 
 const userSchema = new mongoose.Schema({
   organizationId: { type: mongoose.Schema.Types.ObjectId, ref: 'Organization', required: true, index: true },
@@ -61,6 +62,52 @@ userSchema.index({ phone: 1 });
 userSchema.pre('save', async function (next) {
   if (!this.isModified('password')) return next();
   this.password = await bcrypt.hash(this.password, 12);
+  next();
+});
+
+// Keep attendance/payroll/employee module permissions in sync with
+// department: HR-department users automatically get the read+onboarding
+// permission set (see HR_AUTO_GRANT_PERMISSIONS); moving out of HR removes
+// exactly that auto-granted set while preserving any other permission an
+// admin added manually. Covers direct .save()/.create() (this hook) — see
+// the findOneAndUpdate hook below for the PUT/PATCH /api/users routes,
+// which all persist via Model.findOneAndUpdate/findByIdAndUpdate and never
+// trigger 'save' middleware.
+userSchema.pre('save', function (next) {
+  if (!this.isModified('department') && !this.isNew) return next();
+  const isHR = (this.department || '').trim().toUpperCase() === DEPARTMENTS.HR;
+  const current = this.permissions || [];
+  this.permissions = isHR
+    ? Array.from(new Set([...current, ...HR_AUTO_GRANT_PERMISSIONS]))
+    : current.filter((p) => !HR_AUTO_GRANT_PERMISSIONS.includes(p));
+  next();
+});
+
+userSchema.pre('findOneAndUpdate', async function (next) {
+  const update = this.getUpdate() || {};
+  // Mongoose's timestamps plugin injects its own partial `$set`/
+  // `$setOnInsert` alongside whatever flat top-level fields the route
+  // handler passed — department/permissions can be in either place, so
+  // both must be checked, and the result is always normalized back into
+  // `$set` (safe regardless of which form the caller used).
+  const department = update.department !== undefined ? update.department : update.$set?.department;
+  if (department === undefined) return next();
+
+  const explicitPermissions = update.permissions !== undefined
+    ? update.permissions
+    : update.$set?.permissions;
+  const existing = explicitPermissions === undefined
+    ? await this.model.findOne(this.getQuery()).select('permissions').lean()
+    : null;
+  const basePermissions = explicitPermissions !== undefined ? explicitPermissions : (existing?.permissions || []);
+  const isHR = (department || '').trim().toUpperCase() === DEPARTMENTS.HR;
+  const nextPermissions = isHR
+    ? Array.from(new Set([...basePermissions, ...HR_AUTO_GRANT_PERMISSIONS]))
+    : basePermissions.filter((p) => !HR_AUTO_GRANT_PERMISSIONS.includes(p));
+
+  delete update.permissions;
+  update.$set = { ...(update.$set || {}), permissions: nextPermissions };
+  this.setUpdate(update);
   next();
 });
 

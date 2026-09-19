@@ -364,7 +364,7 @@ export default function LeadDetails() {
                   <Col span={12}>
                     <Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 4 }}>Assigned To</Text>
                     <Space size={8}>
-                      <div style={{ width: 24, height: 24, borderRadius: '50%', background: '#a8781f1f', color: '#a8781f', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700 }}>
+                      <div style={{ width: 24, height: 24, borderRadius: '50%', background: '#669c2c1f', color: '#669c2c', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700 }}>
                         {lead.assignedTo.firstName?.[0]}
                       </div>
                       <Text strong style={{ fontSize: 13 }}>{lead.assignedTo.firstName} {lead.assignedTo.lastName}</Text>
@@ -419,7 +419,7 @@ export default function LeadDetails() {
                   <>
                     <Space size={6} style={{ marginBottom: 16 }}>
                       <Text type="secondary" style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase' }}>Activity Timeline</Text>
-                      {events.length > 0 && <Text strong style={{ color: '#a8781f', fontSize: 11 }}>({events.length})</Text>}
+                      {events.length > 0 && <Text strong style={{ color: '#669c2c', fontSize: 11 }}>({events.length})</Text>}
                     </Space>
 
                     {events.length === 0 ? (
@@ -448,7 +448,7 @@ export default function LeadDetails() {
                               badge = <Tag style={{ fontSize: 10, fontFamily: 'monospace' }}>{spent}</Tag>;
                             }
                           } else if (ev.type === 'followup') {
-                            dotColor = '#a8781f';
+                            dotColor = '#669c2c';
                             Icon = FOLLOWUP_ICONS[ev.fuType] || FileText;
                             title = `Follow-up: ${ev.fuType}`;
                             subtitle = ev.notes || ev.outcome || '';

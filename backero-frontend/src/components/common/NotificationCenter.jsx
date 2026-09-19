@@ -99,7 +99,7 @@ export default function NotificationCenter({ onClose }) {
                       </Text>
                     </div>
                   </div>
-                  {!notif.isRead && <Badge color="#a8781f" />}
+                  {!notif.isRead && <Badge color="#669c2c" />}
                 </div>
               </List.Item>
             )}

@@ -1,13 +1,14 @@
 // Ant Design theme tokens for the new Workflow (v2) UI — carries over
-// Task_Workflow's own existing "Prism" brass-gold brand (see src/index.css
-// --brand/--grad-brand/--s-page/--s-card/chrome-bg), not the Attendance
-// Tracker's palette. Colors below are read directly from those CSS tokens.
+// Task_Workflow's own existing "Prism" brand, recolored to the Backero logo's
+// green (see src/index.css --brand/--grad-brand/--s-page/--s-card/chrome-bg),
+// not the Attendance Tracker's palette. Colors below are read directly from
+// those CSS tokens.
 
 export const workflowTheme = {
   token: {
-    colorPrimary: '#a8781f',
-    colorInfo: '#a8781f',
-    colorLink: '#a8781f',
+    colorPrimary: '#669c2c',
+    colorInfo: '#669c2c',
+    colorLink: '#669c2c',
     colorSuccess: '#059669',
     colorWarning: '#b45309',
     colorError: '#dc2626',
@@ -36,8 +37,8 @@ export const workflowTheme = {
     },
     Menu: {
       darkItemBg: '#05101e',
-      darkItemSelectedBg: 'rgba(168,120,31,0.16)',
-      darkItemSelectedColor: '#d8c391',
+      darkItemSelectedBg: 'rgba(102,156,44,0.16)',
+      darkItemSelectedColor: '#b6de8b',
       darkItemColor: 'rgba(255,255,255,0.55)',
       darkItemHoverColor: 'rgba(255,255,255,0.85)',
       darkSubMenuItemBg: 'transparent',
@@ -49,7 +50,7 @@ export const workflowTheme = {
     Button: {
       borderRadius: 10,
       controlHeight: 38,
-      primaryShadow: '0 2px 10px rgba(168,120,31,0.24)',
+      primaryShadow: '0 2px 10px rgba(102,156,44,0.24)',
     },
     Tag: {
       borderRadiusSM: 6,
@@ -58,7 +59,7 @@ export const workflowTheme = {
 };
 
 export const brand = {
-  gradient: 'linear-gradient(135deg,#7c5a17 0%,#a8781f 50%,#c2a35a 100%)',
+  gradient: 'linear-gradient(135deg,#4b7320 0%,#669c2c 50%,#90cd4f 100%)',
   page: '#f1ede4',
   card: '#fbfaf7',
   chrome: 'linear-gradient(160deg, #05101e 0%, #091726 40%, #05101e 100%)',

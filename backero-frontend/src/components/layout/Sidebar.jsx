@@ -8,9 +8,9 @@ import { usePermissions } from '../../store/usePermissions';
 import {
   Home, ClipboardList, Users, ShoppingBag,
   Box, Zap, BarChart3, Settings, Megaphone,
-  Store, FlaskConical, Banknote, UsersRound,
+  Store, Banknote, UsersRound,
   Wrench, Trophy, Sparkles, X,
-  Fingerprint, ClipboardCheck, Receipt,
+  Fingerprint, ClipboardCheck, Receipt, CalendarOff,
 } from 'lucide-react';
 
 const { Text } = Typography;
@@ -53,12 +53,13 @@ export default function Sidebar({ variant = 'desktop', onNavigate, onClose }) {
       { label: 'Dashboard', to: '/', icon: Home, exact: true },
       { label: 'My Attendance', to: '/my-attendance', icon: ClipboardCheck },
       { label: 'My Payroll', to: '/my-payroll', icon: Receipt },
+      { label: 'My Leave', to: '/my-leave', icon: CalendarOff },
     ],
   });
 
   const workItems = [
     { label: 'Workflow Builder', to: '/workflow', icon: Zap },
-    { label: 'Tasks (New · Beta)', to: '/workflow-v2/login', icon: Sparkles },
+    { label: 'My Tasks', to: '/tasks/my', icon: Sparkles },
   ];
   if (canApprovals) workItems.push({ label: 'Approval Queue', to: '/tasks/approvals', icon: ClipboardList });
   if (canCRM) {
@@ -87,20 +88,11 @@ export default function Sidebar({ variant = 'desktop', onNavigate, onClose }) {
       { label: 'Documents', to: '/documents' },
     ]});
   }
-  if (canInventory) {
-    const productionChildren = [
-      { label: 'Dashboard',      to: '/departments/rnd' },
-      { label: 'Record Usage',   to: '/production/usage' },
-      { label: 'Raw Materials',   to: '/inventory/rawmaterials' },
-      { label: 'Product Catalog', to: '/inventory/catalog' },
-    ];
-    productionChildren.push({ label: 'Sample Production', to: '/samples' });
-    productionChildren.push({ label: 'R&D Price Calculator', to: '/production/rd-price-calculator' });
-    productionChildren.push({ label: 'Kitchen Schedule', to: '/production/kitchen' });
-    opsItems.push({ label: 'Production', icon: FlaskConical, children: productionChildren });
-  }
   if (opsItems.length > 0) groups.push({ label: 'Operations', items: opsItems });
 
+  // Production used to appear twice (once here, once under Operations above)
+  // with overlapping children — consolidated into this one entry, shown to
+  // anyone with either permission, listing the union of both link sets.
   const deptItems = [];
   if (can('dept.marketing'))   deptItems.push({ label: 'Marketing', icon: Megaphone, children: [
     { label: 'Dashboard', to: '/departments/marketing' },
@@ -109,10 +101,14 @@ export default function Sidebar({ variant = 'desktop', onNavigate, onClose }) {
   ]});
   if (can('dept.marketplace')) deptItems.push({ label: 'Marketplace', to: '/departments/marketplace', icon: Store });
   if (can('dept.sales'))       deptItems.push({ label: 'Sales Dept',  to: '/departments/sales',       icon: ShoppingBag });
-  if (can('dept.rnd'))         deptItems.push({ label: 'Production', icon: Settings, children: [
+  if (canInventory || can('dept.rnd')) deptItems.push({ label: 'Production', icon: Settings, children: [
     { label: 'Dashboard',       to: '/departments/rnd' },
+    { label: 'Record Usage',    to: '/production/usage' },
     { label: 'Raw Materials',   to: '/inventory/rawmaterials' },
     { label: 'Product Catalog', to: '/inventory/catalog' },
+    { label: 'Sample Production', to: '/samples' },
+    { label: 'R&D Price Calculator', to: '/production/rd-price-calculator' },
+    { label: 'Kitchen Schedule', to: '/production/kitchen' },
   ]});
   if (can('dept.operations'))  deptItems.push({ label: 'Operations',  to: '/departments/operations',  icon: Wrench });
   if (can('dept.hr'))          deptItems.push({ label: 'HR',          to: '/departments/hr',          icon: UsersRound });
@@ -128,6 +124,7 @@ export default function Sidebar({ variant = 'desktop', onNavigate, onClose }) {
           { label: 'Devices', to: '/attendance/devices' },
           { label: 'Location', to: '/attendance/location' },
           { label: 'Payroll', to: '/attendance/payroll' },
+          { label: 'Leave', to: '/attendance/leave' },
         ],
       }],
     });
@@ -138,7 +135,7 @@ export default function Sidebar({ variant = 'desktop', onNavigate, onClose }) {
       label: 'Management',
       items: [
         { label: 'Team', to: '/management/team', icon: UsersRound },
-        { label: 'Employee Monitor', to: '/management/employees', icon: Users },
+        { label: 'Team Status', to: '/management/employees', icon: Users },
         { label: 'Dept Analytics', to: '/management/departments', icon: BarChart3 },
         { label: 'Team Rewards', to: '/management/team-rewards', icon: Trophy },
       ],
@@ -236,8 +233,8 @@ export default function Sidebar({ variant = 'desktop', onNavigate, onClose }) {
 
       {/* Department badge */}
       {!collapsed && !isAdmin && user?.department && (
-        <div className="mx-3 mt-3 px-3 py-1.5 rounded-lg" style={{ background: 'rgba(168,120,31,0.1)', border: '1px solid rgba(168,120,31,0.18)' }}>
-          <Text style={{ color: '#7c5a17', fontSize: 11, fontWeight: 600 }} ellipsis>
+        <div className="mx-3 mt-3 px-3 py-1.5 rounded-lg" style={{ background: 'rgba(102,156,44,0.1)', border: '1px solid rgba(102,156,44,0.18)' }}>
+          <Text style={{ color: '#4b7320', fontSize: 11, fontWeight: 600 }} ellipsis>
             {user.department} · {user.role?.replace('_', ' ')}
           </Text>
         </div>
@@ -319,7 +316,7 @@ export default function Sidebar({ variant = 'desktop', onNavigate, onClose }) {
             <Avatar
               size={28}
               src={user.avatar}
-              style={{ background: 'linear-gradient(135deg,#7c5a17,#a8781f,#c2a35a)', flexShrink: 0, fontSize: 11, fontWeight: 700 }}
+              style={{ background: 'linear-gradient(135deg,#4b7320,#669c2c,#90cd4f)', flexShrink: 0, fontSize: 11, fontWeight: 700 }}
             >
               {user.firstName?.[0]}{user.lastName?.[0]}
             </Avatar>

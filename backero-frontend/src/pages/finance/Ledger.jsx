@@ -166,8 +166,8 @@ export default function Ledger() {
           </Card>
         </Col>
         <Col span={8}>
-          <Card style={{ borderTop: `3px solid ${netProfit >= 0 ? '#a8781f' : '#ef4444'}` }}>
-            <div style={{ fontSize: 22, fontWeight: 700, color: netProfit >= 0 ? '#a8781f' : '#cf1322' }}>₹{Math.abs(netProfit).toLocaleString('en-IN')}</div>
+          <Card style={{ borderTop: `3px solid ${netProfit >= 0 ? '#669c2c' : '#ef4444'}` }}>
+            <div style={{ fontSize: 22, fontWeight: 700, color: netProfit >= 0 ? '#669c2c' : '#cf1322' }}>₹{Math.abs(netProfit).toLocaleString('en-IN')}</div>
             <Text type="secondary" style={{ fontSize: 13 }}>Net {netProfit >= 0 ? 'Profit' : 'Loss'} (This Month)</Text>
           </Card>
         </Col>

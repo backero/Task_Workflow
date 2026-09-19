@@ -59,6 +59,7 @@ const attendanceRoutes        = require('./src/routes/attendance.routes');
 const biometricDeviceRoutes   = require('./src/routes/biometricDevice.routes');
 const locationRoutes          = require('./src/routes/location.routes');
 const payrollRoutes           = require('./src/routes/payroll.routes');
+const leaveRoutes             = require('./src/routes/leave.routes');
 
 const app = express();
 const server = http.createServer(app);
@@ -210,6 +211,7 @@ app.use('/api/attendance', attendanceRoutes);
 app.use('/api/devices', biometricDeviceRoutes);
 app.use('/api/locations', locationRoutes);
 app.use('/api/payroll', payrollRoutes);
+app.use('/api/leave', leaveRoutes);
 
 // 404 handler
 app.use('*', (req, res) => {
@@ -222,6 +224,7 @@ app.use(errorHandler);
 // Start automation + WhatsApp
 if (process.env.NODE_ENV !== 'test') {
   const { startAutomationEngine } = require('./src/services/automation.service');
+  const { startAttendanceCron } = require('./src/services/attendanceCron.service');
   const { initWhatsApp } = require('./src/services/whatsapp.service');
   const { setSocketIO } = require('./src/services/workflowEngine.service');
   // Cron jobs send real WhatsApp/in-app notifications against the live database.
@@ -229,6 +232,7 @@ if (process.env.NODE_ENV !== 'test') {
   // dev run would otherwise fire duplicate real notifications alongside prod.
   if (process.env.NODE_ENV === 'production' || process.env.FORCE_AUTOMATION === 'true') {
     startAutomationEngine(io);
+    startAttendanceCron(io);
   } else {
     logger.info('[Automation] Skipped — not running in production (set FORCE_AUTOMATION=true to override for local testing)');
   }

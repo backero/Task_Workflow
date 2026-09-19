@@ -154,7 +154,7 @@ export default function Header({ onMobileMenuToggle }) {
 
         <Dropdown menu={{ items: userMenuItems }} placement="bottomRight" trigger={['click']}>
           <div className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-black/5 transition-colors cursor-pointer">
-            <Avatar size={28} src={user?.avatar} style={{ background: 'linear-gradient(135deg,#7c5a17,#a8781f,#c2a35a)', fontSize: 11, fontWeight: 700 }}>
+            <Avatar size={28} src={user?.avatar} style={{ background: 'linear-gradient(135deg,#4b7320,#669c2c,#90cd4f)', fontSize: 11, fontWeight: 700 }}>
               {initials}
             </Avatar>
             <div className="hidden sm:block text-left">

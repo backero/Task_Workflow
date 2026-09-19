@@ -57,7 +57,7 @@ function DeptStatRows({ dept }) {
       <div style={{ display: 'flex', justifyContent: 'space-between', padding: '2px 0' }}><Text type="secondary">Total</Text><Text strong>{dept.total}</Text></div>
       <div style={{ display: 'flex', justifyContent: 'space-between', padding: '2px 0' }}><Text type="secondary">Completed</Text><Text strong style={{ color: '#16a34a' }}>{dept.completed}</Text></div>
       <div style={{ display: 'flex', justifyContent: 'space-between', padding: '2px 0' }}><Text type="secondary">Overdue</Text><Text strong type="danger">{dept.overdue}</Text></div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', padding: '2px 0' }}><Text type="secondary">Rate</Text><Text strong style={{ color: '#a8781f' }}>{Math.round(dept.completionRate || 0)}%</Text></div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', padding: '2px 0' }}><Text type="secondary">Rate</Text><Text strong style={{ color: '#669c2c' }}>{Math.round(dept.completionRate || 0)}%</Text></div>
     </div>
   );
 }

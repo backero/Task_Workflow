@@ -33,6 +33,19 @@ const ATTENDANCE_PERMISSIONS = {
   PAYROLL_MANAGE_CONFIG: 'payroll:manage_config',
 
   AUDIT_READ: 'audit:read',
+
+  // Work-hours/holiday/week-off configuration (AttendanceStatusRule/Holiday/
+  // WorkScheduleConfig writes) — see attendanceStatusRules/holiday/
+  // workSchedule controllers.
+  RULES_CONFIGURE: 'rules:configure',
+
+  // Leave management — LEAVE_READ views other employees' balances/requests
+  // (viewing your own is always allowed, no permission needed); LEAVE_MANAGE
+  // administers leave types and balances; LEAVE_APPROVE decides pending
+  // requests. See leave.controller.js.
+  LEAVE_READ: 'leave:read',
+  LEAVE_MANAGE: 'leave:manage',
+  LEAVE_APPROVE: 'leave:approve',
 };
 
 // Default grants for the source's HR tier — applied here to any
@@ -59,13 +72,31 @@ const HR_TIER_PERMISSIONS = [
   // audit-log access is SUPER_ADMIN-only, not granted to HR.
 ];
 
+// HR_TIER_PERMISSIONS above is read/correct-only. HR also needs to actually
+// onboard people — create Employee records and, when a user's free-text
+// department doesn't match an existing Department yet, create that
+// Department too — so this adds the two manage-level codes required for
+// that flow. Kept separate (rather than folded into HR_TIER_PERMISSIONS) so
+// the original read-tier intent stays visible; finance/control-sensitive
+// actions (PAYROLL_FINALIZE, PERIOD_FINALIZE, DEVICE_MANAGE, AUDIT_READ)
+// stay admin+-only and are deliberately not added here.
+const HR_AUTO_GRANT_PERMISSIONS = [
+  ...HR_TIER_PERMISSIONS,
+  ATTENDANCE_PERMISSIONS.EMPLOYEE_MANAGE,
+  ATTENDANCE_PERMISSIONS.DEPARTMENT_MANAGE,
+  ATTENDANCE_PERMISSIONS.RULES_CONFIGURE,
+  ATTENDANCE_PERMISSIONS.LEAVE_READ,
+  ATTENDANCE_PERMISSIONS.LEAVE_MANAGE,
+  ATTENDANCE_PERMISSIONS.LEAVE_APPROVE,
+];
+
 const EMPLOYEE_CATEGORY = { OFFICE: 'OFFICE', FIELD: 'FIELD' };
 
-// ON_LEAVE/HOLIDAY/WEEK_OFF are never produced by the status-derivation
-// algorithm itself (see attendanceProcessor.service.js#deriveStatus) — they
-// exist so a future leave module (or a manual override) can write them
-// directly; the algorithm only ever derives PRESENT/ABSENT/LATE/HALF_DAY/
-// MISSING_PUNCH/INCOMPLETE.
+// HOLIDAY/WEEK_OFF/ON_LEAVE are all auto-derived (see
+// attendanceProcessor.service.js#deriveDefaultStatus) for zero-punch days
+// against the Holiday calendar, WorkScheduleConfig, and approved
+// LeaveRequests respectively — precedence is real punches > ON_LEAVE >
+// HOLIDAY > WEEK_OFF > ABSENT.
 const ATTENDANCE_STATUSES = [
   'PRESENT', 'ABSENT', 'LATE', 'HALF_DAY', 'ON_LEAVE', 'HOLIDAY', 'WEEK_OFF', 'MISSING_PUNCH', 'INCOMPLETE',
 ];
@@ -83,9 +114,17 @@ const ATTENDANCE_PERIOD_STATUSES = ['OPEN', 'CLOSED', 'FINALIZED'];
 
 const DEFAULT_ATTENDANCE_RULES = {
   SHIFT_START_TIME: '09:00',
+  // Stored/configurable alongside the other rule keys; not yet consumed by
+  // deriveStatus for a new status (e.g. early-leave) — reserved for future use.
+  SHIFT_END_TIME: '18:00',
   LATE_THRESHOLD_MINUTES: 10,
   HALF_DAY_MIN_HOURS: 4,
 };
+
+// The only rule keys writable via POST /attendance/rules — kept as an
+// explicit allowlist so a typo'd rule_key can't silently create a dead key
+// getEffectiveRules never reads.
+const CONFIGURABLE_RULE_KEYS = Object.keys(DEFAULT_ATTENDANCE_RULES);
 
 // Location tracking defaults — ported from the Attendance Tracker's
 // app/core/config.py Settings. No per-org override mechanism yet (the
@@ -102,6 +141,7 @@ const LOCATION_DEFAULTS = {
 module.exports = {
   ATTENDANCE_PERMISSIONS,
   HR_TIER_PERMISSIONS,
+  HR_AUTO_GRANT_PERMISSIONS,
   EMPLOYEE_CATEGORY,
   ATTENDANCE_STATUSES,
   ATTENDANCE_EVENT_TYPES,
@@ -109,5 +149,6 @@ module.exports = {
   CORRECTION_STATUSES,
   ATTENDANCE_PERIOD_STATUSES,
   DEFAULT_ATTENDANCE_RULES,
+  CONFIGURABLE_RULE_KEYS,
   LOCATION_DEFAULTS,
 };

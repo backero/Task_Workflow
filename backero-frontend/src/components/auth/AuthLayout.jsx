@@ -19,13 +19,13 @@ export default function AuthLayout({ children, maxWidth = 400 }) {
         <div
           style={{
             position: 'absolute', top: -60, left: -40, width: 320, height: 320, borderRadius: '50%',
-            background: 'radial-gradient(circle, rgba(168,120,31,0.22) 0%, transparent 70%)', pointerEvents: 'none',
+            background: 'radial-gradient(circle, rgba(102,156,44,0.22) 0%, transparent 70%)', pointerEvents: 'none',
           }}
         />
         <div
           style={{
             position: 'absolute', bottom: -80, right: -60, width: 360, height: 360, borderRadius: '50%',
-            background: 'radial-gradient(circle, rgba(194,163,90,0.14) 0%, transparent 70%)', pointerEvents: 'none',
+            background: 'radial-gradient(circle, rgba(144,205,79,0.14) 0%, transparent 70%)', pointerEvents: 'none',
           }}
         />
 
@@ -49,7 +49,7 @@ export default function AuthLayout({ children, maxWidth = 400 }) {
           <div className="mt-10 space-y-3 text-left w-full max-w-xs">
             {FEATURES.map((item) => (
               <div key={item} className="flex items-center gap-3">
-                <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: '#c2a35a' }} />
+                <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: '#90cd4f' }} />
                 <Text style={{ color: 'rgba(255,255,255,0.65)', fontSize: 13 }}>{item}</Text>
               </div>
             ))}

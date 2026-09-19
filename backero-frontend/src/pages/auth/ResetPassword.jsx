@@ -50,8 +50,8 @@ export default function ResetPassword() {
       {!done ? (
         <>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24 }}>
-            <div style={{ width: 40, height: 40, borderRadius: '50%', background: '#a8781f1f', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-              <Lock size={18} color="#a8781f" />
+            <div style={{ width: 40, height: 40, borderRadius: '50%', background: '#669c2c1f', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              <Lock size={18} color="#669c2c" />
             </div>
             <div>
               <Title level={4} style={{ marginBottom: 0 }}>Set new password</Title>

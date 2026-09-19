@@ -65,8 +65,8 @@ function GrantDrawer({ open, reward, onClose }) {
           <Radio.Group value={rewardType} onChange={(e) => setRewardType(e.target.value)} style={{ width: '100%' }}>
             <Space direction="vertical" style={{ width: '100%' }} size={8}>
               {REWARD_TYPES.map((r) => (
-                <Radio key={r.value} value={r.value} style={{ width: '100%', padding: '8px 12px', border: `1px solid ${rewardType === r.value ? '#a8781f' : '#f0f0f0'}`, borderRadius: 8, background: rewardType === r.value ? '#fffbe6' : undefined }}>
-                  <Space size={8}><r.icon size={14} color="#a8781f" />{r.label}</Space>
+                <Radio key={r.value} value={r.value} style={{ width: '100%', padding: '8px 12px', border: `1px solid ${rewardType === r.value ? '#669c2c' : '#f0f0f0'}`, borderRadius: 8, background: rewardType === r.value ? '#fffbe6' : undefined }}>
+                  <Space size={8}><r.icon size={14} color="#669c2c" />{r.label}</Space>
                 </Radio>
               ))}
             </Space>

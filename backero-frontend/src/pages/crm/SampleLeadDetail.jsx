@@ -48,7 +48,7 @@ const ORDER_JOURNEY_TAB_ORDER = ['Orders', 'Procurement', 'Weighing', 'Bulk QC',
 const bodyFont = { fontFamily: "'IBM Plex Sans', -apple-system, sans-serif" };
 const displayFont = { fontFamily: "'Zilla Slab', Georgia, serif" };
 const inputCls = 'px-3 py-2 text-sm rounded-[10px] border-[1.5px] border-[#ddd6c4] bg-[#fbfaf7] text-[#1c1917] focus:outline-none focus:border-[#8a8171] placeholder:text-[#8a8171]';
-const accentBtn = 'inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-[#a8781f] text-[#1c1917] text-xs font-bold hover:brightness-95 transition disabled:opacity-50';
+const accentBtn = 'inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-[#669c2c] text-[#1c1917] text-xs font-bold hover:brightness-95 transition disabled:opacity-50';
 const outlineBtn = 'inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full border-[1.5px] border-[#ddd6c4] text-[#6b6155] text-xs font-semibold hover:bg-[#f1ede4] hover:border-[#8a8171] hover:text-[#1c1917] transition';
 const textLink = 'text-xs font-semibold text-[#292521] hover:text-[#1c1917]';
 
@@ -255,7 +255,7 @@ function ProductLinkModal({ product, catalogProducts, saving, onClose, onSave, o
             <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2}
               placeholder="Context — target price hints, packaging, decision makers..." className={clsx(inputCls, 'w-full')} />
           </div>
-          <div className="p-2.5 rounded-lg bg-[#f3e6c8] text-[#a8781f] text-[11px] flex gap-2">
+          <div className="p-2.5 rounded-lg bg-[#f3e6c8] text-[#669c2c] text-[11px] flex gap-2">
             <span>ℹ️</span>
             <span>Pricing happens from the row actions: <strong>💰 Quote Price</strong> → <strong>✓ Accept Price</strong>. Payment stays a CRM mirror.</span>
           </div>
@@ -322,7 +322,7 @@ function NewFormulaModal({ products, saving, onClose, onSave }) {
             {(products || []).length === 0 && <p className="text-[11px] text-[#a13d34] mt-1">No products linked yet — add one in the Products tab first.</p>}
             <p className="text-[10px] text-[#8a8171] mt-1">This formula, and every sample made from it, stays tied to this product — its own Payments-tab confirmation is what unlocks sampling for it.</p>
           </div>
-          <div className="p-2.5 rounded-lg bg-[#f3e6c8] text-[#a8781f] text-[11px] flex gap-2">
+          <div className="p-2.5 rounded-lg bg-[#f3e6c8] text-[#669c2c] text-[11px] flex gap-2">
             <span>ℹ️</span>
             <span>A <strong>V1 (Draft)</strong> version is created automatically. Build the ingredient composition in <strong>Product Catalog</strong> (its Formulation tab) and link it here from the Products tab, then request samples against specific versions.</span>
           </div>
@@ -566,7 +566,7 @@ function FormulaEditorModal({ formula, samples, rawMaterials, onClose }) {
           {/* Viewer main */}
           <div className="flex-1 min-w-0 p-4 overflow-y-auto space-y-3">
             {!catalogLinked && (
-              <div className="p-2.5 rounded-lg bg-[#f3e6c8] text-[#a8781f] text-[11px] flex gap-2">
+              <div className="p-2.5 rounded-lg bg-[#f3e6c8] text-[#669c2c] text-[11px] flex gap-2">
                 <span>ℹ️</span>
                 <span>Not linked to a Product Catalog item yet — the ingredient composition is built there. Use "🔗 Link from Catalog" on the Products tab, or add {formula.name} as a new Product Catalog item and build its Formulation there.</span>
               </div>
@@ -613,7 +613,7 @@ function FormulaEditorModal({ formula, samples, rawMaterials, onClose }) {
                         <td className="px-2 py-1.5 text-[#1c1917]">{r.phase || '—'}</td>
                         <td className="px-2 py-1.5 text-[#1c1917]">{r.notes || '—'}</td>
                         <td className="px-2 py-1.5 text-[#1c1917]">₹{(Number(r.costPerUnit) || 0).toFixed(2)}</td>
-                        <td className="px-2 py-1.5 text-[#a8781f] font-mono">₹{amount.toFixed(2)}</td>
+                        <td className="px-2 py-1.5 text-[#669c2c] font-mono">₹{amount.toFixed(2)}</td>
                       </tr>
                     );
                   })}
@@ -1316,7 +1316,7 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab, initialO
                 className={clsx(
                   'px-3 py-2 text-sm font-semibold border-b-[2.5px] -mb-px transition-colors whitespace-nowrap',
                   locked ? 'border-transparent text-[#ddd6c4] cursor-not-allowed' :
-                  tab === t ? 'border-[#a8781f] text-[#1c1917]' : 'border-transparent text-[#6b6155] hover:text-[#1c1917]'
+                  tab === t ? 'border-[#669c2c] text-[#1c1917]' : 'border-transparent text-[#6b6155] hover:text-[#1c1917]'
                 )}
               >
                 {stageMeta ? `${stageMeta.emoji} ${t}` : t}
@@ -1420,7 +1420,7 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab, initialO
                         )}
                         {fu.transcript && (
                           <details className="mt-1">
-                            <summary className="text-[11px] text-[#a8781f] cursor-pointer select-none">📝 View transcript</summary>
+                            <summary className="text-[11px] text-[#669c2c] cursor-pointer select-none">📝 View transcript</summary>
                             <p className="text-[11px] text-[#8a8171] whitespace-pre-wrap mt-1">{fu.transcript}</p>
                           </details>
                         )}
@@ -1471,7 +1471,7 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab, initialO
                             disabled={!prodOrder}
                             title={prodOrder ? STAGE_NAMES[prodOrder.stage] || prodOrder.status : 'Not in production'}
                             className={clsx('rounded-full border-[1.5px] px-3 py-1 text-xs font-semibold transition-colors',
-                              isCurrent ? 'border-[#a8781f] bg-[#f3e6c8] text-[#1c1917]' : prodOrder ? 'border-[#ddd6c4] bg-white text-[#6b6155] hover:bg-[#fbfaf7]' : 'border-[#e7e2d6] bg-[#fbfaf7] text-[#8a8171] opacity-60 cursor-not-allowed')}
+                              isCurrent ? 'border-[#669c2c] bg-[#f3e6c8] text-[#1c1917]' : prodOrder ? 'border-[#ddd6c4] bg-white text-[#6b6155] hover:bg-[#fbfaf7]' : 'border-[#e7e2d6] bg-[#fbfaf7] text-[#8a8171] opacity-60 cursor-not-allowed')}
                           >
                             {p.name} <span className="font-mono font-normal opacity-75">{p.productId}</span>
                           </button>
@@ -1480,7 +1480,7 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab, initialO
                       <button
                         onClick={() => { setQaConvertQueryId(null); setQuickCreateOpen(true); setTab('Products'); }}
                         title="A new product starts at Products — Formula, Sample, Invoice, then its own Order, same as every other product on this lead."
-                        className="rounded-full border-2 border-dashed border-[#8a8171] text-[#a8781f] px-3 py-1 text-xs font-bold hover:bg-[#f3e6c8]"
+                        className="rounded-full border-2 border-dashed border-[#8a8171] text-[#669c2c] px-3 py-1 text-xs font-bold hover:bg-[#f3e6c8]"
                       >
                         + Add product
                       </button>
@@ -1802,7 +1802,7 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab, initialO
                             {production ? (
                               <button
                                 onClick={() => { setTab('Orders'); setViewStage(production.order.stage); }}
-                                className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-[#f3e6c8] text-[#a8781f] hover:brightness-95"
+                                className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-[#f3e6c8] text-[#669c2c] hover:brightness-95"
                                 title={`${production.order.orderNumber} — click to open`}
                               >
                                 {STAGE_NAMES[production.order.stage] || production.order.status} ▸
@@ -1844,7 +1844,7 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab, initialO
                       key={p.productId}
                       onClick={() => setProductFilterId((cur) => (cur === p.productId ? null : p.productId))}
                       className={clsx('rounded-full border-[1.5px] px-3 py-1 text-xs font-semibold transition-colors',
-                        productFilterId === p.productId ? 'border-[#a8781f] bg-[#f3e6c8] text-[#1c1917]' : 'border-[#ddd6c4] bg-white text-[#6b6155] hover:bg-[#fbfaf7]')}
+                        productFilterId === p.productId ? 'border-[#669c2c] bg-[#f3e6c8] text-[#1c1917]' : 'border-[#ddd6c4] bg-white text-[#6b6155] hover:bg-[#fbfaf7]')}
                     >
                       {p.name} <span className="font-mono font-normal opacity-75">{p.productId}</span>
                     </button>
@@ -1937,7 +1937,7 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab, initialO
                       key={p.productId}
                       onClick={() => setProductFilterId((cur) => (cur === p.productId ? null : p.productId))}
                       className={clsx('rounded-full border-[1.5px] px-3 py-1 text-xs font-semibold transition-colors',
-                        productFilterId === p.productId ? 'border-[#a8781f] bg-[#f3e6c8] text-[#1c1917]' : 'border-[#ddd6c4] bg-white text-[#6b6155] hover:bg-[#fbfaf7]')}
+                        productFilterId === p.productId ? 'border-[#669c2c] bg-[#f3e6c8] text-[#1c1917]' : 'border-[#ddd6c4] bg-white text-[#6b6155] hover:bg-[#fbfaf7]')}
                     >
                       {p.name} <span className="font-mono font-normal opacity-75">{p.productId}</span>
                     </button>
@@ -2007,12 +2007,12 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab, initialO
                   <span className="text-[#8a8171]">→</span>
                   {openSample.queryId && <><span className={clsx('px-2 py-1 rounded-lg font-mono', PILL.gray)}>Query</span><span className="text-[#8a8171]">→</span></>}
                   {openSample.formulaId && <><span className={clsx('px-2 py-1 rounded-lg font-mono', PILL.gray)}>{openSample.formulaId}{openSample.formulaVersionNo ? ` · V${openSample.formulaVersionNo}` : ''}</span><span className="text-[#8a8171]">→</span></>}
-                  <span className="px-2 py-1 rounded-lg bg-[#a8781f] text-[#1c1917] font-mono font-semibold">{openSample.sampleId}</span>
+                  <span className="px-2 py-1 rounded-lg bg-[#669c2c] text-[#1c1917] font-mono font-semibold">{openSample.sampleId}</span>
                 </div>
               </div>
 
               {!isSamplePaid(openSample) && (
-                <p className="text-[11px] text-[#a8781f]">🔒 Confirm payment for {productForSample(openSample)?.name || 'this product'} in the RND's Payments tab before this sample can move past "Requested".</p>
+                <p className="text-[11px] text-[#669c2c]">🔒 Confirm payment for {productForSample(openSample)?.name || 'this product'} in the RND's Payments tab before this sample can move past "Requested".</p>
               )}
 
               <div className="flex items-center gap-2 flex-wrap">
@@ -2257,7 +2257,7 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab, initialO
                       key={p.productId}
                       onClick={() => setProductFilterId((cur) => (cur === p.productId ? null : p.productId))}
                       className={clsx('rounded-full border-[1.5px] px-3 py-1 text-xs font-semibold transition-colors',
-                        productFilterId === p.productId ? 'border-[#a8781f] bg-[#f3e6c8] text-[#1c1917]' : 'border-[#ddd6c4] bg-white text-[#6b6155] hover:bg-[#fbfaf7]')}
+                        productFilterId === p.productId ? 'border-[#669c2c] bg-[#f3e6c8] text-[#1c1917]' : 'border-[#ddd6c4] bg-white text-[#6b6155] hover:bg-[#fbfaf7]')}
                     >
                       {p.name} <span className="font-mono font-normal opacity-75">{p.productId}</span>
                     </button>
@@ -2320,7 +2320,7 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab, initialO
                             </td>
                             <td className="px-3 py-2 whitespace-nowrap">
                               {s.productionOrderId ? (
-                                <span className="text-xs font-semibold text-[#a8781f]">{s.productionOrderId.orderNumber}</span>
+                                <span className="text-xs font-semibold text-[#669c2c]">{s.productionOrderId.orderNumber}</span>
                               ) : (
                                 <span className="text-xs text-[#2f6b4f] font-semibold">Approved</span>
                               )}

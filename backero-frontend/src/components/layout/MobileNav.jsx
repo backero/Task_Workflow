@@ -35,7 +35,7 @@ export default function MobileNav({ onMenuOpen }) {
           style={({ isActive }) => ({
             fontSize: 10,
             fontWeight: 500,
-            color: isActive ? '#a8781f' : '#6b6155',
+            color: isActive ? '#669c2c' : '#6b6155',
           })}
         >
           <Icon style={{ fontSize: 18 }} />

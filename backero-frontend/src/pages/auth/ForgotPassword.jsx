@@ -37,8 +37,8 @@ export default function ForgotPassword() {
           </Link>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24 }}>
-            <div style={{ width: 40, height: 40, borderRadius: '50%', background: '#a8781f1f', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-              <Mail size={18} color="#a8781f" />
+            <div style={{ width: 40, height: 40, borderRadius: '50%', background: '#669c2c1f', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              <Mail size={18} color="#669c2c" />
             </div>
             <div>
               <Title level={4} style={{ marginBottom: 0 }}>Forgot password?</Title>
@@ -46,9 +46,9 @@ export default function ForgotPassword() {
             </div>
           </div>
 
-          <form onSubmit={handleSubmit}>
+          <form onSubmit={handleSubmit} autoComplete="off">
             <Text strong style={{ display: 'block', marginBottom: 6, fontSize: 12 }}>Email address</Text>
-            <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@company.com" size="large" autoFocus autoComplete="email" style={{ marginBottom: 16 }} />
+            <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@company.com" size="large" autoFocus autoComplete="off" id="forgot-email-field" name="forgot-email-field" style={{ marginBottom: 16 }} />
             <Button type="primary" htmlType="submit" block size="large" loading={loading} disabled={!email}>Send Reset Link</Button>
           </form>
         </>

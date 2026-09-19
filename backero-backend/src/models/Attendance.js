@@ -24,13 +24,24 @@ const correctionHistoryEntrySchema = new mongoose.Schema({
   appliedAt: { type: Date, default: Date.now },
 }, { _id: false });
 
+const sessionSchema = new mongoose.Schema({
+  checkIn: { type: Date, required: true },
+  checkOut: { type: Date, required: true },
+}, { _id: false });
+
 const attendanceSchema = new mongoose.Schema({
   organizationId: { type: mongoose.Schema.Types.ObjectId, ref: 'Organization', required: true, index: true },
   employeeId: { type: mongoose.Schema.Types.ObjectId, ref: 'Employee', required: true },
   attendancePeriodId: { type: mongoose.Schema.Types.ObjectId, ref: 'AttendancePeriod', required: true },
   attendanceDate: { type: Date, required: true },
+  // checkIn = first punch of the day, checkOut = last *completed* punch —
+  // kept for backward compat with existing UI/API. sessions holds every
+  // individual check-in/check-out pair (Keka-style multi-punch); workedHours
+  // is the sum of each closed session's duration, not the checkIn-checkOut span.
   checkIn: { type: Date, default: null },
   checkOut: { type: Date, default: null },
+  sessions: { type: [sessionSchema], default: [] },
+  workedHours: { type: Number, default: 0 },
   status: { type: String, enum: ATTENDANCE_STATUSES, required: true },
   isCorrected: { type: Boolean, default: false },
   correctionHistory: { type: [correctionHistoryEntrySchema], default: [] },

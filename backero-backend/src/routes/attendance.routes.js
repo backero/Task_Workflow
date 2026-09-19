@@ -8,6 +8,9 @@ const attendanceCtrl = require('../controllers/attendance.controller');
 const periodsCtrl = require('../controllers/attendancePeriods.controller');
 const adminCtrl = require('../controllers/attendanceAdmin.controller');
 const auditCtrl = require('../controllers/attendanceAudit.controller');
+const rulesCtrl = require('../controllers/attendanceStatusRules.controller');
+const holidayCtrl = require('../controllers/holiday.controller');
+const workScheduleCtrl = require('../controllers/workSchedule.controller');
 const { authenticate } = require('../middleware/auth.middleware');
 const { requireAttendancePermission } = require('../middleware/role.middleware');
 const { ATTENDANCE_PERMISSIONS } = require('../utils/attendanceConstants');
@@ -34,6 +37,15 @@ router.get('/periods/config', periodsCtrl.listConfigs);
 router.post('/periods/config', requireAttendancePermission(P.PERIOD_CONFIGURE), periodsCtrl.createConfig);
 router.get('/periods/current', periodsCtrl.getCurrent);
 router.post('/periods/:periodId/finalize', requireAttendancePermission(P.PERIOD_FINALIZE), periodsCtrl.finalize);
+
+// --- Work-hours rules / holiday calendar / weekly-off config ---
+router.get('/rules', rulesCtrl.list);
+router.post('/rules', requireAttendancePermission(P.RULES_CONFIGURE), rulesCtrl.create);
+router.get('/holidays', holidayCtrl.list);
+router.post('/holidays', requireAttendancePermission(P.RULES_CONFIGURE), holidayCtrl.create);
+router.delete('/holidays/:id', requireAttendancePermission(P.RULES_CONFIGURE), holidayCtrl.remove);
+router.get('/work-schedule', workScheduleCtrl.list);
+router.post('/work-schedule', requireAttendancePermission(P.RULES_CONFIGURE), workScheduleCtrl.create);
 
 // --- Admin ---
 router.post('/admin/reprocess', requireAttendancePermission(P.ATTENDANCE_REPROCESS), adminCtrl.reprocess);

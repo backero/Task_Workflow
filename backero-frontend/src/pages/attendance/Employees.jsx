@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useForm, Controller } from 'react-hook-form';
-import { Plus, Search, Pencil, IdCard } from 'lucide-react';
+import { Plus, Search, Pencil, IdCard, RefreshCw } from 'lucide-react';
 import api from '../../api/axios';
 import toast from 'react-hot-toast';
-import { Button, Card, Col, Drawer, Empty, Input, Row, Select, Space, Table, Tag, Typography } from 'antd';
+import { Button, Card, Col, Drawer, Empty, Input, Modal, Row, Select, Space, Table, Tag, Typography } from 'antd';
 
 const { Title, Text } = Typography;
 
@@ -13,13 +13,38 @@ const CATEGORIES = [
   { value: 'FIELD', label: 'Field' },
 ];
 
+// Best-effort match of a User's free-text department against the relational
+// Department list — used to pre-fill (not auto-create) in the manual form.
+function matchDepartmentId(departmentName, departments) {
+  const name = (departmentName || '').trim().toLowerCase();
+  if (!name) return '';
+  const match = departments.find((d) => d.name.trim().toLowerCase() === name);
+  return match?._id || '';
+}
+
+// Same code-generation convention as the existing POST /departments/seed endpoint.
+function slugDepartmentCode(name) {
+  return name.replace(/[^a-zA-Z0-9]/g, '').toUpperCase().substring(0, 6) || 'DEPT';
+}
+
 function EmployeeDrawer({ open, onClose, editEmployee, departments, users }) {
   const qc = useQueryClient();
   const isEdit = !!editEmployee;
-  const { register, handleSubmit, reset, control, watch, formState: { errors } } = useForm({
+  const { handleSubmit, reset, control, watch, setValue, formState: { errors } } = useForm({
     defaultValues: { employee_code: '', full_name: '', phone: '', department_id: '', designation_id: '', category: 'OFFICE', date_of_joining: '', user_id: '' },
   });
   const departmentId = watch('department_id');
+
+  // Pick an existing User -> auto-fill their known details instead of
+  // re-typing them; everything stays editable before submit.
+  const handleLinkedUserChange = (userId) => {
+    const user = users.find((u) => u._id === userId);
+    if (!user) return;
+    setValue('full_name', `${user.firstName} ${user.lastName}`.trim());
+    if (user.phone) setValue('phone', user.phone);
+    const matchedDept = matchDepartmentId(user.department, departments);
+    if (matchedDept) setValue('department_id', matchedDept);
+  };
 
   const { data: designationsData } = useQuery({
     queryKey: ['designations', departmentId],
@@ -77,28 +102,45 @@ function EmployeeDrawer({ open, onClose, editEmployee, departments, users }) {
           <Row gutter={12}>
             <Col span={12}>
               <Text strong style={{ display: 'block', marginBottom: 6, fontSize: 12 }}>Employee Code *</Text>
-              <Input
-                {...register('employee_code', { required: 'Required' })}
-                placeholder="EMP-001" disabled={isEdit} style={{ textTransform: 'uppercase' }}
-                status={errors.employee_code ? 'error' : undefined}
+              <Controller
+                name="employee_code" control={control} rules={{ required: 'Required' }}
+                render={({ field }) => (
+                  <Input
+                    {...field} placeholder="EMP-001" disabled={isEdit} style={{ textTransform: 'uppercase' }}
+                    status={errors.employee_code ? 'error' : undefined}
+                  />
+                )}
               />
               {errors.employee_code && <Text type="danger" style={{ fontSize: 11 }}>{errors.employee_code.message}</Text>}
             </Col>
             <Col span={12}>
               <Text strong style={{ display: 'block', marginBottom: 6, fontSize: 12 }}>Date of Joining *</Text>
-              <Input type="date" {...register('date_of_joining', { required: 'Required' })} disabled={isEdit} status={errors.date_of_joining ? 'error' : undefined} />
+              <Controller
+                name="date_of_joining" control={control} rules={{ required: 'Required' }}
+                render={({ field }) => (
+                  <Input type="date" {...field} disabled={isEdit} status={errors.date_of_joining ? 'error' : undefined} />
+                )}
+              />
             </Col>
           </Row>
 
           <div>
             <Text strong style={{ display: 'block', marginBottom: 6, fontSize: 12 }}>Full Name *</Text>
-            <Input {...register('full_name', { required: 'Required' })} placeholder="Priya Sharma" status={errors.full_name ? 'error' : undefined} />
+            <Controller
+              name="full_name" control={control} rules={{ required: 'Required' }}
+              render={({ field }) => (
+                <Input {...field} placeholder="Priya Sharma" status={errors.full_name ? 'error' : undefined} />
+              )}
+            />
             {errors.full_name && <Text type="danger" style={{ fontSize: 11 }}>{errors.full_name.message}</Text>}
           </div>
 
           <div>
             <Text strong style={{ display: 'block', marginBottom: 6, fontSize: 12 }}>Phone</Text>
-            <Input {...register('phone')} placeholder="9876543210" />
+            <Controller
+              name="phone" control={control}
+              render={({ field }) => <Input {...field} placeholder="9876543210" />}
+            />
           </div>
 
           <Row gutter={12}>
@@ -146,6 +188,7 @@ function EmployeeDrawer({ open, onClose, editEmployee, departments, users }) {
                 <Select
                   {...field} style={{ width: '100%' }} placeholder="— Unlinked —" allowClear
                   showSearch optionFilterProp="label"
+                  onChange={(v) => { field.onChange(v); if (v) handleLinkedUserChange(v); }}
                   options={users.map((u) => ({ label: `${u.firstName} ${u.lastName} (${u.email})`, value: u._id }))}
                 />
               )}
@@ -164,6 +207,7 @@ export default function Employees() {
   const [filterCategory, setFilterCategory] = useState('');
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [editEmployee, setEditEmployee] = useState(null);
+  const [syncing, setSyncing] = useState(false);
   const qc = useQueryClient();
 
   const { data, isLoading } = useQuery({
@@ -194,6 +238,113 @@ export default function Employees() {
   const openAdd = () => { setEditEmployee(null); setDrawerOpen(true); };
   const openEdit = (e) => { setEditEmployee(e); setDrawerOpen(true); };
 
+  // Resolve (or auto-create) the Department/Designation for a free-text
+  // User.department/designation pair, reusing the existing endpoints — no
+  // new API. `departmentsCache`/`designationsCache` are mutated in place so
+  // repeated matches within one sync run don't re-create the same record.
+  const resolveDepartmentId = async (name, departmentsCache) => {
+    const deptName = (name || '').trim() || 'Unassigned';
+    const existing = departmentsCache.find((d) => d.name.trim().toLowerCase() === deptName.toLowerCase());
+    if (existing) return existing._id;
+    const res = await api.post('/departments', { name: deptName, code: slugDepartmentCode(deptName) });
+    const created = res.data.department;
+    departmentsCache.push(created);
+    return created._id;
+  };
+
+  const resolveDesignationId = async (departmentId, title, designationsCache) => {
+    const desigTitle = (title || '').trim() || 'Staff';
+    if (!designationsCache[departmentId]) {
+      const res = await api.get('/employees/designations', { params: { department_id: departmentId } });
+      designationsCache[departmentId] = res.data.designations || [];
+    }
+    const list = designationsCache[departmentId];
+    const existing = list.find((d) => d.title.trim().toLowerCase() === desigTitle.toLowerCase());
+    if (existing) return existing._id;
+    const res = await api.post('/employees/designations', { title: desigTitle, department_id: departmentId });
+    list.push(res.data.designation);
+    return res.data.designation._id;
+  };
+
+  const runSync = async (candidates, allEmployees, departmentsCache) => {
+    setSyncing(true);
+    let codeCounter = 0;
+    for (const emp of allEmployees) {
+      const m = /^EMP-(\d+)$/i.exec(emp.employeeCode || '');
+      if (m) codeCounter = Math.max(codeCounter, parseInt(m[1], 10));
+    }
+    const designationsCache = {};
+    const results = { created: 0, failed: [] };
+    for (const user of candidates) {
+      try {
+        const departmentId = await resolveDepartmentId(user.department, departmentsCache);
+        const designationId = await resolveDesignationId(departmentId, user.designation, designationsCache);
+        codeCounter += 1;
+        await api.post('/employees', {
+          employee_code: `EMP-${String(codeCounter).padStart(3, '0')}`,
+          full_name: `${user.firstName} ${user.lastName}`.trim(),
+          phone: user.phone || undefined,
+          department_id: departmentId,
+          designation_id: designationId,
+          category: 'OFFICE',
+          date_of_joining: (user.createdAt || new Date().toISOString()).slice(0, 10),
+          user_id: user._id,
+        });
+        results.created += 1;
+      } catch (err) {
+        results.failed.push({ user, reason: err.response?.data?.message || 'Failed to create employee.' });
+      }
+    }
+    setSyncing(false);
+    qc.invalidateQueries({ queryKey: ['employees'] });
+    qc.invalidateQueries({ queryKey: ['departments'] });
+    Modal.info({
+      title: 'Sync complete',
+      width: 480,
+      content: (
+        <div>
+          <p>{results.created} employee record(s) created.</p>
+          {results.failed.length > 0 && (
+            <>
+              <p>{results.failed.length} failed:</p>
+              <ul style={{ maxHeight: 200, overflow: 'auto' }}>
+                {results.failed.map((f, i) => (
+                  <li key={i}>{f.user.firstName} {f.user.lastName}: {f.reason}</li>
+                ))}
+              </ul>
+            </>
+          )}
+        </div>
+      ),
+    });
+  };
+
+  const handleSyncFromUsers = async () => {
+    const [usersRes, employeesRes, deptsRes] = await Promise.all([
+      api.get('/users', { params: { limit: 200 } }),
+      api.get('/employees', { params: { limit: 200 } }),
+      api.get('/departments'),
+    ]);
+    const allUsers = usersRes.data.data || [];
+    const allEmployees = employeesRes.data.data || [];
+    const departmentsCache = [...(deptsRes.data.departments || [])];
+
+    const linkedUserIds = new Set(allEmployees.filter((e) => e.userId).map((e) => String(e.userId?._id || e.userId)));
+    const candidates = allUsers.filter((u) => u.isActive !== false && !linkedUserIds.has(String(u._id)));
+
+    if (candidates.length === 0) {
+      Modal.info({ title: 'Nothing to sync', content: 'Every active user already has a linked employee record.' });
+      return;
+    }
+
+    Modal.confirm({
+      title: 'Sync employees from users?',
+      content: `This will create an Employee record for ${candidates.length} user(s) who don't have one yet — auto-creating any missing Department/Designation from their profile. You can review and edit each one afterwards. Continue?`,
+      okText: 'Sync',
+      onOk: () => runSync(candidates, allEmployees, departmentsCache),
+    });
+  };
+
   const columns = [
     { title: 'Code', dataIndex: 'employeeCode', key: 'employeeCode', render: (v) => <Text style={{ fontFamily: 'monospace', fontSize: 12 }}>{v}</Text> },
     {
@@ -221,7 +372,10 @@ export default function Employees() {
           <Title level={4} style={{ marginBottom: 0 }}>Employees</Title>
           <Text type="secondary">Employee directory for attendance, devices, and payroll</Text>
         </div>
-        <Button type="primary" icon={<Plus size={14} />} onClick={openAdd}>Add Employee</Button>
+        <Space>
+          <Button icon={<RefreshCw size={14} />} loading={syncing} onClick={handleSyncFromUsers}>Sync from Users</Button>
+          <Button type="primary" icon={<Plus size={14} />} onClick={openAdd}>Add Employee</Button>
+        </Space>
       </div>
 
       <Row gutter={16} style={{ marginBottom: 16 }}>

@@ -29,7 +29,7 @@ export const STAGE_BUCKET_COLOR = (stage) => {
   if (stage <= 3) return PILL.info;
   if (stage === 4) return PILL.purple;
   if (stage === 5) return PILL.warning;
-  if (stage === 6) return 'bg-[#f3e6c8] text-[#a8781f]';
+  if (stage === 6) return 'bg-[#f3e6c8] text-[#669c2c]';
   return PILL.success;
 };
 
@@ -60,12 +60,12 @@ export function StageBar({ order, viewStage, setViewStage }) {
         return (
           <button key={name} disabled={locked} onClick={() => setViewStage(i)}
             className={clsx('flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold whitespace-nowrap border transition-colors flex-shrink-0',
-              active ? 'bg-[#f3e6c8] border-[#a8781f] text-[#a8781f]' :
+              active ? 'bg-[#f3e6c8] border-[#669c2c] text-[#669c2c]' :
               done ? 'bg-[#e2ece5] border-[#c3d9c9] text-[#2f6b4f]' :
               locked ? 'bg-[#f1ede4] border-[#e7e2d6] text-[#ddd6c4] cursor-not-allowed' :
               'bg-[#fbfaf7] border-[#ddd6c4] text-[#6b6155]')}>
             <span className={clsx('w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold flex-shrink-0',
-              done ? 'bg-[#2f6b4f] text-white' : active ? 'bg-[#a8781f] text-[#1c1917]' : 'bg-[#e7e2d6] text-[#6b6155]')}>
+              done ? 'bg-[#2f6b4f] text-white' : active ? 'bg-[#669c2c] text-[#1c1917]' : 'bg-[#e7e2d6] text-[#6b6155]')}>
               {done ? <CheckCircle2 className="w-3 h-3" /> : displayIndex + 1}
             </span>
             {name}
@@ -117,11 +117,11 @@ export function StageOrder({ order, onSaved, hideSidebar }) {
       {!hideSidebar && (
         <div className="w-52 flex-shrink-0">
           <p className="text-[10px] font-bold uppercase tracking-wide text-[#8a8171] mb-2">Products (from catalogue)</p>
-          <div className="rounded-lg border-[1.5px] border-[#a8781f] bg-[#f3e6c8] px-2.5 py-2">
+          <div className="rounded-lg border-[1.5px] border-[#669c2c] bg-[#f3e6c8] px-2.5 py-2">
             <p className="text-xs font-bold text-[#1c1917] truncate">{order.catalogProduct?.name || order.orderNumber}</p>
             <p className="text-[10px] text-[#8a8171] truncate">{order.catalogProduct?.code || order.batch}{order.batchSizeKg ? ` · ${order.batchSizeKg} kg` : ''}</p>
           </div>
-          <button onClick={() => setShowAddProduct(true)} className="w-full mt-2 border-2 border-dashed border-[#8a8171] text-[#a8781f] rounded-lg py-2 text-xs font-bold hover:bg-[#f3e6c8]">+ Add product</button>
+          <button onClick={() => setShowAddProduct(true)} className="w-full mt-2 border-2 border-dashed border-[#8a8171] text-[#669c2c] rounded-lg py-2 text-xs font-bold hover:bg-[#f3e6c8]">+ Add product</button>
           <p className="text-[9.5px] text-[#8a8171] mt-2 leading-relaxed">Adds a new product for {order.customer || 'this customer'} — becomes its own order &amp; job sheet, linked by the same order group.</p>
         </div>
       )}
@@ -359,7 +359,7 @@ export function StageWeighing({ order, onSaved }) {
       <Card>
         <div className="flex items-center justify-between mb-2">
           <h3 className="text-sm font-bold text-[#1c1917]">Ingredient Weighing</h3>
-          <span className={clsx('text-[11px] font-semibold', allWeighed ? 'text-[#2f6b4f]' : 'text-[#a8781f]')}>{weighedCount}/{order.ingredients.length}</span>
+          <span className={clsx('text-[11px] font-semibold', allWeighed ? 'text-[#2f6b4f]' : 'text-[#669c2c]')}>{weighedCount}/{order.ingredients.length}</span>
         </div>
         <table className="w-full text-xs">
           <thead><tr className="text-left text-[10px] uppercase text-[#8a8171] border-b border-[#e7e2d6]"><th className="py-1.5">Material</th><th className="py-1.5">Target</th><th className="py-1.5">Status</th><th className="py-1.5"></th></tr></thead>
@@ -368,10 +368,10 @@ export function StageWeighing({ order, onSaved }) {
               <tr key={i} className="border-b border-[#e7e2d6]">
                 <td className="py-1.5 text-[#1c1917]">{ing.name}</td>
                 <td className="py-1.5 font-mono">{ing.targetQty} {ing.unit}</td>
-                <td className="py-1.5">{ing.actualQty != null ? <span className="text-[#2f6b4f] font-semibold">Weighed ({ing.actualQty}{ing.unit})</span> : <span className="text-[#a8781f] font-semibold">Pending</span>}</td>
+                <td className="py-1.5">{ing.actualQty != null ? <span className="text-[#2f6b4f] font-semibold">Weighed ({ing.actualQty}{ing.unit})</span> : <span className="text-[#669c2c] font-semibold">Pending</span>}</td>
                 <td className="py-1.5 text-right">
                   {ing.actualQty == null && (
-                    <button onClick={() => weigh(ing)} disabled={busyKey === ing.rawMaterialId} className="text-[#a8781f] font-semibold disabled:opacity-50">{busyKey === ing.rawMaterialId ? '…' : 'Mark Weighed'}</button>
+                    <button onClick={() => weigh(ing)} disabled={busyKey === ing.rawMaterialId} className="text-[#669c2c] font-semibold disabled:opacity-50">{busyKey === ing.rawMaterialId ? '…' : 'Mark Weighed'}</button>
                   )}
                 </td>
               </tr>
@@ -386,7 +386,7 @@ export function StageWeighing({ order, onSaved }) {
       <Card>
         <div className="flex items-center justify-between mb-2">
           <h3 className="text-sm font-bold text-[#1c1917]">Process Steps</h3>
-          <span className={clsx('text-[11px] font-semibold', allSteps ? 'text-[#2f6b4f]' : 'text-[#a8781f]')}>{doneSteps}/{order.processSteps.length}</span>
+          <span className={clsx('text-[11px] font-semibold', allSteps ? 'text-[#2f6b4f]' : 'text-[#669c2c]')}>{doneSteps}/{order.processSteps.length}</span>
         </div>
         <div className="space-y-1.5">
           {order.processSteps.map((step, i) => {
@@ -399,7 +399,7 @@ export function StageWeighing({ order, onSaved }) {
                   {step.name}
                 </span>
                 {!step.done && !locked && (
-                  <button onClick={() => completeStep(i)} disabled={busyKey === 'step' + i} className="text-[#a8781f] font-semibold disabled:opacity-50">{busyKey === 'step' + i ? '…' : 'Mark Complete'}</button>
+                  <button onClick={() => completeStep(i)} disabled={busyKey === 'step' + i} className="text-[#669c2c] font-semibold disabled:opacity-50">{busyKey === 'step' + i ? '…' : 'Mark Complete'}</button>
                 )}
                 {locked && <Lock className="w-3.5 h-3.5 text-[#ddd6c4]" />}
               </div>
@@ -469,11 +469,11 @@ function BulkQCField({ spec, legacy, crmSpec, form, setForm }) {
     <div className="grid grid-cols-1 sm:grid-cols-[220px_1fr_150px] gap-x-3 gap-y-1 sm:items-center py-2 border-b border-[#e7e2d6] last:border-none">
       <div className="min-w-0">
         <span className="text-xs text-[#6b6155]">{spec.label}</span>
-        {spec.iso && <span className="inline-block ml-1.5 bg-[#f3e6c8] text-[#a8781f] border border-[#c9a227]/30 rounded px-1 text-[9px] font-bold align-middle">{spec.iso}</span>}
+        {spec.iso && <span className="inline-block ml-1.5 bg-[#f3e6c8] text-[#669c2c] border border-[#c9a227]/30 rounded px-1 text-[9px] font-bold align-middle">{spec.iso}</span>}
         {spec.hint && <p className="text-[10px] text-[#8a8171] mt-0.5">{spec.hint}</p>}
       </div>
       <div className="min-w-0">
-        <input disabled value={specValue(crmSpec, spec.key, '—')} className="w-full text-xs border border-[#ddd6c4] rounded-lg px-2 py-1.5 bg-[#f1ede4] text-[#a8781f] disabled:opacity-100" />
+        <input disabled value={specValue(crmSpec, spec.key, '—')} className="w-full text-xs border border-[#ddd6c4] rounded-lg px-2 py-1.5 bg-[#f1ede4] text-[#669c2c] disabled:opacity-100" />
       </div>
       <div className="sm:justify-self-end">
         <PassFailToggle value={value} onChange={onChange} />
@@ -583,18 +583,18 @@ export function StagePackaging({ order, onSaved }) {
           <Field label="MRP (₹)"><input type="number" value={form.mrp} onChange={(e) => setForm((f) => ({ ...f, mrp: e.target.value }))} className={inputCls} /></Field>
           <Field label="Fill Weight/Unit (g)"><input type="number" value={form.fillWeight} onChange={(e) => setForm((f) => ({ ...f, fillWeight: e.target.value }))} className={inputCls} /></Field>
         </div>
-        <p className="text-xs text-[#8a8171] mt-2">Batch weight: {batchGrams}g · Expected units: <strong className="text-[#a8781f]">{expected ?? '—'}</strong></p>
+        <p className="text-xs text-[#8a8171] mt-2">Batch weight: {batchGrams}g · Expected units: <strong className="text-[#669c2c]">{expected ?? '—'}</strong></p>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
           <Field label="Filled (units)"><input type="number" value={form.filled} onChange={(e) => setForm((f) => ({ ...f, filled: e.target.value }))} className={inputCls} /></Field>
           <Field label="Rejected"><input type="number" value={form.rejected} onChange={(e) => setForm((f) => ({ ...f, rejected: e.target.value }))} className={inputCls} /></Field>
         </div>
-        <p className="text-xs text-[#8a8171] mt-2">Yield: <strong className="text-[#a8781f]">{yieldPct}%</strong></p>
+        <p className="text-xs text-[#8a8171] mt-2">Yield: <strong className="text-[#669c2c]">{yieldPct}%</strong></p>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mt-3">
           <Field label="MFG Date"><input type="date" value={form.mfgDate} onChange={(e) => setForm((f) => ({ ...f, mfgDate: e.target.value }))} className={inputCls} /></Field>
           <Field label="EXP Date"><input type="date" value={form.expDate} onChange={(e) => setForm((f) => ({ ...f, expDate: e.target.value }))} className={inputCls} /></Field>
           <Field label="Units/Carton"><input type="number" value={form.cartonQty} onChange={(e) => setForm((f) => ({ ...f, cartonQty: e.target.value }))} className={inputCls} /></Field>
         </div>
-        <p className="text-xs text-[#8a8171] mt-2">Total cartons: <strong className="text-[#a8781f]">{totalCartons ?? '—'}</strong></p>
+        <p className="text-xs text-[#8a8171] mt-2">Total cartons: <strong className="text-[#669c2c]">{totalCartons ?? '—'}</strong></p>
         <button onClick={submit} disabled={busy} className={clsx(primaryBtn, 'mt-4')}>{busy ? 'Saving…' : 'Packaging Complete → Final QC'}</button>
       </Card>
       <Card>
@@ -670,7 +670,7 @@ export function StageFinalQC({ order, onSaved }) {
           {spec.hint && <p className="text-[10px] text-[#8a8171] mt-0.5">{spec.hint}</p>}
         </div>
         <div className="min-w-0">
-          <input disabled value={specValue(crmSpec, spec.key, '—')} className="w-full text-xs border border-[#ddd6c4] rounded-lg px-2 py-1.5 bg-[#f1ede4] text-[#a8781f] disabled:opacity-100" />
+          <input disabled value={specValue(crmSpec, spec.key, '—')} className="w-full text-xs border border-[#ddd6c4] rounded-lg px-2 py-1.5 bg-[#f1ede4] text-[#669c2c] disabled:opacity-100" />
         </div>
         <div className="sm:justify-self-end">
           <PassFailToggle value={value} onChange={onChange} />
@@ -932,7 +932,7 @@ export function StageDispatch({ order, onSaved }) {
               {cartonNumbers.map((n) => (
                 <div key={n} className="flex items-center justify-between gap-2 px-2 py-1 rounded-md bg-white/60 border border-[#e7e2d6]">
                   <span className="text-[11px] font-semibold text-[#292521]">Carton {n} of {cartonNumbers.length}</span>
-                  <button onClick={() => printLabel(n, cartonNumbers.length)} className="text-[10px] font-semibold text-[#a8781f] hover:underline flex-shrink-0 inline-flex items-center gap-1"><Printer className="w-3 h-3" /> Print Label</button>
+                  <button onClick={() => printLabel(n, cartonNumbers.length)} className="text-[10px] font-semibold text-[#669c2c] hover:underline flex-shrink-0 inline-flex items-center gap-1"><Printer className="w-3 h-3" /> Print Label</button>
                 </div>
               ))}
             </div>
@@ -941,7 +941,7 @@ export function StageDispatch({ order, onSaved }) {
         <div>
           <div className="flex items-center justify-between mb-1.5">
             <p className="text-[10px] font-bold uppercase tracking-wide text-[#8a8171] flex items-center gap-1"><Truck className="w-3 h-3" /> Shipping Label</p>
-            <button onClick={printShippingLabel} className="text-[10px] font-semibold text-[#a8781f] hover:underline inline-flex items-center gap-1"><Printer className="w-3 h-3" /> Print Label</button>
+            <button onClick={printShippingLabel} className="text-[10px] font-semibold text-[#669c2c] hover:underline inline-flex items-center gap-1"><Printer className="w-3 h-3" /> Print Label</button>
           </div>
           <div className="rounded-lg border border-[#2C1810]/30 p-3 text-[#2C1810] space-y-2">
             <div>
@@ -993,7 +993,7 @@ export function StageDispatch({ order, onSaved }) {
               <>
                 <p className="text-xs font-bold text-[#1c1917]">{invoice.invoiceNumber}</p>
                 <p className="text-[10px] text-[#6b6155] mt-0.5">₹{(invoice.paidAmount || 0).toLocaleString('en-IN')} / ₹{(invoice.totalAmount || 0).toLocaleString('en-IN')} — {invoice.status}</p>
-                <button onClick={printLinkedInvoice} disabled={printingInvoice} className="text-[10px] font-semibold text-[#a8781f] hover:underline mt-1.5 disabled:opacity-50 inline-flex items-center gap-1"><Printer className="w-3 h-3" /> {printingInvoice ? 'Loading…' : 'Print Invoice'}</button>
+                <button onClick={printLinkedInvoice} disabled={printingInvoice} className="text-[10px] font-semibold text-[#669c2c] hover:underline mt-1.5 disabled:opacity-50 inline-flex items-center gap-1"><Printer className="w-3 h-3" /> {printingInvoice ? 'Loading…' : 'Print Invoice'}</button>
               </>
             )}
           </div>

@@ -159,7 +159,7 @@ export default function Settings() {
                 {user?.avatar && !avatarBroken ? (
                   <Avatar size={64} src={user.avatar} onError={() => { setAvatarBroken(true); return false; }} />
                 ) : (
-                  <Avatar size={64} style={{ backgroundColor: '#a8781f1f', color: '#a8781f', fontSize: 24, fontWeight: 700 }}>{user?.firstName?.[0]}{user?.lastName?.[0]}</Avatar>
+                  <Avatar size={64} style={{ backgroundColor: '#669c2c1f', color: '#669c2c', fontSize: 24, fontWeight: 700 }}>{user?.firstName?.[0]}{user?.lastName?.[0]}</Avatar>
                 )}
               </div>
               <div>

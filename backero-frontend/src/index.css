@@ -25,21 +25,21 @@
   --t-sub:       #6b6155;
   --t-muted:     #a39c8c;
 
-  /* Brand (brass-gold) */
-  --brand:       #a8781f;
-  --grad-brand:  linear-gradient(135deg,#7c5a17 0%,#a8781f 50%,#c2a35a 100%);
-  --grad-glow:   rgba(168,120,31,0.24);
+  /* Brand (Backero logo green) */
+  --brand:       #669c2c;
+  --grad-brand:  linear-gradient(135deg,#4b7320 0%,#669c2c 50%,#90cd4f 100%);
+  --grad-glow:   rgba(102,156,44,0.24);
 
-  /* Zone — unified brass-gold accent, same everywhere */
-  --zone:          #a8781f;
-  --zone-mid:      #c2a35a;
+  /* Zone — unified logo-green accent, same everywhere */
+  --zone:          #669c2c;
+  --zone-mid:      #90cd4f;
   --zone-bg:       #f1ede4;
   --zone-dot:      rgba(28,25,23,0.05);
-  --zone-glow:     rgba(168,120,31,0.16);
-  --zone-card:     rgba(168,120,31,0.05);
-  --zone-link:         #d8c391;
-  --zone-link-bg:      rgba(168,120,31,0.14);
-  --zone-link-border:  #c2a35a;
+  --zone-glow:     rgba(102,156,44,0.16);
+  --zone-card:     rgba(102,156,44,0.05);
+  --zone-link:         #b6de8b;
+  --zone-link-bg:      rgba(102,156,44,0.14);
+  --zone-link-border:  #90cd4f;
 
   /* Radii */
   --r-sm: 10px;

@@ -79,7 +79,7 @@ export function Field({ label, children }) {
 }
 
 export const inputCls = 'w-full px-3 py-2 text-sm rounded-[10px] border-[1.5px] border-[#ddd6c4] bg-[#fbfaf7] text-[#1c1917] focus:outline-none focus:border-[#8a8171] placeholder:text-[#8a8171] disabled:opacity-50';
-export const primaryBtn = 'px-4 py-2 bg-[#a8781f] hover:brightness-95 text-[#1c1917] text-sm font-semibold rounded-xl disabled:opacity-50 transition';
+export const primaryBtn = 'px-4 py-2 bg-[#669c2c] hover:brightness-95 text-[#1c1917] text-sm font-semibold rounded-xl disabled:opacity-50 transition';
 export const secondaryBtn = 'px-4 py-2 bg-[#e7e2d6] hover:bg-[#ddd6c4] text-[#292521] text-sm font-semibold rounded-xl disabled:opacity-50 transition';
 
 // Tap-to-fill preset chips — same "chipsHtml" idea as the reference file: click a chip to set

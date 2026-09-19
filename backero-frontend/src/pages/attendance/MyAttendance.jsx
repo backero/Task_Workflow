@@ -3,9 +3,10 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { ClipboardCheck, Pencil, Check, X } from 'lucide-react';
 import api from '../../api/axios';
 import toast from 'react-hot-toast';
-import { Button, Card, Col, Empty, Input, Row, Space, Table, Tag, Typography } from 'antd';
+import { Button, Card, Col, Empty, Input, Modal, Row, Space, Table, Tag, Typography } from 'antd';
 import dayjs from 'dayjs';
 import { usePermissions } from '../../store/usePermissions';
+import HolidaysCard from '../../components/attendance/HolidaysCard';
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;
@@ -70,11 +71,13 @@ function ProfileCard() {
 
 export default function MyAttendance() {
   const { hasPermission } = usePermissions();
-  const [correctingId, setCorrectingId] = useState(null);
+  const [correctingRow, setCorrectingRow] = useState(null);
   const [reason, setReason] = useState('');
   const [checkIn, setCheckIn] = useState('');
   const [checkOut, setCheckOut] = useState('');
   const qc = useQueryClient();
+
+  const closeCorrectionModal = () => { setCorrectingRow(null); setReason(''); setCheckIn(''); setCheckOut(''); };
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ['my-attendance'],
@@ -88,7 +91,7 @@ export default function MyAttendance() {
     onSuccess: (res) => {
       qc.invalidateQueries({ queryKey: ['my-attendance'] });
       toast.success(res.data.correction ? 'Correction submitted for approval' : 'Correction applied');
-      setCorrectingId(null); setReason(''); setCheckIn(''); setCheckOut('');
+      closeCorrectionModal();
     },
     onError: (err) => toast.error(err.response?.data?.message || 'Failed to request correction'),
   });
@@ -100,7 +103,7 @@ export default function MyAttendance() {
     { title: 'Check-out', dataIndex: 'checkOut', key: 'checkOut', render: (v) => v ? dayjs(v).format('HH:mm') : '—' },
     ...(hasPermission('attendance:correct') ? [{
       title: '', key: 'actions', align: 'right',
-      render: (_, r) => <Button size="small" onClick={() => setCorrectingId(correctingId === r._id ? null : r._id)}>Request Correction</Button>,
+      render: (_, r) => <Button size="small" onClick={() => setCorrectingRow(r)}>Request Correction</Button>,
     }] : []),
   ];
 
@@ -110,6 +113,7 @@ export default function MyAttendance() {
       <Text type="secondary">Your own attendance history</Text>
 
       <div style={{ marginTop: 16, marginBottom: 16 }}><ProfileCard /></div>
+      <div style={{ marginBottom: 16 }}><HolidaysCard /></div>
 
       {isError ? (
         <Card><Empty description="No employee profile is linked to your account yet — contact HR." /></Card>
@@ -118,35 +122,37 @@ export default function MyAttendance() {
           <Table
             rowKey="_id" columns={columns} dataSource={rows} loading={isLoading} pagination={false}
             locale={{ emptyText: <Empty image={<ClipboardCheck size={36} color="#d1d5db" style={{ margin: '0 auto' }} />} description="No attendance records yet" /> }}
-            expandable={{
-              expandedRowKeys: correctingId ? [correctingId] : [],
-              expandIcon: () => null,
-              expandedRowRender: (r) => (
-                <Card size="small" style={{ maxWidth: 480 }}>
-                  <Row gutter={8} style={{ marginBottom: 8 }}>
-                    <Col span={12}>
-                      <Text style={{ fontSize: 12, display: 'block', marginBottom: 4 }}>New Check-in</Text>
-                      <Input type="datetime-local" size="small" value={checkIn} onChange={(e) => setCheckIn(e.target.value)} />
-                    </Col>
-                    <Col span={12}>
-                      <Text style={{ fontSize: 12, display: 'block', marginBottom: 4 }}>New Check-out</Text>
-                      <Input type="datetime-local" size="small" value={checkOut} onChange={(e) => setCheckOut(e.target.value)} />
-                    </Col>
-                  </Row>
-                  <TextArea rows={2} placeholder="Reason (min 5 characters)" value={reason} onChange={(e) => setReason(e.target.value)} style={{ marginBottom: 8 }} />
-                  <Button
-                    size="small" type="primary" loading={correctMutation.isPending}
-                    disabled={reason.trim().length < 5 || (!checkIn && !checkOut)}
-                    onClick={() => correctMutation.mutate({ attendanceId: r._id, body: { reason, check_in: checkIn || undefined, check_out: checkOut || undefined } })}
-                  >
-                    Submit
-                  </Button>
-                </Card>
-              ),
-            }}
           />
         </Card>
       )}
+
+      <Modal
+        open={!!correctingRow} onCancel={closeCorrectionModal} footer={null}
+        title={correctingRow ? `Request Correction — ${dayjs(correctingRow.attendanceDate).format('DD MMM YYYY')}` : ''}
+        destroyOnClose
+      >
+        <Row gutter={8} style={{ marginBottom: 8, marginTop: 16 }}>
+          <Col span={12}>
+            <Text style={{ fontSize: 12, display: 'block', marginBottom: 4 }}>New Check-in</Text>
+            <Input type="datetime-local" value={checkIn} onChange={(e) => setCheckIn(e.target.value)} />
+          </Col>
+          <Col span={12}>
+            <Text style={{ fontSize: 12, display: 'block', marginBottom: 4 }}>New Check-out</Text>
+            <Input type="datetime-local" value={checkOut} onChange={(e) => setCheckOut(e.target.value)} />
+          </Col>
+        </Row>
+        <TextArea rows={2} placeholder="Reason (min 5 characters)" value={reason} onChange={(e) => setReason(e.target.value)} style={{ marginBottom: 12 }} />
+        <Space style={{ width: '100%' }}>
+          <Button style={{ flex: 1 }} onClick={closeCorrectionModal}>Cancel</Button>
+          <Button
+            style={{ flex: 1 }} type="primary" loading={correctMutation.isPending}
+            disabled={reason.trim().length < 5 || (!checkIn && !checkOut)}
+            onClick={() => correctMutation.mutate({ attendanceId: correctingRow._id, body: { reason, check_in: checkIn || undefined, check_out: checkOut || undefined } })}
+          >
+            Submit
+          </Button>
+        </Space>
+      </Modal>
     </div>
   );
 }

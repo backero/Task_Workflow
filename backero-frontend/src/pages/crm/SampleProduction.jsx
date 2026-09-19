@@ -590,7 +590,7 @@ export default function SampleProduction() {
 
   // Consistent color per client — same client always gets the same swatch, so every query row
   // for that client (even scattered across a search/sort) reads as one visual group at a glance.
-  const CLIENT_COLOR_PALETTE = ['#a8781f', '#a39c8c', '#7c5a17', '#4f8f6c', '#c9a227', '#8a6a7d', '#a13d34', '#2f6b4f'];
+  const CLIENT_COLOR_PALETTE = ['#669c2c', '#a39c8c', '#4b7320', '#4f8f6c', '#c9a227', '#8a6a7d', '#a13d34', '#2f6b4f'];
   function clientColorFor(cid) {
     let hash = 0;
     for (let i = 0; i < (cid || '').length; i++) hash = (hash * 31 + cid.charCodeAt(i)) >>> 0;
@@ -624,7 +624,7 @@ export default function SampleProduction() {
     setQaSortDir(next.dir);
   };
 
-  const accentBtn = 'inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-[#a8781f] text-[#1c1917] text-xs font-bold hover:brightness-95 transition disabled:opacity-50';
+  const accentBtn = 'inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-[#669c2c] text-[#1c1917] text-xs font-bold hover:brightness-95 transition disabled:opacity-50';
   const outlineBtn = 'inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full border-[1.5px] border-[#ddd6c4] text-[#6b6155] text-xs font-semibold hover:bg-[#f1ede4] hover:border-[#8a8171] hover:text-[#1c1917] transition';
   const textLink = 'text-xs font-semibold text-[#292521] hover:text-[#1c1917]';
   const modalInputCls = 'px-3 py-2 text-sm rounded-[10px] border-[1.5px] border-[#ddd6c4] bg-white text-[#1c1917] focus:outline-none focus:border-[#8a8171] placeholder:text-[#8a8171]';
@@ -650,7 +650,7 @@ export default function SampleProduction() {
       <style>{FONT_IMPORT}</style>
 
       <Card className="flex items-center gap-3">
-        <div className="w-10 h-10 rounded-xl bg-[#a8781f] flex items-center justify-center shadow-sm flex-shrink-0 text-lg">🧪</div>
+        <div className="w-10 h-10 rounded-xl bg-[#669c2c] flex items-center justify-center shadow-sm flex-shrink-0 text-lg">🧪</div>
         <div className="flex-1 min-w-0">
           <h1 className="text-lg font-bold text-[#1c1917] leading-tight" style={displayFont}>Sample Development</h1>
           <p className="text-xs text-[#6b6155]">{sampleLeads.length} in sampling · {awaiting.length} in approvals · {linkedOrders.length} linked</p>
@@ -690,11 +690,11 @@ export default function SampleProduction() {
               onClick={() => { setTab(t.key); setSortState({ col: null, dir: 'asc' }); }}
               className={clsx(
                 'px-4 py-3 text-[13px] font-semibold border-b-[2.5px] transition-colors flex items-center gap-1.5 whitespace-nowrap flex-shrink-0',
-                tab === t.key ? 'border-[#a8781f] text-[#1c1917]' : 'border-transparent text-[#6b6155] hover:text-[#1c1917]'
+                tab === t.key ? 'border-[#669c2c] text-[#1c1917]' : 'border-transparent text-[#6b6155] hover:text-[#1c1917]'
               )}
             >
               <span>{t.emoji}</span>{t.label}
-              <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-[#a8781f] text-[#1c1917] text-[10px] font-bold">
+              <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-[#669c2c] text-[#1c1917] text-[10px] font-bold">
                 {dashboardStats.find((s) => s.key === t.key)?.value ?? 0}
               </span>
             </button>
@@ -923,7 +923,7 @@ export default function SampleProduction() {
                                     answerQueryMutation.mutate({ queryId: q._id, answer });
                                   }}
                                   disabled={answerQueryMutation.isPending}
-                                  className="px-3 py-1.5 rounded-full bg-[#a8781f] text-[#1c1917] text-xs font-bold hover:brightness-95 transition disabled:opacity-50 whitespace-nowrap"
+                                  className="px-3 py-1.5 rounded-full bg-[#669c2c] text-[#1c1917] text-xs font-bold hover:brightness-95 transition disabled:opacity-50 whitespace-nowrap"
                                 >
                                   Reply
                                 </button>
@@ -1193,7 +1193,7 @@ export default function SampleProduction() {
                       <td className="px-4 py-2.5 text-[#6b6155] text-xs whitespace-nowrap">{o.batchSizeKg ? `${o.batchSizeKg} kg` : '—'}</td>
                       <td className="px-4 py-2.5 text-[#6b6155] text-xs whitespace-nowrap">{o.deliveryDate || '—'}</td>
                       <td className="px-4 py-2.5 text-xs whitespace-nowrap">
-                        <span className="px-2 py-0.5 rounded-full font-semibold bg-[#f3e6c8] text-[#a8781f]">{STAGE_NAMES[o.stage] || o.status}</span>
+                        <span className="px-2 py-0.5 rounded-full font-semibold bg-[#f3e6c8] text-[#669c2c]">{STAGE_NAMES[o.stage] || o.status}</span>
                       </td>
                       <td className="px-4 py-2.5 text-right whitespace-nowrap">
                         <button
@@ -1701,13 +1701,13 @@ function OrphanOrderPanel({ orderId: initialOrderId, onClose }) {
                         disabled={!prodOrder}
                         title={prodOrder ? STAGE_NAMES[prodOrder.stage] || prodOrder.status : 'Not in production'}
                         className={clsx('rounded-full border-[1.5px] px-3 py-1 text-xs font-semibold transition-colors',
-                          isCurrent ? 'border-[#a8781f] bg-[#f3e6c8] text-[#1c1917]' : prodOrder ? 'border-[#ddd6c4] bg-white text-[#6b6155] hover:bg-[#fbfaf7]' : 'border-[#e7e2d6] bg-[#fbfaf7] text-[#8a8171] opacity-60 cursor-not-allowed')}
+                          isCurrent ? 'border-[#669c2c] bg-[#f3e6c8] text-[#1c1917]' : prodOrder ? 'border-[#ddd6c4] bg-white text-[#6b6155] hover:bg-[#fbfaf7]' : 'border-[#e7e2d6] bg-[#fbfaf7] text-[#8a8171] opacity-60 cursor-not-allowed')}
                       >
                         {p.name} <span className="font-mono font-normal opacity-75">{p.productId}</span>
                       </button>
                     );
                   })}
-                  <button onClick={() => setShowAddProduct(true)} className="rounded-full border-2 border-dashed border-[#8a8171] text-[#a8781f] px-3 py-1 text-xs font-bold hover:bg-[#f3e6c8]">+ Add product</button>
+                  <button onClick={() => setShowAddProduct(true)} className="rounded-full border-2 border-dashed border-[#8a8171] text-[#669c2c] px-3 py-1 text-xs font-bold hover:bg-[#f3e6c8]">+ Add product</button>
                 </div>
               )}
               {stage === 0 && <StageOrder order={order} onSaved={invalidateOrder} hideSidebar />}
@@ -1783,7 +1783,7 @@ function StageFocusPanel({ orderId, stageTab, StageComponent, onClose }) {
                   so the panel isn't missing this row entirely. */}
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="text-[10px] font-bold uppercase tracking-wide text-[#8a8171]">Products:</span>
-                <span className="rounded-full border-[1.5px] border-[#a8781f] bg-[#f3e6c8] px-3 py-1 text-xs font-semibold text-[#1c1917]">
+                <span className="rounded-full border-[1.5px] border-[#669c2c] bg-[#f3e6c8] px-3 py-1 text-xs font-semibold text-[#1c1917]">
                   {order.catalogProduct?.name || order.orderNumber} <span className="font-mono font-normal opacity-75">{order.orderNumber}</span>
                 </span>
               </div>

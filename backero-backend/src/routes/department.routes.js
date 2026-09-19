@@ -3,7 +3,7 @@ const Department = require('../models/Department');
 const Task = require('../models/Task');
 const { authenticate } = require('../middleware/auth.middleware');
 const { orgIsolation } = require('../middleware/orgIsolation.middleware');
-const { authorizeAdminOrAbove } = require('../middleware/role.middleware');
+const { authorizeAdminOrAbove, authorizeDepartmentWrite } = require('../middleware/role.middleware');
 const { asyncHandler, sendSuccess, sendError } = require('../utils/helpers');
 
 const DEPT_COLORS = {
@@ -41,7 +41,7 @@ router.get('/', asyncHandler(async (req, res) => {
   sendSuccess(res, { departments: depts });
 }));
 
-router.post('/', authorizeAdminOrAbove, asyncHandler(async (req, res) => {
+router.post('/', authorizeDepartmentWrite, asyncHandler(async (req, res) => {
   const dept = await Department.create({ ...req.body, organizationId: req.user.organizationId, createdBy: req.user._id });
   sendSuccess(res, { department: dept }, 'Department created', 201);
 }));

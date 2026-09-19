@@ -39,7 +39,7 @@ function ChatMessage({ role, content, streaming }) {
           borderRadius: 16,
           fontSize: 13,
           lineHeight: 1.5,
-          background: role === 'user' ? '#a8781f' : 'rgba(15,23,42,0.06)',
+          background: role === 'user' ? '#669c2c' : 'rgba(15,23,42,0.06)',
           color: role === 'user' ? '#fff' : '#1c1917',
           borderBottomRightRadius: role === 'user' ? 4 : 16,
           borderBottomLeftRadius: role === 'user' ? 16 : 4,
@@ -172,8 +172,8 @@ export default function HelpDrawer() {
           <li key={j} style={{ display: 'flex', gap: 10, marginBottom: 10 }}>
             <span
               style={{
-                width: 18, height: 18, borderRadius: '50%', background: 'rgba(168,120,31,0.14)',
-                color: '#a8781f', fontSize: 10, fontWeight: 700, flexShrink: 0,
+                width: 18, height: 18, borderRadius: '50%', background: 'rgba(102,156,44,0.14)',
+                color: '#669c2c', fontSize: 10, fontWeight: 700, flexShrink: 0,
                 display: 'flex', alignItems: 'center', justifyContent: 'center', marginTop: 2,
               }}
             >
@@ -216,7 +216,7 @@ export default function HelpDrawer() {
         {tab === 'guide' && (
           <div style={{ flex: 1, overflowY: 'auto', padding: '0 16px 16px' }}>
             {content?.intro && (
-              <Paragraph style={{ background: 'rgba(168,120,31,0.08)', padding: 12, borderRadius: 10, fontSize: 13 }}>
+              <Paragraph style={{ background: 'rgba(102,156,44,0.08)', padding: 12, borderRadius: 10, fontSize: 13 }}>
                 {content.intro}
               </Paragraph>
             )}
@@ -235,7 +235,7 @@ export default function HelpDrawer() {
             <div style={{ flex: 1, overflowY: 'auto', padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 10 }}>
               {messages.length === 0 && (
                 <div style={{ textAlign: 'center', padding: '32px 0', display: 'flex', flexDirection: 'column', gap: 10, alignItems: 'center' }}>
-                  <MessageOutlined style={{ fontSize: 28, color: '#a8781f' }} />
+                  <MessageOutlined style={{ fontSize: 28, color: '#669c2c' }} />
                   <Text strong style={{ fontSize: 13 }}>Ask anything about Backero</Text>
                   <Text type="secondary" style={{ fontSize: 12 }}>I'll help you navigate and use the platform</Text>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 6, width: '100%', marginTop: 8 }}>
@@ -280,7 +280,7 @@ export default function HelpDrawer() {
                 disabled={!input.trim() || streaming}
                 style={{
                   marginTop: 8, width: '100%', padding: '8px 0', borderRadius: 8, border: 'none',
-                  background: !input.trim() || streaming ? 'rgba(168,120,31,0.3)' : '#a8781f', color: '#fff',
+                  background: !input.trim() || streaming ? 'rgba(102,156,44,0.3)' : '#669c2c', color: '#fff',
                   display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, cursor: !input.trim() || streaming ? 'not-allowed' : 'pointer',
                 }}
               >

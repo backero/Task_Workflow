@@ -70,7 +70,7 @@ function ApprovalModal({ approval, onApprove, onReject, onClose }) {
                   <Text strong style={{ fontSize: 12 }}>{upd.author?.firstName} {upd.author?.lastName}</Text>
                   <div style={{ display: 'flex', gap: 8 }}>
                     {upd.hoursWorked > 0 && <Text type="secondary" style={{ fontSize: 11 }}><ClockCircleOutlined /> {upd.hoursWorked}h</Text>}
-                    {upd.progress !== undefined && <Text style={{ fontSize: 11, color: '#a8781f', fontWeight: 600 }}>{upd.progress}%</Text>}
+                    {upd.progress !== undefined && <Text style={{ fontSize: 11, color: '#669c2c', fontWeight: 600 }}>{upd.progress}%</Text>}
                     <Text type="secondary" style={{ fontSize: 11 }}>{upd.createdAt ? formatDistanceToNow(new Date(upd.createdAt), { addSuffix: true }) : ''}</Text>
                   </div>
                 </div>
