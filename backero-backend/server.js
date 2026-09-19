@@ -78,7 +78,10 @@ const io = initSocket(server);
 app.set('io', io);
 
 // Security middleware
-app.use(helmet());
+// 'unsafe-inline' script-src: production hotfix applied directly on the droplet
+// (never committed) — some page relies on an inline script Helmet's default CSP
+// was blocking. Ported back into source here so it survives redeploys.
+app.use(helmet({ contentSecurityPolicy: { directives: { ...helmet.contentSecurityPolicy.getDefaultDirectives(), 'script-src': ["'self'", "'unsafe-inline'"] } } }));
 app.use(mongoSanitize());
 app.use(hpp());
 
