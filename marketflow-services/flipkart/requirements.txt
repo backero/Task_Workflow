@@ -1,0 +1,13 @@
+streamlit>=1.36
+fastapi
+uvicorn
+pandas
+plotly
+pyyaml
+cryptography
+requests
+tenacity
+apscheduler
+structlog
+playwright
+pytest

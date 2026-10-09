@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block title %}Alerts · Meesho Seller Command Center{% endblock %}
+{% block content %}
+<h1 class="page-title">Alerts</h1>
+<p class="muted">Critical alerts also beep in the browser (if sound is enabled in Settings) until acknowledged.</p>
+<div class="card">
+  <ul class="alert-list" id="alert-list"><li class="muted">Loading…</li></ul>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>document.addEventListener('DOMContentLoaded', () => App.initAlerts());</script>
+{% endblock %}

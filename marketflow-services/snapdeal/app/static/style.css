@@ -1,0 +1,64 @@
+:root{
+  --red:#E40046; --dark:#2B2B3A; --grey:#8A8F98; --teal:#0E7C7B;
+  --amber:#F2A104; --green:#2E9E62; --light:#F5F6F8; --line:#E4E6EB;
+}
+*{box-sizing:border-box;margin:0}
+body{font-family:"Segoe UI",system-ui,Arial,sans-serif;background:var(--light);color:var(--dark);font-size:14px}
+header{display:flex;justify-content:space-between;align-items:center;background:#fff;
+  padding:12px 22px;border-bottom:3px solid var(--red)}
+.brand .logo{font-size:22px;font-weight:800;color:var(--red)}
+.brand .sub{margin-left:10px;color:var(--grey)}
+.hdr-right{display:flex;gap:10px;align-items:center}
+.badge{background:var(--light);border:1px solid var(--line);border-radius:12px;padding:4px 12px;font-size:12px}
+.badge.demo{background:#FDF3E0;border-color:var(--amber);color:#8a5b00;font-weight:700}
+.hidden{display:none}
+.clock{color:var(--grey);font-size:12px}
+nav{display:flex;gap:4px;background:#fff;padding:0 18px;border-bottom:1px solid var(--line)}
+nav button{border:0;background:none;padding:12px 16px;font-size:14px;cursor:pointer;color:var(--grey);
+  border-bottom:3px solid transparent}
+nav button.active{color:var(--red);border-bottom-color:var(--red);font-weight:600}
+.pill{background:var(--red);color:#fff;border-radius:10px;padding:1px 7px;font-size:11px}
+main{padding:20px;max-width:1280px;margin:auto}
+.tab{display:none}
+.tab.active{display:block}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin-bottom:16px}
+.card{background:#fff;border:1px solid var(--line);border-radius:10px;padding:14px}
+.card .k{font-size:12px;color:var(--grey)}
+.card .v{font-size:24px;font-weight:800;margin-top:4px}
+.card.ok .v{color:var(--green)} .card.warn .v{color:var(--amber)} .card.bad .v{color:var(--red)}
+.panel{background:#fff;border:1px solid var(--line);border-radius:10px;padding:16px;margin-bottom:16px}
+.panel h3{font-size:15px;margin-bottom:10px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+@media(max-width:900px){.grid2{grid-template-columns:1fr}}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{text-align:left;color:var(--grey);font-weight:600;padding:8px;border-bottom:2px solid var(--line)}
+td{padding:8px;border-bottom:1px solid var(--line);vertical-align:top}
+tr:hover td{background:#fafbfc}
+.score{display:inline-block;min-width:42px;text-align:center;font-weight:700;color:#fff;
+  border-radius:6px;padding:3px 6px}
+.score.s-good{background:var(--green)} .score.s-mid{background:var(--amber)} .score.s-bad{background:var(--red)}
+.btn{background:var(--red);color:#fff;border:0;border-radius:8px;padding:9px 18px;font-size:14px;
+  cursor:pointer;margin:6px 0}
+.btn:hover{filter:brightness(.92)}
+.muted{color:var(--grey);font-size:12px}
+.alert{border:1px solid var(--line);border-left-width:5px;border-radius:8px;padding:12px 14px;margin-bottom:10px;background:#fff}
+.alert.critical{border-left-color:var(--red)} .alert.warning{border-left-color:var(--amber)}
+.alert.info{border-left-color:var(--teal)}
+.alert h4{font-size:14px;margin-bottom:4px}
+.alert .meta{font-size:11px;color:var(--grey);margin-bottom:6px}
+.alert p{margin:4px 0;line-height:1.45}
+.alert .lbl{font-weight:700;font-size:12px}
+.alert .src{font-size:11px;color:var(--teal)}
+.alert .resolve{float:right;background:none;border:1px solid var(--line);border-radius:6px;
+  padding:2px 10px;cursor:pointer;color:var(--grey);font-size:12px}
+.explain{line-height:1.6;color:#444}
+.explain code{background:var(--light);padding:1px 6px;border-radius:4px}
+.uploads{display:flex;gap:18px;flex-wrap:wrap;margin:10px 0}
+.uploads label{font-size:13px;color:var(--grey)}
+footer{text-align:center;color:var(--grey);font-size:12px;padding:18px}
+#syncLog div{font-family:monospace;font-size:12px;padding:4px 0;border-bottom:1px dashed var(--line)}
+select{padding:6px 10px;border:1px solid var(--line);border-radius:6px;margin-bottom:8px}
+#robotBox p.danger{color:var(--red);font-weight:600}
+#robotBox p.warn{color:var(--amber);font-weight:600}
+#robotBox ul{list-style:none;padding:0;margin:6px 0 12px}
+#robotBox li{padding:6px 0;border-bottom:1px dashed var(--line)}

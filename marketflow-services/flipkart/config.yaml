@@ -1,0 +1,31 @@
+mode: live               # fixture | live
+fixture_dir: fixtures
+db_path: fk_pulse.db
+vault_file: vault.enc
+polling:
+  api_enabled: false         # Flipkart Seller API not used; Seller Hub reads are the data source
+  api_minutes: 240
+  rank_runs_per_day: 3        # per keyword, jittered
+  digest_hour: 7
+harvester:
+  enabled: true               # default OFF; user opts in
+  headless: true
+  min_delay_s: 45
+  max_delay_s: 120
+  max_keywords_per_run: 10
+thresholds:                  # from research report; used by kpi/recommend
+  cancellation_max: 0.0025
+  rtd_breach_max: 0.005
+  rating_min: 4.2
+  stock_cover_days_min: 14
+  price_vs_median_max: 1.05   # warn if >5% above SERP median
+  attribute_completeness_min: 0.9
+brand:
+  name: "Treyfa"
+  default_keywords_per_listing: 5
+
+sellerhub:                    # reads Seller Hub pages with a saved login (scripts/sellerhub_login.py)
+  enabled: true
+  keeper: true                # keep ONE Seller Hub window open and use it every 45 s so Flipkart does not log you out; reads happen inside it
+  minutes: 240                # how often; Flipkart ends the session on its side, so expect to sign in again now and then
+  headless: true

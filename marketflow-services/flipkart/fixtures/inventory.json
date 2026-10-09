@@ -1,0 +1,62 @@
+[
+  {
+    "fsn": "SERGV5NKHDGFHZ1",
+    "sku": "NS10-30",
+    "stock": 9
+  },
+  {
+    "fsn": "MSTPM50CGHJKL2P",
+    "sku": "PM-50",
+    "stock": 10
+  },
+  {
+    "fsn": "SUNSPF50GH34RTY",
+    "sku": "SS50",
+    "stock": 28
+  },
+  {
+    "fsn": "SVC15GHYU67BNM4",
+    "sku": "VC15-30",
+    "stock": 23
+  },
+  {
+    "fsn": "MNS10XYZWQER5T6",
+    "sku": "NS10-MINI",
+    "stock": 37
+  },
+  {
+    "fsn": "BNDGLW98UIO7AS3",
+    "sku": "GLOW-BUNDLE",
+    "stock": 12
+  },
+  {
+    "fsn": "HAL100QWERTY2XC",
+    "sku": "HA-100",
+    "stock": 10
+  },
+  {
+    "fsn": "FWASHSA2PLMN8BV",
+    "sku": "SA-FW",
+    "stock": 27
+  },
+  {
+    "fsn": "RET03NMKJH6GF9D",
+    "sku": "RET-30",
+    "stock": 16
+  },
+  {
+    "fsn": "ALOEV200ZCXV1BN",
+    "sku": "ALOE-200",
+    "stock": 25
+  },
+  {
+    "fsn": "TONVC100ASD3FGH",
+    "sku": "VC-TONER",
+    "stock": 13
+  },
+  {
+    "fsn": "KOJIC50LKJH5GFD",
+    "sku": "KA-50",
+    "stock": 10
+  }
+]

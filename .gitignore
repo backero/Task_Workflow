@@ -25,3 +25,38 @@ wa-qr*.png
 
 # Claude Code local config
 .claude/
+
+# Marketflow services — each ships its own SQLite DB + scraper browser profile
+# as runtime state (never source), populated on the droplet from the live
+# data migrated during cutover, not from a dev machine.
+marketflow-services/*/data/
+marketflow-services/*/*.db
+marketflow-services/*/*.db-shm
+marketflow-services/*/*.db-wal
+marketflow-services/*/node_modules/
+marketflow-services/*/venv/
+marketflow-services/*/.venv/
+marketflow-services/*/vault.enc
+# Playwright debug screenshot/HTML dumps from the scrapers — regenerate at
+# runtime, not source, and can contain real seller-panel screenshots.
+marketflow-services/*/capture/
+marketflow-services/*/capture-diagnostics/
+marketflow-services/*/hub-debug/
+marketflow-services/**/__pycache__/
+marketflow-services/**/*.pyc
+
+# Test fixtures across these 3 services are real captured seller-panel HTML/
+# text dumps (confirmed: contain the actual "Backero"/"BACKERO PRIVATE
+# LIMITED" account content), not synthetic sample data — never commit.
+marketflow-services/*/tests/fixtures/
+# Internal docs/guides/status-reports were found to embed real scraped
+# business data (real product names, real alert details) alongside generic
+# setup instructions — excluded as a category rather than hunting each one;
+# code/README/requirements/config.example files are unaffected.
+marketflow-services/*/docs/
+marketflow-services/*/*.docx
+marketflow-services/amazon-server/LIVE_DATA_STATUS.md
+marketflow-services/snapdeal/SPEC.md
+marketflow-services/snapdeal/plan.md
+marketflow-services/snapdeal/Snapdeal_Marketplace_Algorithm_Report.md
+marketflow-services/meesho/How_Meesho_Marketplace_Algorithm_Works.md

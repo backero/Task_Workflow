@@ -1377,6 +1377,203 @@ function OverviewTab({ allTasks, tasksLoading, navigate }) {
   );
 }
 
+// ── Live Automation tab ─────────────────────────────────────────────────────
+// Surfaces real-time data from the marketplace-automation scrapers (Amazon/
+// Meesho/Snapdeal/Flipkart), proxied server-side by backero-backend's
+// /api/marketflow/* routes (src/routes/marketflow.routes.js) — which forward
+// to the 4 marketplace-automation backend services. No separate pages/UI are
+// ported from that app; this tab is the only place its data surfaces in
+// Task_Workflow.
+
+const AUTOMATION_PLATFORMS = [
+  { key: 'meesho',   label: 'Meesho',   path: '/marketflow/meesho/overview',   meta: PLATFORM_META.Meesho },
+  { key: 'snapdeal', label: 'Snapdeal', path: '/marketflow/snapdeal/overview', meta: PLATFORM_META.Snapdeal },
+  { key: 'flipkart', label: 'Flipkart', path: '/marketflow/flipkart/overview', meta: PLATFORM_META.Flipkart },
+];
+
+function AutomationSection({ title, icon, children, right }) {
+  return (
+    <div className="bg-white rounded-2xl border border-gray-200 p-5">
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-2">
+          {icon}
+          <h3 className="font-bold text-gray-900 text-sm">{title}</h3>
+        </div>
+        {right}
+      </div>
+      {children}
+    </div>
+  );
+}
+
+function AutomationEmptyState({ error }) {
+  const notReachable = error?.response?.status === 502 || error?.code === 'ERR_NETWORK' || !error?.response;
+  return (
+    <div className="text-center py-8 text-gray-400">
+      <TriangleAlert className="w-8 h-8 mx-auto mb-2 opacity-30" />
+      <p className="text-xs font-medium text-gray-500">
+        {notReachable ? 'Marketplace automation service not reachable' : 'No data yet'}
+      </p>
+      {notReachable && (
+        <p className="text-[11px] mt-1 max-w-xs mx-auto">
+          The automation backend isn't running on this environment yet — this will populate once it's deployed.
+        </p>
+      )}
+    </div>
+  );
+}
+
+function LiveAutomationTab() {
+  const { data: unified, isLoading: unifiedLoading, error: unifiedError } = useQuery({
+    queryKey: ['marketflow', 'unified'],
+    queryFn: () => api.get('/marketflow/v1/dashboard/unified').then(r => r.data),
+    refetchInterval: 60 * 1000,
+    retry: 1,
+  });
+
+  const { data: alertsData, isLoading: alertsLoading, error: alertsError } = useQuery({
+    queryKey: ['marketflow', 'alerts'],
+    queryFn: () => api.get('/marketflow/v1/alerts').then(r => r.data),
+    refetchInterval: 60 * 1000,
+    retry: 1,
+  });
+
+  const { data: recsData, isLoading: recsLoading, error: recsError } = useQuery({
+    queryKey: ['marketflow', 'recommendations'],
+    queryFn: () => api.get('/marketflow/v1/recommendations/action-plan').then(r => r.data),
+    refetchInterval: 60 * 1000,
+    retry: 1,
+  });
+
+  const platformQueries = AUTOMATION_PLATFORMS.map(p => ({
+    ...p,
+    ...useQuery({
+      queryKey: ['marketflow', p.key, 'overview'],
+      queryFn: () => api.get(p.path).then(r => r.data),
+      refetchInterval: 60 * 1000,
+      retry: 1,
+    }),
+  }));
+
+  const tiles  = unified?.tiles || [];
+  const alerts = alertsData?.alerts || alertsData?.data || [];
+  const recs   = recsData?.recommendations || recsData?.data || [];
+
+  return (
+    <div className="space-y-5">
+      {/* Cross-platform summary tiles */}
+      <AutomationSection
+        title="Cross-Platform Summary"
+        icon={<Zap className="w-4 h-4 text-orange-500" />}
+        right={
+          <span className="flex items-center gap-1 text-[10px] text-green-600 font-semibold">
+            <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+            {unified?.as_of ? `Updated ${format(new Date(unified.as_of), 'dd MMM, HH:mm')}` : 'Live'}
+          </span>
+        }
+      >
+        {unifiedLoading ? (
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            {[1, 2, 3, 4].map(i => <div key={i} className="h-20 bg-gray-100 rounded-xl animate-pulse" />)}
+          </div>
+        ) : unifiedError || tiles.length === 0 ? (
+          <AutomationEmptyState error={unifiedError} />
+        ) : (
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            {tiles.map((t, i) => (
+              <div key={t.label || i} className="p-3 rounded-xl border border-gray-100 bg-gray-50/60">
+                <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-1 truncate">{t.label}</p>
+                <p className="text-lg font-bold text-gray-900">
+                  {t.no_data ? '—' : `${t.value ?? '—'}${t.unit && t.unit !== 'count' ? ` ${t.unit}` : ''}`}
+                </p>
+                {typeof t.wow_change === 'number' && (
+                  <p className={clsx('text-[10px] font-semibold mt-0.5', t.wow_change >= 0 ? 'text-green-600' : 'text-red-600')}>
+                    {t.wow_change >= 0 ? '▲' : '▼'} {Math.abs(t.wow_change)}% WoW
+                  </p>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </AutomationSection>
+
+      {/* Per-platform quick cards */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+        {platformQueries.map(({ key, label, meta, data, isLoading, error }) => (
+          <div key={key} className="bg-white rounded-2xl border border-gray-200 p-5">
+            <div className="flex items-center gap-2 mb-4">
+              <span className="w-6 h-6 rounded-lg flex items-center justify-center text-white text-[9px] font-black flex-shrink-0" style={{ background: meta.color }}>{meta.initial}</span>
+              <h3 className="font-bold text-gray-900 text-sm flex-1">{label}</h3>
+              {!isLoading && !error && <span className="w-1.5 h-1.5 rounded-full bg-green-500" />}
+            </div>
+            {isLoading ? (
+              <div className="space-y-2">{[1, 2].map(i => <div key={i} className="h-8 bg-gray-100 rounded-lg animate-pulse" />)}</div>
+            ) : error ? (
+              <AutomationEmptyState error={error} />
+            ) : (
+              <div className="space-y-1.5 text-xs text-gray-600">
+                {Object.entries(data?.kpis || data || {})
+                  .filter(([, v]) => typeof v === 'number' || typeof v === 'string')
+                  .slice(0, 6)
+                  .map(([k, v]) => (
+                    <div key={k} className="flex items-center justify-between">
+                      <span className="text-gray-400 capitalize">{k.replace(/_/g, ' ')}</span>
+                      <span className="font-bold text-gray-800">{String(v)}</span>
+                    </div>
+                  ))}
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+        {/* Alerts */}
+        <AutomationSection title="Active Alerts" icon={<TriangleAlert className="w-4 h-4 text-red-500" />}>
+          {alertsLoading ? (
+            <div className="space-y-2">{[1, 2, 3].map(i => <div key={i} className="h-10 bg-gray-100 rounded-xl animate-pulse" />)}</div>
+          ) : alertsError || alerts.length === 0 ? (
+            <AutomationEmptyState error={alertsError} />
+          ) : (
+            <div className="space-y-1.5 max-h-72 overflow-y-auto">
+              {alerts.slice(0, 15).map((a, i) => (
+                <div key={a.id || i} className="flex items-start gap-2 p-2.5 rounded-lg bg-red-50/60 border border-red-100">
+                  <TriangleAlert className="w-3.5 h-3.5 text-red-500 mt-0.5 flex-shrink-0" />
+                  <div className="min-w-0">
+                    <p className="text-xs font-semibold text-gray-800 truncate">{a.title || a.message || a.type}</p>
+                    {a.marketplace && <p className="text-[10px] text-gray-400 capitalize">{a.marketplace}</p>}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </AutomationSection>
+
+        {/* Recommendations */}
+        <AutomationSection title="Recommended Actions" icon={<CheckCircle2 className="w-4 h-4 text-orange-500" />}>
+          {recsLoading ? (
+            <div className="space-y-2">{[1, 2, 3].map(i => <div key={i} className="h-10 bg-gray-100 rounded-xl animate-pulse" />)}</div>
+          ) : recsError || recs.length === 0 ? (
+            <AutomationEmptyState error={recsError} />
+          ) : (
+            <div className="space-y-1.5 max-h-72 overflow-y-auto">
+              {recs.slice(0, 15).map((r, i) => (
+                <div key={r.id || i} className="flex items-start gap-2 p-2.5 rounded-lg bg-orange-50/60 border border-orange-100">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-orange-500 mt-0.5 flex-shrink-0" />
+                  <div className="min-w-0">
+                    <p className="text-xs font-semibold text-gray-800 truncate">{r.title || r.action || r.message}</p>
+                    {r.marketplace && <p className="text-[10px] text-gray-400 capitalize">{r.marketplace}</p>}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </AutomationSection>
+      </div>
+    </div>
+  );
+}
+
 // ── Calendar helpers ──────────────────────────────────────────────────────────
 
 // Returns ISO YYYY-MM-DD of Monday of the week containing `date`
@@ -2407,6 +2604,10 @@ export default function MarketplaceDept() {
                   className={clsx('px-3 py-1.5 rounded-lg text-xs font-bold transition-all', activeTab === 'overview' ? 'bg-white shadow-sm text-orange-600' : 'text-gray-500 hover:text-gray-700')}>
                   <BarChart3 size={13} className="inline -mt-0.5 mr-1" />Overview
                 </button>
+                <button onClick={() => setActiveTab('automation')}
+                  className={clsx('px-3 py-1.5 rounded-lg text-xs font-bold transition-all', activeTab === 'automation' ? 'bg-white shadow-sm text-orange-600' : 'text-gray-500 hover:text-gray-700')}>
+                  <Zap size={13} className="inline -mt-0.5 mr-1" />Live Automation
+                </button>
               </div>
               <div className="relative" ref={dropdownRef}>
                 <button onClick={() => setShowPlanDropdown(s => !s)}
@@ -2446,6 +2647,8 @@ export default function MarketplaceDept() {
       </div>
       {activeTab === 'overview'
         ? <OverviewTab allTasks={allTasks} tasksLoading={tasksLoading} navigate={navigate} />
+        : activeTab === 'automation'
+        ? <LiveAutomationTab />
         : showReport
             ? <div className="space-y-3">
                 <div className="bg-white rounded-2xl border border-gray-200 px-4 py-3 flex items-center justify-between">

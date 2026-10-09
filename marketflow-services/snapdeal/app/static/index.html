@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SD Pulse — Snapdeal Seller Intelligence</title>
+<link rel="stylesheet" href="/static/style.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+</head>
+<body>
+<header>
+  <div class="brand">
+    <span class="logo">SD&nbsp;Pulse</span>
+    <span class="sub">Snapdeal Seller Intelligence</span>
+  </div>
+  <div class="hdr-right">
+    <span id="demoBadge" class="badge demo hidden">DEMO DATA</span>
+    <span id="connBadge" class="badge">connector: —</span>
+    <span id="clock" class="clock"></span>
+  </div>
+</header>
+
+<nav id="tabs">
+  <button data-tab="overview" class="active">Overview</button>
+  <button data-tab="listings">Listing Audit</button>
+  <button data-tab="health">Health Gate</button>
+  <button data-tab="ranks">Rank Tracker</button>
+  <button data-tab="ads">Ads</button>
+  <button data-tab="reco">Recommendations <span id="recoCount" class="pill"></span></button>
+  <button data-tab="payments">Payments</button>
+  <button data-tab="sync">Sync &amp; Data</button>
+  <button data-tab="robot">SD Robo</button>
+</nav>
+
+<main>
+  <!-- OVERVIEW -->
+  <section id="tab-overview" class="tab active">
+    <div class="panel" id="realPanel"><h3>Real account numbers <span class="muted" id="realPanelAt"></span></h3>
+      <div class="muted" id="realPanelNote">Read straight from your Snapdeal Seller Panel by SD Robo.</div>
+      <div class="cards" id="realPanelCards"></div></div>
+    <div class="panel" id="aiPanel"><h3>AI strategic analysis <span class="muted" id="aiPanelAt"></span></h3>
+      <div class="muted" id="aiPanelNote">Claude's read on the real numbers here, grounded in Snapdeal's own algorithm research doc. Reasoning, not a new source of numbers.</div>
+      <div id="aiPanelBody"></div></div>
+    <div class="cards" id="ovCards"></div>
+    <div class="grid2">
+      <div class="panel"><h3>Orders, last 30 days — booked / processed / returned</h3>
+        <canvas id="funnelChart" height="120"></canvas></div>
+      <div class="panel"><h3>Order Processing health vs Snapdeal's limits</h3>
+        <canvas id="scChart" height="120"></canvas></div>
+    </div>
+    <div class="panel"><h3>Open alerts by severity</h3><div id="ovAlerts"></div></div>
+  </section>
+
+  <!-- LISTINGS -->
+  <section id="tab-listings" class="tab">
+    <div class="panel">
+      <h3>Listing audit — QC gate, content, velocity (30d)</h3>
+      <table id="listingTable">
+        <thead><tr>
+          <th>Audit</th><th>SKU / Title</th><th>Status</th><th>Price (disc.)</th><th>Stock</th>
+          <th>MSP / You get ₹</th><th>Product rating</th><th>Orders 30d</th><th>Sales 30d ₹</th><th>Bad rating</th>
+        </tr></thead><tbody></tbody>
+      </table>
+    </div>
+    <div class="panel"><h3>Per-listing 30-day trend</h3>
+      <select id="trendSku"></select>
+      <canvas id="trendChart" height="90"></canvas></div>
+  </section>
+
+  <!-- HEALTH -->
+  <section id="tab-health" class="tab">
+    <div class="cards" id="healthCards"></div>
+    <div class="panel"><h3>Why these numbers gate your visibility</h3>
+      <div class="explain" id="healthExplain"></div></div>
+  </section>
+
+  <!-- RANKS -->
+  <section id="tab-ranks" class="tab">
+    <div class="panel"><h3>Keyword positions (public Snapdeal search, Popularity sort)</h3>
+      <button class="btn" id="rankSyncBtn">Track now</button>
+      <span class="muted"> Configure keywords via SD_TRACK_KEYWORDS in .env</span>
+      <table id="rankTable"><thead><tr>
+        <th>Keyword</th><th>SKU</th><th>Title</th><th>Position</th><th>Date</th>
+      </tr></thead><tbody></tbody></table></div>
+  </section>
+
+  <!-- ADS -->
+  <section id="tab-ads" class="tab">
+    <div class="cards" id="adsCards"></div>
+    <div class="panel"><h3>Spend vs revenue (30d)</h3><canvas id="adsChart" height="90"></canvas></div>
+    <div class="panel"><h3>Campaigns</h3>
+      <table id="adsTable"><thead><tr>
+        <th>Campaign</th><th>SKU</th><th>Spend ₹</th><th>Clicks</th><th>CPC ₹</th>
+        <th>Orders</th><th>Revenue ₹</th><th>ACOS%</th><th>ROAS</th>
+      </tr></thead><tbody></tbody></table></div>
+  </section>
+
+  <!-- RECOMMENDATIONS -->
+  <section id="tab-reco" class="tab">
+    <div class="panel"><h3>Actionable recommendations — every alert shows reason + fix + evidence</h3>
+      <div id="recoList"></div></div>
+  </section>
+
+  <!-- SYNC -->
+  <section id="tab-payments" class="tab">
+    <div class="cards" id="payCards"></div>
+    <div class="panel"><h3>Settled payments</h3>
+      <table id="payTable"><thead><tr><th>Settlement date</th><th>Amount ₹</th><th>Transactions</th><th>Reference</th></tr></thead><tbody></tbody></table></div>
+  </section>
+
+  <section id="tab-sync" class="tab">
+    <div class="panel"><h3>Data connectors</h3>
+      <div class="explain">
+        <p><b>demo</b> — synthetic data (current default, everything labelled DEMO).<br>
+        <b>browser</b> — Playwright automation of Seller Panel. First run
+        <code>python -m app.connectors.login</code>, log in yourself (OTP OK), session is saved &amp; reused 24/7.<br>
+        <b>csv</b> — upload Seller Panel exports below; auto-ingested on next sync.<br>
+        <b>api</b> — official Snapdeal API; activates when you obtain partner credentials.</p>
+      </div>
+      <div class="uploads">
+        <label>Listings CSV <input type="file" data-kind="listings" accept=".csv"></label>
+        <label>Orders/Returns CSV <input type="file" data-kind="orders" accept=".csv"></label>
+        <label>Scorecard CSV <input type="file" data-kind="scorecard" accept=".csv"></label>
+        <label>Ads report CSV <input type="file" data-kind="ads" accept=".csv"></label>
+      </div>
+      <button class="btn" id="syncBtn">Sync now</button>
+      <span id="syncResult" class="muted"></span>
+    </div>
+    <div class="panel"><h3>Recent sync log</h3><div id="syncLog"></div></div>
+  </section>
+  <section id="tab-robot" class="tab">
+    <div class="panel" id="robotBox"><p class="muted">Loading…</p></div>
+  </section>
+</main>
+
+<footer>SD Pulse runs entirely on this PC. Credentials and data never leave it. · Auto-refresh 60s</footer>
+<script src="/static/app.js"></script>
+<script>
+(async () => {
+  const fmt = (v, d = 0) => v === null || v === undefined ? "N/A" : Number(v).toLocaleString("en-IN", {maximumFractionDigits: d});
+  const rupee = v => v === null || v === undefined ? "N/A" : "₹" + fmt(v, 0);
+  try {
+    const r = await (await fetch("/api/panel")).json(), a = r.areas || {};
+    const g = (area, key) => (a[area] && a[area][key]) ? a[area][key].value : null;
+    const t = (area, key) => (a[area] && a[area][key]) ? a[area][key].text : null;
+    if (!r.captured_at) { document.getElementById("realPanelNote").textContent = "No real read yet - sign in in the Seller Panel window SD Robo opened."; return; }
+    document.getElementById("realPanelAt").textContent = "(read " + r.captured_at.replace("T", " ") + ")";
+    const tiles = [
+      ["Sales completed (30d)", rupee(g("dashboard", "sales_completed"))], ["Sales returned (30d)", rupee(g("dashboard", "sales_returned"))],
+      ["Orders booked", fmt(g("dashboard", "orders_booked"))], ["Orders processed", fmt(g("dashboard", "orders_processed"))],
+      ["Orders returned", fmt(g("dashboard", "orders_returned"))], ["Avg seller rating", fmt(g("dashboard", "avg_seller_rating"), 1)],
+      ["Account health", t("dashboard", "account_health") || "N/A"], ["Order processing health", t("dashboard", "order_processing_health") || "N/A"],
+      ["Unsettled payments (COD / prepaid)", rupee(g("dashboard", "unsettled_cod")) + " / " + rupee(g("dashboard", "unsettled_ncod"))],
+      ["Orders to print", fmt(g("orders", "pending_orders_to_print"))], ["Courier returns pending", fmt(g("returns", "courier_returns_pending"))],
+      ["Live listings read", fmt(g("catalog", "listings_read"))],
+    ];
+    document.getElementById("realPanelCards").innerHTML = tiles.map(x =>
+      '<div class="card"><div class="k">' + x[0] + '</div><div class="v">' + x[1] + '</div></div>').join("");
+  } catch (e) { document.getElementById("realPanelNote").textContent = "Could not load real numbers: " + e; }
+})();
+</script>
+</body>
+</html>

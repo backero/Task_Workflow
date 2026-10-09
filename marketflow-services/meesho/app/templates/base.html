@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Meesho Seller Command Center{% endblock %}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body data-page="{{ page or '' }}">
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-mark">◆</span> Meesho Seller Command Center
+    </div>
+    <nav class="tabs">
+      <a href="{{ url_for('views.dashboard') }}" class="tab {% if page == 'overview' %}active{% endif %}">Overview</a>
+      <a href="{{ url_for('views.listings') }}" class="tab {% if page == 'listings' %}active{% endif %}">Listings</a>
+      <a href="{{ url_for('views.recommendations') }}" class="tab {% if page == 'recommendations' %}active{% endif %}">Recommendations</a>
+      <a href="{{ url_for('views.alerts') }}" class="tab {% if page == 'alerts' %}active{% endif %}">Alerts
+        <span id="alert-badge" class="badge" hidden>0</span>
+      </a>
+      <a href="{{ url_for('views.sources') }}" class="tab {% if page == 'sources' %}active{% endif %}">Sources</a>
+      <a href="{{ url_for('views.robot_page') }}" class="tab {% if page == 'robot' %}active{% endif %}">Meesho Robo</a>
+      <a href="{{ url_for('views.settings') }}" class="tab {% if page == 'settings' %}active{% endif %}">Settings</a>
+    </nav>
+  </header>
+
+  <main class="content">
+    {% block content %}{% endblock %}
+  </main>
+
+  <footer class="footer">
+    Local tool — your data stays on this computer.
+  </footer>
+
+  <script src="{{ url_for('static', filename='app.js') }}"></script>
+  {% block scripts %}{% endblock %}
+</body>
+</html>

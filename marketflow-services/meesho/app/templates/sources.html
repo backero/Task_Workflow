@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% block title %}Data Sources · Meesho Seller Command Center{% endblock %}
+{% block content %}
+<h1 class="page-title">Data Sources</h1>
+
+<section class="card">
+  <h2>Data mode</h2>
+  <form id="mode-form" class="mode-form">
+    <label class="radio">
+      <input type="radio" name="mode" value="demo">
+      <span><strong>Demo</strong> — realistic seeded sample data. Good for exploring the dashboard.</span>
+    </label>
+    <label class="radio">
+      <input type="radio" name="mode" value="manual">
+      <span><strong>Manual</strong> — upload CSV/XLSX reports exported from the Meesho supplier panel.</span>
+    </label>
+    <label class="radio">
+      <input type="radio" name="mode" value="auto">
+      <span><strong>Auto</strong> — pull from supplier.meesho.com using a logged-in browser session on this computer.</span>
+    </label>
+    <button type="submit" class="btn">Save mode</button>
+    <span class="form-msg" id="mode-msg"></span>
+  </form>
+</section>
+
+<section class="grid-2">
+  <div class="card">
+    <h2>Demo data</h2>
+    <p class="muted">Replace all data with a fresh set of 25 demo listings and 30 days of history.</p>
+    <button class="btn" id="demo-btn">Regenerate demo data</button>
+    <span class="form-msg" id="demo-msg"></span>
+  </div>
+
+  <div class="card">
+    <h2>Upload a Meesho report</h2>
+    <p class="muted">Catalog-performance or orders export (CSV / XLSX) from the supplier panel.</p>
+    <form id="upload-form" class="dropzone" enctype="multipart/form-data">
+      <input type="file" name="file" id="upload-file" accept=".csv,.xlsx,.xls">
+      <button type="submit" class="btn">Upload &amp; import</button>
+    </form>
+    <pre class="result-box" id="upload-result" hidden></pre>
+  </div>
+</section>
+
+<section class="card">
+  <h2>Connect your Meesho account (auto mode)</h2>
+  <div class="otp-explainer">
+    <p><strong>How login works — honestly:</strong></p>
+    <p>A browser window will open on THIS computer. Log in with your Meesho-registered
+       mobile number and the SMS OTP. This tool never sees or stores your OTP — it only
+       reuses the logged-in session on your own machine.</p>
+  </div>
+  <p>
+    <button class="btn" id="connect-btn">Open browser &amp; connect</button>
+    <span class="form-msg" id="connect-status"></span>
+  </p>
+  <p class="muted">Session present on disk: <strong id="session-exists">–</strong></p>
+</section>
+
+<section class="card">
+  <h2>Recommendation engine</h2>
+  <p class="muted">Re-evaluate all ranking rules against the current data and dispatch any pending alerts.</p>
+  <button class="btn" id="refresh-btn">Run now</button>
+  <span class="form-msg" id="refresh-msg"></span>
+</section>
+
+<section class="card">
+  <h2>Recent data events</h2>
+  <ul class="event-feed" id="event-feed"><li class="muted">Loading…</li></ul>
+</section>
+{% endblock %}
+{% block scripts %}
+<script>document.addEventListener('DOMContentLoaded', () => App.initSources());</script>
+{% endblock %}
