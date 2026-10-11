@@ -37,8 +37,10 @@ def main() -> None:
     _configure_logging()
     log = _log("main")
     from fkpulse.config import load_config  # Agent A's module (runtime import)
+    from fkpulse.db import init_db
     config = load_config()
     db_path = config.get("db_path", "fk_pulse.db")
+    init_db(db_path)  # creates listings/orders/hub_metrics/etc. tables on a fresh DB -- never called elsewhere
 
     scheduler = create_scheduler(config, db_path)
     scheduler.start()

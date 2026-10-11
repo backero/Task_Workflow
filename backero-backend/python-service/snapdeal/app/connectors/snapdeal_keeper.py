@@ -34,6 +34,12 @@ BASE = Path(__file__).resolve().parents[2]
 PROFILE_DIR = Path(os.environ.get("SD_PROFILE_DIR", BASE / "data" / "snapdeal-profile"))
 SESSION = Path(os.environ.get("SD_SESSION_FILE", BASE / "data" / "snapdeal_session.json"))
 HOME = "https://seller.snapdeal.com"
+# Keep-alive touches reload this specific dashboard route, not HOME's bare root — matching the
+# pattern that's proven stable for Flipkart (fkpulse/sellerhub.py's URL_HOME is similarly a deep
+# dashboard path, not its base root). Reloading the bare root goes through extra client-side
+# routing/redirect logic on every touch, which may be why Snapdeal's session dropped after just
+# 2-13 minutes despite the 45s touch interval that works fine for Meesho/Flipkart's deep-URL touches.
+DASHBOARD = HOME + "/#/dashboard"
 EXPLORE_FLAG = BASE / "data" / "explore_requested"
 READ_FLAG = BASE / "data" / "read_requested"
 STEPS_FILE = BASE / "data" / "explore_steps.json"
@@ -157,7 +163,8 @@ class SnapdealKeeper(threading.Thread):
 
     def _alive(self, page, reload: bool) -> bool:
         if reload:
-            page.goto(HOME, wait_until="domcontentloaded", timeout=60_000)
+            # DASHBOARD, not HOME's bare root — see the module-level comment by DASHBOARD's definition.
+            page.goto(DASHBOARD, wait_until="domcontentloaded", timeout=60_000)
             page.wait_for_timeout(4_000)
         return _looks_signed_in(page)
 
