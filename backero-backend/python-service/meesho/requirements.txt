@@ -5,3 +5,5 @@ pandas
 openpyxl
 pyyaml
 requests
+pymongo
+python-dotenv

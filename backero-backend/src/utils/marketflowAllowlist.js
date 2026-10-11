@@ -1,11 +1,12 @@
 /**
- * Per-target allowlists for the Marketflow proxy (src/routes/marketflow.routes.js).
- * Scoped to exactly what the ported amazon/web frontend calls (cross-referenced
- * against its api.ts and per-platform api.ts clients and the raw axios call
- * sites in its pages and platform components) — deliberately excludes write/ops/ingest
- * endpoints the dashboard never touches (e.g. /v1/ingest, /v1/admin/*, /v1/backup/*,
- * /v1/connections/:source/heartbeat), even though those are harmless locally now
- * (loopback only), to keep this proxy's exposed surface matching its actual UI.
+ * Allowlist for the amazon-server proxy only (src/routes/marketflow.routes.js)
+ * — Meesho/Snapdeal/Flipkart no longer run HTTP servers to proxy to (see
+ * python-service/), so they have no allowlist here; their routes read
+ * MongoDB directly instead. Deliberately excludes write/ops/ingest endpoints
+ * the dashboard never touches (e.g. /v1/ingest, /v1/admin/*, /v1/backup/*,
+ * /v1/connections/:source/heartbeat), even though those are harmless locally
+ * now (loopback only), to keep this proxy's exposed surface matching its
+ * actual UI.
  */
 
 const v1Allowlist = [
@@ -38,44 +39,4 @@ const v1Allowlist = [
   { method: 'GET',  pattern: /^\/recommendations\/action-plan$/ },
 ];
 
-const meeshoAllowlist = [
-  { method: 'GET',  pattern: /^\/overview$/ },
-  { method: 'GET',  pattern: /^\/listings$/ },
-  { method: 'GET',  pattern: /^\/ai_insights$/ },
-  { method: 'GET',  pattern: /^\/robot$/ },
-  { method: 'GET',  pattern: /^\/recommendations$/ },
-  { method: 'POST', pattern: /^\/recommendations\/[^/]+\/done$/ },
-  { method: 'GET',  pattern: /^\/alerts$/ },
-  { method: 'POST', pattern: /^\/alerts\/[^/]+\/ack$/ },
-  { method: 'GET',  pattern: /^\/sources\/status$/ },
-];
-
-const snapdealAllowlist = [
-  { method: 'GET',  pattern: /^\/overview$/ },
-  { method: 'GET',  pattern: /^\/listings$/ },
-  { method: 'GET',  pattern: /^\/alerts$/ },
-  { method: 'POST', pattern: /^\/alerts\/[^/]+\/resolve$/ },
-  { method: 'GET',  pattern: /^\/ai_insights$/ },
-  { method: 'GET',  pattern: /^\/robot$/ },
-  { method: 'GET',  pattern: /^\/health$/ },
-  { method: 'GET',  pattern: /^\/ranks$/ },
-  { method: 'GET',  pattern: /^\/ads$/ },
-  { method: 'GET',  pattern: /^\/payments$/ },
-];
-
-const flipkartAllowlist = [
-  { method: 'GET',  pattern: /^\/overview$/ },
-  { method: 'GET',  pattern: /^\/listings$/ },
-  { method: 'GET',  pattern: /^\/recommendations$/ },
-  { method: 'POST', pattern: /^\/recommendations\/[^/]+\/done$/ },
-  { method: 'GET',  pattern: /^\/ai_insights$/ },
-  { method: 'GET',  pattern: /^\/robot$/ },
-  { method: 'GET',  pattern: /^\/account$/ },
-  { method: 'GET',  pattern: /^\/sellerhub$/ },
-  { method: 'GET',  pattern: /^\/rank$/ },
-  { method: 'GET',  pattern: /^\/pricing$/ },
-  { method: 'GET',  pattern: /^\/calendar$/ },
-  { method: 'GET',  pattern: /^\/returns$/ },
-];
-
-module.exports = { v1Allowlist, meeshoAllowlist, snapdealAllowlist, flipkartAllowlist };
+module.exports = { v1Allowlist };

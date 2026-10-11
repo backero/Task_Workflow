@@ -8,9 +8,22 @@ Usage:  python run_scheduler.py
 
 from __future__ import annotations
 
+import os
+import sys
 import time
 
+# mongo_sync.py lives one level up, in python-service/ (shared by all 3 platforms).
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
+
 from fkpulse.scheduler import create_scheduler, _configure_logging, _log
+
+
+def _sync_to_mongo():
+    # Reuses the exact function the old /api/overview route called directly --
+    # @app.get(...) only registers it, the function itself is callable plain.
+    from fkpulse.api import overview
+    from mongo_sync import upsert_overview
+    upsert_overview("flipkart", overview())
 
 
 def main() -> None:
@@ -24,6 +37,14 @@ def main() -> None:
     scheduler.start()
     log.info("scheduler_started", db_path=db_path,
              jobs=[j.id for j in scheduler.get_jobs()])
+
+    try:
+        _sync_to_mongo()
+    except Exception as exc:
+        log.error("mongo_sync_failed", error=str(exc))
+    scheduler.add_job(_sync_to_mongo, "interval", minutes=3, id="mongo_sync",
+                       max_instances=1, coalesce=True)
+
     keeper = None
     hub_cfg = config.get("sellerhub", {}) or {}
     if hub_cfg.get("enabled", True) and hub_cfg.get("keeper", True):
