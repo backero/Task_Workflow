@@ -1,3 +1,4 @@
+import 'dotenv/config'
 import { sqlite } from '../db/client.js'
 import { migrate } from '../db/migrate.js'
 import { ownProducts, competitorProducts, keywords, keywordAsinMap } from './data.js'

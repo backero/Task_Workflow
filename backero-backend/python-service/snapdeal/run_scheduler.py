@@ -13,13 +13,26 @@ import time
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
 
+# Loads SD_CONNECTOR etc. from this platform's own .env — previously never loaded at all,
+# so SD_CONNECTOR=browser already saved there was silently ignored and get_connector()
+# fell back to its "demo" default regardless of what the file said.
+from dotenv import load_dotenv  # noqa: E402
+load_dotenv(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env"))
+
 from app import scheduler as sched_mod  # noqa: E402
+from app import database as db  # noqa: E402
 from app.engine import metrics  # noqa: E402
 
 
 def sync_to_mongo():
     from mongo_sync import upsert_overview
-    upsert_overview("snapdeal", metrics.overview())
+    data = metrics.overview()
+    try:
+        rows = db.q("SELECT ts, summary, model FROM ai_insights ORDER BY id DESC LIMIT 1")
+        data["ai_insight"] = rows[0] if rows else None
+    except Exception:
+        data["ai_insight"] = None  # table not created yet (first run)
+    upsert_overview("snapdeal", data)
 
 
 def main():

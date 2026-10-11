@@ -1,36 +1,39 @@
-import Anthropic from '@anthropic-ai/sdk'
 import { sqlite } from '../db/client.js'
+import * as jev from './jevClient.js'
 
-// Root-cause analysis for fired alerts, grounded in how Amazon's ranking/conversion
+// Root-cause diagnosis for fired alerts, grounded in how Amazon's ranking/conversion
 // algorithm actually weighs factors — replaces the rules engine's generic canned
-// suggested_action with a diagnosis specific to this SKU's actual data.
-// Silently no-ops until ANTHROPIC_API_KEY is set, matching notifications/email.ts.
-const { ANTHROPIC_API_KEY, ANTHROPIC_MODEL } = process.env
-const isConfigured = !!ANTHROPIC_API_KEY
-const client = isConfigured ? new Anthropic({ apiKey: ANTHROPIC_API_KEY }) : null
-const MODEL = ANTHROPIC_MODEL ?? 'claude-haiku-4-5-20251001' // cheap model: runs on every fired alert
+// suggested_action with structured predictions (which factor is likely at fault, and
+// how confident) specific to this SKU's actual data. Jev, TypeSafe's System One model
+// (docs.typesafe.ai), answers typed yes/no (noul), choice and score questions with
+// probabilities rather than writing prose, which is a better, cheaper fit for "what's
+// right or wrong here" than a narrative model. Silently no-ops until TYPESAFE_API_KEY
+// is set, matching notifications/email.ts's own pattern.
+const isConfigured = jev.isConfigured()
 
-const SYSTEM_PROMPT = `You are an Amazon marketplace analyst. Amazon's organic ranking and sales are driven mainly by:
-- Relevancy: keyword match in title/bullets/backend search terms
-- Conversion rate (sessions -> orders): the single biggest ranking lever
-- Price competitiveness vs Buy-Box-eligible rivals
-- Availability: in-stock, Buy Box win rate, delivery speed
-- Customer satisfaction: rating, review count/velocity, return rate
-- Sales velocity: recent unit velocity drives BSR and downstream visibility
-- Advertising: sponsored placement drives traffic which feeds the conversion signal, but is a separate lever from organic rank
-
-You'll be given one fired alert for a seller's own ASIN plus its recent raw data
-(listing/ads series, price/rating history, live competitor snapshots, keyword ranks).
-Diagnose the most likely root cause(s), tying back explicitly to these factors, and give
-a specific, prioritized, actionable fix — not generic advice like "check your listing".
-Be concise: 3-5 sentences. If the data doesn't clearly support one cause over another,
-say so and name the one piece of data that would confirm it.
-
-Every row carries a data_quality tag. Rows tagged "estimate" are approximations (a date-range total
-spread evenly across days, or seed/placeholder values) — NOT real daily measurements. Never treat a
-change between estimated days as a real event, and don't diagnose a trend that exists only in estimated
-rows; say the data is too thin instead. "observed" rows are real readings from Seller Central or the
-public storefront. Empty ads data means ads aren't connected yet, not zero spend.`
+// Root-cause diagnosis questions, tailored to Amazon's own ranking factors (relevancy,
+// conversion, price, availability, satisfaction, velocity, ads) — a per-alert diagnosis,
+// not a periodic whole-account review (see ai-insights.ts for that pattern).
+const ALERT_DIAGNOSIS_QUESTIONS = {
+  pricing_cause: jev.noul("Based on this ASIN's price history vs. competitor snapshots, is pricing a likely root cause of this alert?"),
+  availability_cause: jev.noul('Based on stock/Buy-Box data, is availability or Buy Box loss a likely root cause of this alert?'),
+  conversion_cause: jev.noul('Based on sessions/page-views/units-ordered trends, is a conversion-rate or listing-quality drop a likely root cause of this alert?'),
+  advertising_cause: jev.noul('Based on the ads series (impressions/clicks/spend/ad_sales), is a change in advertising a likely root cause of this alert?'),
+  confidence: jev.score('How confident is this diagnosis, given how much real (non-estimated) data is available?', [
+    'Not confident — mostly estimated/thin data',
+    'Somewhat confident — partial real data',
+    'Confident — solid real data',
+    'Very confident — strong, consistent real data',
+  ]),
+  root_cause: jev.choice('Which single factor is most likely the root cause of this alert?', {
+    pricing: 'Price vs. competitors',
+    availability: 'Stock or Buy Box loss',
+    conversion_or_listing: 'Conversion rate or listing quality',
+    reviews_or_rating: 'Reviews or rating',
+    advertising: 'Advertising spend or performance',
+    sales_velocity: 'Recent unit sales velocity',
+  }),
+}
 
 type AlertToAnalyze = {
   id: string
@@ -94,19 +97,8 @@ function buildContext(alert: AlertToAnalyze): Record<string, unknown> {
 
 async function analyzeOne(alert: AlertToAnalyze): Promise<string | null> {
   const context = buildContext(alert)
-  const message = await client!.messages.create({
-    model: MODEL,
-    max_tokens: 400,
-    system: SYSTEM_PROMPT,
-    messages: [
-      { role: 'user', content: JSON.stringify({ alert: { title: alert.title, message: alert.message }, data: context }) },
-    ],
-  })
-  return message.content
-    .filter((block): block is Anthropic.TextBlock => block.type === 'text')
-    .map((block) => block.text)
-    .join('\n')
-    .trim() || null
+  const predictions = await jev.ask({ alert: { title: alert.title, message: alert.message }, data: context }, ALERT_DIAGNOSIS_QUESTIONS)
+  return JSON.stringify(predictions)
 }
 
 export async function analyzeAndStoreAlerts(alerts: AlertToAnalyze[]) {
@@ -114,7 +106,7 @@ export async function analyzeAndStoreAlerts(alerts: AlertToAnalyze[]) {
   alerts = alerts.filter((a) => a.scopeType !== 'account')
   if (alerts.length === 0) return
   if (!isConfigured) {
-    console.warn(`[ai] ANTHROPIC_API_KEY not configured — skipping AI analysis for ${alerts.length} alert(s).`)
+    console.warn(`[ai] TYPESAFE_API_KEY not configured — skipping AI analysis for ${alerts.length} alert(s).`)
     return
   }
 

@@ -7,3 +7,4 @@ pyyaml
 requests
 pymongo
 python-dotenv
+typesafe-sdk

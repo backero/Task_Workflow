@@ -451,7 +451,7 @@ exports.updateSampleDetails = asyncHandler(async (req, res) => {
     await createNotification({
       organizationId: req.user.organizationId,
       recipient: lead.assignedTo,
-      title: '💳 R&D Payment Confirmed',
+      title: 'R&D Payment Confirmed',
       message: `${lead.name}'s R&D/sampling payment has been confirmed — sampling can proceed.`,
       type: 'crm',
       priority: 'medium',
@@ -693,7 +693,7 @@ exports.updateProductPricing = asyncHandler(async (req, res) => {
     await createNotification({
       organizationId: req.user.organizationId,
       recipient: lead.assignedTo,
-      title: '💳 Product Payment Confirmed',
+      title: 'Product Payment Confirmed',
       message: `${lead.name}'s payment for ${link.name || link.productId} has been confirmed — sampling can proceed for this product.`,
       type: 'crm',
       priority: 'medium',

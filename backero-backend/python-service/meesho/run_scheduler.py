@@ -42,9 +42,16 @@ def sync_to_mongo():
     try:
         k = dict(kpis(conn) or {})
         top_issues = [dict(r) for r in db_alerts(conn, limit=5)]
+        try:
+            ai_row = conn.execute(
+                "SELECT ts, summary, model FROM ai_insights ORDER BY id DESC LIMIT 1"
+            ).fetchone()
+            ai_insight = dict(ai_row) if ai_row else None
+        except Exception:
+            ai_insight = None  # table not created yet (first run, before the first recompute cycle)
     finally:
         conn.close()
-    upsert_overview("meesho", {"kpis": k, "top_issues": top_issues})
+    upsert_overview("meesho", {"kpis": k, "top_issues": top_issues, "ai_insight": ai_insight})
 
 
 def main():

@@ -1,13 +1,32 @@
-import Anthropic from '@anthropic-ai/sdk'
 import { sqlite } from '../db/client.js'
+import * as jev from '../ai/jevClient.js'
 
-const anthropic = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY || 'sk-not-set',
-})
+// Previously called Claude Opus (the priciest tier) for a narrative paragraph on every run.
+// Jev, TypeSafe's System One model (docs.typesafe.ai), answers typed yes/no (noul), choice
+// and score questions with probabilities instead of writing prose, which is both cheaper
+// and a better fit for "what's right or wrong here" sales-manager-style judgment calls.
+// Silently no-ops until TYPESAFE_API_KEY is set.
+if (!process.env.TYPESAFE_API_KEY) {
+  console.warn('[ai-insights] Warning: TYPESAFE_API_KEY not set. AI insights will be skipped. Set env var to enable.')
+}
 
-// Warn if API key not configured
-if (!process.env.ANTHROPIC_API_KEY) {
-  console.warn('[ai-insights] Warning: ANTHROPIC_API_KEY not set. AI insights will fail. Set env var to enable.')
+const PROFITABILITY_QUESTIONS = {
+  pricing_action: jev.noul("Based on this 30-day profitability summary, should any product's price be increased this week?"),
+  quality_risk: jev.noul('Based on the return-rate data, is product quality currently a risk to profitability?'),
+  fee_risk: jev.noul('Based on the fees-vs-revenue data, are platform fees currently eating too much of the margin?'),
+  urgency: jev.score('How urgent is it to act on this data this week?', [
+    'No action needed',
+    'Worth a look this week',
+    'Should act soon',
+    'Urgent — act now',
+  ]),
+  priority_area: jev.choice('Which single area most needs attention right now?', {
+    pricing: 'Price optimization',
+    quality_or_returns: 'Product quality or high returns',
+    platform_fees: 'Platform fee ratio',
+    slow_moving_inventory: 'Slow-moving stock',
+    top_product_scaling: 'Scaling the best-performing products',
+  }),
 }
 
 // Generate AI insights on profitability data
@@ -50,43 +69,13 @@ export async function generateProfitabilityInsights() {
     ORDER BY return_rate DESC LIMIT 3
   `).all(last30days) as any[]
 
-  const prompt = `Analyze this Treyfa/Backero marketplace business data and provide 3-4 actionable insights:
-
-**30-Day Performance Summary:**
-- Products: ${summary?.products || 0}
-- Units Sold: ${summary?.units || 0}
-- Total Revenue: ₹${(summary?.revenue || 0).toFixed(0)}
-- Total COGS: ₹${(summary?.cogs || 0).toFixed(0)}
-- Total Fees: ₹${(summary?.fees || 0).toFixed(0)}
-- Net Profit: ₹${(summary?.profit || 0).toFixed(0)}
-- Average Margin: ${(summary?.avg_margin || 0).toFixed(1)}%
-- Average Return Rate: ${((summary?.avg_return_rate || 0) * 100).toFixed(1)}%
-
-**Top 3 Products (by profit):**
-${topProducts?.map(p => `- ${p.sku}: ₹${p.net_profit.toFixed(0)} profit, ${p.margin_pct.toFixed(1)}% margin, ${(p.return_rate * 100).toFixed(1)}% returns`).join('\n')}
-
-**Bottom 3 Products (by profit):**
-${bottomProducts?.map(p => `- ${p.sku}: ₹${p.net_profit.toFixed(0)} profit, ${p.margin_pct.toFixed(1)}% margin, ${(p.return_rate * 100).toFixed(1)}% returns`).join('\n')}
-
-**High Return Products (>5% return rate):**
-${highReturnProducts?.map(p => `- ${p.sku}: ${(p.return_rate * 100).toFixed(1)}% returns, ₹${p.net_profit.toFixed(0)} profit`).join('\n')}
-
-Provide specific, actionable recommendations. Focus on:
-1. Which products to optimize pricing on
-2. Which products have quality issues (high returns)
-3. Which categories are most profitable
-4. Specific pricing/promotion strategies
-
-Keep insights concise (under 300 words) and focus on what the founder can act on TODAY.`
-
   try {
-    const message = await anthropic.messages.create({
-      model: 'claude-opus-5-5',
-      max_tokens: 400,
-      messages: [{ role: 'user', content: prompt }],
-    })
-
-    const insight = message.content[0].type === 'text' ? message.content[0].text : ''
+    if (!jev.isConfigured()) throw new Error('TYPESAFE_API_KEY not set')
+    const predictions = await jev.ask(
+      { summary, topProducts, bottomProducts, highReturnProducts },
+      PROFITABILITY_QUESTIONS,
+    )
+    const insight = JSON.stringify(predictions)
 
     // Store AI insight
     sqlite.prepare(`

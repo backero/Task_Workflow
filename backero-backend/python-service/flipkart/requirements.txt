@@ -13,3 +13,4 @@ playwright
 pytest
 pymongo
 python-dotenv
+typesafe-sdk

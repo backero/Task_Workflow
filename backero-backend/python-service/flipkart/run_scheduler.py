@@ -19,11 +19,18 @@ from fkpulse.scheduler import create_scheduler, _configure_logging, _log
 
 
 def _sync_to_mongo():
-    # Reuses the exact function the old /api/overview route called directly --
-    # @app.get(...) only registers it, the function itself is callable plain.
-    from fkpulse.api import overview
+    # Reuses the exact functions the old /api/overview and /api/ai_insights
+    # routes called directly -- @app.get(...) only registers them, both are
+    # callable plain. ai_insights() already creates its own table if missing.
+    from fkpulse.api import overview, ai_insights
     from mongo_sync import upsert_overview
-    upsert_overview("flipkart", overview())
+    data = overview()
+    try:
+        rows = ai_insights()
+        data["ai_insight"] = dict(rows[0]) if rows else None
+    except Exception:
+        data["ai_insight"] = None
+    upsert_overview("flipkart", data)
 
 
 def main() -> None:

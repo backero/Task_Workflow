@@ -1,8 +1,8 @@
 import { sqlite } from '../db/client.js'
-import { Anthropic } from '@anthropic-ai/sdk'
 
-const client = new Anthropic()
-
+// Pure rule/statistics-based analysis (CTR/CVR trends, profitability gaps, risk
+// detection) -- no LLM call here despite the file's name; the recommendation text
+// is template-generated from thresholds, not model-generated.
 export function runAIAnalysisEngine() {
   try {
     const insights: any[] = []

@@ -1,58 +1,25 @@
-"""AI strategic analysis — reads the real numbers meesho_keeper just collected and asks Claude for prioritized,
-specific suggestions grounded in how Meesho's own algorithm actually works (How_Meesho_Marketplace_Algorithm_Works.md).
+"""AI strategic analysis — reads the real numbers meesho_keeper just collected and asks TypeSafe's Jev model (docs.typesafe.ai) a fixed
+set of sales-manager yes/no/score/choice questions grounded in how Meesho's own algorithm actually works
+(How_Meesho_Marketplace_Algorithm_Works.md) — pricing risk, quality risk, fulfilment risk, urgency, priority area.
+Not a narrative summary: Jev AI answers typed questions with probabilities/confidence, it doesn't write prose, so
+this asks it to predict what's right/wrong rather than explain it (see python-service/jev_client.py).
 
-Same shape as amazon/server/src/ai/analyze.ts: silently no-ops until ANTHROPIC_API_KEY is set, runs after every
-real data refresh (called from scheduler.py's _recompute, right after the rule engine), and is explicit that this
-is AI reasoning over real data - never a source of new numbers. The rule engine's fixed-threshold alerts stay the
-source of truth for "is this a violation"; this layer adds the "what would actually move the needle" judgment a
-fixed rule can't make.
+Same shape as amazon/server/src/ai/analyze.ts: silently no-ops until TYPESAFE_API_KEY is set, runs after every real
+data refresh (called from scheduler.py's _recompute, right after the rule engine), and is explicit that this is AI
+reasoning over real data - never a source of new numbers. The rule engine's fixed-threshold alerts stay the source
+of truth for "is this a violation"; this layer adds the predictive judgment a fixed rule can't make.
 """
 from __future__ import annotations
 
 import json
 import os
+import sys
 from datetime import datetime
 
-MODEL = os.environ.get("ANTHROPIC_MODEL", "claude-haiku-4-5-20251001")
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".."))
+import jev_client  # noqa: E402
 
-SYSTEM_PROMPT = """You are a Meesho marketplace strategist. Meesho's ranking is a transaction-probability engine \
-built on six signal groups, in rough order of leverage:
-
-1. Price - the lowest-priced listing for a given product design captures roughly 90% of that design's visibility \
-and orders. Price dominance beats almost everything else.
-2. Quality Score - the share of a catalogue's ratings that are 1-2 star. Under ~15% is normal visibility; \
-15-25% throttles impressions; above ~25% the catalogue gets blocked. It needs a minimum number of ratings \
-before it means anything - a bad score from 2 ratings is noise, not a pattern.
-3. Engagement (CTR/CVR) - clicks and orders per view/click. Conversion velocity is close to the core ranking \
-objective.
-4. Fulfilment - dispatch SLA and NDD (Next Day Dispatch) status. Missed dispatch health blocks catalogues \
-outright, independent of everything else.
-5. Returns/RTO - a single return on a low-ticket order can erase the margin of several successful ones; the \
-algorithm punishes return rate directly.
-6. Account activity - upload cadence, listing freshness, and a rolling account-level trust window.
-
-Paid Ads sit on top of this as a separate layer (CPC bidding for placement) - ad spend does not itself move \
-organic rank, but the orders it drives feed the same conversion signal.
-
-You will be given the seller's real current account numbers, real per-product data (views/clicks/orders/sales/\
-rating), pricing vs. Meesho's own recommended price, dispatch health, and the rule engine's currently open \
-findings. Give 3-5 prioritized, specific, actionable suggestions - name actual products/numbers from the data, \
-never generic advice like "improve your listings". Tie each suggestion to which signal group it moves and why, \
-using the thresholds above. If a genuinely important area has no data yet, say so rather than guessing.
-
-This seller is a small two-person D2C team, not a large brand with an agency or ad budget on tap. Every \
-suggestion must be something reachable with that - concrete and doable this week, never advice that assumes a \
-team, tool or spend they don't have ("run a full brand audit", "hire an agency", "A/B test with a growth team"). \
-If a fix genuinely needs money or a platform feature they may not have (NDD enrolment, ads budget), say so \
-plainly rather than assuming it.
-
-After the prioritized fixes, add a short "Growth idea" line: one creative, low-cost, reachable idea that isn't \
-about fixing a violation - something worth trying this month that plays to a signal group above (a catalogue \
-angle, a pricing experiment, a bundling idea). Skip it if you don't have one worth the seller's time; a bad idea \
-is worse than no idea.
-
-If you were also given your own previous analysis, do not repeat it - open with what's changed since then, and \
-say "no meaningful change since the last check" if nothing has. Keep the whole reply under 280 words."""
+MODEL = jev_client.MODEL
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS ai_insights(
@@ -61,7 +28,7 @@ CREATE TABLE IF NOT EXISTS ai_insights(
 
 
 def _is_configured() -> bool:
-    return bool(os.environ.get("ANTHROPIC_API_KEY"))
+    return jev_client.is_configured()
 
 
 def build_context(conn) -> dict:
@@ -85,35 +52,19 @@ def build_context(conn) -> dict:
     return {"account_metrics": latest_area, "products": products, "pricing": pricing, "open_findings": findings}
 
 
-def _previous_analysis(conn) -> str | None:
-    row = conn.execute("SELECT summary FROM ai_insights ORDER BY id DESC LIMIT 1").fetchone()
-    return row["summary"] if row else None
-
-
 def analyze_and_store(conn) -> str:
     """Runs after every real recompute. Returns a one-line status for the caller to log (never raises)."""
     conn.executescript(SCHEMA)
     if not _is_configured():
-        return "skipped: ANTHROPIC_API_KEY not set"
+        return "skipped: TYPESAFE_API_KEY not set"
 
     context = build_context(conn)
     if not context["products"] and not context["account_metrics"]:
         return "skipped: no real data yet"
 
-    previous = _previous_analysis(conn)
-    payload: dict = {"data": context}
-    if previous:
-        payload["your_previous_analysis"] = previous
-
     try:
-        import anthropic
-        client = anthropic.Anthropic()
-        message = client.messages.create(
-            model=MODEL, max_tokens=500, system=SYSTEM_PROMPT,
-            messages=[{"role": "user", "content": json.dumps(payload, default=str)}])
-        summary = "".join(b.text for b in message.content if getattr(b, "type", None) == "text").strip()
-        if not summary:
-            return "failed: empty response"
+        predictions = jev_client.ask(context)
+        summary = json.dumps(predictions)
     except Exception as exc:  # noqa: BLE001 - must never break recompute
         return f"failed: {type(exc).__name__}: {exc}"
 

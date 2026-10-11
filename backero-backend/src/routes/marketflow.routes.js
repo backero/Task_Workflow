@@ -14,6 +14,11 @@
  * as socialEngine.routes.js.
  */
 const router = require('express').Router();
+const multer = require('multer');
+const { execFile } = require('child_process');
+const path = require('path');
+const fs = require('fs');
+const os = require('os');
 const { authenticate } = require('../middleware/auth.middleware');
 const marketflow = require('../services/marketflow.service');
 const MarketflowSnapshot = require('../models/MarketflowSnapshot');
@@ -21,6 +26,77 @@ const { v1Allowlist } = require('../utils/marketflowAllowlist');
 const { sendError } = require('../utils/helpers');
 
 router.use(authenticate);
+
+// ── Manual CSV/XLSX report import (Meesho, Snapdeal) ────────────────────────
+// A ToS-safe alternative to browser-automated login: the seller exports a
+// report from their own seller panel (routine, manual action) and uploads it
+// here. Each platform's own python-service/<platform>/import_csv.py wraps the
+// real importer (Meesho: auto-detects report kind from column headers;
+// Snapdeal: reads by filename prefix under data/uploads/), then immediately
+// recomputes KPIs/alerts and syncs to MongoDB so the upload shows up without
+// waiting for the next scheduled cycle.
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 20 * 1024 * 1024 } });
+const PYTHON_SERVICE_ROOT = path.join(__dirname, '..', '..', 'python-service');
+
+function venvPython(platform) {
+  const sub = process.platform === 'win32' ? 'Scripts' : 'bin';
+  const exe = process.platform === 'win32' ? 'python.exe' : 'python';
+  return path.join(PYTHON_SERVICE_ROOT, platform, 'venv', sub, exe);
+}
+
+function runImportScript(platform, args) {
+  const scriptPath = path.join(PYTHON_SERVICE_ROOT, platform, 'import_csv.py');
+  const cwd = path.join(PYTHON_SERVICE_ROOT, platform);
+  return new Promise((resolve, reject) => {
+    execFile(venvPython(platform), [scriptPath, ...args], { cwd, timeout: 60_000 }, (err, stdout, stderr) => {
+      // Parse from the end: the script's own result line is always printed last,
+      // but mongo_sync.py and library warnings may print other lines before it.
+      const lines = stdout.trim().split('\n').reverse();
+      for (const line of lines) {
+        try {
+          return resolve(JSON.parse(line));
+        } catch {
+          // not the JSON line, keep looking
+        }
+      }
+      reject(new Error(stderr?.trim() || err?.message || 'Import script produced no parseable output'));
+    });
+  });
+}
+
+router.post('/meesho/import', upload.single('file'), async (req, res) => {
+  if (!req.file) return sendError(res, 'No file uploaded — expected a "file" field', 400);
+  const tmpPath = path.join(os.tmpdir(), `meesho-import-${Date.now()}-${req.file.originalname.replace(/[^a-zA-Z0-9._-]/g, '_')}`);
+  fs.writeFileSync(tmpPath, req.file.buffer);
+  try {
+    const result = await runImportScript('meesho', [tmpPath]);
+    return res.status(result.ok ? 200 : 422).json(result);
+  } catch (e) {
+    return sendError(res, e.message, 502);
+  } finally {
+    fs.unlink(tmpPath, () => {});
+  }
+});
+
+const SNAPDEAL_REPORT_KINDS = ['listings', 'orders', 'scorecard', 'ads'];
+
+router.post('/snapdeal/import', upload.single('file'), async (req, res) => {
+  if (!req.file) return sendError(res, 'No file uploaded — expected a "file" field', 400);
+  const kind = req.body.reportType;
+  if (!SNAPDEAL_REPORT_KINDS.includes(kind)) {
+    return sendError(res, `reportType must be one of: ${SNAPDEAL_REPORT_KINDS.join(', ')}`, 400);
+  }
+  const uploadsDir = path.join(PYTHON_SERVICE_ROOT, 'snapdeal', 'data', 'uploads');
+  fs.mkdirSync(uploadsDir, { recursive: true });
+  const destPath = path.join(uploadsDir, `${kind}_${Date.now()}.csv`);
+  fs.writeFileSync(destPath, req.file.buffer);
+  try {
+    const result = await runImportScript('snapdeal', []);
+    return res.json(result);
+  } catch (e) {
+    return sendError(res, e.message, 502);
+  }
+});
 
 router.all('/v1/*', async (req, res) => {
   const subPath = req.path.slice('/v1'.length) || '/';

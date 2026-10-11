@@ -2,6 +2,10 @@ import React, { useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Badge, Button, Empty, List, Spin, Typography } from 'antd';
 import { BellOutlined } from '@ant-design/icons';
+import {
+  ClipboardList, CheckCircle2, User, Package, Factory,
+  IndianRupee, Settings, Siren, AlarmClock, Bell,
+} from 'lucide-react';
 import { useNotificationStore } from '../../store/useNotificationStore';
 import { formatDistanceToNow } from 'date-fns';
 import api from '../../api/axios';
@@ -16,15 +20,15 @@ const PRIORITY_COLOR = {
 };
 
 const TYPE_ICONS = {
-  task: '📋',
-  approval: '✅',
-  crm: '👤',
-  inventory: '📦',
-  production: '🏭',
-  finance: '💰',
-  system: '⚙️',
-  escalation: '🚨',
-  reminder: '⏰',
+  task: { Icon: ClipboardList, color: '#3b82f6' },
+  approval: { Icon: CheckCircle2, color: '#22c55e' },
+  crm: { Icon: User, color: '#8b5cf6' },
+  inventory: { Icon: Package, color: '#f97316' },
+  production: { Icon: Factory, color: '#64748b' },
+  finance: { Icon: IndianRupee, color: '#16a34a' },
+  system: { Icon: Settings, color: '#64748b' },
+  escalation: { Icon: Siren, color: '#ef4444' },
+  reminder: { Icon: AlarmClock, color: '#eab308' },
 };
 
 export default function NotificationCenter({ onClose }) {
@@ -89,7 +93,10 @@ export default function NotificationCenter({ onClose }) {
                 }}
               >
                 <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, width: '100%' }}>
-                  <span style={{ fontSize: 17, flexShrink: 0 }}>{TYPE_ICONS[notif.type] || '🔔'}</span>
+                  {(() => {
+                    const { Icon, color } = TYPE_ICONS[notif.type] || { Icon: Bell, color: '#64748b' };
+                    return <Icon size={17} color={color} style={{ flexShrink: 0, marginTop: 1 }} />;
+                  })()}
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <Text strong={!notif.isRead} style={{ fontSize: 13, display: 'block' }}>{notif.title}</Text>
                     <Text type="secondary" style={{ fontSize: 12 }} ellipsis>{notif.message}</Text>

@@ -8,7 +8,7 @@ import toast from 'react-hot-toast';
 import { useSocketStore } from '../../store/useSocketStore';
 import {
   TriangleAlert, CheckCircle2, BarChart3, Download, Zap, RefreshCw,
-  Star, ClipboardPaste, X,
+  Star, ClipboardPaste, X, Sparkles,
 } from 'lucide-react';
 import { Button, Drawer, Space } from 'antd';
 
@@ -1379,17 +1379,137 @@ function OverviewTab({ allTasks, tasksLoading, navigate }) {
 
 // ── Live Automation tab ─────────────────────────────────────────────────────
 // Surfaces real-time data from the marketplace-automation scrapers (Amazon/
-// Meesho/Snapdeal/Flipkart), proxied server-side by backero-backend's
-// /api/marketflow/* routes (src/routes/marketflow.routes.js) — which forward
-// to the 4 marketplace-automation backend services. No separate pages/UI are
-// ported from that app; this tab is the only place its data surfaces in
-// Task_Workflow.
+// Meesho/Snapdeal/Flipkart), proxied/synced server-side via backero-backend's
+// /api/marketflow/* routes (src/routes/marketflow.routes.js) — amazon is a
+// live Node proxy, the other 3 are synced into MongoDB by their own Python
+// scrapers (backero-backend/python-service/). Each platform's own Claude
+// ("claude-haiku-4-5", see each service's ai_analysis.py / analyze.ts) writes
+// a strategic-insight summary alongside the numbers, surfaced below per card.
 
 const AUTOMATION_PLATFORMS = [
-  { key: 'meesho',   label: 'Meesho',   path: '/marketflow/meesho/overview',   meta: PLATFORM_META.Meesho },
-  { key: 'snapdeal', label: 'Snapdeal', path: '/marketflow/snapdeal/overview', meta: PLATFORM_META.Snapdeal },
-  { key: 'flipkart', label: 'Flipkart', path: '/marketflow/flipkart/overview', meta: PLATFORM_META.Flipkart },
+  {
+    key: 'amazon', label: 'Amazon', path: '/marketflow/v1/dashboard/command', meta: PLATFORM_META.Amazon,
+    // dashboard/command returns { tiles: [{label, value, unit, wow_change}, ...] } —
+    // flatten to the same { kpis: {...} } shape the other 3 platforms already use,
+    // so the card below can render all 4 through one code path.
+    transform: (d) => ({
+      kpis: Object.fromEntries((d?.tiles || []).map(t => [t.label, `${t.unit === '₹' ? '₹' : ''}${t.value ?? '—'}${t.unit && t.unit !== '₹' && t.unit !== 'count' ? ` ${t.unit}` : ''}`])),
+    }),
+  },
+  {
+    key: 'flipkart', label: 'Flipkart', path: '/marketflow/flipkart/overview', meta: PLATFORM_META.Flipkart,
+    // Raw shape: { listings, active, avg_rating, open_recommendations: {low,medium,high},
+    // account_metrics: { home: {...}, ... }, ai_insight }. The useful numbers sit one level
+    // down in open_recommendations/account_metrics.home — pull those up to kpis too.
+    transform: (d) => {
+      const home = d?.account_metrics?.home || {};
+      const openRecs = Object.values(d?.open_recommendations || {}).reduce((a, b) => a + (Number(b) || 0), 0);
+      return {
+        kpis: {
+          listings: d?.listings, active: d?.active,
+          avg_rating: typeof d?.avg_rating === 'number' ? d.avg_rating.toFixed(1) : '—',
+          open_recommendations: openRecs,
+          ...(home.impressions_latest != null && { impressions: home.impressions_latest }),
+          ...(home.new_orders != null && { orders_today: home.new_orders }),
+          ...(home.sales_today != null && { sales_today: `₹${home.sales_today}` }),
+        },
+        ai_insight: d?.ai_insight,
+        // Real confirmed shape e.g. {low:1} — used for the severity pie chart.
+        severity: d?.open_recommendations,
+      };
+    },
+  },
+  { key: 'meesho',   label: 'Meesho',   path: '/marketflow/meesho/overview',     meta: PLATFORM_META.Meesho },
+  {
+    key: 'snapdeal', label: 'Snapdeal', path: '/marketflow/snapdeal/overview', meta: PLATFORM_META.Snapdeal,
+    // Raw shape: { listings, live, oos, week: {impressions,clicks,orders,revenue},
+    // scorecard: {rating,ontime_pct,rto_pct,...}, open_alerts: {critical,info,warning}, ai_insight }.
+    transform: (d) => {
+      const openAlerts = Object.values(d?.open_alerts || {}).reduce((a, b) => a + (Number(b) || 0), 0);
+      return {
+        kpis: {
+          listings: d?.listings, live: d?.live, oos: d?.oos,
+          orders_7d: d?.week?.orders,
+          revenue_7d: d?.week?.revenue != null ? `₹${d.week.revenue}` : undefined,
+          rating: d?.scorecard?.rating,
+          ontime_pct: d?.scorecard?.ontime_pct != null ? `${d.scorecard.ontime_pct}%` : undefined,
+          open_alerts: openAlerts,
+        },
+        ai_insight: d?.ai_insight,
+        // Real confirmed shape e.g. {critical:1,warning:2,info:0} — used for the severity pie chart.
+        severity: d?.open_alerts,
+        // Same-unit (counts) funnel — the one chart that's actually meaningful here.
+        funnel: [
+          { name: 'Impressions', value: d?.week?.impressions },
+          { name: 'Clicks', value: d?.week?.clicks },
+          { name: 'Orders', value: d?.week?.orders },
+        ],
+      };
+    },
+  },
 ];
+
+// Real logos (public/marketflow-logos/*.png) pulled directly from each
+// platform's own official site — not in any generic icon library (these are
+// India-specific platforms, not globally catalogued brands), so this is the
+// actual mark rather than a lettered placeholder. Falls back to a colored
+// initial badge if an image ever fails to load.
+const PLATFORM_LOGO_SRC = {
+  amazon: '/marketflow-logos/amazon.png',
+  flipkart: '/marketflow-logos/flipkart.png',
+  meesho: '/marketflow-logos/meesho.png',
+  snapdeal: '/marketflow-logos/snapdeal.png',
+};
+
+function PlatformBadge({ platformKey, meta, size = 36 }) {
+  const [failed, setFailed] = useState(false);
+  const src = PLATFORM_LOGO_SRC[platformKey];
+  if (!src || failed) {
+    return (
+      <span
+        className="rounded-xl flex items-center justify-center flex-shrink-0 font-black text-white tracking-tight"
+        style={{ width: size, height: size, background: meta.color, fontSize: size * 0.4 }}
+      >
+        {meta.initial}
+      </span>
+    );
+  }
+  const padding = Math.max(2, Math.round(size * 0.1));
+  return (
+    <span
+      className="rounded-xl flex items-center justify-center flex-shrink-0 bg-white border border-gray-100 overflow-hidden"
+      style={{ width: size, height: size, padding }}
+    >
+      <img
+        src={src}
+        alt={platformKey}
+        className="w-full h-full object-contain"
+        onError={() => setFailed(true)}
+      />
+    </span>
+  );
+}
+
+// Full-width stat-card grid — every KPI gets its own card, same visual
+// language as the Cross-Platform Summary tiles. Deliberately NOT a bar chart:
+// these KPIs mix incompatible units (₹ revenue, %, ratings, plain counts) and
+// plotting them together on one axis is unreadable, not "meaningful" — cards
+// let each number stand on its own with its own label.
+function StatCardGrid({ kpis, color = '#f97316' }) {
+  const items = Object.entries(kpis || {}).filter(([, v]) => typeof v === 'number' || typeof v === 'string');
+  if (items.length === 0) return <p className="text-xs text-gray-400 text-center py-6">No numeric data yet</p>;
+  return (
+    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+      {items.map(([k, v]) => (
+        <div key={k} className="relative p-3.5 rounded-xl border border-gray-100 bg-gray-50/60 overflow-hidden">
+          <span className="absolute top-0 left-0 w-full h-0.5" style={{ background: color }} />
+          <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-1 truncate">{k.replace(/_/g, ' ')}</p>
+          <p className="text-xl font-bold text-gray-900">{String(v)}</p>
+        </div>
+      ))}
+    </div>
+  );
+}
 
 function AutomationSection({ title, icon, children, right }) {
   return (
@@ -1408,22 +1528,86 @@ function AutomationSection({ title, icon, children, right }) {
 
 function AutomationEmptyState({ error }) {
   const notReachable = error?.response?.status === 502 || error?.code === 'ERR_NETWORK' || !error?.response;
+  const notSynced = error?.response?.status === 503;
   return (
     <div className="text-center py-8 text-gray-400">
       <TriangleAlert className="w-8 h-8 mx-auto mb-2 opacity-30" />
       <p className="text-xs font-medium text-gray-500">
-        {notReachable ? 'Marketplace automation service not reachable' : 'No data yet'}
+        {notSynced ? 'Not synced yet' : notReachable ? 'Marketplace automation service not reachable' : 'No data yet'}
       </p>
-      {notReachable && (
-        <p className="text-[11px] mt-1 max-w-xs mx-auto">
-          The automation backend isn't running on this environment yet — this will populate once it's deployed.
-        </p>
+      <p className="text-[11px] mt-1 max-w-xs mx-auto">
+        {notSynced
+          ? "This platform's scraper hasn't completed its first sync cycle yet — check back in a few minutes."
+          : notReachable
+            ? "The automation backend isn't running on this environment yet — this will populate once it's deployed."
+            : null}
+      </p>
+    </div>
+  );
+}
+
+// Jev AI (TypeSafe's System One model) strategic predictions — same shape across
+// all 4 platforms: { ts, summary, model }, where `summary` is a JSON string of
+// structured predictions (not prose): { <question_id>: {type: 'noul'|'choice'|'score', ...} }.
+// Silently absent until TYPESAFE_API_KEY is configured on whichever service produces it.
+function AIInsightCard({ insight }) {
+  if (!insight?.summary) return null;
+
+  let predictions = null;
+  try {
+    const parsed = JSON.parse(insight.summary);
+    if (parsed && typeof parsed === 'object') predictions = parsed;
+  } catch {
+    // not JSON — fall through to plain-text rendering below
+  }
+
+  return (
+    <div className="mt-3 pt-3 border-t border-dashed border-indigo-100">
+      <div className="flex items-center gap-1.5 mb-2">
+        <Sparkles className="w-3.5 h-3.5 text-indigo-500" />
+        <span className="text-[10px] font-bold text-indigo-600 uppercase tracking-wide">AI Predictions</span>
+        {insight.model && (
+          <span className="text-[9px] font-semibold text-indigo-400 bg-indigo-50 px-1.5 py-0.5 rounded-full">{insight.model}</span>
+        )}
+      </div>
+      {predictions ? (
+        <div className="space-y-1.5">
+          {Object.entries(predictions).map(([id, p]) => (
+            <div key={id} className="flex items-center justify-between text-xs">
+              <span className="text-gray-500 capitalize truncate pr-2">{id.replace(/_/g, ' ')}</span>
+              {p?.type === 'noul' && (
+                <span className={clsx('font-bold', p.noul >= 0.5 ? 'text-red-600' : 'text-green-600')}>
+                  {p.noul >= 0.5 ? 'Yes' : 'No'} ({Math.round(p.noul * 100)}%)
+                </span>
+              )}
+              {p?.type === 'choice' && (
+                <span className="font-bold text-gray-800 capitalize">
+                  {String(p.choice).replace(/_/g, ' ')}{typeof p.confidence === 'number' ? ` (${Math.round(p.confidence * 100)}%)` : ''}
+                </span>
+              )}
+              {p?.type === 'score' && (
+                <span className="font-bold text-gray-800">
+                  {typeof p.score === 'number' ? p.score.toFixed(1) : String(p.score)}{typeof p.confidence === 'number' ? ` (${Math.round(p.confidence * 100)}% conf.)` : ''}
+                </span>
+              )}
+            </div>
+          ))}
+        </div>
+      ) : (
+        <p className="text-xs text-gray-700 leading-relaxed whitespace-pre-line line-clamp-6">{insight.summary}</p>
       )}
     </div>
   );
 }
 
+const MARKETPLACE_SECTIONS = [
+  { key: 'overview', label: 'Overview' },
+  ...AUTOMATION_PLATFORMS.map((p) => ({ key: p.key, label: p.label, meta: p.meta })),
+];
+
 function LiveAutomationTab() {
+  const [activeSection, setActiveSection] = useState('overview');
+
   const { data: unified, isLoading: unifiedLoading, error: unifiedError } = useQuery({
     queryKey: ['marketflow', 'unified'],
     queryFn: () => api.get('/marketflow/v1/dashboard/unified').then(r => r.data),
@@ -1449,127 +1633,219 @@ function LiveAutomationTab() {
     ...p,
     ...useQuery({
       queryKey: ['marketflow', p.key, 'overview'],
-      queryFn: () => api.get(p.path).then(r => r.data),
+      queryFn: () => api.get(p.path).then(r => (p.transform ? p.transform(r.data) : r.data)),
       refetchInterval: 60 * 1000,
       retry: 1,
     }),
   }));
 
-  const tiles  = unified?.tiles || [];
+  // Real shape: { platforms: { amazon_in, meesho, snapdeal, flipkart }, comparison: {...},
+  // total_revenue, total_orders, total_impressions, avg_margin } — NOT a `tiles` array.
+  const platformsBreakdown = unified?.platforms || {};
+  const hasUnifiedData = Object.keys(platformsBreakdown).length > 0;
   const alerts = alertsData?.alerts || alertsData?.data || [];
   const recs   = recsData?.recommendations || recsData?.data || [];
+  const activePlatform = platformQueries.find((p) => p.key === activeSection);
+  const UNIFIED_KEY_TO_PLATFORM = { amazon_in: 'amazon', meesho: 'meesho', snapdeal: 'snapdeal', flipkart: 'flipkart' };
 
   return (
     <div className="space-y-5">
-      {/* Cross-platform summary tiles */}
-      <AutomationSection
-        title="Cross-Platform Summary"
-        icon={<Zap className="w-4 h-4 text-orange-500" />}
-        right={
-          <span className="flex items-center gap-1 text-[10px] text-green-600 font-semibold">
-            <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
-            {unified?.as_of ? `Updated ${format(new Date(unified.as_of), 'dd MMM, HH:mm')}` : 'Live'}
-          </span>
-        }
-      >
-        {unifiedLoading ? (
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-            {[1, 2, 3, 4].map(i => <div key={i} className="h-20 bg-gray-100 rounded-xl animate-pulse" />)}
-          </div>
-        ) : unifiedError || tiles.length === 0 ? (
-          <AutomationEmptyState error={unifiedError} />
-        ) : (
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-            {tiles.map((t, i) => (
-              <div key={t.label || i} className="p-3 rounded-xl border border-gray-100 bg-gray-50/60">
-                <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-1 truncate">{t.label}</p>
-                <p className="text-lg font-bold text-gray-900">
-                  {t.no_data ? '—' : `${t.value ?? '—'}${t.unit && t.unit !== 'count' ? ` ${t.unit}` : ''}`}
-                </p>
-                {typeof t.wow_change === 'number' && (
-                  <p className={clsx('text-[10px] font-semibold mt-0.5', t.wow_change >= 0 ? 'text-green-600' : 'text-red-600')}>
-                    {t.wow_change >= 0 ? '▲' : '▼'} {Math.abs(t.wow_change)}% WoW
-                  </p>
-                )}
-              </div>
-            ))}
-          </div>
-        )}
-      </AutomationSection>
-
-      {/* Per-platform quick cards */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-        {platformQueries.map(({ key, label, meta, data, isLoading, error }) => (
-          <div key={key} className="bg-white rounded-2xl border border-gray-200 p-5">
-            <div className="flex items-center gap-2 mb-4">
-              <span className="w-6 h-6 rounded-lg flex items-center justify-center text-white text-[9px] font-black flex-shrink-0" style={{ background: meta.color }}>{meta.initial}</span>
-              <h3 className="font-bold text-gray-900 text-sm flex-1">{label}</h3>
-              {!isLoading && !error && <span className="w-1.5 h-1.5 rounded-full bg-green-500" />}
-            </div>
-            {isLoading ? (
-              <div className="space-y-2">{[1, 2].map(i => <div key={i} className="h-8 bg-gray-100 rounded-lg animate-pulse" />)}</div>
-            ) : error ? (
-              <AutomationEmptyState error={error} />
-            ) : (
-              <div className="space-y-1.5 text-xs text-gray-600">
-                {Object.entries(data?.kpis || data || {})
-                  .filter(([, v]) => typeof v === 'number' || typeof v === 'string')
-                  .slice(0, 6)
-                  .map(([k, v]) => (
-                    <div key={k} className="flex items-center justify-between">
-                      <span className="text-gray-400 capitalize">{k.replace(/_/g, ' ')}</span>
-                      <span className="font-bold text-gray-800">{String(v)}</span>
-                    </div>
-                  ))}
-              </div>
+      {/* Section switcher: Overview + one tab per marketplace */}
+      <div className="flex items-center gap-2 overflow-x-auto pb-1 -mx-1 px-1">
+        {MARKETPLACE_SECTIONS.map((s) => (
+          <button
+            key={s.key}
+            onClick={() => setActiveSection(s.key)}
+            className={clsx(
+              'flex items-center gap-2 px-3.5 py-2 rounded-xl border text-xs font-bold whitespace-nowrap transition-colors flex-shrink-0',
+              activeSection === s.key
+                ? 'bg-orange-500 border-orange-500 text-white shadow-sm'
+                : 'bg-white border-gray-200 text-gray-600 hover:border-orange-200 hover:text-orange-600',
             )}
-          </div>
+          >
+            {s.key === 'overview'
+              ? <Zap className={clsx('w-3.5 h-3.5', activeSection === s.key ? 'text-white' : 'text-orange-500')} />
+              : <PlatformBadge platformKey={s.key} meta={s.meta} size={26} />}
+            {s.label}
+          </button>
         ))}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-        {/* Alerts */}
-        <AutomationSection title="Active Alerts" icon={<TriangleAlert className="w-4 h-4 text-red-500" />}>
-          {alertsLoading ? (
-            <div className="space-y-2">{[1, 2, 3].map(i => <div key={i} className="h-10 bg-gray-100 rounded-xl animate-pulse" />)}</div>
-          ) : alertsError || alerts.length === 0 ? (
-            <AutomationEmptyState error={alertsError} />
-          ) : (
-            <div className="space-y-1.5 max-h-72 overflow-y-auto">
-              {alerts.slice(0, 15).map((a, i) => (
-                <div key={a.id || i} className="flex items-start gap-2 p-2.5 rounded-lg bg-red-50/60 border border-red-100">
-                  <TriangleAlert className="w-3.5 h-3.5 text-red-500 mt-0.5 flex-shrink-0" />
-                  <div className="min-w-0">
-                    <p className="text-xs font-semibold text-gray-800 truncate">{a.title || a.message || a.type}</p>
-                    {a.marketplace && <p className="text-[10px] text-gray-400 capitalize">{a.marketplace}</p>}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </AutomationSection>
+      {activeSection === 'overview' ? (
+        <>
+          {/* Cross-platform summary */}
+          <AutomationSection
+            title="Cross-Platform Summary"
+            icon={<Zap className="w-4 h-4 text-orange-500" />}
+            right={
+              <span className="flex items-center gap-1 text-[10px] text-green-600 font-semibold">
+                <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+                {unified?.timestamp ? `Updated ${format(new Date(unified.timestamp), 'dd MMM, HH:mm')}` : 'Live'}
+              </span>
+            }
+          >
+            {unifiedLoading ? (
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                {[1, 2, 3, 4].map(i => <div key={i} className="h-20 bg-gray-100 rounded-xl animate-pulse" />)}
+              </div>
+            ) : unifiedError || !hasUnifiedData ? (
+              <AutomationEmptyState error={unifiedError} />
+            ) : (
+              <div className="space-y-5">
+                {/* Combined totals across all 4 platforms */}
+                <StatCardGrid
+                  kpis={{
+                    total_revenue: unified.total_revenue != null ? `₹${unified.total_revenue}` : undefined,
+                    total_orders: unified.total_orders,
+                    total_impressions: unified.total_impressions,
+                    avg_margin: unified.avg_margin != null ? `${unified.avg_margin}%` : undefined,
+                  }}
+                />
 
-        {/* Recommendations */}
-        <AutomationSection title="Recommended Actions" icon={<CheckCircle2 className="w-4 h-4 text-orange-500" />}>
-          {recsLoading ? (
-            <div className="space-y-2">{[1, 2, 3].map(i => <div key={i} className="h-10 bg-gray-100 rounded-xl animate-pulse" />)}</div>
-          ) : recsError || recs.length === 0 ? (
-            <AutomationEmptyState error={recsError} />
+                {/* Per-platform breakdown */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                  {Object.entries(platformsBreakdown).map(([key, p]) => {
+                    const platformKey = UNIFIED_KEY_TO_PLATFORM[key] || key;
+                    const meta = PLATFORM_META[platformKey.charAt(0).toUpperCase() + platformKey.slice(1)] || {};
+                    return (
+                      <div key={key} className="p-3.5 rounded-xl border border-gray-100 bg-gray-50/60">
+                        <div className="flex items-center gap-2 mb-2.5">
+                          <PlatformBadge platformKey={platformKey} meta={meta} size={22} />
+                          <span className="text-xs font-bold text-gray-800 capitalize">{platformKey}</span>
+                        </div>
+                        <div className="space-y-1 text-xs">
+                          <div className="flex items-center justify-between">
+                            <span className="text-gray-400">Revenue</span>
+                            <span className="font-bold text-gray-800">₹{p.revenue ?? 0}</span>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <span className="text-gray-400">Orders</span>
+                            <span className="font-bold text-gray-800">{p.orders ?? 0}</span>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <span className="text-gray-400">Open Alerts</span>
+                            <span className={clsx('font-bold', p.open_alerts > 0 ? 'text-red-600' : 'text-gray-800')}>{p.open_alerts ?? 0}</span>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </AutomationSection>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+            {/* Alerts */}
+            <AutomationSection title="Active Alerts" icon={<TriangleAlert className="w-4 h-4 text-red-500" />}>
+              {alertsLoading ? (
+                <div className="space-y-2">{[1, 2, 3].map(i => <div key={i} className="h-10 bg-gray-100 rounded-xl animate-pulse" />)}</div>
+              ) : alertsError || alerts.length === 0 ? (
+                <AutomationEmptyState error={alertsError} />
+              ) : (
+                <div className="space-y-1.5 max-h-72 overflow-y-auto">
+                  {alerts.slice(0, 15).map((a, i) => (
+                    <div key={a.id || i} className="flex items-start gap-2 p-2.5 rounded-lg bg-red-50/60 border border-red-100">
+                      <TriangleAlert className="w-3.5 h-3.5 text-red-500 mt-0.5 flex-shrink-0" />
+                      <div className="min-w-0">
+                        <p className="text-xs font-semibold text-gray-800 truncate">{a.title || a.message || a.type}</p>
+                        {a.marketplace && <p className="text-[10px] text-gray-400 capitalize">{a.marketplace}</p>}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </AutomationSection>
+
+            {/* Recommendations */}
+            <AutomationSection title="Recommended Actions" icon={<CheckCircle2 className="w-4 h-4 text-orange-500" />}>
+              {recsLoading ? (
+                <div className="space-y-2">{[1, 2, 3].map(i => <div key={i} className="h-10 bg-gray-100 rounded-xl animate-pulse" />)}</div>
+              ) : recsError || recs.length === 0 ? (
+                <AutomationEmptyState error={recsError} />
+              ) : (
+                <div className="space-y-1.5 max-h-72 overflow-y-auto">
+                  {recs.slice(0, 15).map((r, i) => (
+                    <div key={r.id || i} className="flex items-start gap-2 p-2.5 rounded-lg bg-orange-50/60 border border-orange-100">
+                      <CheckCircle2 className="w-3.5 h-3.5 text-orange-500 mt-0.5 flex-shrink-0" />
+                      <div className="min-w-0">
+                        <p className="text-xs font-semibold text-gray-800 truncate">{r.title || r.action || r.message}</p>
+                        {r.marketplace && <p className="text-[10px] text-gray-400 capitalize">{r.marketplace}</p>}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </AutomationSection>
+          </div>
+        </>
+      ) : activePlatform ? (
+        <div className="bg-white rounded-2xl border border-gray-200 p-6">
+          <div className="flex items-center gap-3 mb-5">
+            <PlatformBadge platformKey={activePlatform.key} meta={activePlatform.meta} size={44} />
+            <div className="flex-1">
+              <h3 className="font-bold text-gray-900 text-lg">{activePlatform.label}</h3>
+              <p className="text-xs text-gray-400">Live automation data</p>
+            </div>
+            {!activePlatform.isLoading && !activePlatform.error ? (
+              <span className="flex items-center gap-1 text-xs text-green-600 font-semibold">
+                <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />Live
+              </span>
+            ) : (
+              <span className="flex items-center gap-1 text-xs text-gray-400 font-semibold">
+                <span className="w-1.5 h-1.5 rounded-full bg-gray-300" />{activePlatform.isLoading ? '…' : 'Offline'}
+              </span>
+            )}
+          </div>
+
+          {activePlatform.isLoading ? (
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+              {[1, 2, 3, 4].map(i => <div key={i} className="h-20 bg-gray-100 rounded-xl animate-pulse" />)}
+            </div>
+          ) : activePlatform.error ? (
+            <AutomationEmptyState error={activePlatform.error} />
           ) : (
-            <div className="space-y-1.5 max-h-72 overflow-y-auto">
-              {recs.slice(0, 15).map((r, i) => (
-                <div key={r.id || i} className="flex items-start gap-2 p-2.5 rounded-lg bg-orange-50/60 border border-orange-100">
-                  <CheckCircle2 className="w-3.5 h-3.5 text-orange-500 mt-0.5 flex-shrink-0" />
-                  <div className="min-w-0">
-                    <p className="text-xs font-semibold text-gray-800 truncate">{r.title || r.action || r.message}</p>
-                    {r.marketplace && <p className="text-[10px] text-gray-400 capitalize">{r.marketplace}</p>}
+            <div className="space-y-6">
+              {/* Key Metrics — full-width stat cards */}
+              <div>
+                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wide mb-2.5">Key Metrics</p>
+                <StatCardGrid kpis={activePlatform.data?.kpis} color={activePlatform.meta.color} />
+              </div>
+
+              <AIInsightCard insight={activePlatform.data?.ai_insight} />
+
+              {activePlatform.data?.severity && Object.values(activePlatform.data.severity).some((v) => Number(v) > 0) && (
+                <div>
+                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wide mb-2.5">
+                    {activePlatform.key === 'flipkart' ? 'Open Recommendations by Severity' : 'Open Alerts by Severity'}
+                  </p>
+                  <StatCardGrid kpis={Object.fromEntries(Object.entries(activePlatform.data.severity).filter(([, v]) => Number(v) > 0))} color={activePlatform.meta.color} />
+                </div>
+              )}
+
+              {activePlatform.data?.funnel?.some((s) => typeof s.value === 'number') && (
+                <div>
+                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wide mb-2.5">7-Day Conversion Funnel</p>
+                  <StatCardGrid kpis={Object.fromEntries(activePlatform.data.funnel.map((s) => [s.name, s.value]))} color={activePlatform.meta.color} />
+                </div>
+              )}
+
+              {activePlatform.key === 'meesho' && Array.isArray(activePlatform.data?.top_issues) && activePlatform.data.top_issues.length > 0 && (
+                <div>
+                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wide mb-2">Top Issues</p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {activePlatform.data.top_issues.slice(0, 6).map((it, i) => (
+                      <div key={i} className="text-xs text-gray-600 bg-gray-50/60 border border-gray-100 rounded-lg px-2.5 py-1.5 truncate">
+                        {it.title || it.message || it.type || JSON.stringify(it)}
+                      </div>
+                    ))}
                   </div>
                 </div>
-              ))}
+              )}
             </div>
           )}
-        </AutomationSection>
-      </div>
+        </div>
+      ) : null}
     </div>
   );
 }
