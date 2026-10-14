@@ -1,36 +1,72 @@
-const express = require('express');
-const router  = express.Router();
-const { authenticate }   = require('../middleware/auth.middleware');
-const { requireMinRole } = require('../middleware/role.middleware');
-const {
-  getOverview, listPosts, getPost, generatePost,
-  approvePost, rejectPost, useVariant,
-  listLeads, updateLeadStage,
-  listComments, approveComment, skipComment, triggerManychat,
-  getAnalyticsSummary, getAccounts, getAccountsActivity,
-} = require('../controllers/marketing.controller');
+const router = require('express').Router();
+const Campaign = require('../models/Campaign');
+const { authenticate } = require('../middleware/auth.middleware');
+const { orgIsolation } = require('../middleware/orgIsolation.middleware');
+const { authorizeAdminOrAbove } = require('../middleware/role.middleware');
+const { asyncHandler, sendSuccess, sendError, paginate, paginateResponse } = require('../utils/helpers');
 
-router.use(authenticate);
+router.use(authenticate, orgIsolation);
 
-router.get('/overview',                     getOverview);
-router.get('/posts',                        listPosts);
-router.get('/posts/:postId',                getPost);
-router.post('/posts/generate',              requireMinRole('MANAGER'),  generatePost);
-router.post('/posts/:postId/approve',       requireMinRole('MANAGER'),  approvePost);
-router.post('/posts/:postId/reject',        requireMinRole('MANAGER'),  rejectPost);
-router.post('/posts/:postId/use-variant',   requireMinRole('EMPLOYEE'), useVariant);
+router.get('/campaigns', asyncHandler(async (req, res) => {
+  const { page = 1, limit = 20, status, platform, type } = req.query;
+  const { skip } = paginate(page, limit);
+  const filter = { organizationId: req.user.organizationId };
+  if (status) filter.status = status;
+  if (platform) filter.platform = platform;
+  if (type) filter.type = type;
 
-router.get('/leads',                        listLeads);
-router.patch('/leads/:leadId',              requireMinRole('EMPLOYEE'), updateLeadStage);
+  const [campaigns, total] = await Promise.all([
+    Campaign.find(filter).populate('assignedTo', 'firstName lastName avatar').populate('managedBy', 'firstName lastName').sort({ createdAt: -1 }).skip(skip).limit(parseInt(limit)),
+    Campaign.countDocuments(filter),
+  ]);
+  sendSuccess(res, paginateResponse(campaigns, total, page, limit));
+}));
 
-router.get('/comments',                          listComments);
-router.post('/comments/:commentId/approve',      requireMinRole('EMPLOYEE'), approveComment);
-router.post('/comments/:commentId/skip',         requireMinRole('EMPLOYEE'), skipComment);
-router.post('/comments/:commentId/trigger-manychat', requireMinRole('EMPLOYEE'), triggerManychat);
+router.post('/campaigns', authorizeAdminOrAbove, asyncHandler(async (req, res) => {
+  const campaign = await Campaign.create({ ...req.body, organizationId: req.user.organizationId, createdBy: req.user._id });
+  sendSuccess(res, { campaign }, 'Campaign created', 201);
+}));
 
-router.get('/analytics/summary',            getAnalyticsSummary);
+router.get('/campaigns/:id', asyncHandler(async (req, res) => {
+  const campaign = await Campaign.findOne({ _id: req.params.id, organizationId: req.user.organizationId })
+    .populate('assignedTo', 'firstName lastName avatar').populate('managedBy', 'firstName lastName');
+  if (!campaign) return sendError(res, 'Campaign not found.', 404);
+  sendSuccess(res, { campaign });
+}));
 
-router.get('/accounts',                     getAccounts);
-router.get('/accounts/activity',            getAccountsActivity);
+router.put('/campaigns/:id', authorizeAdminOrAbove, asyncHandler(async (req, res) => {
+  const campaign = await Campaign.findOneAndUpdate(
+    { _id: req.params.id, organizationId: req.user.organizationId },
+    { ...req.body, updatedBy: req.user._id },
+    { new: true }
+  );
+  if (!campaign) return sendError(res, 'Campaign not found.', 404);
+  sendSuccess(res, { campaign }, 'Campaign updated');
+}));
+
+router.patch('/campaigns/:id/metrics', authorizeAdminOrAbove, asyncHandler(async (req, res) => {
+  const campaign = await Campaign.findOneAndUpdate(
+    { _id: req.params.id, organizationId: req.user.organizationId },
+    { $set: { metrics: req.body } },
+    { new: true }
+  );
+  if (!campaign) return sendError(res, 'Campaign not found.', 404);
+  sendSuccess(res, { campaign }, 'Metrics updated');
+}));
+
+router.delete('/campaigns/:id', authorizeAdminOrAbove, asyncHandler(async (req, res) => {
+  const campaign = await Campaign.findOneAndDelete({ _id: req.params.id, organizationId: req.user.organizationId });
+  if (!campaign) return sendError(res, 'Campaign not found.', 404);
+  sendSuccess(res, {}, 'Campaign deleted');
+}));
+
+router.get('/analytics', asyncHandler(async (req, res) => {
+  const orgId = req.user.organizationId;
+  const [statusStats, platformStats] = await Promise.all([
+    Campaign.aggregate([{ $match: { organizationId: orgId } }, { $group: { _id: '$status', count: { $sum: 1 } } }]),
+    Campaign.aggregate([{ $match: { organizationId: orgId } }, { $group: { _id: '$platform', count: { $sum: 1 }, totalSpend: { $sum: '$spent' } } }]),
+  ]);
+  sendSuccess(res, { analytics: { statusStats, platformStats } });
+}));
 
 module.exports = router;
