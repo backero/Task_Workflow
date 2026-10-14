@@ -3,7 +3,7 @@ import { useLocation } from 'react-router-dom'
 import { platformFromPath, marketplaceId } from '../hooks/platformScope.ts'
 import Card, { PageHeader } from '../components/Card.tsx'
 import api from '../api/axios.js'
-import { ChevronDown, ChevronUp, CheckCircle, Clock, AlertCircle } from 'lucide-react'
+import { ChevronDown, ChevronUp, CheckCircle, Clock, AlertCircle, LayoutGrid, ListOrdered, CircleCheck, Zap, Settings, Wrench } from 'lucide-react'
 import { StatTile, PriorityBarChart } from '../components/charts/index.ts'
 
 type Recommendation = {
@@ -32,10 +32,10 @@ export default function RecommendationsHub() {
   const [selectedMarketplace, setSelectedMarketplace] = useState<string>(scope ? marketplaceId(scope) : 'all')
 
   const marketplaces = [
-    { id: 'amazon_in', label: '🔶 Amazon' },
-    { id: 'meesho', label: '💜 Meesho' },
-    { id: 'snapdeal', label: '🟡 Snapdeal' },
-    { id: 'flipkart', label: '🔵 Flipkart' },
+    { id: 'amazon_in', label: 'Amazon', color: '#FF9900' },
+    { id: 'meesho', label: 'Meesho', color: '#f43397' },
+    { id: 'snapdeal', label: 'Snapdeal', color: '#e40046' },
+    { id: 'flipkart', label: 'Flipkart', color: '#2874f0' },
   ]
 
   useEffect(() => {
@@ -62,7 +62,7 @@ export default function RecommendationsHub() {
     return () => clearInterval(interval)
   }, [selectedMarketplace])
 
-  if (loading) return <Card className="text-stone">Loading recommendations...</Card>
+  if (loading) return <Card className="text-gray-400">Loading recommendations...</Card>
 
   const filtered = recommendations.filter((rec) => {
     if (filterPriority && rec.priority !== filterPriority) return false
@@ -79,15 +79,15 @@ export default function RecommendationsHub() {
   }
 
   const priorityColors: any = {
-    high: 'bg-brick text-white',
+    high: 'bg-red-500 text-white',
     medium: 'bg-amber-500 text-white',
-    low: 'bg-stone text-white',
+    low: 'bg-gray-400 text-white',
   }
 
   const effortMap: any = {
-    easy: '⚡ Easy',
-    moderate: '⚙️ Moderate',
-    complex: '🔧 Complex',
+    easy: { icon: Zap, label: 'Easy' },
+    moderate: { icon: Settings, label: 'Moderate' },
+    complex: { icon: Wrench, label: 'Complex' },
   }
 
   return (
@@ -110,7 +110,7 @@ export default function RecommendationsHub() {
       {/* Priority skim chart */}
       {recommendations.length > 0 && (
         <Card>
-          <h2 className="mb-3 text-sm font-semibold text-ink">Top Recommendations by Priority Score</h2>
+          <h2 className="mb-3 text-sm font-bold text-gray-900">Top Recommendations by Priority Score</h2>
           <PriorityBarChart
             data={recommendations.map((r) => ({ id: r.id, label: r.title, score: r.priority_score || 0, priority: r.priority }))}
           />
@@ -118,27 +118,28 @@ export default function RecommendationsHub() {
       )}
 
       {/* Platform & Priority Filters */}
-      <Card className="bg-cream border-l-4 border-clay">
+      <Card className="bg-orange-50 border-l-4 border-orange-500">
         <div className="space-y-3">
           {!scope && (<div>
-            <div className="text-xs font-medium text-ink mb-2">Select Marketplace:</div>
+            <div className="text-xs font-bold text-gray-700 mb-2">Select Marketplace:</div>
             <div className="flex gap-2 flex-wrap">
               <button
                 onClick={() => setSelectedMarketplace('all')}
-                className={`px-3 py-1.5 rounded text-sm font-medium transition-colors ${
-                  selectedMarketplace === 'all' ? 'bg-clay text-white' : 'bg-sand text-ink hover:bg-clay hover:text-white'
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${
+                  selectedMarketplace === 'all' ? 'bg-gray-900 text-white' : 'bg-white border border-gray-200 text-gray-600 hover:border-gray-400'
                 }`}
               >
-                📊 All Platforms
+                <LayoutGrid className="w-3.5 h-3.5" />All Platforms
               </button>
               {marketplaces.map((mp) => (
                 <button
                   key={mp.id}
                   onClick={() => setSelectedMarketplace(mp.id)}
-                  className={`px-3 py-1.5 rounded text-sm font-medium transition-colors ${
-                    selectedMarketplace === mp.id ? 'bg-clay text-white' : 'bg-sand text-ink hover:bg-clay hover:text-white'
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${
+                    selectedMarketplace === mp.id ? 'bg-gray-900 text-white' : 'bg-white border border-gray-200 text-gray-600 hover:border-gray-400'
                   }`}
                 >
+                  <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: mp.color }} />
                   {mp.label}
                 </button>
               ))}
@@ -147,12 +148,12 @@ export default function RecommendationsHub() {
 
           {recommendations.length > 0 && (
             <div>
-              <div className="text-xs font-medium text-ink mb-2">Filter by Priority:</div>
+              <div className="text-xs font-bold text-gray-700 mb-2">Filter by Priority:</div>
               <div className="flex gap-2">
                 <button
                   onClick={() => setFilterPriority(null)}
-                  className={`px-3 py-1.5 rounded text-sm font-medium transition-colors ${
-                    filterPriority === null ? 'bg-clay text-white' : 'bg-sand text-ink hover:bg-clay hover:text-white'
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${
+                    filterPriority === null ? 'bg-gray-900 text-white' : 'bg-white border border-gray-200 text-gray-600 hover:border-gray-400'
                   }`}
                 >
                   All
@@ -164,8 +165,8 @@ export default function RecommendationsHub() {
                     <button
                       key={p}
                       onClick={() => setFilterPriority(p)}
-                      className={`px-3 py-1.5 rounded text-sm font-medium transition-colors capitalize ${
-                        filterPriority === p ? `${priorityColors[p]}` : 'bg-sand text-ink hover:bg-clay hover:text-white'
+                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors capitalize ${
+                        filterPriority === p ? `${priorityColors[p]}` : 'bg-white border border-gray-200 text-gray-600 hover:border-gray-400'
                       }`}
                     >
                       {p} ({count})
@@ -181,43 +182,47 @@ export default function RecommendationsHub() {
       {/* Recommendations List */}
       {filtered.length > 0 ? (
         <div className="space-y-3">
-          {filtered.map((rec) => (
-            <div key={rec.id} className="border border-sand rounded-lg overflow-hidden">
+          {filtered.map((rec) => {
+            const EffortIcon = effortMap[rec.implementation_effort]?.icon
+            return (
+            <div key={rec.id} className="border border-gray-200 rounded-xl overflow-hidden">
               <button
                 onClick={() => setExpandedId(expandedId === rec.id ? null : rec.id)}
-                className="w-full p-4 bg-white hover:bg-cream/50 transition-colors text-left flex items-start justify-between gap-3"
+                className="w-full p-4 bg-white hover:bg-gray-50 transition-colors text-left flex items-start justify-between gap-3"
               >
                 <div className="flex-1">
                   <div className="flex items-center gap-2 mb-2">
-                    <span className={`text-xs font-bold px-2 py-1 rounded ${priorityColors[rec.priority]}`}>
+                    <span className={`text-[10px] font-bold px-2 py-1 rounded-full ${priorityColors[rec.priority]}`}>
                       {rec.priority.toUpperCase()}
                     </span>
-                    <span className={`text-xs px-2 py-1 rounded capitalize ${categoryColors[rec.category] || 'bg-gray-100'}`}>
+                    <span className={`text-[10px] font-semibold px-2 py-1 rounded-full capitalize ${categoryColors[rec.category] || 'bg-gray-100'}`}>
                       {rec.category}
                     </span>
-                    <span className="text-xs text-stone capitalize">{rec.marketplace}</span>
+                    <span className="text-[10px] text-gray-400 capitalize">{rec.marketplace}</span>
                   </div>
-                  <h3 className="font-semibold text-ink">{rec.title}</h3>
-                  <p className="text-sm text-stone mt-1">{rec.description}</p>
-                  <div className="flex gap-4 mt-2 text-xs text-stone/60">
+                  <h3 className="font-bold text-sm text-gray-900">{rec.title}</h3>
+                  <p className="text-xs text-gray-600 mt-1">{rec.description}</p>
+                  <div className="flex gap-4 mt-2 text-[10px] text-gray-400">
                     <span>Impact: {rec.estimated_impact}%</span>
-                    <span>Effort: {effortMap[rec.implementation_effort]}</span>
+                    <span className="inline-flex items-center gap-1">
+                      Effort: {EffortIcon && <EffortIcon size={11} />}{effortMap[rec.implementation_effort]?.label}
+                    </span>
                     <span>Score: {rec.priority_score?.toFixed(1)}</span>
                   </div>
                 </div>
-                {expandedId === rec.id ? <ChevronUp size={20} className="text-clay" /> : <ChevronDown size={20} className="text-stone" />}
+                {expandedId === rec.id ? <ChevronUp size={20} className="text-orange-500" /> : <ChevronDown size={20} className="text-gray-400" />}
               </button>
 
               {expandedId === rec.id && (
-                <div className="border-t border-sand p-4 bg-cream/30 space-y-4">
+                <div className="border-t border-gray-200 p-4 bg-gray-50/60 space-y-4">
                   {/* Action Steps */}
                   {rec.action_steps && rec.action_steps.length > 0 && (
                     <div>
-                      <h4 className="font-semibold text-ink text-sm mb-2">📋 Action Steps:</h4>
+                      <h4 className="font-bold text-gray-900 text-xs mb-2 flex items-center gap-1.5"><ListOrdered className="w-3.5 h-3.5 text-orange-500" />Action Steps:</h4>
                       <ol className="space-y-2">
                         {rec.action_steps.map((step: string, idx: number) => (
-                          <li key={idx} className="flex gap-3 text-sm text-stone">
-                            <span className="font-bold text-clay flex-shrink-0">{idx + 1}.</span>
+                          <li key={idx} className="flex gap-3 text-xs text-gray-600">
+                            <span className="font-bold text-orange-500 flex-shrink-0">{idx + 1}.</span>
                             <span>{step}</span>
                           </li>
                         ))}
@@ -228,11 +233,11 @@ export default function RecommendationsHub() {
                   {/* Success Metrics */}
                   {rec.success_metrics && rec.success_metrics.length > 0 && (
                     <div>
-                      <h4 className="font-semibold text-ink text-sm mb-2">✅ Success Metrics:</h4>
+                      <h4 className="font-bold text-gray-900 text-xs mb-2 flex items-center gap-1.5"><CircleCheck className="w-3.5 h-3.5 text-green-600" />Success Metrics:</h4>
                       <div className="space-y-1">
                         {rec.success_metrics.map((metric: any, idx: number) => (
-                          <div key={idx} className="text-sm text-stone">
-                            {metric.metric}: Target <span className="font-bold text-ink">{metric.target}</span>
+                          <div key={idx} className="text-xs text-gray-600">
+                            {metric.metric}: Target <span className="font-bold text-gray-900">{metric.target}</span>
                           </div>
                         ))}
                       </div>
@@ -241,15 +246,15 @@ export default function RecommendationsHub() {
 
                   {/* Status Buttons */}
                   <div className="flex gap-2">
-                    <button className="px-3 py-1.5 bg-green-600 text-white rounded text-xs font-medium hover:bg-green-700 transition-colors flex items-center gap-1">
+                    <button className="px-3 py-1.5 bg-green-600 text-white rounded-lg text-xs font-bold hover:bg-green-700 transition-colors flex items-center gap-1">
                       <CheckCircle size={14} />
                       Mark Done
                     </button>
-                    <button className="px-3 py-1.5 bg-amber-500 text-white rounded text-xs font-medium hover:bg-amber-600 transition-colors flex items-center gap-1">
+                    <button className="px-3 py-1.5 bg-amber-500 text-white rounded-lg text-xs font-bold hover:bg-amber-600 transition-colors flex items-center gap-1">
                       <Clock size={14} />
                       In Progress
                     </button>
-                    <button className="px-3 py-1.5 bg-stone text-white rounded text-xs font-medium hover:bg-stone/80 transition-colors flex items-center gap-1">
+                    <button className="px-3 py-1.5 bg-gray-400 text-white rounded-lg text-xs font-bold hover:bg-gray-500 transition-colors flex items-center gap-1">
                       <AlertCircle size={14} />
                       Dismiss
                     </button>
@@ -257,16 +262,17 @@ export default function RecommendationsHub() {
                 </div>
               )}
             </div>
-          ))}
+            )
+          })}
         </div>
       ) : (
         <Card className="text-center py-8">
-          <p className="text-stone mb-2">No recommendations yet</p>
-          <p className="text-xs text-stone">Recommendations will appear after the 4-hour analysis cycle runs</p>
+          <p className="text-gray-500 mb-2 text-sm">No recommendations yet</p>
+          <p className="text-xs text-gray-400">Recommendations will appear after the 4-hour analysis cycle runs</p>
         </Card>
       )}
 
-      <Card className="text-xs text-stone bg-cream">
+      <Card className="text-[10px] text-gray-400 bg-gray-50">
         Updated: {new Date().toLocaleString()}
       </Card>
     </div>

@@ -15,7 +15,7 @@ interface TrendLineChartProps {
 
 export default function TrendLineChart({ data, series, yFormat, height = 300 }: TrendLineChartProps) {
   if (!data || data.length === 0) {
-    return <div className="text-stone text-sm p-4">No data available</div>
+    return <div className="text-gray-400 text-sm p-4">No data available</div>
   }
 
   return (

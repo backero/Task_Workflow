@@ -16,7 +16,7 @@ interface PlatformBarChartProps {
 
 export default function PlatformBarChart({ data, valueFormat, colorMap, height = 300 }: PlatformBarChartProps) {
   if (!data || data.length === 0) {
-    return <div className="text-stone text-sm p-4">No data available</div>
+    return <div className="text-gray-400 text-sm p-4">No data available</div>
   }
 
   const chartData = data.map(d => ({ ...d, displayValue: valueFormat ? valueFormat(d.value) : d.value }))

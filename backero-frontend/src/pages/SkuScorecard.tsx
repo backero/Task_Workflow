@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useParams } from 'react-router-dom'
 import { getCompetitors, getSkuScorecard, type Product } from '../api.ts'
 import Card, { PageHeader } from '../components/Card.tsx'
 import DataQualityBadge from '../components/DataQualityBadge.tsx'
@@ -26,9 +26,9 @@ type Economics = { price: number; fee: number; fee_source: 'seller_central' | 'e
 function UnitEconomics({ e }: { e: Economics }) {
   const rupee = (n: number) => `₹${n.toFixed(0)}`
   const row = (label: string, value: string, note?: string, bad = false) => (
-    <div className="flex items-baseline justify-between border-b border-sand/70 py-1.5 text-sm last:border-0">
-      <span className="text-stone">{label}{note ? <span className="ml-2 text-xs">({note})</span> : null}</span>
-      <span className={`font-semibold ${bad ? 'text-brick-dark' : 'text-ink'}`}>{value}</span>
+    <div className="flex items-baseline justify-between border-b border-gray-200/70 py-1.5 text-sm last:border-0">
+      <span className="text-gray-400">{label}{note ? <span className="ml-2 text-xs">({note})</span> : null}</span>
+      <span className={`font-semibold ${bad ? 'text-red-600' : 'text-gray-900'}`}>{value}</span>
     </div>
   )
   return (
@@ -45,7 +45,6 @@ function UnitEconomics({ e }: { e: Economics }) {
 
 export default function SkuScorecard() {
   const { sku } = useParams()
-  const navigate = useNavigate()
   const [products, setProducts] = useState<Product[]>([])
   const [data, setData] = useState<Scorecard | null>(null)
   const [selected, setSelected] = useState<string>(sku ?? '')
@@ -84,12 +83,9 @@ export default function SkuScorecard() {
       <PageHeader title="SKU Scorecard" subtitle="One page per product — traffic funnel, ad funnel, price/BSR/rating, keyword ranks, alert history" />
 
       <select
-        className="mb-5 rounded-lg border border-sand bg-white px-3 py-2 text-sm"
+        className="mb-5 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm"
         value={selected}
-        onChange={(e) => {
-          setSelected(e.target.value)
-          navigate(`/sku/${e.target.value}`)
-        }}
+        onChange={(e) => setSelected(e.target.value)}
       >
         {products.map((p) => (
           <option key={p.sku} value={p.sku}>
@@ -99,42 +95,42 @@ export default function SkuScorecard() {
       </select>
 
       {!data ? (
-        <div className="text-stone">Loading…</div>
+        <div className="text-gray-400">Loading…</div>
       ) : (
         <div className="space-y-5">
           <Card>
             <div className="flex flex-wrap items-baseline justify-between gap-2">
               <div>
                 <div className="text-lg font-bold">{data.product.name}</div>
-                <div className="text-xs text-stone">{data.product.asin} · {data.product.category}</div>
+                <div className="text-xs text-gray-400">{data.product.asin} · {data.product.category}</div>
               </div>
               <div className="text-right text-sm">
                 <div>Price: ₹{data.product.price}</div>
-                <div className="text-stone">COGS: {data.product.cogs != null ? `₹${data.product.cogs}` : '—'}</div>
+                <div className="text-gray-400">COGS: {data.product.cogs != null ? `₹${data.product.cogs}` : '—'}</div>
               </div>
             </div>
           </Card>
 
           <Card>
-            <h2 className="mb-2 text-sm font-semibold text-ink">Unit economics — where one sale's money goes</h2>
+            <h2 className="mb-2 text-sm font-semibold text-gray-900">Unit economics — where one sale's money goes</h2>
             {!data.unit_economics ? (
-              <div className="text-sm text-stone">No price known for this product yet.</div>
+              <div className="text-sm text-gray-400">No price known for this product yet.</div>
             ) : (
               <UnitEconomics e={data.unit_economics} />
             )}
           </Card>
 
           <Card>
-            <h2 className="mb-2 text-sm font-semibold text-ink">Traffic funnel — last 7 days</h2>
+            <h2 className="mb-2 text-sm font-semibold text-gray-900">Traffic funnel — last 7 days</h2>
             <table className="w-full text-left text-sm">
               <thead>
-                <tr className="text-xs uppercase text-stone">
+                <tr className="text-xs uppercase text-gray-400">
                   <th className="py-1">Date</th><th>Sessions</th><th>Page views</th><th>Buy Box %</th><th>Units</th><th>CVR</th><th>Sales</th><th>DQ</th>
                 </tr>
               </thead>
               <tbody>
                 {last7Listing.map((r) => (
-                  <tr key={r.date} className="border-t border-sand">
+                  <tr key={r.date} className="border-t border-gray-200">
                     <td className="py-1">{r.date}</td>
                     <td>{num(r.sessions)}</td>
                     <td>{num(r.page_views)}</td>
@@ -150,19 +146,19 @@ export default function SkuScorecard() {
           </Card>
 
           <Card>
-            <h2 className="mb-2 text-sm font-semibold text-ink">Ad funnel — last 7 days</h2>
+            <h2 className="mb-2 text-sm font-semibold text-gray-900">Ad funnel — last 7 days</h2>
             {last7Ads.length === 0 ? (
-              <div className="text-sm text-stone">No ad data yet — the Amazon Advertising API is not connected, so impressions, clicks, CTR, ACOS and ROAS cannot be measured.</div>
+              <div className="text-sm text-gray-400">No ad data yet — the Amazon Advertising API is not connected, so impressions, clicks, CTR, ACOS and ROAS cannot be measured.</div>
             ) : (
               <table className="w-full text-left text-sm">
                 <thead>
-                  <tr className="text-xs uppercase text-stone">
+                  <tr className="text-xs uppercase text-gray-400">
                     <th className="py-1">Date</th><th>Impressions</th><th>Clicks</th><th>CTR</th><th>Spend</th><th>Ad orders</th><th>CVR</th><th>Ad sales</th><th>ACOS</th><th>ROAS</th>
                   </tr>
                 </thead>
                 <tbody>
                   {last7Ads.map((r) => (
-                    <tr key={r.date} className="border-t border-sand">
+                    <tr key={r.date} className="border-t border-gray-200">
                       <td className="py-1">{r.date}</td>
                       <td>{num(r.impressions)}</td>
                       <td>{num(r.clicks)}</td>
@@ -181,23 +177,23 @@ export default function SkuScorecard() {
           </Card>
 
           <Card>
-            <h2 className="mb-2 text-sm font-semibold text-ink">Keyword ranks</h2>
+            <h2 className="mb-2 text-sm font-semibold text-gray-900">Keyword ranks</h2>
             {keywordRows.length === 0 ? (
-              <div className="text-sm text-stone">This product was not found in the search results of any tracked keyword.</div>
+              <div className="text-sm text-gray-400">This product was not found in the search results of any tracked keyword.</div>
             ) : (
               <table className="w-full text-left text-sm">
                 <thead>
-                  <tr className="text-xs uppercase text-stone">
+                  <tr className="text-xs uppercase text-gray-400">
                     <th className="py-1">Keyword</th><th>Organic</th><th>Sponsored</th><th>vs earlier</th><th>As of</th><th>DQ</th>
                   </tr>
                 </thead>
                 <tbody>
                   {keywordRows.map((k) => (
-                    <tr key={k.keyword} className="border-t border-sand">
+                    <tr key={k.keyword} className="border-t border-gray-200">
                       <td className="py-1">{k.keyword}</td>
                       <td>{k.organic_rank != null ? `#${k.organic_rank}` : '—'}</td>
                       <td>{k.sponsored_rank != null ? `Ad #${k.sponsored_rank}` : '—'}</td>
-                      <td className={k.move != null && k.move < 0 ? 'text-brick-dark' : k.move != null && k.move > 0 ? 'text-leaf-dark' : ''}>
+                      <td className={k.move != null && k.move < 0 ? 'text-red-600' : k.move != null && k.move > 0 ? 'text-green-600' : ''}>
                         {k.move == null ? '—' : k.move === 0 ? 'no change' : k.move > 0 ? `▲ ${k.move}` : `▼ ${Math.abs(k.move)}`}
                       </td>
                       <td>{k.date}</td>
@@ -210,16 +206,16 @@ export default function SkuScorecard() {
           </Card>
 
           <Card>
-            <h2 className="mb-2 text-sm font-semibold text-ink">Price / BSR / rating timeline</h2>
+            <h2 className="mb-2 text-sm font-semibold text-gray-900">Price / BSR / rating timeline</h2>
             <table className="w-full text-left text-sm">
               <thead>
-                <tr className="text-xs uppercase text-stone">
+                <tr className="text-xs uppercase text-gray-400">
                   <th className="py-1">Captured</th><th>Price</th><th>Deal?</th><th>BSR</th><th>Category</th><th>Rating</th><th>Reviews</th><th>Seller</th><th>DQ</th>
                 </tr>
               </thead>
               <tbody>
                 {priceHistory.map((r) => (
-                  <tr key={r.captured_at} className="border-t border-sand">
+                  <tr key={r.captured_at} className="border-t border-gray-200">
                     <td className="py-1">{r.captured_at.slice(0, 10)}</td>
                     <td>₹{r.price}</td>
                     <td>{r.coupon_deal_flag ? 'Yes' : '—'}</td>
@@ -236,19 +232,19 @@ export default function SkuScorecard() {
           </Card>
 
           <Card>
-            <h2 className="mb-2 text-sm font-semibold text-ink">Alert history</h2>
-            {data.alert_history.length === 0 && <div className="text-sm text-stone">No alerts for this SKU.</div>}
+            <h2 className="mb-2 text-sm font-semibold text-gray-900">Alert history</h2>
+            {data.alert_history.length === 0 && <div className="text-sm text-gray-400">No alerts for this SKU.</div>}
             <ul className="space-y-2">
               {data.alert_history.map((a) => (
-                <li key={a.id} className="rounded-lg border border-sand p-2 text-sm">
+                <li key={a.id} className="rounded-lg border border-gray-200 p-2 text-sm">
                   <div className="flex items-center justify-between">
                     <span className="font-semibold">{a.title}</span>
-                    <span className="text-xs text-stone">{a.status}</span>
+                    <span className="text-xs text-gray-400">{a.status}</span>
                   </div>
-                  <div className="text-stone">{a.message}</div>
+                  <div className="text-gray-400">{a.message}</div>
                   {a.ai_analysis && (
-                    <div className="mt-1 rounded-lg bg-clay/5 p-2 text-xs text-ink">
-                      <div className="font-semibold text-ember">AI analysis</div>
+                    <div className="mt-1 rounded-lg bg-orange-50 p-2 text-xs text-gray-900">
+                      <div className="font-semibold text-orange-600">AI analysis</div>
                       <AiText text={a.ai_analysis} />
                     </div>
                   )}

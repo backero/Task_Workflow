@@ -3,7 +3,7 @@ import { useLocation } from 'react-router-dom'
 import { platformFromPath, marketplaceId } from '../hooks/platformScope.ts'
 import Card, { PageHeader } from '../components/Card.tsx'
 import api from '../api/axios.js'
-import { Lightbulb, AlertCircle, TrendingUp, Target } from 'lucide-react'
+import { Lightbulb, AlertCircle, TrendingUp, Target, LayoutGrid } from 'lucide-react'
 import { StatTile } from '../components/charts/index.ts'
 
 type Insight = {
@@ -27,11 +27,11 @@ export default function AIInsights() {
   const [selectedMarketplace, setSelectedMarketplace] = useState<string>(scope ? marketplaceId(scope) : 'all')
 
   const marketplaces = [
-    { id: 'all', label: '📊 All Platforms' },
-    { id: 'amazon_in', label: '🔶 Amazon' },
-    { id: 'meesho', label: '💜 Meesho' },
-    { id: 'snapdeal', label: '🟡 Snapdeal' },
-    { id: 'flipkart', label: '🔵 Flipkart' },
+    { id: 'all', label: 'All Platforms' },
+    { id: 'amazon_in', label: 'Amazon', color: '#FF9900' },
+    { id: 'meesho', label: 'Meesho', color: '#f43397' },
+    { id: 'snapdeal', label: 'Snapdeal', color: '#e40046' },
+    { id: 'flipkart', label: 'Flipkart', color: '#2874f0' },
   ]
 
   useEffect(() => {
@@ -57,13 +57,13 @@ export default function AIInsights() {
     return () => clearInterval(interval)
   }, [selectedMarketplace])
 
-  if (loading) return <Card className="text-stone">Loading AI insights...</Card>
+  if (loading) return <Card className="text-gray-400">Loading AI insights...</Card>
 
   const typeMap: any = {
-    ctr_trends: { label: 'CTR Trends', icon: TrendingUp, color: 'clay' },
-    cvr_patterns: { label: 'CVR Patterns', icon: Target, color: 'ember' },
-    profitability_gaps: { label: 'Profitability', icon: Lightbulb, color: 'clay' },
-    risk_detection: { label: 'Risk Detection', icon: AlertCircle, color: 'brick' },
+    ctr_trends: { label: 'CTR Trends', icon: TrendingUp, color: '#f97316' },
+    cvr_patterns: { label: 'CVR Patterns', icon: Target, color: '#ea580c' },
+    profitability_gaps: { label: 'Profitability', icon: Lightbulb, color: '#f97316' },
+    risk_detection: { label: 'Risk Detection', icon: AlertCircle, color: '#ef4444' },
   }
 
   const filtered = selectedType ? insights.filter((i) => i.analysis_type === selectedType) : insights
@@ -76,16 +76,19 @@ export default function AIInsights() {
       />
 
       {/* Platform Selector */}
-      {!scope && (<Card className="bg-cream border-l-4 border-clay">
+      {!scope && (<Card className="bg-orange-50 border-l-4 border-orange-500">
         <div className="flex items-center gap-2 flex-wrap">
           {marketplaces.map((mp) => (
             <button
               key={mp.id}
               onClick={() => setSelectedMarketplace(mp.id)}
-              className={`px-3 py-1.5 rounded text-sm font-medium transition-colors ${
-                selectedMarketplace === mp.id ? 'bg-clay text-white' : 'bg-sand text-ink hover:bg-clay hover:text-white'
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${
+                selectedMarketplace === mp.id ? 'bg-gray-900 text-white' : 'bg-white border border-gray-200 text-gray-600 hover:border-gray-400'
               }`}
             >
+              {mp.color
+                ? <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: mp.color }} />
+                : <LayoutGrid className="w-3.5 h-3.5" />}
               {mp.label}
             </button>
           ))}
@@ -108,12 +111,12 @@ export default function AIInsights() {
 
       {/* Type Filter */}
       {insights.length > 0 && (
-        <Card className="bg-cream">
+        <Card className="bg-gray-50">
           <div className="flex items-center gap-2 flex-wrap">
             <button
               onClick={() => setSelectedType(null)}
-              className={`px-3 py-1.5 rounded text-sm font-medium transition-colors ${
-                selectedType === null ? 'bg-clay text-white' : 'bg-sand text-ink hover:bg-clay hover:text-white'
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${
+                selectedType === null ? 'bg-gray-900 text-white' : 'bg-white border border-gray-200 text-gray-600 hover:border-gray-400'
               }`}
             >
               All Insights ({insights.length})
@@ -125,9 +128,8 @@ export default function AIInsights() {
                 <button
                   key={key}
                   onClick={() => setSelectedType(key)}
-                  className={`px-3 py-1.5 rounded text-sm font-medium transition-colors ${
-                    selectedType === key ? `bg-${type.color} text-white` : 'bg-sand text-ink hover:bg-clay hover:text-white'
-                  }`}
+                  className="px-3 py-1.5 rounded-lg text-xs font-bold transition-colors border"
+                  style={selectedType === key ? { background: type.color, borderColor: type.color, color: 'white' } : { background: 'white', borderColor: '#e5e7eb', color: '#4b5563' }}
                 >
                   {type.label} ({count})
                 </button>
@@ -145,29 +147,29 @@ export default function AIInsights() {
             const Icon = typeInfo?.icon
 
             return (
-              <Card key={insight.id} className="border-l-4 border-clay">
+              <Card key={insight.id} className="border-l-4" style={{ borderLeftColor: typeInfo?.color || '#f97316' }}>
                 <div className="flex items-start gap-3">
-                  {Icon && <Icon size={20} className="text-clay mt-1 flex-shrink-0" />}
+                  {Icon && <Icon size={20} className="mt-1 flex-shrink-0" style={{ color: typeInfo?.color || '#f97316' }} />}
                   <div className="flex-1">
                     <div className="flex items-center justify-between mb-2">
-                      <h3 className="font-semibold text-ink">{typeInfo?.label || insight.analysis_type}</h3>
+                      <h3 className="font-bold text-sm text-gray-900">{typeInfo?.label || insight.analysis_type}</h3>
                       <div className="flex items-center gap-2">
-                        <span className="text-xs px-2 py-1 bg-sand rounded">
+                        <span className="text-[10px] font-semibold px-2 py-1 bg-gray-100 text-gray-600 rounded-full">
                           Confidence: {(insight.confidence_score * 100).toFixed(0)}%
                         </span>
                         {insight.marketplace && (
-                          <span className="text-xs px-2 py-1 bg-cream rounded capitalize">{insight.marketplace}</span>
+                          <span className="text-[10px] font-semibold px-2 py-1 bg-orange-50 text-orange-600 rounded-full capitalize">{insight.marketplace}</span>
                         )}
                       </div>
                     </div>
 
-                    <p className="text-sm text-stone mb-3">{insight.summary}</p>
+                    <p className="text-xs text-gray-600 mb-3">{insight.summary}</p>
 
                     {/* Findings */}
                     {insight.findings_json && typeof insight.findings_json === 'object' && (
-                      <div className="bg-white p-3 rounded mb-3 text-xs">
-                        <div className="font-medium text-ink mb-2">Key Findings:</div>
-                        <pre className="text-stone whitespace-pre-wrap break-words">
+                      <div className="bg-gray-50 border border-gray-100 p-3 rounded-lg mb-3 text-xs">
+                        <div className="font-bold text-gray-900 mb-2">Key Findings:</div>
+                        <pre className="text-gray-500 whitespace-pre-wrap break-words">
                           {JSON.stringify(insight.findings_json, null, 2)}
                         </pre>
                       </div>
@@ -175,13 +177,13 @@ export default function AIInsights() {
 
                     {/* Recommendations */}
                     {insight.recommendations && (
-                      <div className="bg-cream p-3 rounded">
-                        <div className="font-medium text-ink mb-2 text-sm">Recommendations:</div>
-                        <div className="text-xs text-stone whitespace-pre-wrap">{insight.recommendations}</div>
+                      <div className="bg-orange-50/60 border border-orange-100 p-3 rounded-lg">
+                        <div className="font-bold text-gray-900 mb-2 text-xs">Recommendations:</div>
+                        <div className="text-xs text-gray-600 whitespace-pre-wrap">{insight.recommendations}</div>
                       </div>
                     )}
 
-                    <div className="text-xs text-stone/60 mt-2">
+                    <div className="text-[10px] text-gray-400 mt-2">
                       Generated: {new Date(insight.generated_at).toLocaleString()}
                     </div>
                   </div>
@@ -192,12 +194,12 @@ export default function AIInsights() {
         </div>
       ) : (
         <Card className="text-center py-8">
-          <p className="text-stone mb-2">No insights yet</p>
-          <p className="text-xs text-stone">AI insights will appear after the 4-hour analysis cycle runs</p>
+          <p className="text-gray-500 mb-2 text-sm">No insights yet</p>
+          <p className="text-xs text-gray-400">AI insights will appear after the 4-hour analysis cycle runs</p>
         </Card>
       )}
 
-      <Card className="text-xs text-stone bg-cream">
+      <Card className="text-[10px] text-gray-400 bg-gray-50">
         Updated: {new Date().toLocaleString()}
       </Card>
     </div>

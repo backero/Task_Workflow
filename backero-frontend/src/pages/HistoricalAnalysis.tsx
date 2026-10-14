@@ -4,7 +4,7 @@ import { fmtPct } from '../utils/metricFormat.ts'
 import { platformFromPath, marketplaceId } from '../hooks/platformScope.ts'
 import Card, { PageHeader } from '../components/Card.tsx'
 import api from '../api/axios.js'
-import { BarChart3, LineChart as LineChartIcon } from 'lucide-react'
+import { BarChart3, LineChart as LineChartIcon, Lightbulb } from 'lucide-react'
 import { StatTile, TrendLineChart } from '../components/charts/index.ts'
 import { platformColor } from '../theme/colors.ts'
 
@@ -36,10 +36,10 @@ export default function HistoricalAnalysis() {
   const [selectedMarketplace, setSelectedMarketplace] = useState<string>(scope ? marketplaceId(scope) : 'amazon_in')
 
   const marketplaces = [
-    { id: 'amazon_in', label: '🔶 Amazon' },
-    { id: 'meesho', label: '💜 Meesho' },
-    { id: 'snapdeal', label: '🟡 Snapdeal' },
-    { id: 'flipkart', label: '🔵 Flipkart' },
+    { id: 'amazon_in', label: 'Amazon', color: '#FF9900' },
+    { id: 'meesho', label: 'Meesho', color: '#f43397' },
+    { id: 'snapdeal', label: 'Snapdeal', color: '#e40046' },
+    { id: 'flipkart', label: 'Flipkart', color: '#2874f0' },
   ]
 
   useEffect(() => {
@@ -62,7 +62,7 @@ export default function HistoricalAnalysis() {
     return () => clearInterval(interval)
   }, [selectedMarketplace])
 
-  if (loading) return <Card className="text-stone">Loading historical data...</Card>
+  if (loading) return <Card className="text-gray-400">Loading historical data...</Card>
 
   if (!data || Object.keys(data).length === 0) {
     return (
@@ -72,8 +72,8 @@ export default function HistoricalAnalysis() {
           subtitle="30+ day trends, patterns, and performance analysis"
         />
         <Card className="text-center py-8">
-          <p className="text-stone mb-2">No historical data yet</p>
-          <p className="text-xs text-stone">Data will appear after first collection cycle...</p>
+          <p className="text-gray-500 mb-2 text-sm">No historical data yet</p>
+          <p className="text-xs text-gray-400">Data will appear after first collection cycle...</p>
         </Card>
       </div>
     )
@@ -82,11 +82,11 @@ export default function HistoricalAnalysis() {
   const selectedData = selectedMarketplace && data ? data[selectedMarketplace] : null
 
   const metrics = [
-    { key: 'ctr_pct', label: 'CTR %', icon: LineChartIcon, color: 'clay' },
-    { key: 'cvr_pct', label: 'CVR %', icon: LineChartIcon, color: 'ember' },
-    { key: 'orders', label: 'Orders', icon: BarChart3, color: 'green-600' },
-    { key: 'revenue', label: 'Revenue', icon: BarChart3, color: 'clay' },
-    { key: 'margin_pct', label: 'Margin %', icon: LineChartIcon, color: 'blue-600' },
+    { key: 'ctr_pct', label: 'CTR %', icon: LineChartIcon, color: '#f97316' },
+    { key: 'cvr_pct', label: 'CVR %', icon: LineChartIcon, color: '#ea580c' },
+    { key: 'orders', label: 'Orders', icon: BarChart3, color: '#16a34a' },
+    { key: 'revenue', label: 'Revenue', icon: BarChart3, color: '#f97316' },
+    { key: 'margin_pct', label: 'Margin %', icon: LineChartIcon, color: '#2563eb' },
   ]
 
   return (
@@ -98,36 +98,37 @@ export default function HistoricalAnalysis() {
 
       {/* Platform & Metric Selectors */}
       <div className={`grid gap-3 ${scope ? "grid-cols-1" : "grid-cols-2"}`}>
-        {!scope && (<Card className="bg-cream border-l-4 border-clay">
-          <div className="text-xs font-medium text-ink mb-2">Select Platform:</div>
+        {!scope && (<Card className="bg-orange-50 border-l-4 border-orange-500">
+          <div className="text-xs font-bold text-gray-700 mb-2">Select Platform:</div>
           <div className="flex gap-2 flex-wrap">
             {marketplaces.map((mp) => (
               <button
                 key={mp.id}
                 onClick={() => setSelectedMarketplace(mp.id)}
-                className={`px-3 py-1.5 rounded text-sm font-medium transition-colors ${
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${
                   selectedMarketplace === mp.id
-                    ? 'bg-clay text-white'
-                    : 'bg-sand text-ink hover:bg-clay hover:text-white'
+                    ? 'bg-gray-900 text-white'
+                    : 'bg-white border border-gray-200 text-gray-600 hover:border-gray-400'
                 }`}
               >
+                <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: mp.color }} />
                 {mp.label}
               </button>
             ))}
           </div>
         </Card>)}
 
-        <Card className="bg-sand">
-          <div className="text-xs font-medium text-ink mb-2">Metric:</div>
+        <Card className="bg-gray-50">
+          <div className="text-xs font-bold text-gray-700 mb-2">Metric:</div>
           <div className="flex gap-2 flex-wrap">
             {metrics.map((m) => (
               <button
                 key={m.key}
                 onClick={() => setSelectedMetric(m.key as any)}
-                className={`px-3 py-1.5 rounded text-sm font-medium transition-colors ${
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${
                   selectedMetric === m.key
-                    ? 'bg-clay text-white'
-                    : 'bg-white text-ink border border-clay hover:bg-cream'
+                    ? 'bg-orange-500 text-white'
+                    : 'bg-white text-gray-600 border border-gray-200 hover:border-orange-200 hover:text-orange-600'
                 }`}
               >
                 {m.label}
@@ -178,7 +179,7 @@ export default function HistoricalAnalysis() {
 
           {/* Historical Chart */}
           <Card>
-            <h2 className="text-sm font-semibold text-ink mb-4">
+            <h2 className="text-sm font-bold text-gray-900 mb-4">
               30-Day {metrics.find((m) => m.key === selectedMetric)?.label} Trend
             </h2>
             <TrendLineChart
@@ -194,17 +195,17 @@ export default function HistoricalAnalysis() {
 
           {/* Daily Breakdown Table */}
           <Card>
-            <h2 className="text-sm font-semibold text-ink mb-3">Daily Breakdown</h2>
+            <h2 className="text-sm font-bold text-gray-900 mb-3">Daily Breakdown</h2>
             <div className="overflow-x-auto">
               <table className="w-full text-xs">
                 <thead>
-                  <tr className="border-b border-sand bg-cream">
-                    <th className="text-left py-2 px-3 text-stone">Date</th>
-                    <th className="text-right py-2 px-3 text-stone">CTR %</th>
-                    <th className="text-right py-2 px-3 text-stone">CVR %</th>
-                    <th className="text-right py-2 px-3 text-stone">Orders</th>
-                    <th className="text-right py-2 px-3 text-stone">Revenue</th>
-                    <th className="text-right py-2 px-3 text-stone">Margin %</th>
+                  <tr className="border-b border-gray-200 bg-gray-50">
+                    <th className="text-left py-2 px-3 text-gray-400">Date</th>
+                    <th className="text-right py-2 px-3 text-gray-400">CTR %</th>
+                    <th className="text-right py-2 px-3 text-gray-400">CVR %</th>
+                    <th className="text-right py-2 px-3 text-gray-400">Orders</th>
+                    <th className="text-right py-2 px-3 text-gray-400">Revenue</th>
+                    <th className="text-right py-2 px-3 text-gray-400">Margin %</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -213,15 +214,15 @@ export default function HistoricalAnalysis() {
                       .slice()
                       .reverse()
                       .map((row: any, idx: number) => (
-                        <tr key={idx} className="border-b border-sand hover:bg-cream">
-                          <td className="py-2 px-3 text-ink font-medium">{row.date}</td>
-                          <td className="text-right py-2 px-3 text-stone">{row.ctr?.toFixed(2)}%</td>
-                          <td className="text-right py-2 px-3 text-stone">{row.cvr?.toFixed(2)}%</td>
-                          <td className="text-right py-2 px-3 text-stone font-medium">{row.orders?.toLocaleString()}</td>
-                          <td className="text-right py-2 px-3 text-stone">
+                        <tr key={idx} className="border-b border-gray-100 hover:bg-gray-50">
+                          <td className="py-2 px-3 text-gray-900 font-semibold">{row.date}</td>
+                          <td className="text-right py-2 px-3 text-gray-500">{row.ctr?.toFixed(2)}%</td>
+                          <td className="text-right py-2 px-3 text-gray-500">{row.cvr?.toFixed(2)}%</td>
+                          <td className="text-right py-2 px-3 text-gray-500 font-medium">{row.orders?.toLocaleString()}</td>
+                          <td className="text-right py-2 px-3 text-gray-500">
                             ₹{(row.revenue || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
                           </td>
-                          <td className="text-right py-2 px-3 text-stone">{row.margin?.toFixed(1)}%</td>
+                          <td className="text-right py-2 px-3 text-gray-500">{row.margin?.toFixed(1)}%</td>
                         </tr>
                       ))}
                 </tbody>
@@ -230,9 +231,9 @@ export default function HistoricalAnalysis() {
           </Card>
 
           {/* Insights */}
-          <Card className="bg-cream border-l-4 border-clay">
-            <h3 className="font-semibold text-ink text-sm mb-2">💡 Quick Insights</h3>
-            <div className="space-y-2 text-sm text-stone">
+          <Card className="bg-orange-50 border-l-4 border-orange-500">
+            <h3 className="font-bold text-gray-900 text-sm mb-2 flex items-center gap-1.5"><Lightbulb className="w-4 h-4 text-orange-500" />Quick Insights</h3>
+            <div className="space-y-2 text-sm text-gray-600">
               {selectedData.latest && (
                 <>
                   <p>
@@ -247,7 +248,7 @@ export default function HistoricalAnalysis() {
                     </p>
                   )}
                   {selectedData.change_30d?.revenue_delta < 0 && (
-                    <p className="text-brick">
+                    <p className="text-red-500">
                       • <strong>Declining Trend:</strong> Revenue dropped by ₹
                       {Math.abs(selectedData.change_30d.revenue_delta).toLocaleString('en-IN', { maximumFractionDigits: 0 })}{' '}
                       in 30 days
@@ -257,7 +258,7 @@ export default function HistoricalAnalysis() {
                     <p className="text-green-600">• <strong>Healthy Margins:</strong> {selectedData.latest.margin_pct?.toFixed(1)}% is excellent</p>
                   )}
                   {selectedData.latest.margin_pct < 10 && (
-                    <p className="text-brick">• <strong>Low Margins:</strong> {selectedData.latest.margin_pct?.toFixed(1)}% needs optimization</p>
+                    <p className="text-red-500">• <strong>Low Margins:</strong> {selectedData.latest.margin_pct?.toFixed(1)}% needs optimization</p>
                   )}
                 </>
               )}

@@ -15,14 +15,14 @@ export default function StatTile({ label, value, format = 'number', trend, trend
 
   const trendValue = trendPct ?? trend
   const isTrendGood = trendValue == null ? null : goodDirection === 'up' ? trendValue > 0 : trendValue < 0
-  const trendColor = trendValue == null ? 'text-stone' : isTrendGood ? 'text-leaf' : isTrendGood === false ? 'text-brick' : 'text-stone'
+  const trendColor = trendValue == null ? 'text-gray-400' : isTrendGood ? 'text-green-600' : isTrendGood === false ? 'text-red-500' : 'text-gray-400'
   const trendIcon = trendValue == null ? null : isTrendGood ? <TrendingUp size={14} /> : isTrendGood === false ? <TrendingDown size={14} /> : null
 
   return (
-    <div className="p-4 bg-cream rounded border border-stone/10" style={{ borderLeftColor: accentColor, borderLeftWidth: '3px' }}>
-      <div className="text-xs font-medium text-stone mb-2">{label}</div>
+    <div className="p-3 bg-gray-50 rounded-xl border border-gray-200" style={{ borderLeftColor: accentColor, borderLeftWidth: '3px' }}>
+      <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wide mb-1.5">{label}</div>
       <div className="flex items-end justify-between">
-        <div className="text-xl font-bold text-ink">{formatted}</div>
+        <div className="text-lg font-bold text-gray-900">{formatted}</div>
         {trendValue != null && (
           <div className={`flex items-center gap-1 text-xs font-medium ${trendColor}`}>
             {trendIcon}

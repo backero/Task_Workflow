@@ -4,7 +4,7 @@ import { fmtPct } from '../utils/metricFormat.ts'
 import { platformFromPath, marketplaceId } from '../hooks/platformScope.ts'
 import Card, { PageHeader } from '../components/Card.tsx'
 import api from '../api/axios.js'
-import { TrendingUp, TrendingDown } from 'lucide-react'
+import { TrendingUp, TrendingDown, Trophy, BarChart3 } from 'lucide-react'
 import { PlatformBarChart, TrendLineChart } from '../components/charts/index.ts'
 import { PLATFORM_COLORS, PLATFORM_LABELS } from '../theme/colors.ts'
 
@@ -35,10 +35,10 @@ export default function PlatformComparison() {
   const [selectedMarketplace, setSelectedMarketplace] = useState<string>(scope ? marketplaceId(scope) : 'amazon_in')
 
   const marketplaces = [
-    { id: 'amazon_in', label: '🔶 Amazon' },
-    { id: 'meesho', label: '💜 Meesho' },
-    { id: 'snapdeal', label: '🟡 Snapdeal' },
-    { id: 'flipkart', label: '🔵 Flipkart' },
+    { id: 'amazon_in', label: 'Amazon', color: '#FF9900' },
+    { id: 'meesho', label: 'Meesho', color: '#f43397' },
+    { id: 'snapdeal', label: 'Snapdeal', color: '#e40046' },
+    { id: 'flipkart', label: 'Flipkart', color: '#2874f0' },
   ]
 
   useEffect(() => {
@@ -62,7 +62,7 @@ export default function PlatformComparison() {
     return () => clearInterval(interval)
   }, [selectedMarketplace])
 
-  if (loading) return <Card className="text-stone">Loading platform comparison...</Card>
+  if (loading) return <Card className="text-gray-400">Loading platform comparison...</Card>
 
   if (!comparisonAll || Object.keys(comparisonAll).length === 0) {
     return (
@@ -72,8 +72,8 @@ export default function PlatformComparison() {
           subtitle="Side-by-side analysis of all 4 marketplace platforms"
         />
         <Card className="text-center py-8">
-          <p className="text-stone mb-2">No comparison data yet</p>
-          <p className="text-xs text-stone">Waiting for first data collection cycle...</p>
+          <p className="text-gray-500 mb-2 text-sm">No comparison data yet</p>
+          <p className="text-xs text-gray-400">Waiting for first data collection cycle...</p>
         </Card>
       </div>
     )
@@ -105,18 +105,19 @@ export default function PlatformComparison() {
       />
 
       {/* Platform Selector */}
-      {!scope && (<Card className="bg-cream border-l-4 border-clay">
+      {!scope && (<Card className="bg-orange-50 border-l-4 border-orange-500">
         <div className="flex items-center gap-2 flex-wrap">
           {marketplaces.map((mp) => (
             <button
               key={mp.id}
               onClick={() => setSelectedMarketplace(mp.id)}
-              className={`px-3 py-1.5 rounded text-sm font-medium transition-colors ${
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${
                 selectedMarketplace === mp.id
-                  ? 'bg-clay text-white'
-                  : 'bg-sand text-ink hover:bg-clay hover:text-white'
+                  ? 'bg-gray-900 text-white'
+                  : 'bg-white border border-gray-200 text-gray-600 hover:border-gray-400'
               }`}
             >
+              <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: mp.color }} />
               {mp.label}
             </button>
           ))}
@@ -124,16 +125,16 @@ export default function PlatformComparison() {
       </Card>)}
 
       {/* Metric Selector */}
-      <Card className="bg-sand">
+      <Card className="bg-gray-50">
         <div className="flex items-center gap-2 flex-wrap">
           {metrics.map((m) => (
             <button
               key={m.key}
               onClick={() => setSelectedMetric(m.key as any)}
-              className={`px-3 py-1.5 rounded text-sm font-medium transition-colors ${
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${
                 selectedMetric === m.key
-                  ? 'bg-clay text-white'
-                  : 'bg-white text-ink border border-clay hover:bg-cream'
+                  ? 'bg-orange-500 text-white'
+                  : 'bg-white text-gray-600 border border-gray-200 hover:border-orange-200 hover:text-orange-600'
               }`}
             >
               {m.label}
@@ -143,21 +144,21 @@ export default function PlatformComparison() {
       </Card>
 
       {/* Rankings */}
-      <Card className="bg-cream border-l-4 border-clay">
-        <h2 className="text-sm font-semibold text-ink mb-4">🏆 Ranking by {metrics.find(m => m.key === selectedMetric)?.label}</h2>
+      <Card className="bg-orange-50 border-l-4 border-orange-500">
+        <h2 className="text-sm font-bold text-gray-900 mb-4 flex items-center gap-1.5"><Trophy className="w-4 h-4 text-amber-500" />Ranking by {metrics.find(m => m.key === selectedMetric)?.label}</h2>
         <div className="space-y-2">
           {rankings.map((rank, idx) => {
             const metricInfo = metrics.find(m => m.key === selectedMetric)
             const value = metricInfo?.format(rank.value) || rank.value
-            const badges = ['🥇', '🥈', '🥉', '4️⃣']
+            const rankTone = ['bg-amber-400 text-white', 'bg-gray-300 text-white', 'bg-orange-300 text-white', 'bg-gray-100 text-gray-500'][idx] || 'bg-gray-100 text-gray-500'
 
             return (
-              <div key={rank.platform} className="flex items-center justify-between p-3 bg-white rounded border border-sand">
+              <div key={rank.platform} className="flex items-center justify-between p-3 bg-white rounded-xl border border-gray-200">
                 <div className="flex items-center gap-3 flex-1">
-                  <span className="text-xl">{badges[idx] || '•'}</span>
-                  <span className="font-medium text-ink capitalize">{rank.platform}</span>
+                  <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 ${rankTone}`}>{idx + 1}</span>
+                  <span className="font-semibold text-sm text-gray-900 capitalize">{rank.platform}</span>
                 </div>
-                <span className="text-lg font-bold text-clay">{value}</span>
+                <span className="text-lg font-bold text-orange-500">{value}</span>
               </div>
             )
           })}
@@ -166,7 +167,7 @@ export default function PlatformComparison() {
 
       {/* Ranking chart */}
       <Card>
-        <h2 className="text-sm font-semibold text-ink mb-3">{metrics.find(m => m.key === selectedMetric)?.label} by Platform</h2>
+        <h2 className="text-sm font-bold text-gray-900 mb-3">{metrics.find(m => m.key === selectedMetric)?.label} by Platform</h2>
         <PlatformBarChart
           data={platformKeys.map((mp) => ({
             platformId: mp,
@@ -179,29 +180,29 @@ export default function PlatformComparison() {
 
       {/* Detailed Comparison Table */}
       <Card>
-        <h2 className="text-sm font-semibold text-ink mb-4">Detailed Metrics</h2>
+        <h2 className="text-sm font-bold text-gray-900 mb-4">Detailed Metrics</h2>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-sand bg-cream">
-                <th className="text-left py-2 px-3 text-stone">Platform</th>
+              <tr className="border-b border-gray-200 bg-gray-50">
+                <th className="text-left py-2 px-3 text-xs text-gray-400">Platform</th>
                 {metrics.map((m) => (
-                  <th key={m.key} className="text-right py-2 px-3 text-stone">
+                  <th key={m.key} className="text-right py-2 px-3 text-xs text-gray-400">
                     {m.label}
                   </th>
                 ))}
-                <th className="text-right py-2 px-3 text-stone">30d Change</th>
+                <th className="text-right py-2 px-3 text-xs text-gray-400">30d Change</th>
               </tr>
             </thead>
             <tbody>
               {platformKeys.map((mp) => (
-                <tr key={mp} className="border-b border-sand hover:bg-cream/50">
-                  <td className="py-3 px-3 font-medium text-ink capitalize">{mp.replace('_in', '')}</td>
+                <tr key={mp} className="border-b border-gray-100 hover:bg-gray-50">
+                  <td className="py-3 px-3 font-semibold text-gray-900 capitalize">{mp.replace('_in', '')}</td>
                   {metrics.map((m) => {
                     const metricKey = m.key as keyof typeof comparison[string]['latest']
                     const value = comparison[mp].latest?.[metricKey]
                     return (
-                      <td key={m.key} className="text-right py-3 px-3 text-stone">
+                      <td key={m.key} className="text-right py-3 px-3 text-gray-500">
                         {value !== undefined && value !== null ? m.format(value) : '—'}
                       </td>
                     )
@@ -213,11 +214,11 @@ export default function PlatformComparison() {
                           {comparison[mp].change_30d.revenue_delta > 0 ? (
                             <TrendingUp size={14} className="text-green-600" />
                           ) : (
-                            <TrendingDown size={14} className="text-brick" />
+                            <TrendingDown size={14} className="text-red-500" />
                           )}
                           <span
                             className={`font-bold ${
-                              comparison[mp].change_30d.revenue_delta > 0 ? 'text-green-600' : 'text-brick'
+                              comparison[mp].change_30d.revenue_delta > 0 ? 'text-green-600' : 'text-red-500'
                             }`}
                           >
                             ₹{Math.abs(comparison[mp].change_30d.revenue_delta).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
@@ -238,7 +239,7 @@ export default function PlatformComparison() {
       {/* Trend Chart — one overlay instead of a separate mini-chart per platform */}
       {comparison && (
         <Card>
-          <h3 className="text-sm font-semibold text-ink mb-3">{metrics.find(m => m.key === selectedMetric)?.label} — 30-Day Trend</h3>
+          <h3 className="text-sm font-bold text-gray-900 mb-3">{metrics.find(m => m.key === selectedMetric)?.label} — 30-Day Trend</h3>
           {(() => {
             const field = METRIC_FIELD[selectedMetric]
             const byDate: Record<string, Record<string, any>> = {}
@@ -261,17 +262,17 @@ export default function PlatformComparison() {
       )}
 
       {/* Performance Summary */}
-      <Card className="bg-sand">
-        <h3 className="font-semibold text-ink text-sm mb-3">📊 Performance Summary</h3>
+      <Card className="bg-gray-50">
+        <h3 className="font-bold text-gray-900 text-sm mb-3 flex items-center gap-1.5"><BarChart3 className="w-4 h-4 text-orange-500" />Performance Summary</h3>
         <div className="space-y-2 text-sm">
           {platformKeys.map((mp) => (
-            <div key={mp} className="flex justify-between items-center p-2 bg-white rounded">
-              <span className="font-medium text-ink capitalize">{mp.replace('_in', '')}</span>
-              <div className="flex gap-4 text-xs text-stone">
+            <div key={mp} className="flex justify-between items-center p-2.5 bg-white rounded-xl border border-gray-200">
+              <span className="font-semibold text-gray-900 capitalize">{mp.replace('_in', '')}</span>
+              <div className="flex gap-4 text-xs text-gray-400">
                 <span>CTR: {fmtPct(comparison[mp].latest?.ctr_pct)}</span>
                 <span>CVR: {fmtPct(comparison[mp].latest?.cvr_pct)}</span>
                 <span>Orders: {comparison[mp].latest?.orders?.toLocaleString()}</span>
-                <span className="font-bold text-ink">
+                <span className="font-bold text-gray-900">
                   ₹{(comparison[mp].latest?.revenue || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
                 </span>
               </div>

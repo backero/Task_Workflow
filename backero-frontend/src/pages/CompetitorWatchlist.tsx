@@ -30,12 +30,12 @@ export default function CompetitorWatchlist() {
           if (rivals.length === 0) return null
           return (
             <Card key={p.asin}>
-              <h2 className="mb-3 text-sm font-semibold text-ink">
-                {p.name} <span className="font-normal text-stone">· ₹{p.price} · your reviews {velocity(p.review_velocity_7d)}/wk</span>
+              <h2 className="mb-3 text-sm font-semibold text-gray-900">
+                {p.name} <span className="font-normal text-gray-400">· ₹{p.price} · your reviews {velocity(p.review_velocity_7d)}/wk</span>
               </h2>
               <table className="w-full text-left text-sm">
                 <thead>
-                  <tr className="text-xs uppercase text-stone">
+                  <tr className="text-xs uppercase text-gray-400">
                     <th className="py-1">Rival</th><th>Price</th><th>Deal?</th><th>BSR</th><th>Rating</th><th>Reviews / wk</th><th>DQ</th>
                   </tr>
                 </thead>
@@ -43,9 +43,9 @@ export default function CompetitorWatchlist() {
                   {rivals.map((r) => {
                     const cheaper = r.latest_snapshot && p.price != null && r.latest_snapshot.price < p.price
                     return (
-                      <tr key={r.asin} className="border-t border-sand">
+                      <tr key={r.asin} className="border-t border-gray-200">
                         <td className="py-1">{r.name}</td>
-                        <td className={cheaper ? 'font-semibold text-brick-dark' : ''}>
+                        <td className={cheaper ? 'font-semibold text-red-600' : ''}>
                           {r.latest_snapshot ? `₹${r.latest_snapshot.price}` : '—'}
                         </td>
                         <td>{r.latest_snapshot?.coupon_deal_flag ? 'Active' : '—'}</td>

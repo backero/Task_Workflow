@@ -2,7 +2,7 @@ import type { ReactNode } from 'react'
 
 export default function Card({ children, className = '' }: { children: ReactNode; className?: string }) {
   return (
-    <div className={`rounded-2xl border border-sand bg-white p-4 shadow-card transition-shadow hover:shadow-lift ${className}`}>
+    <div className={`rounded-2xl border border-gray-200 bg-white p-4 ${className}`}>
       {children}
     </div>
   )
@@ -10,11 +10,11 @@ export default function Card({ children, className = '' }: { children: ReactNode
 
 export function PageHeader({ title, subtitle }: { title: string; subtitle?: string }) {
   return (
-    <div className="mb-6 flex items-start gap-3">
-      <span className="mt-2 h-6 w-1.5 shrink-0 rounded-full bg-gradient-to-b from-clay to-ember" />
+    <div className="mb-5 flex items-start gap-3">
+      <span className="mt-1.5 h-5 w-1.5 shrink-0 rounded-full bg-orange-500" />
       <div>
-        <h1 className="font-display text-2xl font-semibold text-ink">{title}</h1>
-        {subtitle && <p className="mt-0.5 text-sm text-stone">{subtitle}</p>}
+        <h1 className="text-lg font-bold text-gray-900">{title}</h1>
+        {subtitle && <p className="mt-0.5 text-xs text-gray-400">{subtitle}</p>}
       </div>
     </div>
   )

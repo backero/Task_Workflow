@@ -27,7 +27,7 @@ export default function PriorityBarChart({ data: externalData, recommendations =
   }
 
   if (!data || data.length === 0) {
-    return <div className="text-stone text-sm p-4">No recommendations available</div>
+    return <div className="text-gray-400 text-sm p-4">No recommendations available</div>
   }
 
   const sorted = [...data]
