@@ -9,7 +9,7 @@ import { useSocketStore } from '../../store/useSocketStore';
 import {
   TriangleAlert, CheckCircle2, BarChart3, Download, Zap, RefreshCw,
   Star, ClipboardPaste, X, Sparkles,
-  Lightbulb, GitCompare, LineChart, Package, FileBarChart2, Search, Eye, Boxes, Radar, Bot,
+  Lightbulb, GitCompare, LineChart, Package, FileBarChart2, Search, Eye, Boxes, Radar, Bot, HeartPulse,
 } from 'lucide-react';
 import { Button, Drawer, Space } from 'antd';
 import AIInsights from '../AIInsights.tsx';
@@ -23,6 +23,9 @@ import CompetitorWatchlist from '../CompetitorWatchlist.tsx';
 import Inventory from '../Inventory.tsx';
 import Tracking from '../Tracking.tsx';
 import Robots from '../Robots.tsx';
+import FlipkartAccountHealth from '../../platforms/flipkart/AccountHealth.tsx';
+import SnapdealHealthGate from '../../platforms/snapdeal/HealthGate.tsx';
+import MeeshoListings from '../../platforms/meesho/Listings.tsx';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -1625,9 +1628,14 @@ const MARKETPLACE_SECTIONS = [
   ...AUTOMATION_PLATFORMS.map((p) => ({ key: p.key, label: p.label, meta: p.meta })),
 ];
 
-// Amazon-only drill-in pages shown as a second pill row under the Amazon platform
-// tab — these map to amazon-server endpoints with no Flipkart/Meesho/Snapdeal
-// equivalent yet (those 3 platforms are Mongo-synced, not live-server backed).
+// Per-platform drill-in pages shown as a second pill row under that platform's
+// tab. Amazon's 7 map to amazon-server's rich REST endpoints. Flipkart/Snapdeal/
+// Meesho get one each for now — those 3 are Mongo-synced snapshots (no live
+// per-platform server), and most of the standalone app's original deep pages for
+// them (Seller Hub, Rank Tracker, Pricing/Calendar, Ads, Payments, etc.) need data
+// types (keyword rank history, ad spend, settlement line-items) that simply
+// aren't captured by the sync today — only Account Health/panel-style data and,
+// for Meesho, listing KPIs, are actually present in the synced snapshot.
 const AMAZON_DEEP_PAGES = [
   { key: 'products-cogs', label: 'Products & COGS',      icon: Package },
   { key: 'sku-scorecard', label: 'SKU Scorecard',        icon: FileBarChart2 },
@@ -1637,15 +1645,26 @@ const AMAZON_DEEP_PAGES = [
   { key: 'tracking',      label: 'Tracking',             icon: Radar },
   { key: 'robots',        label: 'Robots',                icon: Bot },
 ];
+const FLIPKART_DEEP_PAGES = [{ key: 'account-health', label: 'Account Health', icon: HeartPulse }];
+const SNAPDEAL_DEEP_PAGES = [{ key: 'health-gate', label: 'Health Gate', icon: HeartPulse }];
+const MEESHO_DEEP_PAGES   = [{ key: 'listings', label: 'Listings', icon: Package }];
+
+const DEEP_PAGES_BY_PLATFORM = {
+  amazon: AMAZON_DEEP_PAGES,
+  flipkart: FLIPKART_DEEP_PAGES,
+  snapdeal: SNAPDEAL_DEEP_PAGES,
+  meesho: MEESHO_DEEP_PAGES,
+};
 
 function LiveAutomationTab() {
   const [activeSection, setActiveSection] = useState('overview');
-  // null = the existing Amazon KPI-card view; otherwise one of AMAZON_DEEP_PAGES' keys.
-  // Only meaningful while activeSection === 'amazon' — reset whenever the section changes.
-  const [amazonDeepPage, setAmazonDeepPage] = useState(null);
+  // null = the platform's own KPI-card view; otherwise a key from that platform's
+  // entry in DEEP_PAGES_BY_PLATFORM. Reset whenever the section changes so switching
+  // platforms doesn't leave a stale drill-in page selected.
+  const [deepPage, setDeepPage] = useState(null);
   const selectSection = (key) => {
     setActiveSection(key);
-    if (key !== 'amazon') setAmazonDeepPage(null);
+    setDeepPage(null);
   };
 
   const { data: unified, isLoading: unifiedLoading, error: unifiedError } = useQuery({
@@ -1847,26 +1866,26 @@ function LiveAutomationTab() {
             )}
           </div>
 
-          {activePlatform.key === 'amazon' && (
+          {DEEP_PAGES_BY_PLATFORM[activePlatform.key] && (
             <div className="flex items-center gap-2 overflow-x-auto pb-1 mb-4 -mx-1 px-1 border-t border-gray-100 pt-4">
               <button
-                onClick={() => setAmazonDeepPage(null)}
+                onClick={() => setDeepPage(null)}
                 className={clsx(
                   'flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-[11px] font-bold whitespace-nowrap transition-colors flex-shrink-0',
-                  amazonDeepPage === null
+                  deepPage === null
                     ? 'bg-gray-900 border-gray-900 text-white'
                     : 'bg-white border-gray-200 text-gray-600 hover:border-gray-400',
                 )}
               >
                 Overview
               </button>
-              {AMAZON_DEEP_PAGES.map((d) => (
+              {DEEP_PAGES_BY_PLATFORM[activePlatform.key].map((d) => (
                 <button
                   key={d.key}
-                  onClick={() => setAmazonDeepPage(d.key)}
+                  onClick={() => setDeepPage(d.key)}
                   className={clsx(
                     'flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-[11px] font-bold whitespace-nowrap transition-colors flex-shrink-0',
-                    amazonDeepPage === d.key
+                    deepPage === d.key
                       ? 'bg-gray-900 border-gray-900 text-white'
                       : 'bg-white border-gray-200 text-gray-600 hover:border-gray-400',
                   )}
@@ -1877,15 +1896,18 @@ function LiveAutomationTab() {
             </div>
           )}
 
-          {activePlatform.key === 'amazon' && amazonDeepPage ? (
+          {deepPage ? (
             <div className="mt-2">
-              {amazonDeepPage === 'products-cogs' && <ProductsCOGS />}
-              {amazonDeepPage === 'sku-scorecard' && <SkuScorecard />}
-              {amazonDeepPage === 'keywords' && <KeywordBoard />}
-              {amazonDeepPage === 'competitors' && <CompetitorWatchlist />}
-              {amazonDeepPage === 'inventory' && <Inventory />}
-              {amazonDeepPage === 'tracking' && <Tracking />}
-              {amazonDeepPage === 'robots' && <Robots />}
+              {deepPage === 'products-cogs' && <ProductsCOGS />}
+              {deepPage === 'sku-scorecard' && <SkuScorecard />}
+              {deepPage === 'keywords' && <KeywordBoard />}
+              {deepPage === 'competitors' && <CompetitorWatchlist />}
+              {deepPage === 'inventory' && <Inventory />}
+              {deepPage === 'tracking' && <Tracking />}
+              {deepPage === 'robots' && <Robots />}
+              {deepPage === 'account-health' && activePlatform.key === 'flipkart' && <FlipkartAccountHealth />}
+              {deepPage === 'health-gate' && activePlatform.key === 'snapdeal' && <SnapdealHealthGate />}
+              {deepPage === 'listings' && activePlatform.key === 'meesho' && <MeeshoListings />}
             </div>
           ) : activePlatform.isLoading ? (
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">

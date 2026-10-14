@@ -1,48 +1,88 @@
-import { useState } from 'react'
-import { PageHeader } from '../../components/Card.tsx'
-import StatusDot from '../../components/StatusDot.tsx'
-import { useAutoRefresh } from '../../hooks/useAutoRefresh.ts'
-import { getMeeshoListings, type MeeshoListing } from './api.ts'
+import { useEffect, useState } from 'react';
+import api from '../../api/axios.js';
+import { PackageSearch, Star, TriangleAlert } from 'lucide-react';
 
-export default function MeeshoListingsPage() {
-  const [rows, setRows] = useState<MeeshoListing[] | null>(null)
-  const [error, setError] = useState<string | null>(null)
-  useAutoRefresh(() => { getMeeshoListings().then(setRows).catch((e) => setError(String(e))) }, [], 60_000)
+type Kpis = {
+  listings?: number; live?: number; blocked?: number;
+  orders_7d?: number; impressions_7d?: number;
+  avg_quality_score?: number; avg_rating?: number;
+  open_critical_alerts?: number; open_recs?: number;
+};
 
-  if (error) return <div className="text-brick">Could not reach Meesho's app on port 8000 — is it running? ({error})</div>
-  if (!rows) return <div className="text-stone">Loading…</div>
+function Tile({ label, value }: { label: string; value: React.ReactNode }) {
+  return (
+    <div className="rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5">
+      <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wide">{label}</p>
+      <p className="text-lg font-bold text-gray-900 mt-1">{value}</p>
+    </div>
+  );
+}
+
+export default function MeeshoListings() {
+  const [data, setData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    api.get('/marketflow/meesho/overview')
+      .then((r) => setData(r.data))
+      .catch(() => setData(null))
+      .finally(() => setLoading(false));
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        {[1, 2, 3, 4].map((i) => <div key={i} className="h-20 bg-gray-100 rounded-xl animate-pulse" />)}
+      </div>
+    );
+  }
+
+  const kpis: Kpis = data?.kpis || {};
+  const topIssues: any[] = Array.isArray(data?.top_issues) ? data.top_issues : [];
+  // The scraper hasn't completed its first real sign-in yet (manual login still
+  // pending), so every KPI reads a literal zero — distinguish that from a
+  // genuinely-synced "zero issues, all good" state rather than show a wall of 0s.
+  const hasAnyRealData = Object.values(kpis).some((v) => Number(v) > 0) || topIssues.length > 0;
+
+  if (!hasAnyRealData) {
+    return (
+      <div className="text-center py-10 text-gray-400">
+        <TriangleAlert className="w-10 h-10 mx-auto mb-3 opacity-20" />
+        <p className="text-sm font-medium text-gray-500">No Meesho data synced yet</p>
+        <p className="text-xs mt-1">The scraper needs a completed manual sign-in before this fills in</p>
+      </div>
+    );
+  }
 
   return (
-    <div>
-      <PageHeader title="Meesho — Listings" subtitle={`${rows.length} products, from real Business Dashboard reads.`} />
-      <div className="overflow-x-auto rounded-xl border border-sand bg-white">
-        <table className="w-full text-sm">
-          <thead className="bg-sand/50 text-left text-xs uppercase text-stone">
-            <tr>
-              <th className="px-3 py-2">RAG</th><th className="px-3 py-2">Catalog ID</th><th className="px-3 py-2">Title</th>
-              <th className="px-3 py-2">Status</th><th className="px-3 py-2">Rating</th><th className="px-3 py-2">Impr. 7d</th>
-              <th className="px-3 py-2">Orders 7d</th><th className="px-3 py-2">CTR%</th><th className="px-3 py-2">CVR%</th>
-              <th className="px-3 py-2">Open recs</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((r) => (
-              <tr key={r.id} className="border-t border-sand">
-                <td className="px-3 py-2"><StatusDot status={r.rag === 'red' ? 'red' : r.rag === 'amber' ? 'amber' : 'green'} /></td>
-                <td className="px-3 py-2 text-stone">{r.catalog_id}</td>
-                <td className="px-3 py-2 font-medium text-ink">{r.name}</td>
-                <td className="px-3 py-2">{r.status}</td>
-                <td className="px-3 py-2">{r.rating || '—'}★</td>
-                <td className="px-3 py-2">{r.impressions_7d.toLocaleString('en-IN')}</td>
-                <td className="px-3 py-2">{r.orders_7d}</td>
-                <td className="px-3 py-2">{r.ctr}</td>
-                <td className="px-3 py-2">{r.cvr}</td>
-                <td className="px-3 py-2">{r.open_recs}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+    <div className="space-y-6">
+      <div>
+        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wide mb-2.5">Listings</p>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          <Tile label="Total Listings" value={kpis.listings ?? '—'} />
+          <Tile label="Live" value={kpis.live ?? '—'} />
+          <Tile label="Blocked" value={kpis.blocked ?? '—'} />
+          <Tile label="Avg Quality Score" value={kpis.avg_quality_score ?? '—'} />
+          <Tile label="Avg Rating" value={kpis.avg_rating != null ? <span className="inline-flex items-center gap-1"><Star className="w-3.5 h-3.5 text-amber-500 fill-amber-500" />{kpis.avg_rating}</span> : '—'} />
+          <Tile label="Orders (7d)" value={kpis.orders_7d ?? '—'} />
+          <Tile label="Impressions (7d)" value={kpis.impressions_7d ?? '—'} />
+          <Tile label="Open Critical Alerts" value={kpis.open_critical_alerts ?? '—'} />
+        </div>
       </div>
+
+      {topIssues.length > 0 && (
+        <div>
+          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wide mb-2.5">Top Issues</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            {topIssues.slice(0, 10).map((it, i) => (
+              <div key={i} className="flex items-start gap-2 p-2.5 rounded-lg bg-red-50/60 border border-red-100">
+                <PackageSearch className="w-3.5 h-3.5 text-red-500 mt-0.5 flex-shrink-0" />
+                <p className="text-xs text-gray-600 truncate">{it.title || it.message || it.type || JSON.stringify(it)}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
-  )
+  );
 }

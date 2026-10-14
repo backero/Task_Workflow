@@ -1,68 +1,124 @@
-import { useState } from 'react'
-import Card, { PageHeader } from '../../components/Card.tsx'
-import { useAutoRefresh } from '../../hooks/useAutoRefresh.ts'
-import { getSnapdealHealth, type SnapdealHealth } from './api.ts'
+import { useEffect, useState } from 'react';
+import api from '../../api/axios.js';
+import { HeartPulse, TrendingUp, TrendingDown, Star, IndianRupee } from 'lucide-react';
+import { clsx } from 'clsx';
 
-const GATES: { key: Exclude<keyof NonNullable<SnapdealHealth['latest']>, 'day'>; label: string; limit: number; higherIsWorse: boolean }[] = [
-  { key: 'cancellation_pct', label: 'Cancellation %', limit: 1, higherIsWorse: true },
-  { key: 'ontime_pct', label: 'On-time dispatch %', limit: 98, higherIsWorse: false },
-  { key: 'rating', label: 'Rating', limit: 4.0, higherIsWorse: false },
-  { key: 'dto_pct', label: 'DTO %', limit: 5.5, higherIsWorse: true },
-  { key: 'rto_pct', label: 'RTO %', limit: 10, higherIsWorse: true },
-  { key: 'dispatched_24h_pct', label: 'Dispatched within 24h %', limit: 95, higherIsWorse: false },
-]
+type Panel = {
+  account_health?: string;
+  avg_seller_rating?: number;
+  order_processing_health?: string;
+  orders_booked?: number; orders_booked_change_abs_pct?: number;
+  orders_processed?: number; orders_processed_change_abs_pct?: number;
+  orders_returned?: number; orders_returned_change_abs_pct?: number;
+  sales_completed?: number; sales_completed_change_abs_pct?: number;
+  sales_returned?: number; sales_returned_change_abs_pct?: number;
+  unsettled_cod?: number; unsettled_ncod?: number;
+  last_settled_cod?: number; last_settled_ncod?: number;
+  captured_at?: string;
+};
 
-export default function SnapdealHealthGatePage() {
-  const [data, setData] = useState<SnapdealHealth | null>(null)
-  const [error, setError] = useState<string | null>(null)
-  useAutoRefresh(() => { getSnapdealHealth().then(setData).catch((e) => setError(String(e))) }, [], 60_000)
+const HEALTH_TONE: Record<string, string> = {
+  good: 'bg-green-50 border-green-200 text-green-700',
+  fair: 'bg-amber-50 border-amber-200 text-amber-700',
+  poor: 'bg-red-50 border-red-200 text-red-700',
+};
 
-  if (error) return <Card className="text-brick">Could not reach Snapdeal's app on port 8300 — is it running? ({error})</Card>
-  if (!data) return <Card className="text-stone">Loading…</Card>
+function healthTone(label?: string) {
+  return HEALTH_TONE[(label || '').toLowerCase()] || 'bg-gray-50 border-gray-200 text-gray-600';
+}
+
+function ChangeBadge({ pct }: { pct?: number }) {
+  if (pct == null) return null;
+  const positive = pct >= 0;
+  return (
+    <span className={clsx('inline-flex items-center gap-0.5 text-[10px] font-semibold', positive ? 'text-green-600' : 'text-red-500')}>
+      {positive ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
+      {Math.abs(pct)}%
+    </span>
+  );
+}
+
+function Tile({ label, value, change }: { label: string; value: React.ReactNode; change?: React.ReactNode }) {
+  return (
+    <div className="rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5">
+      <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wide">{label}</p>
+      <div className="flex items-end gap-2 mt-1">
+        <span className="text-lg font-bold text-gray-900">{value}</span>
+        {change}
+      </div>
+    </div>
+  );
+}
+
+export default function SnapdealHealthGate() {
+  const [data, setData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    api.get('/marketflow/snapdeal/overview')
+      .then((r) => setData(r.data))
+      .catch(() => setData(null))
+      .finally(() => setLoading(false));
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        {[1, 2, 3, 4].map((i) => <div key={i} className="h-20 bg-gray-100 rounded-xl animate-pulse" />)}
+      </div>
+    );
+  }
+
+  const panel: Panel = data?.panel || {};
+  const hasData = Object.keys(panel).length > 0;
+
+  if (!hasData) {
+    return (
+      <div className="text-center py-10 text-gray-400">
+        <HeartPulse className="w-10 h-10 mx-auto mb-3 opacity-20" />
+        <p className="text-sm font-medium text-gray-500">No health panel data synced yet</p>
+      </div>
+    );
+  }
 
   return (
-    <div className="space-y-4">
-      <PageHeader title="Snapdeal — Health Gate" subtitle="Seller-health thresholds that gate visibility, from the seller scorecard." />
-      {!data.latest ? (
-        <Card className="text-sm text-stone">No scorecard data read yet.</Card>
-      ) : (
-        <div className="grid grid-cols-3 gap-3">
-          {GATES.map((g) => {
-            const v = data.latest![g.key]
-            const breached = v != null && (g.higherIsWorse ? v > g.limit : v < g.limit)
-            return (
-              <Card key={g.key} className={breached ? 'border-brick' : undefined}>
-                <div className="text-xs font-medium uppercase tracking-wide text-stone">{g.label}</div>
-                <div className={`mt-1 text-2xl font-bold ${breached ? 'text-brick' : 'text-ink'}`}>{v ?? '—'}</div>
-                <div className="text-xs text-stone">Gate: {g.higherIsWorse ? '<' : '>'} {g.limit}</div>
-              </Card>
-            )
-          })}
+    <div className="space-y-6">
+      <div className="flex flex-wrap items-center gap-3">
+        <div className={clsx('flex items-center gap-2 px-3.5 py-2 rounded-xl border text-sm font-bold', healthTone(panel.account_health))}>
+          <HeartPulse className="w-4 h-4" />Account Health: {panel.account_health || '—'}
         </div>
-      )}
-      {data.history.length > 0 && (
-        <Card>
-          <h2 className="mb-2 text-sm font-semibold text-ink">History</h2>
-          <table className="w-full text-xs">
-            <thead className="text-left text-stone">
-              <tr><th className="pb-1 pr-3">Day</th><th className="pb-1 pr-3">Cancel%</th><th className="pb-1 pr-3">On-time%</th><th className="pb-1 pr-3">Rating</th><th className="pb-1 pr-3">DTO%</th><th className="pb-1 pr-3">RTO%</th><th className="pb-1">Dispatched24h%</th></tr>
-            </thead>
-            <tbody>
-              {data.history.map((h) => (
-                <tr key={h.day} className="border-t border-sand">
-                  <td className="py-1.5 pr-3 text-stone">{h.day}</td>
-                  <td className="py-1.5 pr-3">{h.cancellation_pct ?? '—'}</td>
-                  <td className="py-1.5 pr-3">{h.ontime_pct ?? '—'}</td>
-                  <td className="py-1.5 pr-3">{h.rating ?? '—'}</td>
-                  <td className="py-1.5 pr-3">{h.dto_pct ?? '—'}</td>
-                  <td className="py-1.5 pr-3">{h.rto_pct ?? '—'}</td>
-                  <td className="py-1.5">{h.dispatched_24h_pct ?? '—'}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </Card>
+        <div className={clsx('flex items-center gap-2 px-3.5 py-2 rounded-xl border text-sm font-bold', healthTone(panel.order_processing_health))}>
+          Order Processing: {panel.order_processing_health || '—'}
+        </div>
+        <div className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-gray-200 bg-white text-sm font-bold text-gray-700">
+          <Star className="w-4 h-4 text-amber-500 fill-amber-500" />{panel.avg_seller_rating ?? '—'}
+        </div>
+      </div>
+
+      <div>
+        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wide mb-2.5">Orders & Sales</p>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          <Tile label="Orders Booked" value={panel.orders_booked ?? '—'} change={<ChangeBadge pct={panel.orders_booked_change_abs_pct} />} />
+          <Tile label="Orders Processed" value={panel.orders_processed ?? '—'} change={<ChangeBadge pct={panel.orders_processed_change_abs_pct} />} />
+          <Tile label="Orders Returned" value={panel.orders_returned ?? '—'} change={<ChangeBadge pct={panel.orders_returned_change_abs_pct} />} />
+          <Tile label="Sales Completed" value={panel.sales_completed != null ? `₹${panel.sales_completed}` : '—'} change={<ChangeBadge pct={panel.sales_completed_change_abs_pct} />} />
+          <Tile label="Sales Returned" value={panel.sales_returned != null ? `₹${panel.sales_returned}` : '—'} change={<ChangeBadge pct={panel.sales_returned_change_abs_pct} />} />
+        </div>
+      </div>
+
+      <div>
+        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wide mb-2.5">Settlements</p>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          <Tile label="Unsettled COD" value={<span className="inline-flex items-center gap-0.5"><IndianRupee className="w-3.5 h-3.5" />{panel.unsettled_cod ?? '—'}</span>} />
+          <Tile label="Unsettled Non-COD" value={<span className="inline-flex items-center gap-0.5"><IndianRupee className="w-3.5 h-3.5" />{panel.unsettled_ncod ?? '—'}</span>} />
+          <Tile label="Last Settled COD" value={<span className="inline-flex items-center gap-0.5"><IndianRupee className="w-3.5 h-3.5" />{panel.last_settled_cod ?? '—'}</span>} />
+          <Tile label="Last Settled Non-COD" value={<span className="inline-flex items-center gap-0.5"><IndianRupee className="w-3.5 h-3.5" />{panel.last_settled_ncod ?? '—'}</span>} />
+        </div>
+      </div>
+
+      {panel.captured_at && (
+        <p className="text-[10px] text-gray-400">As of {new Date(panel.captured_at).toLocaleString('en-IN')}</p>
       )}
     </div>
-  )
+  );
 }
