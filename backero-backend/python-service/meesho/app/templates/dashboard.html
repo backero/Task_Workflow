@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+{% block title %}Overview · Meesho Seller Command Center{% endblock %}
+{% block content %}
+<h1 class="page-title">Overview</h1>
+
+<section class="card" id="real-panel">
+  <h2>Real account numbers <span class="muted" id="real-panel-at"></span></h2>
+  <p class="muted" id="real-panel-note">Read straight from your Meesho Supplier Panel by the Robo. The listing tables below are demo sample data until real listings are connected.</p>
+  <div class="kpi-grid" id="real-panel-grid"></div>
+</section>
+
+<section class="card" id="ai-panel">
+  <h2>AI strategic analysis <span class="muted" id="ai-panel-at"></span></h2>
+  <p class="muted" id="ai-panel-note">Claude's read on the real numbers above, grounded in Meesho's own algorithm research doc. Reasoning, not a new source of numbers.</p>
+  <div id="ai-panel-body"></div>
+</section>
+
+<section class="kpi-grid" id="kpi-grid">
+  <div class="card kpi"><div class="kpi-label">Listings</div><div class="kpi-value" id="kpi-listings">–</div></div>
+  <div class="card kpi"><div class="kpi-label">Live</div><div class="kpi-value" id="kpi-live">–</div></div>
+  <div class="card kpi"><div class="kpi-label">Blocked</div><div class="kpi-value" id="kpi-blocked">–</div></div>
+  <div class="card kpi"><div class="kpi-label">Orders (7d)</div><div class="kpi-value" id="kpi-orders">–</div></div>
+  <div class="card kpi"><div class="kpi-label">Impressions (7d)</div><div class="kpi-value" id="kpi-impressions">–</div></div>
+  <div class="card kpi"><div class="kpi-label">Avg Quality Score</div><div class="kpi-value" id="kpi-qs">–</div></div>
+  <div class="card kpi"><div class="kpi-label">Avg Rating</div><div class="kpi-value" id="kpi-rating">–</div></div>
+  <div class="card kpi"><div class="kpi-label">Critical Alerts</div><div class="kpi-value" id="kpi-critical">–</div></div>
+</section>
+
+<section class="grid-2">
+  <div class="card">
+    <h2>Impressions &amp; Orders — last 30 days</h2>
+    <div class="chart-box"><canvas id="chart-traffic"></canvas></div>
+  </div>
+  <div class="card">
+    <h2>Average Quality Score (thresholds 15 / 25)</h2>
+    <div class="chart-box"><canvas id="chart-qs"></canvas></div>
+  </div>
+</section>
+
+<section class="card">
+  <h2>Top Issues <span class="muted" id="open-recs-note"></span></h2>
+  <ul class="issue-list" id="top-issues"><li class="muted">Loading…</li></ul>
+</section>
+{% endblock %}
+{% block scripts %}
+<script>
+(async () => {
+  const fmt = (v, d = 0) => v === null || v === undefined ? "N/A" : Number(v).toLocaleString("en-IN", {maximumFractionDigits: d});
+  const rupee = v => v === null || v === undefined ? "N/A" : "₹" + fmt(v, 2);
+  try {
+    const r = await (await fetch("/api/panel")).json();
+    const a = r.areas || {}, g = (area, key) => (a[area] && a[area][key]) ? a[area][key].value : null;
+    if (!r.captured_at) { document.getElementById("real-panel-note").textContent = "No real read yet - sign in in the Supplier Panel window that the Robo opened."; return; }
+    document.getElementById("real-panel-at").textContent = "(read " + r.captured_at.replace("T", " ") + ")";
+    const tiles = [
+      ["Views", fmt(g("business_overview", "views"))], ["Clicks", fmt(g("business_overview", "clicks"))],
+      ["Orders", fmt(g("business_overview", "orders"))], ["Sales", rupee(g("business_overview", "sales"))],
+      ["Return %", fmt(g("business_overview", "return_pct"), 2) + "%"],
+      ["Payments due", rupee(g("payments", "upcoming_total"))], ["Paid (30d)", rupee(g("payments", "completed_total"))],
+      ["Customer return rate", fmt(g("returns", "return_rate_pct"), 2) + "%"], ["RTO rate", fmt(g("returns", "rto_rate_pct"), 2) + "%"],
+      ["Quality score", g("quality", "quality_score") === null ? "N/A (too few ratings)" : fmt(g("quality", "quality_score"), 1) + "%"],
+      ["Total ratings", fmt(g("quality", "total_ratings"))],
+    ];
+    document.getElementById("real-panel-grid").innerHTML = tiles.map(t =>
+      '<div class="card kpi"><div class="kpi-label">' + t[0] + '</div><div class="kpi-value">' + t[1] + '</div></div>').join("");
+  } catch (e) { document.getElementById("real-panel-note").textContent = "Could not load real numbers: " + e; }
+})();
+(async () => {
+  const esc = s => String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+  // Minimal, dependency-free markdown for the handful of things Claude's replies actually use: headers, bold,
+  // horizontal rules and numbered/bulleted lines. Escapes HTML first, so nothing in the AI's own text can inject markup.
+  const mdToHtml = (md) => {
+    const lines = esc(md).split("\n");
+    let html = "", inList = false;
+    const closeList = () => { if (inList) { html += "</ul>"; inList = false; } };
+    for (let line of lines) {
+      line = line.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
+      if (/^---+$/.test(line.trim())) { closeList(); html += "<hr>"; continue; }
+      const h = line.match(/^(#{1,3})\s+(.*)/);
+      if (h) { closeList(); html += `<h${h[1].length + 2}>${h[2]}</h${h[1].length + 2}>`; continue; }
+      const li = line.match(/^\s*(?:[-*]|\d+\.)\s+(.*)/);
+      if (li) { if (!inList) { html += "<ul>"; inList = true; } html += `<li>${li[1]}</li>`; continue; }
+      closeList();
+      html += line.trim() ? `<p>${line}</p>` : "";
+    }
+    closeList();
+    return html;
+  };
+  try {
+    const rows = await (await fetch("/api/ai_insights")).json();
+    if (!rows.length) { document.getElementById("ai-panel-note").textContent += " No analysis yet - it runs after the next real data read."; return; }
+    document.getElementById("ai-panel-at").textContent = "(" + rows[0].ts.replace("T", " ") + ")";
+    document.getElementById("ai-panel-body").innerHTML = '<div class="ai-summary">' + mdToHtml(rows[0].summary) + '</div>';
+  } catch (e) { document.getElementById("ai-panel-note").textContent = "Could not load AI analysis: " + e; }
+})();
+</script>
+<script>document.addEventListener('DOMContentLoaded', () => App.initDashboard());</script>
+{% endblock %}

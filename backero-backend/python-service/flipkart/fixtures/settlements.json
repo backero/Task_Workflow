@@ -1,0 +1,2193 @@
+[
+  {
+    "order_id": "OD100001",
+    "amount": 291.02,
+    "fees_json": "{\"commission\": 53.88, \"fixed_fee\": 20.0, \"collection_fee\": 18.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 24.1}",
+    "order_date": "2026-07-19",
+    "settled_date": "2026-08-01"
+  },
+  {
+    "order_id": "OD100002",
+    "amount": 419.78,
+    "fees_json": "{\"commission\": 71.88, \"fixed_fee\": 20.0, \"collection_fee\": 18.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 27.34}",
+    "order_date": "2026-07-19",
+    "settled_date": "2026-08-02"
+  },
+  {
+    "order_id": "OD100003",
+    "amount": 634.38,
+    "fees_json": "{\"commission\": 101.88, \"fixed_fee\": 20.0, \"collection_fee\": 18.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 32.74}",
+    "order_date": "2026-07-19",
+    "settled_date": "2026-08-01"
+  },
+  {
+    "order_id": "OD100004",
+    "amount": 140.58,
+    "fees_json": "{\"commission\": 29.88, \"fixed_fee\": 20.0, \"collection_fee\": 0.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 16.54}",
+    "order_date": "2026-07-19",
+    "settled_date": "2026-07-27"
+  },
+  {
+    "order_id": "OD100005",
+    "amount": 763.14,
+    "fees_json": "{\"commission\": 119.88, \"fixed_fee\": 20.0, \"collection_fee\": 18.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 35.98}",
+    "order_date": "2026-07-19",
+    "settled_date": "2026-08-03"
+  },
+  {
+    "order_id": "OD100006",
+    "amount": 226.42,
+    "fees_json": "{\"commission\": 41.88, \"fixed_fee\": 20.0, \"collection_fee\": 0.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 18.7}",
+    "order_date": "2026-07-19",
+    "settled_date": "2026-07-30"
+  },
+  {
+    "order_id": "OD100007",
+    "amount": 248.1,
+    "fees_json": "{\"commission\": 47.88, \"fixed_fee\": 20.0, \"collection_fee\": 18.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 23.02}",
+    "order_date": "2026-07-19",
+    "settled_date": "2026-08-02"
+  },
+  {
+    "order_id": "OD100008",
+    "amount": 624.52,
+    "fees_json": "{\"commission\": 107.76, \"fixed_fee\": 40.0, \"collection_fee\": 0.0, \"shipping_fee\": 84.0, \"gst_on_fees\": 41.72}",
+    "order_date": "2026-07-20",
+    "settled_date": "2026-07-29"
+  },
+  {
+    "order_id": "OD100009",
+    "amount": 291.02,
+    "fees_json": "{\"commission\": 53.88, \"fixed_fee\": 20.0, \"collection_fee\": 18.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 24.1}",
+    "order_date": "2026-07-20",
+    "settled_date": "2026-07-30"
+  },
+  {
+    "order_id": "OD100010",
+    "amount": 419.78,
+    "fees_json": "{\"commission\": 71.88, \"fixed_fee\": 20.0, \"collection_fee\": 18.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 27.34}",
+    "order_date": "2026-07-20",
+    "settled_date": "2026-07-27"
+  },
+  {
+    "order_id": "OD100011",
+    "amount": 226.42,
+    "fees_json": "{\"commission\": 41.88, \"fixed_fee\": 20.0, \"collection_fee\": 0.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 18.7}",
+    "order_date": "2026-07-20",
+    "settled_date": "2026-07-31"
+  },
+  {
+    "order_id": "OD100012",
+    "amount": 174.08,
+    "fees_json": "{\"commission\": 47.76, \"fixed_fee\": 40.0, \"collection_fee\": 18.0, \"shipping_fee\": 84.0, \"gst_on_fees\": 34.16}",
+    "order_date": "2026-07-20",
+    "settled_date": "2026-08-02"
+  },
+  {
+    "order_id": "OD100013",
+    "amount": 291.02,
+    "fees_json": "{\"commission\": 53.88, \"fixed_fee\": 20.0, \"collection_fee\": 18.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 24.1}",
+    "order_date": "2026-07-21",
+    "settled_date": "2026-07-29"
+  },
+  {
+    "order_id": "OD100014",
+    "amount": 441.02,
+    "fees_json": "{\"commission\": 71.88, \"fixed_fee\": 20.0, \"collection_fee\": 0.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 24.1}",
+    "order_date": "2026-07-21",
+    "settled_date": "2026-08-05"
+  },
+  {
+    "order_id": "OD100015",
+    "amount": 140.58,
+    "fees_json": "{\"commission\": 29.88, \"fixed_fee\": 20.0, \"collection_fee\": 0.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 16.54}",
+    "order_date": "2026-07-21",
+    "settled_date": "2026-08-01"
+  },
+  {
+    "order_id": "OD100016",
+    "amount": 612.7,
+    "fees_json": "{\"commission\": 95.88, \"fixed_fee\": 20.0, \"collection_fee\": 0.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 28.42}",
+    "order_date": "2026-07-21",
+    "settled_date": "2026-07-30"
+  },
+  {
+    "order_id": "OD100017",
+    "amount": 76.42,
+    "fees_json": "{\"commission\": 23.88, \"fixed_fee\": 20.0, \"collection_fee\": 18.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 18.7}",
+    "order_date": "2026-07-21",
+    "settled_date": "2026-08-03"
+  },
+  {
+    "order_id": "OD100018",
+    "amount": 312.26,
+    "fees_json": "{\"commission\": 53.88, \"fixed_fee\": 20.0, \"collection_fee\": 0.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 20.86}",
+    "order_date": "2026-07-22",
+    "settled_date": "2026-07-30"
+  },
+  {
+    "order_id": "OD100019",
+    "amount": 624.52,
+    "fees_json": "{\"commission\": 107.76, \"fixed_fee\": 40.0, \"collection_fee\": 0.0, \"shipping_fee\": 84.0, \"gst_on_fees\": 41.72}",
+    "order_date": "2026-07-22",
+    "settled_date": "2026-08-06"
+  },
+  {
+    "order_id": "OD100020",
+    "amount": 419.78,
+    "fees_json": "{\"commission\": 71.88, \"fixed_fee\": 20.0, \"collection_fee\": 18.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 27.34}",
+    "order_date": "2026-07-22",
+    "settled_date": "2026-07-30"
+  },
+  {
+    "order_id": "OD100021",
+    "amount": 119.34,
+    "fees_json": "{\"commission\": 29.88, \"fixed_fee\": 20.0, \"collection_fee\": 18.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 19.78}",
+    "order_date": "2026-07-22",
+    "settled_date": "2026-08-02"
+  },
+  {
+    "order_id": "OD100022",
+    "amount": 226.42,
+    "fees_json": "{\"commission\": 41.88, \"fixed_fee\": 20.0, \"collection_fee\": 0.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 18.7}",
+    "order_date": "2026-07-22",
+    "settled_date": "2026-07-30"
+  },
+  {
+    "order_id": "OD100023",
+    "amount": 76.42,
+    "fees_json": "{\"commission\": 23.88, \"fixed_fee\": 20.0, \"collection_fee\": 18.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 18.7}",
+    "order_date": "2026-07-22",
+    "settled_date": "2026-07-30"
+  },
+  {
+    "order_id": "OD100024",
+    "amount": 291.02,
+    "fees_json": "{\"commission\": 53.88, \"fixed_fee\": 20.0, \"collection_fee\": 18.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 24.1}",
+    "order_date": "2026-07-23",
+    "settled_date": "2026-08-06"
+  },
+  {
+    "order_id": "OD100025",
+    "amount": 312.26,
+    "fees_json": "{\"commission\": 53.88, \"fixed_fee\": 20.0, \"collection_fee\": 0.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 20.86}",
+    "order_date": "2026-07-23",
+    "settled_date": "2026-08-02"
+  },
+  {
+    "order_id": "OD100026",
+    "amount": 312.26,
+    "fees_json": "{\"commission\": 53.88, \"fixed_fee\": 20.0, \"collection_fee\": 0.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 20.86}",
+    "order_date": "2026-07-23",
+    "settled_date": "2026-08-02"
+  },
+  {
+    "order_id": "OD100027",
+    "amount": 441.02,
+    "fees_json": "{\"commission\": 71.88, \"fixed_fee\": 20.0, \"collection_fee\": 0.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 24.1}",
+    "order_date": "2026-07-23",
+    "settled_date": "2026-08-03"
+  },
+  {
+    "order_id": "OD100028",
+    "amount": 1290.0,
+    "fees_json": "{\"commission\": 203.76, \"fixed_fee\": 40.0, \"collection_fee\": 18.0, \"shipping_fee\": 84.0, \"gst_on_fees\": 62.24}",
+    "order_date": "2026-07-23",
+    "settled_date": "2026-08-07"
+  },
+  {
+    "order_id": "OD100029",
+    "amount": 205.18,
+    "fees_json": "{\"commission\": 41.88, \"fixed_fee\": 20.0, \"collection_fee\": 18.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 21.94}",
+    "order_date": "2026-07-23",
+    "settled_date": "2026-08-02"
+  },
+  {
+    "order_id": "OD100030",
+    "amount": 591.46,
+    "fees_json": "{\"commission\": 95.88, \"fixed_fee\": 20.0, \"collection_fee\": 18.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 31.66}",
+    "order_date": "2026-07-23",
+    "settled_date": "2026-08-04"
+  },
+  {
+    "order_id": "OD100031",
+    "amount": 97.66,
+    "fees_json": "{\"commission\": 23.88, \"fixed_fee\": 20.0, \"collection_fee\": 0.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 15.46}",
+    "order_date": "2026-07-23",
+    "settled_date": "2026-08-05"
+  },
+  {
+    "order_id": "OD100032",
+    "amount": 269.34,
+    "fees_json": "{\"commission\": 47.88, \"fixed_fee\": 20.0, \"collection_fee\": 0.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 19.78}",
+    "order_date": "2026-07-23",
+    "settled_date": "2026-08-03"
+  },
+  {
+    "order_id": "OD100033",
+    "amount": 462.7,
+    "fees_json": "{\"commission\": 77.88, \"fixed_fee\": 20.0, \"collection_fee\": 18.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 28.42}",
+    "order_date": "2026-07-23",
+    "settled_date": "2026-08-01"
+  },
+  {
+    "order_id": "OD100034",
+    "amount": 291.02,
+    "fees_json": "{\"commission\": 53.88, \"fixed_fee\": 20.0, \"collection_fee\": 18.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 24.1}",
+    "order_date": "2026-07-24",
+    "settled_date": "2026-07-31"
+  },
+  {
+    "order_id": "OD100035",
+    "amount": 441.02,
+    "fees_json": "{\"commission\": 71.88, \"fixed_fee\": 20.0, \"collection_fee\": 0.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 24.1}",
+    "order_date": "2026-07-24",
+    "settled_date": "2026-08-08"
+  },
+  {
+    "order_id": "OD100036",
+    "amount": 140.58,
+    "fees_json": "{\"commission\": 29.88, \"fixed_fee\": 20.0, \"collection_fee\": 0.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 16.54}",
+    "order_date": "2026-07-24",
+    "settled_date": "2026-08-07"
+  },
+  {
+    "order_id": "OD100037",
+    "amount": 205.18,
+    "fees_json": "{\"commission\": 41.88, \"fixed_fee\": 20.0, \"collection_fee\": 18.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 21.94}",
+    "order_date": "2026-07-24",
+    "settled_date": "2026-08-03"
+  },
+  {
+    "order_id": "OD100038",
+    "amount": 612.7,
+    "fees_json": "{\"commission\": 95.88, \"fixed_fee\": 20.0, \"collection_fee\": 0.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 28.42}",
+    "order_date": "2026-07-24",
+    "settled_date": "2026-08-07"
+  },
+  {
+    "order_id": "OD100039",
+    "amount": 248.1,
+    "fees_json": "{\"commission\": 47.88, \"fixed_fee\": 20.0, \"collection_fee\": 18.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 23.02}",
+    "order_date": "2026-07-24",
+    "settled_date": "2026-08-05"
+  },
+  {
+    "order_id": "OD100040",
+    "amount": 291.02,
+    "fees_json": "{\"commission\": 53.88, \"fixed_fee\": 20.0, \"collection_fee\": 18.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 24.1}",
+    "order_date": "2026-07-25",
+    "settled_date": "2026-08-04"
+  },
+  {
+    "order_id": "OD100041",
+    "amount": 312.26,
+    "fees_json": "{\"commission\": 53.88, \"fixed_fee\": 20.0, \"collection_fee\": 0.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 20.86}",
+    "order_date": "2026-07-25",
+    "settled_date": "2026-08-01"
+  },
+  {
+    "order_id": "OD100042",
+    "amount": 441.02,
+    "fees_json": "{\"commission\": 71.88, \"fixed_fee\": 20.0, \"collection_fee\": 0.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 24.1}",
+    "order_date": "2026-07-25",
+    "settled_date": "2026-08-01"
+  },
+  {
+    "order_id": "OD100043",
+    "amount": 140.58,
+    "fees_json": "{\"commission\": 29.88, \"fixed_fee\": 20.0, \"collection_fee\": 0.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 16.54}",
+    "order_date": "2026-07-25",
+    "settled_date": "2026-08-02"
+  },
+  {
+    "order_id": "OD100044",
+    "amount": 97.66,
+    "fees_json": "{\"commission\": 23.88, \"fixed_fee\": 20.0, \"collection_fee\": 0.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 15.46}",
+    "order_date": "2026-07-25",
+    "settled_date": "2026-08-02"
+  },
+  {
+    "order_id": "OD100045",
+    "amount": 483.94,
+    "fees_json": "{\"commission\": 77.88, \"fixed_fee\": 20.0, \"collection_fee\": 0.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 25.18}",
+    "order_date": "2026-07-25",
+    "settled_date": "2026-08-08"
+  },
+  {
+    "order_id": "OD100046",
+    "amount": 291.02,
+    "fees_json": "{\"commission\": 53.88, \"fixed_fee\": 20.0, \"collection_fee\": 18.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 24.1}",
+    "order_date": "2026-07-26",
+    "settled_date": "2026-08-04"
+  },
+  {
+    "order_id": "OD100047",
+    "amount": 291.02,
+    "fees_json": "{\"commission\": 53.88, \"fixed_fee\": 20.0, \"collection_fee\": 18.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 24.1}",
+    "order_date": "2026-07-26",
+    "settled_date": "2026-08-03"
+  },
+  {
+    "order_id": "OD100048",
+    "amount": 634.38,
+    "fees_json": "{\"commission\": 101.88, \"fixed_fee\": 20.0, \"collection_fee\": 18.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 32.74}",
+    "order_date": "2026-07-26",
+    "settled_date": "2026-08-10"
+  },
+  {
+    "order_id": "OD100049",
+    "amount": 259.92,
+    "fees_json": "{\"commission\": 59.76, \"fixed_fee\": 40.0, \"collection_fee\": 18.0, \"shipping_fee\": 84.0, \"gst_on_fees\": 36.32}",
+    "order_date": "2026-07-26",
+    "settled_date": "2026-08-03"
+  },
+  {
+    "order_id": "OD100050",
+    "amount": 205.18,
+    "fees_json": "{\"commission\": 41.88, \"fixed_fee\": 20.0, \"collection_fee\": 18.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 21.94}",
+    "order_date": "2026-07-26",
+    "settled_date": "2026-08-03"
+  },
+  {
+    "order_id": "OD100051",
+    "amount": 97.66,
+    "fees_json": "{\"commission\": 23.88, \"fixed_fee\": 20.0, \"collection_fee\": 0.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 15.46}",
+    "order_date": "2026-07-26",
+    "settled_date": "2026-08-06"
+  },
+  {
+    "order_id": "OD100052",
+    "amount": 291.02,
+    "fees_json": "{\"commission\": 53.88, \"fixed_fee\": 20.0, \"collection_fee\": 18.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 24.1}",
+    "order_date": "2026-07-27",
+    "settled_date": "2026-08-06"
+  },
+  {
+    "order_id": "OD100053",
+    "amount": 419.78,
+    "fees_json": "{\"commission\": 71.88, \"fixed_fee\": 20.0, \"collection_fee\": 18.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 27.34}",
+    "order_date": "2026-07-27",
+    "settled_date": "2026-08-10"
+  },
+  {
+    "order_id": "OD100054",
+    "amount": 119.34,
+    "fees_json": "{\"commission\": 29.88, \"fixed_fee\": 20.0, \"collection_fee\": 18.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 19.78}",
+    "order_date": "2026-07-27",
+    "settled_date": "2026-08-07"
+  },
+  {
+    "order_id": "OD100055",
+    "amount": 591.46,
+    "fees_json": "{\"commission\": 95.88, \"fixed_fee\": 20.0, \"collection_fee\": 18.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 31.66}",
+    "order_date": "2026-07-27",
+    "settled_date": "2026-08-07"
+  },
+  {
+    "order_id": "OD100056",
+    "amount": 291.02,
+    "fees_json": "{\"commission\": 53.88, \"fixed_fee\": 20.0, \"collection_fee\": 18.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 24.1}",
+    "order_date": "2026-07-28",
+    "settled_date": "2026-08-11"
+  },
+  {
+    "order_id": "OD100057",
+    "amount": 312.26,
+    "fees_json": "{\"commission\": 53.88, \"fixed_fee\": 20.0, \"collection_fee\": 0.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 20.86}",
+    "order_date": "2026-07-28",
+    "settled_date": "2026-08-04"
+  },
+  {
+    "order_id": "OD100058",
+    "amount": 419.78,
+    "fees_json": "{\"commission\": 71.88, \"fixed_fee\": 20.0, \"collection_fee\": 18.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 27.34}",
+    "order_date": "2026-07-28",
+    "settled_date": "2026-08-05"
+  },
+  {
+    "order_id": "OD100059",
+    "amount": 140.58,
+    "fees_json": "{\"commission\": 29.88, \"fixed_fee\": 20.0, \"collection_fee\": 0.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 16.54}",
+    "order_date": "2026-07-28",
+    "settled_date": "2026-08-06"
+  },
+  {
+    "order_id": "OD100061",
+    "amount": 591.46,
+    "fees_json": "{\"commission\": 95.88, \"fixed_fee\": 20.0, \"collection_fee\": 18.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 31.66}",
+    "order_date": "2026-07-28",
+    "settled_date": "2026-08-04"
+  },
+  {
+    "order_id": "OD100062",
+    "amount": 97.66,
+    "fees_json": "{\"commission\": 23.88, \"fixed_fee\": 20.0, \"collection_fee\": 0.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 15.46}",
+    "order_date": "2026-07-28",
+    "settled_date": "2026-08-08"
+  },
+  {
+    "order_id": "OD100063",
+    "amount": 483.94,
+    "fees_json": "{\"commission\": 77.88, \"fixed_fee\": 20.0, \"collection_fee\": 0.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 25.18}",
+    "order_date": "2026-07-28",
+    "settled_date": "2026-08-09"
+  },
+  {
+    "order_id": "OD100064",
+    "amount": 291.02,
+    "fees_json": "{\"commission\": 53.88, \"fixed_fee\": 20.0, \"collection_fee\": 18.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 24.1}",
+    "order_date": "2026-07-29",
+    "settled_date": "2026-08-10"
+  },
+  {
+    "order_id": "OD100065",
+    "amount": 441.02,
+    "fees_json": "{\"commission\": 71.88, \"fixed_fee\": 20.0, \"collection_fee\": 0.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 24.1}",
+    "order_date": "2026-07-29",
+    "settled_date": "2026-08-11"
+  },
+  {
+    "order_id": "OD100066",
+    "amount": 119.34,
+    "fees_json": "{\"commission\": 29.88, \"fixed_fee\": 20.0, \"collection_fee\": 18.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 19.78}",
+    "order_date": "2026-07-29",
+    "settled_date": "2026-08-06"
+  },
+  {
+    "order_id": "OD100067",
+    "amount": 205.18,
+    "fees_json": "{\"commission\": 41.88, \"fixed_fee\": 20.0, \"collection_fee\": 18.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 21.94}",
+    "order_date": "2026-07-29",
+    "settled_date": "2026-08-06"
+  },
+  {
+    "order_id": "OD100068",
+    "amount": 612.7,
+    "fees_json": "{\"commission\": 95.88, \"fixed_fee\": 20.0, \"collection_fee\": 0.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 28.42}",
+    "order_date": "2026-07-29",
+    "settled_date": "2026-08-05"
+  },
+  {
+    "order_id": "OD100069",
+    "amount": 76.42,
+    "fees_json": "{\"commission\": 23.88, \"fixed_fee\": 20.0, \"collection_fee\": 18.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 18.7}",
+    "order_date": "2026-07-29",
+    "settled_date": "2026-08-05"
+  },
+  {
+    "order_id": "OD100070",
+    "amount": 483.94,
+    "fees_json": "{\"commission\": 77.88, \"fixed_fee\": 20.0, \"collection_fee\": 0.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 25.18}",
+    "order_date": "2026-07-29",
+    "settled_date": "2026-08-07"
+  },
+  {
+    "order_id": "OD100071",
+    "amount": 291.02,
+    "fees_json": "{\"commission\": 53.88, \"fixed_fee\": 20.0, \"collection_fee\": 18.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 24.1}",
+    "order_date": "2026-07-30",
+    "settled_date": "2026-08-08"
+  },
+  {
+    "order_id": "OD100072",
+    "amount": 312.26,
+    "fees_json": "{\"commission\": 53.88, \"fixed_fee\": 20.0, \"collection_fee\": 0.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 20.86}",
+    "order_date": "2026-07-30",
+    "settled_date": "2026-08-11"
+  },
+  {
+    "order_id": "OD100073",
+    "amount": 419.78,
+    "fees_json": "{\"commission\": 71.88, \"fixed_fee\": 20.0, \"collection_fee\": 18.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 27.34}",
+    "order_date": "2026-07-30",
+    "settled_date": "2026-08-11"
+  },
+  {
+    "order_id": "OD100074",
+    "amount": 140.58,
+    "fees_json": "{\"commission\": 29.88, \"fixed_fee\": 20.0, \"collection_fee\": 0.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 16.54}",
+    "order_date": "2026-07-30",
+    "settled_date": "2026-08-13"
+  },
+  {
+    "order_id": "OD100075",
+    "amount": 76.42,
+    "fees_json": "{\"commission\": 23.88, \"fixed_fee\": 20.0, \"collection_fee\": 18.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 18.7}",
+    "order_date": "2026-07-30",
+    "settled_date": "2026-08-10"
+  },
+  {
+    "order_id": "OD100076",
+    "amount": 76.42,
+    "fees_json": "{\"commission\": 23.88, \"fixed_fee\": 20.0, \"collection_fee\": 18.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 18.7}",
+    "order_date": "2026-07-30",
+    "settled_date": "2026-08-07"
+  },
+  {
+    "order_id": "OD100077",
+    "amount": 312.26,
+    "fees_json": "{\"commission\": 53.88, \"fixed_fee\": 20.0, \"collection_fee\": 0.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 20.86}",
+    "order_date": "2026-07-31",
+    "settled_date": "2026-08-12"
+  },
+  {
+    "order_id": "OD100078",
+    "amount": 860.8,
+    "fees_json": "{\"commission\": 143.76, \"fixed_fee\": 40.0, \"collection_fee\": 18.0, \"shipping_fee\": 84.0, \"gst_on_fees\": 51.44}",
+    "order_date": "2026-07-31",
+    "settled_date": "2026-08-12"
+  },
+  {
+    "order_id": "OD100079",
+    "amount": 634.38,
+    "fees_json": "{\"commission\": 101.88, \"fixed_fee\": 20.0, \"collection_fee\": 18.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 32.74}",
+    "order_date": "2026-07-31",
+    "settled_date": "2026-08-09"
+  },
+  {
+    "order_id": "OD100080",
+    "amount": 119.34,
+    "fees_json": "{\"commission\": 29.88, \"fixed_fee\": 20.0, \"collection_fee\": 18.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 19.78}",
+    "order_date": "2026-07-31",
+    "settled_date": "2026-08-08"
+  },
+  {
+    "order_id": "OD100081",
+    "amount": 763.14,
+    "fees_json": "{\"commission\": 119.88, \"fixed_fee\": 20.0, \"collection_fee\": 18.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 35.98}",
+    "order_date": "2026-07-31",
+    "settled_date": "2026-08-13"
+  },
+  {
+    "order_id": "OD100082",
+    "amount": 97.66,
+    "fees_json": "{\"commission\": 23.88, \"fixed_fee\": 20.0, \"collection_fee\": 0.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 15.46}",
+    "order_date": "2026-07-31",
+    "settled_date": "2026-08-13"
+  },
+  {
+    "order_id": "OD100083",
+    "amount": 248.1,
+    "fees_json": "{\"commission\": 47.88, \"fixed_fee\": 20.0, \"collection_fee\": 18.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 23.02}",
+    "order_date": "2026-07-31",
+    "settled_date": "2026-08-14"
+  },
+  {
+    "order_id": "OD100084",
+    "amount": 483.94,
+    "fees_json": "{\"commission\": 77.88, \"fixed_fee\": 20.0, \"collection_fee\": 0.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 25.18}",
+    "order_date": "2026-07-31",
+    "settled_date": "2026-08-11"
+  },
+  {
+    "order_id": "OD100085",
+    "amount": 291.02,
+    "fees_json": "{\"commission\": 53.88, \"fixed_fee\": 20.0, \"collection_fee\": 18.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 24.1}",
+    "order_date": "2026-08-01",
+    "settled_date": "2026-08-14"
+  },
+  {
+    "order_id": "OD100086",
+    "amount": 291.02,
+    "fees_json": "{\"commission\": 53.88, \"fixed_fee\": 20.0, \"collection_fee\": 18.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 24.1}",
+    "order_date": "2026-08-01",
+    "settled_date": "2026-08-15"
+  },
+  {
+    "order_id": "OD100087",
+    "amount": 419.78,
+    "fees_json": "{\"commission\": 71.88, \"fixed_fee\": 20.0, \"collection_fee\": 18.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 27.34}",
+    "order_date": "2026-08-01",
+    "settled_date": "2026-08-14"
+  },
+  {
+    "order_id": "OD100088",
+    "amount": 634.38,
+    "fees_json": "{\"commission\": 101.88, \"fixed_fee\": 20.0, \"collection_fee\": 18.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 32.74}",
+    "order_date": "2026-08-01",
+    "settled_date": "2026-08-10"
+  },
+  {
+    "order_id": "OD100089",
+    "amount": 226.42,
+    "fees_json": "{\"commission\": 41.88, \"fixed_fee\": 20.0, \"collection_fee\": 0.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 18.7}",
+    "order_date": "2026-08-01",
+    "settled_date": "2026-08-09"
+  },
+  {
+    "order_id": "OD100090",
+    "amount": 76.42,
+    "fees_json": "{\"commission\": 23.88, \"fixed_fee\": 20.0, \"collection_fee\": 18.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 18.7}",
+    "order_date": "2026-08-01",
+    "settled_date": "2026-08-10"
+  },
+  {
+    "order_id": "OD100091",
+    "amount": 312.26,
+    "fees_json": "{\"commission\": 53.88, \"fixed_fee\": 20.0, \"collection_fee\": 0.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 20.86}",
+    "order_date": "2026-08-02",
+    "settled_date": "2026-08-09"
+  },
+  {
+    "order_id": "OD100092",
+    "amount": 312.26,
+    "fees_json": "{\"commission\": 53.88, \"fixed_fee\": 20.0, \"collection_fee\": 0.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 20.86}",
+    "order_date": "2026-08-02",
+    "settled_date": "2026-08-11"
+  },
+  {
+    "order_id": "OD100093",
+    "amount": 419.78,
+    "fees_json": "{\"commission\": 71.88, \"fixed_fee\": 20.0, \"collection_fee\": 18.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 27.34}",
+    "order_date": "2026-08-02",
+    "settled_date": "2026-08-10"
+  },
+  {
+    "order_id": "OD100094",
+    "amount": 248.1,
+    "fees_json": "{\"commission\": 47.88, \"fixed_fee\": 20.0, \"collection_fee\": 18.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 23.02}",
+    "order_date": "2026-08-02",
+    "settled_date": "2026-08-15"
+  },
+  {
+    "order_id": "OD100095",
+    "amount": 419.78,
+    "fees_json": "{\"commission\": 71.88, \"fixed_fee\": 20.0, \"collection_fee\": 18.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 27.34}",
+    "order_date": "2026-08-03",
+    "settled_date": "2026-08-17"
+  },
+  {
+    "order_id": "OD100096",
+    "amount": 634.38,
+    "fees_json": "{\"commission\": 101.88, \"fixed_fee\": 20.0, \"collection_fee\": 18.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 32.74}",
+    "order_date": "2026-08-03",
+    "settled_date": "2026-08-17"
+  },
+  {
+    "order_id": "OD100097",
+    "amount": 76.42,
+    "fees_json": "{\"commission\": 23.88, \"fixed_fee\": 20.0, \"collection_fee\": 18.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 18.7}",
+    "order_date": "2026-08-03",
+    "settled_date": "2026-08-12"
+  },
+  {
+    "order_id": "OD100098",
+    "amount": 248.1,
+    "fees_json": "{\"commission\": 47.88, \"fixed_fee\": 20.0, \"collection_fee\": 18.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 23.02}",
+    "order_date": "2026-08-03",
+    "settled_date": "2026-08-16"
+  },
+  {
+    "order_id": "OD100099",
+    "amount": 312.26,
+    "fees_json": "{\"commission\": 53.88, \"fixed_fee\": 20.0, \"collection_fee\": 0.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 20.86}",
+    "order_date": "2026-08-04",
+    "settled_date": "2026-08-16"
+  },
+  {
+    "order_id": "OD100100",
+    "amount": 419.78,
+    "fees_json": "{\"commission\": 71.88, \"fixed_fee\": 20.0, \"collection_fee\": 18.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 27.34}",
+    "order_date": "2026-08-04",
+    "settled_date": "2026-08-11"
+  },
+  {
+    "order_id": "OD100101",
+    "amount": 259.92,
+    "fees_json": "{\"commission\": 59.76, \"fixed_fee\": 40.0, \"collection_fee\": 18.0, \"shipping_fee\": 84.0, \"gst_on_fees\": 36.32}",
+    "order_date": "2026-08-04",
+    "settled_date": "2026-08-13"
+  },
+  {
+    "order_id": "OD100102",
+    "amount": 76.42,
+    "fees_json": "{\"commission\": 23.88, \"fixed_fee\": 20.0, \"collection_fee\": 18.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 18.7}",
+    "order_date": "2026-08-04",
+    "settled_date": "2026-08-18"
+  },
+  {
+    "order_id": "OD100103",
+    "amount": 312.26,
+    "fees_json": "{\"commission\": 53.88, \"fixed_fee\": 20.0, \"collection_fee\": 0.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 20.86}",
+    "order_date": "2026-08-05",
+    "settled_date": "2026-08-19"
+  },
+  {
+    "order_id": "OD100104",
+    "amount": 291.02,
+    "fees_json": "{\"commission\": 53.88, \"fixed_fee\": 20.0, \"collection_fee\": 18.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 24.1}",
+    "order_date": "2026-08-05",
+    "settled_date": "2026-08-13"
+  },
+  {
+    "order_id": "OD100105",
+    "amount": 634.38,
+    "fees_json": "{\"commission\": 101.88, \"fixed_fee\": 20.0, \"collection_fee\": 18.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 32.74}",
+    "order_date": "2026-08-05",
+    "settled_date": "2026-08-18"
+  },
+  {
+    "order_id": "OD100106",
+    "amount": 140.58,
+    "fees_json": "{\"commission\": 29.88, \"fixed_fee\": 20.0, \"collection_fee\": 0.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 16.54}",
+    "order_date": "2026-08-05",
+    "settled_date": "2026-08-19"
+  },
+  {
+    "order_id": "OD100107",
+    "amount": 452.84,
+    "fees_json": "{\"commission\": 83.76, \"fixed_fee\": 40.0, \"collection_fee\": 0.0, \"shipping_fee\": 84.0, \"gst_on_fees\": 37.4}",
+    "order_date": "2026-08-05",
+    "settled_date": "2026-08-12"
+  },
+  {
+    "order_id": "OD100108",
+    "amount": 76.42,
+    "fees_json": "{\"commission\": 23.88, \"fixed_fee\": 20.0, \"collection_fee\": 18.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 18.7}",
+    "order_date": "2026-08-05",
+    "settled_date": "2026-08-13"
+  },
+  {
+    "order_id": "OD100109",
+    "amount": 462.7,
+    "fees_json": "{\"commission\": 77.88, \"fixed_fee\": 20.0, \"collection_fee\": 18.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 28.42}",
+    "order_date": "2026-08-05",
+    "settled_date": "2026-08-16"
+  },
+  {
+    "order_id": "OD100110",
+    "amount": 312.26,
+    "fees_json": "{\"commission\": 53.88, \"fixed_fee\": 20.0, \"collection_fee\": 0.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 20.86}",
+    "order_date": "2026-08-06",
+    "settled_date": "2026-08-18"
+  },
+  {
+    "order_id": "OD100111",
+    "amount": 291.02,
+    "fees_json": "{\"commission\": 53.88, \"fixed_fee\": 20.0, \"collection_fee\": 18.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 24.1}",
+    "order_date": "2026-08-06",
+    "settled_date": "2026-08-13"
+  },
+  {
+    "order_id": "OD100112",
+    "amount": 419.78,
+    "fees_json": "{\"commission\": 71.88, \"fixed_fee\": 20.0, \"collection_fee\": 18.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 27.34}",
+    "order_date": "2026-08-06",
+    "settled_date": "2026-08-21"
+  },
+  {
+    "order_id": "OD100113",
+    "amount": 119.34,
+    "fees_json": "{\"commission\": 29.88, \"fixed_fee\": 20.0, \"collection_fee\": 18.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 19.78}",
+    "order_date": "2026-08-06",
+    "settled_date": "2026-08-16"
+  },
+  {
+    "order_id": "OD100114",
+    "amount": 784.38,
+    "fees_json": "{\"commission\": 119.88, \"fixed_fee\": 20.0, \"collection_fee\": 0.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 32.74}",
+    "order_date": "2026-08-06",
+    "settled_date": "2026-08-18"
+  },
+  {
+    "order_id": "OD100115",
+    "amount": 452.84,
+    "fees_json": "{\"commission\": 83.76, \"fixed_fee\": 40.0, \"collection_fee\": 0.0, \"shipping_fee\": 84.0, \"gst_on_fees\": 37.4}",
+    "order_date": "2026-08-06",
+    "settled_date": "2026-08-21"
+  },
+  {
+    "order_id": "OD100116",
+    "amount": 591.46,
+    "fees_json": "{\"commission\": 95.88, \"fixed_fee\": 20.0, \"collection_fee\": 18.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 31.66}",
+    "order_date": "2026-08-06",
+    "settled_date": "2026-08-21"
+  },
+  {
+    "order_id": "OD100117",
+    "amount": 76.42,
+    "fees_json": "{\"commission\": 23.88, \"fixed_fee\": 20.0, \"collection_fee\": 18.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 18.7}",
+    "order_date": "2026-08-06",
+    "settled_date": "2026-08-14"
+  },
+  {
+    "order_id": "OD100118",
+    "amount": 269.34,
+    "fees_json": "{\"commission\": 47.88, \"fixed_fee\": 20.0, \"collection_fee\": 0.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 19.78}",
+    "order_date": "2026-08-06",
+    "settled_date": "2026-08-19"
+  },
+  {
+    "order_id": "OD100119",
+    "amount": 483.94,
+    "fees_json": "{\"commission\": 77.88, \"fixed_fee\": 20.0, \"collection_fee\": 0.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 25.18}",
+    "order_date": "2026-08-06",
+    "settled_date": "2026-08-16"
+  },
+  {
+    "order_id": "OD100120",
+    "amount": 419.78,
+    "fees_json": "{\"commission\": 71.88, \"fixed_fee\": 20.0, \"collection_fee\": 18.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 27.34}",
+    "order_date": "2026-08-07",
+    "settled_date": "2026-08-21"
+  },
+  {
+    "order_id": "OD100121",
+    "amount": 76.42,
+    "fees_json": "{\"commission\": 23.88, \"fixed_fee\": 20.0, \"collection_fee\": 18.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 18.7}",
+    "order_date": "2026-08-07",
+    "settled_date": "2026-08-19"
+  },
+  {
+    "order_id": "OD100122",
+    "amount": 312.26,
+    "fees_json": "{\"commission\": 53.88, \"fixed_fee\": 20.0, \"collection_fee\": 0.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 20.86}",
+    "order_date": "2026-08-08",
+    "settled_date": "2026-08-21"
+  },
+  {
+    "order_id": "OD100123",
+    "amount": 291.02,
+    "fees_json": "{\"commission\": 53.88, \"fixed_fee\": 20.0, \"collection_fee\": 18.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 24.1}",
+    "order_date": "2026-08-08",
+    "settled_date": "2026-08-17"
+  },
+  {
+    "order_id": "OD100124",
+    "amount": 291.02,
+    "fees_json": "{\"commission\": 53.88, \"fixed_fee\": 20.0, \"collection_fee\": 18.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 24.1}",
+    "order_date": "2026-08-08",
+    "settled_date": "2026-08-23"
+  },
+  {
+    "order_id": "OD100125",
+    "amount": 870.22,
+    "fees_json": "{\"commission\": 131.88, \"fixed_fee\": 20.0, \"collection_fee\": 0.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 34.9}",
+    "order_date": "2026-08-08",
+    "settled_date": "2026-08-15"
+  },
+  {
+    "order_id": "OD100126",
+    "amount": 205.18,
+    "fees_json": "{\"commission\": 41.88, \"fixed_fee\": 20.0, \"collection_fee\": 18.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 21.94}",
+    "order_date": "2026-08-08",
+    "settled_date": "2026-08-15"
+  },
+  {
+    "order_id": "OD100127",
+    "amount": 591.46,
+    "fees_json": "{\"commission\": 95.88, \"fixed_fee\": 20.0, \"collection_fee\": 18.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 31.66}",
+    "order_date": "2026-08-08",
+    "settled_date": "2026-08-17"
+  },
+  {
+    "order_id": "OD100128",
+    "amount": 97.66,
+    "fees_json": "{\"commission\": 23.88, \"fixed_fee\": 20.0, \"collection_fee\": 0.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 15.46}",
+    "order_date": "2026-08-08",
+    "settled_date": "2026-08-23"
+  },
+  {
+    "order_id": "OD100129",
+    "amount": 462.7,
+    "fees_json": "{\"commission\": 77.88, \"fixed_fee\": 20.0, \"collection_fee\": 18.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 28.42}",
+    "order_date": "2026-08-08",
+    "settled_date": "2026-08-22"
+  },
+  {
+    "order_id": "OD100130",
+    "amount": 312.26,
+    "fees_json": "{\"commission\": 53.88, \"fixed_fee\": 20.0, \"collection_fee\": 0.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 20.86}",
+    "order_date": "2026-08-09",
+    "settled_date": "2026-08-23"
+  },
+  {
+    "order_id": "OD100131",
+    "amount": 259.92,
+    "fees_json": "{\"commission\": 59.76, \"fixed_fee\": 40.0, \"collection_fee\": 18.0, \"shipping_fee\": 84.0, \"gst_on_fees\": 36.32}",
+    "order_date": "2026-08-09",
+    "settled_date": "2026-08-18"
+  },
+  {
+    "order_id": "OD100132",
+    "amount": 612.7,
+    "fees_json": "{\"commission\": 95.88, \"fixed_fee\": 20.0, \"collection_fee\": 0.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 28.42}",
+    "order_date": "2026-08-09",
+    "settled_date": "2026-08-17"
+  },
+  {
+    "order_id": "OD100133",
+    "amount": 248.1,
+    "fees_json": "{\"commission\": 47.88, \"fixed_fee\": 20.0, \"collection_fee\": 18.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 23.02}",
+    "order_date": "2026-08-09",
+    "settled_date": "2026-08-23"
+  },
+  {
+    "order_id": "OD100134",
+    "amount": 483.94,
+    "fees_json": "{\"commission\": 77.88, \"fixed_fee\": 20.0, \"collection_fee\": 0.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 25.18}",
+    "order_date": "2026-08-09",
+    "settled_date": "2026-08-21"
+  },
+  {
+    "order_id": "OD100135",
+    "amount": 291.02,
+    "fees_json": "{\"commission\": 53.88, \"fixed_fee\": 20.0, \"collection_fee\": 18.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 24.1}",
+    "order_date": "2026-08-10",
+    "settled_date": "2026-08-20"
+  },
+  {
+    "order_id": "OD100136",
+    "amount": 291.02,
+    "fees_json": "{\"commission\": 53.88, \"fixed_fee\": 20.0, \"collection_fee\": 18.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 24.1}",
+    "order_date": "2026-08-10",
+    "settled_date": "2026-08-22"
+  },
+  {
+    "order_id": "OD100137",
+    "amount": 634.38,
+    "fees_json": "{\"commission\": 101.88, \"fixed_fee\": 20.0, \"collection_fee\": 18.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 32.74}",
+    "order_date": "2026-08-10",
+    "settled_date": "2026-08-21"
+  },
+  {
+    "order_id": "OD100138",
+    "amount": 119.34,
+    "fees_json": "{\"commission\": 29.88, \"fixed_fee\": 20.0, \"collection_fee\": 18.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 19.78}",
+    "order_date": "2026-08-10",
+    "settled_date": "2026-08-17"
+  },
+  {
+    "order_id": "OD100139",
+    "amount": 784.38,
+    "fees_json": "{\"commission\": 119.88, \"fixed_fee\": 20.0, \"collection_fee\": 0.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 32.74}",
+    "order_date": "2026-08-10",
+    "settled_date": "2026-08-25"
+  },
+  {
+    "order_id": "OD100140",
+    "amount": 226.42,
+    "fees_json": "{\"commission\": 41.88, \"fixed_fee\": 20.0, \"collection_fee\": 0.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 18.7}",
+    "order_date": "2026-08-10",
+    "settled_date": "2026-08-20"
+  },
+  {
+    "order_id": "OD100141",
+    "amount": 174.08,
+    "fees_json": "{\"commission\": 47.76, \"fixed_fee\": 40.0, \"collection_fee\": 18.0, \"shipping_fee\": 84.0, \"gst_on_fees\": 34.16}",
+    "order_date": "2026-08-10",
+    "settled_date": "2026-08-25"
+  },
+  {
+    "order_id": "OD100142",
+    "amount": 312.26,
+    "fees_json": "{\"commission\": 53.88, \"fixed_fee\": 20.0, \"collection_fee\": 0.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 20.86}",
+    "order_date": "2026-08-11",
+    "settled_date": "2026-08-24"
+  },
+  {
+    "order_id": "OD100143",
+    "amount": 655.62,
+    "fees_json": "{\"commission\": 101.88, \"fixed_fee\": 20.0, \"collection_fee\": 0.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 29.5}",
+    "order_date": "2026-08-11",
+    "settled_date": "2026-08-24"
+  },
+  {
+    "order_id": "OD100144",
+    "amount": 205.18,
+    "fees_json": "{\"commission\": 41.88, \"fixed_fee\": 20.0, \"collection_fee\": 18.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 21.94}",
+    "order_date": "2026-08-11",
+    "settled_date": "2026-08-21"
+  },
+  {
+    "order_id": "OD100145",
+    "amount": 612.7,
+    "fees_json": "{\"commission\": 95.88, \"fixed_fee\": 20.0, \"collection_fee\": 0.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 28.42}",
+    "order_date": "2026-08-11",
+    "settled_date": "2026-08-19"
+  },
+  {
+    "order_id": "OD100146",
+    "amount": 946.64,
+    "fees_json": "{\"commission\": 155.76, \"fixed_fee\": 40.0, \"collection_fee\": 18.0, \"shipping_fee\": 84.0, \"gst_on_fees\": 53.6}",
+    "order_date": "2026-08-11",
+    "settled_date": "2026-08-25"
+  },
+  {
+    "order_id": "OD100147",
+    "amount": 291.02,
+    "fees_json": "{\"commission\": 53.88, \"fixed_fee\": 20.0, \"collection_fee\": 18.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 24.1}",
+    "order_date": "2026-08-12",
+    "settled_date": "2026-08-26"
+  },
+  {
+    "order_id": "OD100148",
+    "amount": 291.02,
+    "fees_json": "{\"commission\": 53.88, \"fixed_fee\": 20.0, \"collection_fee\": 18.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 24.1}",
+    "order_date": "2026-08-12",
+    "settled_date": "2026-08-26"
+  },
+  {
+    "order_id": "OD100149",
+    "amount": 419.78,
+    "fees_json": "{\"commission\": 71.88, \"fixed_fee\": 20.0, \"collection_fee\": 18.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 27.34}",
+    "order_date": "2026-08-12",
+    "settled_date": "2026-08-20"
+  },
+  {
+    "order_id": "OD100150",
+    "amount": 634.38,
+    "fees_json": "{\"commission\": 101.88, \"fixed_fee\": 20.0, \"collection_fee\": 18.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 32.74}",
+    "order_date": "2026-08-12",
+    "settled_date": "2026-08-26"
+  },
+  {
+    "order_id": "OD100151",
+    "amount": 259.92,
+    "fees_json": "{\"commission\": 59.76, \"fixed_fee\": 40.0, \"collection_fee\": 18.0, \"shipping_fee\": 84.0, \"gst_on_fees\": 36.32}",
+    "order_date": "2026-08-12",
+    "settled_date": "2026-08-26"
+  },
+  {
+    "order_id": "OD100153",
+    "amount": 591.46,
+    "fees_json": "{\"commission\": 95.88, \"fixed_fee\": 20.0, \"collection_fee\": 18.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 31.66}",
+    "order_date": "2026-08-12",
+    "settled_date": "2026-08-24"
+  },
+  {
+    "order_id": "OD100154",
+    "amount": 462.7,
+    "fees_json": "{\"commission\": 77.88, \"fixed_fee\": 20.0, \"collection_fee\": 18.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 28.42}",
+    "order_date": "2026-08-12",
+    "settled_date": "2026-08-20"
+  },
+  {
+    "order_id": "OD100155",
+    "amount": 419.78,
+    "fees_json": "{\"commission\": 71.88, \"fixed_fee\": 20.0, \"collection_fee\": 18.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 27.34}",
+    "order_date": "2026-08-13",
+    "settled_date": "2026-08-27"
+  },
+  {
+    "order_id": "OD100156",
+    "amount": 119.34,
+    "fees_json": "{\"commission\": 29.88, \"fixed_fee\": 20.0, \"collection_fee\": 18.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 19.78}",
+    "order_date": "2026-08-13",
+    "settled_date": "2026-08-20"
+  },
+  {
+    "order_id": "OD100157",
+    "amount": 205.18,
+    "fees_json": "{\"commission\": 41.88, \"fixed_fee\": 20.0, \"collection_fee\": 18.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 21.94}",
+    "order_date": "2026-08-13",
+    "settled_date": "2026-08-21"
+  },
+  {
+    "order_id": "OD100158",
+    "amount": 269.34,
+    "fees_json": "{\"commission\": 47.88, \"fixed_fee\": 20.0, \"collection_fee\": 0.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 19.78}",
+    "order_date": "2026-08-13",
+    "settled_date": "2026-08-26"
+  },
+  {
+    "order_id": "OD100159",
+    "amount": 462.7,
+    "fees_json": "{\"commission\": 77.88, \"fixed_fee\": 20.0, \"collection_fee\": 18.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 28.42}",
+    "order_date": "2026-08-13",
+    "settled_date": "2026-08-26"
+  },
+  {
+    "order_id": "OD100160",
+    "amount": 419.78,
+    "fees_json": "{\"commission\": 71.88, \"fixed_fee\": 20.0, \"collection_fee\": 18.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 27.34}",
+    "order_date": "2026-08-14",
+    "settled_date": "2026-08-21"
+  },
+  {
+    "order_id": "OD100161",
+    "amount": 119.34,
+    "fees_json": "{\"commission\": 29.88, \"fixed_fee\": 20.0, \"collection_fee\": 18.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 19.78}",
+    "order_date": "2026-08-14",
+    "settled_date": "2026-08-29"
+  },
+  {
+    "order_id": "OD100162",
+    "amount": 763.14,
+    "fees_json": "{\"commission\": 119.88, \"fixed_fee\": 20.0, \"collection_fee\": 18.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 35.98}",
+    "order_date": "2026-08-14",
+    "settled_date": "2026-08-29"
+  },
+  {
+    "order_id": "OD100163",
+    "amount": 226.42,
+    "fees_json": "{\"commission\": 41.88, \"fixed_fee\": 20.0, \"collection_fee\": 0.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 18.7}",
+    "order_date": "2026-08-14",
+    "settled_date": "2026-08-21"
+  },
+  {
+    "order_id": "OD100164",
+    "amount": 76.42,
+    "fees_json": "{\"commission\": 23.88, \"fixed_fee\": 20.0, \"collection_fee\": 18.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 18.7}",
+    "order_date": "2026-08-14",
+    "settled_date": "2026-08-22"
+  },
+  {
+    "order_id": "OD100165",
+    "amount": 483.94,
+    "fees_json": "{\"commission\": 77.88, \"fixed_fee\": 20.0, \"collection_fee\": 0.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 25.18}",
+    "order_date": "2026-08-14",
+    "settled_date": "2026-08-25"
+  },
+  {
+    "order_id": "OD100166",
+    "amount": 312.26,
+    "fees_json": "{\"commission\": 53.88, \"fixed_fee\": 20.0, \"collection_fee\": 0.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 20.86}",
+    "order_date": "2026-08-15",
+    "settled_date": "2026-08-30"
+  },
+  {
+    "order_id": "OD100167",
+    "amount": 634.38,
+    "fees_json": "{\"commission\": 101.88, \"fixed_fee\": 20.0, \"collection_fee\": 18.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 32.74}",
+    "order_date": "2026-08-15",
+    "settled_date": "2026-08-30"
+  },
+  {
+    "order_id": "OD100168",
+    "amount": 431.6,
+    "fees_json": "{\"commission\": 83.76, \"fixed_fee\": 40.0, \"collection_fee\": 18.0, \"shipping_fee\": 84.0, \"gst_on_fees\": 40.64}",
+    "order_date": "2026-08-15",
+    "settled_date": "2026-08-25"
+  },
+  {
+    "order_id": "OD100169",
+    "amount": 76.42,
+    "fees_json": "{\"commission\": 23.88, \"fixed_fee\": 20.0, \"collection_fee\": 18.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 18.7}",
+    "order_date": "2026-08-15",
+    "settled_date": "2026-08-29"
+  },
+  {
+    "order_id": "OD100170",
+    "amount": 97.66,
+    "fees_json": "{\"commission\": 23.88, \"fixed_fee\": 20.0, \"collection_fee\": 0.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 15.46}",
+    "order_date": "2026-08-15",
+    "settled_date": "2026-08-27"
+  },
+  {
+    "order_id": "OD100171",
+    "amount": 462.7,
+    "fees_json": "{\"commission\": 77.88, \"fixed_fee\": 20.0, \"collection_fee\": 18.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 28.42}",
+    "order_date": "2026-08-15",
+    "settled_date": "2026-08-27"
+  },
+  {
+    "order_id": "OD100172",
+    "amount": 312.26,
+    "fees_json": "{\"commission\": 53.88, \"fixed_fee\": 20.0, \"collection_fee\": 0.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 20.86}",
+    "order_date": "2026-08-16",
+    "settled_date": "2026-08-23"
+  },
+  {
+    "order_id": "OD100173",
+    "amount": 291.02,
+    "fees_json": "{\"commission\": 53.88, \"fixed_fee\": 20.0, \"collection_fee\": 18.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 24.1}",
+    "order_date": "2026-08-16",
+    "settled_date": "2026-08-26"
+  },
+  {
+    "order_id": "OD100174",
+    "amount": 441.02,
+    "fees_json": "{\"commission\": 71.88, \"fixed_fee\": 20.0, \"collection_fee\": 0.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 24.1}",
+    "order_date": "2026-08-16",
+    "settled_date": "2026-08-30"
+  },
+  {
+    "order_id": "OD100175",
+    "amount": 591.46,
+    "fees_json": "{\"commission\": 95.88, \"fixed_fee\": 20.0, \"collection_fee\": 18.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 31.66}",
+    "order_date": "2026-08-16",
+    "settled_date": "2026-08-28"
+  },
+  {
+    "order_id": "OD100176",
+    "amount": 76.42,
+    "fees_json": "{\"commission\": 23.88, \"fixed_fee\": 20.0, \"collection_fee\": 18.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 18.7}",
+    "order_date": "2026-08-16",
+    "settled_date": "2026-08-31"
+  },
+  {
+    "order_id": "OD100177",
+    "amount": 269.34,
+    "fees_json": "{\"commission\": 47.88, \"fixed_fee\": 20.0, \"collection_fee\": 0.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 19.78}",
+    "order_date": "2026-08-16",
+    "settled_date": "2026-08-30"
+  },
+  {
+    "order_id": "OD100178",
+    "amount": 312.26,
+    "fees_json": "{\"commission\": 53.88, \"fixed_fee\": 20.0, \"collection_fee\": 0.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 20.86}",
+    "order_date": "2026-08-17",
+    "settled_date": "2026-08-29"
+  },
+  {
+    "order_id": "OD100179",
+    "amount": 441.02,
+    "fees_json": "{\"commission\": 71.88, \"fixed_fee\": 20.0, \"collection_fee\": 0.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 24.1}",
+    "order_date": "2026-08-17",
+    "settled_date": "2026-08-31"
+  },
+  {
+    "order_id": "OD100180",
+    "amount": 655.62,
+    "fees_json": "{\"commission\": 101.88, \"fixed_fee\": 20.0, \"collection_fee\": 0.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 29.5}",
+    "order_date": "2026-08-17",
+    "settled_date": "2026-08-25"
+  },
+  {
+    "order_id": "OD100181",
+    "amount": 119.34,
+    "fees_json": "{\"commission\": 29.88, \"fixed_fee\": 20.0, \"collection_fee\": 18.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 19.78}",
+    "order_date": "2026-08-17",
+    "settled_date": "2026-08-25"
+  },
+  {
+    "order_id": "OD100183",
+    "amount": 462.7,
+    "fees_json": "{\"commission\": 77.88, \"fixed_fee\": 20.0, \"collection_fee\": 18.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 28.42}",
+    "order_date": "2026-08-17",
+    "settled_date": "2026-08-27"
+  },
+  {
+    "order_id": "OD100184",
+    "amount": 291.02,
+    "fees_json": "{\"commission\": 53.88, \"fixed_fee\": 20.0, \"collection_fee\": 18.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 24.1}",
+    "order_date": "2026-08-18",
+    "settled_date": "2026-08-25"
+  },
+  {
+    "order_id": "OD100185",
+    "amount": 291.02,
+    "fees_json": "{\"commission\": 53.88, \"fixed_fee\": 20.0, \"collection_fee\": 18.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 24.1}",
+    "order_date": "2026-08-18",
+    "settled_date": "2026-08-30"
+  },
+  {
+    "order_id": "OD100186",
+    "amount": 419.78,
+    "fees_json": "{\"commission\": 71.88, \"fixed_fee\": 20.0, \"collection_fee\": 18.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 27.34}",
+    "order_date": "2026-08-18",
+    "settled_date": "2026-08-30"
+  },
+  {
+    "order_id": "OD100187",
+    "amount": 119.34,
+    "fees_json": "{\"commission\": 29.88, \"fixed_fee\": 20.0, \"collection_fee\": 18.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 19.78}",
+    "order_date": "2026-08-18",
+    "settled_date": "2026-08-29"
+  },
+  {
+    "order_id": "OD100188",
+    "amount": 205.18,
+    "fees_json": "{\"commission\": 41.88, \"fixed_fee\": 20.0, \"collection_fee\": 18.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 21.94}",
+    "order_date": "2026-08-18",
+    "settled_date": "2026-09-02"
+  },
+  {
+    "order_id": "OD100189",
+    "amount": 97.66,
+    "fees_json": "{\"commission\": 23.88, \"fixed_fee\": 20.0, \"collection_fee\": 0.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 15.46}",
+    "order_date": "2026-08-18",
+    "settled_date": "2026-09-02"
+  },
+  {
+    "order_id": "OD100190",
+    "amount": 248.1,
+    "fees_json": "{\"commission\": 47.88, \"fixed_fee\": 20.0, \"collection_fee\": 18.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 23.02}",
+    "order_date": "2026-08-18",
+    "settled_date": "2026-08-30"
+  },
+  {
+    "order_id": "OD100191",
+    "amount": 291.02,
+    "fees_json": "{\"commission\": 53.88, \"fixed_fee\": 20.0, \"collection_fee\": 18.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 24.1}",
+    "order_date": "2026-08-19",
+    "settled_date": "2026-08-27"
+  },
+  {
+    "order_id": "OD100192",
+    "amount": 291.02,
+    "fees_json": "{\"commission\": 53.88, \"fixed_fee\": 20.0, \"collection_fee\": 18.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 24.1}",
+    "order_date": "2026-08-19",
+    "settled_date": "2026-08-26"
+  },
+  {
+    "order_id": "OD100193",
+    "amount": 441.02,
+    "fees_json": "{\"commission\": 71.88, \"fixed_fee\": 20.0, \"collection_fee\": 0.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 24.1}",
+    "order_date": "2026-08-19",
+    "settled_date": "2026-08-28"
+  },
+  {
+    "order_id": "OD100194",
+    "amount": 634.38,
+    "fees_json": "{\"commission\": 101.88, \"fixed_fee\": 20.0, \"collection_fee\": 18.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 32.74}",
+    "order_date": "2026-08-19",
+    "settled_date": "2026-09-02"
+  },
+  {
+    "order_id": "OD100195",
+    "amount": 119.34,
+    "fees_json": "{\"commission\": 29.88, \"fixed_fee\": 20.0, \"collection_fee\": 18.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 19.78}",
+    "order_date": "2026-08-19",
+    "settled_date": "2026-08-28"
+  },
+  {
+    "order_id": "OD100196",
+    "amount": 1568.76,
+    "fees_json": "{\"commission\": 239.76, \"fixed_fee\": 40.0, \"collection_fee\": 0.0, \"shipping_fee\": 84.0, \"gst_on_fees\": 65.48}",
+    "order_date": "2026-08-19",
+    "settled_date": "2026-09-01"
+  },
+  {
+    "order_id": "OD100197",
+    "amount": 97.66,
+    "fees_json": "{\"commission\": 23.88, \"fixed_fee\": 20.0, \"collection_fee\": 0.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 15.46}",
+    "order_date": "2026-08-19",
+    "settled_date": "2026-08-27"
+  },
+  {
+    "order_id": "OD100198",
+    "amount": 291.02,
+    "fees_json": "{\"commission\": 53.88, \"fixed_fee\": 20.0, \"collection_fee\": 18.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 24.1}",
+    "order_date": "2026-08-20",
+    "settled_date": "2026-08-31"
+  },
+  {
+    "order_id": "OD100199",
+    "amount": 291.02,
+    "fees_json": "{\"commission\": 53.88, \"fixed_fee\": 20.0, \"collection_fee\": 18.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 24.1}",
+    "order_date": "2026-08-20",
+    "settled_date": "2026-08-30"
+  },
+  {
+    "order_id": "OD100200",
+    "amount": 419.78,
+    "fees_json": "{\"commission\": 71.88, \"fixed_fee\": 20.0, \"collection_fee\": 18.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 27.34}",
+    "order_date": "2026-08-20",
+    "settled_date": "2026-08-30"
+  },
+  {
+    "order_id": "OD100201",
+    "amount": 441.02,
+    "fees_json": "{\"commission\": 71.88, \"fixed_fee\": 20.0, \"collection_fee\": 0.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 24.1}",
+    "order_date": "2026-08-20",
+    "settled_date": "2026-08-28"
+  },
+  {
+    "order_id": "OD100202",
+    "amount": 119.34,
+    "fees_json": "{\"commission\": 29.88, \"fixed_fee\": 20.0, \"collection_fee\": 18.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 19.78}",
+    "order_date": "2026-08-20",
+    "settled_date": "2026-09-02"
+  },
+  {
+    "order_id": "OD100203",
+    "amount": 763.14,
+    "fees_json": "{\"commission\": 119.88, \"fixed_fee\": 20.0, \"collection_fee\": 18.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 35.98}",
+    "order_date": "2026-08-20",
+    "settled_date": "2026-08-30"
+  },
+  {
+    "order_id": "OD100204",
+    "amount": 591.46,
+    "fees_json": "{\"commission\": 95.88, \"fixed_fee\": 20.0, \"collection_fee\": 18.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 31.66}",
+    "order_date": "2026-08-20",
+    "settled_date": "2026-09-03"
+  },
+  {
+    "order_id": "OD100205",
+    "amount": 76.42,
+    "fees_json": "{\"commission\": 23.88, \"fixed_fee\": 20.0, \"collection_fee\": 18.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 18.7}",
+    "order_date": "2026-08-20",
+    "settled_date": "2026-08-30"
+  },
+  {
+    "order_id": "OD100206",
+    "amount": 291.02,
+    "fees_json": "{\"commission\": 53.88, \"fixed_fee\": 20.0, \"collection_fee\": 18.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 24.1}",
+    "order_date": "2026-08-21",
+    "settled_date": "2026-09-02"
+  },
+  {
+    "order_id": "OD100207",
+    "amount": 291.02,
+    "fees_json": "{\"commission\": 53.88, \"fixed_fee\": 20.0, \"collection_fee\": 18.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 24.1}",
+    "order_date": "2026-08-21",
+    "settled_date": "2026-08-29"
+  },
+  {
+    "order_id": "OD100208",
+    "amount": 76.42,
+    "fees_json": "{\"commission\": 23.88, \"fixed_fee\": 20.0, \"collection_fee\": 18.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 18.7}",
+    "order_date": "2026-08-21",
+    "settled_date": "2026-09-03"
+  },
+  {
+    "order_id": "OD100209",
+    "amount": 76.42,
+    "fees_json": "{\"commission\": 23.88, \"fixed_fee\": 20.0, \"collection_fee\": 18.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 18.7}",
+    "order_date": "2026-08-21",
+    "settled_date": "2026-08-28"
+  },
+  {
+    "order_id": "OD100210",
+    "amount": 462.7,
+    "fees_json": "{\"commission\": 77.88, \"fixed_fee\": 20.0, \"collection_fee\": 18.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 28.42}",
+    "order_date": "2026-08-21",
+    "settled_date": "2026-08-29"
+  },
+  {
+    "order_id": "OD100211",
+    "amount": 312.26,
+    "fees_json": "{\"commission\": 53.88, \"fixed_fee\": 20.0, \"collection_fee\": 0.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 20.86}",
+    "order_date": "2026-08-22",
+    "settled_date": "2026-09-05"
+  },
+  {
+    "order_id": "OD100212",
+    "amount": 634.38,
+    "fees_json": "{\"commission\": 101.88, \"fixed_fee\": 20.0, \"collection_fee\": 18.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 32.74}",
+    "order_date": "2026-08-22",
+    "settled_date": "2026-09-05"
+  },
+  {
+    "order_id": "OD100213",
+    "amount": 119.34,
+    "fees_json": "{\"commission\": 29.88, \"fixed_fee\": 20.0, \"collection_fee\": 18.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 19.78}",
+    "order_date": "2026-08-22",
+    "settled_date": "2026-09-06"
+  },
+  {
+    "order_id": "OD100214",
+    "amount": 205.18,
+    "fees_json": "{\"commission\": 41.88, \"fixed_fee\": 20.0, \"collection_fee\": 18.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 21.94}",
+    "order_date": "2026-08-22",
+    "settled_date": "2026-08-31"
+  },
+  {
+    "order_id": "OD100215",
+    "amount": 591.46,
+    "fees_json": "{\"commission\": 95.88, \"fixed_fee\": 20.0, \"collection_fee\": 18.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 31.66}",
+    "order_date": "2026-08-22",
+    "settled_date": "2026-09-05"
+  },
+  {
+    "order_id": "OD100217",
+    "amount": 483.94,
+    "fees_json": "{\"commission\": 77.88, \"fixed_fee\": 20.0, \"collection_fee\": 0.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 25.18}",
+    "order_date": "2026-08-22",
+    "settled_date": "2026-08-29"
+  },
+  {
+    "order_id": "OD100218",
+    "amount": 291.02,
+    "fees_json": "{\"commission\": 53.88, \"fixed_fee\": 20.0, \"collection_fee\": 18.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 24.1}",
+    "order_date": "2026-08-23",
+    "settled_date": "2026-09-07"
+  },
+  {
+    "order_id": "OD100219",
+    "amount": 312.26,
+    "fees_json": "{\"commission\": 53.88, \"fixed_fee\": 20.0, \"collection_fee\": 0.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 20.86}",
+    "order_date": "2026-08-23",
+    "settled_date": "2026-08-30"
+  },
+  {
+    "order_id": "OD100220",
+    "amount": 419.78,
+    "fees_json": "{\"commission\": 71.88, \"fixed_fee\": 20.0, \"collection_fee\": 18.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 27.34}",
+    "order_date": "2026-08-23",
+    "settled_date": "2026-09-07"
+  },
+  {
+    "order_id": "OD100221",
+    "amount": 419.78,
+    "fees_json": "{\"commission\": 71.88, \"fixed_fee\": 20.0, \"collection_fee\": 18.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 27.34}",
+    "order_date": "2026-08-23",
+    "settled_date": "2026-09-05"
+  },
+  {
+    "order_id": "OD100222",
+    "amount": 205.18,
+    "fees_json": "{\"commission\": 41.88, \"fixed_fee\": 20.0, \"collection_fee\": 18.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 21.94}",
+    "order_date": "2026-08-23",
+    "settled_date": "2026-09-06"
+  },
+  {
+    "order_id": "OD100223",
+    "amount": 97.66,
+    "fees_json": "{\"commission\": 23.88, \"fixed_fee\": 20.0, \"collection_fee\": 0.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 15.46}",
+    "order_date": "2026-08-23",
+    "settled_date": "2026-09-07"
+  },
+  {
+    "order_id": "OD100224",
+    "amount": 419.78,
+    "fees_json": "{\"commission\": 71.88, \"fixed_fee\": 20.0, \"collection_fee\": 18.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 27.34}",
+    "order_date": "2026-08-24",
+    "settled_date": "2026-09-02"
+  },
+  {
+    "order_id": "OD100225",
+    "amount": 119.34,
+    "fees_json": "{\"commission\": 29.88, \"fixed_fee\": 20.0, \"collection_fee\": 18.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 19.78}",
+    "order_date": "2026-08-24",
+    "settled_date": "2026-09-02"
+  },
+  {
+    "order_id": "OD100226",
+    "amount": 226.42,
+    "fees_json": "{\"commission\": 41.88, \"fixed_fee\": 20.0, \"collection_fee\": 0.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 18.7}",
+    "order_date": "2026-08-24",
+    "settled_date": "2026-09-02"
+  },
+  {
+    "order_id": "OD100227",
+    "amount": 612.7,
+    "fees_json": "{\"commission\": 95.88, \"fixed_fee\": 20.0, \"collection_fee\": 0.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 28.42}",
+    "order_date": "2026-08-24",
+    "settled_date": "2026-09-01"
+  },
+  {
+    "order_id": "OD100228",
+    "amount": 76.42,
+    "fees_json": "{\"commission\": 23.88, \"fixed_fee\": 20.0, \"collection_fee\": 18.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 18.7}",
+    "order_date": "2026-08-24",
+    "settled_date": "2026-09-06"
+  },
+  {
+    "order_id": "OD100229",
+    "amount": 291.02,
+    "fees_json": "{\"commission\": 53.88, \"fixed_fee\": 20.0, \"collection_fee\": 18.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 24.1}",
+    "order_date": "2026-08-25",
+    "settled_date": "2026-09-06"
+  },
+  {
+    "order_id": "OD100230",
+    "amount": 419.78,
+    "fees_json": "{\"commission\": 71.88, \"fixed_fee\": 20.0, \"collection_fee\": 18.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 27.34}",
+    "order_date": "2026-08-25",
+    "settled_date": "2026-09-09"
+  },
+  {
+    "order_id": "OD100231",
+    "amount": 140.58,
+    "fees_json": "{\"commission\": 29.88, \"fixed_fee\": 20.0, \"collection_fee\": 0.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 16.54}",
+    "order_date": "2026-08-25",
+    "settled_date": "2026-09-07"
+  },
+  {
+    "order_id": "OD100232",
+    "amount": 763.14,
+    "fees_json": "{\"commission\": 119.88, \"fixed_fee\": 20.0, \"collection_fee\": 18.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 35.98}",
+    "order_date": "2026-08-25",
+    "settled_date": "2026-09-07"
+  },
+  {
+    "order_id": "OD100233",
+    "amount": 431.6,
+    "fees_json": "{\"commission\": 83.76, \"fixed_fee\": 40.0, \"collection_fee\": 18.0, \"shipping_fee\": 84.0, \"gst_on_fees\": 40.64}",
+    "order_date": "2026-08-25",
+    "settled_date": "2026-09-04"
+  },
+  {
+    "order_id": "OD100234",
+    "amount": 441.02,
+    "fees_json": "{\"commission\": 71.88, \"fixed_fee\": 20.0, \"collection_fee\": 0.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 24.1}",
+    "order_date": "2026-08-26",
+    "settled_date": "2026-09-06"
+  },
+  {
+    "order_id": "OD100235",
+    "amount": 655.62,
+    "fees_json": "{\"commission\": 101.88, \"fixed_fee\": 20.0, \"collection_fee\": 0.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 29.5}",
+    "order_date": "2026-08-26",
+    "settled_date": "2026-09-08"
+  },
+  {
+    "order_id": "OD100236",
+    "amount": 140.58,
+    "fees_json": "{\"commission\": 29.88, \"fixed_fee\": 20.0, \"collection_fee\": 0.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 16.54}",
+    "order_date": "2026-08-26",
+    "settled_date": "2026-09-07"
+  },
+  {
+    "order_id": "OD100238",
+    "amount": 603.28,
+    "fees_json": "{\"commission\": 107.76, \"fixed_fee\": 40.0, \"collection_fee\": 18.0, \"shipping_fee\": 84.0, \"gst_on_fees\": 44.96}",
+    "order_date": "2026-08-27",
+    "settled_date": "2026-09-07"
+  },
+  {
+    "order_id": "OD100239",
+    "amount": 291.02,
+    "fees_json": "{\"commission\": 53.88, \"fixed_fee\": 20.0, \"collection_fee\": 18.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 24.1}",
+    "order_date": "2026-08-27",
+    "settled_date": "2026-09-10"
+  },
+  {
+    "order_id": "OD100240",
+    "amount": 419.78,
+    "fees_json": "{\"commission\": 71.88, \"fixed_fee\": 20.0, \"collection_fee\": 18.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 27.34}",
+    "order_date": "2026-08-27",
+    "settled_date": "2026-09-05"
+  },
+  {
+    "order_id": "OD100241",
+    "amount": 634.38,
+    "fees_json": "{\"commission\": 101.88, \"fixed_fee\": 20.0, \"collection_fee\": 18.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 32.74}",
+    "order_date": "2026-08-27",
+    "settled_date": "2026-09-05"
+  },
+  {
+    "order_id": "OD100242",
+    "amount": 140.58,
+    "fees_json": "{\"commission\": 29.88, \"fixed_fee\": 20.0, \"collection_fee\": 0.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 16.54}",
+    "order_date": "2026-08-27",
+    "settled_date": "2026-09-09"
+  },
+  {
+    "order_id": "OD100243",
+    "amount": 226.42,
+    "fees_json": "{\"commission\": 41.88, \"fixed_fee\": 20.0, \"collection_fee\": 0.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 18.7}",
+    "order_date": "2026-08-27",
+    "settled_date": "2026-09-11"
+  },
+  {
+    "order_id": "OD100244",
+    "amount": 612.7,
+    "fees_json": "{\"commission\": 95.88, \"fixed_fee\": 20.0, \"collection_fee\": 0.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 28.42}",
+    "order_date": "2026-08-27",
+    "settled_date": "2026-09-07"
+  },
+  {
+    "order_id": "OD100245",
+    "amount": 248.1,
+    "fees_json": "{\"commission\": 47.88, \"fixed_fee\": 20.0, \"collection_fee\": 18.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 23.02}",
+    "order_date": "2026-08-27",
+    "settled_date": "2026-09-11"
+  },
+  {
+    "order_id": "OD100246",
+    "amount": 312.26,
+    "fees_json": "{\"commission\": 53.88, \"fixed_fee\": 20.0, \"collection_fee\": 0.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 20.86}",
+    "order_date": "2026-08-28",
+    "settled_date": "2026-09-09"
+  },
+  {
+    "order_id": "OD100247",
+    "amount": 291.02,
+    "fees_json": "{\"commission\": 53.88, \"fixed_fee\": 20.0, \"collection_fee\": 18.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 24.1}",
+    "order_date": "2026-08-28",
+    "settled_date": "2026-09-12"
+  },
+  {
+    "order_id": "OD100248",
+    "amount": 419.78,
+    "fees_json": "{\"commission\": 71.88, \"fixed_fee\": 20.0, \"collection_fee\": 18.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 27.34}",
+    "order_date": "2026-08-28",
+    "settled_date": "2026-09-07"
+  },
+  {
+    "order_id": "OD100249",
+    "amount": 634.38,
+    "fees_json": "{\"commission\": 101.88, \"fixed_fee\": 20.0, \"collection_fee\": 18.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 32.74}",
+    "order_date": "2026-08-28",
+    "settled_date": "2026-09-07"
+  },
+  {
+    "order_id": "OD100250",
+    "amount": 591.46,
+    "fees_json": "{\"commission\": 95.88, \"fixed_fee\": 20.0, \"collection_fee\": 18.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 31.66}",
+    "order_date": "2026-08-28",
+    "settled_date": "2026-09-07"
+  },
+  {
+    "order_id": "OD100251",
+    "amount": 248.1,
+    "fees_json": "{\"commission\": 47.88, \"fixed_fee\": 20.0, \"collection_fee\": 18.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 23.02}",
+    "order_date": "2026-08-28",
+    "settled_date": "2026-09-08"
+  },
+  {
+    "order_id": "OD100252",
+    "amount": 603.28,
+    "fees_json": "{\"commission\": 107.76, \"fixed_fee\": 40.0, \"collection_fee\": 18.0, \"shipping_fee\": 84.0, \"gst_on_fees\": 44.96}",
+    "order_date": "2026-08-29",
+    "settled_date": "2026-09-10"
+  },
+  {
+    "order_id": "OD100253",
+    "amount": 419.78,
+    "fees_json": "{\"commission\": 71.88, \"fixed_fee\": 20.0, \"collection_fee\": 18.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 27.34}",
+    "order_date": "2026-08-29",
+    "settled_date": "2026-09-07"
+  },
+  {
+    "order_id": "OD100254",
+    "amount": 882.04,
+    "fees_json": "{\"commission\": 143.76, \"fixed_fee\": 40.0, \"collection_fee\": 0.0, \"shipping_fee\": 84.0, \"gst_on_fees\": 48.2}",
+    "order_date": "2026-08-29",
+    "settled_date": "2026-09-07"
+  },
+  {
+    "order_id": "OD100255",
+    "amount": 226.42,
+    "fees_json": "{\"commission\": 41.88, \"fixed_fee\": 20.0, \"collection_fee\": 0.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 18.7}",
+    "order_date": "2026-08-29",
+    "settled_date": "2026-09-13"
+  },
+  {
+    "order_id": "OD100256",
+    "amount": 76.42,
+    "fees_json": "{\"commission\": 23.88, \"fixed_fee\": 20.0, \"collection_fee\": 18.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 18.7}",
+    "order_date": "2026-08-29",
+    "settled_date": "2026-09-13"
+  },
+  {
+    "order_id": "OD100257",
+    "amount": 291.02,
+    "fees_json": "{\"commission\": 53.88, \"fixed_fee\": 20.0, \"collection_fee\": 18.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 24.1}",
+    "order_date": "2026-08-30",
+    "settled_date": "2026-09-11"
+  },
+  {
+    "order_id": "OD100258",
+    "amount": 291.02,
+    "fees_json": "{\"commission\": 53.88, \"fixed_fee\": 20.0, \"collection_fee\": 18.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 24.1}",
+    "order_date": "2026-08-30",
+    "settled_date": "2026-09-07"
+  },
+  {
+    "order_id": "OD100259",
+    "amount": 419.78,
+    "fees_json": "{\"commission\": 71.88, \"fixed_fee\": 20.0, \"collection_fee\": 18.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 27.34}",
+    "order_date": "2026-08-30",
+    "settled_date": "2026-09-11"
+  },
+  {
+    "order_id": "OD100260",
+    "amount": 655.62,
+    "fees_json": "{\"commission\": 101.88, \"fixed_fee\": 20.0, \"collection_fee\": 0.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 29.5}",
+    "order_date": "2026-08-30",
+    "settled_date": "2026-09-14"
+  },
+  {
+    "order_id": "OD100261",
+    "amount": 140.58,
+    "fees_json": "{\"commission\": 29.88, \"fixed_fee\": 20.0, \"collection_fee\": 0.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 16.54}",
+    "order_date": "2026-08-30",
+    "settled_date": "2026-09-13"
+  },
+  {
+    "order_id": "OD100262",
+    "amount": 226.42,
+    "fees_json": "{\"commission\": 41.88, \"fixed_fee\": 20.0, \"collection_fee\": 0.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 18.7}",
+    "order_date": "2026-08-30",
+    "settled_date": "2026-09-12"
+  },
+  {
+    "order_id": "OD100263",
+    "amount": 76.42,
+    "fees_json": "{\"commission\": 23.88, \"fixed_fee\": 20.0, \"collection_fee\": 18.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 18.7}",
+    "order_date": "2026-08-30",
+    "settled_date": "2026-09-14"
+  },
+  {
+    "order_id": "OD100264",
+    "amount": 312.26,
+    "fees_json": "{\"commission\": 53.88, \"fixed_fee\": 20.0, \"collection_fee\": 0.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 20.86}",
+    "order_date": "2026-08-31",
+    "settled_date": "2026-09-11"
+  },
+  {
+    "order_id": "OD100265",
+    "amount": 291.02,
+    "fees_json": "{\"commission\": 53.88, \"fixed_fee\": 20.0, \"collection_fee\": 18.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 24.1}",
+    "order_date": "2026-08-31",
+    "settled_date": "2026-09-13"
+  },
+  {
+    "order_id": "OD100266",
+    "amount": 441.02,
+    "fees_json": "{\"commission\": 71.88, \"fixed_fee\": 20.0, \"collection_fee\": 0.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 24.1}",
+    "order_date": "2026-08-31",
+    "settled_date": "2026-09-07"
+  },
+  {
+    "order_id": "OD100267",
+    "amount": 655.62,
+    "fees_json": "{\"commission\": 101.88, \"fixed_fee\": 20.0, \"collection_fee\": 0.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 29.5}",
+    "order_date": "2026-08-31",
+    "settled_date": "2026-09-15"
+  },
+  {
+    "order_id": "OD100268",
+    "amount": 140.58,
+    "fees_json": "{\"commission\": 29.88, \"fixed_fee\": 20.0, \"collection_fee\": 0.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 16.54}",
+    "order_date": "2026-08-31",
+    "settled_date": "2026-09-08"
+  },
+  {
+    "order_id": "OD100269",
+    "amount": 763.14,
+    "fees_json": "{\"commission\": 119.88, \"fixed_fee\": 20.0, \"collection_fee\": 18.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 35.98}",
+    "order_date": "2026-08-31",
+    "settled_date": "2026-09-07"
+  },
+  {
+    "order_id": "OD100270",
+    "amount": 205.18,
+    "fees_json": "{\"commission\": 41.88, \"fixed_fee\": 20.0, \"collection_fee\": 18.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 21.94}",
+    "order_date": "2026-08-31",
+    "settled_date": "2026-09-13"
+  },
+  {
+    "order_id": "OD100271",
+    "amount": 226.42,
+    "fees_json": "{\"commission\": 41.88, \"fixed_fee\": 20.0, \"collection_fee\": 0.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 18.7}",
+    "order_date": "2026-08-31",
+    "settled_date": "2026-09-09"
+  },
+  {
+    "order_id": "OD100272",
+    "amount": 612.7,
+    "fees_json": "{\"commission\": 95.88, \"fixed_fee\": 20.0, \"collection_fee\": 0.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 28.42}",
+    "order_date": "2026-08-31",
+    "settled_date": "2026-09-07"
+  },
+  {
+    "order_id": "OD100273",
+    "amount": 97.66,
+    "fees_json": "{\"commission\": 23.88, \"fixed_fee\": 20.0, \"collection_fee\": 0.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 15.46}",
+    "order_date": "2026-08-31",
+    "settled_date": "2026-09-07"
+  },
+  {
+    "order_id": "OD100274",
+    "amount": 248.1,
+    "fees_json": "{\"commission\": 47.88, \"fixed_fee\": 20.0, \"collection_fee\": 18.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 23.02}",
+    "order_date": "2026-08-31",
+    "settled_date": "2026-09-10"
+  },
+  {
+    "order_id": "OD100275",
+    "amount": 462.7,
+    "fees_json": "{\"commission\": 77.88, \"fixed_fee\": 20.0, \"collection_fee\": 18.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 28.42}",
+    "order_date": "2026-08-31",
+    "settled_date": "2026-09-11"
+  },
+  {
+    "order_id": "OD100276",
+    "amount": 291.02,
+    "fees_json": "{\"commission\": 53.88, \"fixed_fee\": 20.0, \"collection_fee\": 18.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 24.1}",
+    "order_date": "2026-09-01",
+    "settled_date": "2026-09-10"
+  },
+  {
+    "order_id": "OD100277",
+    "amount": 603.28,
+    "fees_json": "{\"commission\": 107.76, \"fixed_fee\": 40.0, \"collection_fee\": 18.0, \"shipping_fee\": 84.0, \"gst_on_fees\": 44.96}",
+    "order_date": "2026-09-01",
+    "settled_date": "2026-09-12"
+  },
+  {
+    "order_id": "OD100278",
+    "amount": 419.78,
+    "fees_json": "{\"commission\": 71.88, \"fixed_fee\": 20.0, \"collection_fee\": 18.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 27.34}",
+    "order_date": "2026-09-01",
+    "settled_date": "2026-09-12"
+  },
+  {
+    "order_id": "OD100279",
+    "amount": 655.62,
+    "fees_json": "{\"commission\": 101.88, \"fixed_fee\": 20.0, \"collection_fee\": 0.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 29.5}",
+    "order_date": "2026-09-01",
+    "settled_date": "2026-09-10"
+  },
+  {
+    "order_id": "OD100280",
+    "amount": 763.14,
+    "fees_json": "{\"commission\": 119.88, \"fixed_fee\": 20.0, \"collection_fee\": 18.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 35.98}",
+    "order_date": "2026-09-01",
+    "settled_date": "2026-09-08"
+  },
+  {
+    "order_id": "OD100281",
+    "amount": 226.42,
+    "fees_json": "{\"commission\": 41.88, \"fixed_fee\": 20.0, \"collection_fee\": 0.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 18.7}",
+    "order_date": "2026-09-01",
+    "settled_date": "2026-09-12"
+  },
+  {
+    "order_id": "OD100282",
+    "amount": 591.46,
+    "fees_json": "{\"commission\": 95.88, \"fixed_fee\": 20.0, \"collection_fee\": 18.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 31.66}",
+    "order_date": "2026-09-01",
+    "settled_date": "2026-09-11"
+  },
+  {
+    "order_id": "OD100283",
+    "amount": 248.1,
+    "fees_json": "{\"commission\": 47.88, \"fixed_fee\": 20.0, \"collection_fee\": 18.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 23.02}",
+    "order_date": "2026-09-01",
+    "settled_date": "2026-09-16"
+  },
+  {
+    "order_id": "OD100284",
+    "amount": 291.02,
+    "fees_json": "{\"commission\": 53.88, \"fixed_fee\": 20.0, \"collection_fee\": 18.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 24.1}",
+    "order_date": "2026-09-02",
+    "settled_date": "2026-09-09"
+  },
+  {
+    "order_id": "OD100285",
+    "amount": 312.26,
+    "fees_json": "{\"commission\": 53.88, \"fixed_fee\": 20.0, \"collection_fee\": 0.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 20.86}",
+    "order_date": "2026-09-02",
+    "settled_date": "2026-09-14"
+  },
+  {
+    "order_id": "OD100286",
+    "amount": 419.78,
+    "fees_json": "{\"commission\": 71.88, \"fixed_fee\": 20.0, \"collection_fee\": 18.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 27.34}",
+    "order_date": "2026-09-02",
+    "settled_date": "2026-09-16"
+  },
+  {
+    "order_id": "OD100287",
+    "amount": 655.62,
+    "fees_json": "{\"commission\": 101.88, \"fixed_fee\": 20.0, \"collection_fee\": 0.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 29.5}",
+    "order_date": "2026-09-02",
+    "settled_date": "2026-09-10"
+  },
+  {
+    "order_id": "OD100288",
+    "amount": 205.18,
+    "fees_json": "{\"commission\": 41.88, \"fixed_fee\": 20.0, \"collection_fee\": 18.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 21.94}",
+    "order_date": "2026-09-02",
+    "settled_date": "2026-09-17"
+  },
+  {
+    "order_id": "OD100289",
+    "amount": 76.42,
+    "fees_json": "{\"commission\": 23.88, \"fixed_fee\": 20.0, \"collection_fee\": 18.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 18.7}",
+    "order_date": "2026-09-02",
+    "settled_date": "2026-09-12"
+  },
+  {
+    "order_id": "OD100290",
+    "amount": 462.7,
+    "fees_json": "{\"commission\": 77.88, \"fixed_fee\": 20.0, \"collection_fee\": 18.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 28.42}",
+    "order_date": "2026-09-02",
+    "settled_date": "2026-09-17"
+  },
+  {
+    "order_id": "OD100291",
+    "amount": 312.26,
+    "fees_json": "{\"commission\": 53.88, \"fixed_fee\": 20.0, \"collection_fee\": 0.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 20.86}",
+    "order_date": "2026-09-03",
+    "settled_date": "2026-09-16"
+  },
+  {
+    "order_id": "OD100292",
+    "amount": 312.26,
+    "fees_json": "{\"commission\": 53.88, \"fixed_fee\": 20.0, \"collection_fee\": 0.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 20.86}",
+    "order_date": "2026-09-03",
+    "settled_date": "2026-09-13"
+  },
+  {
+    "order_id": "OD100294",
+    "amount": 634.38,
+    "fees_json": "{\"commission\": 101.88, \"fixed_fee\": 20.0, \"collection_fee\": 18.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 32.74}",
+    "order_date": "2026-09-03",
+    "settled_date": "2026-09-14"
+  },
+  {
+    "order_id": "OD100295",
+    "amount": 119.34,
+    "fees_json": "{\"commission\": 29.88, \"fixed_fee\": 20.0, \"collection_fee\": 18.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 19.78}",
+    "order_date": "2026-09-03",
+    "settled_date": "2026-09-10"
+  },
+  {
+    "order_id": "OD100296",
+    "amount": 205.18,
+    "fees_json": "{\"commission\": 41.88, \"fixed_fee\": 20.0, \"collection_fee\": 18.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 21.94}",
+    "order_date": "2026-09-03",
+    "settled_date": "2026-09-16"
+  },
+  {
+    "order_id": "OD100297",
+    "amount": 195.32,
+    "fees_json": "{\"commission\": 47.76, \"fixed_fee\": 40.0, \"collection_fee\": 0.0, \"shipping_fee\": 84.0, \"gst_on_fees\": 30.92}",
+    "order_date": "2026-09-03",
+    "settled_date": "2026-09-16"
+  },
+  {
+    "order_id": "OD100298",
+    "amount": 97.66,
+    "fees_json": "{\"commission\": 23.88, \"fixed_fee\": 20.0, \"collection_fee\": 0.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 15.46}",
+    "order_date": "2026-09-03",
+    "settled_date": "2026-09-16"
+  },
+  {
+    "order_id": "OD100299",
+    "amount": 624.52,
+    "fees_json": "{\"commission\": 107.76, \"fixed_fee\": 40.0, \"collection_fee\": 0.0, \"shipping_fee\": 84.0, \"gst_on_fees\": 41.72}",
+    "order_date": "2026-09-04",
+    "settled_date": "2026-09-16"
+  },
+  {
+    "order_id": "OD100301",
+    "amount": 419.78,
+    "fees_json": "{\"commission\": 71.88, \"fixed_fee\": 20.0, \"collection_fee\": 18.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 27.34}",
+    "order_date": "2026-09-04",
+    "settled_date": "2026-09-11"
+  },
+  {
+    "order_id": "OD100302",
+    "amount": 634.38,
+    "fees_json": "{\"commission\": 101.88, \"fixed_fee\": 20.0, \"collection_fee\": 18.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 32.74}",
+    "order_date": "2026-09-04",
+    "settled_date": "2026-09-11"
+  },
+  {
+    "order_id": "OD100303",
+    "amount": 205.18,
+    "fees_json": "{\"commission\": 41.88, \"fixed_fee\": 20.0, \"collection_fee\": 18.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 21.94}",
+    "order_date": "2026-09-04",
+    "settled_date": "2026-09-15"
+  },
+  {
+    "order_id": "OD100304",
+    "amount": 462.7,
+    "fees_json": "{\"commission\": 77.88, \"fixed_fee\": 20.0, \"collection_fee\": 18.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 28.42}",
+    "order_date": "2026-09-04",
+    "settled_date": "2026-09-14"
+  },
+  {
+    "order_id": "OD100306",
+    "amount": 419.78,
+    "fees_json": "{\"commission\": 71.88, \"fixed_fee\": 20.0, \"collection_fee\": 18.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 27.34}",
+    "order_date": "2026-09-05",
+    "settled_date": "2026-09-15"
+  },
+  {
+    "order_id": "OD100307",
+    "amount": 634.38,
+    "fees_json": "{\"commission\": 101.88, \"fixed_fee\": 20.0, \"collection_fee\": 18.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 32.74}",
+    "order_date": "2026-09-05",
+    "settled_date": "2026-09-17"
+  },
+  {
+    "order_id": "OD100309",
+    "amount": 205.18,
+    "fees_json": "{\"commission\": 41.88, \"fixed_fee\": 20.0, \"collection_fee\": 18.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 21.94}",
+    "order_date": "2026-09-05",
+    "settled_date": "2026-09-15"
+  },
+  {
+    "order_id": "OD100310",
+    "amount": 76.42,
+    "fees_json": "{\"commission\": 23.88, \"fixed_fee\": 20.0, \"collection_fee\": 18.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 18.7}",
+    "order_date": "2026-09-05",
+    "settled_date": "2026-09-15"
+  },
+  {
+    "order_id": "OD100311",
+    "amount": 462.7,
+    "fees_json": "{\"commission\": 77.88, \"fixed_fee\": 20.0, \"collection_fee\": 18.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 28.42}",
+    "order_date": "2026-09-05",
+    "settled_date": "2026-09-16"
+  },
+  {
+    "order_id": "OD100313",
+    "amount": 441.02,
+    "fees_json": "{\"commission\": 71.88, \"fixed_fee\": 20.0, \"collection_fee\": 0.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 24.1}",
+    "order_date": "2026-09-06",
+    "settled_date": "2026-09-15"
+  },
+  {
+    "order_id": "OD100314",
+    "amount": 634.38,
+    "fees_json": "{\"commission\": 101.88, \"fixed_fee\": 20.0, \"collection_fee\": 18.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 32.74}",
+    "order_date": "2026-09-06",
+    "settled_date": "2026-09-14"
+  },
+  {
+    "order_id": "OD100315",
+    "amount": 119.34,
+    "fees_json": "{\"commission\": 29.88, \"fixed_fee\": 20.0, \"collection_fee\": 18.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 19.78}",
+    "order_date": "2026-09-06",
+    "settled_date": "2026-09-15"
+  },
+  {
+    "order_id": "OD100316",
+    "amount": 97.66,
+    "fees_json": "{\"commission\": 23.88, \"fixed_fee\": 20.0, \"collection_fee\": 0.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 15.46}",
+    "order_date": "2026-09-06",
+    "settled_date": "2026-09-15"
+  },
+  {
+    "order_id": "OD100318",
+    "amount": 419.78,
+    "fees_json": "{\"commission\": 71.88, \"fixed_fee\": 20.0, \"collection_fee\": 18.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 27.34}",
+    "order_date": "2026-09-07",
+    "settled_date": "2026-09-15"
+  },
+  {
+    "order_id": "OD100320",
+    "amount": 140.58,
+    "fees_json": "{\"commission\": 29.88, \"fixed_fee\": 20.0, \"collection_fee\": 0.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 16.54}",
+    "order_date": "2026-09-07",
+    "settled_date": "2026-09-14"
+  },
+  {
+    "order_id": "OD100325",
+    "amount": 655.62,
+    "fees_json": "{\"commission\": 101.88, \"fixed_fee\": 20.0, \"collection_fee\": 0.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 29.5}",
+    "order_date": "2026-09-08",
+    "settled_date": "2026-09-17"
+  },
+  {
+    "order_id": "OD100326",
+    "amount": 119.34,
+    "fees_json": "{\"commission\": 29.88, \"fixed_fee\": 20.0, \"collection_fee\": 18.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 19.78}",
+    "order_date": "2026-09-08",
+    "settled_date": "2026-09-17"
+  },
+  {
+    "order_id": "OD100328",
+    "amount": 226.42,
+    "fees_json": "{\"commission\": 41.88, \"fixed_fee\": 20.0, \"collection_fee\": 0.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 18.7}",
+    "order_date": "2026-09-08",
+    "settled_date": "2026-09-15"
+  },
+  {
+    "order_id": "OD100333",
+    "amount": 419.78,
+    "fees_json": "{\"commission\": 71.88, \"fixed_fee\": 20.0, \"collection_fee\": 18.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 27.34}",
+    "order_date": "2026-09-09",
+    "settled_date": "2026-09-16"
+  },
+  {
+    "order_id": "OD100336",
+    "amount": 291.02,
+    "fees_json": "{\"commission\": 53.88, \"fixed_fee\": 20.0, \"collection_fee\": 18.0, \"shipping_fee\": 42.0, \"gst_on_fees\": 24.1}",
+    "order_date": "2026-09-10",
+    "settled_date": "2026-09-17"
+  }
+]

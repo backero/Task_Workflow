@@ -1,0 +1,16 @@
+{
+  "name": "@backero/shared-config",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Backero brand design tokens (theme.ts) and shared build configuration, consumed by mobile, admin-web, and employee-web.",
+  "main": "theme.ts",
+  "types": "theme.ts",
+  "scripts": {
+    "build:css": "ts-node generate-css.ts > theme.css",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.4",
+    "ts-node": "^10.9.2"
+  }
+}

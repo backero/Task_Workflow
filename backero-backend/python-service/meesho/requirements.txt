@@ -1,0 +1,10 @@
+flask
+apscheduler
+playwright
+pandas
+openpyxl
+pyyaml
+requests
+pymongo
+python-dotenv
+typesafe-sdk

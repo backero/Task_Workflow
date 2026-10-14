@@ -1,0 +1,1664 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>R&D Price Calculator — Backero BioTech</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+  :root {
+    --primary: #0f172a; --primary-light: #1e293b; --accent: #e5ff00; --accent-text: #0f172a;
+    --success: #10b981; --danger: #ef4444; --warning: #f59e0b; --info: #3b82f6;
+    --bg: #f1f5f9; --card-bg: #ffffff; --surface: #f8fafc; --surface-hover: #f1f5f9;
+    --text: #0f172a; --text-secondary: #64748b; --text-muted: #94a3b8;
+    --border: #e2e8f0; --border-light: #f1f5f9; --shadow: 0 1px 3px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.06);
+    --shadow-lg: 0 10px 40px rgba(0,0,0,0.12); --radius: 16px; --radius-sm: 10px;
+    --font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: var(--font); background: var(--bg); color: var(--text); font-size: 13.5px; line-height: 1.5; }
+
+  .header { background: var(--card-bg); padding: 12px 24px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; border-bottom: 1px solid var(--border); box-shadow: 0 1px 3px rgba(0,0,0,0.04); flex-wrap: wrap; gap: 10px; }
+  .brand { display: flex; align-items: center; gap: 12px; }
+  .brand-icon { width: 36px; height: 36px; background: var(--accent); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 18px; }
+  .brand-text h1 { font-size: 16px; font-weight: 700; letter-spacing: -0.3px; }
+  .brand-text span { font-size: 11px; color: var(--text-secondary); font-weight: 500; }
+  .header-nav { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
+  .nav-link { font-size: 12px; font-weight: 600; color: var(--text-secondary); text-decoration: none; padding: 6px 10px; border-radius: 8px; transition: all 0.15s; }
+  .nav-link:hover { background: var(--surface); color: var(--primary); }
+  .header-actions { display: flex; gap: 10px; align-items: center; }
+
+  .btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; border-radius: 50px; border: none; font-size: 13px; cursor: pointer; transition: all 0.2s; font-weight: 600; font-family: var(--font); }
+  .btn-primary { background: var(--primary); color: white; }
+  .btn-primary:hover { background: var(--primary-light); transform: translateY(-1px); box-shadow: 0 4px 12px rgba(15,23,42,0.15); }
+  .btn-accent { background: var(--accent); color: var(--accent-text); }
+  .btn-accent:hover { filter: brightness(0.95); transform: translateY(-1px); }
+  .btn-outline { background: transparent; border: 1.5px solid var(--border); color: var(--text-secondary); font-weight: 500; }
+  .btn-outline:hover { background: var(--surface); border-color: var(--text-muted); color: var(--text); }
+  .btn-danger { background: var(--danger); color: white; }
+  .btn-sm { padding: 5px 12px; font-size: 11.5px; }
+  .btn-ghost { background: transparent; color: var(--text-secondary); border: none; padding: 6px 10px; }
+  .btn-ghost:hover { background: var(--surface); color: var(--text); }
+
+  .main { padding: 20px; max-width: 1400px; margin: 0 auto; }
+
+  .card { background: var(--card-bg); border-radius: var(--radius); box-shadow: var(--shadow); border: 1px solid var(--border-light); margin-bottom: 16px; overflow: hidden; }
+  .card-header { padding: 14px 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-light); flex-wrap: wrap; gap: 12px; }
+  .card-header h2 { font-size: 15px; font-weight: 700; color: var(--text); letter-spacing: -0.2px; }
+  .card-header h2 .step-no { display: inline-flex; align-items: center; justify-content: center; min-width: 24px; height: 24px; padding: 0 6px; border-radius: 50px; background: var(--primary); color: var(--accent); font-size: 12px; font-weight: 700; margin-right: 8px; }
+  .card-body { padding: 16px 20px; }
+
+  .form-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+  .form-group { display: flex; flex-direction: column; gap: 5px; }
+  .form-group.full { grid-column: 1 / -1; }
+  .form-group.half { grid-column: span 2; }
+  label { font-size: 12px; font-weight: 600; color: var(--text); }
+  label .req { color: var(--danger); }
+  input, select, textarea { padding: 8px 12px; border: 1.5px solid var(--border); border-radius: var(--radius-sm); font-size: 13px; font-family: var(--font); background: var(--card-bg); transition: all 0.2s; }
+  input:focus, select:focus, textarea:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(15,23,42,0.06); }
+  textarea { resize: vertical; min-height: 60px; }
+  .help { font-size: 11px; color: var(--text-muted); line-height: 1.45; }
+  .checkbox-group { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text-secondary); }
+  .checkbox-group input[type="checkbox"] { width: 16px; height: 16px; accent-color: var(--primary); }
+
+  .tag { display: inline-flex; align-items: center; padding: 3px 10px; border-radius: 50px; font-size: 11px; font-weight: 600; }
+  .tag-gray { background: #f3f4f6; color: #4b5563; }
+  .tag-success { background: #ecfdf5; color: #047857; }
+  .tag-danger { background: #fef2f2; color: #b91c1c; }
+  .tag-warning { background: #fffbeb; color: #b45309; }
+  .tag-info { background: #dbeafe; color: #1d4ed8; }
+
+  .table-wrap { overflow-x: auto; border-radius: var(--radius-sm); border: 1px solid var(--border-light); }
+  table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 13px; }
+  thead { background: var(--surface); }
+  th, td { padding: 10px 14px; text-align: left; vertical-align: middle; }
+  th { font-weight: 600; color: var(--text-secondary); font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; white-space: nowrap; border-bottom: 1px solid var(--border); }
+  th:first-child { border-radius: var(--radius-sm) 0 0 0; }
+  th:last-child { border-radius: 0 var(--radius-sm) 0 0; }
+  tbody tr:hover { background: var(--surface-hover); }
+  td { border-bottom: 1px solid var(--border-light); }
+  .actions { display: flex; gap: 4px; }
+  .actions button { background: none; border: none; cursor: pointer; padding: 6px; border-radius: 8px; font-size: 14px; transition: all 0.15s; display: flex; align-items: center; justify-content: center; width: 32px; height: 32px; }
+  .actions button:hover { background: var(--surface-hover); transform: scale(1.1); }
+  .actions .load-btn { color: var(--info); }
+  .actions .delete-btn { color: var(--danger); }
+
+  .modal-overlay { position: fixed; inset: 0; background: rgba(15,23,42,0.45); display: none; align-items: center; justify-content: center; z-index: 1000; padding: 20px; overflow-y: auto; backdrop-filter: blur(4px); }
+  .modal-overlay.show { display: flex; }
+  .modal { background: var(--card-bg); border-radius: var(--radius); width: 100%; max-width: 900px; max-height: 92vh; overflow-y: auto; box-shadow: var(--shadow-lg); border: 1px solid var(--border); }
+  .modal-header { padding: 14px 20px; border-bottom: 1px solid var(--border-light); display: flex; justify-content: space-between; align-items: center; background: var(--surface); }
+  .modal-header h2 { font-size: 16px; font-weight: 700; }
+  .modal-close { background: none; border: none; font-size: 22px; cursor: pointer; color: var(--text-muted); width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; transition: background 0.2s; }
+  .modal-close:hover { background: var(--surface-hover); color: var(--text); }
+  .modal-body { padding: 20px; }
+  .modal-footer { padding: 12px 20px; border-top: 1px solid var(--border-light); display: flex; justify-content: flex-end; gap: 10px; background: var(--surface); }
+
+  .toast-container { position: fixed; top: 20px; right: 20px; z-index: 2000; display: flex; flex-direction: column; gap: 8px; }
+  .toast { background: var(--primary); color: white; padding: 12px 18px; border-radius: 12px; box-shadow: var(--shadow-lg); font-size: 13px; font-weight: 500; animation: slideIn 0.3s ease; display: flex; align-items: center; gap: 10px; }
+  .toast.success { background: var(--success); }
+  .toast.error { background: var(--danger); }
+  .toast.warning { background: var(--warning); color: var(--accent-text); }
+  @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+
+  .hidden { display: none !important; }
+  .empty { text-align: center; padding: 40px; color: var(--text-secondary); font-size: 13px; }
+  .empty .icon { font-size: 40px; margin-bottom: 10px; opacity: 0.4; }
+  .empty h4 { font-size: 14px; color: var(--text); font-weight: 600; margin-bottom: 4px; }
+
+  /* ========== MODULE-SPECIFIC ========== */
+  .db-banner { display: none; align-items: center; gap: 8px; padding: 10px 16px; background: #fffbeb; border: 1.5px solid #fef3c7; border-radius: var(--radius-sm); font-size: 12.5px; color: #b45309; font-weight: 500; margin-bottom: 14px; }
+  .db-banner.show { display: flex; }
+  .db-banner .icon { font-size: 15px; }
+
+  .layout-grid { display: grid; grid-template-columns: minmax(0,1fr) 400px; gap: 20px; align-items: start; }
+  .sidebar-sticky { position: sticky; top: 76px; }
+
+  .tier-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+  .tier-card { border: 1.5px solid var(--border); border-radius: var(--radius-sm); padding: 14px; cursor: pointer; transition: all 0.15s; background: var(--card-bg); display: flex; flex-direction: column; gap: 6px; }
+  .tier-card:hover { border-color: var(--text-muted); }
+  .tier-card.active { border-color: var(--primary); background: var(--surface); box-shadow: var(--shadow); }
+  .tier-card input { display: none; }
+  .tier-card .t-name { font-weight: 700; font-size: 13px; color: var(--primary); }
+  .tier-card .t-code { font-size: 10px; color: var(--text-muted); font-weight: 500; }
+  .tier-card .t-desc { font-size: 11.5px; color: var(--text-secondary); line-height: 1.45; }
+  .tier-card .t-meta { font-size: 11px; color: var(--text-muted); font-weight: 600; margin-top: auto; }
+  .tier-card .t-band { font-size: 10.5px; color: var(--info); font-weight: 600; }
+  .tier-advisory { display: none; align-items: flex-start; gap: 8px; padding: 12px 16px; background: #eff6ff; border: 1.5px solid #bfdbfe; border-radius: var(--radius-sm); font-size: 13px; color: #1d4ed8; font-weight: 500; margin-top: 12px; }
+  .tier-advisory.show { display: flex; }
+
+  .picker-box { margin-bottom: 14px; border: 1.5px dashed var(--border); border-radius: var(--radius-sm); background: var(--surface); }
+  .picker-toggle { width: 100%; text-align: left; background: none; border: none; padding: 12px 16px; font-size: 13px; font-weight: 700; color: var(--primary); cursor: pointer; font-family: var(--font); display: flex; align-items: center; gap: 8px; }
+  .picker-toggle:hover { color: var(--info); }
+  .picker-body { padding: 4px 16px 14px; }
+  .picker-q { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 8px 0; border-bottom: 1px solid var(--border-light); font-size: 12.5px; }
+  .picker-q:last-of-type { border-bottom: none; }
+  .picker-q .q-text { flex: 1; min-width: 220px; font-weight: 600; color: var(--text); }
+  .picker-q .q-opts { display: flex; gap: 14px; font-size: 12.5px; color: var(--text-secondary); font-weight: 600; }
+  .picker-q .q-opts label { display: flex; align-items: center; gap: 5px; font-weight: 600; color: var(--text-secondary); cursor: pointer; }
+  .picker-q input[type=radio] { width: 15px; height: 15px; accent-color: var(--primary); }
+  .picker-result { margin-top: 10px; font-size: 12.5px; font-weight: 600; color: var(--primary); background: #ecfdf5; border: 1px solid #a7f3d0; border-radius: 10px; padding: 9px 14px; display: none; }
+  .picker-result.show { display: block; }
+
+  .info-note { display: flex; align-items: flex-start; gap: 8px; padding: 10px 14px; background: var(--surface); border: 1px solid var(--border-light); border-radius: var(--radius-sm); font-size: 12px; color: var(--text-secondary); margin-bottom: 14px; }
+  .industry-warning { display: flex; align-items: center; gap: 8px; padding: 10px 14px; background: #fffbeb; border-radius: 10px; font-size: 12px; color: #b45309; font-weight: 500; border: 1px solid #fef3c7; }
+  .industry-warning .icon { font-size: 16px; }
+  .band-ok { display: flex; align-items: center; gap: 8px; padding: 10px 14px; background: #ecfdf5; border-radius: 10px; font-size: 12px; color: #047857; font-weight: 500; border: 1px solid #a7f3d0; }
+
+  .pricing-highlight { background: var(--surface); padding: 14px 18px; border-radius: var(--radius-sm); border: 1.5px solid var(--border-light); margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; }
+  .pricing-highlight .label { font-size: 12px; color: var(--text-secondary); font-weight: 500; }
+  .pricing-highlight .value { font-size: 18px; font-weight: 700; color: var(--primary); }
+
+  .assumption-card { background: var(--surface); padding: 14px 16px; border-radius: 12px; border: 1.5px solid var(--border-light); display: flex; flex-direction: column; gap: 6px; }
+  .assumption-card .label { font-size: 11px; color: var(--text-secondary); font-weight: 600; }
+  .pct-display { display: inline-block; font-size: 12px; font-weight: 700; color: var(--primary); margin-top: 4px; }
+  input[type=range] { -webkit-appearance: none; appearance: none; width: 100%; height: 6px; border-radius: 3px; background: #e2e8f0; outline: none; margin: 8px 0; padding: 0; border: none; }
+  input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 16px; height: 16px; border-radius: 50%; background: var(--primary); cursor: pointer; border: 2px solid white; box-shadow: 0 1px 4px rgba(0,0,0,0.15); }
+  input[type=range]::-moz-range-thumb { width: 16px; height: 16px; border-radius: 50%; background: var(--primary); cursor: pointer; border: 2px solid white; box-shadow: 0 1px 4px rgba(0,0,0,0.15); }
+
+  .mode-toggle { display: flex; gap: 4px; background: var(--surface); padding: 4px; border-radius: 10px; border: 1px solid var(--border-light); width: fit-content; }
+  .mode-toggle button { padding: 6px 14px; border-radius: 8px; border: none; font-size: 12px; cursor: pointer; background: transparent; color: var(--text-secondary); font-weight: 600; font-family: var(--font); }
+  .mode-toggle button.active { background: var(--card-bg); color: var(--primary); box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
+
+  .fee-hero { background: var(--primary); color: white; border-radius: var(--radius-sm); padding: 18px 20px; margin-bottom: 16px; }
+  .fee-hero .label { font-size: 11px; color: rgba(255,255,255,0.75); font-weight: 600; text-transform: uppercase; letter-spacing: 0.6px; }
+  .fee-hero .fee-value { font-size: 34px; font-weight: 700; color: var(--accent); letter-spacing: -0.5px; line-height: 1.15; }
+  .fee-hero .fee-sub { font-size: 11.5px; color: rgba(255,255,255,0.7); margin-top: 4px; }
+
+  .breakdown-table { width: 100%; font-size: 12.5px; border-collapse: separate; border-spacing: 0; }
+  .breakdown-table td { padding: 7px 4px; border-bottom: 1px solid var(--border-light); }
+  .breakdown-table .b-basis { color: var(--text-muted); font-size: 11px; }
+  .breakdown-table .b-amount { text-align: right; font-weight: 600; white-space: nowrap; }
+  .breakdown-table tr.b-subtotal td { border-top: 1.5px solid var(--border); font-weight: 700; background: var(--surface); }
+  .breakdown-table tr.b-total td { font-weight: 700; color: var(--primary); background: var(--surface); }
+
+  .chip-list { display: flex; gap: 6px; flex-wrap: wrap; }
+  .chip { display: inline-flex; align-items: center; gap: 4px; padding: 4px 12px; border-radius: 50px; font-size: 11.5px; font-weight: 600; background: #ecfdf5; color: #047857; border: 1px solid #a7f3d0; }
+
+  .test-row { display: grid; grid-template-columns: 24px minmax(0,1.6fr) 70px 110px 100px; gap: 10px; align-items: center; padding: 8px 10px; border: 1px solid var(--border-light); border-radius: 10px; margin-bottom: 8px; background: var(--surface); font-size: 12.5px; }
+  .test-row input[type=checkbox] { width: 16px; height: 16px; accent-color: var(--primary); }
+  .test-row input[type=number], .test-row input[type=text] { padding: 6px 10px; font-size: 12px; width: 100%; }
+  .test-row .t-amount { text-align: right; font-weight: 700; color: var(--primary); font-size: 12.5px; }
+  .test-row .t-del { background: none; border: none; cursor: pointer; color: var(--danger); font-size: 13px; }
+
+  .formula-table { width: 100%; font-size: 12.5px; border-collapse: separate; border-spacing: 0; }
+  .formula-table th { font-size: 10.5px; padding: 8px 10px; }
+  .formula-table td { padding: 6px 8px; }
+  .formula-table input { padding: 6px 10px; font-size: 12px; width: 100%; }
+  .formula-table .f-cost { text-align: right; font-weight: 700; color: var(--primary); white-space: nowrap; }
+  .formula-table .f-del { background: none; border: none; cursor: pointer; color: var(--danger); font-size: 13px; }
+
+  .recovery-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+  .recovery-item { background: var(--surface); border: 1px solid var(--border-light); border-radius: 10px; padding: 10px 12px; text-align: center; }
+  .recovery-item .r-label { font-size: 10.5px; color: var(--text-secondary); font-weight: 600; text-transform: uppercase; letter-spacing: 0.3px; }
+  .recovery-item .r-value { font-size: 15px; font-weight: 700; color: var(--primary); margin-top: 2px; }
+
+  .settings-section { font-size: 12px; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; margin: 18px 0 10px; padding-top: 14px; border-top: 1px solid var(--border-light); }
+  .settings-section:first-child { margin-top: 0; padding-top: 0; border-top: none; }
+
+  /* ========== PRINT ========== */
+  #printQuote { display: none; }
+  @media print {
+    .header, .main, .toast-container, .modal-overlay, .scan-overlay { display: none !important; }
+    body { background: white; font-size: 12px; }
+    #printQuote { display: block; max-width: 780px; margin: 0 auto; padding: 20px; color: #111; }
+  }
+  .pq-head { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 3px solid #0f172a; padding-bottom: 14px; margin-bottom: 16px; }
+  .pq-company h1 { font-size: 22px; font-weight: 700; letter-spacing: -0.3px; }
+  .pq-company span { font-size: 11px; color: #555; }
+  .pq-meta { text-align: right; font-size: 12px; line-height: 1.7; }
+  .pq-title { font-size: 15px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; }
+  .pq-section { margin-bottom: 16px; }
+  .pq-section h3 { font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; color: #555; border-bottom: 1px solid #ddd; padding-bottom: 4px; margin-bottom: 8px; }
+  .pq-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  .pq-table td { padding: 5px 8px; border-bottom: 1px solid #eee; }
+  .pq-table .amt { text-align: right; font-weight: 600; }
+  .pq-fee { display: flex; justify-content: space-between; align-items: center; background: #f1f5f9; border: 1.5px solid #0f172a; border-radius: 8px; padding: 12px 16px; margin: 12px 0; }
+  .pq-fee .f-label { font-size: 13px; font-weight: 700; text-transform: uppercase; }
+  .pq-fee .f-val { font-size: 24px; font-weight: 700; }
+  .pq-clause { font-size: 11px; color: #333; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 8px 12px; margin-bottom: 8px; line-height: 1.55; }
+  .pq-sign { display: flex; justify-content: space-between; margin-top: 44px; font-size: 12px; }
+  .pq-sign .sig { border-top: 1px solid #333; padding-top: 6px; width: 220px; text-align: center; }
+
+  @media (max-width: 1200px) { .layout-grid { grid-template-columns: 1fr; } .sidebar-sticky { position: static; } .tier-grid { grid-template-columns: repeat(2, 1fr); } .form-grid { grid-template-columns: repeat(2, 1fr); } }
+  @media (max-width: 768px) { .form-grid { grid-template-columns: 1fr; } .tier-grid { grid-template-columns: 1fr; } .header { flex-direction: column; align-items: flex-start; } .main { padding: 14px; } .test-row { grid-template-columns: 24px 1fr 60px 90px; } .test-row .t-amount { display: none; } }
+</style>
+</head>
+<body>
+<div class="header">
+  <div class="brand">
+    <div class="brand-icon">🧮</div>
+    <div class="brand-text">
+      <h1>R&amp;D Price Calculator — Backero BioTech</h1>
+      <span>BioTech / Cosmetic ERP</span>
+    </div>
+  </div>
+  <div class="header-nav">
+    <a class="nav-link" href="PRODUCT CATALOGUE- FINAL.html">Product Catalogue</a>
+    <a class="nav-link" href="SAMPLE FLOW FINAL.html">Sample Flow</a>
+    <a class="nav-link" href="PRODUCTION HUB FINAL.html">Production Hub</a>
+    <a class="nav-link" href="raw-materials - ++.html">Raw Materials</a>
+  </div>
+  <div class="header-actions">
+    <button class="btn btn-outline" onclick="openSettings()">⚙️ Settings</button>
+  </div>
+</div>
+
+<div class="main">
+  <div class="db-banner" id="rmBanner"><span class="icon">⚠️</span><span><strong>Raw Materials DB not found</strong> — enter material costs manually (formula mode will use manual prices).</span></div>
+  <div class="db-banner" id="catBanner"><span class="icon">ℹ️</span><span>Product Catalogue DB not found — type the product name yourself.</span></div>
+  <div class="db-banner" id="sdBanner"><span class="icon">ℹ️</span><span>Sample Dev DB not found — type the customer name yourself.</span></div>
+
+  <div class="layout-grid">
+    <div class="left-col">
+
+      <!-- STEP 1: CUSTOMER & PRODUCT -->
+      <div class="card">
+        <div class="card-header"><h2><span class="step-no">1</span>Customer &amp; Product</h2><span class="tag tag-gray" id="quoteNoTag">RNDQ-0001</span></div>
+        <div class="card-body">
+          <div class="form-grid">
+            <div class="form-group">
+              <label>Quote #</label>
+              <input type="text" id="quoteNo" readonly style="background:var(--surface);font-weight:700;color:var(--primary)">
+              <div class="help">Fills in automatically — one number per quote.</div>
+            </div>
+            <div class="form-group">
+              <label>Date</label>
+              <input type="date" id="quoteDate" onchange="recalcQuote()">
+              <div class="help">Today's date is already filled in.</div>
+            </div>
+            <div class="form-group">
+              <label>How many pieces will the customer order first?</label>
+              <input type="number" id="firstOrderQty" min="0" step="1" value="150" oninput="recalcQuote()">
+              <div class="help">Their first order size, e.g. 150 bottles. Used to show the R&amp;D cost per piece.</div>
+            </div>
+            <div class="form-group" id="customerSelectWrap">
+              <label>Customer</label>
+              <select id="customerSelect" onchange="onCustomerChange()"></select>
+              <div class="help">Pick the customer from the list.</div>
+            </div>
+            <div class="form-group" id="customerTextWrap">
+              <label>Customer Name</label>
+              <input type="text" id="customerText" placeholder="e.g. Demo Cosmetics Pvt Ltd" oninput="recalcQuote()">
+              <div class="help">Type the customer or company name.</div>
+            </div>
+            <div class="form-group" id="productSelectWrap">
+              <label>Product (from catalogue)</label>
+              <select id="productSelect" onchange="onProductChange()"></select>
+              <div class="help">Pick the product if it is in our catalogue.</div>
+            </div>
+            <div class="form-group" id="productTextWrap">
+              <label>Product Name</label>
+              <input type="text" id="productText" placeholder="e.g. Vitamin C Face Serum" oninput="recalcQuote()">
+              <div class="help">Type what we are making, e.g. "Vitamin C Face Serum".</div>
+            </div>
+            <div class="form-group">
+              <label>Product Category</label>
+              <input type="text" id="productCategory" placeholder="e.g. Skin Care" oninput="recalcQuote()">
+              <div class="help">e.g. Skin Care, Hair Care. Fills in automatically if you picked a catalogue product.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- STEP 2: TYPE OF WORK -->
+      <div class="card">
+        <div class="card-header"><h2><span class="step-no">2</span>Type of Work</h2></div>
+        <div class="card-body">
+          <div class="picker-box">
+            <button type="button" class="picker-toggle" onclick="togglePicker()">💡 Not sure which type? Answer 3 quick questions <span style="margin-left:auto;font-weight:500;color:var(--text-muted);font-size:11px" id="pickerToggleHint">show</span></button>
+            <div class="picker-body hidden" id="pickerBody">
+              <div class="picker-q">
+                <span class="q-text">1. Do you already have a formula or a product to copy (or only a small change like smell / colour)?</span>
+                <span class="q-opts">
+                  <label><input type="radio" name="pq1" value="yes" onchange="evalPicker()"> Yes</label>
+                  <label><input type="radio" name="pq1" value="no" onchange="evalPicker()"> No</label>
+                </span>
+              </div>
+              <div class="picker-q">
+                <span class="q-text">2. Will we build it on one of our proven base formulas?</span>
+                <span class="q-opts">
+                  <label><input type="radio" name="pq2" value="yes" onchange="evalPicker()"> Yes</label>
+                  <label><input type="radio" name="pq2" value="no" onchange="evalPicker()"> No</label>
+                </span>
+              </div>
+              <div class="picker-q">
+                <span class="q-text">3. Is it an open-ended research project with no fixed product at the end?</span>
+                <span class="q-opts">
+                  <label><input type="radio" name="pq3" value="yes" onchange="evalPicker()"> Yes</label>
+                  <label><input type="radio" name="pq3" value="no" onchange="evalPicker()"> No</label>
+                </span>
+              </div>
+              <div class="picker-result" id="pickerResult"></div>
+            </div>
+          </div>
+          <div class="tier-grid" id="tierGrid"></div>
+          <div class="tier-advisory" id="tierAdvisory"><span>💼</span><span><strong>Long research project</strong> has no fixed end — do NOT price it here. <strong>Quote a monthly retainer after a scope discussion</strong> with the customer.</span></div>
+        </div>
+      </div>
+
+      <!-- STEP 3: LAB TIME -->
+      <div class="card">
+        <div class="card-header"><h2><span class="step-no">3</span>Lab Time</h2><span class="tag tag-info">AI + 1 lab executive</span></div>
+        <div class="card-body">
+          <div class="info-note">🤖 The formula is made by AI + 1 lab executive — <strong>you only pay for the executive's working hours</strong> (AI time is free).</div>
+          <div class="form-grid">
+            <div class="form-group">
+              <label>Hours to make the first version</label>
+              <input type="number" id="baseHours" min="0" step="0.5" oninput="recalcQuote()">
+              <div class="help">Filled in from the work type above — change only if this job is unusual.</div>
+            </div>
+            <div class="form-group">
+              <label>Hours for each correction round</label>
+              <input type="number" id="hoursPerRound" min="0" step="0.5" oninput="recalcQuote()">
+              <div class="help">Default 5 hours per round of customer feedback.</div>
+            </div>
+            <div class="form-group">
+              <label>Correction rounds included in the price</label>
+              <input type="number" id="includedCorrections" min="0" step="1" oninput="onIncludedCorrectionsChange()">
+              <div class="help">How many times we will remake the sample for free within this fee.</div>
+            </div>
+            <div class="form-group">
+              <label>Executive cost per lab hour (₹)</label>
+              <input type="number" id="hourlyRate" min="0" step="10" oninput="recalcQuote()">
+              <div class="help">Standard ₹50/hour for our lab executive. Do not change unless told.</div>
+            </div>
+          </div>
+          <div class="pricing-highlight" style="margin-top:16px;margin-bottom:0">
+            <div><div class="label">Total Lab Hours</div><div class="value" id="estHoursDisplay">0 h</div></div>
+            <div><div class="label">Lab Work Cost</div><div class="value" id="labourCostDisplay">₹0.00</div></div>
+            <div><div class="label">Lab-Days Needed (6 working h/day)</div><div class="value" id="labDaysDisplay">0</div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- STEP 4: TRIAL MATERIALS -->
+      <div class="card">
+        <div class="card-header"><h2><span class="step-no">4</span>Trial Materials</h2>
+          <div class="mode-toggle">
+            <button id="modeEstimateBtn" class="active" onclick="setMatMode('estimate')">💰 Rough estimate (₹)</button>
+            <button id="modeFormulaBtn" onclick="setMatMode('formula')">🧬 From the actual formula</button>
+          </div>
+        </div>
+        <div class="card-body">
+          <div id="matEstimatePanel">
+            <div class="info-note">💰 Easiest way — type one rough amount for all the raw materials needed for the trials.</div>
+            <div class="form-grid">
+              <div class="form-group">
+                <label>Rough materials cost for all trials (₹)</label>
+                <input type="number" id="materialsLump" min="0" step="50" value="600" oninput="recalcQuote()">
+                <div class="help">One total guess, e.g. ₹600. Use this if the formula is not decided yet.</div>
+              </div>
+              <div class="form-group">
+                <label>How many trial batches will we make?</label>
+                <input type="number" id="trialBatches" min="0" step="1" oninput="recalcQuote()">
+                <div class="help">Normally same as the number of correction rounds — auto-filled.</div>
+              </div>
+            </div>
+          </div>
+          <div id="matFormulaPanel" class="hidden">
+            <div class="info-note">🧬 Most accurate way — use the real formula once it is decided. Each row is one ingredient; qty is per trial batch in <strong>g/ml</strong>. Materials priced per kg/L are auto-divided by 1000.</div>
+            <div class="form-grid" style="margin-bottom:12px">
+              <div class="form-group">
+                <label>Trial batch size (g)</label>
+                <input type="number" id="trialBatchSize" min="0" step="10" value="200" oninput="onBatchSizeChange()">
+                <div class="help">Size of one trial batch, e.g. 200 g. Ingredient qty = ingredient % × this size.</div>
+              </div>
+              <div class="form-group" id="loadFormulaWrap">
+                <label>Use a catalogue product's formula</label>
+                <button type="button" class="btn btn-sm btn-primary" id="loadFormulaBtn" onclick="loadProductFormula()">📥 Load ingredients from this product's formula</button>
+                <div class="help" id="loadFormulaHelp">Pick a product in Step 1, then click to pull its latest formula rows here.</div>
+              </div>
+            </div>
+            <div class="table-wrap" style="margin-bottom:10px">
+              <table class="formula-table">
+                <thead><tr id="formulaHeadRow"></tr></thead>
+                <tbody id="formulaBody"></tbody>
+              </table>
+            </div>
+            <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+              <button class="btn btn-sm btn-outline" onclick="addFormulaRow()">➕ Add Ingredient Row</button>
+              <div class="form-group" style="flex-direction:row;align-items:center;gap:8px;margin-left:auto">
+                <label style="white-space:nowrap">Trial batches:</label>
+                <input type="number" id="trialBatchesF" min="0" step="1" style="width:90px" oninput="syncTrialBatches()">
+              </div>
+            </div>
+            <div class="pricing-highlight" style="margin-top:14px;margin-bottom:0">
+              <div><div class="label">Cost of One Trial Batch</div><div class="value" id="perBatchCostDisplay">₹0.00</div></div>
+              <div><div class="label">Total Trial Materials</div><div class="value" id="formulaTotalDisplay">₹0.00</div></div>
+            </div>
+          </div>
+          <datalist id="rmDatalist"></datalist>
+        </div>
+      </div>
+
+      <!-- STEP 5: SAMPLES TO SEND -->
+      <div class="card">
+        <div class="card-header"><h2><span class="step-no">5</span>Samples You Send to the Customer</h2></div>
+        <div class="card-body">
+          <div class="info-note">📦 These costs are charged <strong>once per correction round</strong> — every time we make a new sample set and courier it.</div>
+          <div class="form-grid">
+            <div class="form-group">
+              <label>Sample pieces sent each time</label>
+              <input type="number" id="sampleUnits" min="0" step="1" value="3" oninput="recalcQuote()">
+              <div class="help">How many sample pieces do you send the customer each time? (like 3 bottles) Default 3.</div>
+            </div>
+            <div class="form-group">
+              <label>Cost to pack ONE sample piece (₹)</label>
+              <input type="number" id="packCost" min="0" step="10" value="80" oninput="recalcQuote()">
+              <div class="help">Empty jar/bottle + label + filling for one piece. Default ₹80.</div>
+            </div>
+            <div class="form-group">
+              <label>Courier charge for one shipment (₹)</label>
+              <input type="number" id="courierCost" min="0" step="50" value="350" oninput="recalcQuote()">
+              <div class="help">What the courier company charges for one parcel. Default ₹350.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- STEP 6: LAB TESTS -->
+      <div class="card">
+        <div class="card-header"><h2><span class="step-no">6</span>Lab Tests</h2></div>
+        <div class="card-body">
+          <div style="margin-bottom:14px">
+            <div style="font-size:12px;font-weight:600;color:var(--text-secondary);margin-bottom:8px">Free — basic tests we do in our own lab:</div>
+            <div class="chip-list">
+              <span class="chip">✓ pH</span>
+              <span class="chip">✓ Viscosity</span>
+              <span class="chip">✓ Density</span>
+              <span class="chip">✓ Basic sensory / QC</span>
+            </div>
+          </div>
+          <div style="font-size:12px;font-weight:600;color:var(--text-secondary);margin-bottom:8px">Paid tests (done by outside labs) — tick only what the customer needs:</div>
+          <div id="testList"></div>
+          <div style="display:flex;gap:8px;align-items:center;margin-top:10px;flex-wrap:wrap">
+            <input type="text" id="customTestName" placeholder="Custom test name" style="flex:1;min-width:160px">
+            <input type="number" id="customTestQty" min="0" step="1" value="1" style="width:70px" title="Qty">
+            <input type="number" id="customTestPrice" min="0" step="100" placeholder="₹ Price" style="width:110px">
+            <button class="btn btn-sm btn-outline" onclick="addCustomTest()">➕ Add Custom Line</button>
+          </div>
+          <div class="pricing-highlight" style="margin-top:14px;margin-bottom:0">
+            <div><div class="label">Paid Tests Total</div><div class="value" id="testsSubtotalDisplay">₹0.00</div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- STEP 7: OTHER COSTS -->
+      <div class="card">
+        <div class="card-header"><h2><span class="step-no">7</span>Other Costs &amp; Assumptions</h2></div>
+        <div class="card-body">
+          <div class="form-grid" style="margin-bottom:16px">
+            <div class="form-group">
+              <label>One-time use items per trial batch (₹)</label>
+              <input type="number" id="consumablesOneTime" min="0" step="50" value="250" oninput="recalcQuote()">
+              <div class="help">Things thrown away after each batch: gloves, tissue, disposable pipettes. Default ₹250.</div>
+            </div>
+            <div class="form-group">
+              <label>Reusable items wear per trial batch (₹)</label>
+              <input type="number" id="consumablesReusable" min="0" step="10" value="50" oninput="recalcQuote()">
+              <div class="help">Wash-and-use items wearing out slowly: beakers, rods, jars. Default ₹50.</div>
+            </div>
+            <div class="form-group">
+              <label>Lab space &amp; power per lab-day (₹)</label>
+              <input type="number" id="overheadPerDay" min="0" step="50" value="400" oninput="recalcQuote()">
+              <div class="help">Rent, electricity etc. for one day of lab use. Default ₹400.</div>
+            </div>
+          </div>
+
+          <div class="settings-section" style="margin-top:4px">Standard assumptions (industry standard %)</div>
+          <div class="info-note">🏭 Small extra % on the material cost that every factory adds — <strong>keep the recommended values if unsure</strong>.</div>
+          <div class="form-grid" style="margin-bottom:14px">
+            <div class="form-group">
+              <label>Equipment (Mold/Tools) %</label>
+              <div class="assumption-card">
+                <input type="range" id="assEquipment" min="0" max="20" step="0.5" value="3" oninput="document.getElementById('assEquipmentVal').textContent=this.value+'%'; recalcQuote();" style="margin:0">
+                <span id="assEquipmentVal" class="pct-display">3%</span><span style="font-size:11px;color:var(--text-muted);margin-left:6px">→ 3-5% recommended</span>
+              </div>
+            </div>
+            <div class="form-group">
+              <label>Consumables (Small/MSME) %</label>
+              <div class="assumption-card">
+                <input type="range" id="assConsumables" min="0" max="10" step="0.5" value="1" oninput="document.getElementById('assConsumablesVal').textContent=this.value+'%'; recalcQuote();" style="margin:0">
+                <span id="assConsumablesVal" class="pct-display">1%</span><span style="font-size:11px;color:var(--text-muted);margin-left:6px">→ 1-2% recommended</span>
+              </div>
+            </div>
+            <div class="form-group">
+              <label>Storage (Warehouse) %</label>
+              <div class="assumption-card">
+                <input type="range" id="assStorage" min="0" max="10" step="0.5" value="2" oninput="document.getElementById('assStorageVal').textContent=this.value+'%'; recalcQuote();" style="margin:0">
+                <span id="assStorageVal" class="pct-display">2%</span><span style="font-size:11px;color:var(--text-muted);margin-left:6px">→ 2-4% recommended</span>
+              </div>
+            </div>
+            <div class="form-group">
+              <label>Housekeeping (Sanitization) %</label>
+              <div class="assumption-card">
+                <input type="range" id="assHousekeeping" min="0" max="10" step="0.5" value="1" oninput="document.getElementById('assHousekeepingVal').textContent=this.value+'%'; recalcQuote();" style="margin:0">
+                <span id="assHousekeepingVal" class="pct-display">1%</span><span style="font-size:11px;color:var(--text-muted);margin-left:6px">→ 1-2% recommended</span>
+              </div>
+            </div>
+            <div class="form-group">
+              <label>Admin (Admin STD) %</label>
+              <div class="assumption-card">
+                <input type="range" id="assAdmin" min="0" max="20" step="0.5" value="5" oninput="document.getElementById('assAdminVal').textContent=this.value+'%'; recalcQuote();" style="margin:0">
+                <span id="assAdminVal" class="pct-display">5%</span><span style="font-size:11px;color:var(--text-muted);margin-left:6px">→ 5-8% recommended</span>
+              </div>
+            </div>
+            <div class="form-group">
+              <label>Wastage (Production) %</label>
+              <div class="assumption-card">
+                <input type="range" id="assWastage" min="0" max="10" step="0.5" value="2" oninput="document.getElementById('assWastageVal').textContent=this.value+'%'; recalcQuote();" style="margin:0">
+                <span id="assWastageVal" class="pct-display">2%</span><span style="font-size:11px;color:var(--text-muted);margin-left:6px">→ 2-5% recommended</span>
+              </div>
+            </div>
+          </div>
+          <div class="pricing-highlight" style="margin-bottom:10px">
+            <div><div class="label">Total Extra % on Materials</div><div class="value" id="assTotalPctDisplay">14%</div></div>
+            <div><div class="label">Extra Amount Added</div><div class="value" id="assAmountDisplay">₹0.00</div></div>
+          </div>
+          <div id="assRangeNote" style="margin-bottom:16px"></div>
+
+          <div class="settings-section">Safety buffer &amp; margin</div>
+          <div class="form-grid" style="grid-template-columns:repeat(2,1fr)">
+            <div class="form-group">
+              <label>Safety buffer % (for surprises)</label>
+              <div class="assumption-card">
+                <input type="range" id="contingencySlider" min="0" max="25" step="0.5" value="10" oninput="document.getElementById('contingencyVal').textContent=this.value+'%'; recalcQuote();" style="margin:0">
+                <span id="contingencyVal" class="pct-display">10%</span><span style="font-size:11px;color:var(--text-muted);margin-left:6px">→ default 10%, keep it if unsure</span>
+              </div>
+            </div>
+            <div class="form-group">
+              <label>Margin % (our profit)</label>
+              <div class="assumption-card">
+                <input type="range" id="marginSlider" min="0" max="100" step="1" value="25" oninput="document.getElementById('marginVal').textContent=this.value+'%'; recalcQuote();" style="margin:0">
+                <span id="marginVal" class="pct-display">25%</span><span style="font-size:11px;color:var(--text-muted);margin-left:6px">→ default 25%, on cost + buffer</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- SAVED QUOTES -->
+      <div class="card">
+        <div class="card-header"><h2>💾 Saved Quotes</h2><span class="tag tag-gray" id="savedCountTag">0 saved</span></div>
+        <div class="card-body">
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr><th>Quote #</th><th>Date</th><th>Customer</th><th>Product</th><th>Type</th><th>Fee</th><th>Status</th><th style="width:100px">Actions</th></tr>
+              </thead>
+              <tbody id="savedQuotesBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- FINAL: QUOTE SUMMARY SIDEBAR -->
+    <div class="sidebar-sticky">
+      <div class="card">
+        <div class="card-header"><h2><span class="step-no">★</span>Final: Quote Summary</h2><span class="tag tag-warning hidden" id="feeGuardChip">⚠️ Outside ₹5k–₹20k</span></div>
+        <div class="card-body" id="summaryBody">
+          <div class="fee-hero">
+            <div class="label">Quote this amount (one-time)</div>
+            <div class="fee-value" id="feeDisplay">₹0.00</div>
+            <div class="fee-sub" id="feeSubDisplay">incl. safety buffer &amp; margin</div>
+          </div>
+          <div class="checkbox-group" style="margin-bottom:14px">
+            <input type="checkbox" id="roundToggle" checked onchange="recalcQuote()">
+            <label for="roundToggle">Round fee to nearest ₹100 (looks cleaner)</label>
+          </div>
+          <div class="table-wrap" style="border:none;margin-bottom:14px">
+            <table class="breakdown-table"><tbody id="breakdownBody"></tbody></table>
+          </div>
+          <div class="pricing-highlight" style="margin-bottom:14px">
+            <div><div class="label">Price for each EXTRA correction round (after the included ones)</div><div class="value" id="extraRoundDisplay">₹0.00</div></div>
+          </div>
+          <div style="font-size:12px;font-weight:600;color:var(--text-secondary);margin-bottom:8px">R&amp;D cost recovered per piece</div>
+          <div class="recovery-grid" style="margin-bottom:10px">
+            <div class="recovery-item"><div class="r-label" id="recoveryQtyLabel">@ 150 pcs</div><div class="r-value" id="perUnitDisplay">—</div></div>
+            <div class="recovery-item"><div class="r-label">@ 500 pcs</div><div class="r-value" id="perUnit500">—</div></div>
+            <div class="recovery-item"><div class="r-label">@ 1000 pcs</div><div class="r-value" id="perUnit1000">—</div></div>
+          </div>
+          <div class="info-note" style="margin-bottom:14px">💡 Recover the whole fee within the first order — customers reorder slowly.</div>
+          <div id="bandNoteWrap" style="margin-bottom:16px"></div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button class="btn btn-accent" onclick="saveQuote()">💾 Save Quote</button>
+            <button class="btn btn-primary" onclick="printQuotation()">🖨️ Print Quotation</button>
+            <button class="btn btn-outline" onclick="copySummary()">📋 Copy Summary</button>
+            <button class="btn btn-outline" onclick="resetForm()">🔄 Reset</button>
+          </div>
+        </div>
+        <div class="card-body hidden" id="summaryAdvisory">
+          <div class="tier-advisory show" style="margin-top:0"><span>💼</span><span><strong>Long research project:</strong> quote a monthly retainer after a scope discussion. This type is not priced by the calculator.</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- SETTINGS MODAL -->
+<div class="modal-overlay" id="settingsModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h2>⚙️ Calculator Settings &amp; Defaults</h2>
+      <button class="modal-close" onclick="closeModal('settingsModal')">&times;</button>
+    </div>
+    <div class="modal-body" id="settingsBody"></div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('settingsModal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveSettings()">💾 Save Settings</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast-container" id="toastContainer"></div>
+
+<!-- PRINT QUOTATION (populated on print) -->
+<div id="printQuote"></div>
+
+<script>
+// ========== DATA ==========
+const DB_KEY = 'rndPricingDB_v1';
+const RM_KEY = 'rawMaterialDB_v8';
+const CAT_KEY = 'productCatalogDB_v2';
+const SD_KEY = 'sampleDevDB_v1';
+
+let db = { settings: null, quotes: [], nextQuoteId: 1 };
+let rawMaterials = [];
+let catalogProducts = [];
+let devCustomers = [];
+let formulaRows = [];   // {name, code, unit, unitPrice, qty, pct?}
+let testLines = [];     // {name, qty, price, checked, custom}
+let matMode = 'estimate';
+let currentCalc = null;
+
+const TIER_DEFS = {
+  T0: { name: 'Copy or small change', desc: 'Customer gives a product to copy, OR a small tweak to our existing formula (smell / colour / one ingredient).', helper: 'Pick this if you already have a similar formula.', typical: 'Typical quote ₹5,000–₹8,000' },
+  T1: { name: 'New formula on our proven base', desc: 'Customer\'s own actives / claims built on top of our proven base formula.', helper: 'Pick this if a base formula already works and we only add the customer\'s actives.', typical: 'Typical quote ₹7,000–₹12,000' },
+  T2: { name: 'Fully new development', desc: 'Made from scratch. Quote this ONLY with a volume commitment from the customer.', helper: 'Pick this when nothing similar exists yet.', typical: 'Typical quote ₹12,000+' },
+  T3: { name: 'Long research project', desc: 'Open-ended research with no fixed end product.', helper: 'Not priced here — quote a monthly retainer.', typical: 'Retainer — discuss scope' }
+};
+const GUARD_LOW = 5000, GUARD_HIGH = 20000;   // overall sanity range (R2.3)
+const CORRECTION_CLAUSE = 'One correction round = one consolidated feedback cycle producing one new formula version and one sample set. A change of product concept/benchmark = new quote.';
+const PAYMENT_TERMS = '100% advance, single payment, before lab work commences.';
+const ASSUMPTION_DEFS = [
+  { key: 'equipment', label: 'Equipment (Mold/Tools)', sliderId: 'assEquipment', valId: 'assEquipmentVal' },
+  { key: 'consumables', label: 'Consumables (Small/MSME)', sliderId: 'assConsumables', valId: 'assConsumablesVal' },
+  { key: 'storage', label: 'Storage (Warehouse)', sliderId: 'assStorage', valId: 'assStorageVal' },
+  { key: 'housekeeping', label: 'Housekeeping (Sanitization)', sliderId: 'assHousekeeping', valId: 'assHousekeepingVal' },
+  { key: 'admin', label: 'Admin (Admin STD)', sliderId: 'assAdmin', valId: 'assAdminVal' },
+  { key: 'wastage', label: 'Wastage (Production)', sliderId: 'assWastage', valId: 'assWastageVal' }
+];
+
+function defaultSettings() {
+  return {
+    hourlyRate: 50,                 // lab executive cost per hour (LOCKED R2.3)
+    hoursPerRound: 5,
+    tiers: {
+      T0: { baseHours: 5, includedCorrections: 2 },
+      T1: { baseHours: 12, includedCorrections: 3 },
+      T2: { baseHours: 30, includedCorrections: 4 },
+      T3: { baseHours: 0, includedCorrections: 0 }
+    },
+    tests: [
+      { name: 'Heavy Metals', price: 3500 },
+      { name: 'Microbial (USP 61/62)', price: 2500 },
+      { name: 'Preservative Efficacy Test (PET)', price: 6000 },
+      { name: 'Stability (accelerated, 3-month)', price: 8000 },
+      { name: 'Patch / Dermat test', price: 4000 },
+      { name: 'Custom / other', price: 0 }
+    ],
+    consumablesOneTimePerBatch: 250,   // gloves, tissue, disposable pipettes
+    consumablesReusablePerBatch: 50,   // beakers, rods, jars (wear)
+    overheadPerLabDay: 400,
+    sampleUnitsPerRound: 3,
+    samplePackCostPerUnit: 80,
+    courierPerRound: 350,
+    contingency: 10,
+    margin: 25,
+    materialsLumpDefault: 600,
+    trialBatchSizeDefault: 200,
+    assumptions: { equipment: 3, consumables: 1, storage: 2, housekeeping: 1, admin: 5, wastage: 2 }
+  };
+}
+
+// ========== HELPERS ==========
+function fmtMoney(n) {
+  if (n === null || n === undefined || isNaN(n)) return '—';
+  return '₹' + Number(n).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+function num(id) { const v = parseFloat(document.getElementById(id).value); return isNaN(v) ? 0 : v; }
+function esc(s) { return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function showToast(msg, type) {
+  const c = document.getElementById('toastContainer');
+  const t = document.createElement('div');
+  t.className = 'toast ' + (type || '');
+  t.innerHTML = (type === 'success' ? '✅ ' : type === 'error' ? '❌ ' : '⚠️ ') + esc(msg);
+  c.appendChild(t);
+  setTimeout(() => t.remove(), 4000);
+}
+function openModal(id) { document.getElementById(id).classList.add('show'); }
+function closeModal(id) { document.getElementById(id).classList.remove('show'); }
+
+// ========== STORAGE (own store + shared read-only DBs) ==========
+function saveDB() {
+  try { localStorage.setItem(DB_KEY, JSON.stringify(db)); } catch (e) { showToast('Failed to save data', 'error'); }
+  renderQuotes();
+}
+
+function loadDB() {
+  try {
+    const raw = localStorage.getItem(DB_KEY);
+    if (raw) {
+      const data = JSON.parse(raw);
+      db.quotes = data.quotes || [];
+      db.nextQuoteId = data.nextQuoteId || 1;
+      db.settings = mergeSettings(data.settings);
+    }
+  } catch (e) { showToast('Failed to load saved quotes', 'error'); }
+  if (!db.settings) db.settings = defaultSettings();
+  if (!db.quotes.length) seedDemoQuote();
+}
+
+// Backwards-compatible: old saved settings may lack new fields — fill from defaults.
+function mergeSettings(saved) {
+  const d = defaultSettings();
+  if (!saved) return d;
+  const s = Object.assign({}, d, saved);
+  s.tiers = {};
+  ['T0','T1','T2','T3'].forEach(k => { s.tiers[k] = Object.assign({}, d.tiers[k], (saved.tiers || {})[k] || {}); });
+  s.tests = (saved.tests && saved.tests.length ? saved.tests : d.tests).map(t => ({ name: t.name, price: parseFloat(t.price) || 0 }));
+  s.assumptions = Object.assign({}, d.assumptions, saved.assumptions || {});
+  if (saved.consumablesOneTimePerBatch === undefined && saved.consumablesPerBatch !== undefined) {
+    // Legacy single consumables field — keep the new split defaults (250/50)
+    s.consumablesOneTimePerBatch = d.consumablesOneTimePerBatch;
+    s.consumablesReusablePerBatch = d.consumablesReusablePerBatch;
+  }
+  return s;
+}
+
+function seedDemoQuote() {
+  // Demo: New formula on our proven base + Stability test — engine fee ≈ ₹19,300
+  const today = new Date().toISOString().slice(0, 10);
+  const a = defaultSettings().assumptions;
+  db.quotes.push({
+    id: 'RNDQ-0001', date: today,
+    customer: 'Demo Cosmetics Pvt Ltd', product: 'Vitamin C Face Serum', category: 'Skin Care',
+    tier: 'T1', fee: 19300, status: 'Quoted',
+    inputs: {
+      quoteDate: today, customer: 'Demo Cosmetics Pvt Ltd',
+      product: 'Vitamin C Face Serum', category: 'Skin Care', firstOrderQty: 150, tier: 'T1',
+      baseHours: 12, hoursPerRound: 5, includedCorrections: 3, hourlyRate: 50,
+      matMode: 'estimate', materialsLump: 600, trialBatches: 3, trialBatchSize: 200, formulaRows: [],
+      sampleUnits: 3, packCost: 80, courierCost: 350,
+      testLines: [
+        { name: 'Heavy Metals', qty: 1, price: 3500, checked: false },
+        { name: 'Microbial (USP 61/62)', qty: 1, price: 2500, checked: false },
+        { name: 'Preservative Efficacy Test (PET)', qty: 1, price: 6000, checked: false },
+        { name: 'Stability (accelerated, 3-month)', qty: 1, price: 8000, checked: true },
+        { name: 'Patch / Dermat test', qty: 1, price: 4000, checked: false },
+        { name: 'Custom / other', qty: 1, price: 0, checked: false }
+      ],
+      consumablesOneTime: 250, consumablesReusable: 50, overheadPerDay: 400,
+      assumptions: { equipment: a.equipment, consumables: a.consumables, storage: a.storage, housekeeping: a.housekeeping, admin: a.admin, wastage: a.wastage },
+      contingency: 10, margin: 25, roundFee: true
+    }
+  });
+  db.nextQuoteId = 2;
+  saveDB();
+}
+
+function loadSharedDBs() {
+  // Raw materials (read-only) — drives formula-mode pricing
+  try {
+    const raw = localStorage.getItem(RM_KEY);
+    if (raw) {
+      const data = JSON.parse(raw);
+      rawMaterials = (data.materials || []).map(m => ({
+        id: m.id || '', code: m.code || '', name: m.materialName || m.name || '',
+        unit: m.unit || 'kg', unitPrice: parseFloat(m.unitPrice) || 0
+      }));
+    }
+  } catch (e) { rawMaterials = []; }
+  document.getElementById('rmBanner').classList.toggle('show', rawMaterials.length === 0);
+
+  // Product catalogue (read-only) — optional product link + formula source (keep full objects)
+  try {
+    const raw = localStorage.getItem(CAT_KEY);
+    if (raw) {
+      const data = JSON.parse(raw);
+      catalogProducts = (data.products || []).map(p => ({
+        code: p.code || '', name: p.name || '', category: p.category || '',
+        formulation: p.formulation || null
+      }));
+    }
+  } catch (e) { catalogProducts = []; }
+  document.getElementById('catBanner').classList.toggle('show', catalogProducts.length === 0);
+
+  // Sample dev customers (read-only) — optional customer link
+  try {
+    const raw = localStorage.getItem(SD_KEY);
+    if (raw) {
+      const data = JSON.parse(raw);
+      devCustomers = (data.customers || []).map(c => ({ id: c.id || '', name: c.name || '', contact: c.contact || '' }));
+    }
+  } catch (e) { devCustomers = []; }
+  document.getElementById('sdBanner').classList.toggle('show', devCustomers.length === 0);
+
+  buildCustomerPicker();
+  buildProductPicker();
+  buildRmDatalist();
+}
+
+// ========== CUSTOMER / PRODUCT PICKERS ==========
+function buildCustomerPicker() {
+  const selWrap = document.getElementById('customerSelectWrap');
+  const txtWrap = document.getElementById('customerTextWrap');
+  const sel = document.getElementById('customerSelect');
+  if (!devCustomers.length) { selWrap.style.display = 'none'; txtWrap.style.display = ''; return; }
+  selWrap.style.display = ''; txtWrap.style.display = 'none';
+  sel.innerHTML = '<option value="">— Select customer —</option>' +
+    devCustomers.map(c => '<option value="' + esc(c.name) + '">' + esc(c.id ? c.id + ' — ' : '') + esc(c.name) + '</option>').join('') +
+    '<option value="__custom">✏️ Other (type manually)</option>';
+}
+function onCustomerChange() {
+  const sel = document.getElementById('customerSelect');
+  const txtWrap = document.getElementById('customerTextWrap');
+  if (sel.value === '__custom') { txtWrap.style.display = ''; document.getElementById('customerText').focus(); }
+  else txtWrap.style.display = 'none';
+  recalcQuote();
+}
+function getCustomer() {
+  if (!devCustomers.length) return document.getElementById('customerText').value.trim();
+  const v = document.getElementById('customerSelect').value;
+  return v === '__custom' ? document.getElementById('customerText').value.trim() : v;
+}
+function buildProductPicker() {
+  const selWrap = document.getElementById('productSelectWrap');
+  const txtWrap = document.getElementById('productTextWrap');
+  const sel = document.getElementById('productSelect');
+  if (!catalogProducts.length) { selWrap.style.display = 'none'; txtWrap.style.display = ''; updateLoadFormulaBtn(); return; }
+  selWrap.style.display = ''; txtWrap.style.display = 'none';
+  sel.innerHTML = '<option value="">— Select product —</option>' +
+    catalogProducts.map(p => '<option value="' + esc(p.name) + '">' + esc(p.code ? p.code + ' — ' : '') + esc(p.name) + '</option>').join('') +
+    '<option value="__custom">✏️ Other (type manually)</option>';
+  updateLoadFormulaBtn();
+}
+function onProductChange() {
+  const sel = document.getElementById('productSelect');
+  const txtWrap = document.getElementById('productTextWrap');
+  if (sel.value === '__custom') { txtWrap.style.display = ''; document.getElementById('productText').focus(); }
+  else {
+    txtWrap.style.display = 'none';
+    const p = catalogProducts.find(x => x.name === sel.value);
+    if (p && p.category) document.getElementById('productCategory').value = p.category;
+  }
+  updateLoadFormulaBtn();
+  recalcQuote();
+}
+function getProduct() {
+  if (!catalogProducts.length) return document.getElementById('productText').value.trim();
+  const v = document.getElementById('productSelect').value;
+  return v === '__custom' ? document.getElementById('productText').value.trim() : v;
+}
+function getSelectedCatalogProduct() {
+  if (!catalogProducts.length) return null;
+  const v = document.getElementById('productSelect').value;
+  if (!v || v === '__custom') return null;
+  return catalogProducts.find(x => x.name === v) || null;
+}
+function updateLoadFormulaBtn() {
+  const btn = document.getElementById('loadFormulaBtn');
+  if (!btn) return;
+  const p = getSelectedCatalogProduct();
+  btn.disabled = !p;
+  btn.style.opacity = p ? '1' : '0.5';
+  document.getElementById('loadFormulaHelp').textContent = p
+    ? 'Will pull the latest formula of "' + p.name + '" from the Product Catalogue.'
+    : 'Pick a catalogue product in Step 1 first, then click to pull its latest formula rows here.';
+}
+
+// ========== WORK TYPES (was: tiers) ==========
+function renderTierCards() {
+  const grid = document.getElementById('tierGrid');
+  const s = db.settings;
+  grid.innerHTML = ['T0','T1','T2','T3'].map(k => {
+    const t = s.tiers[k]; const d = TIER_DEFS[k];
+    const meta = k === 'T3' ? 'Not priced here' : t.baseHours + ' h first version · ' + t.includedCorrections + ' corrections included';
+    return '<label class="tier-card" id="tierCard' + k + '">' +
+      '<input type="radio" name="tier" value="' + k + '" onchange="onTierChange(\'' + k + '\')">' +
+      '<span class="t-name">' + d.name + ' <span class="t-code">(' + k + ')</span></span>' +
+      '<span class="t-desc">' + d.desc + '</span>' +
+      '<span class="t-desc" style="color:var(--text-muted)">' + d.helper + '</span>' +
+      '<span class="t-meta">' + meta + '</span>' +
+      '<span class="t-band">' + d.typical + '</span>' +
+      '</label>';
+  }).join('');
+}
+function getTier() { const r = document.querySelector('input[name="tier"]:checked'); return r ? r.value : 'T0'; }
+function onTierChange(k, skipPrefill) {
+  ['T0','T1','T2','T3'].forEach(x => document.getElementById('tierCard' + x).classList.toggle('active', x === k));
+  document.getElementById('tierAdvisory').classList.toggle('show', k === 'T3');
+  if (!skipPrefill && k !== 'T3') {
+    const t = db.settings.tiers[k];
+    document.getElementById('baseHours').value = t.baseHours;
+    document.getElementById('includedCorrections').value = t.includedCorrections;
+    setTrialBatches(t.includedCorrections);
+  }
+  recalcQuote();
+}
+function onIncludedCorrectionsChange() {
+  setTrialBatches(num('includedCorrections'));
+  recalcQuote();
+}
+
+// ========== GUIDED PICKER (3 questions → work type) ==========
+function togglePicker() {
+  const body = document.getElementById('pickerBody');
+  const hidden = body.classList.toggle('hidden');
+  document.getElementById('pickerToggleHint').textContent = hidden ? 'show' : 'hide';
+}
+function evalPicker() {
+  const v = n => { const r = document.querySelector('input[name="' + n + '"]:checked'); return r ? r.value : null; };
+  const a = v('pq1'), b = v('pq2'), c = v('pq3');
+  let tier = null;
+  if (a === 'yes') tier = 'T0';
+  else if (a === 'no' && b === 'yes') tier = 'T1';
+  else if (a === 'no' && b === 'no' && c === 'yes') tier = 'T3';
+  else if (a === 'no' && b === 'no' && c === 'no') tier = 'T2';
+  const res = document.getElementById('pickerResult');
+  if (!tier) { res.classList.remove('show'); return; }
+  const radio = document.querySelector('input[name="tier"][value="' + tier + '"]');
+  if (radio) radio.checked = true;
+  onTierChange(tier);
+  res.innerHTML = '✅ We picked for you: <strong>' + esc(TIER_DEFS[tier].name) + '</strong>' +
+    (tier === 'T3' ? ' — quote a monthly retainer after a scope discussion (not priced here).' : ' — the hours below are pre-filled, you can just continue to Step 3.');
+  res.classList.add('show');
+}
+
+// ========== TRIAL MATERIALS ==========
+function setMatMode(m) {
+  matMode = m;
+  document.getElementById('modeEstimateBtn').classList.toggle('active', m === 'estimate');
+  document.getElementById('modeFormulaBtn').classList.toggle('active', m === 'formula');
+  document.getElementById('matEstimatePanel').classList.toggle('hidden', m !== 'estimate');
+  document.getElementById('matFormulaPanel').classList.toggle('hidden', m !== 'formula');
+  recalcQuote();
+}
+function setTrialBatches(v) {
+  document.getElementById('trialBatches').value = v;
+  document.getElementById('trialBatchesF').value = v;
+}
+function syncTrialBatches() {
+  document.getElementById('trialBatches').value = document.getElementById('trialBatchesF').value;
+  recalcQuote();
+}
+function getTrialBatches() { return matMode === 'formula' ? num('trialBatchesF') : num('trialBatches'); }
+function onBatchSizeChange() {
+  // Rows loaded from a product formula carry their % — recompute qty from the new batch size.
+  const size = num('trialBatchSize');
+  let touched = false;
+  formulaRows.forEach(r => {
+    if (r.pct !== undefined && r.pct !== null) { r.qty = Math.round(((parseFloat(r.pct) || 0) / 100) * size * 100) / 100; touched = true; }
+  });
+  if (touched) renderFormulaRows();
+  recalcQuote();
+}
+
+function buildRmDatalist() {
+  document.getElementById('rmDatalist').innerHTML = rawMaterials
+    .map(m => '<option value="' + esc(m.code + ' — ' + m.name) + '"></option>').join('');
+}
+
+function addFormulaRow(row) {
+  formulaRows.push(row || { name: '', code: '', unit: 'kg', unitPrice: 0, qty: 0 });
+  renderFormulaRows();
+  recalcQuote();
+}
+function removeFormulaRow(i) { formulaRows.splice(i, 1); renderFormulaRows(); recalcQuote(); }
+
+function renderFormulaRows() {
+  const hasDb = rawMaterials.length > 0;
+  const head = document.getElementById('formulaHeadRow');
+  const body = document.getElementById('formulaBody');
+  head.innerHTML = hasDb
+    ? '<th>Material (Raw Materials DB)</th><th style="width:110px">Qty / batch (g/ml)</th><th style="width:70px">Unit</th><th style="width:110px">Price / unit</th><th style="width:100px;text-align:right">Cost</th><th style="width:36px"></th>'
+    : '<th>Material (manual)</th><th style="width:110px">Price / kg or L (₹)</th><th style="width:110px">Qty / batch (g/ml)</th><th style="width:100px;text-align:right">Cost</th><th style="width:36px"></th>';
+  body.innerHTML = '';
+  formulaRows.forEach((r, i) => {
+    const tr = document.createElement('tr');
+    const cost = formulaRowCost(r);
+    if (hasDb) {
+      tr.innerHTML =
+        '<td><input list="rmDatalist" placeholder="Search RM code / name…" value="' + esc(r.code ? r.code + ' — ' + r.name : r.name) + '" onchange="onFormulaMatPick(' + i + ', this.value)"></td>' +
+        '<td><input type="number" min="0" step="0.1" value="' + r.qty + '" oninput="formulaRows[' + i + '].qty=parseFloat(this.value)||0; updateFormulaRowCost(' + i + '); recalcQuote();"></td>' +
+        '<td style="font-size:11px;color:var(--text-secondary)">' + esc(r.unit || '—') + '</td>' +
+        '<td style="font-size:11px">' + (r.code ? fmtMoney(r.unitPrice) : '—') + '</td>' +
+        '<td class="f-cost" id="fCost' + i + '">' + fmtMoney(cost) + '</td>' +
+        '<td><button class="f-del" onclick="removeFormulaRow(' + i + ')">🗑️</button></td>';
+    } else {
+      tr.innerHTML =
+        '<td><input placeholder="Material name" value="' + esc(r.name) + '" oninput="formulaRows[' + i + '].name=this.value"></td>' +
+        '<td><input type="number" min="0" step="0.01" value="' + r.unitPrice + '" oninput="formulaRows[' + i + '].unitPrice=parseFloat(this.value)||0; updateFormulaRowCost(' + i + '); recalcQuote();"></td>' +
+        '<td><input type="number" min="0" step="0.1" value="' + r.qty + '" oninput="formulaRows[' + i + '].qty=parseFloat(this.value)||0; updateFormulaRowCost(' + i + '); recalcQuote();"></td>' +
+        '<td class="f-cost" id="fCost' + i + '">' + fmtMoney(cost) + '</td>' +
+        '<td><button class="f-del" onclick="removeFormulaRow(' + i + ')">🗑️</button></td>';
+    }
+    body.appendChild(tr);
+  });
+}
+function onFormulaMatPick(i, val) {
+  const code = val.split(' — ')[0].trim();
+  const m = rawMaterials.find(x => x.code === code) || rawMaterials.find(x => (x.code + ' — ' + x.name) === val);
+  if (m) { formulaRows[i].code = m.code; formulaRows[i].name = m.name; formulaRows[i].unit = m.unit; formulaRows[i].unitPrice = m.unitPrice; delete formulaRows[i].pct; }
+  else { formulaRows[i].code = ''; formulaRows[i].name = val; formulaRows[i].unit = 'kg'; formulaRows[i].unitPrice = 0; delete formulaRows[i].pct; }
+  renderFormulaRows();
+  recalcQuote();
+}
+function qtyToBaseUnits(qty, unit) {
+  const u = (unit || '').toLowerCase();
+  if (u === 'kg' || u === 'liter' || u === 'litre' || u === 'l') return qty / 1000; // qty entered in g/ml
+  return qty; // g/ml/piece priced at face value
+}
+function formulaRowCost(r) { return qtyToBaseUnits(parseFloat(r.qty) || 0, r.unit) * (parseFloat(r.unitPrice) || 0); }
+function updateFormulaRowCost(i) {
+  const el = document.getElementById('fCost' + i);
+  if (el) el.textContent = fmtMoney(formulaRowCost(formulaRows[i]));
+}
+function perBatchCost() { return formulaRows.reduce((s, r) => s + formulaRowCost(r), 0); }
+
+// Load latest formulation version of the selected catalogue product (R2.4)
+function loadProductFormula() {
+  const p = getSelectedCatalogProduct();
+  if (!p) { showToast('Pick a catalogue product in Step 1 first', 'warning'); return; }
+  const f = p.formulation;
+  let v = null;
+  if (f && Array.isArray(f.versions) && f.versions.length) {
+    v = f.versions.find(x => x.versionId === f.currentVersionId) ||
+        f.versions.slice().sort((a, b) => (b.versionNo || 0) - (a.versionNo || 0))[0];
+  } else if (f && Array.isArray(f.rows)) {
+    v = f; // legacy flat formulation
+  }
+  if (!v || !v.rows || !v.rows.length) { showToast('No formula rows found for "' + p.name + '"', 'warning'); return; }
+  const size = num('trialBatchSize') || db.settings.trialBatchSizeDefault || 200;
+  formulaRows = v.rows.map(r => {
+    const pct = parseFloat(r.percentage) || 0;
+    const rm = rawMaterials.find(m => (r.code && (m.code === r.code || m.id === r.code)) || (r.name && m.name === r.name));
+    const unit = rm ? rm.unit : (['kg','l','liter','litre'].indexOf((r.unit || '').toLowerCase()) >= 0 ? r.unit : (r.unit || 'g'));
+    return {
+      name: (rm && rm.name) || r.name || '', code: rm ? (rm.code || r.code || '') : (r.code || ''),
+      unit, unitPrice: rm ? rm.unitPrice : (parseFloat(r.unitPrice) || 0),
+      pct, qty: Math.round((pct / 100) * size * 100) / 100
+    };
+  });
+  setMatMode('formula');
+  renderFormulaRows();
+  recalcQuote();
+  showToast('Loaded ' + formulaRows.length + ' ingredients from "' + p.name + '" (' + (v.versionId || 'formula') + ', batch ' + size + ' g)', 'success');
+}
+
+// ========== LAB TESTS ==========
+function initTestLines() {
+  testLines = db.settings.tests.map(t => ({ name: t.name, qty: 1, price: t.price, checked: false, custom: false }));
+}
+function renderTestLines() {
+  const wrap = document.getElementById('testList');
+  wrap.innerHTML = '';
+  testLines.forEach((t, i) => {
+    const div = document.createElement('div');
+    div.className = 'test-row';
+    div.innerHTML =
+      '<input type="checkbox" ' + (t.checked ? 'checked' : '') + ' onchange="testLines[' + i + '].checked=this.checked; recalcQuote();">' +
+      '<span style="font-weight:600">' + esc(t.name) + '</span>' +
+      '<input type="number" min="0" step="1" value="' + t.qty + '" title="Qty" oninput="testLines[' + i + '].qty=parseFloat(this.value)||0; recalcQuote();">' +
+      '<input type="number" min="0" step="100" value="' + t.price + '" title="Price (₹)" oninput="testLines[' + i + '].price=parseFloat(this.value)||0; recalcQuote();">' +
+      '<span class="t-amount">' + (t.checked ? fmtMoney(t.qty * t.price) : '—') + (t.custom ? ' <button class="t-del" onclick="removeTestLine(' + i + ')">🗑️</button>' : '') + '</span>';
+    wrap.appendChild(div);
+  });
+}
+function removeTestLine(i) { testLines.splice(i, 1); renderTestLines(); recalcQuote(); }
+function addCustomTest() {
+  const name = document.getElementById('customTestName').value.trim() || 'Custom test';
+  const qty = parseFloat(document.getElementById('customTestQty').value) || 1;
+  const price = parseFloat(document.getElementById('customTestPrice').value) || 0;
+  testLines.push({ name, qty, price, checked: true, custom: true });
+  document.getElementById('customTestName').value = '';
+  document.getElementById('customTestPrice').value = '';
+  renderTestLines();
+  recalcQuote();
+}
+function testsSubtotal() { return testLines.reduce((s, t) => s + (t.checked ? (parseFloat(t.qty) || 0) * (parseFloat(t.price) || 0) : 0), 0); }
+
+// ========== STANDARD ASSUMPTIONS (industry %) ==========
+function readAssumptions() {
+  const a = {};
+  ASSUMPTION_DEFS.forEach(d => { a[d.key] = num(d.sliderId); });
+  return a;
+}
+function assumptionsTotalPct(a) {
+  return ASSUMPTION_DEFS.reduce((s, d) => s + (parseFloat(a[d.key]) || 0), 0);
+}
+function applyAssumptionsToUI(a) {
+  ASSUMPTION_DEFS.forEach(d => {
+    const v = (a && a[d.key] !== undefined) ? a[d.key] : db.settings.assumptions[d.key];
+    document.getElementById(d.sliderId).value = v;
+    document.getElementById(d.valId).textContent = v + '%';
+  });
+}
+
+// ========== QUOTE ENGINE ==========
+function recalcQuote() {
+  const tier = getTier();
+  const isT3 = tier === 'T3';
+  document.getElementById('summaryBody').classList.toggle('hidden', isT3);
+  document.getElementById('summaryAdvisory').classList.toggle('hidden', !isT3);
+  if (isT3) { currentCalc = null; return; }
+
+  // --- Read inputs ---
+  const baseHours = num('baseHours');
+  const hoursPerRound = num('hoursPerRound');
+  const includedCorrections = num('includedCorrections');
+  const hourlyRate = num('hourlyRate');
+  const firstOrderQty = num('firstOrderQty');
+  const sampleUnits = num('sampleUnits');
+  const packCost = num('packCost');
+  const courier = num('courierCost');
+  const consumablesOneTime = num('consumablesOneTime');
+  const consumablesReusable = num('consumablesReusable');
+  const overheadPerLabDay = num('overheadPerDay');
+  const contingencyPct = num('contingencySlider') / 100;
+  const marginPct = num('marginSlider') / 100;
+  const roundFee = document.getElementById('roundToggle').checked;
+  const trialBatches = getTrialBatches();
+  const assumptions = readAssumptions();
+
+  // --- Locked calculation (SPEC §5 + Revision 2) ---
+  const labHours = baseHours + Math.max(0, includedCorrections - 1) * hoursPerRound;
+  const labourCost = labHours * hourlyRate;
+  const batchCost = perBatchCost();
+  const materials = matMode === 'formula' ? batchCost * trialBatches : num('materialsLump');
+  const assPct = assumptionsTotalPct(assumptions);
+  const assumptionsAmount = materials * (assPct / 100);   // R2.7: on trial-materials cost
+  const perRoundSampleCost = sampleUnits * packCost + courier;
+  const samplesCost = includedCorrections * perRoundSampleCost;
+  const consumablesOneTimeCost = consumablesOneTime * trialBatches;   // R2.6 split
+  const consumablesReusableCost = consumablesReusable * trialBatches;
+  const labDays = Math.ceil(labHours / 6);
+  const overhead = labDays * overheadPerLabDay;
+  const externalTests = testsSubtotal();
+  const subtotal = labourCost + materials + assumptionsAmount + samplesCost + consumablesOneTimeCost + consumablesReusableCost + overhead + externalTests;
+  const contingency = subtotal * contingencyPct;
+  const rawFee = (subtotal + contingency) * (1 + marginPct);
+  const fee = roundFee ? Math.round(rawFee / 100) * 100 : rawFee;
+  const perRoundMaterials = trialBatches > 0 ? materials / trialBatches : 0;
+  const extraRound = (hoursPerRound * hourlyRate + perRoundMaterials + perRoundSampleCost) * (1 + marginPct);
+  const perUnit = firstOrderQty > 0 ? fee / firstOrderQty : null;
+
+  currentCalc = {
+    tier, labHours, labourCost, batchCost, materials, perRoundMaterials, perRoundSampleCost,
+    assumptions, assPct, assumptionsAmount,
+    samplesCost, consumablesOneTimeCost, consumablesReusableCost, labDays, overhead, externalTests,
+    subtotal, contingency, contingencyPct, marginPct, rawFee, fee, roundFee, extraRound, perUnit, firstOrderQty,
+    baseHours, hoursPerRound, includedCorrections, hourlyRate, sampleUnits, packCost, courier,
+    consumablesOneTime, consumablesReusable, overheadPerLabDay, trialBatches
+  };
+
+  // --- Live effort display ---
+  document.getElementById('estHoursDisplay').textContent = labHours.toLocaleString('en-IN') + ' h';
+  document.getElementById('labourCostDisplay').textContent = fmtMoney(labourCost);
+  document.getElementById('labDaysDisplay').textContent = labDays;
+  document.getElementById('perBatchCostDisplay').textContent = fmtMoney(batchCost);
+  document.getElementById('formulaTotalDisplay').textContent = fmtMoney(matMode === 'formula' ? materials : 0);
+  document.getElementById('testsSubtotalDisplay').textContent = fmtMoney(externalTests);
+
+  // --- Assumptions display + industry range note ---
+  document.getElementById('assTotalPctDisplay').textContent = assPct + '%';
+  document.getElementById('assAmountDisplay').textContent = fmtMoney(assumptionsAmount);
+  const assNote = document.getElementById('assRangeNote');
+  assNote.innerHTML = (assPct < 15 || assPct > 30)
+    ? '<div class="industry-warning"><span class="icon">⚠️</span><span>Industry range for total indirect % is 15%–30%. Your total is ' + assPct + '% — adjust the sliders if this was not intentional.</span></div>'
+    : '<div class="band-ok"><span>✅</span><span>Total extra ' + assPct + '% is inside the normal industry range (15%–30%).</span></div>';
+
+  // --- Breakdown table (plain names + tiny basis notes) ---
+  const matBasis = matMode === 'formula'
+    ? fmtMoney(batchCost) + '/batch × ' + trialBatches + ' batches'
+    : 'rough estimate (one amount)';
+  const rows = [
+    ['Lab work (executive hours)', labHours + ' h × ' + fmtMoney(hourlyRate) + '/h', labourCost],
+    ['Trial materials', matBasis, materials],
+    ['Samples & courier', includedCorrections + ' rounds × (' + sampleUnits + ' × ' + fmtMoney(packCost) + ' + ' + fmtMoney(courier) + ')', samplesCost],
+    ['One-time use items (gloves, pipettes…)', trialBatches + ' batches × ' + fmtMoney(consumablesOneTime), consumablesOneTimeCost],
+    ['Reusable items wear (beakers, rods…)', trialBatches + ' batches × ' + fmtMoney(consumablesReusable), consumablesReusableCost],
+    ['Lab space & power', labDays + ' lab-days × ' + fmtMoney(overheadPerLabDay), overhead],
+    ['Standard factory extras', assPct + '% on materials', assumptionsAmount],
+    ['Paid outside lab tests', testLines.filter(t => t.checked).length + ' selected', externalTests]
+  ];
+  let html = rows.map(r => '<tr><td>' + r[0] + '<div class="b-basis">' + r[1] + '</div></td><td class="b-amount">' + fmtMoney(r[2]) + '</td></tr>').join('');
+  html += '<tr class="b-subtotal"><td>Subtotal (all costs)</td><td class="b-amount">' + fmtMoney(subtotal) + '</td></tr>';
+  html += '<tr><td>Safety buffer (' + (contingencyPct * 100) + '%)<div class="b-basis">on subtotal</div></td><td class="b-amount">' + fmtMoney(contingency) + '</td></tr>';
+  html += '<tr><td>Margin (' + (marginPct * 100) + '%)<div class="b-basis">on subtotal + buffer</div></td><td class="b-amount">' + fmtMoney((subtotal + contingency) * marginPct) + '</td></tr>';
+  html += '<tr class="b-total"><td>R&D Fee' + (roundFee ? '<div class="b-basis">rounded to nearest ₹100</div>' : '') + '</td><td class="b-amount">' + fmtMoney(fee) + '</td></tr>';
+  document.getElementById('breakdownBody').innerHTML = html;
+
+  // --- Fee hero + guardrails ---
+  document.getElementById('feeDisplay').textContent = fmtMoney(fee);
+  document.getElementById('feeSubDisplay').textContent = roundFee
+    ? 'raw ' + fmtMoney(rawFee) + ' — rounded to nearest ₹100'
+    : 'unrounded (rounding off)';
+  const outside = fee < GUARD_LOW || fee > GUARD_HIGH;
+  document.getElementById('feeGuardChip').classList.toggle('hidden', !outside);
+
+  // --- Extra round ---
+  document.getElementById('extraRoundDisplay').textContent = fmtMoney(extraRound) + ' / round';
+
+  // --- First-order recovery ---
+  document.getElementById('recoveryQtyLabel').textContent = '@ ' + (firstOrderQty || 0).toLocaleString('en-IN') + ' pcs';
+  document.getElementById('perUnitDisplay').textContent = perUnit !== null ? fmtMoney(perUnit) + '/unit' : '—';
+  document.getElementById('perUnit500').textContent = fmtMoney(fee / 500) + '/unit';
+  document.getElementById('perUnit1000').textContent = fmtMoney(fee / 1000) + '/unit';
+
+  // --- Guardrail note: typical hint per type + overall ₹5k–20k sanity range (R2.3) ---
+  const d = TIER_DEFS[tier];
+  const wrap = document.getElementById('bandNoteWrap');
+  let note = '<div class="info-note" style="margin-bottom:8px">💡 ' + esc(d.typical) + ' for "' + esc(d.name) + '".</div>';
+  if (outside) {
+    note += '<div class="industry-warning"><span class="icon">⚠️</span><span>' + fmtMoney(fee) + ' is outside the usual <strong>₹5,000–₹20,000</strong> range — double-check the inputs before quoting.</span></div>';
+  } else {
+    note += '<div class="band-ok"><span>✅</span><span>Inside the usual ₹5,000–₹20,000 quote range.</span></div>';
+  }
+  wrap.innerHTML = note;
+}
+
+// ========== COLLECT / APPLY INPUTS ==========
+function collectInputs() {
+  return {
+    quoteDate: document.getElementById('quoteDate').value,
+    customer: getCustomer(), product: getProduct(),
+    category: document.getElementById('productCategory').value.trim(),
+    firstOrderQty: num('firstOrderQty'), tier: getTier(),
+    baseHours: num('baseHours'), hoursPerRound: num('hoursPerRound'),
+    includedCorrections: num('includedCorrections'), hourlyRate: num('hourlyRate'),
+    matMode, materialsLump: num('materialsLump'), trialBatches: getTrialBatches(),
+    trialBatchSize: num('trialBatchSize'),
+    formulaRows: JSON.parse(JSON.stringify(formulaRows)),
+    sampleUnits: num('sampleUnits'), packCost: num('packCost'), courierCost: num('courierCost'),
+    testLines: JSON.parse(JSON.stringify(testLines)),
+    consumablesOneTime: num('consumablesOneTime'), consumablesReusable: num('consumablesReusable'),
+    overheadPerDay: num('overheadPerDay'),
+    assumptions: readAssumptions(),
+    contingency: num('contingencySlider'), margin: num('marginSlider'),
+    roundFee: document.getElementById('roundToggle').checked
+  };
+}
+
+function applyInputs(inp) {
+  if (!inp) return;
+  const s = db.settings;
+  const set = (id, v) => { if (v !== undefined && v !== null) document.getElementById(id).value = v; };
+  set('quoteDate', inp.quoteDate);
+  // customer
+  if (devCustomers.length && inp.customer && devCustomers.some(c => c.name === inp.customer)) {
+    document.getElementById('customerSelect').value = inp.customer;
+    document.getElementById('customerTextWrap').style.display = 'none';
+  } else {
+    if (devCustomers.length) { document.getElementById('customerSelect').value = '__custom'; }
+    set('customerText', inp.customer);
+    document.getElementById('customerTextWrap').style.display = '';
+  }
+  // product
+  if (catalogProducts.length && inp.product && catalogProducts.some(p => p.name === inp.product)) {
+    document.getElementById('productSelect').value = inp.product;
+    document.getElementById('productTextWrap').style.display = 'none';
+  } else {
+    if (catalogProducts.length) { document.getElementById('productSelect').value = '__custom'; }
+    set('productText', inp.product);
+    document.getElementById('productTextWrap').style.display = '';
+  }
+  updateLoadFormulaBtn();
+  set('productCategory', inp.category); set('firstOrderQty', inp.firstOrderQty);
+  const tier = inp.tier || 'T0';
+  document.querySelector('input[name="tier"][value="' + tier + '"]').checked = true;
+  set('baseHours', inp.baseHours); set('hoursPerRound', inp.hoursPerRound);
+  set('includedCorrections', inp.includedCorrections); set('hourlyRate', inp.hourlyRate);
+  set('materialsLump', inp.materialsLump);
+  setTrialBatches(inp.trialBatches !== undefined ? inp.trialBatches : (inp.includedCorrections || 0));
+  set('trialBatchSize', inp.trialBatchSize !== undefined ? inp.trialBatchSize : s.trialBatchSizeDefault);
+  formulaRows = JSON.parse(JSON.stringify(inp.formulaRows || []));
+  set('sampleUnits', inp.sampleUnits); set('packCost', inp.packCost); set('courierCost', inp.courierCost);
+  if (inp.testLines && inp.testLines.length) testLines = JSON.parse(JSON.stringify(inp.testLines));
+  // Backwards compat: old quotes have only consumablesPerBatch — use new split defaults
+  set('consumablesOneTime', inp.consumablesOneTime !== undefined ? inp.consumablesOneTime : s.consumablesOneTimePerBatch);
+  set('consumablesReusable', inp.consumablesReusable !== undefined ? inp.consumablesReusable : s.consumablesReusablePerBatch);
+  set('overheadPerDay', inp.overheadPerDay);
+  applyAssumptionsToUI(inp.assumptions);
+  set('contingencySlider', inp.contingency); set('marginSlider', inp.margin);
+  document.getElementById('contingencyVal').textContent = (inp.contingency !== undefined ? inp.contingency : s.contingency) + '%';
+  document.getElementById('marginVal').textContent = (inp.margin !== undefined ? inp.margin : s.margin) + '%';
+  if (inp.roundFee !== undefined) document.getElementById('roundToggle').checked = !!inp.roundFee;
+  setMatMode(inp.matMode || 'estimate');
+  renderFormulaRows();
+  renderTestLines();
+  onTierChange(tier, true);
+}
+
+// ========== SAVED QUOTES ==========
+function generateQuoteNo() { return 'RNDQ-' + String(db.nextQuoteId).padStart(4, '0'); }
+
+function saveQuote() {
+  if (getTier() === 'T3') { showToast('Long research project is quoted as a retainer — not saved by calculator', 'warning'); return; }
+  if (!currentCalc) recalcQuote();
+  const inputs = collectInputs();
+  const q = {
+    id: generateQuoteNo(),
+    date: inputs.quoteDate || new Date().toISOString().slice(0, 10),
+    customer: inputs.customer || '—', product: inputs.product || '—', category: inputs.category,
+    tier: inputs.tier, fee: currentCalc.fee, status: 'Quoted', inputs
+  };
+  db.quotes.push(q);
+  db.nextQuoteId++;
+  saveDB();
+  document.getElementById('quoteNo').value = generateQuoteNo();
+  document.getElementById('quoteNoTag').textContent = generateQuoteNo();
+  showToast('Quote saved: ' + q.id + ' — ' + fmtMoney(q.fee), 'success');
+}
+
+function renderQuotes() {
+  const body = document.getElementById('savedQuotesBody');
+  document.getElementById('savedCountTag').textContent = db.quotes.length + ' saved';
+  body.innerHTML = '';
+  if (!db.quotes.length) {
+    body.innerHTML = '<tr><td colspan="8" class="empty"><div class="icon">💾</div><h4>No saved quotes yet</h4><p>Save a quote to see it here.</p></td></tr>';
+    return;
+  }
+  db.quotes.slice().reverse().forEach(q => {
+    const tr = document.createElement('tr');
+    const statusClass = q.status === 'Accepted' ? 'tag-success' : q.status === 'Rejected' ? 'tag-danger' : 'tag-info';
+    const typeName = (TIER_DEFS[q.tier] || {}).name || q.tier;
+    tr.innerHTML =
+      '<td style="font-weight:700;color:var(--primary)">' + esc(q.id) + '</td>' +
+      '<td>' + esc(q.date) + '</td>' +
+      '<td>' + esc(q.customer) + '</td>' +
+      '<td>' + esc(q.product) + '</td>' +
+      '<td><span class="tag tag-gray">' + esc(typeName) + '</span></td>' +
+      '<td style="font-weight:700">' + fmtMoney(q.fee) + '</td>' +
+      '<td><span class="tag ' + statusClass + '">' + esc(q.status) + '</span></td>' +
+      '<td class="actions">' +
+        '<button class="load-btn" title="Load into calculator" onclick="loadQuote(\'' + esc(q.id) + '\')">📂</button>' +
+        '<button class="delete-btn" title="Delete" onclick="deleteQuote(\'' + esc(q.id) + '\')">🗑️</button>' +
+      '</td>';
+    body.appendChild(tr);
+  });
+}
+
+function loadQuote(id) {
+  const q = db.quotes.find(x => x.id === id);
+  if (!q) return;
+  applyInputs(q.inputs);
+  showToast('Loaded ' + q.id + ' into calculator', 'success');
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function deleteQuote(id) {
+  if (!confirm('Delete quote ' + id + '?')) return;
+  db.quotes = db.quotes.filter(x => x.id !== id);
+  saveDB();
+  showToast('Deleted ' + id, 'warning');
+}
+
+function resetForm() {
+  const s = db.settings;
+  document.getElementById('quoteDate').value = new Date().toISOString().slice(0, 10);
+  if (devCustomers.length) { document.getElementById('customerSelect').value = ''; document.getElementById('customerTextWrap').style.display = 'none'; }
+  if (catalogProducts.length) { document.getElementById('productSelect').value = ''; document.getElementById('productTextWrap').style.display = 'none'; }
+  document.getElementById('customerText').value = '';
+  document.getElementById('productText').value = '';
+  document.getElementById('productCategory').value = '';
+  document.getElementById('firstOrderQty').value = 150;
+  document.getElementById('hourlyRate').value = s.hourlyRate;
+  document.getElementById('hoursPerRound').value = s.hoursPerRound;
+  document.getElementById('materialsLump').value = s.materialsLumpDefault;
+  document.getElementById('trialBatchSize').value = s.trialBatchSizeDefault;
+  document.getElementById('sampleUnits').value = s.sampleUnitsPerRound;
+  document.getElementById('packCost').value = s.samplePackCostPerUnit;
+  document.getElementById('courierCost').value = s.courierPerRound;
+  document.getElementById('consumablesOneTime').value = s.consumablesOneTimePerBatch;
+  document.getElementById('consumablesReusable').value = s.consumablesReusablePerBatch;
+  document.getElementById('overheadPerDay').value = s.overheadPerLabDay;
+  applyAssumptionsToUI(s.assumptions);
+  document.getElementById('contingencySlider').value = s.contingency;
+  document.getElementById('contingencyVal').textContent = s.contingency + '%';
+  document.getElementById('marginSlider').value = s.margin;
+  document.getElementById('marginVal').textContent = s.margin + '%';
+  document.getElementById('roundToggle').checked = true;
+  ['pq1','pq2','pq3'].forEach(n => { const r = document.querySelector('input[name="' + n + '"]:checked'); if (r) r.checked = false; });
+  document.getElementById('pickerResult').classList.remove('show');
+  formulaRows = [];
+  initTestLines();
+  renderFormulaRows();
+  renderTestLines();
+  setMatMode('estimate');
+  document.querySelector('input[name="tier"][value="T0"]').checked = true;
+  onTierChange('T0');
+  updateLoadFormulaBtn();
+  showToast('Form reset to defaults', 'success');
+}
+
+// ========== COPY SUMMARY ==========
+function buildSummaryText() {
+  const c = currentCalc;
+  if (!c) return '';
+  const inp = collectInputs();
+  const selectedTests = testLines.filter(t => t.checked).map(t => t.name + ' × ' + t.qty + ' @ ' + fmtMoney(t.price)).join('; ');
+  return [
+    'BACKERO BioTech — R&D Quotation ' + document.getElementById('quoteNo').value,
+    'Date: ' + (inp.quoteDate || '-') + ' | Customer: ' + (inp.customer || '-') + ' | Product: ' + (inp.product || '-') + (inp.category ? ' (' + inp.category + ')' : ''),
+    'Scope: ' + TIER_DEFS[c.tier].name + ' — ' + c.includedCorrections + ' correction rounds included (' + c.labHours + ' est. lab hours)',
+    '',
+    'Lab work: ' + fmtMoney(c.labourCost) + ' | Materials: ' + fmtMoney(c.materials) + ' | Factory extras (' + c.assPct + '%): ' + fmtMoney(c.assumptionsAmount),
+    'Samples & courier: ' + fmtMoney(c.samplesCost) + ' | One-time items: ' + fmtMoney(c.consumablesOneTimeCost) + ' | Reusable wear: ' + fmtMoney(c.consumablesReusableCost),
+    'Lab space & power: ' + fmtMoney(c.overhead) + ' | Outside tests: ' + fmtMoney(c.externalTests),
+    'Subtotal: ' + fmtMoney(c.subtotal) + ' + Safety buffer ' + (c.contingencyPct * 100) + '% + Margin ' + (c.marginPct * 100) + '%',
+    '',
+    'QUOTE THIS AMOUNT (one-time): ' + fmtMoney(c.fee),
+    'Extra correction round: ' + fmtMoney(c.extraRound) + ' / round',
+    'First-order recovery: ' + (c.perUnit !== null ? fmtMoney(c.perUnit) + '/unit @ ' + c.firstOrderQty + ' pcs' : '—') + ' | @500: ' + fmtMoney(c.fee / 500) + ' | @1000: ' + fmtMoney(c.fee / 1000),
+    selectedTests ? 'Outside tests: ' + selectedTests : 'Outside tests: none selected',
+    'Payment: ' + PAYMENT_TERMS,
+    CORRECTION_CLAUSE,
+    'Validity: 30 days.'
+  ].join('\n');
+}
+function copySummary() {
+  if (getTier() === 'T3') { showToast('Long research project is quoted as a retainer — nothing to copy', 'warning'); return; }
+  const text = buildSummaryText();
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(() => showToast('Summary copied to clipboard', 'success'))
+      .catch(() => fallbackCopy(text));
+  } else fallbackCopy(text);
+}
+function fallbackCopy(text) {
+  const ta = document.createElement('textarea');
+  ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+  document.body.appendChild(ta); ta.select();
+  try { document.execCommand('copy'); showToast('Summary copied to clipboard', 'success'); }
+  catch (e) { showToast('Copy failed — select and copy manually', 'error'); }
+  ta.remove();
+}
+
+// ========== PRINT QUOTATION ==========
+function printQuotation() {
+  if (getTier() === 'T3') { showToast('Long research project is quoted as a retainer — nothing to print', 'warning'); return; }
+  if (!currentCalc) recalcQuote();
+  const c = currentCalc;
+  const inp = collectInputs();
+  const selectedTests = testLines.filter(t => t.checked);
+  const testsRows = selectedTests.length
+    ? selectedTests.map(t => '<tr><td>' + esc(t.name) + ' × ' + t.qty + '</td><td class="amt">' + fmtMoney(t.qty * t.price) + '</td></tr>').join('') +
+      '<tr><td><strong>External tests total</strong></td><td class="amt"><strong>' + fmtMoney(c.externalTests) + '</strong></td></tr>'
+    : '<tr><td colspan="2">None selected — external/specialised tests billed at actuals if required.</td></tr>';
+  const costRows =
+    '<tr><td>Lab work (' + c.labHours + ' executive hours × ' + fmtMoney(c.hourlyRate) + '/h)</td><td class="amt">' + fmtMoney(c.labourCost) + '</td></tr>' +
+    '<tr><td>Trial materials' + (matMode === 'formula' ? ' (' + c.trialBatches + ' trial batches)' : ' (estimate)') + '</td><td class="amt">' + fmtMoney(c.materials) + '</td></tr>' +
+    '<tr><td>Samples &amp; dispatch (' + c.includedCorrections + ' rounds)</td><td class="amt">' + fmtMoney(c.samplesCost) + '</td></tr>' +
+    '<tr><td>Consumables — one-time use items (' + c.trialBatches + ' batches × ' + fmtMoney(c.consumablesOneTime) + ')</td><td class="amt">' + fmtMoney(c.consumablesOneTimeCost) + '</td></tr>' +
+    '<tr><td>Consumables — reusable/washable items wear (' + c.trialBatches + ' batches × ' + fmtMoney(c.consumablesReusable) + ')</td><td class="amt">' + fmtMoney(c.consumablesReusableCost) + '</td></tr>' +
+    '<tr><td>Lab overhead (' + c.labDays + ' lab-days)</td><td class="amt">' + fmtMoney(c.overhead) + '</td></tr>' +
+    '<tr><td>Standard assumptions (' + c.assPct + '% on materials: equipment, consumables, storage, housekeeping, admin, wastage)</td><td class="amt">' + fmtMoney(c.assumptionsAmount) + '</td></tr>' +
+    '<tr><td><strong>Subtotal</strong> (+ safety buffer ' + (c.contingencyPct * 100) + '% + margin ' + (c.marginPct * 100) + '%)</td><td class="amt"><strong>' + fmtMoney(c.subtotal) + '</strong></td></tr>';
+  document.getElementById('printQuote').innerHTML =
+    '<div class="pq-head">' +
+      '<div class="pq-company"><h1>BACKERO BioTech</h1><span>BioTech / Cosmetic ERP — Cosmetic R&amp;D &amp; Manufacturing</span></div>' +
+      '<div class="pq-meta"><strong>Quotation ' + esc(document.getElementById('quoteNo').value) + '</strong><br>Date: ' + esc(inp.quoteDate || '-') + '<br>Valid for: 30 days</div>' +
+    '</div>' +
+    '<div class="pq-title">R&amp;D / Sampling Fee Quotation</div>' +
+    '<div class="pq-section"><h3>Client &amp; Product</h3><table class="pq-table">' +
+      '<tr><td>Customer</td><td class="amt">' + esc(inp.customer || '—') + '</td></tr>' +
+      '<tr><td>Product</td><td class="amt">' + esc(inp.product || '—') + (inp.category ? ' (' + esc(inp.category) + ')' : '') + '</td></tr>' +
+      '<tr><td>Target first order</td><td class="amt">' + (c.firstOrderQty || 0).toLocaleString('en-IN') + ' pcs</td></tr>' +
+    '</table></div>' +
+    '<div class="pq-section"><h3>Scope of Work</h3><table class="pq-table">' +
+      '<tr><td>Type of work</td><td class="amt">' + esc(TIER_DEFS[c.tier].name) + '</td></tr>' +
+      '<tr><td>Included correction rounds</td><td class="amt">' + c.includedCorrections + '</td></tr>' +
+      '<tr><td>Estimated lab effort</td><td class="amt">' + c.labHours + ' executive hours (' + c.labDays + ' lab-days)</td></tr>' +
+      '<tr><td>In-house tests</td><td class="amt">pH, viscosity, density, basic sensory/QC — included (no charge)</td></tr>' +
+    '</table></div>' +
+    '<div class="pq-section"><h3>Cost Basis (for reference)</h3><table class="pq-table">' + costRows + '</table></div>' +
+    '<div class="pq-section"><h3>Chargeable External / Specialised Tests</h3><table class="pq-table">' + testsRows + '</table></div>' +
+    '<div class="pq-fee"><span class="f-label">R&amp;D Fee (one-time)</span><span class="f-val">' + fmtMoney(c.fee) + '</span></div>' +
+    '<table class="pq-table">' +
+      '<tr><td>Extra correction round (beyond ' + c.includedCorrections + ' included)</td><td class="amt">' + fmtMoney(c.extraRound) + ' / round</td></tr>' +
+      '<tr><td>R&amp;D recovery over first order</td><td class="amt">' + (c.perUnit !== null ? fmtMoney(c.perUnit) + ' / unit @ ' + c.firstOrderQty.toLocaleString('en-IN') + ' pcs' : '—') + '</td></tr>' +
+      '<tr><td>Payment terms</td><td class="amt">' + PAYMENT_TERMS + '</td></tr>' +
+    '</table>' +
+    '<div class="pq-section" style="margin-top:14px"><h3>Terms</h3>' +
+      '<div class="pq-clause"><strong>Correction round definition:</strong> ' + CORRECTION_CLAUSE + '</div>' +
+      '<div class="pq-clause"><strong>Exclusions:</strong> External/specialised tests are billed at actuals unless listed above. Formulation by AI + 1 lab executive — only executive hours are billed.</div>' +
+      '<div class="pq-clause"><strong>Validity:</strong> This quotation is valid for 30 days from the date above.</div>' +
+    '</div>' +
+    '<div class="pq-sign"><div class="sig">For BACKERO BioTech</div><div class="sig">Client Acceptance</div></div>';
+  window.print();
+}
+
+// ========== SETTINGS MODAL ==========
+function openSettings() {
+  const s = db.settings;
+  const tierRows = ['T0','T1','T2'].map(k => {
+    const t = s.tiers[k];
+    return '<tr><td style="font-weight:700">' + esc(TIER_DEFS[k].name) + ' <span style="color:var(--text-muted);font-weight:500;font-size:11px">(' + k + ')</span></td>' +
+      '<td><input type="number" min="0" step="0.5" id="set_' + k + '_hours" value="' + t.baseHours + '" style="width:90px"></td>' +
+      '<td><input type="number" min="0" step="1" id="set_' + k + '_corr" value="' + t.includedCorrections + '" style="width:80px"></td></tr>';
+  }).join('');
+  const testRows = s.tests.map((t, i) =>
+    '<div class="form-group"><label>' + esc(t.name) + ' (₹)</label><input type="number" min="0" step="100" id="set_test_' + i + '" value="' + t.price + '"></div>'
+  ).join('');
+  const assRows = ASSUMPTION_DEFS.map(d =>
+    '<div class="form-group"><label>' + esc(d.label) + ' %</label><input type="number" min="0" step="0.5" id="set_ass_' + d.key + '" value="' + s.assumptions[d.key] + '"></div>'
+  ).join('');
+  document.getElementById('settingsBody').innerHTML =
+    '<div class="settings-section">Work Types (default hours &amp; included corrections)</div>' +
+    '<div class="table-wrap"><table><thead><tr><th>Type</th><th>Hours for First Version</th><th>Included Corrections</th></tr></thead><tbody>' + tierRows + '</tbody></table></div>' +
+    '<div class="settings-section">Labour &amp; Effort</div>' +
+    '<div class="form-grid">' +
+      '<div class="form-group"><label>Executive Cost per Lab Hour (₹)</label><input type="number" min="0" step="10" id="set_hourlyRate" value="' + s.hourlyRate + '"><div class="help">Standard ₹50/hour for the lab executive.</div></div>' +
+      '<div class="form-group"><label>Hours per Correction Round</label><input type="number" min="0" step="0.5" id="set_hoursPerRound" value="' + s.hoursPerRound + '"></div>' +
+      '<div class="form-group"><label>Default Materials Rough Estimate (₹)</label><input type="number" min="0" step="50" id="set_matLump" value="' + s.materialsLumpDefault + '"></div>' +
+      '<div class="form-group"><label>Default Trial Batch Size (g)</label><input type="number" min="0" step="10" id="set_batchSize" value="' + s.trialBatchSizeDefault + '"></div>' +
+    '</div>' +
+    '<div class="settings-section">Samples, Consumables &amp; Lab Running Cost</div>' +
+    '<div class="form-grid">' +
+      '<div class="form-group"><label>Sample Pieces per Round</label><input type="number" min="0" step="1" id="set_sampleUnits" value="' + s.sampleUnitsPerRound + '"></div>' +
+      '<div class="form-group"><label>Pack Cost per Sample (₹)</label><input type="number" min="0" step="10" id="set_packCost" value="' + s.samplePackCostPerUnit + '"></div>' +
+      '<div class="form-group"><label>Courier per Round (₹)</label><input type="number" min="0" step="50" id="set_courier" value="' + s.courierPerRound + '"></div>' +
+      '<div class="form-group"><label>One-Time Use Items per Batch (₹)</label><input type="number" min="0" step="50" id="set_consumablesOneTime" value="' + s.consumablesOneTimePerBatch + '"><div class="help">Gloves, tissue, disposable pipettes. Default ₹250.</div></div>' +
+      '<div class="form-group"><label>Reusable Items Wear per Batch (₹)</label><input type="number" min="0" step="10" id="set_consumablesReusable" value="' + s.consumablesReusablePerBatch + '"><div class="help">Beakers, rods, jars. Default ₹50.</div></div>' +
+      '<div class="form-group"><label>Lab Space &amp; Power per Lab-Day (₹)</label><input type="number" min="0" step="50" id="set_overhead" value="' + s.overheadPerLabDay + '"></div>' +
+    '</div>' +
+    '<div class="settings-section">Standard Assumptions Defaults (% on materials)</div>' +
+    '<div class="form-grid">' + assRows + '</div>' +
+    '<div class="settings-section">Commercial Defaults (%)</div>' +
+    '<div class="form-grid">' +
+      '<div class="form-group"><label>Safety Buffer % (0–25)</label><input type="number" min="0" max="25" step="0.5" id="set_contingency" value="' + s.contingency + '"></div>' +
+      '<div class="form-group"><label>Margin % (0–100)</label><input type="number" min="0" max="100" step="1" id="set_margin" value="' + s.margin + '"></div>' +
+    '</div>' +
+    '<div class="settings-section">External Test Default Prices</div>' +
+    '<div class="form-grid">' + testRows + '</div>' +
+    '<div class="info-note" style="margin-top:14px;margin-bottom:0">ℹ️ Settings persist in <strong>rndPricingDB_v1</strong> and are applied as the new calculator defaults on save.</div>';
+  openModal('settingsModal');
+}
+
+function saveSettings() {
+  const s = db.settings;
+  const get = id => { const v = parseFloat(document.getElementById(id).value); return isNaN(v) ? 0 : v; };
+  ['T0','T1','T2'].forEach(k => {
+    s.tiers[k].baseHours = get('set_' + k + '_hours');
+    s.tiers[k].includedCorrections = get('set_' + k + '_corr');
+  });
+  s.hourlyRate = get('set_hourlyRate');
+  s.hoursPerRound = get('set_hoursPerRound');
+  s.materialsLumpDefault = get('set_matLump');
+  s.trialBatchSizeDefault = get('set_batchSize');
+  s.sampleUnitsPerRound = get('set_sampleUnits');
+  s.samplePackCostPerUnit = get('set_packCost');
+  s.courierPerRound = get('set_courier');
+  s.consumablesOneTimePerBatch = get('set_consumablesOneTime');
+  s.consumablesReusablePerBatch = get('set_consumablesReusable');
+  s.overheadPerLabDay = get('set_overhead');
+  ASSUMPTION_DEFS.forEach(d => { s.assumptions[d.key] = get('set_ass_' + d.key); });
+  s.contingency = Math.min(25, get('set_contingency'));
+  s.margin = Math.min(100, get('set_margin'));
+  s.tests.forEach((t, i) => { const el = document.getElementById('set_test_' + i); if (el) t.price = parseFloat(el.value) || 0; });
+  saveDB();
+  closeModal('settingsModal');
+  renderTierCards();
+  const tier = getTier();
+  onTierChange(tier === 'T3' ? 'T3' : tier, true);
+  if (tier !== 'T3') {
+    const t = db.settings.tiers[tier];
+    document.getElementById('baseHours').value = t.baseHours;
+    document.getElementById('includedCorrections').value = t.includedCorrections;
+    setTrialBatches(t.includedCorrections);
+  }
+  document.getElementById('hourlyRate').value = s.hourlyRate;
+  document.getElementById('hoursPerRound').value = s.hoursPerRound;
+  recalcQuote();
+  showToast('Settings saved', 'success');
+}
+
+// ========== INIT ==========
+function init() {
+  loadDB();
+  loadSharedDBs();
+  renderTierCards();
+  initTestLines();
+  renderTestLines();
+  renderFormulaRows();
+  renderQuotes();
+  const s = db.settings;
+  document.getElementById('quoteNo').value = generateQuoteNo();
+  document.getElementById('quoteNoTag').textContent = generateQuoteNo();
+  document.getElementById('quoteDate').value = new Date().toISOString().slice(0, 10);
+  document.getElementById('hourlyRate').value = s.hourlyRate;
+  document.getElementById('hoursPerRound').value = s.hoursPerRound;
+  document.getElementById('materialsLump').value = s.materialsLumpDefault;
+  document.getElementById('trialBatchSize').value = s.trialBatchSizeDefault;
+  document.getElementById('sampleUnits').value = s.sampleUnitsPerRound;
+  document.getElementById('packCost').value = s.samplePackCostPerUnit;
+  document.getElementById('courierCost').value = s.courierPerRound;
+  document.getElementById('consumablesOneTime').value = s.consumablesOneTimePerBatch;
+  document.getElementById('consumablesReusable').value = s.consumablesReusablePerBatch;
+  document.getElementById('overheadPerDay').value = s.overheadPerLabDay;
+  applyAssumptionsToUI(s.assumptions);
+  document.getElementById('contingencySlider').value = s.contingency;
+  document.getElementById('contingencyVal').textContent = s.contingency + '%';
+  document.getElementById('marginSlider').value = s.margin;
+  document.getElementById('marginVal').textContent = s.margin + '%';
+  document.querySelector('input[name="tier"][value="T0"]').checked = true;
+  onTierChange('T0');
+  updateLoadFormulaBtn();
+  if (!db.quotes.length) showToast('Ready — R&D Price Calculator', 'success');
+}
+init();
+</script>
+</body>
+</html>

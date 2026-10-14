@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% block title %}Settings · Meesho Seller Command Center{% endblock %}
+{% block content %}
+<h1 class="page-title">Settings</h1>
+
+<form id="settings-form">
+  <section class="card">
+    <h2>General</h2>
+    <div class="form-grid">
+      <label>Data mode
+        <select name="mode">
+          <option value="demo">demo</option>
+          <option value="manual">manual</option>
+          <option value="auto">auto</option>
+        </select>
+      </label>
+      <label>Pull interval (hours, auto mode)
+        <input type="number" step="1" min="1" name="pull_interval_hours">
+      </label>
+      <label>Meesho-registered mobile (display only)
+        <input type="text" name="meesho.phone">
+      </label>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Alert channels</h2>
+    <div class="form-grid">
+      <label class="check"><input type="checkbox" name="alerts.sound"> Browser sound on new critical alert</label>
+      <label class="check"><input type="checkbox" name="alerts.email.enabled"> Email alerts enabled</label>
+      <label>SMTP host <input type="text" name="alerts.email.smtp_host"></label>
+      <label>SMTP port <input type="number" name="alerts.email.smtp_port"></label>
+      <label>SMTP username <input type="text" name="alerts.email.username"></label>
+      <label>SMTP password <input type="password" name="alerts.email.password"></label>
+      <label>Send alerts to <input type="email" name="alerts.email.to"></label>
+      <label class="check"><input type="checkbox" name="alerts.whatsapp.enabled"> WhatsApp alerts (CallMeBot) enabled</label>
+      <label>WhatsApp phone <input type="text" name="alerts.whatsapp.phone"></label>
+      <label>CallMeBot API key <input type="text" name="alerts.whatsapp.apikey"></label>
+    </div>
+    <p>
+      <button type="button" class="btn btn-secondary" id="test-alert-btn">Send test alert</button>
+      <span class="form-msg" id="test-alert-msg"></span>
+    </p>
+  </section>
+
+  <section class="card">
+    <h2>Thresholds</h2>
+    <div class="form-grid">
+      <label>Quality score warn <input type="number" step="0.1" name="thresholds.qs_warn"></label>
+      <label>Quality score block <input type="number" step="0.1" name="thresholds.qs_block"></label>
+      <label>Rating — pause SKU below <input type="number" step="0.1" name="thresholds.rating_pause_sku"></label>
+      <label>Rating — discontinue below <input type="number" step="0.1" name="thresholds.rating_discontinue"></label>
+      <label>Rating — min for ads <input type="number" step="0.1" name="thresholds.rating_ads_min"></label>
+      <label>CTR low % <input type="number" step="0.1" name="thresholds.ctr_low_pct"></label>
+      <label>Min impressions (7d) for CTR rule <input type="number" name="thresholds.min_impressions_7d"></label>
+      <label>CVR low % <input type="number" step="0.1" name="thresholds.cvr_low_pct"></label>
+      <label>Min views (7d) for CVR rule <input type="number" name="thresholds.min_views_7d"></label>
+      <label>RTO high % <input type="number" step="0.1" name="thresholds.rto_high_pct"></label>
+      <label>Low stock below <input type="number" name="thresholds.low_stock"></label>
+      <label>Dispatch SLA min % <input type="number" step="0.1" name="thresholds.dispatch_sla_min"></label>
+      <label>NDD SLA required % <input type="number" step="0.1" name="thresholds.ndd_sla_required"></label>
+      <label>Refresh listing after (days) <input type="number" name="thresholds.refresh_days"></label>
+      <label>Upload cadence gap (days) <input type="number" name="thresholds.upload_gap_days"></label>
+      <label>New-listing window (days) <input type="number" name="thresholds.new_listing_days"></label>
+    </div>
+  </section>
+
+  <p>
+    <button type="submit" class="btn">Save settings</button>
+    <span class="form-msg" id="settings-msg"></span>
+  </p>
+</form>
+{% endblock %}
+{% block scripts %}
+<script>document.addEventListener('DOMContentLoaded', () => App.initSettings());</script>
+{% endblock %}

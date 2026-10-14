@@ -1,0 +1,55 @@
+# Nginx site config for the DigitalOcean Droplet — two server blocks, one per
+# subdomain, kept as separate origins (matches how the frontend already calls
+# a fully-qualified VITE_API_URL and how CORS is already origin-based, so no
+# app code needs to change to support this split).
+#
+# Setup:
+#   1. Replace API_DOMAIN / APP_DOMAIN below with the real domains.
+#   2. Copy to /etc/nginx/sites-available/backero, symlink into sites-enabled:
+#        ln -s /etc/nginx/sites-available/backero /etc/nginx/sites-enabled/backero
+#   3. nginx -t && systemctl reload nginx
+#   4. certbot --nginx -d API_DOMAIN -d APP_DOMAIN
+#      (certbot will rewrite the listen directives below to add TLS automatically)
+
+# ── API (backero-backend, proxied to the Docker container on 127.0.0.1:8080) ──
+server {
+    listen 80;
+    server_name API_DOMAIN;
+
+    location / {
+        proxy_pass http://127.0.0.1:8080;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+
+        # Socket.io WebSocket upgrade support — required, the app uses
+        # default polling+WS transport negotiation (src/config/socket.js).
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_read_timeout 60s;
+    }
+}
+
+# ── App (backero-frontend static build) ──
+server {
+    listen 80;
+    server_name APP_DOMAIN;
+
+    root /opt/backero/frontend/dist;
+    index index.html;
+
+    # SPA fallback — the app uses react-router-dom's BrowserRouter (src/App.jsx),
+    # so every non-file path must resolve to index.html.
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+
+    # Long-cache Vite's hashed asset filenames; index.html itself is never
+    # cached long (it's what changes on every deploy).
+    location /assets/ {
+        expires 1y;
+        add_header Cache-Control "public, immutable";
+    }
+}

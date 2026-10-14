@@ -1,6 +1,0 @@
-{
-  "watch": ["src", "server.js"],
-  "ignore": ["wa-session/**", "uploads/**", "logs/**", "*.log"],
-  "ext": "js,json",
-  "delay": 500
-}

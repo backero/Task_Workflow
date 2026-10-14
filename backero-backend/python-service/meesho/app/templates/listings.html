@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block title %}Listings · Meesho Seller Command Center{% endblock %}
+{% block content %}
+<h1 class="page-title">Listings</h1>
+<p class="muted">Click a column header to sort. Click a row to drill down.</p>
+<div class="card">
+  <table class="data-table" id="listings-table">
+    <thead>
+      <tr>
+        <th data-key="rag">Health</th>
+        <th data-key="name">Name</th>
+        <th data-key="catalog_id">Catalog ID</th>
+        <th data-key="category">Category</th>
+        <th data-key="price" data-num="1">Price</th>
+        <th data-key="status">Status</th>
+        <th data-key="rating" data-num="1">Rating</th>
+        <th data-key="quality_score" data-num="1">QS</th>
+        <th data-key="stock" data-num="1">Stock</th>
+        <th data-key="impressions_7d" data-num="1">Impr. 7d</th>
+        <th data-key="orders_7d" data-num="1">Orders 7d</th>
+        <th data-key="ctr" data-num="1">CTR%</th>
+        <th data-key="cvr" data-num="1">CVR%</th>
+        <th data-key="open_recs" data-num="1">Open Recs</th>
+      </tr>
+    </thead>
+    <tbody id="listings-body">
+      <tr><td colspan="14" class="muted">Loading…</td></tr>
+    </tbody>
+  </table>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>document.addEventListener('DOMContentLoaded', () => App.initListings());</script>
+{% endblock %}

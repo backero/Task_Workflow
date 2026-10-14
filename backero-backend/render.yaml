@@ -1,0 +1,39 @@
+services:
+  - type: web
+    name: backero-backend
+    env: node
+    region: singapore
+    plan: starter
+    buildCommand: npm install --production
+    startCommand: node server.js
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: FRONTEND_URL
+        value: https://task-workflow-liart.vercel.app
+      - key: GOOGLE_CALLBACK_URL
+        value: https://backero-backend.onrender.com/api/auth/google/callback
+      - key: JWT_EXPIRES_IN
+        value: 15m
+      - key: JWT_REFRESH_EXPIRES_IN
+        value: 7d
+      - key: WA_SESSION_PATH
+        value: /mnt/wa_session
+      # Set these in the Render dashboard (Environment tab) — never commit secrets:
+      # MONGODB_URI
+      # JWT_SECRET
+      # JWT_REFRESH_SECRET
+      # WHATSAPP_CLOUD_ACCESS_TOKEN       — required, WhatsApp Cloud API sends (OTP, task alerts, CRM alerts) silently no-op without it
+      # WHATSAPP_CLOUD_PHONE_NUMBER_ID    — required
+      # WHATSAPP_CLOUD_BUSINESS_ACCOUNT_ID
+      # WHATSAPP_CLOUD_OTP_TEMPLATE
+      # WHATSAPP_WEBHOOK_VERIFY_TOKEN
+      # SOCIAL_ENGINE_URL                 — base URL of the Python social-media-automation engine (currently a trycloudflare.com quick tunnel — ephemeral, changes if that tunnel restarts)
+      # SOCIAL_ENGINE_ADMIN_KEY           — must match ADMIN_API_KEY checked by the Python engine's X-Admin-Key header on /admin/*
+    disk:
+      name: wa-session-store
+      mountPath: /mnt/wa_session
+      sizeGB: 1

@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}Listing #{{ listing_id }} · Meesho Seller Command Center{% endblock %}
+{% block content %}
+<h1 class="page-title" id="listing-title">Listing #{{ listing_id }}</h1>
+<p class="muted" id="listing-sub"></p>
+
+<section class="grid-2">
+  <div class="card">
+    <h2>Traffic &amp; Orders (30d)</h2>
+    <div class="chart-box"><canvas id="chart-l-traffic"></canvas></div>
+  </div>
+  <div class="card">
+    <h2>Quality Score vs thresholds (15 / 25)</h2>
+    <div class="chart-box"><canvas id="chart-l-qs"></canvas></div>
+  </div>
+</section>
+
+<section class="grid-2">
+  <div class="card">
+    <h2>Price vs Recommended Price</h2>
+    <div class="chart-box"><canvas id="chart-l-price"></canvas></div>
+  </div>
+  <div class="card">
+    <h2>Alerts for this listing</h2>
+    <ul class="issue-list" id="listing-alerts"><li class="muted">Loading…</li></ul>
+  </div>
+</section>
+
+<section class="card">
+  <h2>Open Recommendations</h2>
+  <div id="listing-recs" class="rec-list"><p class="muted">Loading…</p></div>
+</section>
+{% endblock %}
+{% block scripts %}
+<script>document.addEventListener('DOMContentLoaded', () => App.initListing({{ listing_id }}));</script>
+{% endblock %}

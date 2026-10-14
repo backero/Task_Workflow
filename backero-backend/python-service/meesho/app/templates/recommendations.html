@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block title %}Recommendations · Meesho Seller Command Center{% endblock %}
+{% block content %}
+<h1 class="page-title">Recommendations</h1>
+<p class="muted">Ranked fixes from the ranking-research rules engine. Mark done when actioned.</p>
+<div id="rec-groups"><p class="muted">Loading…</p></div>
+{% endblock %}
+{% block scripts %}
+<script>document.addEventListener('DOMContentLoaded', () => App.initRecommendations());</script>
+{% endblock %}

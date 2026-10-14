@@ -1,0 +1,301 @@
+import React, { useEffect, useState } from 'react';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { ConfigProvider } from 'antd';
+import { useAuthStore } from './store/useAuthStore';
+import { useSocketStore } from './store/useSocketStore';
+import Layout from './components/layout/Layout';
+import ProtectedRoute from './components/common/ProtectedRoute';
+import PermissionRoute from './components/common/PermissionRoute';
+import DevAutoLogin from './components/common/DevAutoLogin';
+import LoadingScreen from './components/common/LoadingScreen';
+import { workflowTheme } from './theme/workflowTheme';
+
+// Auth pages
+import Login from './pages/auth/Login';
+import ForgotPassword from './pages/auth/ForgotPassword';
+import ResetPassword from './pages/auth/ResetPassword';
+import Onboarding from './pages/auth/Onboarding';
+import AuthCallback from './pages/auth/AuthCallback';
+
+// Attendance Tracker pages
+import AttEmployees from './pages/attendance/Employees';
+import AttendanceBoard from './pages/attendance/AttendanceBoard';
+import AttDevices from './pages/attendance/Devices';
+import AttLocation from './pages/attendance/Location';
+import AttPayroll from './pages/attendance/Payroll';
+import MyAttendance from './pages/attendance/MyAttendance';
+import MyPayroll from './pages/attendance/MyPayroll';
+import LeaveManagement from './pages/attendance/LeaveManagement';
+import MyLeave from './pages/attendance/MyLeave';
+
+// Dashboard pages
+import FounderDashboard from './pages/dashboard/FounderDashboard';
+import ManagerDashboard from './pages/dashboard/ManagerDashboard';
+import EmployeeDashboard from './pages/dashboard/EmployeeDashboard';
+
+// Task pages
+import KanbanView from './pages/tasks/KanbanView';
+import MyTasks from './pages/tasks/MyTasks';
+import TeamTasks from './pages/tasks/TeamTasks';
+import ApprovalQueue from './pages/tasks/ApprovalQueue';
+import TaskAnalytics from './pages/tasks/TaskAnalytics';
+import CalendarView from './pages/tasks/CalendarView';
+
+// CRM pages
+import LeadPipeline from './pages/crm/LeadPipeline';
+import LeadDetails from './pages/crm/LeadDetails';
+import TechnicalQueries from './pages/crm/TechnicalQueries';
+import SampleProduction from './pages/crm/SampleProduction';
+
+// Inventory pages
+import Products from './pages/inventory/Products';
+import StockMovements from './pages/inventory/StockMovements';
+import InventoryAlerts from './pages/inventory/InventoryAlerts';
+import RawMaterials from './pages/inventory/RawMaterialsHTML';
+import ProductCatalog from './pages/inventory/ProductCatalogHTML';
+
+// Finance pages
+import Ledger from './pages/finance/Ledger';
+import Invoices from './pages/finance/Invoices';
+import FinanceReports from './pages/finance/FinanceReports';
+
+// Department pages
+import MarketingDept from './pages/departments/Marketing';
+import SocialApprovals from './pages/marketing/SocialApprovals';
+import SocialAutomation from './pages/marketing/SocialAutomation';
+import MarketplaceDept from './pages/departments/Marketplace';
+import SalesDept from './pages/departments/Sales';
+import RnDDept from './pages/departments/RnD';
+import OperationsDept from './pages/departments/Operations';
+import HRDept from './pages/departments/HR';
+
+// Management
+import EmployeeMonitoring from './pages/management/EmployeeMonitoring';
+import TeamManagement from './pages/management/TeamManagement';
+import DepartmentAnalytics from './pages/management/DepartmentAnalytics';
+import TeamRewards from './pages/management/TeamRewards';
+
+// Production
+import RecordUsage from './pages/production/RecordUsage';
+import RecordUsageForm from './pages/production/RecordUsageForm';
+import RDPriceCalculator from './pages/production/RDPriceCalculator';
+import KitchenSchedule from './pages/production/KitchenSchedule';
+
+// Settings
+import Settings from './pages/settings/Settings';
+import WhatsAppSetup from './pages/settings/WhatsAppSetup';
+
+// Documents
+import DocumentWalletPage from './pages/documents/DocumentWalletPage';
+
+// Workflow
+import WorkflowView from './pages/workflow/WorkflowView';
+import WorkflowLanding from './pages/workflow/WorkflowLanding';
+import DeptWorkflow from './pages/workflow/DeptWorkflow';
+
+// Marketplace Dashboard pages
+import UnifiedDashboard from './pages/UnifiedDashboard';
+import Alerts from './pages/Alerts';
+import Analytics from './pages/Analytics';
+import Trends from './pages/Trends';
+import HistoricalAnalysis from './pages/HistoricalAnalysis';
+import PlatformComparison from './pages/PlatformComparison';
+import RecommendationsHub from './pages/RecommendationsHub';
+import AIInsights from './pages/AIInsights';
+
+// Platform pages - Meesho
+import MeeshoAnalytics from './platforms/meesho/Analytics';
+import MeeshoInsights from './platforms/meesho/Insights';
+import MeeshoTrendAnalytics from './platforms/meesho/TrendAnalytics';
+import MeeshoAlerts from './platforms/meesho/Alerts';
+import MeeshoOverview from './platforms/meesho/Overview';
+
+// Platform pages - Snapdeal
+import SnapdealAnalytics from './platforms/snapdeal/Analytics';
+import SnapdealInsights from './platforms/snapdeal/Insights';
+import SnapdealTrendAnalytics from './platforms/snapdeal/TrendAnalytics';
+import SnapdealOverview from './platforms/snapdeal/Overview';
+
+// Platform pages - Flipkart
+import FlipkartAnalytics from './platforms/flipkart/Analytics';
+import FlipkartInsights from './platforms/flipkart/Insights';
+import FlipkartTrendAnalytics from './platforms/flipkart/TrendAnalytics';
+import FlipkartOverview from './platforms/flipkart/Overview';
+
+// Platform pages - Amazon
+import AmazonOverview from './platforms/amazon/Overview';
+
+const SmartDashboard = () => {
+  const { user } = useAuthStore();
+  const role = user?.role;
+  if (['founder', 'chairman', 'super_admin', 'admin'].includes(role)) return <FounderDashboard />;
+  if (['manager', 'team_lead'].includes(role)) return <ManagerDashboard />;
+  return <EmployeeDashboard />;
+};
+
+export default function App() {
+  const { user, token } = useAuthStore();
+  const { connect, disconnect } = useSocketStore();
+
+  const [showSplash, setShowSplash] = useState(() => !sessionStorage.getItem('backero-booted'));
+  const [splashFading, setSplashFading] = useState(false);
+
+  useEffect(() => {
+    if (!showSplash) return;
+    sessionStorage.setItem('backero-booted', '1');
+    const fadeTimer = setTimeout(() => setSplashFading(true), 900);
+    const removeTimer = setTimeout(() => setShowSplash(false), 1400);
+    return () => { clearTimeout(fadeTimer); clearTimeout(removeTimer); };
+  }, [showSplash]);
+
+  useEffect(() => {
+    if (token && user) {
+      connect(token);
+    } else {
+      disconnect();
+    }
+    return () => disconnect();
+  }, [token]);
+
+  if (showSplash) {
+    return <LoadingScreen fadingOut={splashFading} />;
+  }
+
+  return (
+    <ConfigProvider theme={workflowTheme}>
+    <BrowserRouter>
+      {import.meta.env.DEV && <DevAutoLogin />}
+      <Routes>
+        {/* Public routes */}
+        <Route path="/login" element={!user ? <Login /> : <Navigate to="/" replace />} />
+        <Route path="/forgot-password" element={!user ? <ForgotPassword /> : <Navigate to="/" replace />} />
+        <Route path="/reset-password" element={!user ? <ResetPassword /> : <Navigate to="/" replace />} />
+        <Route path="/register" element={<Navigate to="/login" replace />} />
+        <Route path="/auth/callback" element={<AuthCallback />} />
+
+        {/* Protected routes */}
+        <Route element={<ProtectedRoute><Layout /></ProtectedRoute>}>
+          <Route path="/" element={<SmartDashboard />} />
+          <Route path="/dashboard/founder" element={<FounderDashboard />} />
+          <Route path="/dashboard/manager" element={<ManagerDashboard />} />
+          <Route path="/dashboard/employee" element={<EmployeeDashboard />} />
+          <Route path="/onboarding" element={<Onboarding />} />
+
+          {/* Tasks */}
+          <Route path="/tasks/my" element={<MyTasks />} />
+          <Route path="/tasks/kanban" element={<KanbanView />} />
+          <Route path="/tasks/team" element={<PermissionRoute module="tasks.team"><TeamTasks /></PermissionRoute>} />
+          <Route path="/tasks/approvals" element={<PermissionRoute module="tasks.approvals"><ApprovalQueue /></PermissionRoute>} />
+          <Route path="/tasks/calendar" element={<PermissionRoute module="tasks.calendar"><CalendarView /></PermissionRoute>} />
+          <Route path="/tasks/analytics" element={<PermissionRoute module="tasks.analytics"><TaskAnalytics /></PermissionRoute>} />
+
+          {/* CRM */}
+          <Route path="/crm/pipeline" element={<PermissionRoute module="crm"><LeadPipeline /></PermissionRoute>} />
+          <Route path="/crm/leads" element={<PermissionRoute module="crm"><LeadPipeline /></PermissionRoute>} />
+          <Route path="/crm/leads/:id" element={<PermissionRoute module="crm"><LeadDetails /></PermissionRoute>} />
+          <Route path="/crm/queries" element={<TechnicalQueries />} />
+          <Route path="/samples" element={<PermissionRoute module={['crm', 'inventory']}><SampleProduction /></PermissionRoute>} />
+
+          {/* Inventory */}
+          <Route path="/inventory/products" element={<PermissionRoute module="inventory"><Products /></PermissionRoute>} />
+          <Route path="/inventory/rawmaterials" element={<PermissionRoute module="inventory"><RawMaterials /></PermissionRoute>} />
+          <Route path="/inventory/catalog" element={<PermissionRoute module="inventory"><ProductCatalog /></PermissionRoute>} />
+          <Route path="/inventory/movements" element={<PermissionRoute module="inventory"><StockMovements /></PermissionRoute>} />
+          <Route path="/inventory/alerts" element={<PermissionRoute module="inventory"><InventoryAlerts /></PermissionRoute>} />
+
+          {/* Production */}
+          <Route path="/production/usage" element={<RecordUsage />} />
+          <Route path="/production/usage/:id" element={<RecordUsageForm />} />
+          <Route path="/production/batch-tracker" element={<Navigate to="/samples" replace />} />
+          <Route path="/production/rd-price-calculator" element={<RDPriceCalculator />} />
+          <Route path="/production/kitchen" element={<KitchenSchedule />} />
+
+          {/* Finance */}
+          <Route path="/finance/ledger" element={<PermissionRoute module="finance"><Ledger /></PermissionRoute>} />
+          <Route path="/finance/invoices" element={<PermissionRoute module="finance"><Invoices /></PermissionRoute>} />
+          <Route path="/finance/reports" element={<PermissionRoute module="finance"><FinanceReports /></PermissionRoute>} />
+
+          {/* Departments */}
+          <Route path="/departments/marketing" element={<PermissionRoute module="dept.marketing"><MarketingDept /></PermissionRoute>} />
+          <Route path="/marketing/social-approvals" element={<PermissionRoute module="dept.marketing"><SocialApprovals /></PermissionRoute>} />
+          <Route path="/marketing/automation" element={<PermissionRoute module="dept.marketing"><SocialAutomation /></PermissionRoute>} />
+          <Route path="/departments/marketplace" element={<PermissionRoute module="dept.marketplace"><MarketplaceDept /></PermissionRoute>} />
+          <Route path="/departments/sales" element={<PermissionRoute module="dept.sales"><SalesDept /></PermissionRoute>} />
+          <Route path="/departments/rnd" element={<PermissionRoute module="dept.rnd"><RnDDept /></PermissionRoute>} />
+          <Route path="/departments/operations" element={<PermissionRoute module="dept.operations"><OperationsDept /></PermissionRoute>} />
+          <Route path="/departments/hr" element={<PermissionRoute module="dept.hr"><HRDept /></PermissionRoute>} />
+
+          {/* Management */}
+          <Route path="/management/employees" element={<PermissionRoute module="management"><EmployeeMonitoring /></PermissionRoute>} />
+          <Route path="/management/team" element={<PermissionRoute module="management"><TeamManagement /></PermissionRoute>} />
+          <Route path="/management/departments" element={<PermissionRoute module="management"><DepartmentAnalytics /></PermissionRoute>} />
+          <Route path="/management/team-rewards" element={<PermissionRoute module="management"><TeamRewards /></PermissionRoute>} />
+
+          {/* Workflow */}
+          <Route path="/workflow" element={<WorkflowLanding />} />
+          <Route path="/workflow/:taskId" element={<WorkflowView />} />
+          <Route path="/dept-workflow" element={<DeptWorkflow />} />
+
+          {/* Settings */}
+          <Route path="/settings" element={<Settings />} />
+          <Route path="/settings/whatsapp" element={<PermissionRoute module="management"><WhatsAppSetup /></PermissionRoute>} />
+
+          {/* Documents */}
+          <Route path="/documents" element={<PermissionRoute module="finance"><DocumentWalletPage /></PermissionRoute>} />
+
+          {/* Attendance Tracker */}
+          <Route path="/attendance/employees" element={<PermissionRoute permission={['employee:read', 'employee:manage']}><AttEmployees /></PermissionRoute>} />
+          <Route path="/attendance/today" element={<PermissionRoute permission="attendance:read"><AttendanceBoard /></PermissionRoute>} />
+          <Route path="/attendance/devices" element={<PermissionRoute permission={['device:read', 'device:manage']}><AttDevices /></PermissionRoute>} />
+          <Route path="/attendance/location" element={<PermissionRoute permission={['location:view_live', 'location:view_history']}><AttLocation /></PermissionRoute>} />
+          <Route path="/attendance/payroll" element={<PermissionRoute permission={['payroll:read', 'payroll:manage_config']}><AttPayroll /></PermissionRoute>} />
+          <Route path="/attendance/leave" element={<PermissionRoute permission={['leave:read', 'leave:manage', 'leave:approve']}><LeaveManagement /></PermissionRoute>} />
+          <Route path="/my-attendance" element={<MyAttendance />} />
+          <Route path="/my-payroll" element={<MyPayroll />} />
+          <Route path="/my-leave" element={<MyLeave />} />
+
+          {/* Marketplace Dashboard Hub */}
+          <Route path="/marketplace/unified" element={<UnifiedDashboard />} />
+          <Route path="/marketplace/alerts" element={<Alerts />} />
+          <Route path="/marketplace/analytics" element={<Analytics />} />
+          <Route path="/marketplace/trends" element={<Trends />} />
+          <Route path="/marketplace/historical" element={<HistoricalAnalysis />} />
+          <Route path="/marketplace/comparison" element={<PlatformComparison />} />
+          <Route path="/marketplace/recommendations" element={<RecommendationsHub />} />
+          <Route path="/marketplace/insights" element={<AIInsights />} />
+
+          {/* Meesho */}
+          <Route path="/meesho/overview" element={<MeeshoOverview />} />
+          <Route path="/meesho/analytics" element={<MeeshoAnalytics />} />
+          <Route path="/meesho/insights" element={<MeeshoInsights />} />
+          <Route path="/meesho/trends" element={<MeeshoTrendAnalytics />} />
+          <Route path="/meesho/alerts" element={<MeeshoAlerts />} />
+
+          {/* Snapdeal */}
+          <Route path="/snapdeal/overview" element={<SnapdealOverview />} />
+          <Route path="/snapdeal/analytics" element={<SnapdealAnalytics />} />
+          <Route path="/snapdeal/insights" element={<SnapdealInsights />} />
+          <Route path="/snapdeal/trends" element={<SnapdealTrendAnalytics />} />
+
+          {/* Flipkart */}
+          <Route path="/flipkart/overview" element={<FlipkartOverview />} />
+          <Route path="/flipkart/analytics" element={<FlipkartAnalytics />} />
+          <Route path="/flipkart/insights" element={<FlipkartInsights />} />
+          <Route path="/flipkart/trends" element={<FlipkartTrendAnalytics />} />
+
+          {/* Amazon */}
+          <Route path="/amazon/overview" element={<AmazonOverview />} />
+        </Route>
+
+        {/* workflow-v2 retired and removed: its Tasks-board/my-tasks/approvals
+            pages were built against the (now-abandoned) FastAPI backend and
+            duplicated functionality that /tasks/kanban, /tasks/my, and
+            /tasks/approvals already have — in Ant Design, already wired to
+            this real Node backend, with strictly more features (timers,
+            daily updates, dependency-aware completion, etc). */}
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </BrowserRouter>
+    </ConfigProvider>
+  );
+}

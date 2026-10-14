@@ -9,3 +9,80 @@ Thumbs.db
 *.local
 # WhatsApp session (contains auth credentials — never commit)
 backend/wa-session/
+
+# Local Netlify folder
+.netlify
+
+.vercel
+.env*
+
+# Generated reports
+backero-backend/reports/
+
+# Local dev/test files
+wa-qr*.html
+wa-qr*.png
+
+# Claude Code local config
+.claude/
+
+# Marketflow — amazon-server (still a standalone Node service, marketflow-services/)
+# and the Meesho/Snapdeal/Flipkart scrapers (backero-backend/python-service/) each
+# ship their own SQLite DB + scraper browser profile as runtime state (never
+# source), populated on the droplet from the live data migrated during cutover,
+# not from a dev machine.
+marketflow-services/*/data/
+backero-backend/python-service/*/data/
+marketflow-services/*/*.db
+backero-backend/python-service/*/*.db
+marketflow-services/*/*.db-shm
+backero-backend/python-service/*/*.db-shm
+marketflow-services/*/*.db-wal
+backero-backend/python-service/*/*.db-wal
+marketflow-services/*/node_modules/
+marketflow-services/*/venv/
+backero-backend/python-service/*/venv/
+marketflow-services/*/.venv/
+backero-backend/python-service/*/.venv/
+marketflow-services/*/vault.enc
+backero-backend/python-service/*/vault.enc
+# Playwright debug screenshot/HTML dumps from the scrapers — regenerate at
+# runtime, not source, and can contain real seller-panel screenshots.
+marketflow-services/*/capture/
+marketflow-services/*/capture-diagnostics/
+marketflow-services/*/hub-debug/
+backero-backend/python-service/*/capture/
+backero-backend/python-service/*/capture-diagnostics/
+backero-backend/python-service/*/hub-debug/
+marketflow-services/**/__pycache__/
+marketflow-services/**/*.pyc
+backero-backend/python-service/**/__pycache__/
+backero-backend/python-service/**/*.pyc
+
+# Test fixtures for the Meesho/Snapdeal/Flipkart scrapers are real captured
+# seller-panel HTML/text dumps (confirmed: contain the actual "Backero"/
+# "BACKERO PRIVATE LIMITED" account content), not synthetic sample data —
+# never commit.
+backero-backend/python-service/*/tests/fixtures/
+# Internal docs/guides/status-reports were found to embed real scraped
+# business data (real product names, real alert details) alongside generic
+# setup instructions — excluded as a category rather than hunting each one;
+# code/README/requirements/config.example files are unaffected.
+marketflow-services/*/docs/
+backero-backend/python-service/*/docs/
+marketflow-services/*/*.docx
+backero-backend/python-service/*/*.docx
+marketflow-services/amazon-server/LIVE_DATA_STATUS.md
+backero-backend/python-service/snapdeal/SPEC.md
+backero-backend/python-service/snapdeal/plan.md
+backero-backend/python-service/snapdeal/Snapdeal_Marketplace_Algorithm_Report.md
+backero-backend/python-service/meesho/How_Meesho_Marketplace_Algorithm_Works.md
+
+# HubKeeper's persistent Chromium profile (Flipkart Seller Hub login session) —
+# lives directly under flipkart/, not flipkart/data/, so the data/ pattern above
+# doesn't catch it. Real session cookies + ~90MB of browser cache; never commit.
+backero-backend/python-service/flipkart/sellerhub-profile/
+marketflow-services/*/sellerhub-profile/
+
+# Local deployment scratch space (screenshots of real dashboards, temp env files) — never commit
+.deploy-scratch/

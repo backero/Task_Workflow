@@ -1,0 +1,49 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap');
+
+/*
+ * Base styles for the employee portal. Component-level tokens live in
+ * src/theme/{palette,antdTheme}.ts, applied via ConfigProvider in main.tsx.
+ */
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+  margin: 0;
+  font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+#root {
+  height: 100%;
+}
+
+/* LoginPage's marketing hero panel — hidden below the lg breakpoint so the
+   form stays full-width on narrow screens. */
+@media (min-width: 992px) {
+  .login-hero {
+    display: flex !important;
+  }
+}
+
+/* Sidebar active-item selection — a brand-orange gradient chip instead of
+   antd's flat selected-item fill. Values mirror src/theme/palette.ts's
+   `primaryGradient` token (a plain .css file can't import it directly, so
+   keep these two in sync by hand if the palette ever changes). Text/icon
+   forced white for contrast against the gradient now that the sidebar
+   itself is light-themed. */
+.ant-layout-sider .ant-menu-item-selected {
+  background: linear-gradient(135deg, #c2410c 0%, #ea580c 55%, #f97316 100%) !important;
+  color: #ffffff !important;
+}
+.ant-layout-sider .ant-menu-item-selected .ant-menu-item-icon,
+.ant-layout-sider .ant-menu-item-selected .ant-menu-title-content {
+  color: #ffffff !important;
+}
+
+/* Primary buttons (components/ui/Button.tsx) — matches the sidebar's
+   gradient rather than antd's flat colorPrimary fill. */
+.btn-gradient-primary:hover:not(:disabled) {
+  filter: brightness(1.08);
+}

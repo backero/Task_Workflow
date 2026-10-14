@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block title %}Meesho Robo{% endblock %}
+{% block content %}
+<h1>Meesho Robo</h1>
+<p class="muted">The background worker for Meesho: it pulls your Supplier Panel numbers and re-checks every rule. Each job below says what it did and how it ended.</p>
+<div id="robo-box" class="card"><p class="muted">Loading&hellip;</p></div>
+{% endblock %}
+{% block scripts %}
+<script>
+(function () {
+  const esc = (s) => String(s == null ? "" : s).replace(/[&<>"]/g, (c) => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;"}[c]));
+  const STATE = {healthy: "Healthy", attention: "Partly working", needs_you: "Needs you", error: "Problem", demo: "Demo data", manual: "Manual mode"};
+  const OUT = {ok: "OK", partial: "Partly done", skipped: "Skipped", needs_you: "Needs you", failed: "Failed"};
+  const ago = (iso) => {
+    if (!iso) return "never";
+    const m = (Date.now() - new Date(iso).getTime()) / 60000;
+    return m < 1 ? "just now" : m < 120 ? Math.round(m) + " min ago" : m < 2880 ? Math.round(m / 60) + " h ago" : Math.round(m / 1440) + " days ago";
+  };
+  async function load() {
+    const box = document.getElementById("robo-box");
+    try {
+      const r = await (await fetch("/api/robot")).json();
+      const bad = r.state === "error", warn = ["needs_you", "attention"].includes(r.state);
+      box.innerHTML =
+        `<h2>${esc(STATE[r.state] || r.state)}</h2>` +
+        `<p class="${bad ? "danger" : warn ? "warn" : "muted"}">${esc(r.message)}</p>` +
+        `<p class="muted">Alive: last heartbeat ${esc(ago(r.beat))} &middot; running since ${esc((r.started_at || "-").replace("T", " ").slice(0, 16))} &middot; mode: ${esc(r.mode)}</p>` +
+        `<h3>What it does</h3><ul>` + r.jobs.map((j) =>
+          `<li><strong>${esc(j.label)}</strong> &mdash; ${j.enabled ? (j.last_status ? esc(OUT[j.last_status] || j.last_status) + " &middot; " + esc(ago(j.last_run)) : "no run yet") : "off in this mode"}` +
+          `<br><span class="muted">${esc(j.what)} Runs every ${j.every_minutes >= 120 ? j.every_minutes / 60 + " h" : j.every_minutes + " min"}.${j.detail ? " " + esc(j.detail) : ""}</span></li>`).join("") + `</ul>` +
+        `<h3>Recent runs</h3>` + (r.runs.length ? `<table class="table"><tbody>` + r.runs.slice(0, 15).map((x) =>
+          `<tr><td>${esc(ago(x.finished_at))}</td><td>${esc(x.job)}</td><td>${esc(OUT[x.status] || x.status)}</td><td class="muted">${esc(x.detail)}</td></tr>`).join("") + `</tbody></table>` : `<p class="muted">No runs recorded yet.</p>`);
+    } catch (e) {
+      box.innerHTML = `<p class="danger">Could not load the Robo state: ${esc(e)}</p>`;
+    }
+  }
+  load();
+  setInterval(load, 30000);
+})();
+</script>
+{% endblock %}
