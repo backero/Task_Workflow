@@ -1,6 +1,6 @@
-import axios from 'axios'
+import api from './api/axios.js'
 
-export const api = axios.create({ baseURL: '/' })
+export { api }
 
 export type DataQuality = 'api' | 'observed' | 'derived' | 'estimate'
 
@@ -113,72 +113,72 @@ export type Connection = {
 }
 
 export async function getCommandDashboard() {
-  const { data } = await api.get<CommandDashboard>('/v1/dashboard/command')
+  const { data } = await api.get<CommandDashboard>('/marketflow/v1/dashboard/command')
   return data
 }
 
 export async function getSkuScorecard(sku: string) {
-  const { data } = await api.get(`/v1/dashboard/sku/${encodeURIComponent(sku)}`)
+  const { data } = await api.get(`/marketflow/v1/dashboard/sku/${encodeURIComponent(sku)}`)
   return data
 }
 
 export async function getKeywordBoard() {
-  const { data } = await api.get('/v1/dashboard/keywords')
+  const { data } = await api.get('/marketflow/v1/dashboard/keywords')
   return data
 }
 
 export async function getCompetitors() {
   const { data } = await api.get<{ own_products: (Product & { review_velocity_7d: number | null })[]; competitors: (Product & { latest_snapshot: any; review_velocity_7d: number | null })[] }>(
-    '/v1/dashboard/competitors',
+    '/marketflow/v1/dashboard/competitors',
   )
   return data
 }
 
 export async function getRecommendations(status = 'open') {
-  const { data } = await api.get<{ recommendations: Alert[] }>('/v1/dashboard/recommendations', { params: { status } })
+  const { data } = await api.get<{ recommendations: Alert[] }>('/marketflow/v1/dashboard/recommendations', { params: { status } })
   return data.recommendations
 }
 
 export async function actOnRecommendation(id: string, action: 'apply' | 'snooze' | 'dismiss') {
-  const { data } = await api.post(`/v1/dashboard/recommendations/${id}/${action}`)
+  const { data } = await api.post(`/marketflow/v1/dashboard/recommendations/${id}/${action}`)
   return data
 }
 
 export async function getConnections() {
-  const { data } = await api.get<{ connections: Connection[] }>('/v1/connections')
+  const { data } = await api.get<{ connections: Connection[] }>('/marketflow/v1/connections')
   return data.connections
 }
 
 export async function saveCredentials(source: 'spapi' | 'ads_api', payload: { refresh_token: string; client_id?: string; client_secret?: string }) {
-  const { data } = await api.post(`/v1/connections/${source}/credentials`, payload)
+  const { data } = await api.post(`/marketflow/v1/connections/${source}/credentials`, payload)
   return data
 }
 
 export async function syncConnection(source: 'spapi' | 'ads_api') {
-  const { data } = await api.post<{ ok?: boolean; skipped?: boolean; reason?: string; error?: string }>(`/v1/connections/${source}/sync`)
+  const { data } = await api.post<{ ok?: boolean; skipped?: boolean; reason?: string; error?: string }>(`/marketflow/v1/connections/${source}/sync`)
   return data
 }
 
 export async function importBusinessReportCsv(csv_text: string, from_date: string, to_date: string) {
   const { data } = await api.post<{ ok?: boolean; rows_parsed?: number; accepted?: number; rejected?: number; error?: string }>(
-    '/v1/import/business-report-sku',
+    '/marketflow/v1/import/business-report-sku',
     { csv_text, from_date, to_date },
   )
   return data
 }
 
 export async function getProducts() {
-  const { data } = await api.get<{ stale_after_days: number; fee_rate: number; shipping: number; products: OwnProduct[] }>('/v1/products')
+  const { data } = await api.get<{ stale_after_days: number; fee_rate: number; shipping: number; products: OwnProduct[] }>('/marketflow/v1/products')
   return data
 }
 
 export async function saveCogs(items: { asin: string; cogs: number }[]) {
-  const { data } = await api.post<{ ok: boolean; updated: number }>('/v1/products/cogs', { items })
+  const { data } = await api.post<{ ok: boolean; updated: number }>('/marketflow/v1/products/cogs', { items })
   return data
 }
 
 export async function getAccountOverview() {
-  const { data } = await api.get<{ health: AccountHealth | null; ads: AdsState; listings_as_of: string | null; listings: ListingRow[] }>('/v1/account/overview')
+  const { data } = await api.get<{ health: AccountHealth | null; ads: AdsState; listings_as_of: string | null; listings: ListingRow[] }>('/marketflow/v1/account/overview')
   return data
 }
 
@@ -186,25 +186,25 @@ export type TrackedKeyword = { id: number; keyword: string; is_hero_target: numb
 export type TrackedCompetitor = { asin: string; name: string; watches_asin: string | null; watches_name: string | null }
 
 export async function getTracking() {
-  const { data } = await api.get<{ keywords: TrackedKeyword[]; competitors: TrackedCompetitor[]; own_products: { asin: string; name: string }[] }>('/v1/tracking')
+  const { data } = await api.get<{ keywords: TrackedKeyword[]; competitors: TrackedCompetitor[]; own_products: { asin: string; name: string }[] }>('/marketflow/v1/tracking')
   return data
 }
 export async function addKeyword(keyword: string, is_hero_target: boolean) {
-  const { data } = await api.post<{ ok: boolean; added: boolean }>('/v1/tracking/keywords', { keyword, is_hero_target })
+  const { data } = await api.post<{ ok: boolean; added: boolean }>('/marketflow/v1/tracking/keywords', { keyword, is_hero_target })
   return data
 }
 export async function setKeywordHero(id: number, is_hero_target: boolean) {
-  await api.put('/v1/tracking/keywords/' + id, { is_hero_target })
+  await api.put('/marketflow/v1/tracking/keywords/' + id, { is_hero_target })
 }
 export async function removeKeyword(id: number) {
-  await api.delete('/v1/tracking/keywords/' + id)
+  await api.delete('/marketflow/v1/tracking/keywords/' + id)
 }
 export async function addCompetitor(asin: string, watches_asin: string, name?: string) {
-  const { data } = await api.post<{ ok: boolean }>('/v1/tracking/competitors', { asin, watches_asin, name: name || undefined })
+  const { data } = await api.post<{ ok: boolean }>('/marketflow/v1/tracking/competitors', { asin, watches_asin, name: name || undefined })
   return data
 }
 export async function removeCompetitor(asin: string) {
-  await api.delete('/v1/tracking/competitors/' + asin)
+  await api.delete('/marketflow/v1/tracking/competitors/' + asin)
 }
 
 // Amazon Robo
@@ -220,6 +220,6 @@ export type Robot = {
   jobs: RobotJob[]; runs: RobotRun[]
 }
 export async function getRobot() {
-  const { data } = await api.get<Robot>('/v1/robot')
+  const { data } = await api.get<Robot>('/marketflow/v1/robot')
   return data
 }

@@ -1,8 +1,8 @@
 import { useState } from 'react'
 import { getRobot, type Robot, type RobotJob } from '../api.ts'
 import Card, { PageHeader } from '../components/Card.tsx'
-import StatusDot from '../components/StatusDot.tsx
-import { STATE_COLOR, STATE_TEXT } from '../components/RobotStrip.tsx
+import StatusDot from '../components/StatusDot.tsx'
+import { STATE_COLOR, STATE_TEXT } from '../components/RobotStrip.tsx'
 import { useAutoRefresh } from '../hooks/useAutoRefresh.ts'
 
 const OUTCOME: Record<string, { text: string; cls: string }> = {

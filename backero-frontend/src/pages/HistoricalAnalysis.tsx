@@ -3,7 +3,7 @@ import { useLocation } from 'react-router-dom'
 import { fmtPct } from '../utils/metricFormat.ts'
 import { platformFromPath, marketplaceId } from '../hooks/platformScope.ts'
 import Card, { PageHeader } from '../components/Card.tsx'
-import axios from 'axios'
+import api from '../api/axios.js'
 import { BarChart3, LineChart as LineChartIcon } from 'lucide-react'
 import { StatTile, TrendLineChart } from '../components/charts/index.ts'
 import { platformColor } from '../theme/colors.ts'
@@ -47,8 +47,8 @@ export default function HistoricalAnalysis() {
       setLoading(true)
       try {
         const [allRes, trendRes] = await Promise.all([
-          axios.get('/v1/dashboard/platform-comparison?days=90').catch(() => ({ data: { platforms: {} } })),
-          axios.get(`/v1/trends/${selectedMarketplace}?days=90`).catch(() => ({ data: { data: [] } })),
+          api.get('/marketflow/v1/dashboard/platform-comparison?days=90').catch(() => ({ data: { platforms: {} } })),
+          api.get(`/marketflow/v1/trends/${selectedMarketplace}?days=90`).catch(() => ({ data: { data: [] } })),
         ])
         setData(allRes.data.platforms)
       } catch (err) {

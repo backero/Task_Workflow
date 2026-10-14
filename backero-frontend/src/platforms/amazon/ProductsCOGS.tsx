@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import Card, { PageHeader } from '../../components/Card.tsx'
-import axios from 'axios'
+import api from '../../api/axios.js'
+import { saveCogs } from '../../api.ts'
 
 type Product = {
   asin?: string
@@ -27,7 +28,7 @@ export default function ProductsCOGSPage() {
   const fetchTreyfahProducts = async () => {
     try {
       setLoading(true)
-      const res = await axios.get('/v1/products')
+      const res = await api.get('/marketflow/v1/products')
       setProducts(res.data.products || [])
     } catch (err) {
       console.error('Error fetching Treyfa products:', err)
@@ -51,7 +52,14 @@ export default function ProductsCOGSPage() {
     setEditValues({ cogs, fee_per_unit: fees })
   }
 
-  const saveEdit = (sku: string) => {
+  const saveEdit = async (sku: string) => {
+    // Only `cogs` actually persists server-side — the backend's bulk-save endpoint's
+    // schema only accepts {asin, cogs}, so fee_per_unit stays a client-only/cosmetic
+    // edit (lost on refresh) until the backend grows a field for it.
+    const product = products.find(p => p.sku === sku)
+    if (product?.asin && editValues.cogs != null) {
+      await saveCogs([{ asin: product.asin, cogs: editValues.cogs }])
+    }
     setProducts(products.map(p =>
       p.sku === sku ? { ...p, cogs: editValues.cogs, fee_per_unit: editValues.fee_per_unit } : p
     ))

@@ -3,7 +3,7 @@ import { useLocation } from 'react-router-dom'
 import { fmtPct } from '../utils/metricFormat.ts'
 import { platformFromPath, marketplaceId } from '../hooks/platformScope.ts'
 import Card, { PageHeader } from '../components/Card.tsx'
-import axios from 'axios'
+import api from '../api/axios.js'
 import { TrendingUp, TrendingDown } from 'lucide-react'
 import { PlatformBarChart, TrendLineChart } from '../components/charts/index.ts'
 import { PLATFORM_COLORS, PLATFORM_LABELS } from '../theme/colors.ts'
@@ -46,8 +46,8 @@ export default function PlatformComparison() {
       setLoading(true)
       try {
         const [allRes, trendRes] = await Promise.all([
-          axios.get('/v1/dashboard/platform-comparison?days=30').catch(() => ({ data: { platforms: {} } })),
-          axios.get(`/v1/trends/${selectedMarketplace}?days=30`).catch(() => ({ data: { data: [] } })),
+          api.get('/marketflow/v1/dashboard/platform-comparison?days=30').catch(() => ({ data: { platforms: {} } })),
+          api.get(`/marketflow/v1/trends/${selectedMarketplace}?days=30`).catch(() => ({ data: { data: [] } })),
         ])
         setComparisonAll(allRes.data.platforms)
         setComparisonByPlatform(trendRes.data)

@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useLocation } from 'react-router-dom'
 import { platformFromPath, marketplaceId } from '../hooks/platformScope.ts'
 import Card, { PageHeader } from '../components/Card.tsx'
-import axios from 'axios'
+import api from '../api/axios.js'
 import { ChevronDown, ChevronUp, CheckCircle, Clock, AlertCircle } from 'lucide-react'
 import { StatTile, PriorityBarChart } from '../components/charts/index.ts'
 
@@ -45,8 +45,8 @@ export default function RecommendationsHub() {
         const marketplaceParam = selectedMarketplace === 'all' ? '' : `?marketplace=${selectedMarketplace}`
 
         const [recsRes, summaryRes] = await Promise.all([
-          axios.get(`/v1/recommendations/action-plan${marketplaceParam}`).catch(() => ({ data: { recommendations: [] } })),
-          axios.get(`/v1/insights/summary${marketplaceParam}`).catch(() => ({ data: {} })),
+          api.get(`/marketflow/v1/recommendations/action-plan${marketplaceParam}`).catch(() => ({ data: { recommendations: [] } })),
+          api.get(`/marketflow/v1/insights/summary${marketplaceParam}`).catch(() => ({ data: {} })),
         ])
         setRecommendations(recsRes.data.recommendations || [])
         setSummary(summaryRes.data)

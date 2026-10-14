@@ -98,10 +98,6 @@ import UnifiedDashboard from './pages/UnifiedDashboard';
 import Alerts from './pages/Alerts';
 import Analytics from './pages/Analytics';
 import Trends from './pages/Trends';
-import HistoricalAnalysis from './pages/HistoricalAnalysis';
-import PlatformComparison from './pages/PlatformComparison';
-import RecommendationsHub from './pages/RecommendationsHub';
-import AIInsights from './pages/AIInsights';
 
 // Platform pages - Meesho
 import MeeshoAnalytics from './platforms/meesho/Analytics';
@@ -259,10 +255,6 @@ export default function App() {
           <Route path="/marketplace/alerts" element={<Alerts />} />
           <Route path="/marketplace/analytics" element={<Analytics />} />
           <Route path="/marketplace/trends" element={<Trends />} />
-          <Route path="/marketplace/historical" element={<HistoricalAnalysis />} />
-          <Route path="/marketplace/comparison" element={<PlatformComparison />} />
-          <Route path="/marketplace/recommendations" element={<RecommendationsHub />} />
-          <Route path="/marketplace/insights" element={<AIInsights />} />
 
           {/* Meesho */}
           <Route path="/meesho/overview" element={<MeeshoOverview />} />

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { getCompetitors, getSkuScorecard, type Product } from '../api.ts'
 import Card, { PageHeader } from '../components/Card.tsx'
-import DataQualityBadge from '../components/DataQualityBadge.tsx
+import DataQualityBadge from '../components/DataQualityBadge.tsx'
 import AiText from '../components/AiText.tsx'
 import { useAutoRefresh } from '../hooks/useAutoRefresh.ts'
 

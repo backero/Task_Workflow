@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useLocation } from 'react-router-dom'
 import { platformFromPath, marketplaceId } from '../hooks/platformScope.ts'
 import Card, { PageHeader } from '../components/Card.tsx'
-import axios from 'axios'
+import api from '../api/axios.js'
 import { Lightbulb, AlertCircle, TrendingUp, Target } from 'lucide-react'
 import { StatTile } from '../components/charts/index.ts'
 
@@ -41,8 +41,8 @@ export default function AIInsights() {
         const marketplaceParam = selectedMarketplace === 'all' ? '' : `?marketplace=${selectedMarketplace}`
 
         const [insightsRes, summaryRes] = await Promise.all([
-          axios.get(`/v1/insights/platform-analysis${marketplaceParam}`).catch(() => ({ data: { insights: [] } })),
-          axios.get(`/v1/insights/summary${marketplaceParam}`).catch(() => ({ data: {} })),
+          api.get(`/marketflow/v1/insights/platform-analysis${marketplaceParam}`).catch(() => ({ data: { insights: [] } })),
+          api.get(`/marketflow/v1/insights/summary${marketplaceParam}`).catch(() => ({ data: {} })),
         ])
         setInsights(insightsRes.data.insights || [])
         setSummary(summaryRes.data)

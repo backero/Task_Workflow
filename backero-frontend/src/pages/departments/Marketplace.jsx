@@ -9,8 +9,20 @@ import { useSocketStore } from '../../store/useSocketStore';
 import {
   TriangleAlert, CheckCircle2, BarChart3, Download, Zap, RefreshCw,
   Star, ClipboardPaste, X, Sparkles,
+  Lightbulb, GitCompare, LineChart, Package, FileBarChart2, Search, Eye, Boxes, Radar, Bot,
 } from 'lucide-react';
 import { Button, Drawer, Space } from 'antd';
+import AIInsights from '../AIInsights.tsx';
+import RecommendationsHub from '../RecommendationsHub.tsx';
+import PlatformComparison from '../PlatformComparison.tsx';
+import HistoricalAnalysis from '../HistoricalAnalysis.tsx';
+import ProductsCOGS from '../../platforms/amazon/ProductsCOGS.tsx';
+import SkuScorecard from '../SkuScorecard.tsx';
+import KeywordBoard from '../KeywordBoard.tsx';
+import CompetitorWatchlist from '../CompetitorWatchlist.tsx';
+import Inventory from '../Inventory.tsx';
+import Tracking from '../Tracking.tsx';
+import Robots from '../Robots.tsx';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -1600,13 +1612,41 @@ function AIInsightCard({ insight }) {
   );
 }
 
+const MARKETPLACE_TOOL_SECTIONS = [
+  { key: 'insights',        label: 'AI Insights',     icon: Lightbulb },
+  { key: 'recommendations', label: 'Recommendations', icon: CheckCircle2 },
+  { key: 'comparison',      label: 'Comparison',      icon: GitCompare },
+  { key: 'historical',      label: 'Historical',      icon: LineChart },
+];
+
 const MARKETPLACE_SECTIONS = [
   { key: 'overview', label: 'Overview' },
+  ...MARKETPLACE_TOOL_SECTIONS,
   ...AUTOMATION_PLATFORMS.map((p) => ({ key: p.key, label: p.label, meta: p.meta })),
+];
+
+// Amazon-only drill-in pages shown as a second pill row under the Amazon platform
+// tab — these map to amazon-server endpoints with no Flipkart/Meesho/Snapdeal
+// equivalent yet (those 3 platforms are Mongo-synced, not live-server backed).
+const AMAZON_DEEP_PAGES = [
+  { key: 'products-cogs', label: 'Products & COGS',      icon: Package },
+  { key: 'sku-scorecard', label: 'SKU Scorecard',        icon: FileBarChart2 },
+  { key: 'keywords',      label: 'Keyword Board',        icon: Search },
+  { key: 'competitors',   label: 'Competitor Watchlist', icon: Eye },
+  { key: 'inventory',     label: 'Inventory',            icon: Boxes },
+  { key: 'tracking',      label: 'Tracking',             icon: Radar },
+  { key: 'robots',        label: 'Robots',                icon: Bot },
 ];
 
 function LiveAutomationTab() {
   const [activeSection, setActiveSection] = useState('overview');
+  // null = the existing Amazon KPI-card view; otherwise one of AMAZON_DEEP_PAGES' keys.
+  // Only meaningful while activeSection === 'amazon' — reset whenever the section changes.
+  const [amazonDeepPage, setAmazonDeepPage] = useState(null);
+  const selectSection = (key) => {
+    setActiveSection(key);
+    if (key !== 'amazon') setAmazonDeepPage(null);
+  };
 
   const { data: unified, isLoading: unifiedLoading, error: unifiedError } = useQuery({
     queryKey: ['marketflow', 'unified'],
@@ -1655,7 +1695,7 @@ function LiveAutomationTab() {
         {MARKETPLACE_SECTIONS.map((s) => (
           <button
             key={s.key}
-            onClick={() => setActiveSection(s.key)}
+            onClick={() => selectSection(s.key)}
             className={clsx(
               'flex items-center gap-2 px-3.5 py-2 rounded-xl border text-xs font-bold whitespace-nowrap transition-colors flex-shrink-0',
               activeSection === s.key
@@ -1665,7 +1705,9 @@ function LiveAutomationTab() {
           >
             {s.key === 'overview'
               ? <Zap className={clsx('w-3.5 h-3.5', activeSection === s.key ? 'text-white' : 'text-orange-500')} />
-              : <PlatformBadge platformKey={s.key} meta={s.meta} size={26} />}
+              : s.icon
+                ? <s.icon className={clsx('w-3.5 h-3.5', activeSection === s.key ? 'text-white' : 'text-orange-500')} />
+                : <PlatformBadge platformKey={s.key} meta={s.meta} size={26} />}
             {s.label}
           </button>
         ))}
@@ -1779,6 +1821,13 @@ function LiveAutomationTab() {
             </AutomationSection>
           </div>
         </>
+      ) : MARKETPLACE_TOOL_SECTIONS.some((t) => t.key === activeSection) ? (
+        <div className="bg-white rounded-2xl border border-gray-200 p-6">
+          {activeSection === 'insights' && <AIInsights />}
+          {activeSection === 'recommendations' && <RecommendationsHub />}
+          {activeSection === 'comparison' && <PlatformComparison />}
+          {activeSection === 'historical' && <HistoricalAnalysis />}
+        </div>
       ) : activePlatform ? (
         <div className="bg-white rounded-2xl border border-gray-200 p-6">
           <div className="flex items-center gap-3 mb-5">
@@ -1798,7 +1847,47 @@ function LiveAutomationTab() {
             )}
           </div>
 
-          {activePlatform.isLoading ? (
+          {activePlatform.key === 'amazon' && (
+            <div className="flex items-center gap-2 overflow-x-auto pb-1 mb-4 -mx-1 px-1 border-t border-gray-100 pt-4">
+              <button
+                onClick={() => setAmazonDeepPage(null)}
+                className={clsx(
+                  'flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-[11px] font-bold whitespace-nowrap transition-colors flex-shrink-0',
+                  amazonDeepPage === null
+                    ? 'bg-gray-900 border-gray-900 text-white'
+                    : 'bg-white border-gray-200 text-gray-600 hover:border-gray-400',
+                )}
+              >
+                Overview
+              </button>
+              {AMAZON_DEEP_PAGES.map((d) => (
+                <button
+                  key={d.key}
+                  onClick={() => setAmazonDeepPage(d.key)}
+                  className={clsx(
+                    'flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-[11px] font-bold whitespace-nowrap transition-colors flex-shrink-0',
+                    amazonDeepPage === d.key
+                      ? 'bg-gray-900 border-gray-900 text-white'
+                      : 'bg-white border-gray-200 text-gray-600 hover:border-gray-400',
+                  )}
+                >
+                  <d.icon className="w-3.5 h-3.5" />{d.label}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {activePlatform.key === 'amazon' && amazonDeepPage ? (
+            <div className="mt-2">
+              {amazonDeepPage === 'products-cogs' && <ProductsCOGS />}
+              {amazonDeepPage === 'sku-scorecard' && <SkuScorecard />}
+              {amazonDeepPage === 'keywords' && <KeywordBoard />}
+              {amazonDeepPage === 'competitors' && <CompetitorWatchlist />}
+              {amazonDeepPage === 'inventory' && <Inventory />}
+              {amazonDeepPage === 'tracking' && <Tracking />}
+              {amazonDeepPage === 'robots' && <Robots />}
+            </div>
+          ) : activePlatform.isLoading ? (
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
               {[1, 2, 3, 4].map(i => <div key={i} className="h-20 bg-gray-100 rounded-xl animate-pulse" />)}
             </div>
@@ -2793,43 +2882,6 @@ function DashboardReport({ platform }) {
 
 export default function MarketplaceDept() {
 
-function LiveAutomationDashboard() {
-  return (
-    <div className="space-y-4">
-      <div className="bg-white rounded-2xl border border-gray-200 px-6 py-4">
-        <h2 className="text-xl font-bold text-gray-900 mb-2">📊 Marketplace Live Automation</h2>
-        <p className="text-gray-600 mb-6">Access real-time dashboard insights for all platforms</p>
-        
-        <div className="grid grid-cols-2 gap-4">
-          <a href="/marketplace/unified" className="block p-6 bg-gradient-to-br from-orange-50 to-orange-100 rounded-xl border border-orange-200 hover:shadow-lg transition-shadow">
-            <div className="text-3xl mb-2">📊</div>
-            <h3 className="font-bold text-gray-900 mb-1">Unified Dashboard</h3>
-            <p className="text-sm text-gray-600">All platforms overview</p>
-          </a>
-          
-          <a href="/marketplace/analytics" className="block p-6 bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl border border-blue-200 hover:shadow-lg transition-shadow">
-            <div className="text-3xl mb-2">📈</div>
-            <h3 className="font-bold text-gray-900 mb-1">Analytics</h3>
-            <p className="text-sm text-gray-600">Profitability & metrics</p>
-          </a>
-          
-          <a href="/marketplace/alerts" className="block p-6 bg-gradient-to-br from-red-50 to-red-100 rounded-xl border border-red-200 hover:shadow-lg transition-shadow">
-            <div className="text-3xl mb-2">⚠️</div>
-            <h3 className="font-bold text-gray-900 mb-1">Alerts</h3>
-            <p className="text-sm text-gray-600">Critical issues breakdown</p>
-          </a>
-          
-          <a href="/marketplace/trends" className="block p-6 bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl border border-purple-200 hover:shadow-lg transition-shadow">
-            <div className="text-3xl mb-2">📉</div>
-            <h3 className="font-bold text-gray-900 mb-1">30-Day Trends</h3>
-            <p className="text-sm text-gray-600">Performance trends</p>
-          </a>
-        </div>
-      </div>
-    </div>
-  );
-}
-
   const [activeTab, setActiveTab]       = useState('overview');
   const [activePlan, setActivePlan]     = useState('Amazon');
   const [showPlanDropdown, setShowPlanDropdown] = useState(false);
@@ -2923,29 +2975,6 @@ function LiveAutomationDashboard() {
                   <Zap size={13} className="inline -mt-0.5 mr-1" />Live Automation
                 </button>
               </div>
-              <div className="relative" ref={dropdownRef}>
-                <button onClick={() => setShowPlanDropdown(s => !s)}
-                  className={clsx('flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border transition-all', activeTab === 'plan' ? 'text-white border-transparent' : 'bg-white text-gray-600 border-gray-200 hover:border-gray-400')}
-                  style={activeTab === 'plan' ? { background: PLATFORM_PLAN_CONFIG[activePlan]?.color || '#f97316' } : {}}>
-                  {activeTab === 'plan' ? `${activePlan} Plan` : 'Platform Plans'} <span className="text-[10px] opacity-70">▾</span>
-                </button>
-                {showPlanDropdown && (
-                  <div className="absolute right-0 top-full mt-1 bg-white border border-gray-200 rounded-xl shadow-lg z-50 py-1 min-w-[170px]">
-                    {PLATFORMS.map(p => {
-                      const meta = PLATFORM_META[p];
-                      const isActive = activePlan === p && activeTab === 'plan';
-                      return (
-                        <button key={p} onClick={() => { setActivePlan(p); setActiveTab('plan'); setShowPlanDropdown(false); setShowReport(false); }}
-                          className={clsx('w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold hover:bg-gray-50 transition-colors', isActive ? 'bg-gray-50' : 'text-gray-600')}>
-                          <span className="w-5 h-5 rounded-md flex items-center justify-center text-white text-[9px] font-black flex-shrink-0" style={{ background: meta.color }}>{meta.initial}</span>
-                          <span style={isActive ? { color: meta.color } : {}}>{p} Plan</span>
-                          {isActive && <span className="ml-auto text-green-500 text-[10px] font-bold">✓</span>}
-                        </button>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
               {activeTab === 'plan' && (
                 <button
                   onClick={() => setShowReport(s => !s)}
@@ -2962,7 +2991,7 @@ function LiveAutomationDashboard() {
       {activeTab === 'overview'
         ? <OverviewTab allTasks={allTasks} tasksLoading={tasksLoading} navigate={navigate} />
         : activeTab === 'automation'
-        ? <LiveAutomationDashboard />
+        ? <LiveAutomationTab />
         : showReport
             ? <div className="space-y-3">
                 <div className="bg-white rounded-2xl border border-gray-200 px-4 py-3 flex items-center justify-between">
