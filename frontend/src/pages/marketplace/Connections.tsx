@@ -1,8 +1,8 @@
 import { useRef, useState } from 'react'
-import { getConnections, saveCredentials, syncConnection, importBusinessReportCsv, type Connection } from '../api.js'
-import Card, { PageHeader } from '../components/Card.js'
-import StatusDot from '../components/StatusDot.js'
-import { useAutoRefresh } from '../hooks/useAutoRefresh.js'
+import { getConnections, saveCredentials, syncConnection, importBusinessReportCsv, type Connection } from '../api'
+import Card, { PageHeader } from '../components/Card'
+import StatusDot from '../components/StatusDot'
+import { useAutoRefresh } from '../hooks/useAutoRefresh'
 
 const sourceLabels: Record<string, string> = {
   edge_agent: 'Edge Agent (dedicated laptop)',

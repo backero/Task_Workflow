@@ -1,9 +1,9 @@
 import { useState } from 'react'
-import { getRobot, type Robot, type RobotJob } from '../api.js'
-import Card, { PageHeader } from '../components/Card.js'
-import StatusDot from '../components/StatusDot.js'
-import { STATE_COLOR, STATE_TEXT } from '../components/RobotStrip.js'
-import { useAutoRefresh } from '../hooks/useAutoRefresh.js'
+import { getRobot, type Robot, type RobotJob } from '../api'
+import Card, { PageHeader } from '../components/Card'
+import StatusDot from '../components/StatusDot'
+import { STATE_COLOR, STATE_TEXT } from '../components/RobotStrip'
+import { useAutoRefresh } from '../hooks/useAutoRefresh'
 
 const OUTCOME: Record<string, { text: string; cls: string }> = {
   ok: { text: 'OK', cls: 'text-moss' },

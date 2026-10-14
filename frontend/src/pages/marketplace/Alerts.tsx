@@ -1,13 +1,13 @@
 import { useState, useEffect } from 'react'
 import { useLocation } from 'react-router-dom'
-import { platformFromPath, marketplaceId } from '../hooks/platformScope.js'
-import Card, { PageHeader } from '../components/Card.js'
-import StatusDot from '../components/StatusDot.js'
+import { platformFromPath, marketplaceId } from '../hooks/platformScope'
+import Card, { PageHeader } from '../components/Card'
+import StatusDot from '../components/StatusDot'
 import axios from 'axios'
-import { useAutoRefresh } from '../hooks/useAutoRefresh.js'
+import { useAutoRefresh } from '../hooks/useAutoRefresh'
 import { AlertTriangle, CheckCircle2, Clock, Lightbulb } from 'lucide-react'
-import { StatTile, SeverityBreakdownChart } from '../components/charts/index.js'
-import { PLATFORM_LABELS } from '../theme/colors.js'
+import { StatTile, SeverityBreakdownChart } from '../components/charts/index'
+import { PLATFORM_LABELS } from '../theme/colors'
 
 type Alert = {
   id: string

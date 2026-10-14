@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
-import { getProducts, saveCogs, type CogsStatus, type OwnProduct } from '../api.js'
-import Card, { PageHeader } from '../components/Card.js'
+import { getProducts, saveCogs, type CogsStatus, type OwnProduct } from '../api'
+import Card, { PageHeader } from '../components/Card'
 
 const statusStyle: Record<CogsStatus, { label: string; className: string }> = {
   missing: { label: 'Missing', className: 'bg-brick-light text-brick-dark' },

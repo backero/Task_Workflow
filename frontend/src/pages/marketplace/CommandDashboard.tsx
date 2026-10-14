@@ -1,12 +1,12 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { ArrowDown, ArrowUp } from 'lucide-react'
-import { getCommandDashboard, type CommandDashboard as CommandDashboardT } from '../api.js'
-import Card, { PageHeader } from '../components/Card.js'
-import StatusDot from '../components/StatusDot.js'
-import DataQualityBadge from '../components/DataQualityBadge.js'
-import LastFetched from '../components/LastFetched.js'
-import { useAutoRefresh } from '../hooks/useAutoRefresh.js'
+import { getCommandDashboard, type CommandDashboard as CommandDashboardT } from '../api'
+import Card, { PageHeader } from '../components/Card'
+import StatusDot from '../components/StatusDot'
+import DataQualityBadge from '../components/DataQualityBadge'
+import LastFetched from '../components/LastFetched'
+import { useAutoRefresh } from '../hooks/useAutoRefresh'
 
 const roboTitle: Record<string, string> = {
   silent: 'Robo has gone quiet',

@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { getCompetitors, getSkuScorecard, type Product } from '../api.js'
-import Card, { PageHeader } from '../components/Card.js'
-import DataQualityBadge from '../components/DataQualityBadge.js'
-import AiText from '../components/AiText.js'
-import { useAutoRefresh } from '../hooks/useAutoRefresh.js'
+import { getCompetitors, getSkuScorecard, type Product } from '../api'
+import Card, { PageHeader } from '../components/Card'
+import DataQualityBadge from '../components/DataQualityBadge'
+import AiText from '../components/AiText'
+import { useAutoRefresh } from '../hooks/useAutoRefresh'
 
 type Scorecard = {
   product: Product

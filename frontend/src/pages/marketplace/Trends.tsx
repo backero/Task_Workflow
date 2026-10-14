@@ -1,13 +1,13 @@
 import { useState, useEffect } from 'react'
 import { useLocation } from 'react-router-dom'
-import { fmtPct } from '../utils/metricFormat.js'
-import { platformFromPath, marketplaceId } from '../hooks/platformScope.js'
-import Card, { PageHeader } from '../components/Card.js'
+import { fmtPct } from '../utils/metricFormat'
+import { platformFromPath, marketplaceId } from '../hooks/platformScope'
+import Card, { PageHeader } from '../components/Card'
 import axios from 'axios'
-import { useAutoRefresh } from '../hooks/useAutoRefresh.js'
+import { useAutoRefresh } from '../hooks/useAutoRefresh'
 import { TrendingUp, TrendingDown } from 'lucide-react'
-import { StatTile, TrendLineChart } from '../components/charts/index.js'
-import { PLATFORM_COLORS, PLATFORM_LABELS, platformColor } from '../theme/colors.js'
+import { StatTile, TrendLineChart } from '../components/charts/index'
+import { PLATFORM_COLORS, PLATFORM_LABELS, platformColor } from '../theme/colors'
 
 type TrendData = {
   date: string

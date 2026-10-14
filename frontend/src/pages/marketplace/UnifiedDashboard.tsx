@@ -1,12 +1,12 @@
 import { useState, useEffect } from 'react'
-import Card, { PageHeader } from '../components/Card.js'
+import Card, { PageHeader } from '../../components/Card'
 import axios from 'axios'
 import { TrendingUp, TrendingDown, AlertCircle, CheckCircle } from 'lucide-react'
 import { useLocation } from 'react-router-dom'
-import { fmtPct } from '../utils/metricFormat.js'
-import { platformFromPath, marketplaceId } from '../hooks/platformScope.js'
-import { StatTile, PlatformBarChart, QualityGaugeBar } from '../components/charts/index.js'
-import { platformColor, PLATFORM_LABELS } from '../theme/colors.js'
+import { fmtPct } from '../../utils/metricFormat'
+import { platformFromPath, marketplaceId } from '../../hooks/platformScope'
+import { StatTile, PlatformBarChart, QualityGaugeBar } from '../../components/charts/index'
+import { platformColor, PLATFORM_LABELS } from '../../theme/colors'
 
 type DashboardData = {
   timestamp: string

@@ -1,8 +1,8 @@
 import { useState } from 'react'
-import { getCompetitors, type Product } from '../api.js'
-import Card, { PageHeader } from '../components/Card.js'
-import DataQualityBadge from '../components/DataQualityBadge.js'
-import { useAutoRefresh } from '../hooks/useAutoRefresh.js'
+import { getCompetitors, type Product } from '../api'
+import Card, { PageHeader } from '../components/Card'
+import DataQualityBadge from '../components/DataQualityBadge'
+import { useAutoRefresh } from '../hooks/useAutoRefresh'
 
 type CompetitorRow = Product & { latest_snapshot: any; review_velocity_7d: number | null }
 type OwnRow = Product & { review_velocity_7d: number | null }

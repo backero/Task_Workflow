@@ -1,8 +1,8 @@
 import { useState } from 'react'
 import { AlertTriangle, CheckCircle2 } from 'lucide-react'
-import { getAccountOverview, type AccountHealth, type AdsState, type ListingRow } from '../api.js'
-import Card, { PageHeader } from '../components/Card.js'
-import { useAutoRefresh } from '../hooks/useAutoRefresh.js'
+import { getAccountOverview, type AccountHealth, type AdsState, type ListingRow } from '../api'
+import Card, { PageHeader } from '../components/Card'
+import { useAutoRefresh } from '../hooks/useAutoRefresh'
 
 type Overview = { health: AccountHealth | null; ads: AdsState; listings_as_of: string | null; listings: ListingRow[] }
 

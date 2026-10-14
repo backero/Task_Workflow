@@ -1,8 +1,8 @@
 import { useState } from 'react'
-import { actOnRecommendation, getRecommendations, type Alert } from '../api.js'
-import Card, { PageHeader } from '../components/Card.js'
-import AiText from '../components/AiText.js'
-import { useAutoRefresh } from '../hooks/useAutoRefresh.js'
+import { actOnRecommendation, getRecommendations, type Alert } from '../api'
+import Card, { PageHeader } from '../components/Card'
+import AiText from '../components/AiText'
+import { useAutoRefresh } from '../hooks/useAutoRefresh'
 
 export default function Recommendations() {
   const [alerts, setAlerts] = useState<Alert[] | null>(null)

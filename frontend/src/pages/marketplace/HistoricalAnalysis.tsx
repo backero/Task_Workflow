@@ -1,12 +1,12 @@
 import { useState, useEffect } from 'react'
 import { useLocation } from 'react-router-dom'
-import { fmtPct } from '../utils/metricFormat.js'
-import { platformFromPath, marketplaceId } from '../hooks/platformScope.js'
-import Card, { PageHeader } from '../components/Card.js'
+import { fmtPct } from '../utils/metricFormat'
+import { platformFromPath, marketplaceId } from '../hooks/platformScope'
+import Card, { PageHeader } from '../components/Card'
 import axios from 'axios'
 import { BarChart3, LineChart as LineChartIcon } from 'lucide-react'
-import { StatTile, TrendLineChart } from '../components/charts/index.js'
-import { platformColor } from '../theme/colors.js'
+import { StatTile, TrendLineChart } from '../components/charts/index'
+import { platformColor } from '../theme/colors'
 
 // /v1/dashboard/platform-comparison's trend_data rows use short field names
 // (ctr/cvr/margin), NOT the _pct-suffixed names used by the metric selector

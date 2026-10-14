@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { X } from 'lucide-react'
-import { addCompetitor, addKeyword, getTracking, removeCompetitor, removeKeyword, setKeywordHero, type TrackedCompetitor, type TrackedKeyword } from '../api.js'
-import Card, { PageHeader } from '../components/Card.js'
+import { addCompetitor, addKeyword, getTracking, removeCompetitor, removeKeyword, setKeywordHero, type TrackedCompetitor, type TrackedKeyword } from '../api'
+import Card, { PageHeader } from '../components/Card'
 
 type Tracking = { keywords: TrackedKeyword[]; competitors: TrackedCompetitor[]; own_products: { asin: string; name: string }[] }
 

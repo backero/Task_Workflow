@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react'
 import { useLocation } from 'react-router-dom'
-import { platformFromPath, marketplaceId } from '../hooks/platformScope.js'
-import Card, { PageHeader } from '../components/Card.js'
+import { platformFromPath, marketplaceId } from '../hooks/platformScope'
+import Card, { PageHeader } from '../components/Card'
 import axios from 'axios'
 import { ChevronDown, ChevronUp, CheckCircle, Clock, AlertCircle } from 'lucide-react'
-import { StatTile, PriorityBarChart } from '../components/charts/index.js'
+import { StatTile, PriorityBarChart } from '../components/charts/index'
 
 type Recommendation = {
   id: number

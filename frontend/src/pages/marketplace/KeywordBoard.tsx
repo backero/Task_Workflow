@@ -1,8 +1,8 @@
 import { useState } from 'react'
-import { getKeywordBoard } from '../api.js'
-import Card, { PageHeader } from '../components/Card.js'
-import DataQualityBadge from '../components/DataQualityBadge.js'
-import { useAutoRefresh } from '../hooks/useAutoRefresh.js'
+import { getKeywordBoard } from '../api'
+import Card, { PageHeader } from '../components/Card'
+import DataQualityBadge from '../components/DataQualityBadge'
+import { useAutoRefresh } from '../hooks/useAutoRefresh'
 
 type Share = { date: string; top_n: number; organic_results: number; own_organic: number; sponsored_results: number; own_sponsored: number }
 

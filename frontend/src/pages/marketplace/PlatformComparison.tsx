@@ -1,12 +1,12 @@
 import { useState, useEffect } from 'react'
 import { useLocation } from 'react-router-dom'
-import { fmtPct } from '../utils/metricFormat.js'
-import { platformFromPath, marketplaceId } from '../hooks/platformScope.js'
-import Card, { PageHeader } from '../components/Card.js'
+import { fmtPct } from '../utils/metricFormat'
+import { platformFromPath, marketplaceId } from '../hooks/platformScope'
+import Card, { PageHeader } from '../components/Card'
 import axios from 'axios'
 import { TrendingUp, TrendingDown } from 'lucide-react'
-import { PlatformBarChart, TrendLineChart } from '../components/charts/index.js'
-import { PLATFORM_COLORS, PLATFORM_LABELS } from '../theme/colors.js'
+import { PlatformBarChart, TrendLineChart } from '../components/charts/index'
+import { PLATFORM_COLORS, PLATFORM_LABELS } from '../theme/colors'
 
 // trend_data rows use short field names (ctr/cvr/margin), not the _pct-suffixed
 // metric keys used by the selector or by /v1/trends — map explicitly.
