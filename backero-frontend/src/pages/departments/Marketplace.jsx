@@ -2831,56 +2831,10 @@ function LiveAutomationDashboard() {
 }
 
   const [activeTab, setActiveTab]       = useState('overview');
-  const [activePlan, setActivePlan]     = useState('Amazon');
-  const [showPlanDropdown, setShowPlanDropdown] = useState(false);
-  const [showReport, setShowReport]     = useState(false);
-  const [dashboardFiles, setDashboardFiles] = useState({});
-  const [dashSavedAt, setDashSavedAt]   = useState(null);
-  const dropdownRef = useRef(null);
-  const iframeRef   = useRef(null);
-
-  useEffect(() => {
-    fetch('/dashboards/manifest.json')
-      .then(r => r.ok ? r.json() : {})
-      .then(setDashboardFiles)
-      .catch(() => {});
-  }, []);
-
-  // postMessage bridge — save/load dashboard localStorage data via backend
-  useEffect(() => {
-    const handler = async (e) => {
-      if (!e.data?.type) return;
-      if (e.data.type === 'DASH_SAVE' && e.data.platform && e.data.data) {
-        api.put(`/marketplace/dashboard/${e.data.platform}`, { data: e.data.data })
-          .then(() => {
-            setDashSavedAt(new Date());
-            toast.success(`✓ ${e.data.platform} data saved to cloud`, { duration: 2000, id: 'dash-save' });
-          })
-          .catch(() => {});
-      }
-      if (e.data.type === 'DASH_LOAD' && e.data.platform) {
-        try {
-          const res = await api.get(`/marketplace/dashboard/${e.data.platform}`);
-          const data = res.data?.data || {};
-          iframeRef.current?.contentWindow?.postMessage(
-            { type: 'DASH_DATA', platform: e.data.platform, data }, '*'
-          );
-        } catch { /* silent */ }
-      }
-    };
-    window.addEventListener('message', handler);
-    return () => window.removeEventListener('message', handler);
-  }, []);
 
   const navigate     = useNavigate();
   const queryClient  = useQueryClient();
   const { socket }   = useSocketStore();
-
-  useEffect(() => {
-    const handler = (e) => { if (dropdownRef.current && !dropdownRef.current.contains(e.target)) setShowPlanDropdown(false); };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, []);
 
   const refreshTasks = useCallback(() => {
     queryClient.invalidateQueries({ queryKey: ['marketplace', 'tasks'] });
@@ -2923,80 +2877,13 @@ function LiveAutomationDashboard() {
                   <Zap size={13} className="inline -mt-0.5 mr-1" />Live Automation
                 </button>
               </div>
-              <div className="relative" ref={dropdownRef}>
-                <button onClick={() => setShowPlanDropdown(s => !s)}
-                  className={clsx('flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border transition-all', activeTab === 'plan' ? 'text-white border-transparent' : 'bg-white text-gray-600 border-gray-200 hover:border-gray-400')}
-                  style={activeTab === 'plan' ? { background: PLATFORM_PLAN_CONFIG[activePlan]?.color || '#f97316' } : {}}>
-                  {activeTab === 'plan' ? `${activePlan} Plan` : 'Platform Plans'} <span className="text-[10px] opacity-70">▾</span>
-                </button>
-                {showPlanDropdown && (
-                  <div className="absolute right-0 top-full mt-1 bg-white border border-gray-200 rounded-xl shadow-lg z-50 py-1 min-w-[170px]">
-                    {PLATFORMS.map(p => {
-                      const meta = PLATFORM_META[p];
-                      const isActive = activePlan === p && activeTab === 'plan';
-                      return (
-                        <button key={p} onClick={() => { setActivePlan(p); setActiveTab('plan'); setShowPlanDropdown(false); setShowReport(false); }}
-                          className={clsx('w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold hover:bg-gray-50 transition-colors', isActive ? 'bg-gray-50' : 'text-gray-600')}>
-                          <span className="w-5 h-5 rounded-md flex items-center justify-center text-white text-[9px] font-black flex-shrink-0" style={{ background: meta.color }}>{meta.initial}</span>
-                          <span style={isActive ? { color: meta.color } : {}}>{p} Plan</span>
-                          {isActive && <span className="ml-auto text-green-500 text-[10px] font-bold">✓</span>}
-                        </button>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-              {activeTab === 'plan' && (
-                <button
-                  onClick={() => setShowReport(s => !s)}
-                  className={clsx('flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border transition-all',
-                    showReport ? 'text-white border-transparent' : 'bg-white text-gray-600 border-gray-200 hover:border-gray-400')}
-                  style={showReport ? { background: PLATFORM_PLAN_CONFIG[activePlan]?.color || '#f97316' } : {}}>
-                  <BarChart3 size={13} className="inline -mt-0.5 mr-1" />{showReport ? 'Hide Report' : 'Numbers Report'}
-                </button>
-              )}
             </div>
           </div>
         </div>
       </div>
       {activeTab === 'overview'
         ? <OverviewTab allTasks={allTasks} tasksLoading={tasksLoading} navigate={navigate} />
-        : activeTab === 'automation'
-        ? <LiveAutomationDashboard />
-        : showReport
-            ? <div className="space-y-3">
-                <div className="bg-white rounded-2xl border border-gray-200 px-4 py-3 flex items-center justify-between">
-                  <div>
-                    <h2 className="text-sm font-bold text-gray-800">
-                      <BarChart3 size={14} className="inline -mt-0.5 mr-1" />{activePlan} — Daily Numbers Report
-                    </h2>
-                    <p className="text-xs text-gray-400 mt-0.5">All saved numbers from the {activePlan} dashboard</p>
-                  </div>
-                  <button onClick={() => setShowReport(false)}
-                    className="text-xs font-bold text-gray-500 hover:text-gray-800 px-3 py-1.5 border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors">
-                    ← Back to Dashboard
-                  </button>
-                </div>
-                <DashboardReport platform={activePlan} />
-              </div>
-            : dashboardFiles[activePlan]
-                ? <div className="relative">
-                    {dashSavedAt && (
-                      <div className="absolute top-2 right-3 z-10 flex items-center gap-1.5 bg-green-50 border border-green-200 text-green-700 text-[10px] font-bold px-2.5 py-1 rounded-full shadow-sm pointer-events-none">
-                        <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
-                        Saved to cloud · {dashSavedAt.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
-                      </div>
-                    )}
-                    <iframe
-                      key={activePlan}
-                      ref={iframeRef}
-                      src={dashboardFiles[activePlan]}
-                      className="w-full rounded-2xl border border-gray-200"
-                      style={{ height: 'calc(100vh - 160px)', display: 'block' }}
-                      title={`${activePlan} Dashboard`}
-                    />
-                  </div>
-                : <PlanTab key={activePlan} platform={activePlan} />
+        : <LiveAutomationDashboard />
       }
     </div>
   );
