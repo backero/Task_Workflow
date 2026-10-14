@@ -1,8 +1,13 @@
 import type { ReactNode } from 'react'
 
 export default function Card({ children, className = '' }: { children: ReactNode; className?: string }) {
+  // Tailwind's generated CSS order doesn't follow this string's order, so a
+  // hardcoded default bg can silently beat a caller's own bg-* class in the
+  // cascade (seen live: bg-orange-500 callers rendered as invisible white-on-
+  // white). Only fall back to bg-white when the caller hasn't set one.
+  const hasBg = /(^|\s)bg-/.test(className)
   return (
-    <div className={`rounded-2xl border border-gray-200 bg-white p-4 ${className}`}>
+    <div className={`rounded-2xl border border-gray-200 p-4 ${hasBg ? '' : 'bg-white'} ${className}`}>
       {children}
     </div>
   )
