@@ -1,4 +1,4 @@
-import { useState, useEffect, Fragment } from 'react';
+import { useState, useEffect, useRef, Fragment } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
@@ -19,7 +19,7 @@ import { canAssignLeads } from '../../utils/leadHelpers';
 import {
   Package, Scale, Microscope, Gift, CircleCheck, Truck, IdCard, Sparkles, Inbox, CreditCard,
   FlaskConical, Hourglass, Receipt, TriangleAlert, Trash2, Search, Factory, Link as LinkIcon,
-  Dna, Pencil, FileText, Maximize2, Minimize2, X, Printer, Copy, Download,
+  Dna, Pencil, FileText, Maximize2, Minimize2, X, Printer, Copy, Download, Paperclip,
 } from 'lucide-react';
 
 // Cross-customer work queue over the CRM's existing "Sample" pipeline stage —
@@ -489,6 +489,25 @@ export default function SampleProduction() {
     onError: (e) => toast.error(e.response?.data?.message || 'Failed to reply'),
   });
 
+  // Reply attachments (e.g. a call recording) — independent of the text reply itself, so one can
+  // be attached before, after, or without ever sending a text answer. Same backend endpoint/shape
+  // SampleLeadDetail.jsx's full Q&A tab already uses.
+  const replyFileInputs = useRef({});
+  const uploadReplyAttachmentMutation = useMutation({
+    mutationFn: ({ queryId, file }) => {
+      const fd = new FormData();
+      fd.append('file', file);
+      return api.post(`/crm/queries/${queryId}/reply-attachment`, fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+    },
+    onSuccess: () => { toast.success('Attachment added'); qc.invalidateQueries({ queryKey: ['sample-production'] }); },
+    onError: (e) => toast.error(e.response?.data?.message || 'Failed to upload attachment'),
+  });
+  const removeReplyAttachmentMutation = useMutation({
+    mutationFn: ({ queryId, attachmentId }) => api.delete(`/crm/queries/${queryId}/reply-attachment`, { data: { attachmentId } }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['sample-production'] }),
+    onError: (e) => toast.error(e.response?.data?.message || 'Failed to remove attachment'),
+  });
+
   const deleteLeadMutation = useMutation({
     mutationFn: (leadId) => api.delete(`/crm/leads/${leadId}`),
     onSuccess: () => {
@@ -511,6 +530,24 @@ export default function SampleProduction() {
       toast.success(`${leadIds.length} stalled sample${leadIds.length === 1 ? '' : 's'} deleted`);
     },
     onError: (e) => toast.error(e.response?.data?.message || 'Failed to delete stalled samples'),
+  });
+
+  // Bulk-clear production order entries from the Orders tab or a single stage tab (Weighing,
+  // Bulk QC, Packaging, Final QC, Dispatch) — the feature/tabs themselves stay exactly as-is,
+  // this only removes the ProductionOrder records currently listed. Uses allSettled, not all,
+  // because the backend refuses to delete an already-completed order (by design) — a mixed
+  // batch should still remove everything it legitimately can rather than abort entirely.
+  const bulkDeleteOrdersMutation = useMutation({
+    mutationFn: (orderIds) => Promise.allSettled(orderIds.map((id) => api.delete(`/production/${id}`))),
+    onSuccess: (results) => {
+      qc.invalidateQueries({ queryKey: ['production-orders'] });
+      qc.invalidateQueries({ queryKey: ['sample-production'] });
+      const deleted = results.filter((r) => r.status === 'fulfilled').length;
+      const skipped = results.length - deleted;
+      if (deleted > 0) toast.success(`${deleted} order${deleted === 1 ? '' : 's'} deleted${skipped ? ` — ${skipped} skipped (already completed)` : ''}`);
+      else toast.error('Nothing deleted — all of those orders are already completed');
+    },
+    onError: (e) => toast.error(e.response?.data?.message || 'Failed to delete orders'),
   });
 
   // Whoever picks up a fresh KYC lead hands it off, after first contact, to the person who'll
@@ -740,6 +777,20 @@ export default function SampleProduction() {
             </div>
             {tab === 'new' && <button onClick={() => setShowCreateLead(true)} className={accentBtn}>+ New Lead</button>}
             {tab === 'linked' && <button onClick={() => setShowNewOrder(true)} className={accentBtn}><Sparkles className="w-3.5 h-3.5" /> New Order</button>}
+            {tab === 'linked' && linkedOrders.length > 0 && (
+              <button
+                onClick={() => {
+                  const names = linkedOrders.map((o) => `${o.orderNumber} — ${o.customer || 'Unknown'}`).join('\n');
+                  if (window.confirm(`Delete all ${linkedOrders.length} entries in Orders?\n\n${names}\n\nThis permanently deletes these production orders and cannot be undone. (Already-completed orders are skipped automatically.)`)) {
+                    bulkDeleteOrdersMutation.mutate(linkedOrders.map((o) => o._id));
+                  }
+                }}
+                disabled={bulkDeleteOrdersMutation.isPending}
+                className="flex-shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border-[1.5px] border-[#a13d34] text-[#a13d34] text-[11px] font-semibold hover:bg-[#a13d34] hover:text-white transition disabled:opacity-50"
+              >
+                {bulkDeleteOrdersMutation.isPending ? 'Deleting…' : <><Trash2 className="w-3.5 h-3.5" /> {`Delete all ${linkedOrders.length}`}</>}
+              </button>
+            )}
           </div>
 
           {tab === 'sample' && (
@@ -957,6 +1008,33 @@ export default function SampleProduction() {
                                 </button>
                               </div>
                             )}
+                            {/* Reply attachments (e.g. a call recording) — independent of the text
+                                answer, so one can be attached before/after/without ever sending one. */}
+                            <div className="mt-1.5 flex items-center gap-1.5 flex-wrap">
+                              {(q.answerAttachments || []).map((a) => (
+                                <span key={a._id} className="inline-flex items-center gap-1 px-2 py-1 rounded-lg border border-[#ddd6c4] bg-white text-[11px] text-[#292521] font-semibold">
+                                  <Paperclip className="w-3 h-3 text-[#8a8171] flex-shrink-0" />
+                                  <a href={a.url} target="_blank" rel="noreferrer" className="hover:underline max-w-[120px] truncate">{a.name}</a>
+                                  <button title="Remove attachment" onClick={() => removeReplyAttachmentMutation.mutate({ queryId: q._id, attachmentId: a._id })} className="text-[#8a8171] hover:text-[#a13d34]">
+                                    <X className="w-3 h-3" />
+                                  </button>
+                                </span>
+                              ))}
+                              <input
+                                type="file"
+                                ref={(el) => { replyFileInputs.current[q._id] = el; }}
+                                className="hidden"
+                                onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadReplyAttachmentMutation.mutate({ queryId: q._id, file: f }); e.target.value = ''; }}
+                              />
+                              <button
+                                type="button"
+                                onClick={() => replyFileInputs.current[q._id]?.click()}
+                                disabled={uploadReplyAttachmentMutation.isPending}
+                                className="inline-flex items-center gap-1 text-[11px] font-semibold text-[#8a8171] hover:text-[#292521] disabled:opacity-50"
+                              >
+                                <Paperclip className="w-3 h-3" /> {uploadReplyAttachmentMutation.isPending ? 'Uploading…' : 'Attach recording'}
+                              </button>
+                            </div>
                           </td>
                           <td className="px-4 py-2.5 text-[#8a8171] text-xs whitespace-nowrap">{lastUpdateBadge(q)}</td>
                           <td className="px-4 py-2.5 text-[#8a8171] text-xs whitespace-nowrap">{q.askedVia || '—'}</td>
@@ -1289,6 +1367,23 @@ export default function SampleProduction() {
                   </tbody>
                 </table>
               </div>
+            </div>
+          )}
+
+          {currentProdStageTab && currentProdStageTab.key !== 'procurement' && currentProdStageOrders.length > 0 && (
+            <div className="flex justify-end">
+              <button
+                onClick={() => {
+                  const names = currentProdStageOrders.map((o) => `${o.orderNumber} — ${o.customer || 'Unknown'}`).join('\n');
+                  if (window.confirm(`Delete all ${currentProdStageOrders.length} entries in ${currentProdStageTab.label}?\n\n${names}\n\nThis permanently deletes these production orders and cannot be undone. (Already-completed orders are skipped automatically.)`)) {
+                    bulkDeleteOrdersMutation.mutate(currentProdStageOrders.map((o) => o._id));
+                  }
+                }}
+                disabled={bulkDeleteOrdersMutation.isPending}
+                className="flex-shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border-[1.5px] border-[#a13d34] text-[#a13d34] text-[11px] font-semibold hover:bg-[#a13d34] hover:text-white transition disabled:opacity-50"
+              >
+                {bulkDeleteOrdersMutation.isPending ? 'Deleting…' : <><Trash2 className="w-3.5 h-3.5" /> {`Delete all ${currentProdStageOrders.length}`}</>}
+              </button>
             </div>
           )}
 
