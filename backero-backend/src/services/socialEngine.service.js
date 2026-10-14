@@ -44,6 +44,10 @@ module.exports = {
 
   generatePost: (pillar) => unwrap(client.post('/admin/posts/generate', { pillar }), 'generatePost'),
 
+  listPosts: (state) => unwrap(client.get('/admin/posts', { params: state ? { state } : {} }), 'listPosts'),
+
+  getPost: (postId) => unwrap(client.get(`/admin/posts/${postId}`), 'getPost'),
+
   listLeads: () => unwrap(client.get('/admin/leads'), 'listLeads'),
 
   updateLeadStage: (leadId, stage) =>

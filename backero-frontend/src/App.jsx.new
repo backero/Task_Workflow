@@ -1,0 +1,127 @@
+import React, { useEffect, useState } from 'react';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { ConfigProvider } from 'antd';
+import { useAuthStore } from './store/useAuthStore';
+import { useSocketStore } from './store/useSocketStore';
+import Layout from './components/layout/Layout';
+import ProtectedRoute from './components/common/ProtectedRoute';
+import PermissionRoute from './components/common/PermissionRoute';
+import DevAutoLogin from './components/common/DevAutoLogin';
+import LoadingScreen from './components/common/LoadingScreen';
+import { workflowTheme } from './theme/workflowTheme';
+
+// Auth pages
+import Login from './pages/auth/Login';
+import ForgotPassword from './pages/auth/ForgotPassword';
+import ResetPassword from './pages/auth/ResetPassword';
+import Onboarding from './pages/auth/Onboarding';
+import AuthCallback from './pages/auth/AuthCallback';
+
+// Attendance Tracker pages
+import AttEmployees from './pages/attendance/Employees';
+import AttendanceBoard from './pages/attendance/AttendanceBoard';
+import AttDevices from './pages/attendance/Devices';
+import AttLocation from './pages/attendance/Location';
+import AttPayroll from './pages/attendance/Payroll';
+import MyAttendance from './pages/attendance/MyAttendance';
+import MyPayroll from './pages/attendance/MyPayroll';
+import LeaveManagement from './pages/attendance/LeaveManagement';
+import MyLeave from './pages/attendance/MyLeave';
+
+// Dashboard pages
+import FounderDashboard from './pages/dashboard/FounderDashboard';
+import ManagerDashboard from './pages/dashboard/ManagerDashboard';
+import EmployeeDashboard from './pages/dashboard/EmployeeDashboard';
+
+// Task pages
+import KanbanView from './pages/tasks/KanbanView';
+import MyTasks from './pages/tasks/MyTasks';
+import TeamTasks from './pages/tasks/TeamTasks';
+import ApprovalQueue from './pages/tasks/ApprovalQueue';
+import TaskAnalytics from './pages/tasks/TaskAnalytics';
+import CalendarView from './pages/tasks/CalendarView';
+
+// CRM pages
+import LeadPipeline from './pages/crm/LeadPipeline';
+import LeadDetails from './pages/crm/LeadDetails';
+import TechnicalQueries from './pages/crm/TechnicalQueries';
+import SampleProduction from './pages/crm/SampleProduction';
+
+// Inventory pages
+import Products from './pages/inventory/Products';
+import StockMovements from './pages/inventory/StockMovements';
+import InventoryAlerts from './pages/inventory/InventoryAlerts';
+import RawMaterials from './pages/inventory/RawMaterialsHTML';
+import ProductCatalog from './pages/inventory/ProductCatalogHTML';
+
+// Finance pages
+import Ledger from './pages/finance/Ledger';
+import Invoices from './pages/finance/Invoices';
+import FinanceReports from './pages/finance/FinanceReports';
+
+// Department pages
+import MarketingDept from './pages/departments/Marketing';
+import SocialApprovals from './pages/marketing/SocialApprovals';
+import SocialAutomation from './pages/marketing/SocialAutomation';
+import MarketplaceDept from './pages/departments/Marketplace';
+import SalesDept from './pages/departments/Sales';
+import RnDDept from './pages/departments/RnD';
+import OperationsDept from './pages/departments/Operations';
+import HRDept from './pages/departments/HR';
+
+// Management
+import EmployeeMonitoring from './pages/management/EmployeeMonitoring';
+import TeamManagement from './pages/management/TeamManagement';
+import DepartmentAnalytics from './pages/management/DepartmentAnalytics';
+import TeamRewards from './pages/management/TeamRewards';
+
+// Production
+import RecordUsage from './pages/production/RecordUsage';
+import RecordUsageForm from './pages/production/RecordUsageForm';
+import RDPriceCalculator from './pages/production/RDPriceCalculator';
+import KitchenSchedule from './pages/production/KitchenSchedule';
+
+// Settings
+import Settings from './pages/settings/Settings';
+import WhatsAppSetup from './pages/settings/WhatsAppSetup';
+
+// Documents
+import DocumentWalletPage from './pages/documents/DocumentWalletPage';
+
+// Workflow
+import WorkflowView from './pages/workflow/WorkflowView';
+import WorkflowLanding from './pages/workflow/WorkflowLanding';
+import DeptWorkflow from './pages/workflow/DeptWorkflow';
+
+// Marketplace Dashboard pages
+import UnifiedDashboard from './pages/UnifiedDashboard';
+import Alerts from './pages/Alerts';
+import Analytics from './pages/Analytics';
+import Trends from './pages/Trends';
+import HistoricalAnalysis from './pages/HistoricalAnalysis';
+import PlatformComparison from './pages/PlatformComparison';
+import RecommendationsHub from './pages/RecommendationsHub';
+import AIInsights from './pages/AIInsights';
+
+// Platform pages - Meesho
+import MeeshoAnalytics from './platforms/meesho/Analytics';
+import MeeshoInsights from './platforms/meesho/Insights';
+import MeeshoTrendAnalytics from './platforms/meesho/TrendAnalytics';
+import MeeshoAlerts from './platforms/meesho/Alerts';
+import MeeshoOverview from './platforms/meesho/Overview';
+
+// Platform pages - Snapdeal
+import SnapdealAnalytics from './platforms/snapdeal/Analytics';
+import SnapdealInsights from './platforms/snapdeal/Insights';
+import SnapdealTrendAnalytics from './platforms/snapdeal/TrendAnalytics';
+import SnapdealOverview from './platforms/snapdeal/Overview';
+
+// Platform pages - Flipkart
+import FlipkartAnalytics from './platforms/flipkart/Analytics';
+import FlipkartInsights from './platforms/flipkart/Insights';
+import FlipkartTrendAnalytics from './platforms/flipkart/TrendAnalytics';
+import FlipkartOverview from './platforms/flipkart/Overview';
+
+// Platform pages - Amazon
+import AmazonOverview from './platforms/amazon/Overview';
+

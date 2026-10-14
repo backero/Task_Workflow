@@ -2792,6 +2792,44 @@ function DashboardReport({ platform }) {
 // ── Main Export ───────────────────────────────────────────────────────────────
 
 export default function MarketplaceDept() {
+
+function LiveAutomationDashboard() {
+  return (
+    <div className="space-y-4">
+      <div className="bg-white rounded-2xl border border-gray-200 px-6 py-4">
+        <h2 className="text-xl font-bold text-gray-900 mb-2">📊 Marketplace Live Automation</h2>
+        <p className="text-gray-600 mb-6">Access real-time dashboard insights for all platforms</p>
+        
+        <div className="grid grid-cols-2 gap-4">
+          <a href="/marketplace/unified" className="block p-6 bg-gradient-to-br from-orange-50 to-orange-100 rounded-xl border border-orange-200 hover:shadow-lg transition-shadow">
+            <div className="text-3xl mb-2">📊</div>
+            <h3 className="font-bold text-gray-900 mb-1">Unified Dashboard</h3>
+            <p className="text-sm text-gray-600">All platforms overview</p>
+          </a>
+          
+          <a href="/marketplace/analytics" className="block p-6 bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl border border-blue-200 hover:shadow-lg transition-shadow">
+            <div className="text-3xl mb-2">📈</div>
+            <h3 className="font-bold text-gray-900 mb-1">Analytics</h3>
+            <p className="text-sm text-gray-600">Profitability & metrics</p>
+          </a>
+          
+          <a href="/marketplace/alerts" className="block p-6 bg-gradient-to-br from-red-50 to-red-100 rounded-xl border border-red-200 hover:shadow-lg transition-shadow">
+            <div className="text-3xl mb-2">⚠️</div>
+            <h3 className="font-bold text-gray-900 mb-1">Alerts</h3>
+            <p className="text-sm text-gray-600">Critical issues breakdown</p>
+          </a>
+          
+          <a href="/marketplace/trends" className="block p-6 bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl border border-purple-200 hover:shadow-lg transition-shadow">
+            <div className="text-3xl mb-2">📉</div>
+            <h3 className="font-bold text-gray-900 mb-1">30-Day Trends</h3>
+            <p className="text-sm text-gray-600">Performance trends</p>
+          </a>
+        </div>
+      </div>
+    </div>
+  );
+}
+
   const [activeTab, setActiveTab]       = useState('overview');
   const [activePlan, setActivePlan]     = useState('Amazon');
   const [showPlanDropdown, setShowPlanDropdown] = useState(false);
@@ -2924,7 +2962,7 @@ export default function MarketplaceDept() {
       {activeTab === 'overview'
         ? <OverviewTab allTasks={allTasks} tasksLoading={tasksLoading} navigate={navigate} />
         : activeTab === 'automation'
-        ? <LiveAutomationTab />
+        ? <LiveAutomationDashboard />
         : showReport
             ? <div className="space-y-3">
                 <div className="bg-white rounded-2xl border border-gray-200 px-4 py-3 flex items-center justify-between">

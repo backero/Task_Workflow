@@ -4,11 +4,19 @@
  * amazon (/v1/*): still a live Node service (marketflow-services/amazon-server,
  * unchanged) — forwarded via the allowlisted proxy, same as before.
  *
- * meesho/snapdeal/flipkart (/meesho, /snapdeal, /flipkart): these 3 no longer
- * run HTTP servers at all — python-service/{meesho,snapdeal,flipkart}/run_scheduler.py
- * runs just their scraper/scheduler logic and pushes "overview" data into
- * MongoDB (python-service/mongo_sync.py) on its own schedule. These routes
- * read that collection directly; there is nothing left to proxy to.
+ * snapdeal/flipkart (/snapdeal, /flipkart): these no longer run HTTP servers at
+ * all — python-service/{snapdeal,flipkart}/run_scheduler.py runs just their
+ * scraper/scheduler logic and pushes "overview" data into MongoDB
+ * (python-service/mongo_sync.py) on its own schedule. These routes read that
+ * collection directly; there is nothing left to proxy to.
+ *
+ * meesho (/meesho): Meesho blocks this VPS's datacenter IP at the network level
+ * (Akamai edgesuite.net "Access Denied"), so python-service/meesho's own scraper
+ * can never succeed here and its MongoDB snapshot is permanently empty. Meesho's
+ * real data instead comes from the user's own PC robot, synced to
+ * /opt/platforms/project and read by amazon-server directly (2026-10-13 fix) —
+ * built into one "overview" shape below from several already-allowlisted v1
+ * endpoints, instead of reading Mongo.
  *
  * JWT-only (no orgIsolation): no organizationId concept here, same precedent
  * as socialEngine.routes.js.
@@ -119,8 +127,55 @@ const mountMongoBacked = (prefix, platform) => {
   });
 };
 
-mountMongoBacked('/meesho', 'meesho');
 mountMongoBacked('/snapdeal', 'snapdeal');
 mountMongoBacked('/flipkart', 'flipkart');
+
+// Meesho: see module comment above — built from amazon-server's real, synced data
+// instead of Mongo (that scraper can never succeed on this VPS).
+router.get('/meesho/overview', async (req, res) => {
+  try {
+    const [listingsRes, alertStatsRes, recsRes, unifiedRes, alertsRes] = await Promise.all([
+      marketflow.forward('v1', 'GET', '/platform/meesho/listings'),
+      marketflow.forward('v1', 'GET', '/alerts/stats', { params: { marketplace: 'meesho' } }),
+      marketflow.forward('v1', 'GET', '/recommendations/action-plan', { params: { marketplace: 'meesho' } }),
+      marketflow.forward('v1', 'GET', '/dashboard/unified'),
+      marketflow.forward('v1', 'GET', '/alerts', { params: { marketplace: 'meesho' } }),
+    ]);
+
+    const listings = listingsRes.data?.listings || [];
+    const live = listings.filter((l) => l.status === 'live').length;
+    const blocked = listings.filter((l) => l.status && l.status !== 'live').length;
+    const ratings = listings.map((l) => l.rating).filter((v) => v != null);
+    const qualityScores = listings.map((l) => l.quality_score).filter((v) => v != null);
+    const avg = (arr) => (arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : null);
+
+    const meeshoUnified = unifiedRes.data?.platforms?.meesho || {};
+    const recommendations = recsRes.data?.recommendations || [];
+    const alerts = (alertsRes.data || []).slice(0, 5);
+
+    res.json({
+      kpis: {
+        listings: listings.length,
+        live,
+        blocked,
+        orders_7d: meeshoUnified.orders ?? 0,
+        impressions_7d: meeshoUnified.impressions ?? 0,
+        avg_quality_score: avg(qualityScores),
+        avg_rating: avg(ratings),
+        open_critical_alerts: alertStatsRes.data?.stats?.critical || 0,
+        open_recs: recommendations.length,
+      },
+      top_issues: alerts.map((a) => ({
+        id: a.id,
+        severity: a.severity === 'red' ? 'critical' : a.severity === 'amber' ? 'warning' : 'info',
+        code: a.rule_id,
+        message: a.title || a.message,
+        ts: a.fired_at,
+      })),
+    });
+  } catch (e) {
+    return sendError(res, e.message, e.status || 502);
+  }
+});
 
 module.exports = router;

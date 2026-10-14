@@ -33,7 +33,7 @@ const PLATFORM_DB_PATHS: Record<string, string[]> = {
   flipkart: ['/opt/platforms/fkpulse/fk_pulse.db', path.join(REPO_ROOT, 'flipkart/fkpulse/fk_pulse.db')],
 }
 
-function openPlatformDb(marketplace: string): DatabaseSync | null {
+export function openPlatformDb(marketplace: string): DatabaseSync | null {
   const found = (PLATFORM_DB_PATHS[marketplace] ?? []).find((f) => fs.existsSync(f))
   return found ? new DatabaseSync(found, { readOnly: true }) : null
 }

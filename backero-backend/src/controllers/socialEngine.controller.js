@@ -28,6 +28,10 @@ const generatePost = proxy((req) => {
   return engine.generatePost(pillar);
 });
 
+const listPosts = proxy((req) => engine.listPosts(req.query.state));
+
+const getPost = proxy((req) => engine.getPost(req.params.postId));
+
 const listLeads = proxy(() => engine.listLeads());
 
 const updateLeadStage = proxy((req) => {
@@ -112,6 +116,7 @@ const ingestRawVideo = proxy((req) => {
 
 module.exports = {
   getOverview, generatePost,
+  listPosts, getPost,
   listLeads, updateLeadStage,
   listComments, approveComment, skipComment, triggerManychat,
   getAnalyticsSummary, getAccounts, getAccountsActivity,

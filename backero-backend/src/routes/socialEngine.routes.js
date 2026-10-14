@@ -5,6 +5,7 @@ const { authorizeMarketingApprover, authorizeAdminOrAbove } = require('../middle
 const socialMediaUpload = require('../middleware/socialMediaUpload.middleware');
 const {
   getOverview, generatePost,
+  listPosts, getPost,
   listLeads, updateLeadStage,
   listComments, approveComment, skipComment, triggerManychat,
   getAnalyticsSummary, getAccounts, getAccountsActivity,
@@ -19,6 +20,8 @@ router.use(authenticate, orgIsolation);
 
 router.get('/overview',                     getOverview);
 router.post('/posts/generate',              authorizeMarketingApprover, generatePost);
+router.get('/posts',                        listPosts);
+router.get('/posts/:postId',                getPost);
 
 router.get('/leads',                        listLeads);
 router.patch('/leads/:leadId',              authorizeMarketingApprover, updateLeadStage);
