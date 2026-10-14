@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useForm } from 'react-hook-form';
+import { useForm, Controller } from 'react-hook-form';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuthStore } from '../../store/useAuthStore';
 import api from '../../api/axios';
@@ -23,7 +23,18 @@ export default function Settings() {
 
   useEffect(() => { setAvatarBroken(false); }, [user?.avatar]);
 
-  const { register, handleSubmit } = useForm({ defaultValues: { firstName: user?.firstName, lastName: user?.lastName, phone: user?.phone, designation: user?.designation } });
+  const { control, handleSubmit, reset: resetProfile } = useForm({ defaultValues: { firstName: user?.firstName, lastName: user?.lastName, phone: user?.phone, designation: user?.designation } });
+  // Confirmed live (console diagnostic) that register()'s ref-based reset() DOES fire with the
+  // right data (user.firstName etc.) but never reaches antd Input's displayed value — antd's Input
+  // doesn't expose a plain native-input ref the way RHF's imperative reset expects, so the DOM value
+  // silently never updates even though RHF's internal tracked state is correct (this is also why a
+  // save after typing submitted the OLD value: onChange did update RHF's state, but a later reset()
+  // re-fire — same object-identity issue fixed below — stomped it before submit). Switched these 4
+  // fields to Controller (explicit value/onChange as props) below, which sidesteps the ref issue
+  // entirely; this effect now only needs to call reset() to feed Controller's value prop.
+  useEffect(() => {
+    if (user) resetProfile({ firstName: user.firstName, lastName: user.lastName, phone: user.phone, designation: user.designation });
+  }, [user?.firstName, user?.lastName, user?.phone, user?.designation, resetProfile]);
   const { register: regPass, handleSubmit: submitPass, reset: resetPass } = useForm();
   const { register: regInv, handleSubmit: submitInv, reset: resetInv, watch: watchInv } = useForm();
 
@@ -171,11 +182,11 @@ export default function Settings() {
             </Space>
             <Space direction="vertical" style={{ width: '100%' }} size={16}>
               <Row gutter={12}>
-                <Col span={12}><Field label="First Name"><Input {...register('firstName')} /></Field></Col>
-                <Col span={12}><Field label="Last Name"><Input {...register('lastName')} /></Field></Col>
+                <Col span={12}><Field label="First Name"><Controller name="firstName" control={control} render={({ field }) => <Input placeholder="e.g. Surya" {...field} />} /></Field></Col>
+                <Col span={12}><Field label="Last Name"><Controller name="lastName" control={control} render={({ field }) => <Input placeholder="e.g. Raj" {...field} />} /></Field></Col>
               </Row>
-              <Field label="Phone"><Input {...register('phone')} /></Field>
-              <Field label="Designation"><Input {...register('designation')} /></Field>
+              <Field label="Phone"><Controller name="phone" control={control} render={({ field }) => <Input placeholder="e.g. 9876543210" {...field} />} /></Field>
+              <Field label="Designation"><Controller name="designation" control={control} render={({ field }) => <Input placeholder="e.g. Operations Manager" {...field} />} /></Field>
               <Button type="primary" htmlType="submit" loading={profileMutation.isPending}>Save Changes</Button>
             </Space>
           </form>

@@ -5,7 +5,7 @@ import { format, formatDistanceToNowStrict } from 'date-fns';
 import clsx from 'clsx';
 import toast from 'react-hot-toast';
 import api from '../../api/axios';
-import { FONT_IMPORT, PILL, SUB_STAGE_PILL, StatCard } from './sampleTheme';
+import { PILL, SUB_STAGE_PILL, StatCard } from './sampleTheme';
 import { customerId } from '../../utils/leadHelpers';
 import EditKycModal from './EditKycModal';
 import { CreateCatalogProductModal } from './CreateCatalogProductModal';
@@ -45,8 +45,6 @@ const ORDER_JOURNEY_STAGES = [
 // content still renders when an order is actually sitting at that stage (via the auto-jump
 // effect below), there's just nothing to click to jump there directly.
 const ORDER_JOURNEY_TAB_ORDER = ['Orders', 'Procurement', 'Weighing', 'Bulk QC', 'Product Packaging', 'Final QC', 'Dispatch'];
-const bodyFont = { fontFamily: "'IBM Plex Sans', -apple-system, sans-serif" };
-const displayFont = { fontFamily: "'Zilla Slab', Georgia, serif" };
 const inputCls = 'px-3 py-2 text-sm rounded-[10px] border-[1.5px] border-[#ddd6c4] bg-[#fbfaf7] text-[#1c1917] focus:outline-none focus:border-[#8a8171] placeholder:text-[#8a8171]';
 const accentBtn = 'inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-[#669c2c] text-[#1c1917] text-xs font-bold hover:brightness-95 transition disabled:opacity-50';
 const outlineBtn = 'inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full border-[1.5px] border-[#ddd6c4] text-[#6b6155] text-xs font-semibold hover:bg-[#f1ede4] hover:border-[#8a8171] hover:text-[#1c1917] transition';
@@ -213,9 +211,9 @@ function ProductLinkModal({ product, catalogProducts, saving, onClose, onSave, o
   return (
     <div className={clsx('fixed inset-0 z-[70] flex items-center justify-center bg-black/40', maximized ? 'p-0' : 'p-4')} onClick={onClose}>
       <div className={clsx('bg-[#fbfaf7] shadow-2xl border border-[#ddd6c4] flex flex-col',
-        maximized ? 'w-screen h-screen max-w-none rounded-none' : 'w-full max-w-lg rounded-2xl')} style={bodyFont} onClick={(e) => e.stopPropagation()}>
+        maximized ? 'w-screen h-screen max-w-none rounded-none' : 'w-full max-w-lg rounded-2xl')} onClick={(e) => e.stopPropagation()}>
         <div className={clsx('flex items-center justify-between px-5 py-4 border-b border-[#e7e2d6] bg-[#f1ede4] flex-shrink-0', !maximized && 'rounded-t-2xl')}>
-          <h3 className="font-bold text-[#1c1917]" style={displayFont}>{product ? `🧴 Edit Product Link — ${product.productId}` : '➕ Link Product'}</h3>
+          <h3 className="font-bold text-[#1c1917]">{product ? `🧴 Edit Product Link — ${product.productId}` : '➕ Link Product'}</h3>
           <div className="flex items-center gap-1.5">
             <button onClick={() => setMaximized((m) => !m)} title={maximized ? 'Restore' : 'Maximize'} className="w-8 h-8 rounded-lg hover:bg-[#e7e2d6] flex items-center justify-center text-[#8a8171] hover:text-[#1c1917] text-sm">{maximized ? '🗗' : '🗖'}</button>
             <button onClick={onClose} className="text-[#8a8171] hover:text-[#1c1917] text-xl leading-none">&times;</button>
@@ -300,9 +298,9 @@ function NewFormulaModal({ products, saving, onClose, onSave }) {
   return (
     <div className={clsx('fixed inset-0 z-[70] flex items-center justify-center bg-black/40', maximized ? 'p-0' : 'p-4')} onClick={onClose}>
       <div className={clsx('bg-[#fbfaf7] shadow-2xl border border-[#ddd6c4] flex flex-col',
-        maximized ? 'w-screen h-screen max-w-none rounded-none' : 'w-full max-w-lg rounded-2xl')} style={bodyFont} onClick={(e) => e.stopPropagation()}>
+        maximized ? 'w-screen h-screen max-w-none rounded-none' : 'w-full max-w-lg rounded-2xl')} onClick={(e) => e.stopPropagation()}>
         <div className={clsx('flex items-center justify-between px-5 py-4 border-b border-[#e7e2d6] bg-[#f1ede4] flex-shrink-0', !maximized && 'rounded-t-2xl')}>
-          <h3 className="font-bold text-[#1c1917]" style={displayFont}>➕ New Formula</h3>
+          <h3 className="font-bold text-[#1c1917]">➕ New Formula</h3>
           <div className="flex items-center gap-1.5">
             <button onClick={() => setMaximized((m) => !m)} title={maximized ? 'Restore' : 'Maximize'} className="w-8 h-8 rounded-lg hover:bg-[#e7e2d6] flex items-center justify-center text-[#8a8171] hover:text-[#1c1917] text-sm">{maximized ? '🗗' : '🗖'}</button>
             <button onClick={onClose} className="text-[#8a8171] hover:text-[#1c1917] text-xl leading-none">&times;</button>
@@ -378,9 +376,9 @@ function NewSampleModal({ formulas, products, saving, onClose, onSave, onGoToPay
   return (
     <div className={clsx('fixed inset-0 z-[70] flex items-center justify-center bg-black/40', maximized ? 'p-0' : 'p-4')} onClick={onClose}>
       <div className={clsx('bg-[#fbfaf7] shadow-2xl border border-[#ddd6c4] flex flex-col',
-        maximized ? 'w-screen h-screen max-w-none rounded-none' : 'w-full max-w-lg rounded-2xl')} style={bodyFont} onClick={(e) => e.stopPropagation()}>
+        maximized ? 'w-screen h-screen max-w-none rounded-none' : 'w-full max-w-lg rounded-2xl')} onClick={(e) => e.stopPropagation()}>
         <div className={clsx('flex items-center justify-between px-5 py-4 border-b border-[#e7e2d6] bg-[#f1ede4] flex-shrink-0', !maximized && 'rounded-t-2xl')}>
-          <h3 className="font-bold text-[#1c1917]" style={displayFont}>➕ Request New Sample</h3>
+          <h3 className="font-bold text-[#1c1917]">➕ Request New Sample</h3>
           <div className="flex items-center gap-1.5">
             <button onClick={() => setMaximized((m) => !m)} title={maximized ? 'Restore' : 'Maximize'} className="w-8 h-8 rounded-lg hover:bg-[#e7e2d6] flex items-center justify-center text-[#8a8171] hover:text-[#1c1917] text-sm">{maximized ? '🗗' : '🗖'}</button>
             <button onClick={onClose} className="text-[#8a8171] hover:text-[#1c1917] text-xl leading-none">&times;</button>
@@ -444,9 +442,9 @@ function QuotePriceModal({ product, saving, onClose, onSave }) {
   return (
     <div className={clsx('fixed inset-0 z-[75] flex items-center justify-center bg-black/40', maximized ? 'p-0' : 'p-4')} onClick={onClose}>
       <div className={clsx('bg-[#fbfaf7] shadow-2xl border border-[#ddd6c4] flex flex-col',
-        maximized ? 'w-screen h-screen max-w-none rounded-none' : 'w-full max-w-sm rounded-2xl')} style={bodyFont} onClick={(e) => e.stopPropagation()}>
+        maximized ? 'w-screen h-screen max-w-none rounded-none' : 'w-full max-w-sm rounded-2xl')} onClick={(e) => e.stopPropagation()}>
         <div className={clsx('flex items-center justify-between px-5 py-4 border-b border-[#e7e2d6] bg-[#f1ede4] flex-shrink-0', !maximized && 'rounded-t-2xl')}>
-          <h3 className="font-bold text-[#1c1917]" style={displayFont}>💰 Quote Price — {product.productId}</h3>
+          <h3 className="font-bold text-[#1c1917]">💰 Quote Price — {product.productId}</h3>
           <div className="flex items-center gap-1.5">
             <button onClick={() => setMaximized((m) => !m)} title={maximized ? 'Restore' : 'Maximize'} className="w-8 h-8 rounded-lg hover:bg-[#e7e2d6] flex items-center justify-center text-[#8a8171] hover:text-[#1c1917] text-sm">{maximized ? '🗗' : '🗖'}</button>
             <button onClick={onClose} className="text-[#8a8171] hover:text-[#1c1917] text-xl leading-none">&times;</button>
@@ -525,9 +523,9 @@ function FormulaEditorModal({ formula, samples, rawMaterials, onClose }) {
   return (
     <div className={clsx('fixed inset-0 z-50 flex items-center justify-center bg-black/40', maximized ? 'p-0' : 'p-4')} onClick={onClose}>
       <div className={clsx('bg-[#fbfaf7] shadow-2xl w-full flex flex-col',
-        maximized ? 'max-w-none rounded-none h-screen' : 'max-w-6xl rounded-2xl h-[90vh]')} style={bodyFont} onClick={(e) => e.stopPropagation()}>
+        maximized ? 'max-w-none rounded-none h-screen' : 'max-w-6xl rounded-2xl h-[90vh]')} onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between px-5 py-4 border-b border-[#ddd6c4] flex-shrink-0">
-          <h2 className="text-base font-bold text-[#1c1917]" style={displayFont}>
+          <h2 className="text-base font-bold text-[#1c1917]">
             🧬 {formula.formulaId} — {formula.name} · V{selectedVersion} <span className="text-xs font-normal text-[#8a8171]">(view only)</span>
           </h2>
           <div className="flex items-center gap-1.5">
@@ -1278,8 +1276,7 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab, initialO
   const openSample = samples.find((s) => s.sampleId === openSampleId);
 
   return (
-    <div className={clsx('fixed inset-0 z-[70] flex items-center justify-center', maximized ? 'p-0' : 'p-4')} style={bodyFont}>
-      <style>{FONT_IMPORT}</style>
+    <div className={clsx('fixed inset-0 z-[70] flex items-center justify-center', maximized ? 'p-0' : 'p-4')}>
       <div className="absolute inset-0 bg-[#1c1917]/50 backdrop-blur-sm" onClick={onClose} />
       <div className={clsx('relative bg-[#fbfaf7] shadow-[0_10px_40px_rgba(46,36,27,0.16)] border border-[#ddd6c4] flex flex-col',
         maximized ? 'w-screen h-screen max-w-none rounded-none' : 'w-full max-w-4xl rounded-2xl')}
@@ -1287,7 +1284,7 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab, initialO
         <div className={clsx('p-5 border-b border-[#e7e2d6] bg-[#f1ede4] flex items-center justify-between flex-shrink-0', !maximized && 'rounded-t-2xl')}>
           <div>
             <div className="flex items-center gap-2">
-              <h3 className="font-bold text-[#1c1917]" style={displayFont}>{lead?.name || 'Loading…'}</h3>
+              <h3 className="font-bold text-[#1c1917]">{lead?.name || 'Loading…'}</h3>
               {lead && <span className="font-mono text-[10px] font-semibold px-1.5 py-0.5 rounded bg-[#e7e2d6] text-[#292521]">{customerId(lead)}</span>}
             </div>
             <p className="text-xs text-[#6b6155]">{lead?.company || '—'} · {lead?.phone}</p>
@@ -2206,11 +2203,11 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab, initialO
             const payingProduct = products.find((p) => p.productId === payingProductId);
             if (!payingProduct) return null;
             return (
-              <div className="fixed inset-0 z-[80] flex items-center justify-center p-4" style={bodyFont}>
+              <div className="fixed inset-0 z-[80] flex items-center justify-center p-4">
                 <div className="absolute inset-0 bg-[#1c1917]/50 backdrop-blur-sm" onClick={() => setPayingProductId(null)} />
                 <div className="relative bg-[#fbfaf7] shadow-[0_10px_40px_rgba(46,36,27,0.16)] border border-[#ddd6c4] rounded-2xl w-full max-w-sm">
                   <div className="p-5 border-b border-[#e7e2d6] bg-[#f1ede4] rounded-t-2xl flex items-center justify-between">
-                    <h3 className="font-bold text-[#1c1917]" style={displayFont}>💳 Record Payment</h3>
+                    <h3 className="font-bold text-[#1c1917]">💳 Record Payment</h3>
                     <button onClick={() => setPayingProductId(null)} className="text-[#8a8171] hover:text-[#1c1917] text-xl leading-none">&times;</button>
                   </div>
                   <div className="p-5 space-y-3">
@@ -2396,10 +2393,10 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab, initialO
       {showFollowUpModal && (
         <div className={clsx('fixed inset-0 z-[70] flex items-center justify-center bg-black/40', followUpMaximized ? 'p-0' : 'p-4')} onClick={() => setShowFollowUpModal(false)}>
           <div className={clsx('bg-[#fbfaf7] shadow-2xl border border-[#ddd6c4] flex flex-col',
-            followUpMaximized ? 'w-screen h-screen max-w-none rounded-none' : 'w-full max-w-lg rounded-2xl')} style={bodyFont} onClick={(e) => e.stopPropagation()}>
+            followUpMaximized ? 'w-screen h-screen max-w-none rounded-none' : 'w-full max-w-lg rounded-2xl')} onClick={(e) => e.stopPropagation()}>
             <div className={clsx('flex items-center justify-between px-5 py-4 border-b border-[#e7e2d6] bg-[#f1ede4] flex-shrink-0', !followUpMaximized && 'rounded-t-2xl')}>
               <div>
-                <h3 className="font-bold text-[#1c1917]" style={displayFont}>📞 Log Follow-up</h3>
+                <h3 className="font-bold text-[#1c1917]">📞 Log Follow-up</h3>
                 <p className="text-[11px] text-[#8a8171] mt-0.5">The client gets a WhatsApp acknowledgment when you save this.</p>
               </div>
               <div className="flex items-center gap-1.5">
@@ -2554,13 +2551,13 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab, initialO
       )}
 
       {sendSampleFor && (
-        <div className={clsx('fixed inset-0 z-[80] flex items-center justify-center', sendSampleMaximized ? 'p-0' : 'p-4')} style={bodyFont}>
+        <div className={clsx('fixed inset-0 z-[80] flex items-center justify-center', sendSampleMaximized ? 'p-0' : 'p-4')}>
           <div className="absolute inset-0 bg-[#1c1917]/50 backdrop-blur-sm" onClick={() => setSendSampleFor(null)} />
           <div className={clsx('relative bg-[#fbfaf7] shadow-[0_10px_40px_rgba(46,36,27,0.16)] border border-[#ddd6c4]',
             sendSampleMaximized ? 'w-screen h-screen max-w-none rounded-none flex flex-col' : 'w-full max-w-md rounded-2xl')}>
             <div className={clsx('p-5 border-b border-[#e7e2d6] bg-[#f1ede4] flex items-center justify-between flex-shrink-0', !sendSampleMaximized && 'rounded-t-2xl')}>
               <div>
-                <h3 className="font-bold text-[#1c1917]" style={displayFont}>🏭 Send Product to Production</h3>
+                <h3 className="font-bold text-[#1c1917]">🏭 Send Product to Production</h3>
                 <p className="text-xs text-[#6b6155] mt-0.5">{sendSampleFor.sampleId} — invoiced. Orders opens right after — the ≥50% advance is checked later, before Procurement starts.</p>
               </div>
               <div className="flex items-center gap-1.5 flex-shrink-0">
@@ -2627,13 +2624,13 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab, initialO
       )}
 
       {courierModalFor && (
-        <div className={clsx('fixed inset-0 z-[80] flex items-center justify-center', courierMaximized ? 'p-0' : 'p-4')} style={bodyFont}>
+        <div className={clsx('fixed inset-0 z-[80] flex items-center justify-center', courierMaximized ? 'p-0' : 'p-4')}>
           <div className="absolute inset-0 bg-[#1c1917]/50 backdrop-blur-sm" onClick={() => setCourierModalFor(null)} />
           <div className={clsx('relative bg-[#fbfaf7] shadow-[0_10px_40px_rgba(46,36,27,0.16)] border border-[#ddd6c4]',
             courierMaximized ? 'w-screen h-screen max-w-none rounded-none flex flex-col' : 'w-full max-w-md rounded-2xl')}>
             <div className={clsx('p-5 border-b border-[#e7e2d6] bg-[#f1ede4] flex items-center justify-between flex-shrink-0', !courierMaximized && 'rounded-t-2xl')}>
               <div>
-                <h3 className="font-bold text-[#1c1917]" style={displayFont}>🚚 Dispatch Sample</h3>
+                <h3 className="font-bold text-[#1c1917]">🚚 Dispatch Sample</h3>
                 <p className="text-xs text-[#6b6155] mt-0.5">{courierModalFor} — record courier details to mark this sample Sent.</p>
               </div>
               <div className="flex items-center gap-1.5 flex-shrink-0">
@@ -2673,13 +2670,13 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab, initialO
       )}
 
       {feedbackModalFor && (
-        <div className={clsx('fixed inset-0 z-[80] flex items-center justify-center', feedbackMaximized ? 'p-0' : 'p-4')} style={bodyFont}>
+        <div className={clsx('fixed inset-0 z-[80] flex items-center justify-center', feedbackMaximized ? 'p-0' : 'p-4')}>
           <div className="absolute inset-0 bg-[#1c1917]/50 backdrop-blur-sm" onClick={() => setFeedbackModalFor(null)} />
           <div className={clsx('relative bg-[#fbfaf7] shadow-[0_10px_40px_rgba(46,36,27,0.16)] border border-[#ddd6c4]',
             feedbackMaximized ? 'w-screen h-screen max-w-none rounded-none flex flex-col' : 'w-full max-w-md rounded-2xl')}>
             <div className={clsx('p-5 border-b border-[#e7e2d6] bg-[#f1ede4] flex items-center justify-between flex-shrink-0', !feedbackMaximized && 'rounded-t-2xl')}>
               <div>
-                <h3 className="font-bold text-[#1c1917]" style={displayFont}>💬 Log Customer Feedback</h3>
+                <h3 className="font-bold text-[#1c1917]">💬 Log Customer Feedback</h3>
                 <p className="text-xs text-[#6b6155] mt-0.5">{feedbackModalFor} — moves this sample to "Feedback".</p>
               </div>
               <div className="flex items-center gap-1.5 flex-shrink-0">
@@ -2708,13 +2705,13 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab, initialO
       )}
 
       {approveModalFor && (
-        <div className={clsx('fixed inset-0 z-[80] flex items-center justify-center', approveMaximized ? 'p-0' : 'p-4')} style={bodyFont}>
+        <div className={clsx('fixed inset-0 z-[80] flex items-center justify-center', approveMaximized ? 'p-0' : 'p-4')}>
           <div className="absolute inset-0 bg-[#1c1917]/50 backdrop-blur-sm" onClick={() => setApproveModalFor(null)} />
           <div className={clsx('relative bg-[#fbfaf7] shadow-[0_10px_40px_rgba(46,36,27,0.16)] border border-[#ddd6c4]',
             approveMaximized ? 'w-screen h-screen max-w-none rounded-none flex flex-col' : 'w-full max-w-md rounded-2xl')}>
             <div className={clsx('p-5 border-b border-[#e7e2d6] bg-[#f1ede4] flex items-center justify-between flex-shrink-0', !approveMaximized && 'rounded-t-2xl')}>
               <div>
-                <h3 className="font-bold text-[#1c1917]" style={displayFont}>✅ Approve Sample</h3>
+                <h3 className="font-bold text-[#1c1917]">✅ Approve Sample</h3>
                 <p className="text-xs text-[#6b6155] mt-0.5">
                   {approveModalFor}
                   {samples.find((s) => s.sampleId === approveModalFor)?.formulaId ? ' — the linked formula version will be marked Accepted.' : ''}
@@ -2753,13 +2750,13 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab, initialO
       )}
 
       {rejectModalFor && (
-        <div className={clsx('fixed inset-0 z-[80] flex items-center justify-center', rejectMaximized ? 'p-0' : 'p-4')} style={bodyFont}>
+        <div className={clsx('fixed inset-0 z-[80] flex items-center justify-center', rejectMaximized ? 'p-0' : 'p-4')}>
           <div className="absolute inset-0 bg-[#1c1917]/50 backdrop-blur-sm" onClick={() => setRejectModalFor(null)} />
           <div className={clsx('relative bg-[#fbfaf7] shadow-[0_10px_40px_rgba(46,36,27,0.16)] border border-[#ddd6c4]',
             rejectMaximized ? 'w-screen h-screen max-w-none rounded-none flex flex-col' : 'w-full max-w-md rounded-2xl')}>
             <div className={clsx('p-5 border-b border-[#e7e2d6] bg-[#f1ede4] flex items-center justify-between flex-shrink-0', !rejectMaximized && 'rounded-t-2xl')}>
               <div>
-                <h3 className="font-bold text-[#1c1917]" style={displayFont}>✕ Reject Sample</h3>
+                <h3 className="font-bold text-[#1c1917]">✕ Reject Sample</h3>
                 <p className="text-xs text-[#6b6155] mt-0.5">{rejectModalFor}</p>
               </div>
               <div className="flex items-center gap-1.5 flex-shrink-0">

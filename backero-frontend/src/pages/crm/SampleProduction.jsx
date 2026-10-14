@@ -8,7 +8,7 @@ import { format, formatDistanceToNowStrict } from 'date-fns';
 import SampleLeadDetail from './SampleLeadDetail';
 import EditKycModal from './EditKycModal';
 import { customerId, queryId } from '../../utils/leadHelpers';
-import { FONT_IMPORT, Card, PILL, StatCard, SUB_STAGE_PILL } from './sampleTheme';
+import { Card, PILL, StatCard, SUB_STAGE_PILL } from './sampleTheme';
 import {
   StageBar, StageOrder, StageWorkAssignment, StageProcurement, StageWeighing,
   StageBulkQC, StagePackaging, StageFinalQC, StageDispatch, STAGE_NAMES,
@@ -16,6 +16,11 @@ import {
 import NewOrderModal from './production/NewOrderModal';
 import { useAuthStore } from '../../store/useAuthStore';
 import { canAssignLeads } from '../../utils/leadHelpers';
+import {
+  Package, Scale, Microscope, Gift, CircleCheck, Truck, IdCard, Sparkles, Inbox, CreditCard,
+  FlaskConical, Hourglass, Receipt, TriangleAlert, Trash2, Search, Factory, Link as LinkIcon,
+  Dna, Pencil, FileText, Maximize2, Minimize2, X, Printer, Copy, Download,
+} from 'lucide-react';
 
 // Cross-customer work queue over the CRM's existing "Sample" pipeline stage —
 // no new data model. Everything here reads/writes the same Lead record that
@@ -27,11 +32,10 @@ import { canAssignLeads } from '../../utils/leadHelpers';
 // Visual design intentionally mirrors the "Sample Development" reference file
 // (design/sample production.html) — a warm cream/amber palette distinct from
 // the rest of the app's blue theme, scoped entirely to this page via the
-// FONT_IMPORT + hardcoded hex classes below (nothing global is touched).
+// hardcoded hex classes below (nothing global is touched). Font is the app
+// default (Inter, via Tailwind's font-sans) — no per-page font override.
 
-export { FONT_IMPORT, Card, PILL, StatCard, SUB_STAGE_PILL, PROD_STAGE_TABS };
-const displayFont = { fontFamily: "'Zilla Slab', Georgia, serif" };
-const bodyFont = { fontFamily: "'IBM Plex Sans', -apple-system, sans-serif" };
+export { Card, PILL, StatCard, SUB_STAGE_PILL, PROD_STAGE_TABS };
 
 const QA_TOPIC_PILL = { General: PILL.gray, Product: PILL.info, Packaging: PILL.warning, Formula: PILL.purple, Designing: PILL.info, Pricing: PILL.success };
 
@@ -39,12 +43,12 @@ const QA_TOPIC_PILL = { General: PILL.gray, Product: PILL.info, Packaging: PILL.
 // their own top-level tabs — each just the orders currently sitting at that stage (STAGE_NAMES
 // indices 2-7; Order/Work Assignment stay covered by Awaiting Production & Orders above).
 const PROD_STAGE_TABS = [
-  { key: 'procurement', label: 'Procurement', emoji: '📦', stage: 2, hint: 'Orders at Procurement — raw material availability check against the scaled formula.' },
-  { key: 'weighing', label: 'Weighing', emoji: '⚖️', stage: 3, hint: 'Orders at Weighing — ingredient weigh-off and process steps, then a manager approves the batch to move on.' },
-  { key: 'bulkqc', label: 'Bulk QC', emoji: '🧫', stage: 4, hint: 'Orders at Bulk QC — pass/fail against the locked Job Sheet specs.' },
-  { key: 'packing', label: 'Product Packaging', emoji: '🎁', stage: 5, hint: 'Orders at Packaging — fill, reject count, labeling.' },
-  { key: 'finalqc', label: 'Final QC', emoji: '✅', stage: 6, hint: 'Orders at Final QC — release checks before dispatch.' },
-  { key: 'dispatch', label: 'Dispatch', emoji: '🚚', stage: 7, hint: 'Orders at Dispatch — ready to ship or already shipped.' },
+  { key: 'procurement', label: 'Procurement', emoji: <Package className="w-4 h-4" />, stage: 2, hint: 'Orders at Procurement — raw material availability check against the scaled formula.' },
+  { key: 'weighing', label: 'Weighing', emoji: <Scale className="w-4 h-4" />, stage: 3, hint: 'Orders at Weighing — ingredient weigh-off and process steps, then a manager approves the batch to move on.' },
+  { key: 'bulkqc', label: 'Bulk QC', emoji: <Microscope className="w-4 h-4" />, stage: 4, hint: 'Orders at Bulk QC — pass/fail against the locked Job Sheet specs.' },
+  { key: 'packing', label: 'Product Packaging', emoji: <Gift className="w-4 h-4" />, stage: 5, hint: 'Orders at Packaging — fill, reject count, labeling.' },
+  { key: 'finalqc', label: 'Final QC', emoji: <CircleCheck className="w-4 h-4" />, stage: 6, hint: 'Orders at Final QC — release checks before dispatch.' },
+  { key: 'dispatch', label: 'Dispatch', emoji: <Truck className="w-4 h-4" />, stage: 7, hint: 'Orders at Dispatch — ready to ship or already shipped.' },
 ];
 
 // Per-stage traceability ID field on the order (assigned server-side the moment the order
@@ -72,15 +76,15 @@ const PROD_STAGE_COMPONENT = {
 
 // Orders tab's "Edit" action — opens just the Order/Job Sheet function via StageFocusPanel,
 // same as the stage tabs above, since there's no top-level tab for it anymore.
-const ORDER_EDIT_TAB = { key: 'order', label: 'Orders', emoji: '🪪' };
+const ORDER_EDIT_TAB = { key: 'order', label: 'Orders', emoji: <IdCard className="w-4 h-4" /> };
 
 const TABS = [
-  { key: 'new', label: 'KYC', emoji: '🆕', hint: 'Brand-new leads — no CRM stage move needed. Add a product, formula, or sample here and the lead promotes to Sample automatically.' },
-  { key: 'qa', label: 'Q&A Inbox', emoji: '📥', hint: 'Every technical query raised for a lead currently in Sample — reply here or from the lead’s own Q&A tab.' },
-  { key: 'payments', label: "RND's Payments", emoji: '💳', hint: 'R&D / sampling fee confirmation — a sample stays locked at "Requested" until this is confirmed.' },
-  { key: 'sample', label: 'Sample', emoji: '🧪', hint: 'Leads currently being sampled — dispatch, feedback, invoicing happens on the lead itself.' },
-  { key: 'awaiting', label: 'Invoices', emoji: '⏳', hint: 'Sample approved (moved to In Progress) but not yet linked to a Batch Tracker order.' },
-  { key: 'linked', label: 'Orders', emoji: '🧾', hint: 'Already handed off — tracked in Batch Tracker from here on.' },
+  { key: 'new', label: 'KYC', emoji: <Sparkles className="w-4 h-4" />, hint: 'Brand-new leads — no CRM stage move needed. Add a product, formula, or sample here and the lead promotes to Sample automatically.' },
+  { key: 'qa', label: 'Q&A Inbox', emoji: <Inbox className="w-4 h-4" />, hint: 'Every technical query raised for a lead currently in Sample — reply here or from the lead’s own Q&A tab.' },
+  { key: 'payments', label: "RND's Payments", emoji: <CreditCard className="w-4 h-4" />, hint: 'R&D / sampling fee confirmation — a sample stays locked at "Requested" until this is confirmed.' },
+  { key: 'sample', label: 'Sample', emoji: <FlaskConical className="w-4 h-4" />, hint: 'Leads currently being sampled — dispatch, feedback, invoicing happens on the lead itself.' },
+  { key: 'awaiting', label: 'Invoices', emoji: <Hourglass className="w-4 h-4" />, hint: 'Sample approved (moved to In Progress) but not yet linked to a Batch Tracker order.' },
+  { key: 'linked', label: 'Orders', emoji: <Receipt className="w-4 h-4" />, hint: 'Already handed off — tracked in Batch Tracker from here on.' },
   ...PROD_STAGE_TABS,
 ];
 
@@ -496,6 +500,19 @@ export default function SampleProduction() {
     onError: (e) => toast.error(e.response?.data?.message || 'Failed to delete lead'),
   });
 
+  // Bulk-clear the "stalled over 7 days" banner below — deletes every lead currently listed in
+  // it in one go, reusing the same hard-delete endpoint as the per-row Delete action.
+  const bulkDeleteAgingMutation = useMutation({
+    mutationFn: (leadIds) => Promise.all(leadIds.map((id) => api.delete(`/crm/leads/${id}`))),
+    onSuccess: (_r, leadIds) => {
+      qc.invalidateQueries({ queryKey: ['sample-production'] });
+      qc.invalidateQueries({ queryKey: ['crm'] });
+      qc.invalidateQueries({ queryKey: ['dashboard'] });
+      toast.success(`${leadIds.length} stalled sample${leadIds.length === 1 ? '' : 's'} deleted`);
+    },
+    onError: (e) => toast.error(e.response?.data?.message || 'Failed to delete stalled samples'),
+  });
+
   // Whoever picks up a fresh KYC lead hands it off, after first contact, to the person who'll
   // own that client end-to-end (through Q&A, samples, payment, production, dispatch) — this is
   // the dedicated /assign endpoint (proper notification + assignedBy/assignedAt audit trail),
@@ -646,26 +663,37 @@ export default function SampleProduction() {
   }));
 
   return (
-    <div className="space-y-5 -m-4 sm:-m-6 p-4 sm:p-6 bg-white min-h-[calc(100vh-4rem)]" style={bodyFont}>
-      <style>{FONT_IMPORT}</style>
+    <div className="space-y-5 -m-4 sm:-m-6 p-4 sm:p-6 bg-white min-h-[calc(100vh-4rem)]">
 
       <Card className="flex items-center gap-3">
-        <div className="w-10 h-10 rounded-xl bg-[#669c2c] flex items-center justify-center shadow-sm flex-shrink-0 text-lg">🧪</div>
+        <div className="w-10 h-10 rounded-xl bg-[#669c2c] flex items-center justify-center shadow-sm flex-shrink-0"><FlaskConical className="w-5 h-5 text-[#1c1917]" /></div>
         <div className="flex-1 min-w-0">
-          <h1 className="text-lg font-bold text-[#1c1917] leading-tight" style={displayFont}>Sample Development</h1>
+          <h1 className="text-lg font-bold text-[#1c1917] leading-tight">Sample Development</h1>
           <p className="text-xs text-[#6b6155]">{sampleLeads.length} in sampling · {awaiting.length} in approvals · {linkedOrders.length} linked</p>
         </div>
         <button onClick={exportCSV} className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full border-[1.5px] border-[#ddd6c4] text-[#6b6155] text-xs font-semibold hover:bg-[#f1ede4] hover:border-[#8a8171] hover:text-[#1c1917] transition flex-shrink-0">
-          📥 Export CSV
+          <Download className="w-3.5 h-3.5" /> Export CSV
         </button>
       </Card>
 
       {agingLeads.length > 0 && (
         <div className="p-3 rounded-[10px] border border-[#e8c9c3] bg-[#f5e3e0] flex items-start gap-2">
-          <span className="text-base leading-none">⚠️</span>
-          <div className="text-xs text-[#a13d34]">
+          <TriangleAlert className="w-4 h-4 flex-shrink-0 text-[#a13d34]" />
+          <div className="text-xs text-[#a13d34] flex-1">
             <span className="font-semibold">{agingLeads.length} sample{agingLeads.length === 1 ? '' : 's'} stalled over 7 days</span> — {agingLeads.map((l) => l.name).join(', ')}
           </div>
+          <button
+            onClick={() => {
+              const names = agingLeads.map((l) => l.name).join(', ');
+              if (window.confirm(`Delete all ${agingLeads.length} stalled samples?\n\n${names}\n\nThis permanently deletes these leads and cannot be undone.`)) {
+                bulkDeleteAgingMutation.mutate(agingLeads.map((l) => l._id));
+              }
+            }}
+            disabled={bulkDeleteAgingMutation.isPending}
+            className="flex-shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border-[1.5px] border-[#a13d34] text-[#a13d34] text-[11px] font-semibold hover:bg-[#a13d34] hover:text-white transition disabled:opacity-50"
+          >
+            {bulkDeleteAgingMutation.isPending ? 'Deleting…' : <><Trash2 className="w-3.5 h-3.5" /> {`Delete ${agingLeads.length} stalled`}</>}
+          </button>
         </div>
       )}
 
@@ -706,12 +734,12 @@ export default function SampleProduction() {
 
           <div className="flex items-center gap-3 flex-wrap">
             <div className="relative max-w-sm flex-1 min-w-[220px]">
-              <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#8a8171] text-sm">🔍</span>
+              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#8a8171]" />
               <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search customer, company…"
                 className="pl-9 pr-3 py-2 text-sm border-[1.5px] border-[#ddd6c4] rounded-full focus:outline-none focus:border-[#8a8171] w-full bg-[#f1ede4] text-[#1c1917] placeholder:text-[#8a8171]" />
             </div>
             {tab === 'new' && <button onClick={() => setShowCreateLead(true)} className={accentBtn}>+ New Lead</button>}
-            {tab === 'linked' && <button onClick={() => setShowNewOrder(true)} className={accentBtn}>🆕 New Order</button>}
+            {tab === 'linked' && <button onClick={() => setShowNewOrder(true)} className={accentBtn}><Sparkles className="w-3.5 h-3.5" /> New Order</button>}
           </div>
 
           {tab === 'sample' && (
@@ -827,8 +855,8 @@ export default function SampleProduction() {
                           Edit KYC
                         </button>
                         {l.productionOrderId && (
-                          <button onClick={() => { setOpenLeadId(l._id); setOpenLeadInitialTab('Production'); }} className={clsx(textLink, 'mr-3')}>
-                            🏭 Track Production →
+                          <button onClick={() => { setOpenLeadId(l._id); setOpenLeadInitialTab('Production'); }} className={clsx(textLink, 'inline-flex items-center gap-1 mr-3')}>
+                            <Factory className="w-3 h-3" /> Track Production →
                           </button>
                         )}
                         <button onClick={() => { setOpenLeadId(l._id); setOpenLeadInitialTab(null); }} className={clsx(textLink, 'mr-3')}>Open ▸</button>
@@ -938,26 +966,26 @@ export default function SampleProduction() {
                           </td>
                           <td className="px-4 py-2.5">
                             <div className="flex flex-col items-start gap-1 whitespace-nowrap">
-                              <button onClick={() => { setOpenLeadId(q.leadId?._id); setOpenLeadInitialTab('Products'); }} className={textLink}>🆕 Create Product</button>
-                              <button onClick={() => { setConnectingQueryId((id) => id === q._id ? null : q._id); setConnectCatalogSearch(''); }} className={textLink}>🔗 Connect Existing</button>
+                              <button onClick={() => { setOpenLeadId(q.leadId?._id); setOpenLeadInitialTab('Products'); }} className={clsx(textLink, 'inline-flex items-center gap-1')}><Sparkles className="w-3 h-3" /> Create Product</button>
+                              <button onClick={() => { setConnectingQueryId((id) => id === q._id ? null : q._id); setConnectCatalogSearch(''); }} className={clsx(textLink, 'inline-flex items-center gap-1')}><LinkIcon className="w-3 h-3" /> Connect Existing</button>
                               <button
                                 disabled={!hasProduct}
                                 title={hasProduct ? '' : 'Link a product to this lead first'}
                                 onClick={() => { setOpenLeadId(q.leadId?._id); setOpenLeadInitialTab('Formulas'); }}
-                                className={clsx(textLink, !hasProduct && 'opacity-40 cursor-not-allowed')}
+                                className={clsx(textLink, 'inline-flex items-center gap-1', !hasProduct && 'opacity-40 cursor-not-allowed')}
                               >
-                                🧬 Create Formula
+                                <Dna className="w-3 h-3" /> Create Formula
                               </button>
                               <button
                                 disabled={!hasProduct}
                                 title={hasProduct ? '' : 'Link a product to this lead first'}
                                 onClick={() => { setOpenLeadId(q.leadId?._id); setOpenLeadInitialTab('Samples'); }}
-                                className={clsx(textLink, !hasProduct && 'opacity-40 cursor-not-allowed')}
+                                className={clsx(textLink, 'inline-flex items-center gap-1', !hasProduct && 'opacity-40 cursor-not-allowed')}
                               >
-                                🧪 Create Sample
+                                <FlaskConical className="w-3 h-3" /> Create Sample
                               </button>
                               {relatedLead?.productionOrderId && (
-                                <button onClick={() => { setOpenLeadId(q.leadId?._id); setOpenLeadInitialTab('Production'); }} className={textLink}>🏭 Track Production →</button>
+                                <button onClick={() => { setOpenLeadId(q.leadId?._id); setOpenLeadInitialTab('Production'); }} className={clsx(textLink, 'inline-flex items-center gap-1')}><Factory className="w-3 h-3" /> Track Production →</button>
                               )}
                               <button onClick={() => { setOpenLeadId(q.leadId?._id); setOpenLeadInitialTab(null); }} className={textLink}>Open lead ▸</button>
                             </div>
@@ -1043,7 +1071,7 @@ export default function SampleProduction() {
                       <td className="px-4 py-2.5 text-right whitespace-nowrap">
                         {tab === 'payments' && (
                           l.sampleDetails?.paymentStatus === 'full_paid'
-                            ? <span className="text-xs text-[#2f6b4f] font-semibold mr-3">✓ Paid</span>
+                            ? <span className="inline-flex items-center gap-1 text-xs text-[#2f6b4f] font-semibold mr-3"><CircleCheck className="w-3 h-3" /> Paid</span>
                             : (
                               <button onClick={() => setPayConfirmFor(l)} className={clsx(textLink, 'mr-3')}>
                                 Confirm Payment
@@ -1051,8 +1079,8 @@ export default function SampleProduction() {
                             )
                         )}
                         {l.productionOrderId && (
-                          <button onClick={() => { setOpenLeadId(l._id); setOpenLeadInitialTab('Production'); }} className={clsx(textLink, 'mr-3')}>
-                            🏭 Track Production →
+                          <button onClick={() => { setOpenLeadId(l._id); setOpenLeadInitialTab('Production'); }} className={clsx(textLink, 'inline-flex items-center gap-1 mr-3')}>
+                            <Factory className="w-3 h-3" /> Track Production →
                           </button>
                         )}
                         <button onClick={() => { setOpenLeadId(l._id); setOpenLeadInitialTab(null); }} className={textLink}>Open ▸</button>
@@ -1120,16 +1148,16 @@ export default function SampleProduction() {
                             navigate(`/finance/invoices?fromLead=${l._id}&returnTo=${returnTo}`);
                           }}
                           title="Create an invoice for this customer before sending the order to production"
-                          className={clsx(textLink, 'mr-3')}>
-                          📄 Create Invoice
+                          className={clsx(textLink, 'inline-flex items-center gap-1 mr-3')}>
+                          <FileText className="w-3 h-3" /> Create Invoice
                         </button>
                         <button onClick={() => { setSendLead(l); setSelectedCatalogProduct(null); setCatalogSearch(''); setBatchSizeKg(10); }}
                           className={clsx(textLink, 'disabled:opacity-50 mr-3')}>
                           Send to Production →
                         </button>
                         {l.productionOrderId && (
-                          <button onClick={() => { setOpenLeadId(l._id); setOpenLeadInitialTab('Production'); }} className={clsx(textLink, 'mr-3')}>
-                            🏭 Track Production →
+                          <button onClick={() => { setOpenLeadId(l._id); setOpenLeadInitialTab('Production'); }} className={clsx(textLink, 'inline-flex items-center gap-1 mr-3')}>
+                            <Factory className="w-3 h-3" /> Track Production →
                           </button>
                         )}
                         <button onClick={() => { setOpenLeadId(l._id); setOpenLeadInitialTab(null); }} className={clsx(textLink, 'ml-3')}>Open ▸</button>
@@ -1198,9 +1226,9 @@ export default function SampleProduction() {
                       <td className="px-4 py-2.5 text-right whitespace-nowrap">
                         <button
                           onClick={() => setFocusStageOrder({ orderId: o._id, stageTab: ORDER_EDIT_TAB, StageComponent: StageOrder })}
-                          className={clsx(textLink, 'mr-3')}
+                          className={clsx(textLink, 'inline-flex items-center gap-1 mr-3')}
                         >
-                          ✏️ Edit
+                          <Pencil className="w-3 h-3" /> Edit
                         </button>
                         <button
                           onClick={() => { setOpenOrderLead(syntheticLead); setOrderQty(''); setOrderDeliveryDate(''); setOrderMarginPct(30); }}
@@ -1208,8 +1236,8 @@ export default function SampleProduction() {
                         >
                           Order Detail
                         </button>
-                        <button onClick={openThisOrder} className={clsx(textLink, 'mr-3')}>
-                          🏭 Track Production →
+                        <button onClick={openThisOrder} className={clsx(textLink, 'inline-flex items-center gap-1 mr-3')}>
+                          <Factory className="w-3 h-3" /> Track Production →
                         </button>
                         {o.stage === 7 && (
                           <button
@@ -1318,9 +1346,9 @@ export default function SampleProduction() {
                       {showStockColumn && (
                         <td className="px-4 py-2.5 whitespace-nowrap" title={shortfalls.map((s) => `${s.name}: short ${s.shortfall} ${s.unit}`).join(', ')}>
                           {shortfalls.length > 0 ? (
-                            <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-[#f5e3e0] text-[#a13d34]">⚠ Stock over ({shortfalls.length})</span>
+                            <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-[#f5e3e0] text-[#a13d34]"><TriangleAlert className="w-3 h-3" /> Stock over ({shortfalls.length})</span>
                           ) : (
-                            <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-[#e2ece5] text-[#2f6b4f]">✓ OK</span>
+                            <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-[#e2ece5] text-[#2f6b4f]"><CircleCheck className="w-3 h-3" /> OK</span>
                           )}
                         </td>
                       )}
@@ -1374,19 +1402,18 @@ export default function SampleProduction() {
       )}
 
       {sendLead && (
-        <div className={clsx('fixed inset-0 z-[70] flex items-center justify-center', sendMaximized ? 'p-0' : 'p-4')} style={bodyFont}>
-          <style>{FONT_IMPORT}</style>
+        <div className={clsx('fixed inset-0 z-[70] flex items-center justify-center', sendMaximized ? 'p-0' : 'p-4')}>
           <div className="absolute inset-0 bg-[#1c1917]/50 backdrop-blur-sm" onClick={() => setSendLead(null)} />
           <div className={clsx('relative bg-white shadow-[0_10px_40px_rgba(46,36,27,0.16)] border border-[#ddd6c4]',
             sendMaximized ? 'w-screen h-screen max-w-none rounded-none flex flex-col' : 'w-full max-w-md rounded-2xl')}>
             <div className={clsx('p-5 border-b border-[#e7e2d6] bg-[#f1ede4] flex items-center justify-between flex-shrink-0', !sendMaximized && 'rounded-t-2xl')}>
               <div>
-                <h3 className="font-bold text-[#1c1917]" style={displayFont}>🏭 Send to Production</h3>
+                <h3 className="font-bold text-[#1c1917] inline-flex items-center gap-1.5"><Factory className="w-4 h-4" /> Send to Production</h3>
                 <p className="text-xs text-[#6b6155] mt-0.5">{sendLead.name} — creates a Batch Tracker order pre-filled from this lead.</p>
               </div>
               <div className="flex items-center gap-1.5 flex-shrink-0">
-                <button onClick={() => setSendMaximized((m) => !m)} title={sendMaximized ? 'Restore' : 'Maximize'} className="w-9 h-9 rounded-lg hover:bg-[#e7e2d6] flex items-center justify-center text-[#8a8171] hover:text-[#1c1917] text-base">{sendMaximized ? '🗗' : '🗖'}</button>
-                <button onClick={() => setSendLead(null)} className="w-9 h-9 rounded-lg hover:bg-[#e7e2d6] flex items-center justify-center text-[#8a8171] hover:text-[#1c1917] text-lg">✕</button>
+                <button onClick={() => setSendMaximized((m) => !m)} title={sendMaximized ? 'Restore' : 'Maximize'} className="w-9 h-9 rounded-lg hover:bg-[#e7e2d6] flex items-center justify-center text-[#8a8171] hover:text-[#1c1917] text-base">{sendMaximized ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}</button>
+                <button onClick={() => setSendLead(null)} className="w-9 h-9 rounded-lg hover:bg-[#e7e2d6] flex items-center justify-center text-[#8a8171] hover:text-[#1c1917] text-lg"><X className="w-4 h-4" /></button>
               </div>
             </div>
             <div className={clsx('p-5 space-y-3', sendMaximized && 'flex-1 overflow-y-auto')}>
@@ -1441,19 +1468,18 @@ export default function SampleProduction() {
       {editKycLead && <EditKycModal lead={editKycLead} onClose={() => setEditKycLead(null)} />}
 
       {payConfirmFor && (
-        <div className={clsx('fixed inset-0 z-[70] flex items-center justify-center', payMaximized ? 'p-0' : 'p-4')} style={bodyFont}>
-          <style>{FONT_IMPORT}</style>
+        <div className={clsx('fixed inset-0 z-[70] flex items-center justify-center', payMaximized ? 'p-0' : 'p-4')}>
           <div className="absolute inset-0 bg-[#1c1917]/50 backdrop-blur-sm" onClick={() => setPayConfirmFor(null)} />
           <div className={clsx('relative bg-white shadow-[0_10px_40px_rgba(46,36,27,0.16)] border border-[#ddd6c4]',
             payMaximized ? 'w-screen h-screen max-w-none rounded-none flex flex-col' : 'w-full max-w-md rounded-2xl')}>
             <div className={clsx('p-5 border-b border-[#e7e2d6] bg-[#f1ede4] flex items-center justify-between flex-shrink-0', !payMaximized && 'rounded-t-2xl')}>
               <div>
-                <h3 className="font-bold text-[#1c1917]" style={displayFont}>💳 Confirm R&D Payment</h3>
+                <h3 className="font-bold text-[#1c1917] inline-flex items-center gap-1.5"><CreditCard className="w-4 h-4" /> Confirm R&D Payment</h3>
                 <p className="text-xs text-[#6b6155] mt-0.5">{payConfirmFor.name} — ₹{(payConfirmFor.sampleDetails?.chargeAmount || 0).toLocaleString('en-IN')}</p>
               </div>
               <div className="flex items-center gap-1.5 flex-shrink-0">
-                <button onClick={() => setPayMaximized((m) => !m)} title={payMaximized ? 'Restore' : 'Maximize'} className="w-9 h-9 rounded-lg hover:bg-[#e7e2d6] flex items-center justify-center text-[#8a8171] hover:text-[#1c1917] text-base">{payMaximized ? '🗗' : '🗖'}</button>
-                <button onClick={() => setPayConfirmFor(null)} className="w-9 h-9 rounded-lg hover:bg-[#e7e2d6] flex items-center justify-center text-[#8a8171] hover:text-[#1c1917] text-lg">✕</button>
+                <button onClick={() => setPayMaximized((m) => !m)} title={payMaximized ? 'Restore' : 'Maximize'} className="w-9 h-9 rounded-lg hover:bg-[#e7e2d6] flex items-center justify-center text-[#8a8171] hover:text-[#1c1917] text-base">{payMaximized ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}</button>
+                <button onClick={() => setPayConfirmFor(null)} className="w-9 h-9 rounded-lg hover:bg-[#e7e2d6] flex items-center justify-center text-[#8a8171] hover:text-[#1c1917] text-lg"><X className="w-4 h-4" /></button>
               </div>
             </div>
             <div className={clsx('p-5 space-y-2', payMaximized && 'flex-1 overflow-y-auto')}>
@@ -1493,19 +1519,18 @@ export default function SampleProduction() {
       )}
 
       {openOrderLead && (
-        <div className={clsx('fixed inset-0 z-[70] flex items-center justify-center', orderMaximized ? 'p-0' : 'p-4')} style={bodyFont}>
-          <style>{FONT_IMPORT}</style>
+        <div className={clsx('fixed inset-0 z-[70] flex items-center justify-center', orderMaximized ? 'p-0' : 'p-4')}>
           <div className="absolute inset-0 bg-[#1c1917]/50 backdrop-blur-sm" onClick={() => setOpenOrderLead(null)} />
           <div className={clsx('relative bg-white shadow-[0_10px_40px_rgba(46,36,27,0.16)] border border-[#ddd6c4]',
             orderMaximized ? 'w-screen h-screen max-w-none rounded-none flex flex-col' : 'w-full max-w-md rounded-2xl')}>
             <div className={clsx('p-5 border-b border-[#e7e2d6] bg-[#f1ede4] flex items-center justify-between flex-shrink-0', !orderMaximized && 'rounded-t-2xl')}>
               <div>
-                <h3 className="font-bold text-[#1c1917]" style={displayFont}>🧾 Order Detail</h3>
+                <h3 className="font-bold text-[#1c1917] inline-flex items-center gap-1.5"><Receipt className="w-4 h-4" /> Order Detail</h3>
                 <p className="text-xs text-[#6b6155] mt-0.5">{openOrderLead.name} — {openOrderLead.productionOrderId?.orderNumber}</p>
               </div>
               <div className="flex items-center gap-1.5 flex-shrink-0">
-                <button onClick={() => setOrderMaximized((m) => !m)} title={orderMaximized ? 'Restore' : 'Maximize'} className="w-9 h-9 rounded-lg hover:bg-[#e7e2d6] flex items-center justify-center text-[#8a8171] hover:text-[#1c1917] text-base">{orderMaximized ? '🗗' : '🗖'}</button>
-                <button onClick={() => setOpenOrderLead(null)} className="w-9 h-9 rounded-lg hover:bg-[#e7e2d6] flex items-center justify-center text-[#8a8171] hover:text-[#1c1917] text-lg">✕</button>
+                <button onClick={() => setOrderMaximized((m) => !m)} title={orderMaximized ? 'Restore' : 'Maximize'} className="w-9 h-9 rounded-lg hover:bg-[#e7e2d6] flex items-center justify-center text-[#8a8171] hover:text-[#1c1917] text-base">{orderMaximized ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}</button>
+                <button onClick={() => setOpenOrderLead(null)} className="w-9 h-9 rounded-lg hover:bg-[#e7e2d6] flex items-center justify-center text-[#8a8171] hover:text-[#1c1917] text-lg"><X className="w-4 h-4" /></button>
               </div>
             </div>
             <div className={clsx('p-5 space-y-3', orderMaximized && 'flex-1 overflow-y-auto')}>
@@ -1538,7 +1563,7 @@ export default function SampleProduction() {
                   onClick={() => window.print()}
                   className={clsx(outlineBtn, 'flex-1 justify-center')}
                 >
-                  🖨️ Print
+                  <Printer className="w-3.5 h-3.5" /> Print
                 </button>
                 <button
                   type="button"
@@ -1548,7 +1573,7 @@ export default function SampleProduction() {
                   }}
                   className={clsx(outlineBtn, 'flex-1 justify-center')}
                 >
-                  📋 Copy JSON
+                  <Copy className="w-3.5 h-3.5" /> Copy JSON
                 </button>
               </div>
               <div className="flex gap-3">
@@ -1574,19 +1599,18 @@ export default function SampleProduction() {
       )}
 
       {dispatchLead && (
-        <div className={clsx('fixed inset-0 z-[70] flex items-center justify-center', dispatchMaximized ? 'p-0' : 'p-4')} style={bodyFont}>
-          <style>{FONT_IMPORT}</style>
+        <div className={clsx('fixed inset-0 z-[70] flex items-center justify-center', dispatchMaximized ? 'p-0' : 'p-4')}>
           <div className="absolute inset-0 bg-[#1c1917]/50 backdrop-blur-sm" onClick={() => setDispatchLead(null)} />
           <div className={clsx('relative bg-white shadow-[0_10px_40px_rgba(46,36,27,0.16)] border border-[#ddd6c4]',
             dispatchMaximized ? 'w-screen h-screen max-w-none rounded-none flex flex-col' : 'w-full max-w-md rounded-2xl')}>
             <div className={clsx('p-5 border-b border-[#e7e2d6] bg-[#f1ede4] flex items-center justify-between flex-shrink-0', !dispatchMaximized && 'rounded-t-2xl')}>
               <div>
-                <h3 className="font-bold text-[#1c1917]" style={displayFont}>🚚 Confirm Dispatch</h3>
+                <h3 className="font-bold text-[#1c1917] inline-flex items-center gap-1.5"><Truck className="w-4 h-4" /> Confirm Dispatch</h3>
                 <p className="text-xs text-[#6b6155] mt-0.5">{dispatchLead.name} — {dispatchLead.productionOrderId?.orderNumber}</p>
               </div>
               <div className="flex items-center gap-1.5 flex-shrink-0">
-                <button onClick={() => setDispatchMaximized((m) => !m)} title={dispatchMaximized ? 'Restore' : 'Maximize'} className="w-9 h-9 rounded-lg hover:bg-[#e7e2d6] flex items-center justify-center text-[#8a8171] hover:text-[#1c1917] text-base">{dispatchMaximized ? '🗗' : '🗖'}</button>
-                <button onClick={() => setDispatchLead(null)} className="w-9 h-9 rounded-lg hover:bg-[#e7e2d6] flex items-center justify-center text-[#8a8171] hover:text-[#1c1917] text-lg">✕</button>
+                <button onClick={() => setDispatchMaximized((m) => !m)} title={dispatchMaximized ? 'Restore' : 'Maximize'} className="w-9 h-9 rounded-lg hover:bg-[#e7e2d6] flex items-center justify-center text-[#8a8171] hover:text-[#1c1917] text-base">{dispatchMaximized ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}</button>
+                <button onClick={() => setDispatchLead(null)} className="w-9 h-9 rounded-lg hover:bg-[#e7e2d6] flex items-center justify-center text-[#8a8171] hover:text-[#1c1917] text-lg"><X className="w-4 h-4" /></button>
               </div>
             </div>
             <div className={clsx('p-5 space-y-3', dispatchMaximized && 'flex-1 overflow-y-auto')}>
@@ -1666,20 +1690,19 @@ function OrphanOrderPanel({ orderId: initialOrderId, onClose }) {
   const stage = viewStage ?? order?.stage ?? 0;
 
   return (
-    <div className={clsx('fixed inset-0 z-[70] flex items-center justify-center', maximized ? 'p-0' : 'p-4')} style={bodyFont}>
-      <style>{FONT_IMPORT}</style>
+    <div className={clsx('fixed inset-0 z-[70] flex items-center justify-center', maximized ? 'p-0' : 'p-4')}>
       <div className="absolute inset-0 bg-[#1c1917]/50 backdrop-blur-sm" onClick={onClose} />
       <div className={clsx('relative bg-white shadow-[0_10px_40px_rgba(46,36,27,0.16)] border border-[#ddd6c4] flex flex-col',
         maximized ? 'w-screen h-screen max-w-none rounded-none' : 'w-full max-w-4xl rounded-2xl')}
         style={maximized ? undefined : { maxHeight: '90vh' }}>
         <div className={clsx('p-5 border-b border-[#e7e2d6] bg-[#f1ede4] flex items-center justify-between flex-shrink-0', !maximized && 'rounded-t-2xl')}>
           <div>
-            <h3 className="font-bold text-[#1c1917]" style={displayFont}>{order?.orderNumber || 'Loading…'}</h3>
+            <h3 className="font-bold text-[#1c1917]">{order?.orderNumber || 'Loading…'}</h3>
             <p className="text-xs text-[#6b6155]">{order?.customer || 'No linked CRM lead'} · {order?.catalogProduct?.name || '—'}</p>
           </div>
           <div className="flex items-center gap-1.5">
-            <button onClick={() => setMaximized((m) => !m)} title={maximized ? 'Restore' : 'Maximize'} className="w-9 h-9 rounded-lg hover:bg-[#e7e2d6] flex items-center justify-center text-[#8a8171] hover:text-[#1c1917] text-base">{maximized ? '🗗' : '🗖'}</button>
-            <button onClick={onClose} className="w-9 h-9 rounded-lg hover:bg-[#e7e2d6] flex items-center justify-center text-[#8a8171] hover:text-[#1c1917] text-lg">✕</button>
+            <button onClick={() => setMaximized((m) => !m)} title={maximized ? 'Restore' : 'Maximize'} className="w-9 h-9 rounded-lg hover:bg-[#e7e2d6] flex items-center justify-center text-[#8a8171] hover:text-[#1c1917] text-base">{maximized ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}</button>
+            <button onClick={onClose} className="w-9 h-9 rounded-lg hover:bg-[#e7e2d6] flex items-center justify-center text-[#8a8171] hover:text-[#1c1917] text-lg"><X className="w-4 h-4" /></button>
           </div>
         </div>
         <div className="flex-1 overflow-y-auto p-5">
@@ -1753,23 +1776,22 @@ function StageFocusPanel({ orderId, stageTab, StageComponent, onClose }) {
   };
 
   return (
-    <div className={clsx('fixed inset-0 z-[70] flex items-center justify-center', maximized ? 'p-0' : 'p-4')} style={bodyFont}>
-      <style>{FONT_IMPORT}</style>
+    <div className={clsx('fixed inset-0 z-[70] flex items-center justify-center', maximized ? 'p-0' : 'p-4')}>
       <div className="absolute inset-0 bg-[#1c1917]/50 backdrop-blur-sm" onClick={onClose} />
       <div className={clsx('relative bg-white shadow-[0_10px_40px_rgba(46,36,27,0.16)] border border-[#ddd6c4] flex flex-col',
         maximized ? 'w-screen h-screen max-w-none rounded-none' : 'w-full max-w-3xl rounded-2xl')}
         style={maximized ? undefined : { maxHeight: '90vh' }}>
         <div className={clsx('p-5 border-b border-[#e7e2d6] bg-[#f1ede4] flex items-center justify-between flex-shrink-0', !maximized && 'rounded-t-2xl')}>
           <div>
-            <h3 className="font-bold text-[#1c1917]" style={displayFont}>{stageTab?.emoji} {stageTab?.label} — {order?.orderNumber || 'Loading…'}</h3>
+            <h3 className="font-bold text-[#1c1917]">{stageTab?.emoji} {stageTab?.label} — {order?.orderNumber || 'Loading…'}</h3>
             <p className="text-xs text-[#6b6155]">
               {order?.customer || 'No linked CRM lead'} · {order?.catalogProduct?.name || '—'}
               {stageTab?.key !== 'weighing' && order?.[STAGE_ID_FIELD[stageTab?.key]] && <> · <span className="font-mono">{order[STAGE_ID_FIELD[stageTab.key]]}</span></>}
             </p>
           </div>
           <div className="flex items-center gap-1.5">
-            <button onClick={() => setMaximized((m) => !m)} title={maximized ? 'Restore' : 'Maximize'} className="w-9 h-9 rounded-lg hover:bg-[#e7e2d6] flex items-center justify-center text-[#8a8171] hover:text-[#1c1917] text-base">{maximized ? '🗗' : '🗖'}</button>
-            <button onClick={onClose} className="w-9 h-9 rounded-lg hover:bg-[#e7e2d6] flex items-center justify-center text-[#8a8171] hover:text-[#1c1917] text-lg">✕</button>
+            <button onClick={() => setMaximized((m) => !m)} title={maximized ? 'Restore' : 'Maximize'} className="w-9 h-9 rounded-lg hover:bg-[#e7e2d6] flex items-center justify-center text-[#8a8171] hover:text-[#1c1917] text-base">{maximized ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}</button>
+            <button onClick={onClose} className="w-9 h-9 rounded-lg hover:bg-[#e7e2d6] flex items-center justify-center text-[#8a8171] hover:text-[#1c1917] text-lg"><X className="w-4 h-4" /></button>
           </div>
         </div>
         <div className="flex-1 overflow-y-auto p-5 space-y-4">
