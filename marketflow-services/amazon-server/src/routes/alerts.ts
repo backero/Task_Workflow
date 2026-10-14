@@ -179,11 +179,11 @@ router.get('/v1/alerts/stats', (req, res) => {
   const byRule = sqlite.prepare(`
     SELECT rule_id, COUNT(*) as count, severity
     FROM alerts
-    WHERE status IN ('open', 'acknowledged')
+    WHERE status IN ('open', 'acknowledged') AND marketplace = ?
     GROUP BY rule_id
     ORDER BY count DESC
     LIMIT 10
-  `).all() as any[]
+  `).all(marketplace) as any[]
 
   res.json({
     stats: {

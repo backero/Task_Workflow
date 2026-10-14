@@ -2,13 +2,13 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Sparkles, Users, MessageCircle, BarChart3, Radio, Check, X, Send,
-  Megaphone, CalendarDays, Eye, Settings as SettingsIcon, TriangleAlert, Lock, CheckCircle2,
+  Megaphone, CalendarDays, Eye, Settings as SettingsIcon, TriangleAlert, Lock, CheckCircle2, FileText,
 } from 'lucide-react';
 import api from '../../api/axios';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '../../store/useAuthStore';
 import {
-  Button, Card, Checkbox, Empty as AntEmpty, Input, Progress, Select, Space, Spin,
+  Button, Card, Checkbox, Empty as AntEmpty, Image, Input, Modal, Progress, Select, Space, Spin,
   Statistic, Table, Tabs, Tag, Typography, Upload,
 } from 'antd';
 
@@ -18,6 +18,7 @@ const { TextArea } = Input;
 const TABS = [
   { key: 'overview', label: 'Overview', icon: Sparkles },
   { key: 'create', label: 'Create Post', icon: Sparkles },
+  { key: 'posts', label: 'Posts', icon: FileText },
   { key: 'leads', label: 'Leads', icon: Users },
   { key: 'engagement', label: 'Engagement', icon: MessageCircle },
   { key: 'analytics', label: 'Analytics', icon: BarChart3 },
@@ -70,6 +71,7 @@ function TabContent({ tabKey }) {
   switch (tabKey) {
     case 'overview': return <OverviewTab />;
     case 'create': return <CreateTab />;
+    case 'posts': return <PostsTab />;
     case 'leads': return <LeadsTab />;
     case 'engagement': return <EngagementTab />;
     case 'analytics': return <AnalyticsTab />;
@@ -323,6 +325,116 @@ function ManualPostSection() {
         {result && <SuccessBanner>Post #{result.post_id} saved as {result.state === 'review' ? 'review' : 'approved & scheduled'}.</SuccessBanner>}
       </Space>
     </Card>
+  );
+}
+
+/* ── Posts ────────────────────────────────────────────────────────────────── */
+
+const POST_STATES = ['review', 'approved', 'partial', 'published', 'failed'];
+const POST_STATE_COLOR = { review: 'gold', approved: 'blue', partial: 'orange', published: 'green', failed: 'red', draft: 'default', rejected: 'default' };
+const PUB_STATE_COLOR = { pending: 'default', publishing: 'blue', published: 'green', failed_retry: 'gold', failed: 'red' };
+
+function PostsTab() {
+  const [filter, setFilter] = useState('all');
+  const [openPostId, setOpenPostId] = useState(null);
+
+  const { data, isLoading, error } = useQuery({
+    queryKey: ['social-engine-posts', filter],
+    queryFn: () => api.get('/social-engine/posts', { params: filter === 'all' ? {} : { state: filter } }).then((r) => r.data.posts),
+  });
+
+  if (error) return <Empty>Failed to load posts.</Empty>;
+
+  const columns = [
+    { title: 'ID', dataIndex: 'id', width: 60 },
+    { title: 'Pillar', dataIndex: 'pillar', render: (v) => <Tag>{v}</Tag> },
+    { title: 'Topic', dataIndex: 'topic', render: (v) => <Text style={{ fontSize: 13 }}>{v || '—'}</Text> },
+    { title: 'State', dataIndex: 'state', render: (v) => <Tag color={POST_STATE_COLOR[v] || 'default'}>{v}</Tag> },
+    {
+      title: 'Platforms', dataIndex: 'publications',
+      render: (pubs) => (
+        <Space size={4} wrap>
+          {(pubs || []).map((p) => (
+            <Tag key={p.platform} color={PUB_STATE_COLOR[p.state] || 'default'}>
+              {p.platform}{p.url ? '' : ''}
+            </Tag>
+          ))}
+        </Space>
+      ),
+    },
+    { title: 'Scheduled', dataIndex: 'scheduled_at', render: (v) => (v ? new Date(v).toLocaleString() : '—') },
+    {
+      title: '', dataIndex: 'id', key: 'view',
+      render: (id) => <Button size="small" onClick={() => setOpenPostId(id)}>View</Button>,
+    },
+  ];
+
+  return (
+    <div>
+      <Space size={6} wrap style={{ marginBottom: 16 }}>
+        <Tag.CheckableTag checked={filter === 'all'} onChange={() => setFilter('all')}>all</Tag.CheckableTag>
+        {POST_STATES.map((s) => (
+          <Tag.CheckableTag key={s} checked={filter === s} onChange={() => setFilter(s)}>{s}</Tag.CheckableTag>
+        ))}
+      </Space>
+
+      {isLoading ? <Loading /> : !data?.length ? <Empty>No posts yet.</Empty> : (
+        <Table rowKey="id" dataSource={data} columns={columns} pagination={{ pageSize: 20 }} size="small" />
+      )}
+
+      <PostDetailModal postId={openPostId} onClose={() => setOpenPostId(null)} />
+    </div>
+  );
+}
+
+function PostDetailModal({ postId, onClose }) {
+  const { data, isLoading } = useQuery({
+    queryKey: ['social-engine-post', postId],
+    queryFn: () => api.get(`/social-engine/posts/${postId}`).then((r) => r.data),
+    enabled: postId != null,
+  });
+
+  return (
+    <Modal open={postId != null} onCancel={onClose} footer={null} title={postId != null ? `Post #${postId}` : ''} width={600}>
+      {isLoading || !data ? <Loading /> : (
+        <Space direction="vertical" style={{ width: '100%' }} size={12}>
+          <Space size={6} wrap>
+            <Tag>{data.pillar}</Tag>
+            <Tag color={POST_STATE_COLOR[data.state] || 'default'}>{data.state}</Tag>
+            {data.compliance_flags?.length > 0 && <Tag color="red">compliance flagged</Tag>}
+          </Space>
+          {data.topic && <Text strong style={{ fontSize: 14 }}>{data.topic}</Text>}
+          {data.image_url && <Image src={data.image_url} style={{ maxWidth: '100%', borderRadius: 8 }} />}
+          {data.video_url && (
+            <video src={data.video_url} controls style={{ width: '100%', borderRadius: 8 }} />
+          )}
+          <Paragraph style={{ fontSize: 13, whiteSpace: 'pre-wrap' }}>{data.caption}</Paragraph>
+          {data.hashtags?.length > 0 && (
+            <Space size={4} wrap>
+              {data.hashtags.map((h) => <Tag key={h}>{h}</Tag>)}
+            </Space>
+          )}
+          <div>
+            <Text strong style={{ fontSize: 12, display: 'block', marginBottom: 6 }}>Publications</Text>
+            <Space direction="vertical" style={{ width: '100%' }} size={6}>
+              {(data.publications || []).map((p) => (
+                <div key={p.platform} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 13 }}>
+                  <Space size={6}>
+                    <Text strong style={{ textTransform: 'capitalize' }}>{p.platform}</Text>
+                    <Tag color={PUB_STATE_COLOR[p.state] || 'default'}>{p.state}</Tag>
+                  </Space>
+                  {p.url && <a href={p.url} target="_blank" rel="noreferrer">view live</a>}
+                  {p.error && <Text type="danger" style={{ fontSize: 12 }}>{p.error}</Text>}
+                </div>
+              ))}
+            </Space>
+          </div>
+          {data.scheduled_at && (
+            <Text type="secondary" style={{ fontSize: 12 }}>Scheduled: {new Date(data.scheduled_at).toLocaleString()}</Text>
+          )}
+        </Space>
+      )}
+    </Modal>
   );
 }
 

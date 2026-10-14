@@ -14,6 +14,7 @@ import alertsRouter from './routes/alerts.js'
 import trendsRouter from './routes/trends.js'
 import unifiedDashboardRouter from './routes/unified-dashboard.js'
 import insightsRecommendationsRouter from './routes/insights-recommendations.js'
+import platformListingsRouter from './routes/platform-listings.js'
 import { startScheduler } from './scheduler.js'
 import { createAiInsightsTable } from './processors/ai-insights.js'
 import { startBackupScheduler, getBackupStatus } from './services/backup.js'
@@ -82,6 +83,7 @@ app.use(alertsRouter)
 app.use(trendsRouter)
 app.use(unifiedDashboardRouter)
 app.use(insightsRecommendationsRouter)
+app.use(platformListingsRouter)
 
 const port = Number(process.env.PORT ?? 4000)
 // Loopback only by default: this server holds real seller data + Amazon refresh tokens and

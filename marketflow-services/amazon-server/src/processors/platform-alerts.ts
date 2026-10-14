@@ -1,151 +1,109 @@
 import { sqlite } from '../db/client.js'
+import { openPlatformDb } from './platform-metrics.js'
 
 /**
  * Cross-Platform Alert Generation
- * Creates alerts for all marketplaces based on their specific metrics
+ *
+ * Each platform already computes its own real alerts/recommendations inside its own live
+ * DB (Meesho's Supplier Panel rules, Snapdeal's Health Gate rules, Flipkart's recommend engine).
+ * This mirrors those OPEN rows into amazon/server's shared `alerts` table (read directly from
+ * each platform's own SQLite file - readOnly, no HTTP), so the cross-platform /v1/alerts(/stats)
+ * endpoints show the same real counts the platform's own app shows - not raw_ingest rows no one
+ * writes anymore.
  */
 
+/** amazon/server's alerts table + /v1/alerts(/stats) expect severity 'red' | 'amber' | anything-else(=green). */
+function toRedAmberGreen(native: string | null | undefined): 'red' | 'amber' | 'green' {
+  const s = (native || '').toLowerCase()
+  if (s === 'critical' || s === 'high') return 'red'
+  if (s === 'warning' || s === 'medium') return 'amber'
+  return 'green'
+}
+
 export function generateMeeshoAlerts() {
-  const alerts = []
-
-  // Alert: Low rating
-  const lowRating = sqlite.prepare(`
-    SELECT body_json FROM raw_ingest
-    WHERE marketplace = 'meesho' AND payload_type = 'overview'
-    AND received_at >= datetime('now', '-1 day')
-    ORDER BY received_at DESC LIMIT 1
-  `).get() as any
-
-  if (lowRating) {
-    const data = JSON.parse(lowRating.body_json)
-    if (data.kpis?.avg_rating && data.kpis.avg_rating < 3.5) {
+  const alerts: any[] = []
+  const db = openPlatformDb('meesho')
+  if (!db) return alerts
+  try {
+    const rows = db
+      .prepare(
+        `SELECT id, ts, severity, listing_id, code, message FROM alerts
+         WHERE acknowledged = 0 ORDER BY id DESC LIMIT 50`
+      )
+      .all() as Array<{ id: number; ts: string; severity: string; listing_id: number | null; code: string | null; message: string | null }>
+    for (const r of rows) {
       alerts.push({
-        rule_id: 'meesho_low_rating',
-        severity: 'red',
-        title: `Meesho: Low average rating (${data.kpis.avg_rating}★)`,
-        message: `Rating is below 3.5 star threshold. Check product quality and customer reviews.`,
-        action: 'Review customer feedback and improve product quality or listings.',
+        rule_id: `meesho_sync_${r.code || 'alert'}_${r.id}`,
+        severity: toRedAmberGreen(r.severity),
+        title: `Meesho: ${r.code || 'Issue'}${r.listing_id ? ` (listing #${r.listing_id})` : ''}`,
+        message: r.message || '',
+        action: 'Open the Meesho Alerts page for details.',
         marketplace: 'meesho',
       })
     }
+  } catch (err) {
+    console.error('[platform-alerts] Meesho read failed:', err)
+  } finally {
+    db.close()
   }
-
-  // Alert: Low impressions trend
-  const impressions = sqlite.prepare(`
-    SELECT json_extract(body_json, '$.kpis.impressions_7d') as imp
-    FROM raw_ingest
-    WHERE marketplace = 'meesho' AND payload_type = 'overview'
-    ORDER BY received_at DESC LIMIT 2
-  `).all() as any[]
-
-  if (impressions.length >= 2) {
-    const curr = parseInt(impressions[0].imp) || 0
-    const prev = parseInt(impressions[1].imp) || 1
-    if (curr > 0 && curr < prev * 0.7) {
-      alerts.push({
-        rule_id: 'meesho_low_impressions',
-        severity: 'amber',
-        title: `Meesho: Impressions declined 30%`,
-        message: `Previous: ${prev} → Current: ${curr}. Check keyword visibility.`,
-        action: 'Increase keyword bids or update product listings.',
-        marketplace: 'meesho',
-      })
-    }
-  }
-
   return alerts
 }
 
 export function generateSnapdealAlerts() {
-  const alerts = []
-
-  const overviewData = sqlite.prepare(`
-    SELECT body_json FROM raw_ingest
-    WHERE marketplace = 'snapdeal' AND payload_type = 'overview'
-    AND received_at >= datetime('now', '-1 day')
-    ORDER BY received_at DESC LIMIT 1
-  `).get() as any
-
-  if (overviewData) {
-    const data = JSON.parse(overviewData.body_json)
-
-    if (data.kpis?.live && data.kpis.live < 10) {
+  const alerts: any[] = []
+  const db = openPlatformDb('snapdeal')
+  if (!db) return alerts
+  try {
+    const rows = db
+      .prepare(
+        `SELECT id, ts, severity, code, title, reason FROM alerts
+         WHERE status = 'open' ORDER BY id DESC LIMIT 50`
+      )
+      .all() as Array<{ id: number; ts: string; severity: string; code: string | null; title: string | null; reason: string | null }>
+    for (const r of rows) {
       alerts.push({
-        rule_id: 'snapdeal_low_live_listings',
-        severity: 'red',
-        title: `Snapdeal: Only ${data.kpis.live} live listings`,
-        message: `Catalog size is too small. Expand product range.`,
-        action: 'Add more products to increase market presence.',
+        rule_id: `snapdeal_sync_${r.code || r.id}_${r.id}`,
+        severity: toRedAmberGreen(r.severity),
+        title: `Snapdeal: ${r.title || r.code || 'Issue'}`,
+        message: r.reason || '',
+        action: 'Open the Snapdeal Alerts page for details.',
         marketplace: 'snapdeal',
       })
     }
-
-    if (data.open_alerts?.critical && data.open_alerts.critical > 5) {
-      alerts.push({
-        rule_id: 'snapdeal_critical_alerts',
-        severity: 'red',
-        title: `Snapdeal: ${data.open_alerts.critical} critical alerts`,
-        message: `Multiple policy or quality issues detected.`,
-        action: 'Address critical alerts immediately.',
-        marketplace: 'snapdeal',
-      })
-    }
+  } catch (err) {
+    console.error('[platform-alerts] Snapdeal read failed:', err)
+  } finally {
+    db.close()
   }
-
   return alerts
 }
 
 export function generateFlipkartAlerts() {
-  const alerts = []
-
-  const businessHealth = sqlite.prepare(`
-    SELECT body_json FROM raw_ingest
-    WHERE marketplace = 'flipkart' AND payload_type = 'overview'
-    AND received_at >= datetime('now', '-1 day')
-    ORDER BY received_at DESC LIMIT 1
-  `).get() as any
-
-  if (businessHealth) {
-    const data = JSON.parse(businessHealth.body_json)
-    const bh = data.account_metrics?.business_health || {}
-
-    // Alert: High RTO rate
-    if (bh.rto_pct && bh.rto_pct > 10) {
+  const alerts: any[] = []
+  const db = openPlatformDb('flipkart')
+  if (!db) return alerts
+  try {
+    const rows = db
+      .prepare(
+        `SELECT id, fsn, rule_id, severity, title, detail FROM recommendations
+         WHERE status = 'open' ORDER BY id DESC LIMIT 50`
+      )
+      .all() as Array<{ id: number; fsn: string | null; rule_id: string | null; severity: string; title: string | null; detail: string | null }>
+    for (const r of rows) {
       alerts.push({
-        rule_id: 'flipkart_high_rto',
-        severity: 'red',
-        title: `Flipkart: High RTO rate (${bh.rto_pct}%)`,
-        message: `Return-to-origin rate exceeds 10%. Operational issue.`,
-        action: 'Improve packaging, check shipping partners, reduce OOD (out-of-delivery) issues.',
+        rule_id: `flipkart_sync_${r.rule_id || r.id}_${r.id}`,
+        severity: toRedAmberGreen(r.severity),
+        title: `Flipkart: ${r.title || 'Issue'}`,
+        message: r.detail || '',
+        action: 'Open the Flipkart Recommendations page for details.',
         marketplace: 'flipkart',
       })
     }
-
-    // Alert: High cancellation rate
-    if (bh.pre_dispatch_cancel_pct && bh.pre_dispatch_cancel_pct > 5) {
-      alerts.push({
-        rule_id: 'flipkart_high_cancellation',
-        severity: 'amber',
-        title: `Flipkart: High cancellation rate (${bh.pre_dispatch_cancel_pct}%)`,
-        message: `Pre-dispatch cancellations exceed healthy 5% level.`,
-        action: 'Review inventory accuracy and order fulfillment process.',
-        marketplace: 'flipkart',
-      })
-    }
-
-    // Alert: Low conversion rate
-    if (bh.conversion_7d_pct && bh.conversion_7d_pct < 0.5) {
-      alerts.push({
-        rule_id: 'flipkart_low_conversion',
-        severity: 'amber',
-        title: `Flipkart: Low conversion rate (${bh.conversion_7d_pct}%)`,
-        message: `Below healthy benchmark of 0.5-1%. Review product pages and pricing.`,
-        action: 'Optimize product listings, improve images, adjust pricing strategy.',
-        marketplace: 'flipkart',
-      })
-    }
+  } catch (err) {
+    console.error('[platform-alerts] Flipkart read failed:', err)
+  } finally {
+    db.close()
   }
-
   return alerts
 }
 
@@ -154,6 +112,8 @@ export function generateAmazonAlerts() {
   // This function just returns empty - Amazon uses fact_account_health data
   return []
 }
+
+const SYNCED_MARKETPLACES = ['meesho', 'snapdeal', 'flipkart']
 
 export async function runAllPlatformAlerts() {
   console.log('[platform-alerts] Generating alerts for all platforms...')
@@ -165,6 +125,12 @@ export async function runAllPlatformAlerts() {
       ...generateSnapdealAlerts(),
       ...generateFlipkartAlerts(),
     ]
+
+    // These 3 platforms are fully re-synced from their own live DB every run, so clear the
+    // previous sync's rows first - otherwise a resolved issue would stay "open" here forever.
+    for (const mp of SYNCED_MARKETPLACES) {
+      sqlite.prepare(`DELETE FROM alerts WHERE marketplace = ? AND rule_id LIKE ?`).run(mp, `${mp}_sync_%`)
+    }
 
     // Store all alerts
     const now = new Date()
