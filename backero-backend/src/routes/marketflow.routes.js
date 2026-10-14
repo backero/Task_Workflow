@@ -151,7 +151,7 @@ router.get('/meesho/overview', async (req, res) => {
 
     const meeshoUnified = unifiedRes.data?.platforms?.meesho || {};
     const recommendations = recsRes.data?.recommendations || [];
-    const alerts = (alertsRes.data || []).slice(0, 5);
+    const alerts = (alertsRes.data?.alerts || []).slice(0, 5);
 
     res.json({
       kpis: {
