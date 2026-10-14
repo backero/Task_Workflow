@@ -22,10 +22,14 @@ export const SocketProvider = ({ children }) => {
     const token = localStorage.getItem('accessToken')
     if (!token) return
 
-    const socket = io('http://localhost:5000', {
+    const apiUrl  = import.meta.env.VITE_API_URL || 'http://localhost:5000/api'
+    const BACKEND = new URL(apiUrl).origin
+
+    const socket = io(BACKEND, {
       auth: { token },
-      reconnectionAttempts: 5,
+      reconnectionAttempts: Infinity,
       reconnectionDelay: 2000,
+      reconnectionDelayMax: 30000,
     })
 
     socketRef.current = socket

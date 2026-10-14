@@ -24,7 +24,8 @@ const allowedOrigins = [
 
 app.use(cors({
   origin: (origin, cb) => {
-    if (!origin || allowedOrigins.includes(origin) || allowedOrigins.some(o => origin.endsWith('.vercel.app'))) {
+    const isLocalhost = NODE_ENV !== 'production' && origin && /^http:\/\/localhost:\d+$/.test(origin);
+    if (!origin || isLocalhost || allowedOrigins.includes(origin) || allowedOrigins.some(o => origin.endsWith('.vercel.app'))) {
       return cb(null, true);
     }
     cb(new Error(`CORS: origin ${origin} not allowed`));
@@ -55,7 +56,8 @@ app.use(globalLimiter);
 
 const otpLimiter = rateLimit({
   windowMs: 10 * 60 * 1000,
-  max: 5,
+  max: NODE_ENV === 'production' ? 5 : 100,
+  skip: () => NODE_ENV !== 'production',
   message: { success: false, message: 'Too many OTP requests. Try again in 10 minutes.' },
 });
 app.use('/api/auth/login', otpLimiter);

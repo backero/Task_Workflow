@@ -4,9 +4,10 @@ const { authenticate } = require('../middleware/auth.middleware');
 const { requireMinRole } = require('../middleware/role.middleware');
 const { validate } = require('../middleware/validate.middleware');
 const { createEmployeeSchema, updateEmployeeSchema } = require('../validators/employee.validator');
+const { uploadImage } = require('../middleware/upload.middleware');
 const {
   listEmployees, getEmployee, createEmployee,
-  updateEmployee, toggleEmployeeStatus, deleteEmployee, getDepartments,
+  updateEmployee, toggleEmployeeStatus, deleteEmployee, getDepartments, uploadAvatar,
 } = require('../controllers/employee.controller');
 
 router.use(authenticate);
@@ -17,9 +18,10 @@ router.get('/departments',   getDepartments);
 router.get('/:id',           getEmployee);
 
 // Write — HR and above
-router.post('/',             requireMinRole('HR'), validate(createEmployeeSchema), createEmployee);
-router.patch('/:id',         requireMinRole('HR'), validate(updateEmployeeSchema), updateEmployee);
-router.patch('/:id/status',  requireMinRole('HR'),                                 toggleEmployeeStatus);
+router.post('/',              requireMinRole('HR'), validate(createEmployeeSchema), createEmployee);
+router.patch('/:id',          requireMinRole('HR'), validate(updateEmployeeSchema), updateEmployee);
+router.patch('/:id/status',   requireMinRole('HR'),                                 toggleEmployeeStatus);
+router.patch('/:id/avatar',   requireMinRole('HR'), uploadImage.single('avatar'),   uploadAvatar);
 
 // Delete — ADMIN and above
 router.delete('/:id',        requireMinRole('ADMIN'),                              deleteEmployee);

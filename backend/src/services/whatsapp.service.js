@@ -270,6 +270,8 @@ const sendDailyProductionReport = async (phone, name, reportDate, textSummary, p
   }
 };
 
+const sendCrmMessage = (phone, message) => dispatch(phone, 'crm_message', [], message);
+
 module.exports = {
   sendTaskAssigned,
   sendTaskStatusUpdate,
@@ -283,4 +285,5 @@ module.exports = {
   sendProductionCompleted,
   sendWelcomeEmployee,
   sendDailyProductionReport,
+  sendCrmMessage,
 };

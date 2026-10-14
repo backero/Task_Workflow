@@ -14,6 +14,8 @@ const PAGE_TITLES = {
   '/inventory':  'Inventory',
   '/production': 'Production',
   '/finance':    'Finance',
+  '/crm':        'CRM — Sales Pipeline',
+  '/marketing':  'Marketing',
   '/reports':    'Reports & Analytics',
   '/members':    'Members',
   '/settings':   'Settings',

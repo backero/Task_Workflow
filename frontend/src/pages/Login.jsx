@@ -9,6 +9,7 @@ const Login = () => {
   const [phone, setPhone] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [devOtpHint, setDevOtpHint] = useState('')
 
   if (user) return <Navigate to="/dashboard" replace />
 
@@ -28,7 +29,14 @@ const Login = () => {
     setLoading(true)
     try {
       const { data } = await api.post('/auth/login', { phone: fullPhone })
-      navigate('/verify', { state: { phone: fullPhone, devOtp: data.data?.devOtp || null } })
+      const devOtp = data.data?.devOtp || null
+      if (devOtp) {
+        // Dev mode — show OTP here and navigate with auto-fill
+        setDevOtpHint(devOtp)
+        setTimeout(() => navigate('/verify', { state: { phone: fullPhone, devOtp } }), 800)
+      } else {
+        navigate('/verify', { state: { phone: fullPhone } })
+      }
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to send OTP. Try again.')
     } finally {
@@ -94,9 +102,17 @@ const Login = () => {
             </button>
           </form>
 
-          <div className="mt-6 p-3 bg-green-50 border border-green-200 rounded-xl text-xs text-green-700">
-            <strong>Dev mode:</strong> OTP is auto-filled — you will be signed in automatically after clicking Send OTP.
-          </div>
+          {devOtpHint ? (
+            <div className="mt-6 p-3 bg-green-50 border border-green-200 rounded-xl text-sm text-green-800 text-center">
+              <p className="font-semibold mb-1">OTP sent (dev mode)</p>
+              <p className="text-2xl font-mono font-bold tracking-widest text-green-700">{devOtpHint}</p>
+              <p className="text-xs text-green-600 mt-1">Redirecting to verify page…</p>
+            </div>
+          ) : (
+            <div className="mt-6 p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-700">
+              <strong>Dev mode:</strong> OTP will appear here after clicking Send OTP. No SMS is sent — it auto-fills automatically.
+            </div>
+          )}
         </div>
 
         <p className="text-center text-xs text-gray-400 mt-6">

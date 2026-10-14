@@ -31,6 +31,12 @@ const organizationSchema = new mongoose.Schema(
       timezone: { type: String, default: 'Asia/Kolkata' },
       currency: { type: String, default: 'INR' },
     },
+    crm: {
+      sheetUrl:        { type: String,  default: null },
+      autoSync:        { type: Boolean, default: false },
+      lastSyncAt:      { type: Date,    default: null },
+      followUpEnabled: { type: Boolean, default: true },
+    },
     address: {
       line1: String,
       city: String,

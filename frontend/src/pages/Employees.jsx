@@ -391,9 +391,17 @@ export default function Employees() {
                   className="flex items-center gap-3 cursor-pointer"
                   onClick={() => navigate(`/employees/${emp._id}`)}
                 >
-                  <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm flex-shrink-0 ${emp.isActive ? 'bg-brand-100 text-brand-700' : 'bg-gray-100 text-gray-400'}`}>
-                    {(emp.name?.[0] || emp.phone?.[3] || '?').toUpperCase()}
-                  </div>
+                  {emp.avatar ? (
+                    <img
+                      src={emp.avatar}
+                      alt={emp.name}
+                      className="w-10 h-10 rounded-full object-cover flex-shrink-0"
+                    />
+                  ) : (
+                    <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm flex-shrink-0 ${emp.isActive ? 'bg-brand-100 text-brand-700' : 'bg-gray-100 text-gray-400'}`}>
+                      {(emp.name?.[0] || emp.phone?.[3] || '?').toUpperCase()}
+                    </div>
+                  )}
                   <div className="min-w-0">
                     <p className="font-medium text-gray-800 text-sm truncate hover:text-brand-600">
                       {emp.name || <span className="text-gray-400 italic">No name</span>}

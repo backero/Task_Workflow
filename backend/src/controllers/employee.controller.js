@@ -7,6 +7,7 @@ const { ROLE_HIERARCHY, ROLES } = require('../utils/constants');
 const { sendWelcomeEmployee } = require('../services/whatsapp.service');
 const Organization = require('../models/Organization');
 const logger = require('../utils/logger');
+const { processImageUpload } = require('../middleware/upload.middleware');
 
 const SAFE_SELECT = 'name phone email role department designation avatar joiningDate isActive lastLoginAt createdAt createdBy';
 
@@ -259,7 +260,28 @@ const getDepartments = async (req, res) => {
   }
 };
 
+const uploadAvatar = async (req, res) => {
+  const orgId = req.user.organizationId;
+  const { id } = req.params;
+  try {
+    if (!req.file) return badRequest(res, 'No image provided');
+    const avatarUrl = await processImageUpload(req.file, 'backero/avatars');
+    const employee = await User.findOneAndUpdate(
+      { _id: id, organizationId: orgId },
+      { $set: { avatar: avatarUrl } },
+      { new: true }
+    ).select(SAFE_SELECT);
+    if (!employee) return notFound(res, 'Employee not found');
+    await log({ userId: req.user._id, organizationId: orgId, action: 'EMPLOYEE_UPDATED', entity: 'User', entityId: employee._id });
+    emitToOrg(orgId.toString(), 'employee:updated', { employee });
+    return success(res, { employee, avatarUrl }, 'Avatar updated');
+  } catch (err) {
+    logger.error(`uploadAvatar: ${err.message}`);
+    throw err;
+  }
+};
+
 module.exports = {
   listEmployees, getEmployee, createEmployee,
-  updateEmployee, toggleEmployeeStatus, deleteEmployee, getDepartments,
+  updateEmployee, toggleEmployeeStatus, deleteEmployee, getDepartments, uploadAvatar,
 };

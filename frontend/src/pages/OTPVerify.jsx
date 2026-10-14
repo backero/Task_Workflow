@@ -20,10 +20,11 @@ const OTPVerify = () => {
 
   useEffect(() => {
     if (devOtp) {
-      // Auto-fill and submit in dev/console mode
       const filled = devOtp.split('').slice(0, OTP_LENGTH)
       setDigits(filled)
-      setTimeout(() => submitOtp(devOtp), 300)
+      let active = true
+      const timer = setTimeout(() => { if (active) submitOtp(devOtp) }, 300)
+      return () => { active = false; clearTimeout(timer) }
     } else {
       inputRefs.current[0]?.focus()
     }
@@ -193,15 +194,17 @@ const OTPVerify = () => {
           </p>
 
           {devOtp ? (
-            <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-xl text-xs text-green-700">
-              <strong>Dev mode:</strong> OTP auto-filled and signing you in…
+            <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-xl text-center">
+              <p className="text-xs text-green-700 font-semibold mb-1">Dev mode — auto-signing in…</p>
+              <p className="text-xl font-mono font-bold tracking-widest text-green-700">{devOtp}</p>
             </div>
           ) : (
-            <div className="mt-4 p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-700">
-              <strong>Dev tip:</strong> Check your backend terminal for the OTP. It is printed as:
-              <code className="block mt-1 bg-amber-100 px-2 py-1 rounded font-mono">
+            <div className="mt-4 p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-700 space-y-1">
+              <p><strong>Dev tip:</strong> OTP is printed in your backend terminal:</p>
+              <code className="block bg-amber-100 px-2 py-1 rounded font-mono">
                 [SMS:CONSOLE] OTP for {phone}: xxxxxx
               </code>
+              <p className="pt-1">Or go back and click <strong>Send OTP</strong> again to get the OTP shown on screen.</p>
             </div>
           )}
         </div>

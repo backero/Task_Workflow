@@ -1,9 +1,12 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { AuthProvider, useAuth } from './context/AuthContext'
 import { OrgProvider }           from './context/OrgContext'
 import { SocketProvider }        from './context/SocketContext'
 import ProtectedRoute            from './components/ProtectedRoute'
 import { ROLE_HIERARCHY }        from './hooks/useRole'
+
+const queryClient = new QueryClient()
 
 import Login          from './pages/Login'
 import OTPVerify      from './pages/OTPVerify'
@@ -22,6 +25,9 @@ import Inventory      from './pages/Inventory'
 import Finance        from './pages/Finance'
 import Production     from './pages/Production'
 import Reports        from './pages/Reports'
+import CRM           from './pages/CRM'
+import Marketplace   from './pages/Marketplace'
+import Marketing     from './pages/Marketing'
 
 /* ─── Guards ────────────────────────────────────────────────────────────────── */
 
@@ -71,7 +77,8 @@ export default function App() {
     <AuthProvider>
       <OrgProvider>
         <SocketProvider>
-          <BrowserRouter>
+          <QueryClientProvider client={queryClient}>
+            <BrowserRouter>
             <Routes>
 
               {/* ── Public ──────────────────────────────────────────────── */}
@@ -82,6 +89,9 @@ export default function App() {
               <Route path="/onboarding" element={<ProtectedRoute><Onboarding /></ProtectedRoute>} />
 
               {/* ── All authenticated users ─────────────────────────────── */}
+              <Route path="/crm"          element={<Protected><CRM /></Protected>} />
+              <Route path="/marketplace"  element={<Protected><Marketplace /></Protected>} />
+              <Route path="/marketing"    element={<Protected><Marketing /></Protected>} />
               <Route path="/dashboard"    element={<Protected><Dashboard /></Protected>} />
               <Route path="/projects"     element={<Protected><Projects /></Protected>} />
               <Route path="/projects/:id" element={<Protected><ProjectDetail /></Protected>} />
@@ -188,7 +198,8 @@ export default function App() {
               <Route path="*" element={<Navigate to="/login" replace />} />
 
             </Routes>
-          </BrowserRouter>
+            </BrowserRouter>
+          </QueryClientProvider>
         </SocketProvider>
       </OrgProvider>
     </AuthProvider>

@@ -25,7 +25,12 @@ const requestOtp = async (phone, ipAddress = null, userAgent = null) => {
 
   await OtpLog.create({ phone, otp, expiresAt, ipAddress, userAgent });
 
-  await sendOtp(phone, otp);
+  // Delivery failure must never break the flow — OTP is already saved in DB
+  try {
+    await sendOtp(phone, otp);
+  } catch (err) {
+    logger.error(`[OTP] Delivery failed for ${phone}: ${err.message}`);
+  }
 
   return { expiresAt, otp };
 };

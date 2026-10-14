@@ -41,6 +41,17 @@ module.exports = {
   CLOUDINARY_API_KEY:    optional('CLOUDINARY_API_KEY', ''),
   CLOUDINARY_API_SECRET: optional('CLOUDINARY_API_SECRET', ''),
 
+  // Google Sheets CRM sync
+  GOOGLE_SHEET_ID:              optional('GOOGLE_SHEET_ID', ''),
+  GOOGLE_SERVICE_ACCOUNT_EMAIL: optional('GOOGLE_SERVICE_ACCOUNT_EMAIL', ''),
+  GOOGLE_PRIVATE_KEY:           optional('GOOGLE_PRIVATE_KEY', ''),
+  GSHEET_TAB:                   optional('GSHEET_TAB', 'Sheet1'),
+  GSHEET_NAME_COL:              optional('GSHEET_NAME_COL', ''),
+  GSHEET_PHONE_COL:             optional('GSHEET_PHONE_COL', ''),
+  GSHEET_COMPANY_COL:           optional('GSHEET_COMPANY_COL', ''),
+  GSHEET_EMAIL_COL:             optional('GSHEET_EMAIL_COL', ''),
+  GSHEET_QUERY_COL:             optional('GSHEET_QUERY_COL', ''),
+
   SMS_PROVIDER: optional('SMS_PROVIDER', 'console'),
   MSG91_AUTH_KEY: optional('MSG91_AUTH_KEY', ''),
   MSG91_TEMPLATE_ID: optional('MSG91_TEMPLATE_ID', ''),
@@ -48,4 +59,10 @@ module.exports = {
   TWILIO_ACCOUNT_SID: optional('TWILIO_ACCOUNT_SID', ''),
   TWILIO_AUTH_TOKEN: optional('TWILIO_AUTH_TOKEN', ''),
   TWILIO_PHONE_NUMBER: optional('TWILIO_PHONE_NUMBER', ''),
+
+  // Marketing module — proxies to the separately-deployed social-media-automation
+  // Python/FastAPI service (content generation, publishing, engagement AI,
+  // leads). This key is server-side only — never sent to the frontend.
+  MARKETING_ENGINE_URL:       optional('MARKETING_ENGINE_URL', 'http://localhost:8000'),
+  MARKETING_ENGINE_ADMIN_KEY: optional('MARKETING_ENGINE_ADMIN_KEY', ''),
 };

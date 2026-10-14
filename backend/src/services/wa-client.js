@@ -147,15 +147,15 @@ const send = async (phone, message) => {
   logger.info(`[WhatsApp] Queuing message to ${phone} (connecting…)`);
   return new Promise((resolve) => {
     pendingQueue.push({ phone, message, resolve });
-    // Drop if still not connected after 60s
+    // Drop if still not connected after 10s — give fast error feedback in UI
     setTimeout(() => {
       const idx = pendingQueue.findIndex(item => item.resolve === resolve);
       if (idx !== -1) {
         pendingQueue.splice(idx, 1);
-        logger.warn(`[WhatsApp] Queued message to ${phone} expired (never connected)`);
+        logger.warn(`[WhatsApp] Queued message to ${phone} expired (not connected)`);
         resolve({ success: false, error: 'connection_timeout' });
       }
-    }, 60000);
+    }, 10000);
   });
 };
 

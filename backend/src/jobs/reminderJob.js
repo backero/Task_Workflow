@@ -13,6 +13,9 @@ const {
   sendDailyProductionReport,
 } = require('../services/whatsapp.service');
 const logger = require('../utils/logger');
+const { isConfigured } = require('../services/googleSheets.service');
+const { runSheetSync, runUrlSync } = require('../controllers/crm.controller');
+const { processPendingFollowUps, runStaleLeadAlerts } = require('../services/crmFollowUp.service');
 
 /* ─────────────────────────────────────────────────────────────────────────────
    DAILY FULL ORG REPORT  (runs at 7 AM every day)
@@ -408,7 +411,52 @@ const startReminderJobs = () => {
     runInvoiceReminders();
   });
 
-  logger.info('[ReminderJob] Scheduled: daily report @ 7 AM · task reminders @ 9 AM · invoice reminders @ 10 AM');
+  // Every 5 minutes — sync leads from Google Sheet
+  cron.schedule('*/5 * * * *', async () => {
+    try {
+      // Service-account method (global .env config)
+      if (isConfigured()) {
+        const orgs = await Organization.find({ isActive: true }).select('_id').lean();
+        for (const org of orgs) {
+          await runSheetSync(org._id).catch(err =>
+            logger.error(`[GSheet Cron] org:${org._id} — ${err.message}`)
+          );
+        }
+      }
+
+      // Public URL method (per-org setting)
+      const urlOrgs = await Organization.find({
+        isActive: true,
+        'crm.autoSync': true,
+        'crm.sheetUrl': { $ne: null },
+      }).select('_id crm').lean();
+
+      for (const org of urlOrgs) {
+        await runUrlSync(org._id, org.crm.sheetUrl).catch(err =>
+          logger.error(`[URL Cron] org:${org._id} — ${err.message}`)
+        );
+      }
+    } catch (err) {
+      logger.error(`[GSheet Cron] ${err.message}`);
+    }
+  });
+
+  // Every 15 minutes — process CRM follow-up message queue
+  cron.schedule('*/15 * * * *', async () => {
+    processPendingFollowUps().catch(err =>
+      logger.error(`[FollowUp Cron] ${err.message}`)
+    );
+  });
+
+  // 8 AM daily — stale lead alerts (not contacted in 5+ days)
+  cron.schedule('0 8 * * *', async () => {
+    logger.info('[StaleAlert] Running stale lead alerts…');
+    runStaleLeadAlerts().catch(err =>
+      logger.error(`[StaleAlert] ${err.message}`)
+    );
+  });
+
+  logger.info('[ReminderJob] Scheduled: daily report @ 7 AM · task reminders @ 9 AM · invoice reminders @ 10 AM · GSheet sync every 5 min · follow-up queue every 15 min · stale alert @ 8 AM');
 };
 
 module.exports = { startReminderJobs, runDailyOrgReport };
