@@ -25,7 +25,7 @@ function roleColor(role) {
 function UserDrawer({ open, onClose, editUser }) {
   const qc = useQueryClient();
   const isEdit = !!editUser;
-  const { register, handleSubmit, reset, control, formState: { errors } } = useForm({
+  const { handleSubmit, reset, control, formState: { errors } } = useForm({
     defaultValues: editUser
       ? { firstName: editUser.firstName, lastName: editUser.lastName, phone: editUser.phone, role: editUser.role, department: editUser.department, designation: editUser.designation, googleEmail: editUser.googleEmail || '' }
       : { role: 'member' },
@@ -68,12 +68,18 @@ function UserDrawer({ open, onClose, editUser }) {
           <Row gutter={12}>
             <Col span={12}>
               <Text strong style={{ display: 'block', marginBottom: 6, fontSize: 12 }}>First Name *</Text>
-              <Input {...register('firstName', { required: 'Required' })} placeholder="Ravi" status={errors.firstName ? 'error' : undefined} />
+              <Controller
+                name="firstName" control={control} rules={{ required: 'Required' }} defaultValue=""
+                render={({ field }) => <Input {...field} placeholder="Ravi" status={errors.firstName ? 'error' : undefined} />}
+              />
               {errors.firstName && <Text type="danger" style={{ fontSize: 11 }}>{errors.firstName.message}</Text>}
             </Col>
             <Col span={12}>
               <Text strong style={{ display: 'block', marginBottom: 6, fontSize: 12 }}>Last Name *</Text>
-              <Input {...register('lastName', { required: 'Required' })} placeholder="Kumar" status={errors.lastName ? 'error' : undefined} />
+              <Controller
+                name="lastName" control={control} rules={{ required: 'Required' }} defaultValue=""
+                render={({ field }) => <Input {...field} placeholder="Kumar" status={errors.lastName ? 'error' : undefined} />}
+              />
               {errors.lastName && <Text type="danger" style={{ fontSize: 11 }}>{errors.lastName.message}</Text>}
             </Col>
           </Row>
@@ -81,9 +87,10 @@ function UserDrawer({ open, onClose, editUser }) {
           {!isEdit && (
             <div>
               <Text strong style={{ display: 'block', marginBottom: 6, fontSize: 12 }}>Email Address *</Text>
-              <Input
-                {...register('email', { required: 'Email is required', pattern: { value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/, message: 'Enter a valid email' } })}
-                placeholder="employee@example.com" type="email" status={errors.email ? 'error' : undefined}
+              <Controller
+                name="email" control={control} defaultValue=""
+                rules={{ required: 'Email is required', pattern: { value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/, message: 'Enter a valid email' } }}
+                render={({ field }) => <Input {...field} placeholder="employee@example.com" type="email" status={errors.email ? 'error' : undefined} />}
               />
               {errors.email && <Text type="danger" style={{ fontSize: 11 }}>{errors.email.message}</Text>}
             </div>
@@ -92,9 +99,10 @@ function UserDrawer({ open, onClose, editUser }) {
           {!isEdit && (
             <div>
               <Text strong style={{ display: 'block', marginBottom: 6, fontSize: 12 }}>Password *</Text>
-              <Input.Password
-                {...register('password', { required: 'Password is required', minLength: { value: 8, message: 'Minimum 8 characters' } })}
-                placeholder="Minimum 8 characters" status={errors.password ? 'error' : undefined}
+              <Controller
+                name="password" control={control} defaultValue=""
+                rules={{ required: 'Password is required', minLength: { value: 8, message: 'Minimum 8 characters' } }}
+                render={({ field }) => <Input.Password {...field} placeholder="Minimum 8 characters" status={errors.password ? 'error' : undefined} />}
               />
               {errors.password && <Text type="danger" style={{ fontSize: 11 }}>{errors.password.message}</Text>}
               <Text type="secondary" style={{ fontSize: 11, display: 'block', marginTop: 4 }}>Employee will use this to sign in with email</Text>
@@ -103,11 +111,17 @@ function UserDrawer({ open, onClose, editUser }) {
 
           <div>
             <Text strong style={{ display: 'block', marginBottom: 6, fontSize: 12 }}>Mobile Number</Text>
-            <Input
-              addonBefore="+91"
-              {...register('phone', { pattern: { value: /^\d{10}$/, message: 'Enter 10-digit number' } })}
-              placeholder="98765 43210" inputMode="numeric" maxLength={10}
-              status={errors.phone ? 'error' : undefined}
+            <Controller
+              name="phone" control={control} defaultValue=""
+              rules={{ pattern: { value: /^\d{10}$/, message: 'Enter 10-digit number' } }}
+              render={({ field }) => (
+                <Input
+                  {...field}
+                  addonBefore="+91"
+                  placeholder="98765 43210" inputMode="numeric" maxLength={10}
+                  status={errors.phone ? 'error' : undefined}
+                />
+              )}
             />
             {errors.phone && <Text type="danger" style={{ fontSize: 11 }}>{errors.phone.message}</Text>}
           </div>
@@ -131,14 +145,18 @@ function UserDrawer({ open, onClose, editUser }) {
 
           <div>
             <Text strong style={{ display: 'block', marginBottom: 6, fontSize: 12 }}>Designation</Text>
-            <Input {...register('designation')} placeholder="e.g. Sales Executive" />
+            <Controller
+              name="designation" control={control} defaultValue=""
+              render={({ field }) => <Input {...field} placeholder="e.g. Sales Executive" />}
+            />
           </div>
 
           <div>
             <Text strong style={{ display: 'block', marginBottom: 6, fontSize: 12 }}>Google Email <Text type="secondary" style={{ fontWeight: 400 }}>(for Google login)</Text></Text>
-            <Input
-              {...register('googleEmail', { pattern: { value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/, message: 'Enter a valid email' } })}
-              placeholder="employee@gmail.com" type="email" status={errors.googleEmail ? 'error' : undefined}
+            <Controller
+              name="googleEmail" control={control} defaultValue=""
+              rules={{ pattern: { value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/, message: 'Enter a valid email' } }}
+              render={({ field }) => <Input {...field} placeholder="employee@gmail.com" type="email" status={errors.googleEmail ? 'error' : undefined} />}
             />
             {errors.googleEmail && <Text type="danger" style={{ fontSize: 11 }}>{errors.googleEmail.message}</Text>}
             <Text type="secondary" style={{ fontSize: 11, display: 'block', marginTop: 4 }}>Employee will use this Gmail to sign in with Google</Text>
