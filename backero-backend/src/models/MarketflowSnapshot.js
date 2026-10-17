@@ -12,7 +12,7 @@ const mongoose = require('mongoose');
  * duplicating that shape here would just be another place for it to drift.
  */
 const marketflowSnapshotSchema = new mongoose.Schema({
-  platform: { type: String, required: true, enum: ['amazon', 'meesho', 'snapdeal', 'flipkart'] },
+  platform: { type: String, required: true, enum: ['amazon', 'meesho', 'snapdeal', 'flipkart', 'myntra', 'jiomart'] },
   endpoint: { type: String, required: true, default: 'overview' },
   data: { type: mongoose.Schema.Types.Mixed, default: {} },
   syncedAt: { type: Date, default: Date.now },
