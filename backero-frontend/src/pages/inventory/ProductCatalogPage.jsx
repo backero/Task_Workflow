@@ -87,16 +87,28 @@ function withComputedQuantity(rows, refWeight) {
   }));
 }
 
+// costPerKg is really "cost per 1 unit of the ingredient's own row unit" (₹/g, ₹/ml, etc — sourced
+// from the raw material's unitPrice, not a true per-kilogram price) — kept the old field name to
+// avoid a data migration, but the math now multiplies it by the row's actual quantity (already in
+// that same unit) instead of treating `percentage` as a stand-in for a kg-fraction. The old formula
+// only ever looked right at exactly a 100g/ml reference weight, where percentage and quantity
+// happen to coincide.
 function calcFormCost(product) {
   if (!product?.formulation?.rows?.length) return 0;
-  return product.formulation.rows.reduce((sum, r) => sum + ((r.costPerKg || 0) * (r.percentage || 0) / 100 * (Number(r.convFactor) || 1)), 0);
+  const refW = Number(product?.formulation?.refWeight) || 100;
+  return product.formulation.rows.reduce((sum, r) => {
+    const qty = refW * (Number(r.percentage) || 0) / 100 * (Number(r.convFactor) || 1);
+    return sum + (Number(r.costPerKg) || 0) * qty;
+  }, 0);
 }
 
 // Shared breakdown used by R&D & Overheads, Costing, and Marketplace tabs — mirrors
 // product-catalog.html's recalcOverheads()/renderCosting()/renderMarketplace() formulas.
 function calcOverheadBreakdown(product) {
   const refW = (product?.formulation?.refWeight) || product?.weight || 100;
-  const formCost = calcFormCost(product) * refW / 1000;
+  // calcFormCost already returns the absolute ₹ cost of the whole reference batch (it multiplies
+  // each row's per-unit price by that row's actual quantity) — no further refW/1000 rescale needed.
+  const formCost = calcFormCost(product);
   const sa = product?.standardAssumptions || {};
   const saPct = (sa.equipmentPct || 0) + (sa.consumablesPct || 0) + (sa.storagePct || 0) +
     (sa.housekeepingPct || 0) + (sa.adminPct || 0) + (sa.wastagePct || 0);
@@ -903,7 +915,7 @@ function IngredientCell({ row, index, rawMaterials, onUpdate }) {
   }
 
   function select(mat) {
-    onUpdate(index, { name: mat.name, rawMaterialId: mat._id, unit: mat.unit, costPerKg: mat.costPrice || 0 });
+    onUpdate(index, { name: mat.name, rawMaterialId: mat._id, unit: mat.unit, costPerKg: mat.unitPrice || 0 });
     setQuery(mat.name);
     setOpen(false);
   }
@@ -971,8 +983,10 @@ function FormulationTab({ product, form, setForm, onSave, isPending }) {
   const refUnit = form.formulation?.refUnit || 'ml';
   const totalPct = rows.reduce((s, r) => s + (Number(r.percentage) || 0), 0);
   const totalQty = rows.reduce((s, r) => s + (refWeight * (Number(r.percentage) || 0) / 100 * (Number(r.convFactor) || 1)), 0);
+  // calcFormCost already returns the absolute ₹ cost of the whole reference batch (per-row
+  // costPerKg × that row's actual quantity, summed) — no extra refWeight/1000 rescale needed.
   const formCost = calcFormCost({ formulation: form.formulation });
-  const totalAmount = formCost * refWeight / 1000;
+  const totalAmount = formCost;
   const perUnit = refWeight > 0 ? totalAmount / refWeight : 0;
 
   const { data: rmData } = useQuery({
@@ -1000,7 +1014,10 @@ function FormulationTab({ product, form, setForm, onSave, isPending }) {
         if (!r.rawMaterialId) return r;
         const mat = rawMaterials.find(m => m._id === r.rawMaterialId || m._id?.toString() === r.rawMaterialId);
         if (!mat) return r;
-        const liveCost = mat.costPrice || 0;
+        // Was reading mat.costPrice, a field that doesn't exist on RawMaterial (only `unitPrice`
+        // does) — always evaluated to 0, so this effect was silently zeroing every linked row's
+        // cost on each raw-materials refetch instead of actually syncing the live price.
+        const liveCost = mat.unitPrice || 0;
         return liveCost !== Number(r.costPerKg) ? { ...r, costPerKg: liveCost } : r;
       });
       const changed = updated.some((r, i) => r !== rows[i]);
@@ -1089,7 +1106,7 @@ function FormulationTab({ product, form, setForm, onSave, isPending }) {
         <table className="w-full text-xs">
           <thead className="bg-gray-50 dark:bg-[#0f1a2e]">
             <tr>
-              {['', '#', 'Code', 'Ingredient', '%', 'Qty', 'Conv. Factor', 'Unit', 'Phase', 'Notes', 'Cost/kg (₹)', 'Cost Contrib.', ''].map((h, idx) => (
+              {['', '#', 'Code', 'Ingredient', '%', 'Qty', 'Conv. Factor', 'Unit', 'Phase', 'Notes', 'Cost/Unit (₹)', 'Cost Contrib.', ''].map((h, idx) => (
                 <th key={idx} className="px-3 py-2 text-left font-semibold text-gray-500 dark:text-gray-400">{h}</th>
               ))}
             </tr>
@@ -1121,8 +1138,8 @@ function FormulationTab({ product, form, setForm, onSave, isPending }) {
                     </td>
                     <td className="px-3 py-1.5"><input type="text" value={r.phase || ''} onChange={e => updateRow(i, { phase: e.target.value })} placeholder="A/B/C" className="input text-xs w-16" /></td>
                     <td className="px-3 py-1.5"><input type="text" value={r.notes || ''} onChange={e => updateRow(i, { notes: e.target.value })} placeholder="Notes" className="input text-xs w-24" /></td>
-                    <td className="px-3 py-1.5"><input type="number" value={r.costPerKg} onChange={e => updateRow(i, { costPerKg: e.target.value })} className="input text-xs w-20" /></td>
-                    <td className="px-3 py-1.5 text-blue-600 font-mono">₹{numF((r.costPerKg || 0) * (r.percentage || 0) / 100 * conv)}</td>
+                    <td className="px-3 py-1.5"><input type="number" value={r.costPerKg} onChange={e => updateRow(i, { costPerKg: e.target.value })} className="input text-xs w-20" title={`₹ per 1 ${r.unit || 'g'}`} /></td>
+                    <td className="px-3 py-1.5 text-blue-600 font-mono">₹{numF((Number(r.costPerKg) || 0) * qty)}</td>
                     <td className="px-3 py-1.5"><button onClick={() => removeRow(i)} className="text-red-400 hover:text-red-600"><X size={13} /></button></td>
                   </tr>
                   {isOpen && (
@@ -1384,7 +1401,7 @@ function BranchedFormulationEditor({ product, selectedVersionId, setSelectedVers
 }
 
 function VersionRowsTable({ rows, refWeight, rawMaterials, onUpdate, onAdd, onRemove, editable }) {
-  const headers = editable ? ['Ingredient', '%', 'Qty (g)', 'Conv. Factor', 'Phase', 'Cost/kg (₹)', ''] : ['Ingredient', '%', 'Qty (g)', 'Conv. Factor', 'Phase', 'Cost/kg (₹)'];
+  const headers = editable ? ['Ingredient', '%', 'Qty (g)', 'Conv. Factor', 'Phase', 'Cost/Unit (₹)', ''] : ['Ingredient', '%', 'Qty (g)', 'Conv. Factor', 'Phase', 'Cost/Unit (₹)'];
   return (
     <div>
       <div className="overflow-x-auto rounded-xl border border-gray-200 dark:border-[#1b2e4a]">

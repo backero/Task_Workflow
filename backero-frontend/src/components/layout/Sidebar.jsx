@@ -106,7 +106,7 @@ export default function Sidebar({ variant = 'desktop', onNavigate, onClose }) {
     { label: 'Record Usage',    to: '/production/usage' },
     { label: 'Raw Materials',   to: '/inventory/rawmaterials' },
     { label: 'Product Catalog', to: '/inventory/catalog' },
-    { label: 'Sample Production', to: '/samples' },
+    { label: 'Product Development', to: '/samples' },
     { label: 'R&D Price Calculator', to: '/production/rd-price-calculator' },
     { label: 'Kitchen Schedule', to: '/production/kitchen' },
   ]});
