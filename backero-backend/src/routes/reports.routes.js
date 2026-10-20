@@ -1,165 +1,129 @@
 const router = require('express').Router();
 const { authenticate } = require('../middleware/auth.middleware');
-const MarketflowSnapshot = require('../models/MarketflowSnapshot');
+const { forward } = require('../services/marketflow.service');
 const { sendError } = require('../utils/helpers');
 
-const PLATFORMS = {
-  amazon: { name: 'Amazon', icon: '🔷' },
-  flipkart: { name: 'Flipkart', icon: '🔵' },
-  meesho: { name: 'Meesho', icon: '🎀' },
-  snapdeal: { name: 'Snapdeal', icon: '🟡' },
-  myntra: { name: 'Myntra', icon: '🔴' },
-  jiomart: { name: 'JioMart', icon: '🟢' },
+// Real-only: Amazon, Flipkart, Meesho, Snapdeal — the 4 platforms actually
+// integrated (see marketflow.routes.js). Keyed by amazon-server's own
+// /v1/dashboard/unified response, which already aggregates all 4 live
+// (confirmed shape: { platforms: { amazon_in, flipkart, meesho, snapdeal },
+// total_revenue, total_orders, total_impressions, avg_margin }) — no Mongo
+// reads or seed data needed here.
+const PLATFORM_META = {
+  amazon_in: { key: 'amazon', name: 'Amazon' },
+  flipkart: { key: 'flipkart', name: 'Flipkart' },
+  meesho: { key: 'meesho', name: 'Meesho' },
+  snapdeal: { key: 'snapdeal', name: 'Snapdeal' },
 };
 
 router.use(authenticate);
 
-// GET /api/reports/marketplace/daily
-// Generate daily marketplace automation report
-router.get('/marketplace/daily', async (req, res) => {
-  try {
-    const snapshots = await MarketflowSnapshot.find({ endpoint: 'overview' }).lean();
+async function fetchUnified() {
+  const { data } = await forward('v1', 'GET', '/dashboard/unified', {});
+  return data || {};
+}
 
-    // Build report data
-    const platformData = {};
-    let totalRevenue = 0;
-    let totalOrders = 0;
-    let totalImpressions = 0;
-    const platformDetails = [];
-
-    for (const snap of snapshots) {
-      const data = snap.data || {};
-      const revenue = data.revenue || 0;
-      const orders = data.orders || 0;
-      const impressions = data.impressions || 0;
-
-      platformData[snap.platform] = {
+function buildPlatformDetails(unified) {
+  const platformsBreakdown = unified.platforms || {};
+  return Object.entries(platformsBreakdown)
+    .map(([rawKey, p]) => {
+      const meta = PLATFORM_META[rawKey] || { key: rawKey, name: rawKey };
+      const revenue = p?.revenue ?? null;
+      const orders = p?.orders ?? null;
+      return {
+        platform: meta.key,
+        name: meta.name,
         revenue,
         orders,
-        impressions,
-        margin: data.margin_pct || 0,
+        openAlerts: p?.open_alerts ?? null,
+        avgOrderValue: revenue != null && orders ? revenue / orders : null,
       };
+    })
+    .sort((a, b) => (b.revenue ?? 0) - (a.revenue ?? 0));
+}
 
-      totalRevenue += revenue;
-      totalOrders += orders;
-      totalImpressions += impressions;
+// GET /api/reports/marketplace/daily
+// Live cross-platform totals, read straight from the already-working
+// amazon-server unified dashboard — same source the Live Automation
+// Cross-Platform Summary tab uses, so the numbers always agree.
+router.get('/marketplace/daily', async (_req, res) => {
+  try {
+    const unified = await fetchUnified();
+    const platformDetails = buildPlatformDetails(unified);
 
-      // For ordered list
-      const platformInfo = PLATFORMS[snap.platform] || { name: snap.platform.toUpperCase(), icon: '📦' };
-      platformDetails.push({
-        platform: snap.platform,
-        name: platformInfo.name,
-        icon: platformInfo.icon,
-        revenue,
-        orders,
-        impressions,
-        margin: data.margin_pct || 0,
-        avgOrderValue: orders > 0 ? revenue / orders : 0,
-      });
-    }
-
-    // Sort by revenue descending
-    platformDetails.sort((a, b) => b.revenue - a.revenue);
-
-    const report = {
+    res.json({
       timestamp: new Date().toISOString(),
       date: new Date().toLocaleDateString('en-IN'),
+      source: 'amazon-server /v1/dashboard/unified (live)',
       platforms: platformDetails,
       summary: {
-        totalRevenue,
-        totalOrders,
-        totalImpressions,
-        avgOrderValue: totalOrders > 0 ? totalRevenue / totalOrders : 0,
-        platformCount: Object.keys(platformData).length,
-        conversionRate: totalImpressions > 0 ? (totalOrders / totalImpressions * 100).toFixed(2) : 0,
+        totalRevenue: unified.total_revenue ?? null,
+        totalOrders: unified.total_orders ?? null,
+        totalImpressions: unified.total_impressions ?? null,
+        avgMargin: unified.avg_margin ?? null,
+        platformCount: platformDetails.length,
       },
       generatedBy: 'Marketplace Automation System',
-    };
-
-    res.json(report);
+    });
   } catch (err) {
-    return sendError(res, err.message, 500);
+    return sendError(res, err.message, err.status || 500);
   }
 });
 
 // GET /api/reports/marketplace/daily/summary
-// Get concise summary for email
-router.get('/marketplace/daily/summary', async (req, res) => {
+// Email-ready text version of the same live figures. Fields the live
+// endpoint doesn't return are labelled "not tracked" rather than defaulted
+// to 0, so a missing number never reads as a real zero.
+router.get('/marketplace/daily/summary', async (_req, res) => {
   try {
-    const snapshots = await MarketflowSnapshot.find({ endpoint: 'overview' }).lean();
+    const unified = await fetchUnified();
+    const platformDetails = buildPlatformDetails(unified);
+    const { total_revenue: totalRevenue, total_orders: totalOrders, total_impressions: totalImpressions } = unified;
 
-    let totalRevenue = 0;
-    let totalOrders = 0;
-    let totalImpressions = 0;
-    const platforms = [];
+    const fmtMoney = (v) => (v != null ? `₹${Number(v).toLocaleString('en-IN')}` : 'not tracked');
+    const fmtNum = (v) => (v != null ? Number(v).toLocaleString('en-IN') : 'not tracked');
 
-    for (const snap of snapshots) {
-      const data = snap.data || {};
-      const revenue = data.revenue || 0;
-      const orders = data.orders || 0;
-      const impressions = data.impressions || 0;
+    const dateLabel = new Date().toLocaleDateString('en-IN', {
+      weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
+    });
 
-      totalRevenue += revenue;
-      totalOrders += orders;
-      totalImpressions += impressions;
-
-      const platformInfo = PLATFORMS[snap.platform] || { name: snap.platform.toUpperCase(), icon: '📦' };
-      platforms.push({
-        name: platformInfo.name,
-        revenue: `₹${revenue.toLocaleString('en-IN')}`,
-        orders: orders.toLocaleString('en-IN'),
-        impressions: impressions.toLocaleString('en-IN'),
-      });
-    }
-
-    const summary = {
-      date: new Date().toLocaleDateString('en-IN', {
-        weekday: 'long',
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric',
-      }),
-      email_subject: `Marketplace Automation Report - ${new Date().toLocaleDateString('en-IN')}`,
-      email_body: `
+    const body = `
 🎯 DAILY MARKETPLACE AUTOMATION REPORT
 
 Period: ${new Date().toLocaleDateString('en-IN')}
 Generated: ${new Date().toLocaleTimeString('en-IN')}
 
 📊 KEY METRICS (All Platforms Combined):
-• Total Revenue: ₹${totalRevenue.toLocaleString('en-IN')}
-• Total Orders: ${totalOrders.toLocaleString('en-IN')}
-• Total Impressions: ${totalImpressions.toLocaleString('en-IN')}
-• Average Order Value: ₹${(totalRevenue / totalOrders || 0).toFixed(2)}
-• Conversion Rate: ${totalImpressions > 0 ? (totalOrders / totalImpressions * 100).toFixed(2) : 0}%
-
+• Total Revenue: ${fmtMoney(totalRevenue)}
+• Total Orders: ${fmtNum(totalOrders)}
+• Total Impressions: ${fmtNum(totalImpressions)}
+${totalRevenue != null && totalOrders ? `• Average Order Value: ₹${(totalRevenue / totalOrders).toFixed(2)}\n` : ''}
 📈 PLATFORM BREAKDOWN:
-${platforms.map(p => `
+${platformDetails.map(p => `
 ${p.name}
-  Revenue: ${p.revenue}
-  Orders: ${p.orders}
-  Impressions: ${p.impressions}
+  Revenue: ${fmtMoney(p.revenue)}
+  Orders: ${fmtNum(p.orders)}
+  Open Alerts: ${p.openAlerts ?? '—'}
 `).join('\n')}
-
-✅ System Status: All platforms LIVE and operational
-📍 Next Report: Tomorrow at this time
-
 ---
-This is an automated report from Backero Marketplace Automation System
-      `,
-      platforms,
-      totals: {
-        revenue: `₹${totalRevenue.toLocaleString('en-IN')}`,
-        orders: totalOrders.toLocaleString('en-IN'),
-        impressions: totalImpressions.toLocaleString('en-IN'),
-        avgOrderValue: `₹${(totalRevenue / totalOrders || 0).toFixed(2)}`,
-        conversionRate: `${totalImpressions > 0 ? (totalOrders / totalImpressions * 100).toFixed(2) : 0}%`,
-      },
-    };
+This is an automated report from Backero Marketplace Automation System.
+Figures are pulled live from the marketplace dashboard; a platform with
+no recent sync shows "not tracked" rather than a false zero.
+      `;
 
-    res.json(summary);
+    res.json({
+      date: dateLabel,
+      email_subject: `Marketplace Automation Report - ${new Date().toLocaleDateString('en-IN')}`,
+      email_body: body,
+      platforms: platformDetails,
+      totals: {
+        revenue: fmtMoney(totalRevenue),
+        orders: fmtNum(totalOrders),
+        impressions: fmtNum(totalImpressions),
+      },
+    });
   } catch (err) {
-    return sendError(res, err.message, 500);
+    return sendError(res, err.message, err.status || 500);
   }
 });
 
