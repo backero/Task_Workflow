@@ -216,11 +216,22 @@ export default function RDPriceCalculator({ presetProduct } = {}) {
       } catch (e) { /* silent fail */ }
 
       try {
-        // Fetch customers from CRM
+        // Fetch customers/leads from CRM
         const custRes = await api.get('/crm/leads').catch(() => null);
-        if (custRes?.data?.leads) {
-          const customers = custRes.data.leads.map(lead => ({ id: lead.code || lead._id, name: lead.name || '', contact: lead.contact || '' }));
-          localStorage.setItem(SD_KEY, JSON.stringify({ customers }));
+        if (custRes?.data) {
+          // Handle both { leads: [...] } and direct array responses
+          const leads = custRes.data.leads || custRes.data.data || custRes.data;
+          const leadsArray = Array.isArray(leads) ? leads : [];
+          if (leadsArray.length > 0) {
+            const customers = leadsArray.map(lead => ({
+              id: lead.code || lead._id || lead.id || '',
+              name: lead.customerName || lead.name || '',
+              contact: lead.contact || lead.mobile || lead.email || ''
+            })).filter(c => c.name); // Only include entries with a name
+            if (customers.length > 0) {
+              localStorage.setItem(SD_KEY, JSON.stringify({ customers }));
+            }
+          }
         }
       } catch (e) { /* silent fail */ }
     };
