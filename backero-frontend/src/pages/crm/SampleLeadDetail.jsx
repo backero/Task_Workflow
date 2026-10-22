@@ -515,7 +515,18 @@ function FormulaEditorModal({ formula, samples, rawMaterials, onClose }) {
   const totalPct = rows.reduce((s, r) => s + (Number(r.percent) || 0), 0);
   const totalQty = rows.reduce((s, r) => s + (Number(r.quantity) || 0), 0);
   const totalAmount = rows.reduce((s, r) => s + (Number(r.quantity) || 0) * (Number(r.costPerUnit) || 0), 0);
-  const costPerUnit = refWeight > 0 ? totalAmount / refWeight : 0;
+
+  // Calculate cost per unit with unit conversion
+  const unitConversionFactors = {
+    'mg': 0.001,      // 1mg = 0.001g
+    'g': 1,           // base unit
+    'kg': 1000,       // 1kg = 1000g
+    'l': 1000,        // 1L = 1000g (assuming 1g/mL density)
+    'ml': 1,          // 1mL ≈ 1g
+    'litre': 1000,    // same as L
+  };
+  const conversionFactor = unitConversionFactors[refUnit?.toLowerCase?.()] || 1;
+  const costPerUnit = refWeight > 0 ? (totalAmount / refWeight) * conversionFactor : 0;
 
   function matFor(rawMaterialId) { return (rawMaterials || []).find((m) => m._id === rawMaterialId) || null; }
   function samplesForVersion(v) { return (samples || []).filter((s) => s.formulaId === formula.formulaId && s.formulaVersionNo === v); }
