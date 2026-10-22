@@ -239,20 +239,23 @@ app.use('*', (req, res) => {
 // Global error handler
 app.use(errorHandler);
 
-// Start automation + WhatsApp
+// Start automation + WhatsApp + Marketplace Sync
 if (process.env.NODE_ENV !== 'test') {
   const { startAutomationEngine } = require('./src/services/automation.service');
   const { startAttendanceCron } = require('./src/services/attendanceCron.service');
   const { initWhatsApp } = require('./src/services/whatsapp.service');
   const { setSocketIO } = require('./src/services/workflowEngine.service');
+  const { initSyncJob } = require('./src/jobs/syncMarketplaceData.job');
   // Cron jobs send real WhatsApp/in-app notifications against the live database.
   // Only auto-start on Render (NODE_ENV=production, set in render.yaml); a local
   // dev run would otherwise fire duplicate real notifications alongside prod.
   if (process.env.NODE_ENV === 'production' || process.env.FORCE_AUTOMATION === 'true') {
     startAutomationEngine(io);
     startAttendanceCron(io);
+    initSyncJob();
   } else {
     logger.info('[Automation] Skipped — not running in production (set FORCE_AUTOMATION=true to override for local testing)');
+    logger.info('[Marketplace Sync] Skipped — not running in production (set FORCE_AUTOMATION=true to override for local testing)');
   }
   // Skip WhatsApp on local when WHATSAPP_ENABLED=false — prevents local from fighting
   // with Render over the same MongoDB session (causes 440 disconnect loop on both)

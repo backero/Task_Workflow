@@ -27,6 +27,31 @@ const { sendError } = require('../utils/helpers');
 
 router.use(authenticate);
 
+// ── Admin manual sync trigger (testing only) ────────────────────────────────
+router.post('/admin/sync', async (req, res) => {
+  const { platform } = req.body;
+  try {
+    const result = await marketplaceSync.manualSync(platform || 'all');
+    return res.json({ success: true, result });
+  } catch (err) {
+    return sendError(res, err.message, 500);
+  }
+});
+
+router.get('/admin/sync-status', async (req, res) => {
+  try {
+    const platforms = ['amazon', 'meesho', 'snapdeal', 'flipkart'];
+    const status = {};
+    for (const p of platforms) {
+      const meta = await marketplaceSync.getSnapshotWithMetadata(p);
+      status[p] = meta;
+    }
+    return res.json(status);
+  } catch (err) {
+    return sendError(res, err.message, 500);
+  }
+});
+
 // ── Manual CSV/XLSX report import (Meesho, Snapdeal) ────────────────────────
 // A ToS-safe alternative to browser-automated login: the seller exports a
 // report from their own seller panel (routine, manual action) and uploads it
@@ -292,17 +317,28 @@ router.all('/v1/*', async (req, res) => {
   }
 });
 
+const marketplaceSync = require('../services/marketplaceSync.service');
+
 const mountMongoBacked = (prefix, platform) => {
   router.get(`${prefix}/overview`, async (req, res) => {
     try {
       console.log(`[marketflow] GET ${prefix}/overview for platform=${platform}`);
-      const snap = await MarketflowSnapshot.findOne({ platform, endpoint: 'overview' }).lean();
-      if (!snap) {
+      const metadata = await marketplaceSync.getSnapshotWithMetadata(platform);
+
+      if (!metadata.data) {
         console.log(`[marketflow] ❌ No snapshot found for ${platform}`);
         return sendError(res, `No synced data yet for ${platform} — its scraper process may not have run yet`, 503);
       }
-      console.log(`[marketflow] ✓ Returning ${platform} data with ${Object.keys(snap.data || {}).length} fields`);
-      return res.json(snap.data);
+
+      console.log(`[marketflow] ✓ Returning ${platform} data (stale=${metadata.isStale})`);
+      return res.json({
+        ...metadata.data,
+        __sync: {
+          syncedAt: metadata.syncedAt,
+          isStale: metadata.isStale,
+          timeSinceSyncHours: metadata.timeSinceSyncHours,
+        },
+      });
     } catch (err) {
       console.error(`[marketflow] ERROR in ${platform}/overview:`, err.message);
       return sendError(res, err.message, 500);
