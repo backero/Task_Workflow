@@ -609,7 +609,12 @@ function FormulaEditorModal({ formula, samples, rawMaterials, onClose }) {
                 <tbody>
                   {rows.map((r, i) => {
                     const mat = matFor(r.rawMaterialId);
-                    const amount = (Number(r.quantity) || 0) * (Number(r.costPerUnit) || 0);
+                    // Convert cost/unit to match ingredient unit (costPerKg stored, but need cost per ingredient unit)
+                    const unitConversionMap = { 'mg': 0.000001, 'g': 0.001, 'kg': 1, 'l': 1, 'ml': 0.001, 'litre': 1 };
+                    const ingredientUnit = (r.unit || 'g').toLowerCase();
+                    const costPerKg = Number(r.costPerUnit) || 0;
+                    const costPerIngredientUnit = costPerKg / (unitConversionMap[ingredientUnit] || 0.001);
+                    const amount = (Number(r.quantity) || 0) * costPerIngredientUnit;
                     return (
                       <tr key={i} className="border-t border-[#e7e2d6]">
                         <td className="px-2 py-1.5 text-[#8a8171]">{i + 1}</td>
@@ -621,7 +626,7 @@ function FormulaEditorModal({ formula, samples, rawMaterials, onClose }) {
                         <td className="px-2 py-1.5 text-[#8a8171]">{r.unit}</td>
                         <td className="px-2 py-1.5 text-[#1c1917]">{r.phase || '—'}</td>
                         <td className="px-2 py-1.5 text-[#1c1917]">{r.notes || '—'}</td>
-                        <td className="px-2 py-1.5 text-[#1c1917]">₹{(Number(r.costPerUnit) || 0).toFixed(2)}</td>
+                        <td className="px-2 py-1.5 text-[#1c1917]">₹{costPerIngredientUnit.toFixed(2)}</td>
                         <td className="px-2 py-1.5 text-[#669c2c] font-mono">₹{amount.toFixed(2)}</td>
                       </tr>
                     );
