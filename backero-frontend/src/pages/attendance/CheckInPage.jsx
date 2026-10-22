@@ -150,6 +150,18 @@ export default function CheckInPage() {
                 Break time: {breakHours.toFixed(2)} hours
               </div>
             )}
+            <div style={{ marginTop: 20, paddingTop: 20, borderTop: '1px solid #f0f0f0' }}>
+              <p style={{ color: '#999', fontSize: 12, marginBottom: 15 }}>Need to work more today?</p>
+              <Button
+                type="primary"
+                icon={<CheckCircleOutlined />}
+                onClick={() => handlePunch('punch-in')}
+                loading={loading}
+                style={{ width: '100%', height: 45, fontSize: 14 }}
+              >
+                Punch In Again
+              </Button>
+            </div>
           </Space>
         </Card>
       );
