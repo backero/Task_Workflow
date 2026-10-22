@@ -263,7 +263,7 @@ export default function EditKycModal({ lead, onClose, readOnly = false }) {
       {readOnly && (
         <Alert
           type="info" showIcon icon={<Eye size={16} />} style={{ marginBottom: 14 }}
-          message="CRM Pipeline is view-only. To edit details, log a follow-up, or raise a query, open this lead from Sample Production."
+          message="CRM Pipeline is view-only. To edit details, log a follow-up, or raise a query, open this lead from Product Development."
         />
       )}
 

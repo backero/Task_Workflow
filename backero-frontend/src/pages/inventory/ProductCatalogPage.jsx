@@ -74,6 +74,38 @@ const emptyForm = () => ({
 
 function numF(v, d = 2) { return Number(v || 0).toFixed(d); }
 
+function calcCostContribution(costPerKg, qty, unit = 'g') {
+  const cost = costPerKg || 0;
+  if (cost === 0 || qty === 0) return 0;
+
+  let costPerUnit = cost;
+  if (cost > 0) {
+    switch(unit) {
+      case 'g':
+        costPerUnit = cost / 1000;
+        break;
+      case 'kg':
+        costPerUnit = cost;
+        break;
+      case 'ml':
+        costPerUnit = cost / 1000;
+        break;
+      case 'L':
+        costPerUnit = cost;
+        break;
+      case 'oz':
+        costPerUnit = cost / 35.274;
+        break;
+      case 'pcs':
+        costPerUnit = cost;
+        break;
+      default:
+        costPerUnit = cost / 1000;
+    }
+  }
+  return costPerUnit * qty;
+}
+
 // Batch Tracker's buildIngredientsFromCatalogProduct (backend) scales each row's stored
 // `quantity` field directly to build real production-order weighing targets — it does NOT
 // recompute from percentage. So `quantity` must be kept in sync with the displayed
@@ -89,14 +121,51 @@ function withComputedQuantity(rows, refWeight) {
 
 function calcFormCost(product) {
   if (!product?.formulation?.rows?.length) return 0;
-  return product.formulation.rows.reduce((sum, r) => sum + ((r.costPerKg || 0) * (r.percentage || 0) / 100 * (Number(r.convFactor) || 1)), 0);
+  // Derive qty from percentage/refWeight/convFactor rather than trusting the row's stored
+  // `quantity` field — that field is only this same formula, recomputed on save
+  // (withComputedQuantity), so reading it directly goes stale the moment a percentage is
+  // edited but not yet saved. Deriving it live is always correct for both cases.
+  const refWeight = Number(product.formulation.refWeight) || 100;
+  return product.formulation.rows.reduce((sum, r) => {
+    const cost = r.costPerKg || 0;
+    const qty = refWeight * (Number(r.percentage) || 0) / 100 * (Number(r.convFactor) || 1);
+    const unit = r.unit || 'g';
+    if (cost === 0 || qty === 0) return sum;
+
+    let costPerUnit = cost;
+    if (cost > 0) {
+      switch(unit) {
+        case 'g':
+          costPerUnit = cost / 1000;
+          break;
+        case 'kg':
+          costPerUnit = cost;
+          break;
+        case 'ml':
+          costPerUnit = cost / 1000;
+          break;
+        case 'L':
+          costPerUnit = cost;
+          break;
+        case 'oz':
+          costPerUnit = cost / 35.274;
+          break;
+        case 'pcs':
+          costPerUnit = cost;
+          break;
+        default:
+          costPerUnit = cost / 1000;
+      }
+    }
+    return sum + (costPerUnit * qty);
+  }, 0);
 }
 
 // Shared breakdown used by R&D & Overheads, Costing, and Marketplace tabs — mirrors
 // product-catalog.html's recalcOverheads()/renderCosting()/renderMarketplace() formulas.
 function calcOverheadBreakdown(product) {
   const refW = (product?.formulation?.refWeight) || product?.weight || 100;
-  const formCost = calcFormCost(product) * refW / 1000;
+  const formCost = refW > 0 ? calcFormCost(product) / refW : 0;
   const sa = product?.standardAssumptions || {};
   const saPct = (sa.equipmentPct || 0) + (sa.consumablesPct || 0) + (sa.storagePct || 0) +
     (sa.housekeepingPct || 0) + (sa.adminPct || 0) + (sa.wastagePct || 0);
@@ -972,8 +1041,8 @@ function FormulationTab({ product, form, setForm, onSave, isPending }) {
   const totalPct = rows.reduce((s, r) => s + (Number(r.percentage) || 0), 0);
   const totalQty = rows.reduce((s, r) => s + (refWeight * (Number(r.percentage) || 0) / 100 * (Number(r.convFactor) || 1)), 0);
   const formCost = calcFormCost({ formulation: form.formulation });
-  const totalAmount = formCost * refWeight / 1000;
-  const perUnit = refWeight > 0 ? totalAmount / refWeight : 0;
+  const totalAmount = formCost; // Total cost for the reference weight
+  const perUnit = refWeight > 0 ? totalAmount / refWeight : 0; // Cost per unit (per gram/ml)
 
   const { data: rmData } = useQuery({
     queryKey: ['raw-materials-list'],
@@ -1089,7 +1158,7 @@ function FormulationTab({ product, form, setForm, onSave, isPending }) {
         <table className="w-full text-xs">
           <thead className="bg-gray-50 dark:bg-[#0f1a2e]">
             <tr>
-              {['', '#', 'Code', 'Ingredient', '%', 'Qty', 'Conv. Factor', 'Unit', 'Phase', 'Notes', 'Cost/kg (₹)', 'Cost Contrib.', ''].map((h, idx) => (
+              {['', '#', 'Code', 'Ingredient', '%', 'Qty', 'Conv. Factor', 'Unit', 'Phase', 'Notes', 'Cost/unit (₹)', 'Cost Contrib.', ''].map((h, idx) => (
                 <th key={idx} className="px-3 py-2 text-left font-semibold text-gray-500 dark:text-gray-400">{h}</th>
               ))}
             </tr>
@@ -1111,9 +1180,9 @@ function FormulationTab({ product, form, setForm, onSave, isPending }) {
                     <td className="px-3 py-1.5">
                       <IngredientCell row={r} index={i} rawMaterials={rawMaterials} onUpdate={updateRow} />
                     </td>
-                    <td className="px-3 py-1.5"><input type="number" value={r.percentage} onChange={e => updateRow(i, { percentage: e.target.value })} className="input text-xs w-16" /></td>
+                    <td className="px-3 py-1.5"><input type="number" value={r.percentage} onChange={e => updateRow(i, { percentage: parseFloat(e.target.value) || 0 })} className="input text-xs w-16" /></td>
                     <td className="px-3 py-1.5"><span className="text-gray-500">{numF(qty, 2)}</span></td>
-                    <td className="px-3 py-1.5"><input type="number" step="0.01" value={r.convFactor ?? 1} onChange={e => updateRow(i, { convFactor: e.target.value })} className="input text-xs w-16" /></td>
+                    <td className="px-3 py-1.5"><input type="number" step="0.01" value={r.convFactor ?? 1} onChange={e => updateRow(i, { convFactor: parseFloat(e.target.value) || 1 })} className="input text-xs w-16" /></td>
                     <td className="px-3 py-1.5">
                       <select value={r.unit || 'g'} onChange={e => updateRow(i, { unit: e.target.value })} className="input text-xs w-16">
                         {UNITS.map(u => <option key={u}>{u}</option>)}
@@ -1121,8 +1190,8 @@ function FormulationTab({ product, form, setForm, onSave, isPending }) {
                     </td>
                     <td className="px-3 py-1.5"><input type="text" value={r.phase || ''} onChange={e => updateRow(i, { phase: e.target.value })} placeholder="A/B/C" className="input text-xs w-16" /></td>
                     <td className="px-3 py-1.5"><input type="text" value={r.notes || ''} onChange={e => updateRow(i, { notes: e.target.value })} placeholder="Notes" className="input text-xs w-24" /></td>
-                    <td className="px-3 py-1.5"><input type="number" value={r.costPerKg} onChange={e => updateRow(i, { costPerKg: e.target.value })} className="input text-xs w-20" /></td>
-                    <td className="px-3 py-1.5 text-blue-600 font-mono">₹{numF((r.costPerKg || 0) * (r.percentage || 0) / 100 * conv)}</td>
+                    <td className="px-3 py-1.5"><input type="number" value={r.costPerKg} onChange={e => updateRow(i, { costPerKg: parseFloat(e.target.value) || 0 })} className="input text-xs w-20" /></td>
+                    <td className="px-3 py-1.5 text-blue-600 font-mono">₹{numF(calcCostContribution(r.costPerKg, qty, r.unit || 'g'))}</td>
                     <td className="px-3 py-1.5"><button onClick={() => removeRow(i)} className="text-red-400 hover:text-red-600"><X size={13} /></button></td>
                   </tr>
                   {isOpen && (
@@ -1384,7 +1453,7 @@ function BranchedFormulationEditor({ product, selectedVersionId, setSelectedVers
 }
 
 function VersionRowsTable({ rows, refWeight, rawMaterials, onUpdate, onAdd, onRemove, editable }) {
-  const headers = editable ? ['Ingredient', '%', 'Qty (g)', 'Conv. Factor', 'Phase', 'Cost/kg (₹)', ''] : ['Ingredient', '%', 'Qty (g)', 'Conv. Factor', 'Phase', 'Cost/kg (₹)'];
+  const headers = editable ? ['Ingredient', '%', 'Qty (g)', 'Conv. Factor', 'Phase', 'Cost/unit (₹)', ''] : ['Ingredient', '%', 'Qty (g)', 'Conv. Factor', 'Phase', 'Cost/unit (₹)'];
   return (
     <div>
       <div className="overflow-x-auto rounded-xl border border-gray-200 dark:border-[#1b2e4a]">

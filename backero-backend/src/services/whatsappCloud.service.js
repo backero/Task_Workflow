@@ -387,7 +387,7 @@ async function sendDailyReportSummary(phone, {
 // {{8}} is one pre-formatted line (platforms joined by " · ") — Meta template parameters
 // can't contain newlines, so the per-platform breakdown must stay single-line, unlike the PDF.
 async function sendDailyReportMarketplace(phone, {
-  date, totalSales, adSpend, adRevenue, ctr, cvr, returns, platformSummaryLine,
+  date, totalSales, adSpend, adRevenue, ctr, cvr, returns, platformSummaryLine, platformRevenueBreakdown,
 }) {
   const fmt = (n) => (n || 0).toLocaleString('en-IN');
   return sendTemplate(phone, 'daily_report_marketplace', [
@@ -402,6 +402,7 @@ async function sendDailyReportMarketplace(phone, {
         { type: 'text', text: (cvr || 0).toFixed(1) },
         { type: 'text', text: fmt(returns) },
         { type: 'text', text: platformSummaryLine || 'No active marketplace plans.' },
+        { type: 'text', text: platformRevenueBreakdown || 'No live platform data.' },
       ],
     },
   ]);

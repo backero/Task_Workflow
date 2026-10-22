@@ -101,23 +101,69 @@ router.post('/snapdeal/import', upload.single('file'), async (req, res) => {
 router.all('/v1/*', async (req, res) => {
   const subPath = req.path.slice('/v1'.length) || '/';
 
-  // Special handling for alerts endpoint
+  // Unified alerts — amazon-server's own /v1/alerts is Amazon-only (account health,
+  // pricing, deal/visitor guards against ASINs); Meesho/Snapdeal itemize their own open
+  // alerts into Mongo (top_issues / alerts, synced by their own run_scheduler.py). Merge
+  // all three into one normalized feed instead of the empty stub this used to be.
   if (req.method === 'GET' && subPath === '/alerts') {
-    return res.json({
-      alerts: [],
-      total: 0,
-      critical: 0,
-      warning: 0,
-      info: 0,
-    });
+    try {
+      const [amazonRes, mongoSnapshots] = await Promise.all([
+        marketflow.forward('v1', 'GET', '/alerts', { params: {} }).catch(() => ({ data: { alerts: [] } })),
+        MarketflowSnapshot.find({ endpoint: 'overview', platform: { $in: ['meesho', 'snapdeal'] } }).lean(),
+      ]);
+
+      const normalized = [];
+      const AMAZON_SEVERITY = { red: 'critical', amber: 'warning', green: 'info' };
+      for (const a of amazonRes.data?.alerts || []) {
+        normalized.push({
+          id: `amazon-${a.id}`, platform: 'amazon', title: a.title, message: a.message,
+          severity: AMAZON_SEVERITY[a.severity] || 'info', fired_at: a.fired_at,
+          suggested_action: a.suggested_action || null,
+        });
+      }
+      for (const snap of mongoSnapshots) {
+        if (snap.platform === 'meesho') {
+          for (const t of snap.data?.top_issues || []) {
+            normalized.push({
+              id: `meesho-${t.id}`, platform: 'meesho', title: t.code, message: t.message,
+              severity: ['critical', 'warning'].includes(t.severity) ? t.severity : 'info',
+              fired_at: t.ts, suggested_action: null,
+            });
+          }
+        } else if (snap.platform === 'snapdeal') {
+          for (const a of snap.data?.alerts || []) {
+            normalized.push({
+              id: `snapdeal-${a.id}`, platform: 'snapdeal', title: a.title, message: a.reason,
+              severity: ['critical', 'warning'].includes(a.severity) ? a.severity : 'info',
+              fired_at: a.ts, suggested_action: a.fix || null,
+            });
+          }
+        }
+      }
+      normalized.sort((x, y) => new Date(y.fired_at || 0) - new Date(x.fired_at || 0));
+
+      const counts = normalized.reduce((acc, a) => ({ ...acc, [a.severity]: (acc[a.severity] || 0) + 1 }), {});
+      return res.json({
+        alerts: normalized, total: normalized.length,
+        critical: counts.critical || 0, warning: counts.warning || 0, info: counts.info || 0,
+      });
+    } catch (e) {
+      console.error('Unified alerts error:', e);
+      return res.json({ alerts: [], total: 0, critical: 0, warning: 0, info: 0 });
+    }
   }
 
-  // Special handling for recommendations endpoint
+  // Recommendations — amazon-server's engine already reads the same shared Mongo data for
+  // every platform and generates cross-platform recommendations (confirmed: amazon_in,
+  // flipkart, meesho, snapdeal all present in its response), so this is a straight forward
+  // instead of a bespoke per-platform recommendation builder.
   if (req.method === 'GET' && subPath === '/recommendations/action-plan') {
-    return res.json({
-      recommendations: [],
-      total: 0,
-    });
+    try {
+      const { data } = await marketflow.forward('v1', 'GET', '/recommendations/action-plan', { params: {} });
+      return res.json({ recommendations: data?.recommendations || [], total: data?.recommendations_count ?? (data?.recommendations || []).length });
+    } catch (e) {
+      return res.json({ recommendations: [], total: 0 });
+    }
   }
 
   // Special handling for robot endpoint to support platform parameter
@@ -199,11 +245,17 @@ router.all('/v1/*', async (req, res) => {
     try {
       const { data: amazonData } = await marketflow.forward('v1', 'GET', '/dashboard/unified', { params: {} }).catch(() => ({ platforms: {}, data: {} }));
 
-      // Fetch all platform data from MongoDB
+      // Fetch all platform data from MongoDB — but only use it to fill in platforms
+      // amazon-server doesn't already know about (myntra, jiomart). amazon-server's own
+      // /dashboard/unified already returns meesho/snapdeal/flipkart with real computed
+      // revenue/orders; the raw Mongo snapshot.data for those is the scraper's nested
+      // sync shape (no flat revenue/orders fields), so overwriting here silently zeroed
+      // out otherwise-correct numbers.
       const mongoSnapshots = await MarketflowSnapshot.find({ endpoint: 'overview' }).lean();
       const platforms = { ...amazonData.platforms };
 
       for (const snap of mongoSnapshots) {
+        if (platforms[snap.platform]) continue;
         platforms[snap.platform] = snap.data || { revenue: 0, orders: 0, impressions: 0, margin_pct: 0 };
       }
 

@@ -1,0 +1,104 @@
+.check-in-page {
+  max-width: 600px;
+  margin: 0 auto;
+  padding: 20px;
+  min-height: 100vh;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  padding-top: 40px;
+}
+
+.check-in-card {
+  border-radius: 12px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+  border: none;
+  background: white;
+  padding: 30px;
+}
+
+.check-in-page h1 {
+  color: white;
+  font-size: 28px;
+  font-weight: bold;
+}
+
+.check-in-page .ant-card {
+  border-radius: 12px;
+  background: white;
+}
+
+/* Responsive for mobile */
+@media (max-width: 768px) {
+  .check-in-page {
+    padding: 15px;
+  }
+
+  .check-in-card {
+    padding: 20px;
+  }
+
+  .check-in-page h1 {
+    font-size: 22px;
+  }
+}
+
+/* Button styling */
+.check-in-page .ant-btn {
+  border-radius: 8px;
+  font-weight: 600;
+}
+
+.check-in-page .ant-btn-primary {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border: none;
+}
+
+.check-in-page .ant-btn-primary:hover {
+  background: linear-gradient(135deg, #5568d3 0%, #6b3f8a 100%);
+  border: none;
+}
+
+/* Tag styling */
+.check-in-page .ant-tag {
+  border-radius: 4px;
+  padding: 4px 12px;
+  font-weight: 500;
+}
+
+/* Timeline styling */
+.check-in-page .ant-timeline-item-content {
+  padding-bottom: 20px;
+}
+
+/* Checked-in card enhanced styling */
+.checked-in-card {
+  background: linear-gradient(135deg, #f0f9ff 0%, #e6f2ff 100%) !important;
+  border: 2px solid #52c41a !important;
+  box-shadow: 0 15px 35px rgba(82, 196, 26, 0.15) !important;
+}
+
+.checked-in-card h2 {
+  font-size: 24px !important;
+  margin-bottom: 10px !important;
+}
+
+/* Checked-out card styling */
+.checked-out-card {
+  background: linear-gradient(135deg, #f6ffed 0%, #f0f5ff 100%) !important;
+  border: 2px solid #1890ff !important;
+  box-shadow: 0 15px 35px rgba(24, 144, 255, 0.15) !important;
+}
+
+/* Card spacing */
+.check-in-page .ant-card {
+  margin-bottom: 30px;
+}
+
+/* History section */
+.check-in-page .ant-timeline {
+  margin-top: 20px;
+}
+
+.check-in-page .ant-timeline-item-title {
+  font-weight: 600;
+  color: #262626;
+}

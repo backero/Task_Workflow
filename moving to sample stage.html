@@ -1,0 +1,741 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Sample Request Pop-up · BACKERO</title>
+<style>
+  :root {
+    --primary: #c026d3;
+    --primary-dark: #a21caf;
+    --primary-light: #f5d0fe;
+    --bg-card: #faf5ff;
+    --card: #ffffff;
+    --text: #0f172a;
+    --muted: #64748b;
+    --border: #e2e8f0;
+    --border-focus: #c026d3;
+    --danger: #ef4444;
+    --shadow-lg: 0 25px 50px -12px rgba(0,0,0,0.25);
+    --shadow-md: 0 4px 6px -1px rgba(0,0,0,0.08);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: linear-gradient(135deg, #1e1b4b 0%, #312e81 100%);
+    min-height: 100vh;
+    display: flex; align-items: center; justify-content: center;
+    padding: 16px; color: var(--text);
+  }
+  .demo-trigger {
+    position: fixed; top: 16px; right: 16px;
+    background: var(--primary); color: #fff; border: none;
+    padding: 8px 14px; border-radius: 8px;
+    font-weight: 600; font-size: 12px; cursor: pointer;
+    box-shadow: var(--shadow-md); z-index: 1;
+  }
+  .overlay {
+    position: fixed; inset: 0;
+    background: rgba(15, 23, 42, 0.6);
+    backdrop-filter: blur(4px);
+    display: none; align-items: center; justify-content: center;
+    padding: 12px; z-index: 10;
+    animation: fadeIn 0.2s ease;
+  }
+  .overlay.active { display: flex; }
+  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes slideUp {
+    from { opacity: 0; transform: translateY(12px) scale(0.98); }
+    to   { opacity: 1; transform: translateY(0) scale(1); }
+  }
+
+  /* Compact pop-up */
+  .popup {
+    background: var(--card);
+    border-radius: 14px;
+    width: 100%; max-width: 620px; max-height: 92vh;
+    display: flex; flex-direction: column;
+    box-shadow: var(--shadow-lg);
+    animation: slideUp 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    overflow: hidden;
+  }
+
+  .popup-header {
+    padding: 12px 18px 10px;
+    border-bottom: 1px solid var(--border);
+    background: linear-gradient(180deg, #fdf4ff 0%, #ffffff 100%);
+    position: relative;
+  }
+  .popup-title {
+    font-size: 15px; font-weight: 700;
+    display: flex; align-items: center; gap: 7px;
+  }
+  .popup-title .icon {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 24px; height: 24px;
+    background: var(--primary-light);
+    border-radius: 6px; font-size: 13px;
+  }
+  .popup-subtitle { margin-top: 2px; font-size: 11px; color: var(--muted); }
+  .popup-close {
+    position: absolute; top: 8px; right: 8px;
+    width: 24px; height: 24px; border-radius: 6px;
+    border: none; background: transparent;
+    cursor: pointer; color: var(--muted); font-size: 16px; line-height: 1;
+  }
+  .popup-close:hover { background: var(--border); color: var(--text); }
+
+  .popup-body {
+    padding: 12px 18px;
+    overflow-y: auto; flex: 1;
+  }
+  .popup-body::-webkit-scrollbar { width: 5px; }
+  .popup-body::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+  /* Sections */
+  .section { margin-bottom: 12px; }
+  .section:last-child { margin-bottom: 0; }
+  .section-title {
+    font-size: 9px; font-weight: 700;
+    color: var(--primary-dark);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: 6px;
+    display: flex; align-items: center; gap: 5px;
+  }
+  .section-title::before {
+    content: ""; display: inline-block;
+    width: 3px; height: 10px;
+    background: var(--primary); border-radius: 2px;
+  }
+
+  /* Form fields */
+  .field { margin-bottom: 8px; }
+  .field:last-child { margin-bottom: 0; }
+  .field-label {
+    display: block;
+    font-size: 10px; font-weight: 600;
+    color: var(--muted);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    margin-bottom: 3px;
+  }
+  .field-label .req { color: var(--danger); }
+
+  .input, .textarea, .select {
+    width: 100%;
+    padding: 7px 10px;
+    border: 1.5px solid var(--border);
+    border-radius: 7px;
+    font-size: 13px; font-family: inherit;
+    background: #fff; color: var(--text);
+    transition: all 0.15s;
+  }
+  .input:focus, .textarea:focus, .select:focus {
+    outline: none;
+    border-color: var(--border-focus);
+    box-shadow: 0 0 0 3px rgba(192, 38, 211, 0.10);
+  }
+  .textarea { resize: vertical; min-height: 56px; font-family: inherit; line-height: 1.4; }
+
+  .input-prefix { position: relative; }
+  .input-prefix .prefix {
+    position: absolute; left: 10px; top: 50%;
+    transform: translateY(-50%);
+    color: var(--muted); font-weight: 600; font-size: 13px;
+    pointer-events: none;
+  }
+  .input-prefix .input { padding-left: 24px; }
+
+  .row { display: grid; gap: 8px; }
+  .row.cols-2 { grid-template-columns: 1fr 1fr; }
+  .row.cols-4 { grid-template-columns: 2fr 0.6fr 0.7fr 0.55fr; }
+
+  /* Compact radio buttons */
+  .radio-pair { display: inline-flex; gap: 4px; flex-shrink: 0; }
+  .radio-card { position: relative; cursor: pointer; }
+  .radio-card input { position: absolute; opacity: 0; }
+  .radio-card .radio-content {
+    display: flex; align-items: center; justify-content: center;
+    padding: 4px 10px;
+    border: 1.5px solid var(--border);
+    border-radius: 6px;
+    font-size: 11px; font-weight: 600;
+    background: #fff;
+    transition: all 0.15s;
+    min-width: 30px;
+  }
+  .radio-card input:checked + .radio-content {
+    border-color: var(--primary);
+    background: var(--primary-light);
+    color: var(--primary-dark);
+  }
+  .radio-card:hover .radio-content { border-color: var(--primary-light); }
+
+  /* Per-product card */
+  .product-card {
+    background: var(--bg-card);
+    border: 1.5px solid var(--primary-light);
+    border-radius: 9px;
+    padding: 8px 10px;
+    margin-bottom: 6px;
+  }
+  .product-card:last-child { margin-bottom: 0; }
+  .product-card-head {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 6px;
+  }
+  .product-card-head .badge {
+    background: var(--primary); color: #fff;
+    font-size: 9px; font-weight: 700;
+    padding: 2px 8px; border-radius: 999px;
+    text-transform: uppercase; letter-spacing: 0.06em;
+  }
+  .remove-product-btn {
+    width: 20px; height: 20px;
+    border: 1.5px solid var(--border);
+    background: #fff; color: var(--muted);
+    border-radius: 5px; cursor: pointer;
+    font-size: 11px; line-height: 1;
+    transition: all 0.15s;
+  }
+  .remove-product-btn:hover {
+    border-color: var(--danger); color: var(--danger); background: #fef2f2;
+  }
+
+  /* Inline toggle-row: [Yes][No]  LABEL  [textarea when Yes] [📎] */
+  .toggle-row {
+    display: flex; align-items: center; gap: 6px;
+    margin-bottom: 4px;
+  }
+  .toggle-row:last-child { margin-bottom: 0; }
+  .toggle-row .toggle-label {
+    font-size: 10px; font-weight: 600;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    width: 60px; flex-shrink: 0;
+  }
+  .toggle-row .toggle-label .req { color: var(--danger); }
+  .toggle-row .toggle-content {
+    flex: 1; display: none;
+    align-items: center; gap: 4px;
+  }
+  .toggle-row.checked .toggle-content { display: flex; }
+  .toggle-row .toggle-content textarea {
+    flex: 1;
+    min-height: 28px;
+    padding: 5px 8px;
+    font-size: 12px;
+    border-radius: 6px;
+    border: 1.5px solid var(--border);
+    font-family: inherit;
+    resize: vertical;
+  }
+  .toggle-row .toggle-content textarea:focus {
+    outline: none;
+    border-color: var(--border-focus);
+    box-shadow: 0 0 0 3px rgba(192, 38, 211, 0.10);
+  }
+
+  /* Attachment uploader */
+  .attach-btn {
+    display: inline-flex; align-items: center; gap: 3px;
+    padding: 4px 8px;
+    background: #fff;
+    color: var(--primary-dark);
+    border: 1.5px dashed var(--primary);
+    border-radius: 6px;
+    font-size: 11px; font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s;
+    flex-shrink: 0;
+    height: 28px;
+  }
+  .attach-btn:hover { background: var(--primary-light); }
+  .attach-btn input[type=file] { display: none; }
+  .file-list {
+    display: flex; flex-wrap: wrap; gap: 3px;
+    margin-top: 4px;
+    width: 100%;
+  }
+  .file-pill {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 2px 7px;
+    background: var(--bg-card);
+    border: 1px solid var(--primary-light);
+    border-radius: 999px;
+    font-size: 10px; color: var(--text);
+    max-width: 180px;
+  }
+  .file-pill .file-name {
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 130px;
+  }
+  .file-pill .file-remove {
+    cursor: pointer; color: var(--muted); font-size: 12px; line-height: 1; padding: 0 2px;
+  }
+  .file-pill .file-remove:hover { color: var(--danger); }
+
+  /* Add product button */
+  .add-product-btn {
+    display: flex; align-items: center; justify-content: center; gap: 4px;
+    width: 100%; padding: 7px;
+    background: #fff; color: var(--primary-dark);
+    border: 1.5px dashed var(--primary);
+    border-radius: 7px;
+    font-size: 11px; font-weight: 600;
+    cursor: pointer; margin-top: 4px;
+    transition: all 0.15s;
+  }
+  .add-product-btn:hover { background: var(--primary-light); }
+
+  /* Inline carton row */
+  .inline-row {
+    display: flex; align-items: center; gap: 8px;
+  }
+  .inline-row .inline-label {
+    font-size: 11px; font-weight: 600;
+    color: var(--text);
+    min-width: 130px; flex-shrink: 0;
+  }
+  .inline-row .inline-label .req { color: var(--danger); }
+
+  /* Footer */
+  .popup-footer {
+    padding: 10px 18px;
+    border-top: 1px solid var(--border);
+    display: flex; gap: 10px;
+    background: #fafafa;
+  }
+  .btn {
+    flex: 1; padding: 9px 16px;
+    border-radius: 8px;
+    font-size: 13px; font-weight: 600;
+    cursor: pointer; border: none;
+    transition: all 0.15s; font-family: inherit;
+  }
+  .btn-cancel { background: #fff; color: var(--text); border: 1.5px solid var(--border); }
+  .btn-cancel:hover { background: var(--border); }
+  .btn-primary {
+    background: linear-gradient(135deg, #d946ef 0%, #c026d3 100%);
+    color: #fff;
+    box-shadow: 0 3px 10px rgba(192, 38, 211, 0.30);
+  }
+  .btn-primary:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 5px 14px rgba(192, 38, 211, 0.40);
+  }
+
+  /* Output panel */
+  .output-panel {
+    position: fixed; bottom: 16px; left: 16px;
+    max-width: 360px; max-height: 220px; overflow-y: auto;
+    background: #0f172a; color: #a5f3fc;
+    padding: 10px 14px;
+    border-radius: 10px;
+    font-family: "SF Mono", Monaco, monospace;
+    font-size: 11px; line-height: 1.45;
+    display: none;
+    box-shadow: var(--shadow-lg);
+  }
+  .output-panel.show { display: block; }
+  .output-panel .label {
+    color: #f472b6; font-weight: 600; margin-bottom: 4px; font-family: inherit;
+  }
+
+  @media (max-width: 540px) {
+    .row.cols-4, .row.cols-2 { grid-template-columns: 1fr; }
+    .toggle-row { flex-wrap: wrap; }
+    .toggle-row .toggle-label { width: auto; }
+  }
+</style>
+</head>
+<body>
+
+<button class="demo-trigger" onclick="openPopup()">+ Open Sample Pop-up</button>
+
+<div class="overlay" id="overlay" onclick="if(event.target===this) closePopup()">
+  <div class="popup" role="dialog" aria-labelledby="popupTitle">
+    <div class="popup-header">
+      <div class="popup-title" id="popupTitle">
+        <span class="icon">🧪</span>
+        Moving to Sample Stage
+      </div>
+      <div class="popup-subtitle">Fill the sample requirements below</div>
+      <button class="popup-close" onclick="closePopup()" aria-label="Close">×</button>
+    </div>
+
+    <div class="popup-body">
+      <form id="sampleForm" autocomplete="off">
+
+        <!-- Discussion -->
+        <div class="section">
+          <div class="section-title">Discussion</div>
+          <div class="field">
+            <label class="field-label">What was discussed <span class="req">*</span></label>
+            <textarea class="textarea" name="discussion" placeholder="Key points, deadlines, special handling — anything not covered by structured fields..." required></textarea>
+          </div>
+        </div>
+
+        <!-- Products -->
+        <div class="section">
+          <div class="section-title">Products &amp; sample specs (per product)</div>
+          <div id="productsList"></div>
+          <button type="button" class="add-product-btn" onclick="addProduct()">+ Add another product</button>
+        </div>
+
+        <!-- Outer carton box (own section) -->
+        <div class="section">
+          <div class="section-title">Outer carton box</div>
+          <div class="inline-row">
+            <label class="inline-label">Required <span class="req">*</span></label>
+            <div class="radio-pair">
+              <label class="radio-card">
+                <input type="radio" name="outerCarton" value="yes" onchange="toggleConditional('cartonSizeRow', true)" />
+                <div class="radio-content">Yes</div>
+              </label>
+              <label class="radio-card">
+                <input type="radio" name="outerCarton" value="no" onchange="toggleConditional('cartonSizeRow', false)" checked />
+                <div class="radio-content">No</div>
+              </label>
+            </div>
+            <input class="input" type="text" id="cartonSizeRow" name="cartonSize" placeholder="Carton size (L × W × H cm) — e.g. 30 × 20 × 15" style="display:none;" />
+          </div>
+        </div>
+
+        <!-- Shipping address (own section) -->
+        <div class="section">
+          <div class="section-title">Shipping address</div>
+          <div class="field" style="margin-bottom:0;">
+            <textarea class="textarea" name="shippingAddress" placeholder="Full address, contact person, phone..." required style="min-height:48px;"></textarea>
+          </div>
+        </div>
+
+        <!-- Cost & timeline -->
+        <div class="section" style="margin-bottom:0;">
+          <div class="section-title">Cost &amp; timeline</div>
+          <div class="row cols-2">
+            <div class="field" style="margin-bottom:0;">
+              <label class="field-label">Sampling + R&amp;D cost (₹) <span class="req">*</span></label>
+              <div class="input-prefix">
+                <span class="prefix">₹</span>
+                <input class="input" type="number" name="samplingCost" placeholder="2700" min="0" required />
+              </div>
+            </div>
+            <div class="field" style="margin-bottom:0;">
+              <label class="field-label">Lead time (days) <span class="req">*</span></label>
+              <input class="input" type="number" name="leadTime" placeholder="e.g. 3" min="1" required />
+            </div>
+          </div>
+        </div>
+
+      </form>
+    </div>
+
+    <div class="popup-footer">
+      <button type="button" class="btn btn-cancel" onclick="closePopup()">Cancel</button>
+      <button type="button" class="btn btn-primary" onclick="confirmSample()">Confirm Sample Request</button>
+    </div>
+  </div>
+</div>
+
+<div class="output-panel" id="outputPanel">
+  <div class="label">📦 Payload ready for CRM integration:</div>
+  <pre id="outputJson" style="white-space: pre-wrap; word-break: break-word;"></pre>
+</div>
+
+<script>
+  // ---------- Attachment state ----------
+  const attachments = {};
+
+  function getBucket(pIdx, fieldKey) {
+    if (!attachments[pIdx]) attachments[pIdx] = { bottle: [], label: [], lab: [] };
+    return attachments[pIdx][fieldKey];
+  }
+
+  function renderFileList(pIdx, fieldKey, container) {
+    const files = getBucket(pIdx, fieldKey);
+    container.innerHTML = files.map((f, i) => `
+      <span class="file-pill" title="${escAttr(f.name)} (${formatSize(f.size)})">
+        <span class="file-name">${escHtml(f.name)}</span>
+        <span class="file-remove" onclick="removeFile(${pIdx},'${fieldKey}',${i})" title="Remove">×</span>
+      </span>
+    `).join('');
+  }
+  function removeFile(pIdx, fieldKey, idx) {
+    getBucket(pIdx, fieldKey).splice(idx, 1);
+    const c = document.getElementById(`files-${fieldKey}-${pIdx}`);
+    if (c) renderFileList(pIdx, fieldKey, c);
+  }
+  function handleFileSelect(pIdx, fieldKey, input) {
+    Array.from(input.files || []).forEach(f => {
+      getBucket(pIdx, fieldKey).push({ name: f.name, size: f.size, type: f.type });
+    });
+    input.value = '';
+    const c = document.getElementById(`files-${fieldKey}-${pIdx}`);
+    if (c) renderFileList(pIdx, fieldKey, c);
+  }
+  function escHtml(s) { return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+  function escAttr(s) { return escHtml(s); }
+  function formatSize(b) {
+    if (b < 1024) return b + ' B';
+    if (b < 1024*1024) return (b/1024).toFixed(1) + ' KB';
+    return (b/1024/1024).toFixed(1) + ' MB';
+  }
+
+  // ---------- Product template ----------
+  function productTemplate(index) {
+    return `
+      <div class="product-card" data-index="${index}">
+        <div class="product-card-head">
+          <span class="badge">Product ${index + 1}</span>
+          <button type="button" class="remove-product-btn" onclick="removeProduct(this)" aria-label="Remove">×</button>
+        </div>
+
+        <div class="row cols-4" style="margin-bottom:6px;">
+          <div class="field" style="margin-bottom:0;">
+            <label class="field-label">Name <span class="req">*</span></label>
+            <input class="input" type="text" name="productName" placeholder="e.g. Hair wash" required />
+          </div>
+          <div class="field" style="margin-bottom:0;">
+            <label class="field-label">Qty <span class="req">*</span></label>
+            <input class="input" type="number" name="quantity" placeholder="3" min="1" required />
+          </div>
+          <div class="field" style="margin-bottom:0;">
+            <label class="field-label">Size <span class="req">*</span></label>
+            <input class="input" type="number" name="sampleSize" placeholder="100" min="1" required />
+          </div>
+          <div class="field" style="margin-bottom:0;">
+            <label class="field-label">Unit <span class="req">*</span></label>
+            <select class="select" name="sampleUnit" required>
+              <option value="ml">ml</option>
+              <option value="g">g</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="toggle-row" data-field="bottle" data-index="${index}">
+          <div class="radio-pair">
+            <label class="radio-card">
+              <input type="radio" name="bottleReq-${index}" value="yes" onchange="markToggleRow(this)" />
+              <div class="radio-content">Yes</div>
+            </label>
+            <label class="radio-card">
+              <input type="radio" name="bottleReq-${index}" value="no" onchange="markToggleRow(this)" checked />
+              <div class="radio-content">No</div>
+            </label>
+          </div>
+          <span class="toggle-label">Bottle <span class="req">*</span></span>
+          <div class="toggle-content">
+            <textarea name="bottleDetails" placeholder="Bottle details (optional)..."></textarea>
+            <label class="attach-btn" title="Attach files">
+              📎
+              <input type="file" multiple onchange="handleFileSelect(${index},'bottle',this)" />
+            </label>
+          </div>
+        </div>
+        <div class="file-list" id="files-bottle-${index}" style="padding-left:72px;"></div>
+
+        <div class="toggle-row" data-field="label" data-index="${index}" style="margin-top:4px;">
+          <div class="radio-pair">
+            <label class="radio-card">
+              <input type="radio" name="labelReq-${index}" value="yes" onchange="markToggleRow(this)" />
+              <div class="radio-content">Yes</div>
+            </label>
+            <label class="radio-card">
+              <input type="radio" name="labelReq-${index}" value="no" onchange="markToggleRow(this)" checked />
+              <div class="radio-content">No</div>
+            </label>
+          </div>
+          <span class="toggle-label">Label <span class="req">*</span></span>
+          <div class="toggle-content">
+            <textarea name="labelDetails" placeholder="Label specs (optional)..."></textarea>
+            <label class="attach-btn" title="Attach files">
+              📎
+              <input type="file" multiple onchange="handleFileSelect(${index},'label',this)" />
+            </label>
+          </div>
+        </div>
+        <div class="file-list" id="files-label-${index}" style="padding-left:72px;"></div>
+
+        <div class="toggle-row" data-field="lab" data-index="${index}" style="margin-top:4px;">
+          <div class="radio-pair">
+            <label class="radio-card">
+              <input type="radio" name="labReq-${index}" value="yes" onchange="markToggleRow(this)" />
+              <div class="radio-content">Yes</div>
+            </label>
+            <label class="radio-card">
+              <input type="radio" name="labReq-${index}" value="no" onchange="markToggleRow(this)" checked />
+              <div class="radio-content">No</div>
+            </label>
+          </div>
+          <span class="toggle-label">Lab test <span class="req">*</span></span>
+          <div class="toggle-content">
+            <textarea name="labDetails" placeholder="Lab testing requirements (optional)..."></textarea>
+            <label class="attach-btn" title="Attach files">
+              📎
+              <input type="file" multiple onchange="handleFileSelect(${index},'lab',this)" />
+            </label>
+          </div>
+        </div>
+        <div class="file-list" id="files-lab-${index}" style="padding-left:72px;"></div>
+
+        <div class="field" style="margin-top:8px; margin-bottom:0;">
+          <input class="input" type="text" name="individualPacking" placeholder="Individual packing — e.g. Each in separate carton box" required style="font-size:12px; padding:6px 10px;" />
+        </div>
+      </div>
+    `;
+  }
+
+  // ---------- Toggle behavior ----------
+  function markToggleRow(input) {
+    const row = input.closest('.toggle-row');
+    row.classList.toggle('checked', input.value === 'yes');
+  }
+
+  function toggleConditional(id, show) {
+    const el = document.getElementById(id);
+    if (el) el.style.display = show ? 'block' : 'none';
+  }
+
+  // ---------- Pop-up controls ----------
+  function openPopup() {
+    document.getElementById('overlay').classList.add('active');
+    document.body.style.overflow = 'hidden';
+  }
+  function closePopup() {
+    document.getElementById('overlay').classList.remove('active');
+    document.body.style.overflow = '';
+    document.getElementById('outputPanel').classList.remove('show');
+  }
+
+  // ---------- Product add/remove ----------
+  function addProduct() {
+    const list = document.getElementById('productsList');
+    const index = list.querySelectorAll('.product-card').length;
+    list.insertAdjacentHTML('beforeend', productTemplate(index));
+  }
+  function removeProduct(btn) {
+    const cards = document.querySelectorAll('.product-card');
+    const removedIdx = parseInt(btn.closest('.product-card').dataset.index);
+    if (cards.length === 1) {
+      const card = btn.closest('.product-card');
+      card.querySelectorAll('input, textarea, select').forEach(el => {
+        if (el.type === 'radio') el.checked = (el.value === 'no');
+        else if (el.tagName === 'SELECT') el.selectedIndex = 0;
+        else el.value = '';
+      });
+      card.querySelectorAll('.toggle-row').forEach(r => r.classList.remove('checked'));
+      delete attachments[0];
+      card.querySelectorAll('.file-list').forEach(fl => fl.innerHTML = '');
+      return;
+    }
+    btn.closest('.product-card').remove();
+    // Re-index attachments
+    const newAtt = {};
+    Object.keys(attachments).forEach(k => {
+      const i = parseInt(k);
+      if (i < removedIdx) newAtt[i] = attachments[i];
+      else if (i > removedIdx) newAtt[i - 1] = attachments[i];
+    });
+    Object.keys(attachments).forEach(k => delete attachments[k]);
+    Object.assign(attachments, newAtt);
+    // Re-number badges and rewire
+    document.querySelectorAll('.product-card').forEach((card, i) => {
+      card.dataset.index = i;
+      card.querySelector('.badge').textContent = `Product ${i + 1}`;
+      ['bottle','label','lab'].forEach(field => {
+        const fl = card.querySelector(`[id^="files-${field}-"]`);
+        if (fl) fl.id = `files-${field}-${i}`;
+      });
+      // Update radio names to be unique per index
+      ['bottleReq','labelReq','labReq'].forEach(nameBase => {
+        card.querySelectorAll(`input[name^="${nameBase}-"]`).forEach(inp => {
+          inp.name = `${nameBase}-${i}`;
+        });
+      });
+      card.querySelectorAll('.toggle-row').forEach(row => row.dataset.index = i);
+    });
+    // Re-render file lists with new indices
+    document.querySelectorAll('.product-card').forEach((card, i) => {
+      ['bottle','label','lab'].forEach(field => {
+        const c = card.querySelector('.file-list');
+        if (c) renderFileList(i, field, c);
+      });
+    });
+  }
+
+  // ---------- Submit ----------
+  function confirmSample() {
+    const form = document.getElementById('sampleForm');
+
+    const products = [];
+    let valid = true;
+    document.querySelectorAll('.product-card').forEach(card => {
+      const idx = parseInt(card.dataset.index);
+      const get = (sel) => {
+        const el = card.querySelector(`[name="${sel}"]`);
+        return el ? el.value.trim() : '';
+      };
+      const getRadio = (name) => {
+        const c = card.querySelector(`input[name="${name}"]:checked`);
+        return c ? c.value : '';
+      };
+      const name = get('productName');
+      const size = get('sampleSize');
+      const unit = get('sampleUnit');
+      const qty  = get('quantity');
+      const pack = get('individualPacking');
+      if (!name || !size || !qty || !pack) { valid = false; return; }
+
+      const bReq = getRadio(`bottleReq-${idx}`) === 'yes';
+      const lReq = getRadio(`labelReq-${idx}`)  === 'yes';
+      const tReq = getRadio(`labReq-${idx}`)    === 'yes';
+      const att = attachments[idx] || { bottle: [], label: [], lab: [] };
+
+      products.push({
+        name,
+        quantity: Number(qty),
+        sampleSize: Number(size),
+        unit,
+        bottleRequired: bReq,
+        bottleDetails: bReq ? get('bottleDetails') : '',
+        bottleAttachments: bReq ? att.bottle : [],
+        labelRequired: lReq,
+        labelDetails: lReq ? get('labelDetails') : '',
+        labelAttachments: lReq ? att.label : [],
+        labTestingRequired: tReq,
+        labTestingDetails: tReq ? get('labDetails') : '',
+        labAttachments: tReq ? att.lab : [],
+        individualPacking: pack
+      });
+    });
+
+    if (!valid || products.length === 0) {
+      alert('Please complete all required fields for at least one product.');
+      return;
+    }
+
+    const payload = {
+      discussion: form.discussion.value.trim(),
+      products,
+      outerCartonRequired: form.outerCarton.value === 'yes',
+      outerCartonSize: form.outerCarton.value === 'yes' ? form.cartonSize.value.trim() : '',
+      shippingAddress: form.shippingAddress.value.trim(),
+      samplingRnDCost: Number(form.samplingCost.value),
+      leadTimeDays:    Number(form.leadTime.value),
+      submittedAt:     new Date().toISOString()
+    };
+
+    document.getElementById('outputJson').textContent = JSON.stringify(payload, null, 2);
+    document.getElementById('outputPanel').classList.add('show');
+    console.log('Sample request payload →', payload);
+  }
+
+  // ---------- Init ----------
+  document.addEventListener('DOMContentLoaded', () => addProduct());
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') closePopup(); });
+</script>
+
+</body>
+</html>

@@ -1,326 +1,199 @@
-// Attendance controller — ported from the Attendance Tracker's
-// app/modules/attendance/router.py + service.py. See services/
-// attendanceProcessor.service.js for the status-derivation engine this
-// controller drives via correction/approval.
-const mongoose = require('mongoose');
-const Attendance = require('../models/Attendance');
-const AttendanceEvent = require('../models/AttendanceEvent');
-const AttendanceCorrection = require('../models/AttendanceCorrection');
-const AttendancePeriod = require('../models/AttendancePeriod');
+const AttendanceLog = require('../models/AttendanceLog');
 const Employee = require('../models/Employee');
-const { asyncHandler, sendSuccess, sendError, paginate, paginateResponse } = require('../utils/helpers');
-const { recordAuditEvent } = require('../services/attendanceAudit.service');
-const processor = require('../services/attendanceProcessor.service');
-const { getOrCreatePeriodForDate } = require('../services/attendancePeriods.service');
+const { asyncHandler, sendSuccess, sendError } = require('../utils/helpers');
 
-function toUTCDate(value) {
-  const d = new Date(value);
-  return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
-}
+exports.checkIn = asyncHandler(async (req, res) => {
+  const { latitude, longitude, address } = req.body;
+  const organizationId = req.user.organizationId;
+  const userId = req.user._id;
 
-// --- GET /attendance/me ---
-exports.getMyAttendance = asyncHandler(async (req, res) => {
-  const employee = await Employee.findOne({ userId: req.user._id, deletedAt: null });
-  if (!employee) return sendError(res, 'No employee profile is linked to your account yet.', 404);
-
-  const q = { organizationId: req.user.organizationId, employeeId: employee._id };
-  if (req.query.date_from) q.attendanceDate = { ...q.attendanceDate, $gte: toUTCDate(req.query.date_from) };
-  if (req.query.date_to) q.attendanceDate = { ...q.attendanceDate, $lte: toUTCDate(req.query.date_to) };
-
-  const rows = await Attendance.find(q).sort({ attendanceDate: -1 });
-  sendSuccess(res, { attendance: rows });
-});
-
-// --- POST /attendance/punch --- self-service check-in/check-out toggle.
-exports.punch = asyncHandler(async (req, res) => {
-  const orgId = req.user.organizationId;
-  const employee = await Employee.findOne({ organizationId: orgId, userId: req.user._id, deletedAt: null });
-  if (!employee) return sendError(res, 'No employee profile is linked to your account yet.', 404);
-
-  const targetDate = toUTCDate(new Date());
-  const period = await getOrCreatePeriodForDate(orgId, targetDate);
-  if (period.status === 'FINALIZED') {
-    return sendError(res, "Today's attendance period is finalized; contact HR.", 409);
+  // Find employee by userId
+  const employee = await Employee.findOne({ userId, organizationId, deletedAt: null });
+  if (!employee) {
+    return sendError(res, 'Employee profile not found for your account', 404);
   }
 
-  // Toggle CHECK_IN/CHECK_OUT off the raw event log, not the derived
-  // Attendance.checkIn/checkOut (those only track the FIRST/last-CLOSED
-  // session, so they stay truthy across a whole multi-punch day and can't
-  // tell "is a session open right now"). Last event today was CHECK_IN ->
-  // next is CHECK_OUT; anything else (CHECK_OUT, or no events yet) -> CHECK_IN.
-  const { start: dayStart, end: dayEnd } = processor.dayBoundsUTC(targetDate);
-  const lastEvent = await AttendanceEvent.findOne({
-    organizationId: orgId, employeeId: employee._id, eventTimestamp: { $gte: dayStart, $lt: dayEnd },
-  }).sort({ eventTimestamp: -1 });
-  const eventType = lastEvent?.eventType === 'CHECK_IN' ? 'CHECK_OUT' : 'CHECK_IN';
+  // Check if already checked in today
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const tomorrow = new Date(today);
+  tomorrow.setDate(tomorrow.getDate() + 1);
 
-  const { latitude, longitude } = req.body || {};
-  const eventTimestamp = new Date();
-  // Bucketed to a 3s window so an accidental double-tap/network-retry dedupes
-  // (same key), while legitimately separate punches later in the day (always
-  // >3s apart) each get their own key instead of colliding on eventType alone.
-  const dedupeBucket = Math.floor(eventTimestamp.getTime() / 3000);
-  const dedupeKey = `self:${employee._id}:${targetDate.toISOString().slice(0, 10)}:${eventType}:${dedupeBucket}`;
+  const existingCheckIn = await AttendanceLog.findOne({
+    employeeId: employee._id,
+    checkInTime: { $gte: today, $lt: tomorrow },
+    checkOutTime: null
+  });
 
-  try {
-    await AttendanceEvent.create({
-      organizationId: orgId, deviceId: null, deviceEmployeeRef: employee.employeeCode, employeeId: employee._id,
-      eventType, rawEvent: { self_service: true, ...(latitude != null && longitude != null ? { latitude, longitude } : {}) },
-      source: 'SELF_SERVICE', dedupeKey, eventTimestamp,
-    });
-  } catch (err) {
-    if (err.code === 11000) return sendError(res, 'Already logged — please refresh.', 409);
-    throw err;
+  if (existingCheckIn) {
+    return sendError(res, 'You are already checked in. Please check out first.', 400);
   }
 
-  const io = req.app.get('io');
-  const updated = await processor.process(orgId, employee._id, targetDate, { io });
-
-  sendSuccess(res, { attendance: updated, punched: eventType }, eventType === 'CHECK_IN' ? 'Checked in' : 'Checked out');
-});
-
-// --- GET /attendance/today ---
-const SORT_FIELD_MAP = {
-  employee_code: 'employeeCode',
-  full_name: 'fullName',
-  department_name: 'departmentName',
-  designation_title: 'designationTitle',
-  status: 'status',
-  check_in: 'checkIn',
-};
-
-exports.listToday = asyncHandler(async (req, res) => {
-  const orgId = req.user.organizationId;
-  const targetDate = req.query.attendance_date ? toUTCDate(req.query.attendance_date) : toUTCDate(new Date());
-  const { department_id: departmentId, status, search, sort } = req.query;
-  const { page = 1, limit = 20 } = req.query;
-
-  const employeeMatch = { organizationId: new mongoose.Types.ObjectId(orgId), deletedAt: null };
-  if (departmentId) employeeMatch.departmentId = new mongoose.Types.ObjectId(departmentId);
-  if (search) {
-    const term = new RegExp(search.trim(), 'i');
-    employeeMatch.$or = [{ fullName: term }, { employeeCode: term }];
-  }
-
-  const pipeline = [
-    { $match: employeeMatch },
-    {
-      $lookup: {
-        from: 'attendances',
-        let: { empId: '$_id' },
-        pipeline: [
-          { $match: { $expr: { $and: [{ $eq: ['$employeeId', '$$empId'] }, { $eq: ['$attendanceDate', targetDate] }] } } },
-        ],
-        as: 'attendanceRows',
-      },
+  // Create new check-in record
+  const attendanceLog = await AttendanceLog.create({
+    organizationId,
+    employeeId: employee._id,
+    userId,
+    checkInTime: new Date(),
+    checkInLocation: {
+      type: 'Point',
+      coordinates: [longitude, latitude]
     },
-    { $unwind: { path: '$attendanceRows', preserveNullAndEmptyArrays: true } },
-  ];
-  if (status) pipeline.push({ $match: { 'attendanceRows.status': status } });
-  pipeline.push(
-    { $lookup: { from: 'departments', localField: 'departmentId', foreignField: '_id', as: 'departmentDoc' } },
-    { $unwind: { path: '$departmentDoc', preserveNullAndEmptyArrays: true } },
-    { $lookup: { from: 'designations', localField: 'designationId', foreignField: '_id', as: 'designationDoc' } },
-    { $unwind: { path: '$designationDoc', preserveNullAndEmptyArrays: true } },
-    {
-      $project: {
-        _id: 0,
-        employeeId: '$_id',
-        employeeCode: 1,
-        fullName: 1,
-        departmentName: '$departmentDoc.name',
-        designationTitle: '$designationDoc.title',
-        status: '$attendanceRows.status',
-        checkIn: '$attendanceRows.checkIn',
-        checkOut: '$attendanceRows.checkOut',
-        isCorrected: '$attendanceRows.isCorrected',
-      },
-    },
-  );
-
-  const sortField = SORT_FIELD_MAP[(sort || '').replace(/^-/, '')] || 'fullName';
-  const descending = (sort || '').startsWith('-');
-  pipeline.push(
-    { $addFields: { _sortIsNull: { $eq: [{ $ifNull: [`$${sortField}`, null] }, null] } } },
-    { $sort: { _sortIsNull: 1, [sortField]: descending ? -1 : 1 } },
-    { $project: { _sortIsNull: 0 } },
-  );
-
-  const { skip, limit: lim } = paginate(page, limit);
-  const [result] = await Employee.aggregate([
-    ...pipeline,
-    { $facet: { total: [{ $count: 'count' }], items: [{ $skip: skip }, { $limit: lim }] } },
-  ]);
-  const total = result.total[0]?.count || 0;
-  sendSuccess(res, paginateResponse(result.items, total, page, limit));
-});
-
-// --- GET /attendance/exceptions ---
-exports.listExceptions = asyncHandler(async (req, res) => {
-  const orgId = req.user.organizationId;
-  const { page = 1, limit = 20 } = req.query;
-  const q = { organizationId: orgId, employeeId: null };
-
-  const total = await AttendanceEvent.countDocuments(q);
-  const { skip, limit: lim } = paginate(page, limit);
-  const rows = await AttendanceEvent.find(q).sort({ eventTimestamp: -1 }).skip(skip).limit(lim);
-  sendSuccess(res, paginateResponse(rows, total, page, limit));
-});
-
-// --- GET /attendance/:employeeId ---
-exports.getByEmployeeId = asyncHandler(async (req, res) => {
-  const q = { organizationId: req.user.organizationId, employeeId: req.params.employeeId };
-  if (req.query.date_from) q.attendanceDate = { ...q.attendanceDate, $gte: toUTCDate(req.query.date_from) };
-  if (req.query.date_to) q.attendanceDate = { ...q.attendanceDate, $lte: toUTCDate(req.query.date_to) };
-
-  const rows = await Attendance.find(q).sort({ attendanceDate: -1 });
-  sendSuccess(res, { attendance: rows });
-});
-
-// --- POST /attendance/:attendanceId/correct ---
-exports.requestCorrection = asyncHandler(async (req, res) => {
-  const orgId = req.user.organizationId;
-  const { reason, check_in: checkInRaw, check_out: checkOutRaw } = req.body;
-  if (!reason || reason.trim().length < 5) return sendError(res, 'reason must be at least 5 characters.', 422);
-  const newCheckIn = checkInRaw ? new Date(checkInRaw) : null;
-  const newCheckOut = checkOutRaw ? new Date(checkOutRaw) : null;
-  if (!newCheckIn && !newCheckOut) {
-    return sendError(res, 'Supply at least one of check_in/check_out.', 422);
-  }
-
-  const attendance = await Attendance.findOne({ _id: req.params.attendanceId, organizationId: orgId });
-  if (!attendance) return sendError(res, 'Attendance record not found.', 404);
-
-  const period = await AttendancePeriod.findOne({ _id: attendance.attendancePeriodId, organizationId: orgId });
-  if (!period) return sendError(res, 'Attendance period not found.', 404);
-
-  const employee = await Employee.findById(attendance.employeeId);
-
-  if (period.status === 'FINALIZED') {
-    const correction = await AttendanceCorrection.create({
-      organizationId: orgId,
-      attendanceId: attendance._id,
-      requestedBy: req.user._id,
-      reason,
-      proposedCheckIn: newCheckIn,
-      proposedCheckOut: newCheckOut,
-    });
-    await recordAuditEvent({
-      organizationId: orgId,
-      actorUserId: req.user._id,
-      action: 'attendance.correct.request',
-      entityType: 'Attendance',
-      entityId: attendance._id,
-      reason,
-      newValue: { checkIn: newCheckIn, checkOut: newCheckOut },
-    });
-    return sendSuccess(res, { correction }, 'Correction request submitted for approval.');
-  }
-
-  // OPEN period — apply immediately via a synthetic event + full re-derivation.
-  const previousValue = { checkIn: attendance.checkIn, checkOut: attendance.checkOut, status: attendance.status };
-
-  if (newCheckIn) {
-    await AttendanceEvent.create({
-      organizationId: orgId, deviceId: null, deviceEmployeeRef: employee.employeeCode, employeeId: employee._id,
-      eventType: 'CHECK_IN', rawEvent: { manual_correction: true, reason }, source: 'MANUAL_CORRECTION',
-      dedupeKey: `correction:${new mongoose.Types.ObjectId()}`, eventTimestamp: newCheckIn,
-    });
-  }
-  if (newCheckOut) {
-    await AttendanceEvent.create({
-      organizationId: orgId, deviceId: null, deviceEmployeeRef: employee.employeeCode, employeeId: employee._id,
-      eventType: 'CHECK_OUT', rawEvent: { manual_correction: true, reason }, source: 'MANUAL_CORRECTION',
-      dedupeKey: `correction:${new mongoose.Types.ObjectId()}`, eventTimestamp: newCheckOut,
-    });
-  }
-
-  const io = req.app.get('io');
-  const updated = await processor.process(orgId, attendance.employeeId, attendance.attendanceDate, { io });
-
-  const newValue = { checkIn: updated.checkIn, checkOut: updated.checkOut, status: updated.status };
-  updated.isCorrected = true;
-  updated.correctionHistory.push({ actorUserId: req.user._id, reason, previousValue, newValue, appliedAt: new Date() });
-  await updated.save();
-
-  await recordAuditEvent({
-    organizationId: orgId,
-    actorUserId: req.user._id,
-    action: 'attendance.correct',
-    entityType: 'Attendance',
-    entityId: attendance._id,
-    reason,
-    previousValue,
-    newValue,
+    checkInAddress: address,
+    status: 'present'
   });
 
-  sendSuccess(res, { attendance: updated }, 'Correction applied.');
+  sendSuccess(res, {
+    checkIn: attendanceLog,
+    message: `Checked in at ${attendanceLog.checkInTime.toLocaleTimeString()}`
+  }, 'Check-in successful', 201);
 });
 
-// --- POST /attendance/:attendanceId/correct/:correctionId/approve ---
-exports.approveCorrection = asyncHandler(async (req, res) => {
-  const orgId = req.user.organizationId;
-  const correction = await AttendanceCorrection.findOne({
-    _id: req.params.correctionId, attendanceId: req.params.attendanceId, organizationId: orgId,
+exports.checkOut = asyncHandler(async (req, res) => {
+  const { latitude, longitude, address } = req.body;
+  const organizationId = req.user.organizationId;
+  const userId = req.user._id;
+
+  // Find employee by userId
+  const employee = await Employee.findOne({ userId, organizationId, deletedAt: null });
+  if (!employee) {
+    return sendError(res, 'Employee profile not found for your account', 404);
+  }
+
+  // Find today's check-in record
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const tomorrow = new Date(today);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+
+  const attendanceLog = await AttendanceLog.findOne({
+    employeeId: employee._id,
+    checkInTime: { $gte: today, $lt: tomorrow },
+    checkOutTime: null
   });
-  if (!correction) return sendError(res, 'Attendance correction request not found.', 404);
-  if (correction.status !== 'PENDING_APPROVAL') {
-    return sendError(res, 'This correction is not pending approval.', 409);
-  }
-  if (String(correction.requestedBy) === String(req.user._id)) {
-    return sendError(
-      res,
-      'A correction must be approved by a different SUPER_ADMIN than the one who requested it.',
-      403,
-    );
+
+  if (!attendanceLog) {
+    return sendError(res, 'No active check-in found. Please check in first.', 400);
   }
 
-  const attendance = await Attendance.findOne({ _id: correction.attendanceId, organizationId: orgId });
-  if (!attendance) return sendError(res, 'Attendance record not found.', 404);
-  const employee = await Employee.findById(attendance.employeeId);
+  // Calculate hours worked
+  const checkOutTime = new Date();
+  const hoursWorked = (checkOutTime - attendanceLog.checkInTime) / (1000 * 60 * 60);
 
-  const previousValue = { checkIn: attendance.checkIn, checkOut: attendance.checkOut, status: attendance.status };
+  // Update check-out
+  attendanceLog.checkOutTime = checkOutTime;
+  attendanceLog.checkOutLocation = {
+    type: 'Point',
+    coordinates: [longitude, latitude]
+  };
+  attendanceLog.checkOutAddress = address;
+  attendanceLog.hoursWorked = Math.round(hoursWorked * 100) / 100;
 
-  if (correction.proposedCheckIn) {
-    await AttendanceEvent.create({
-      organizationId: orgId, deviceId: null, deviceEmployeeRef: employee.employeeCode, employeeId: employee._id,
-      eventType: 'CHECK_IN', rawEvent: { manual_correction: true, reason: correction.reason }, source: 'MANUAL_CORRECTION',
-      dedupeKey: `correction:${new mongoose.Types.ObjectId()}`, eventTimestamp: correction.proposedCheckIn,
+  await attendanceLog.save();
+
+  sendSuccess(res, {
+    checkOut: attendanceLog,
+    message: `Checked out at ${attendanceLog.checkOutTime.toLocaleTimeString()}. Hours worked: ${attendanceLog.hoursWorked}`
+  }, 'Check-out successful');
+});
+
+exports.getTodayStatus = asyncHandler(async (req, res) => {
+  const organizationId = req.user.organizationId;
+  const userId = req.user._id;
+
+  // Find employee
+  const employee = await Employee.findOne({ userId, organizationId, deletedAt: null });
+  if (!employee) {
+    return sendError(res, 'Employee profile not found', 404);
+  }
+
+  // Find today's record
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const tomorrow = new Date(today);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+
+  const attendanceLog = await AttendanceLog.findOne({
+    employeeId: employee._id,
+    checkInTime: { $gte: today, $lt: tomorrow }
+  });
+
+  if (!attendanceLog) {
+    return sendSuccess(res, {
+      status: 'not-checked-in',
+      message: 'You have not checked in yet today'
     });
   }
-  if (correction.proposedCheckOut) {
-    await AttendanceEvent.create({
-      organizationId: orgId, deviceId: null, deviceEmployeeRef: employee.employeeCode, employeeId: employee._id,
-      eventType: 'CHECK_OUT', rawEvent: { manual_correction: true, reason: correction.reason }, source: 'MANUAL_CORRECTION',
-      dedupeKey: `correction:${new mongoose.Types.ObjectId()}`, eventTimestamp: correction.proposedCheckOut,
-    });
+
+  const status = attendanceLog.checkOutTime ? 'checked-out' : 'checked-in';
+  const hoursWorked = attendanceLog.hoursWorked ||
+    ((new Date() - attendanceLog.checkInTime) / (1000 * 60 * 60)).toFixed(2);
+
+  sendSuccess(res, {
+    status,
+    checkInTime: attendanceLog.checkInTime,
+    checkOutTime: attendanceLog.checkOutTime,
+    hoursWorked,
+    attendanceLog
+  });
+});
+
+exports.getAttendanceHistory = asyncHandler(async (req, res) => {
+  const organizationId = req.user.organizationId;
+  const userId = req.user._id;
+
+  // Convert days to integer and set default
+  const days = parseInt(req.query.days || '30', 10);
+
+  if (isNaN(days) || days < 1) {
+    return sendError(res, 'Invalid days parameter. Must be a positive number.', 400);
   }
 
-  const io = req.app.get('io');
-  const updated = await processor.process(orgId, attendance.employeeId, attendance.attendanceDate, { io });
+  const employee = await Employee.findOne({ userId, organizationId, deletedAt: null });
+  if (!employee) {
+    return sendError(res, 'Employee profile not found', 404);
+  }
 
-  const newValue = { checkIn: updated.checkIn, checkOut: updated.checkOut, status: updated.status };
-  updated.isCorrected = true;
-  updated.correctionHistory.push({
-    actorUserId: req.user._id, requestedBy: correction.requestedBy, reason: correction.reason, previousValue, newValue, appliedAt: new Date(),
+  const startDate = new Date();
+  startDate.setDate(startDate.getDate() - days);
+  startDate.setHours(0, 0, 0, 0);
+
+  const logs = await AttendanceLog.find({
+    employeeId: employee._id,
+    checkInTime: { $gte: startDate }
+  }).sort({ checkInTime: -1 });
+
+  sendSuccess(res, { logs, count: logs.length });
+});
+
+exports.getAttendanceAnalytics = asyncHandler(async (req, res) => {
+  const organizationId = req.user.organizationId;
+  const userId = req.user._id;
+  const { month = new Date().getMonth() + 1, year = new Date().getFullYear() } = req.query;
+
+  const employee = await Employee.findOne({ userId, organizationId, deletedAt: null });
+  if (!employee) {
+    return sendError(res, 'Employee profile not found', 404);
+  }
+
+  const startDate = new Date(year, month - 1, 1);
+  const endDate = new Date(year, month, 0, 23, 59, 59);
+
+  const logs = await AttendanceLog.find({
+    employeeId: employee._id,
+    checkInTime: { $gte: startDate, $lte: endDate }
   });
-  await updated.save();
 
-  correction.status = 'APPROVED';
-  correction.approvedBy = req.user._id;
-  correction.approvedAt = new Date();
-  await correction.save();
+  const analytics = {
+    totalDays: logs.length,
+    presentDays: logs.filter(l => l.status === 'present').length,
+    lateDays: logs.filter(l => l.status === 'late').length,
+    earlyLeaveDays: logs.filter(l => l.status === 'early-leave').length,
+    absentDays: logs.filter(l => l.status === 'absent').length,
+    totalHours: logs.reduce((sum, l) => sum + (l.hoursWorked || 0), 0),
+    averageHours: logs.length > 0 ? (logs.reduce((sum, l) => sum + (l.hoursWorked || 0), 0) / logs.length).toFixed(2) : 0,
+    logs
+  };
 
-  await recordAuditEvent({
-    organizationId: orgId,
-    actorUserId: req.user._id,
-    action: 'attendance.correct.approve',
-    entityType: 'Attendance',
-    entityId: attendance._id,
-    reason: correction.reason,
-    previousValue,
-    newValue,
-  });
-
-  sendSuccess(res, { attendance: updated }, 'Correction approved.');
+  sendSuccess(res, analytics);
 });

@@ -1414,10 +1414,17 @@ const AUTOMATION_PLATFORMS = [
   {
     key: 'flipkart', label: 'Flipkart', path: '/marketflow/flipkart/overview', meta: PLATFORM_META.Flipkart,
     // Raw shape: { listings, active, avg_rating, open_recommendations: {low,medium,high},
-    // account_metrics: { home: {...}, ... }, ai_insight }. The useful numbers sit one level
-    // down in open_recommendations/account_metrics.home — pull those up to kpis too.
+    // account_metrics: { home, business_health, traffic, ads, inventory, orders, payments, ... },
+    // ai_insight }. The useful numbers sit one level down — pull those up to kpis plus a
+    // handful of dedicated sections (ads/payments/order pipeline/inventory/risk) that were
+    // already being scraped but never surfaced anywhere in the dashboard.
     transform: (d) => {
       const home = d?.account_metrics?.home || {};
+      const bh = d?.account_metrics?.business_health || {};
+      const ads = d?.account_metrics?.ads || {};
+      const payments = d?.account_metrics?.payments || {};
+      const orders = d?.account_metrics?.orders || {};
+      const inventory = d?.account_metrics?.inventory || {};
       const openRecs = Object.values(d?.open_recommendations || {}).reduce((a, b) => a + (Number(b) || 0), 0);
       return {
         kpis: {
@@ -1431,6 +1438,34 @@ const AUTOMATION_PLATFORMS = [
         ai_insight: d?.ai_insight,
         // Real confirmed shape e.g. {low:1} — used for the severity pie chart.
         severity: d?.open_recommendations,
+        ads: Object.keys(ads).length ? {
+          ...(ads.spend != null && { ad_spend_7d: `₹${ads.spend}` }),
+          ...(ads.revenue != null && { ad_revenue_7d: `₹${ads.revenue}` }),
+          ...(ads.roi != null && { roi: `${ads.roi}x` }),
+          ...(ads.ctr_pct != null && { ctr: `${ads.ctr_pct}%` }),
+          ...(ads.cvr_pct != null && { cvr: `${ads.cvr_pct}%` }),
+          ...(ads.wallet_balance != null && { wallet_balance: `₹${ads.wallet_balance}` }),
+        } : null,
+        payments: Object.keys(payments).length ? {
+          ...(payments.outstanding_amount != null && { outstanding: `₹${payments.outstanding_amount}` }),
+          ...(payments.estimate_1_total != null && { next_payout: `₹${payments.estimate_1_total}${payments.estimate_1_label ? ` (${payments.estimate_1_label})` : ''}` }),
+          ...(payments.previous_payouts_listed != null && { recent_payouts: payments.previous_payouts_listed }),
+        } : null,
+        orderPipeline: Object.keys(orders).length ? {
+          to_accept: orders.to_accept, to_pack: orders.to_pack, to_dispatch: orders.to_dispatch,
+          in_transit: orders.in_transit, completed: orders.completed,
+        } : null,
+        inventoryHealth: Object.keys(inventory).length ? {
+          total_skus: inventory.skus, low_stock_skus: inventory.low_stock_skus,
+          out_of_stock_skus: inventory.out_of_stock_skus, units_in_stock: inventory.units_in_stock,
+        } : null,
+        riskIndicators: Object.keys(bh).length ? {
+          ...(bh.rto_pct != null && { rto: `${bh.rto_pct}%` }),
+          ...(bh.pre_dispatch_cancel_pct != null && { pre_dispatch_cancel: `${bh.pre_dispatch_cancel_pct}%` }),
+          ...(bh.seller_cancel_pct != null && { seller_cancel: `${bh.seller_cancel_pct}%` }),
+          ...(bh.dbd_breach_pct != null && { dbd_breach: `${bh.dbd_breach_pct}%` }),
+          ...(bh.low_quality_listings != null && { low_quality_listings: bh.low_quality_listings }),
+        } : null,
       };
     },
   },
@@ -1645,15 +1680,28 @@ const AMAZON_DEEP_PAGES = [
   { key: 'tracking',      label: 'Tracking',             icon: Radar },
   { key: 'robots',        label: 'Robots',                icon: Bot },
 ];
-const FLIPKART_DEEP_PAGES = [{ key: 'account-health', label: 'Account Health', icon: HeartPulse }];
-const SNAPDEAL_DEEP_PAGES = [{ key: 'health-gate', label: 'Health Gate', icon: HeartPulse }];
-const MEESHO_DEEP_PAGES   = [{ key: 'listings', label: 'Listings', icon: Package }];
+const FLIPKART_DEEP_PAGES = [
+  { key: 'account-health', label: 'Account Health', icon: HeartPulse },
+  { key: 'robots', label: 'Robots', icon: Bot },
+];
+const SNAPDEAL_DEEP_PAGES = [
+  { key: 'health-gate', label: 'Health Gate', icon: HeartPulse },
+  { key: 'robots', label: 'Robots', icon: Bot },
+];
+const MEESHO_DEEP_PAGES   = [
+  { key: 'listings', label: 'Listings', icon: Package },
+  { key: 'robots', label: 'Robots', icon: Bot },
+];
+const MYNTRA_DEEP_PAGES   = [{ key: 'robots', label: 'Robots', icon: Bot }];
+const JIOMART_DEEP_PAGES  = [{ key: 'robots', label: 'Robots', icon: Bot }];
 
 const DEEP_PAGES_BY_PLATFORM = {
   amazon: AMAZON_DEEP_PAGES,
   flipkart: FLIPKART_DEEP_PAGES,
   snapdeal: SNAPDEAL_DEEP_PAGES,
   meesho: MEESHO_DEEP_PAGES,
+  myntra: MYNTRA_DEEP_PAGES,
+  jiomart: JIOMART_DEEP_PAGES,
 };
 
 function LiveAutomationTab() {
@@ -1670,21 +1718,21 @@ function LiveAutomationTab() {
   const { data: unified, isLoading: unifiedLoading, error: unifiedError } = useQuery({
     queryKey: ['marketflow', 'unified'],
     queryFn: () => api.get('/marketflow/v1/dashboard/unified').then(r => r.data),
-    refetchInterval: 60 * 1000,
+    refetchInterval: 4 * 60 * 60 * 1000,
     retry: 1,
   });
 
   const { data: alertsData, isLoading: alertsLoading, error: alertsError } = useQuery({
     queryKey: ['marketflow', 'alerts'],
     queryFn: () => api.get('/marketflow/v1/alerts').then(r => r.data),
-    refetchInterval: 60 * 1000,
+    refetchInterval: 4 * 60 * 60 * 1000,
     retry: 1,
   });
 
   const { data: recsData, isLoading: recsLoading, error: recsError } = useQuery({
     queryKey: ['marketflow', 'recommendations'],
     queryFn: () => api.get('/marketflow/v1/recommendations/action-plan').then(r => r.data),
-    refetchInterval: 60 * 1000,
+    refetchInterval: 4 * 60 * 60 * 1000,
     retry: 1,
   });
 
@@ -1693,7 +1741,7 @@ function LiveAutomationTab() {
     ...useQuery({
       queryKey: ['marketflow', p.key, 'overview'],
       queryFn: () => api.get(p.path).then(r => (p.transform ? p.transform(r.data) : r.data)),
-      refetchInterval: 60 * 1000,
+      refetchInterval: 4 * 60 * 60 * 1000,
       retry: 1,
     }),
   }));
@@ -1768,6 +1816,12 @@ function LiveAutomationTab() {
                   {Object.entries(platformsBreakdown).map(([key, p]) => {
                     const platformKey = UNIFIED_KEY_TO_PLATFORM[key] || key;
                     const meta = PLATFORM_META[platformKey.charAt(0).toUpperCase() + platformKey.slice(1)] || {};
+                    // Mongo-synced platforms (Flipkart/Snapdeal/Meesho) store open_alerts as the raw
+                    // {critical, warning, info} object from their scraper — Amazon's own dashboard
+                    // already flattens it to a number. Normalize so we never hand React an object child.
+                    const openAlerts = typeof p.open_alerts === 'number'
+                      ? p.open_alerts
+                      : Object.values(p.open_alerts || {}).reduce((a, b) => a + (Number(b) || 0), 0);
                     return (
                       <div key={key} className="p-3.5 rounded-xl border border-gray-100 bg-gray-50/60">
                         <div className="flex items-center gap-2 mb-2.5">
@@ -1785,7 +1839,7 @@ function LiveAutomationTab() {
                           </div>
                           <div className="flex items-center justify-between">
                             <span className="text-gray-400">Open Alerts</span>
-                            <span className={clsx('font-bold', p.open_alerts > 0 ? 'text-red-600' : 'text-gray-800')}>{p.open_alerts ?? 0}</span>
+                            <span className={clsx('font-bold', openAlerts > 0 ? 'text-red-600' : 'text-gray-800')}>{openAlerts}</span>
                           </div>
                         </div>
                       </div>
@@ -1904,7 +1958,7 @@ function LiveAutomationTab() {
               {deepPage === 'competitors' && <CompetitorWatchlist />}
               {deepPage === 'inventory' && <Inventory />}
               {deepPage === 'tracking' && <Tracking />}
-              {deepPage === 'robots' && <Robots />}
+              {deepPage === 'robots' && <Robots platform={activePlatform.key} />}
               {deepPage === 'account-health' && activePlatform.key === 'flipkart' && <FlipkartAccountHealth />}
               {deepPage === 'health-gate' && activePlatform.key === 'snapdeal' && <SnapdealHealthGate />}
               {deepPage === 'listings' && activePlatform.key === 'meesho' && <MeeshoListings />}
@@ -1938,6 +1992,39 @@ function LiveAutomationTab() {
                 <div>
                   <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wide mb-2.5">7-Day Conversion Funnel</p>
                   <StatCardGrid kpis={Object.fromEntries(activePlatform.data.funnel.map((s) => [s.name, s.value]))} color={activePlatform.meta.color} />
+                </div>
+              )}
+
+              {/* Flipkart-only: data the scraper already pulls (ads, payouts, order pipeline,
+                  inventory, risk %) but that never had anywhere to show up before. */}
+              {activePlatform.key === 'flipkart' && activePlatform.data?.ads && (
+                <div>
+                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wide mb-2.5">Ads Performance (Last 7 Days)</p>
+                  <StatCardGrid kpis={activePlatform.data.ads} color={activePlatform.meta.color} />
+                </div>
+              )}
+              {activePlatform.key === 'flipkart' && activePlatform.data?.payments && (
+                <div>
+                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wide mb-2.5">Payments & Payouts</p>
+                  <StatCardGrid kpis={activePlatform.data.payments} color={activePlatform.meta.color} />
+                </div>
+              )}
+              {activePlatform.key === 'flipkart' && activePlatform.data?.orderPipeline && (
+                <div>
+                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wide mb-2.5">Order Pipeline</p>
+                  <StatCardGrid kpis={activePlatform.data.orderPipeline} color={activePlatform.meta.color} />
+                </div>
+              )}
+              {activePlatform.key === 'flipkart' && activePlatform.data?.inventoryHealth && (
+                <div>
+                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wide mb-2.5">Inventory Health</p>
+                  <StatCardGrid kpis={activePlatform.data.inventoryHealth} color={activePlatform.meta.color} />
+                </div>
+              )}
+              {activePlatform.key === 'flipkart' && activePlatform.data?.riskIndicators && (
+                <div>
+                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wide mb-2.5">Risk Indicators</p>
+                  <StatCardGrid kpis={activePlatform.data.riskIndicators} color={activePlatform.meta.color} />
                 </div>
               )}
 

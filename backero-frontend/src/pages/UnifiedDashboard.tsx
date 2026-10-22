@@ -33,8 +33,8 @@ export default function UnifiedDashboard() {
       setLoading(true)
       try {
         const [dashboardRes, qualityRes] = await Promise.all([
-          axios.get('/v1/dashboard/unified'),
-          axios.get('/v1/data-quality/all'),
+          axios.get('/api/marketflow/v1/dashboard/unified'),
+          axios.get('/api/marketflow/v1/data-quality/all'),
         ])
         setData(dashboardRes.data)
         setDataQuality(qualityRes.data)

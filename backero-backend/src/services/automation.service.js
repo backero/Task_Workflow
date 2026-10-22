@@ -8,6 +8,7 @@ const Organization = require('../models/Organization');
 const MarketplaceDaily = require('../models/MarketplaceDaily');
 const MarketplacePlan = require('../models/MarketplacePlan');
 const MarketplacePlanProgress = require('../models/MarketplacePlanProgress');
+const MarketflowSnapshot = require('../models/MarketflowSnapshot');
 const Invoice = require('../models/Invoice');
 const TeamReward = require('../models/TeamReward');
 const { createNotification, bulkCreateNotifications } = require('./notification.service');
@@ -651,6 +652,7 @@ const runDailyReport = async (targetPhones = null) => {
       platformListings,
       marketplacePlans,
       platformProgress,
+      liveAutomationData,
       completedByEmployee,
       inProgressByEmployee,
       updatesByEmployee,
@@ -699,6 +701,17 @@ const runDailyReport = async (targetPhones = null) => {
       ])),
       // Today's marketplace aggregate
       safe(MarketplaceDaily.findOne({ organizationId: org._id, date: { $gte: today, $lte: todayEnd } }).lean()),
+      // Live Automation platform snapshots (Flipkart, Meesho, Snapdeal revenue/orders)
+      safe((async () => {
+        const snapshots = {};
+        const docs = await MarketflowSnapshot.find({ organizationId: org._id }).lean();
+        for (const doc of docs) {
+          const revenue = doc.data?.account_metrics?.home?.sales_today || doc.data?.kpis?.revenue_today || 0;
+          const orders = doc.data?.account_metrics?.home?.orders_today || doc.data?.kpis?.orders_7d || 0;
+          if (revenue || orders) snapshots[doc.platform] = { revenue, orders, platform: doc.platform };
+        }
+        return snapshots;
+      })()),
       // Active product listings per platform
       safe(Product.aggregate([
         { $match: { organizationId: org._id, isActive: true, 'marketplaceListings.0': { $exists: true } } },
@@ -816,6 +829,7 @@ const runDailyReport = async (targetPhones = null) => {
       platformListings: platformListings || [],
       platformPlanSummary,
       platformSummaryLine,
+      liveAutomationData: liveAutomationData || {},
       employeeActivity,
     };
 
@@ -828,10 +842,15 @@ const runDailyReport = async (targetPhones = null) => {
       logger.error(`PDF generation failed: ${pdfErr.message}`);
     }
 
+    const platformRevenueBreakdown = Object.values(liveAutomationData || {})
+      .map((p) => `${p.platform}: ₹${p.revenue} (${p.orders} orders)`)
+      .join(' | ');
+
     const marketplaceReportData = {
       date: reportDate,
       ...(reportData.marketplaceToday || {}),
       platformSummaryLine: reportData.platformSummaryLine,
+      platformRevenueBreakdown: platformRevenueBreakdown || 'No live data',
     };
 
     if (targetPhones && targetPhones.length > 0) {

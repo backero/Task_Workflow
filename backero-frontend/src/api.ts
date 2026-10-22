@@ -219,7 +219,7 @@ export type Robot = {
   state: RobotState; message: string; beat: string | null
   jobs: RobotJob[]; runs: RobotRun[]
 }
-export async function getRobot() {
-  const { data } = await api.get<Robot>('/marketflow/v1/robot')
+export async function getRobot(platform: string = 'amazon') {
+  const { data } = await api.get<Robot>(`/marketflow/v1/robot?platform=${platform}`)
   return data
 }

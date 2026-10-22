@@ -42,7 +42,6 @@ import TaskAnalytics from './pages/tasks/TaskAnalytics';
 import CalendarView from './pages/tasks/CalendarView';
 
 // CRM pages
-import LeadPipeline from './pages/crm/LeadPipeline';
 import LeadDetails from './pages/crm/LeadDetails';
 import TechnicalQueries from './pages/crm/TechnicalQueries';
 import SampleProduction from './pages/crm/SampleProduction';
@@ -118,6 +117,20 @@ import FlipkartInsights from './platforms/flipkart/Insights';
 import FlipkartTrendAnalytics from './platforms/flipkart/TrendAnalytics';
 import FlipkartOverview from './platforms/flipkart/Overview';
 
+// Platform pages - Myntra
+import MyntraAnalytics from './platforms/myntra/Analytics';
+import MyntraInsights from './platforms/myntra/Insights';
+import MyintraTrendAnalytics from './platforms/myntra/TrendAnalytics';
+import MyntraAlerts from './platforms/myntra/Alerts';
+import MyntraOverview from './platforms/myntra/Overview';
+
+// Platform pages - JioMart
+import JioMartAnalytics from './platforms/jiomart/Analytics';
+import JioMartInsights from './platforms/jiomart/Insights';
+import JioMartTrendAnalytics from './platforms/jiomart/TrendAnalytics';
+import JioMartAlerts from './platforms/jiomart/Alerts';
+import JioMartOverview from './platforms/jiomart/Overview';
+
 // Platform pages - Amazon
 import AmazonOverview from './platforms/amazon/Overview';
 
@@ -160,7 +173,7 @@ export default function App() {
   return (
     <ConfigProvider theme={workflowTheme}>
     <BrowserRouter>
-      {import.meta.env.DEV && <DevAutoLogin />}
+      {/* {import.meta.env.DEV && <DevAutoLogin />} */}
       <Routes>
         {/* Public routes */}
         <Route path="/login" element={!user ? <Login /> : <Navigate to="/" replace />} />
@@ -186,8 +199,6 @@ export default function App() {
           <Route path="/tasks/analytics" element={<PermissionRoute module="tasks.analytics"><TaskAnalytics /></PermissionRoute>} />
 
           {/* CRM */}
-          <Route path="/crm/pipeline" element={<PermissionRoute module="crm"><LeadPipeline /></PermissionRoute>} />
-          <Route path="/crm/leads" element={<PermissionRoute module="crm"><LeadPipeline /></PermissionRoute>} />
           <Route path="/crm/leads/:id" element={<PermissionRoute module="crm"><LeadDetails /></PermissionRoute>} />
           <Route path="/crm/queries" element={<TechnicalQueries />} />
           <Route path="/samples" element={<PermissionRoute module={['crm', 'inventory']}><SampleProduction /></PermissionRoute>} />
@@ -274,6 +285,20 @@ export default function App() {
           <Route path="/flipkart/analytics" element={<FlipkartAnalytics />} />
           <Route path="/flipkart/insights" element={<FlipkartInsights />} />
           <Route path="/flipkart/trends" element={<FlipkartTrendAnalytics />} />
+
+          {/* Myntra */}
+          <Route path="/myntra/overview" element={<MyntraOverview />} />
+          <Route path="/myntra/analytics" element={<MyntraAnalytics />} />
+          <Route path="/myntra/insights" element={<MyntraInsights />} />
+          <Route path="/myntra/trends" element={<MyintraTrendAnalytics />} />
+          <Route path="/myntra/alerts" element={<MyntraAlerts />} />
+
+          {/* JioMart */}
+          <Route path="/jiomart/overview" element={<JioMartOverview />} />
+          <Route path="/jiomart/analytics" element={<JioMartAnalytics />} />
+          <Route path="/jiomart/insights" element={<JioMartInsights />} />
+          <Route path="/jiomart/trends" element={<JioMartTrendAnalytics />} />
+          <Route path="/jiomart/alerts" element={<JioMartAlerts />} />
 
           {/* Amazon */}
           <Route path="/amazon/overview" element={<AmazonOverview />} />

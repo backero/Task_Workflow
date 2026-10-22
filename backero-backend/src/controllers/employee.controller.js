@@ -167,3 +167,41 @@ exports.update = asyncHandler(async (req, res) => {
   await employee.save();
   sendSuccess(res, { employee: await toResponse(employee) }, 'Employee updated');
 });
+
+exports.updateMyPhoto = asyncHandler(async (req, res) => {
+  if (!req.file) return sendError(res, 'No file uploaded', 400);
+  const employee = await Employee.findOne({ organizationId: req.user.organizationId, userId: req.user._id });
+  if (!employee) return sendError(res, 'Employee profile not found for your user', 404);
+
+  const { uploadBuffer, deleteByPublicId } = require('../utils/cloudinary');
+  const result = await uploadBuffer(req.file.buffer, {
+    folder: `backero/employees/${employee._id}`,
+    resource_type: 'auto',
+  });
+
+  if (employee.photoPublicId) await deleteByPublicId(employee.photoPublicId).catch(() => {});
+  employee.photo = result.secure_url;
+  employee.photoPublicId = result.public_id;
+  await employee.save();
+  sendSuccess(res, { employee: await toResponse(employee) }, 'Photo uploaded');
+});
+
+exports.updateEmployeePhoto = asyncHandler(async (req, res) => {
+  if (!req.file) return sendError(res, 'No file uploaded', 400);
+  const orgId = req.user.organizationId;
+  const employee = await Employee.findOne({ _id: req.params.id, organizationId: orgId });
+  if (!employee) return sendError(res, 'Employee not found', 404);
+
+  const { uploadBuffer, deleteByPublicId } = require('../utils/cloudinary');
+  const result = await uploadBuffer(req.file.buffer, {
+    folder: `backero/employees/${employee._id}`,
+    resource_type: 'auto',
+  });
+
+  if (employee.photoPublicId) await deleteByPublicId(employee.photoPublicId).catch(() => {});
+  employee.photo = result.secure_url;
+  employee.photoPublicId = result.public_id;
+  employee.updatedBy = req.user._id;
+  await employee.save();
+  sendSuccess(res, { employee: await toResponse(employee) }, 'Photo uploaded');
+});

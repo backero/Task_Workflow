@@ -98,15 +98,37 @@ function RobotCard({ r }: { r: Robot }) {
   )
 }
 
-export default function RobotsPage() {
+interface RobotsPageProps {
+  platform?: string
+}
+
+export default function RobotsPage({ platform = 'amazon' }: RobotsPageProps) {
   const [robot, setRobot] = useState<Robot | null>(null)
   const [error, setError] = useState(false)
-  useAutoRefresh(() => { getRobot().then((r) => { setRobot(r); setError(false) }).catch(() => setError(true)) }, [], 30_000)
+  useAutoRefresh(() => { getRobot(platform).then((r) => { setRobot(r); setError(false) }).catch(() => setError(true)) }, [platform], 30_000)
+
+  const platformLabel = platform.charAt(0).toUpperCase() + platform.slice(1)
+  const titleMap: Record<string, string> = {
+    amazon: 'Amazon Robo',
+    flipkart: 'Flipkart Robo',
+    meesho: 'Meesho Robo',
+    snapdeal: 'Snapdeal Robo',
+    myntra: 'Myntra Robo',
+    jiomart: 'JioMart Robo',
+  }
+  const subtitleMap: Record<string, string> = {
+    amazon: 'The worker that collects Amazon data: it checks in every few minutes and reports what every job did and how it ended.',
+    flipkart: 'The worker that collects Flipkart data: syncs listings, inventory, and orders from Flipkart Seller Hub.',
+    meesho: 'The worker that collects Meesho data: syncs catalog and order information from Meesho.',
+    snapdeal: 'The worker that collects Snapdeal data: syncs listings, inventory, and transaction reports from Snapdeal.',
+    myntra: 'The worker that collects Myntra data: syncs fashion listings and sales metrics from Myntra Seller Central.',
+    jiomart: 'The worker that collects JioMart data: syncs catalog and dispatch metrics from JioMart.',
+  }
 
   return (
     <div>
-      <PageHeader title="Amazon Robo" subtitle="The worker that collects Amazon data: it checks in every few minutes and reports what every job did and how it ended." />
-      {error && <div className="mb-3 rounded-lg border border-red-500 bg-red-50 px-3 py-2 text-sm text-red-600">Could not reach the server — is "MCC Server" running?</div>}
+      <PageHeader title={titleMap[platform] || platformLabel + ' Robo'} subtitle={subtitleMap[platform] || 'Marketplace data collection worker'} />
+      {error && <div className="mb-3 rounded-lg border border-red-500 bg-red-50 px-3 py-2 text-sm text-red-600">Could not reach the server — is the robot service running?</div>}
       {!robot ? <div className="text-gray-400">Loading…</div> : <div className="max-w-3xl"><RobotCard r={robot} /></div>}
     </div>
   )

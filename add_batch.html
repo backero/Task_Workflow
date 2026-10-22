@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Add Batch to Material</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%;font-family:'Inter','Segoe UI',system-ui,-apple-system,Roboto,sans-serif;background:#f4f6fa;color:#1e2a3a;-webkit-font-smoothing:antialiased}
+  body{display:flex;align-items:center;justify-content:center;padding:16px;min-height:100vh}
+  /* overlay */
+  .overlay{position:fixed;inset:0;background:rgba(15,23,42,.45);display:flex;align-items:center;justify-content:center;padding:16px;z-index:50}
+  /* popup card */
+  .popup{background:#fff;border-radius:14px;width:100%;max-width:380px;max-height:92vh;display:flex;flex-direction:column;box-shadow:0 18px 40px rgba(15,23,42,.18);overflow:hidden}
+  .popup *::-webkit-scrollbar{width:6px}
+  .popup *::-webkit-scrollbar-thumb{background:#e2e8f0;border-radius:3px}
+  /* header */
+  .head{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid #eef0f4;background:#fbfcfe}
+  .head .title{display:flex;align-items:center;gap:8px;font-weight:600;font-size:15px;color:#0f172a}
+  .head .title .dot{width:22px;height:22px;border-radius:7px;background:linear-gradient(135deg,#34d399,#10b981);display:flex;align-items:center;justify-content:center;color:#fff;font-size:12px}
+  .head .close{background:none;border:none;font-size:18px;color:#94a3b8;cursor:pointer;padding:4px 8px;border-radius:6px;transition:all .15s}
+  .head .close:hover{background:#f1f5f9;color:#475569}
+  /* body */
+  .body{padding:12px 16px 6px;overflow-y:auto;flex:1}
+  /* product card */
+  .product{display:flex;align-items:flex-start;gap:10px;padding:10px 12px;background:#f6faff;border:1px solid #e5edf7;border-radius:10px;margin-bottom:12px}
+  .product .thumb{width:38px;height:38px;border-radius:8px;background:#fef3c7;color:#d97706;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
+  .product .info{flex:1;min-width:0}
+  .product .info .name{font-weight:600;font-size:13.5px;color:#0f172a;margin-bottom:2px}
+  .product .info .meta{font-size:11px;color:#64748b;margin-bottom:3px}
+  .product .info .meta span{color:#334155;font-weight:500}
+  .product .info .badges{display:flex;flex-wrap:wrap;gap:4px;font-size:10.5px;color:#475569}
+  .product .info .badges span{background:#fff;border:1px solid #e2e8f0;border-radius:4px;padding:2px 6px;white-space:nowrap}
+  /* section title */
+  .sec{display:flex;align-items:center;gap:6px;font-size:11.5px;font-weight:600;letter-spacing:.5px;text-transform:uppercase;color:#64748b;margin:12px 0 8px}
+  .sec::after{content:"";flex:1;height:1px;background:#eef0f4}
+  /* form rows */
+  .row{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px}
+  .row.full{grid-template-columns:1fr}
+  .field{display:flex;flex-direction:column;gap:4px}
+  .field label{font-size:11.5px;color:#475569;font-weight:500;display:flex;align-items:center;gap:3px}
+  .field label .req{color:#ef4444;font-size:11px}
+  .field label .opt{color:#94a3b8;font-size:10.5px;font-weight:400}
+  .field input,.field select,.field textarea{
+    width:100%;padding:8px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;
+    font-family:inherit;color:#0f172a;background:#fff;outline:none;transition:border-color .15s,box-shadow .15s
+  }
+  .field input:focus,.field select:focus,.field textarea:focus{border-color:#10b981;box-shadow:0 0 0 3px rgba(16,185,129,.12)}
+  .field input::placeholder,.field textarea::placeholder{color:#cbd5e1}
+  .field textarea{resize:none;min-height:48px}
+  /* QC block - highlighted */
+  .qc-block{background:#f0fdf4;border:1px dashed #86efac;border-radius:10px;padding:10px;margin-top:6px}
+  .qc-block .qc-title{display:flex;align-items:center;gap:5px;font-size:12px;font-weight:600;color:#047857;margin-bottom:8px}
+  .qc-block .qc-title .shield{width:16px;height:16px;background:#10b981;color:#fff;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:10px}
+  /* pass toggle */
+  .pass-toggle{display:grid;grid-template-columns:1fr 1fr;gap:6px;background:#dcfce7;padding:3px;border-radius:8px;border:1px solid #bbf7d0}
+  .pass-toggle button{background:transparent;border:none;font-size:12.5px;color:#475569;font-weight:500;padding:6px;border-radius:6px;cursor:pointer;transition:all .15s}
+  .pass-toggle button.on{background:#10b981;color:#fff;box-shadow:0 2px 4px rgba(16,185,129,.3)}
+  /* existing batches */
+  .batches{display:flex;flex-direction:column;gap:6px;margin-bottom:6px}
+  .batch{display:grid;grid-template-columns:1fr auto auto auto;gap:6px;align-items:center;padding:8px 10px;border:1px solid #f1f5f9;border-radius:8px;font-size:11.5px;background:#fafbfc}
+  .batch .lot{font-weight:600;color:#0f172a}
+  .batch .qty{color:#334155}
+  .batch .price{color:#10b981;font-weight:600}
+  .batch .meta{color:#94a3b8;font-size:10.5px}
+  .batch .badge{font-size:9.5px;padding:2px 6px;border-radius:4px;font-weight:600;letter-spacing:.3px;text-transform:uppercase}
+  .b-active{background:#ecfdf5;color:#047857}
+  .b-low{background:#fff7ed;color:#c2410c}
+  .b-exp{background:#fef2f2;color:#b91c1c}
+  /* footer */
+  .foot{display:flex;gap:8px;padding:12px 16px;border-top:1px solid #eef0f4;background:#fbfcfe}
+  .btn{flex:1;padding:10px;border:none;border-radius:9px;font-size:13.5px;font-weight:600;cursor:pointer;font-family:inherit;transition:all .15s;display:flex;align-items:center;justify-content:center;gap:6px}
+  .btn-primary{background:#0f172a;color:#fff}
+  .btn-primary:hover{background:#1e293b}
+  .btn-primary:disabled{background:#cbd5e1;cursor:not-allowed}
+  .btn-secondary{background:#fff;color:#475569;border:1px solid #e2e8f0}
+  .btn-secondary:hover{background:#f8fafc}
+  /* highlight on submit */
+  .field input:invalid:not(:placeholder-shown){border-color:#ef4444}
+  /* small helper */
+  .hint{font-size:10.5px;color:#94a3b8;margin-top:2px}
+  /* responsive tightness */
+  @media (max-width:380px){
+    .product .info .badges{font-size:10px}
+    .field input,.field select,.field textarea{font-size:12.5px;padding:7px 9px}
+  }
+</style>
+</head>
+<body>
+
+<div class="overlay" id="overlay">
+  <div class="popup" role="dialog" aria-labelledby="popupTitle">
+    <div class="head">
+      <div class="title" id="popupTitle"><span class="dot">✎</span> Add Batch to Material</div>
+      <button class="close" onclick="closePopup()" aria-label="Close">✕</button>
+    </div>
+
+    <div class="body">
+      <!-- product summary -->
+      <div class="product">
+        <div class="thumb">📦</div>
+        <div class="info">
+          <div class="name">Lavender Essential Oil <span style="color:#94a3b8;font-weight:400;font-size:11.5px"> (RM-0002 | HSN: 3301)</span></div>
+          <div class="badges">
+            <span>Current: <strong>512 L</strong></span>
+            <span>Warehouse A · CS1</span>
+            <span>Kerala Oils Ltd</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- batch details -->
+      <div class="sec">Batch Details</div>
+
+      <div class="row">
+        <div class="field">
+          <label>Quantity to Add <span class="req">*</span></label>
+          <input type="number" id="qty" placeholder="e.g. 100" min="0" step="0.01" required oninput="calcUnitPrice()" />
+        </div>
+        <div class="field">
+          <label>Unit <span class="req">*</span></label>
+          <select id="unit" required onchange="calcUnitPrice()">
+            <option value="">Select</option>
+            <option>kg</option>
+            <option>g</option>
+            <option>L</option>
+            <option>mL</option>
+            <option>tonne</option>
+            <option>pieces</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="field">
+          <label>Total Price (₹) <span class="req">*</span></label>
+          <input type="number" id="totalPrice" placeholder="e.g. 5000" min="0" step="0.01" required oninput="calcUnitPrice()" />
+        </div>
+        <div class="field">
+          <label>Unit Price <span class="opt">auto-calculated</span></label>
+          <input type="text" id="unitPrice" placeholder="₹ — /unit" readonly style="background:#f8fafc;color:#10b981;font-weight:600" />
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="field">
+          <label>Batch / Lot Number</label>
+          <input type="text" id="lot" placeholder="LOT-2026-002" />
+        </div>
+        <div class="field">
+          <label>Received Date</label>
+          <input type="date" id="recvDate" />
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="field">
+          <label>Expiry Date</label>
+          <input type="date" id="expDate" />
+        </div>
+        <div class="field">
+          <label>Storage Location <span class="req">*</span></label>
+          <input type="text" id="location" placeholder="e.g. Warehouse A · Cold Storage 1" required />
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="field">
+          <label>Supplier Name <span class="req">*</span></label>
+          <input type="text" id="supplier" placeholder="e.g. Kerala Oils Ltd" required />
+        </div>
+        <div class="field">
+          <label>Supplier Invoice</label>
+          <input type="text" id="invoice" placeholder="INV-2026-123" />
+        </div>
+      </div>
+
+      <!-- QC block -->
+      <div class="sec" style="margin-top:14px">Quality Check</div>
+      <div class="qc-block">
+        <div class="qc-title"><span class="shield">✓</span> Mandatory before adding</div>
+
+        <div class="row">
+          <div class="field">
+            <label>QC Checked By <span class="req">*</span></label>
+            <select id="qcBy" required>
+              <option value="">Select QC person</option>
+              <option>Ravi (QC Lead)</option>
+              <option>Priya (QC Analyst)</option>
+              <option>Karthik (Shift QC)</option>
+              <option>Divya (QC Manager)</option>
+              <option>Suresh (Sr. QC)</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>QC Check Date <span class="req">*</span></label>
+            <input type="date" id="qcDate" required />
+          </div>
+        </div>
+
+        <div class="field" style="margin-top:4px">
+          <label>QC Status</label>
+          <div class="pass-toggle" id="qcStatus" style="grid-template-columns:1fr">
+            <button type="button" class="on" data-val="pass">✓ QC Pass · Batch Accepted</button>
+          </div>
+          <div class="hint" style="color:#047857">If QC fails, the batch is rejected and returned to the supplier — it will <b>not</b> be added to inventory.</div>
+        </div>
+
+        <div class="field" style="margin-top:8px">
+          <label>QC Notes <span class="opt">optional</span></label>
+          <textarea id="qcNotes" placeholder="e.g. COA verified, aroma OK…"></textarea>
+        </div>
+      </div>
+
+      <!-- existing batches -->
+      <div class="sec">Existing Batches <span style="font-weight:400;text-transform:none;letter-spacing:0;color:#94a3b8;font-size:11px">— 2 total</span></div>
+      <div class="batches">
+        <div class="batch">
+          <div class="lot">LOT-2025-LV-01</div>
+          <div class="qty">12 L</div>
+          <div class="price">₹850</div>
+          <div><span class="badge b-low">Low Stock</span></div>
+          <div class="meta" style="grid-column:1/5">Rcvd: 10/1/2025 · Exp: 15/3/2027</div>
+        </div>
+        <div class="batch">
+          <div class="lot">sfstsf</div>
+          <div class="qty">500 L</div>
+          <div class="price">₹0.555</div>
+          <div><span class="badge b-exp">Expiring</span></div>
+          <div class="meta" style="grid-column:1/5">Rcvd: 3/7/2026 · Expiring in 21 d</div>
+        </div>
+      </div>
+
+    </div><!-- /body -->
+
+    <div class="foot">
+      <button class="btn btn-secondary" onclick="closePopup()">Cancel</button>
+      <button class="btn btn-primary" id="addBtn" onclick="addBatch()">+ Add Batch</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  function closePopup(){ document.getElementById('overlay').remove(); alert('Popup closed (demo)'); }
+
+  function calcUnitPrice(){
+    const q = parseFloat(document.getElementById('qty').value);
+    const t = parseFloat(document.getElementById('totalPrice').value);
+    const u = document.getElementById('unit').value || 'unit';
+    const out = document.getElementById('unitPrice');
+    if(q > 0 && t > 0){
+      const p = (t / q).toFixed(4).replace(/0+$/,'').replace(/\.$/,'');
+      out.value = '₹ ' + p + ' / ' + u;
+    } else {
+      out.value = '';
+    }
+  }
+
+  function addBatch(){
+    const qty     = document.getElementById('qty').value;
+    const unit    = document.getElementById('unit').value;
+    const total   = document.getElementById('totalPrice').value;
+    const supplier= document.getElementById('supplier').value;
+    const location= document.getElementById('location').value;
+    const qcBy    = document.getElementById('qcBy').value;
+    const qcDate  = document.getElementById('qcDate').value;
+
+    if(!qty){      alert('Please enter quantity'); return; }
+    if(!unit){     alert('Please select a unit (kg, L, etc.)'); return; }
+    if(!total){    alert('Please enter total price'); return; }
+    if(!supplier){ alert('Please enter supplier name'); return; }
+    if(!location){ alert('Please select a storage location'); return; }
+    if(!qcBy){     alert('Please select who performed the QC check'); return; }
+    if(!qcDate){   alert('Please select a QC check date'); return; }
+
+    const unitPrice = (parseFloat(total) / parseFloat(qty)).toFixed(4).replace(/0+$/,'').replace(/\.$/,'');
+    const payload = {
+      qty: qty + ' ' + unit,
+      unit: unit,
+      totalPrice: '₹ ' + total,
+      unitPrice: '₹ ' + unitPrice + ' / ' + unit,
+      batchLot: document.getElementById('lot').value,
+      receivedDate: document.getElementById('recvDate').value,
+      expiryDate: document.getElementById('expDate').value,
+      location: location,
+      supplier: supplier,
+      supplierInvoice: document.getElementById('invoice').value,
+      qcCheckedBy: qcBy,
+      qcCheckedAt: qcDate,
+      qcStatus: 'pass',
+      qcNotes: document.getElementById('qcNotes').value
+    };
+    alert('Batch added ✓\n\n' + JSON.stringify(payload, null, 2));
+  }
+
+  // prefill QC date as today
+  document.getElementById('qcDate').value = new Date().toISOString().split('T')[0];
+</script>
+
+</body>
+</html>

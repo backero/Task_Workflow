@@ -1,11 +1,6 @@
 {
   "watch": ["src", "server.js"],
-<<<<<<< HEAD:backend/nodemon.json
-  "ignore": ["wa-session/**", "uploads/**", "logs/**", "*.log"],
-  "ext": "js,json",
-  "delay": 500
-=======
   "ignore": ["logs/*", "wa_session/*", "node_modules/*"],
-  "ext": "js,mjs,cjs,json"
->>>>>>> 717f915fd1b010591c45e08674faf1e8be83dd26:backero-backend/nodemon.json
+  "ext": "js,mjs,cjs,json",
+  "delay": 500
 }

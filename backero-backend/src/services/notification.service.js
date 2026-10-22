@@ -40,7 +40,7 @@ const createNotification = async (data, io) => {
       const recipient = await User.findById(data.recipient).select('phone whatsapp');
       const phone = recipient?.whatsapp || recipient?.phone;
       if (phone) {
-        sendWhatsAppNotification(phone, data.title, data.message, data.actionUrl).catch(logger.error);
+        sendWhatsAppNotification(notification._id, phone, data.title, data.message, data.actionUrl).catch(logger.error);
       }
     }
 
@@ -51,12 +51,16 @@ const createNotification = async (data, io) => {
   }
 };
 
-const sendWhatsAppNotification = async (phone, title, message, actionUrl) => {
+const sendWhatsAppNotification = async (notificationId, phone, title, message, actionUrl) => {
   try {
     const { sendGenericAlert } = require('./whatsappCloud.service');
-    await sendGenericAlert(phone, { title, message, actionUrl });
+    const success = await sendGenericAlert(phone, { title, message, actionUrl });
+    await Notification.findByIdAndUpdate(notificationId, {
+      whatsappStatus: success ? 'sent' : 'failed',
+    });
   } catch (error) {
     logger.error(`WhatsApp notification failed: ${error.message}`);
+    await Notification.findByIdAndUpdate(notificationId, { whatsappStatus: 'failed' }).catch(() => {});
   }
 };
 

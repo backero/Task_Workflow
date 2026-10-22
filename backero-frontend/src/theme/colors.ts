@@ -3,6 +3,8 @@ export const PLATFORM_COLORS: Record<string, string> = {
   flipkart: '#3f72ad',
   meesho: '#9c4b82',
   snapdeal: '#5c8a4a',
+  myntra: '#ff3f6c',
+  jiomart: '#0077B6',
 }
 
 export const STATUS_COLORS = {
@@ -23,6 +25,8 @@ export const PLATFORM_LABELS: Record<string, string> = {
   flipkart: 'Flipkart',
   meesho: 'Meesho',
   snapdeal: 'Snapdeal',
+  myntra: 'Myntra',
+  jiomart: 'JioMart',
 }
 
 export function platformColor(marketplaceId: string): string {

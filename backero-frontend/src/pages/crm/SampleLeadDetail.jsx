@@ -672,6 +672,13 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab, initialO
   const [tab, setTab] = useState(initialTab && initialTab !== 'Production' ? initialTab : 'Overview');
   const [maximized, setMaximized] = useState(false);
 
+  // Prevent page scroll when modal opens
+  useEffect(() => {
+    document.body.style.overflow = 'hidden';
+    window.scrollTo(0, 0);
+    return () => { document.body.style.overflow = 'auto'; };
+  }, []);
+
   // Q&A — a lean composer mirroring the reference design: one Question box, Asked Via, Topic,
   // an optional catalog product link, and an optional Answer to log Q&A in one shot.
   const [showRaiseForm, setShowRaiseForm] = useState(false);
@@ -681,6 +688,9 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab, initialO
   const [queryAnswerNow, setQueryAnswerNow] = useState('');
   const [queryCatalogSearch, setQueryCatalogSearch] = useState('');
   const [querySelectedCatalogProduct, setQuerySelectedCatalogProduct] = useState(null);
+  const [audioFile, setAudioFile] = useState(null);
+  const [isTranscribing, setIsTranscribing] = useState(false);
+  const audioFileInputRef = useRef(null);
   const [replyDrafts, setReplyDrafts] = useState({});
   // Editing an existing query in place — mirrors the raise-form fields, seeded from the query
   // being edited, id-keyed so only one card shows its edit form at a time.
@@ -740,6 +750,28 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab, initialO
   const [sendSampleSelectedCatalog, setSendSampleSelectedCatalog] = useState(null);
   const [sendSampleBatchSizeKg, setSendSampleBatchSizeKg] = useState(10);
   const [sendSampleMaximized, setSendSampleMaximized] = useState(false);
+
+  const handleAudioTranscribe = async (file) => {
+    if (!file) return;
+    setIsTranscribing(true);
+    try {
+      const formData = new FormData();
+      formData.append('audio', file);
+      const response = await api.post('/crm/transcribe-audio', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      if (response.data.transcript) {
+        setQueryDesc(response.data.transcript);
+        toast.success('Audio transcribed successfully');
+      }
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Transcription failed');
+    } finally {
+      setIsTranscribing(false);
+      setAudioFile(null);
+      if (audioFileInputRef.current) audioFileInputRef.current.value = '';
+    }
+  };
 
   const { data: catalogProducts } = useQuery({
     queryKey: ['catalog', 'products', 'all'],
@@ -1507,6 +1539,13 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab, initialO
 
               {showRaiseForm && (
                 <div className="p-3 rounded-[10px] border-[1.5px] border-dashed border-[#ddd6c4] bg-[#f1ede4] space-y-2">
+                  <div className="flex items-center gap-2">
+                    <input ref={audioFileInputRef} type="file" accept="audio/*" onChange={(e) => { const file = e.target.files?.[0]; if (file) { setAudioFile(file); handleAudioTranscribe(file); } }} hidden />
+                    <button type="button" onClick={() => audioFileInputRef.current?.click()} disabled={isTranscribing} className={clsx(outlineBtn, isTranscribing && 'opacity-50 cursor-not-allowed')}>
+                      {isTranscribing ? '🎙️ Transcribing...' : '📎 Attach Audio'}
+                    </button>
+                    {audioFile && <span className="text-xs text-[#6b6155]">{audioFile.name}</span>}
+                  </div>
                   <textarea value={queryDesc} onChange={(e) => setQueryDesc(e.target.value)} placeholder="What did the customer ask?" rows={2} className={clsx(inputCls, 'w-full')} />
                   <div className="grid grid-cols-2 gap-2">
                     <select value={queryAskedVia} onChange={(e) => setQueryAskedVia(e.target.value)} className={inputCls}>

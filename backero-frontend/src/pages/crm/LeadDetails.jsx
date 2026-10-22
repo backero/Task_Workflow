@@ -508,7 +508,7 @@ export default function LeadDetails() {
               {!leadQueries?.length ? (
                 <Empty
                   image={<HelpCircle size={32} color="#d1d5db" style={{ margin: '0 auto' }} />}
-                  description={<><div><Text type="secondary" style={{ fontSize: 13 }}>No queries raised yet</Text></div><Text type="secondary" style={{ fontSize: 11 }}>Queries are raised from Sample Production</Text></>}
+                  description={<><div><Text type="secondary" style={{ fontSize: 13 }}>No queries raised yet</Text></div><Text type="secondary" style={{ fontSize: 11 }}>Queries are raised from Product Development</Text></>}
                 />
               ) : (
                 <Space direction="vertical" style={{ width: '100%' }} size={16}>

@@ -10,7 +10,7 @@ import {
   Box, Zap, BarChart3, Settings, Megaphone,
   Store, Banknote, UsersRound,
   Wrench, Trophy, Sparkles, X,
-  Fingerprint, ClipboardCheck, Receipt, CalendarOff,
+  Fingerprint, ClipboardCheck, Receipt, CalendarOff, Clock,
 } from 'lucide-react';
 
 const { Text } = Typography;
@@ -51,6 +51,7 @@ export default function Sidebar({ variant = 'desktop', onNavigate, onClose }) {
     label: 'Overview',
     items: [
       { label: 'Dashboard', to: '/', icon: Home, exact: true },
+      { label: 'Check-In', to: '/check-in', icon: Clock },
       { label: 'My Attendance', to: '/my-attendance', icon: ClipboardCheck },
       { label: 'My Payroll', to: '/my-payroll', icon: Receipt },
       { label: 'My Leave', to: '/my-leave', icon: CalendarOff },
@@ -62,14 +63,6 @@ export default function Sidebar({ variant = 'desktop', onNavigate, onClose }) {
     { label: 'My Tasks', to: '/tasks/my', icon: Sparkles },
   ];
   if (canApprovals) workItems.push({ label: 'Approval Queue', to: '/tasks/approvals', icon: ClipboardList });
-  if (canCRM) {
-    workItems.push({
-      label: 'CRM & Sales', icon: Users, children: [
-        { label: 'Lead Pipeline', to: '/crm/pipeline' },
-        { label: 'Technical Queries', to: '/crm/queries' },
-      ],
-    });
-  }
   groups.push({ label: 'Work', items: workItems });
 
   const opsItems = [];
@@ -106,7 +99,7 @@ export default function Sidebar({ variant = 'desktop', onNavigate, onClose }) {
     { label: 'Record Usage',    to: '/production/usage' },
     { label: 'Raw Materials',   to: '/inventory/rawmaterials' },
     { label: 'Product Catalog', to: '/inventory/catalog' },
-    { label: 'Sample Production', to: '/samples' },
+    { label: 'Product Development', to: '/samples' },
     { label: 'R&D Price Calculator', to: '/production/rd-price-calculator' },
     { label: 'Kitchen Schedule', to: '/production/kitchen' },
   ]});

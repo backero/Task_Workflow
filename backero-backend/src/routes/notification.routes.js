@@ -39,6 +39,16 @@ router.get('/unread-count', asyncHandler(async (req, res) => {
   sendSuccess(res, { count });
 }));
 
+router.get('/:id/whatsapp-status', asyncHandler(async (req, res) => {
+  const notification = await Notification.findOne({
+    _id: req.params.id,
+    recipient: req.user._id,
+    organizationId: req.user.organizationId,
+  }).select('whatsappStatus channels createdAt');
+  if (!notification) return res.status(404).json({ error: 'Notification not found' });
+  sendSuccess(res, { whatsappStatus: notification.whatsappStatus, channels: notification.channels, sentAt: notification.createdAt });
+}));
+
 router.delete('/:id', asyncHandler(async (req, res) => {
   await Notification.findOneAndDelete({ _id: req.params.id, recipient: req.user._id, organizationId: req.user.organizationId });
   sendSuccess(res, {}, 'Notification deleted');

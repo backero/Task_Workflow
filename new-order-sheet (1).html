@@ -1,0 +1,1307 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>New Order Sheet — SPEC / QC (ISO) | BACKERO BioTech</title>
+<style>
+
+:root{
+  --bg:#013C58;--bg-card:#00537A;--bg-elevated:#014B6B;--bg-hover:#01698F;--bg-active:#0180A8;
+  --accent:#F5A201;--accent-hover:#FFBA42;--accent-active:#D48A01;--accent-muted:#B87601;--accent-glow:rgba(245,162,1,0.15);
+  --text:#F0F4F8;--text-secondary:#A8E8F9;--text-muted:#7AB8CC;--text-inverse:#013C58;
+  --border:#014B6B;--border-active:#F5A201;--border-subtle:#003C55;
+  --success:#5B9A3C;--success-bg:rgba(91,154,60,0.12);--success-glow:rgba(91,154,60,0.2);
+  --danger:#C44B3E;--danger-bg:rgba(196,75,62,0.12);--danger-glow:rgba(196,75,62,0.2);
+  --warning:#C48A2A;--warning-bg:rgba(196,138,42,0.12);--warning-glow:rgba(196,138,42,0.2);
+  --info:#4A8BC2;--info-bg:rgba(74,139,194,0.12);
+  --shadow-sm:0 1px 2px rgba(0,0,0,0.3),inset 0 1px 0 rgba(255,255,255,0.03);
+  --shadow:0 2px 8px rgba(0,0,0,0.35),inset 0 1px 0 rgba(255,255,255,0.04);
+  --shadow-lg:0 4px 16px rgba(0,0,0,0.4),0 2px 4px rgba(0,0,0,0.3),inset 0 1px 0 rgba(255,255,255,0.04);
+  --shadow-inset:inset 0 2px 4px rgba(0,0,0,0.25);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{font-family:'Inter',sans-serif;font-size:13px;line-height:1.5;background:var(--bg);color:var(--text);overflow:hidden}
+
+.app{display:flex;height:100vh;width:100vw}
+.main{flex:1;display:flex;flex-direction:column;overflow:hidden;width:100%}
+.header{height:48px;background:var(--bg-card);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;padding:0 16px;flex-shrink:0}
+.stagebar{background:var(--bg-card);border-bottom:1px solid var(--border);display:flex;gap:4px;padding:8px 16px;flex-shrink:0;overflow-x:auto}
+.content{flex:1;overflow-y:auto;padding:10px}
+.content-inner{max-width:1200px;margin:0 auto}
+
+/* Dashboard */
+.kpi-row{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-bottom:10px}
+.kpi-card{background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:10px;box-shadow:var(--shadow);transition:all .15s;cursor:pointer}
+.kpi-card:hover{border-color:var(--accent-muted)}
+.kpi-card .kpi-label{font-size:10px;text-transform:uppercase;letter-spacing:0.5px;color:var(--text-muted);font-weight:500}
+.kpi-card .kpi-value{font-size:24px;font-weight:700;color:var(--accent);margin-top:4px;font-family:'SF Mono','Courier New',monospace}
+.kpi-card .kpi-sub{font-size:10px;color:var(--text-secondary);margin-top:4px}
+.kpi-card.kpi-success .kpi-value{color:var(--success)}
+.kpi-card.kpi-danger .kpi-value{color:var(--danger)}
+.kpi-card.kpi-warning .kpi-value{color:var(--warning)}
+.kpi-card.kpi-info .kpi-value{color:var(--info)}
+.pipeline-row{display:grid;grid-template-columns:repeat(8,1fr);gap:6px;margin-bottom:10px}
+.pipe-card{background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:8px;text-align:center;box-shadow:var(--shadow);transition:all .15s;cursor:pointer}
+.pipe-card:hover{border-color:var(--accent-muted)}
+.pipe-card .pipe-num{font-size:20px;font-weight:700;color:var(--accent);font-family:'SF Mono','Courier New',monospace}
+.pipe-card .pipe-label{font-size:10px;color:var(--text-secondary);margin-top:4px;text-transform:uppercase;letter-spacing:0.3px}
+.pipe-card .pipe-count{font-size:11px;color:var(--text-muted);margin-top:2px}
+.pipe-card.active{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent-glow)}
+/* Dashboard Controls */
+.dash-controls{display:flex;gap:10px;align-items:center;margin-bottom:12px;flex-wrap:wrap}
+.dash-controls input,.dash-controls select{background:var(--bg-elevated);border:1px solid var(--border);border-radius:8px;padding:7px 12px;color:var(--text);font-size:12px;outline:none}
+.dash-controls input:focus,.dash-controls select:focus{border-color:var(--accent)}
+.dash-controls input::placeholder{color:var(--text-muted)}
+.dash-search{flex:1;min-width:200px}
+.dash-filter{width:140px}
+.dash-sort{width:160px}
+table th.sortable{cursor:pointer;user-select:none}
+table th.sortable:hover{color:var(--accent)}
+table th.sortable::after{content:" \2195";font-size:9px;color:var(--text-muted)}
+table th.sort-asc::after{content:" \2191";color:var(--accent)}
+table th.sort-desc::after{content:" \2193";color:var(--accent)}
+/* ALL STATUS STYLES -- must cover every possible status */
+.status-draft{background:rgba(255,255,255,0.06);color:var(--text-secondary);border:1px solid var(--border)}
+.status-pending{background:var(--warning-bg);color:var(--warning);border:1px solid var(--warning-glow)}
+.status-active{background:var(--success-bg);color:var(--success);border:1px solid var(--success-glow)}
+.status-urgent{background:var(--danger-bg);color:var(--danger);border:1px solid var(--danger-glow)}
+.status-released{background:var(--info-bg);color:var(--info);border:1px solid rgba(74,139,194,0.2)}
+.status-production{background:var(--warning-bg);color:var(--warning);border:1px solid var(--warning-glow)}
+.status-procurement{background:rgba(255,255,255,0.06);color:var(--text-secondary);border:1px solid var(--border)}
+.status-dispatched{background:var(--success-bg);color:var(--success);border:1px solid var(--success-glow)}
+.status-pre-qc{background:var(--info-bg);color:var(--info);border:1px solid rgba(74,139,194,0.2)}
+.status-packaging{background:var(--accent-glow);color:var(--accent);border:1px solid var(--accent-muted)}
+.status-final-qc{background:var(--accent-glow);color:var(--accent);border:1px solid var(--accent-muted)}
+.status-in-pre-qc{background:var(--info-bg);color:var(--info);border:1px solid rgba(74,139,194,0.2)}
+.status-released-to-packaging{background:var(--accent-glow);color:var(--accent);border:1px solid var(--accent-muted)}
+.status-released-for-dispatch{background:var(--success-bg);color:var(--success);border:1px solid var(--success-glow)}
+.status-unknown{background:rgba(255,255,255,0.06);color:var(--text-secondary);border:1px solid var(--border)}
+.status-in-progress{background:var(--warning-bg);color:var(--warning);border:1px solid var(--warning-glow)}
+.status-completed{background:var(--success-bg);color:var(--success);border:1px solid var(--success-glow)}
+.status-hold{background:var(--danger-bg);color:var(--danger);border:1px solid var(--danger-glow)}
+
+/* Header */
+.brand-logo{font-size:15px;font-weight:700;letter-spacing:1px;color:var(--text)}
+.brand-logo span{color:var(--accent)}
+.nav-links{display:flex;gap:4px}
+.nav-link{padding:5px 12px;border-radius:6px;font-size:12px;color:var(--text-secondary);text-decoration:none;transition:all .15s;cursor:pointer}
+.nav-link:hover{background:var(--bg-hover);color:var(--text)}
+.nav-link.active{background:var(--accent-glow);color:var(--accent)}
+.header-right{display:flex;align-items:center;gap:12px;font-size:12px;color:var(--text-muted)}
+#currentOperator{background:var(--bg-elevated);border:1px solid var(--border);color:var(--text);box-shadow:var(--shadow-inset)}
+#currentOperator:focus{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent-glow),var(--shadow-inset)}
+.clock-live{font-variant-numeric:tabular-nums;font-weight:600;color:var(--accent)}
+
+/* Stage Bar */
+.stage-btn{flex:1;display:flex;align-items:center;justify-content:center;gap:8px;background:var(--bg-elevated);border:1px solid var(--border);border-radius:10px;padding:10px 12px;color:var(--text-secondary);cursor:pointer;transition:all .2s;font-size:12px;font-weight:500;white-space:nowrap}
+.stage-btn:hover{background:var(--bg-hover);border-color:var(--accent-muted)}
+.stage-btn.active{background:var(--accent-glow);border-color:var(--accent);color:var(--accent)}
+.stage-btn.completed{border-color:var(--success);color:var(--success)}
+.stage-btn.locked{opacity:0.5;cursor:not-allowed}
+.stage-num{width:24px;height:24px;border-radius:50%;background:var(--bg);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;transition:all .2s}
+.stage-btn.active .stage-num{background:var(--accent);color:var(--text-inverse)}
+.stage-btn.completed .stage-num{background:var(--success);color:#fff}
+.stage-btn.locked .stage-num{background:var(--bg);color:var(--text-muted)}
+
+/* Cards */
+.card{background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:10px;margin-bottom:8px;box-shadow:var(--shadow),inset 0 1px 0 rgba(255,255,255,0.04)}
+.card-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px}
+.card-title{font-size:14px;font-weight:600;color:var(--text)}
+.card-subtitle{font-size:11px;color:var(--text-muted);margin-top:2px}
+
+/* Grid */
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+.grid-4{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+
+/* Inputs */
+input,select,textarea{width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:12px;font-family:inherit;color:var(--text);background:var(--bg-elevated);outline:none;transition:all .15s;box-shadow:var(--shadow-inset)}
+input:focus,select:focus,textarea:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-glow),var(--shadow-inset)}
+input::placeholder{color:var(--text-muted)}
+label{display:block;font-size:11px;font-weight:500;color:var(--text-secondary);margin-bottom:4px}
+.input-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.input-row-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+.input-row-4{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+
+/* Buttons */
+.btn{padding:8px 16px;border-radius:8px;border:1px solid transparent;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;transition:all .15s;display:inline-flex;align-items:center;gap:5px}
+.btn-primary{background:var(--accent);color:var(--text-inverse);border:none}
+.btn-primary:hover{background:var(--accent-hover);box-shadow:0 0 12px rgba(245,162,1,0.3)}
+.btn-success{background:var(--success);color:#fff;border-color:var(--success)}
+.btn-success:hover{filter:brightness(1.15)}
+.btn-warning{background:var(--warning);color:#fff;border-color:var(--warning)}
+.btn-danger{background:var(--danger);color:#fff;border-color:var(--danger)}
+.btn-danger:hover{filter:brightness(1.15)}
+.btn-secondary{background:var(--bg-elevated);color:var(--text);border:1px solid var(--border)}
+.btn-secondary:hover{background:var(--bg-hover);border-color:var(--border-active)}
+.btn-sm{padding:5px 12px;font-size:11px}
+.btn-xs{padding:3px 8px;font-size:10px}
+
+/* Tables */
+table{width:100%;border-collapse:collapse;font-size:11px}
+th{text-align:left;padding:8px 10px;background:var(--bg);font-weight:600;color:var(--text-secondary);text-transform:uppercase;font-size:10px;letter-spacing:0.5px;border-bottom:1px solid var(--border);white-space:nowrap}
+td{padding:8px 10px;border-bottom:1px solid var(--border-subtle);vertical-align:middle;color:var(--text)}
+tr:hover td{background:rgba(255,255,255,0.02)}
+
+/* Status pills */
+.pill{display:inline-block;padding:3px 10px;border-radius:12px;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px}
+.pill-success{background:var(--success-bg);color:var(--success);border:1px solid var(--success-glow)}
+.pill-danger{background:var(--danger-bg);color:var(--danger);border:1px solid var(--danger-glow)}
+.pill-warning{background:var(--warning-bg);color:var(--warning);border:1px solid var(--warning-glow)}
+.pill-info{background:var(--info-bg);color:var(--info);border:1px solid rgba(74,139,194,0.2)}
+.pill-default{background:rgba(255,255,255,0.05);color:var(--text-secondary);border:1px solid var(--border)}
+
+/* Sign-off */
+.signoff-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px}
+
+/* Progress */
+.prog-track{height:6px;background:var(--bg);border-radius:3px;overflow:hidden;box-shadow:var(--shadow-inset)}
+.prog-fill{height:100%;background:linear-gradient(90deg,var(--accent-muted),var(--accent));border-radius:3px;transition:width .4s ease}
+.prog-text{font-size:11px;color:var(--text-muted);margin-top:4px}
+
+/* Timeline */
+.timeline{display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:11px}
+.tl-node{padding:4px 10px;border-radius:6px;background:var(--bg);color:var(--text-muted);font-weight:500;border:1px solid var(--border-subtle)}
+.tl-node.done{background:var(--success-bg);color:var(--success);border-color:var(--success-glow)}
+.tl-node.current{background:var(--accent-glow);color:var(--accent);border-color:var(--accent)}
+.tl-arrow{color:var(--border);font-size:10px}
+
+/* Step cards */
+.step-card{background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:10px 12px;margin-bottom:6px;transition:all .15s}
+.step-card.active{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent-glow)}
+.step-card.done{border-color:var(--success)}
+.step-card.locked{opacity:0.5}
+.step-header{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.step-num2{width:28px;height:28px;border-radius:50%;background:var(--bg-elevated);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0;transition:all .2s}
+.step-card.active .step-num2{background:var(--accent);color:var(--text-inverse)}
+.step-card.done .step-num2{background:var(--success);color:#fff}
+.step-card.locked .step-num2{background:var(--bg);color:var(--text-muted)}
+.step-title2{font-size:12px;font-weight:600;color:var(--text)}
+.step-status{margin-left:auto;font-size:10px;font-weight:600}
+.checklist-item{display:flex;align-items:center;gap:10px;padding:6px 0;color:var(--text-secondary);font-size:12px}
+.checklist-item input[type="checkbox"]{width:16px;height:16px;accent-color:var(--accent);cursor:pointer}
+
+/* Scale banner */
+.scale-banner{background:linear-gradient(135deg,var(--accent-muted) 0%,var(--accent) 100%);color:#fff;border-radius:10px;padding:8px 14px;display:flex;align-items:center;gap:12px;font-size:13px;margin-bottom:10px;box-shadow:0 2px 8px rgba(245,162,1,0.25);flex-wrap:wrap}
+/* Clickable order rows — hover anywhere on a customer row highlights it; click opens the order (no Open button) */
+tbody tr.row-click{cursor:pointer;transition:background .12s}
+tbody tr.row-click:hover td{background:rgba(245,162,1,0.14)}
+tbody tr.row-click:active td{background:rgba(245,162,1,0.22)}
+tr.cust-group-row td{background:rgba(245,162,1,0.07);font-size:11.5px;color:var(--text);padding:6px 10px;border-top:2px solid var(--border);font-weight:500}
+.scale-banner strong{color:#fff;font-weight:700}
+
+/* Counter */
+.counter{background:var(--bg);border-radius:12px;padding:14px;text-align:center;border:2px solid var(--border);transition:all .2s}
+.counter:hover{border-color:var(--accent-muted)}
+.counter-num{font-size:36px;font-weight:700;color:var(--accent);font-family:'SF Mono','Courier New',monospace;text-shadow:0 0 20px rgba(245,162,1,0.3);transition:all .2s}
+.counter-btns{display:flex;gap:6px;justify-content:center;margin-top:12px;flex-wrap:wrap}
+/* CRM Read-Only Rows */
+.crm-row{display:flex;align-items:center;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border-subtle);font-size:11px}
+.crm-row:last-child{border-bottom:none}
+.crm-label{color:var(--text-muted);font-size:10px;text-transform:uppercase;letter-spacing:0.5px;font-weight:500;flex-shrink:0;margin-right:12px}
+.crm-value{color:var(--text);font-weight:500;text-align:right;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* Label preview (light - printed label) */
+.label-preview{background:#f5f0e8;color:#2C1810;border-radius:8px;padding:10px;font-family:Georgia,serif;border:1px solid #d4c5a9;box-shadow:var(--shadow-sm)}
+.label-preview .lbl-brand{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;color:#2C1810}
+.label-preview .lbl-name{font-size:10px;font-weight:600;margin-bottom:4px;color:#2C1810}
+.label-preview .lbl-row{display:flex;justify-content:space-between;margin:2px 0;font-size:8px;color:#2C1810}
+
+/* Toast */
+#toastContainer{position:fixed;bottom:20px;right:20px;z-index:9999;display:flex;flex-direction:column;gap:8px}
+.toast{padding:10px 18px;border-radius:8px;color:#fff;font-size:12px;font-weight:500;animation:toastIn .3s,toastOut .3s 2.7s forwards;box-shadow:var(--shadow-lg);border:1px solid}
+@keyframes toastIn{from{transform:translateY(20px);opacity:0}to{transform:translateY(0);opacity:1}}
+@keyframes toastOut{from{opacity:1}to{opacity:0}}
+.toast-success{background:var(--success);border-color:rgba(91,154,60,0.3)}
+.toast-danger{background:var(--danger);border-color:rgba(196,75,62,0.3)}
+.toast-warning{background:var(--warning);border-color:rgba(196,138,42,0.3)}
+
+/* Section title */
+.section-title{font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:0.8px;color:var(--text-secondary);margin:10px 0 6px;padding-bottom:4px;border-bottom:1px solid var(--border-subtle)}
+
+/* Info rows */
+.info-row{display:flex;gap:20px;flex-wrap:wrap;margin-bottom:8px}
+.info-item{display:flex;flex-direction:column;gap:2px}
+.info-label{font-size:10px;text-transform:uppercase;letter-spacing:0.5px;color:var(--text-muted);font-weight:500}
+.info-value{font-size:13px;color:var(--text);font-weight:500}
+
+/* Task items */
+.task-item{display:flex;align-items:center;gap:12px;padding:10px 12px;border-bottom:1px solid var(--border-subtle);transition:background .15s}
+.task-item:hover{background:rgba(255,255,255,0.02)}
+.task-item:last-child{border-bottom:none}
+.task-toggle{width:28px;height:28px;border-radius:50%;border:2px solid var(--border);background:transparent;color:var(--text-muted);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:14px;transition:all .15s;flex-shrink:0}
+.task-toggle:hover{border-color:var(--accent);color:var(--accent)}
+.task-body{flex:1}
+.task-title{font-size:12px;font-weight:600;color:var(--text)}
+.task-meta{font-size:10px;color:var(--text-muted);margin-top:1px}
+
+/* Spec box */
+.spec-box{background:var(--bg);border-radius:8px;padding:10px 14px;display:flex;gap:20px;flex-wrap:wrap}
+.spec-item{display:flex;flex-direction:column;gap:2px}
+.spec-label{font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px}
+.spec-value{font-size:13px;color:var(--accent);font-weight:600}
+
+/* Empty state */
+.empty-state{text-align:center;padding:40px;color:var(--text-muted);font-size:13px}
+.empty-state-icon{font-size:32px;margin-bottom:8px}
+
+/* Right panel */
+.right-panel{display:grid;grid-template-columns:1fr 280px;gap:12px}
+.panel-card{background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:14px;font-size:12px;box-shadow:var(--shadow)}
+
+/* Scrollbar */
+::-webkit-scrollbar{width:6px;height:6px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--bg-elevated);border-radius:3px}
+::-webkit-scrollbar-thumb:hover{background:var(--bg-hover)}
+
+/* Utility */
+.flex{display:flex;gap:8px;align-items:center}
+.flex-between{display:flex;justify-content:space-between;align-items:center}
+.mt-8{margin-top:8px}.mt-12{margin-top:8px}.mb-8{margin-bottom:8px}
+.text-right{text-align:right}.text-center{text-align:center}
+.text-success{color:var(--success)}.text-danger{color:var(--danger)}.text-warning{color:var(--warning)}
+.text-muted{color:var(--text-muted)}.text-secondary{color:var(--text-secondary)}
+.font-mono{font-family:'SF Mono','Courier New',monospace;font-size:11px}
+
+/* Deviation bar */
+.dev-bar{height:4px;border-radius:2px;margin-top:2px;transition:all .2s}
+.dev-bar-green{background:var(--success);width:100%}
+.dev-bar-yellow{background:var(--warning);width:100%}
+.dev-bar-red{background:var(--danger);width:100%}
+
+/* Modal */
+.modal-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.6);z-index:9000;display:flex;align-items:center;justify-content:center}
+.modal-overlay.wide{align-items:flex-start;padding-top:30px;padding-bottom:30px;overflow-y:auto}
+.modal-content{background:var(--bg-card);border:1px solid var(--border);border-radius:12px;padding:20px;max-width:500px;width:90%;max-height:80vh;overflow-y:auto;box-shadow:var(--shadow-lg)}
+.modal-content.wide-modal{max-width:1200px;width:90vw;max-height:none;overflow:visible}
+.modal-title{font-size:15px;font-weight:600;margin-bottom:12px;color:var(--text)}
+.modal-footer{display:flex;gap:8px;justify-content:flex-end;margin-top:16px}
+/* New Order Modal Layout */
+.order-modal-body{display:flex;gap:16px;max-height:calc(100vh - 180px);overflow-y:auto;padding-right:4px}
+.order-modal-left{width:280px;flex-shrink:0}
+.order-modal-right{flex:1;min-width:0}
+.order-modal-right .grid-3{gap:6px}
+.order-modal-right .card{padding:8px;margin-bottom:6px}
+.order-modal-right .card-header{margin-bottom:6px}
+.order-modal-right .card-title{font-size:11px}
+.no-spec-row{display:flex;align-items:center;justify-content:space-between;padding:4px 0;border-bottom:1px solid var(--border-subtle);font-size:11px}
+.no-spec-row:last-child{border-bottom:none}
+.no-spec-row label{font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;font-weight:500;margin-bottom:0;flex-shrink:0;margin-right:8px}
+.no-spec-row input,.no-spec-row select{width:140px;padding:3px 6px;font-size:11px;margin:0;text-align:right}
+.no-spec-row input:disabled,.no-spec-row select:disabled{opacity:0.4}
+.iso-tag{display:inline-block;background:var(--info-bg);color:var(--info);border:1px solid rgba(74,139,194,0.25);border-radius:5px;padding:0 5px;font-size:9px;font-weight:700;letter-spacing:0.3px;margin-left:4px;text-transform:none;vertical-align:1px}
+/* Customer Checklist Modal */
+.checklist-modal-body{max-height:calc(100vh - 180px);overflow-y:auto;padding-right:4px}
+.checklist-section-title{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.8px;color:var(--text-secondary);margin:12px 0 6px;padding-bottom:4px;border-bottom:1px solid var(--border-subtle)}
+.checklist-row{display:flex;align-items:center;gap:8px;padding:5px 0;font-size:11px}
+.checklist-row label{width:160px;flex-shrink:0;font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;font-weight:500}
+.checklist-row input,.checklist-row select{flex:1;padding:5px 8px;font-size:11px}
+.checklist-row .req{color:var(--danger);margin-left:4px}
+.checklist-checkbox-row{display:flex;align-items:center;gap:8px;padding:5px 0;font-size:11px}
+.checklist-checkbox-row input[type="checkbox"]{width:16px;height:16px;accent-color:var(--accent)}
+@media print{.no-print{display:none!important}.checklist-modal-body{max-height:none;overflow:visible}}
+
+/* Lock message */
+.lock-msg{text-align:center;padding:40px;color:var(--text-muted);font-size:13px;background:var(--bg-card);border:1px solid var(--border);border-radius:10px;border-style:dashed}
+
+@media(max-width:900px){
+  .right-panel{grid-template-columns:1fr}
+  .grid-4{grid-template-columns:1fr 1fr}
+}
+
+</style>
+<style>
+/* ===== Single-page workspace layout (no page scroll; panel scrolls internally) ===== */
+html,body{height:100%;overflow:hidden}
+body{padding:10px}
+.sheet-wrap{max-width:1240px;margin:0 auto;height:100%;display:flex;flex-direction:column;gap:10px}
+.sheet-hero{background:var(--bg-card);border:1px solid var(--border);border-radius:12px;padding:10px 16px;box-shadow:var(--shadow);flex-shrink:0;display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.sheet-hero h1{font-size:15px;margin:0;color:var(--text);white-space:nowrap}
+.sheet-hero p{font-size:11px;color:var(--text-secondary);margin:0;line-height:1.4}
+.sheet-layout{flex:1;display:flex;gap:10px;min-height:0}
+.side-nav{width:218px;flex-shrink:0;background:var(--bg-card);border:1px solid var(--border);border-radius:12px;padding:8px;overflow-y:auto;box-shadow:var(--shadow)}
+.nav-group{font-size:9.5px;text-transform:uppercase;letter-spacing:0.7px;color:var(--text-muted);margin:8px 6px 3px;font-weight:700}
+.nav-item{display:flex;align-items:center;gap:8px;width:100%;text-align:left;padding:7px 10px;border-radius:8px;border:1px solid transparent;background:none;color:var(--text-secondary);font-size:11.5px;font-weight:600;cursor:pointer;font-family:inherit;margin-bottom:1px}
+.nav-item:hover{background:var(--bg-hover)}
+.nav-item.active{background:var(--accent-glow);border-color:var(--accent);color:var(--accent)}
+.nav-item.qc-sec.active{background:var(--success-bg);border-color:var(--success);color:var(--success)}
+.nav-item.basic-sec.active{background:var(--info-bg);border-color:var(--info);color:var(--info)}
+.panel-wrap{flex:1;min-width:0;background:var(--bg-card);border:1px solid var(--border);border-radius:12px;display:flex;flex-direction:column;overflow:hidden;box-shadow:var(--shadow)}
+.panel-head{padding:10px 16px;border-bottom:1px solid var(--border);flex-shrink:0}
+.panel-head h2{font-size:13.5px;margin:0;color:var(--text)}
+.panel-head small{font-size:10.5px;color:var(--text-muted)}
+.panel-body{flex:1;overflow-y:auto;padding:12px 16px}
+.panel{display:none}
+.panel.active{display:block}
+.footer-bar{flex-shrink:0;padding:9px 14px;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:8px;background:var(--bg-card)}
+.footer-bar .btn{padding:8px 16px;font-size:12px}
+.sec-pos{font-size:11px;color:var(--text-muted);font-weight:600}
+.group-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.6px;color:var(--text-secondary);margin:10px 0 6px;padding-bottom:4px;border-bottom:1px solid var(--border-subtle)}
+.grid-2s{display:grid;grid-template-columns:1fr 1fr;gap:0 12px}
+@media(max-width:820px){.grid-2s{grid-template-columns:1fr}}
+.spec-item{border:1px solid var(--border-subtle);border-radius:10px;padding:8px 10px;margin-bottom:8px;background:var(--bg-elevated);transition:opacity .15s}
+.spec-item.skipped{opacity:0.45}
+.spec-item.skipped input{pointer-events:none}
+.spec-q{font-size:12px;font-weight:600;color:var(--text);display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
+.spec-hint{font-size:10px;color:var(--text-muted);margin:2px 0 5px}
+.chips{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:5px}
+.chip{background:var(--bg);border:1px dashed var(--border-active);color:var(--accent);border-radius:12px;padding:2px 9px;font-size:10px;cursor:pointer;font-family:inherit}
+.chip:hover{background:var(--accent-glow)}
+.yn{display:inline-flex;border:1px solid var(--border);border-radius:12px;overflow:hidden;flex-shrink:0}
+.yn button{border:none;background:var(--bg);color:var(--text-muted);font-size:10px;padding:3px 11px;cursor:pointer;font-family:inherit;font-weight:600}
+.yn button.on-yes{background:var(--success);color:#fff}
+.yn button.on-no{background:var(--danger);color:#fff}
+.spec-item input{margin:0}
+.custom-row{display:flex;gap:6px;align-items:center;margin-bottom:6px}
+.custom-row input{flex:1;margin:0}
+.custom-row .btn{flex-shrink:0;padding:6px 10px}
+.add-btn{width:100%;border:2px dashed var(--border-active);background:none;color:var(--accent);border-radius:10px;padding:9px;font-size:11.5px;font-weight:700;cursor:pointer;font-family:inherit;margin-top:2px}
+.add-btn:hover{background:var(--accent-glow)}
+.add-btn.qc{border-color:var(--success);color:var(--success)}
+.add-btn.qc:hover{background:var(--success-bg)}
+.fld{margin-bottom:8px}
+.fld label{display:block;font-size:11px;font-weight:600;color:var(--text-secondary);margin-bottom:3px}
+.fld .fhint{font-size:10px;color:var(--text-muted);font-weight:400}
+#outputPanel{position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9000;display:flex;align-items:center;justify-content:center;padding:24px}
+#outputPanel .out-card{background:var(--bg-card);border:1px solid var(--border);border-radius:12px;max-width:760px;width:100%;max-height:85vh;overflow-y:auto;padding:16px}
+#outputPanel pre{font-size:11px;color:var(--text);white-space:pre-wrap;word-break:break-word}
+.toast{position:fixed;bottom:20px;right:20px;z-index:9999;padding:10px 18px;border-radius:8px;color:#fff;font-size:12px;font-weight:500}
+.toast-success{background:var(--success)}.toast-warning{background:var(--warning)}.toast-danger{background:var(--danger)}
+@media(max-width:900px){
+  html,body{overflow:auto}
+  .sheet-wrap{height:auto}
+  .sheet-layout{flex-direction:column}
+  .prod-nav{width:100%;display:flex;overflow-x:auto;gap:6px}
+  .pn-item{min-width:150px}
+  .nav-group{display:none}
+  .nav-item{white-space:nowrap;width:auto}
+  .panel-body{overflow:visible}
+}
+.subtabs{display:flex;gap:6px;padding:8px 16px 0;border-bottom:1px solid var(--border);flex-shrink:0;flex-wrap:wrap}
+.subtab{border:1px solid var(--border);border-bottom:none;border-radius:8px 8px 0 0;background:var(--bg-elevated);color:var(--text-secondary);font-size:11.5px;font-weight:600;padding:6px 14px;cursor:pointer;font-family:inherit}
+.subtab:hover{color:var(--text)}
+.subtab.active{background:var(--bg-card);color:var(--accent);border-color:var(--accent);border-bottom:2px solid var(--bg-card);margin-bottom:-1px}
+.qc-tabs .subtab.active{color:var(--success);border-color:var(--success)}
+.attach-box{border:1px dashed var(--border-active);border-radius:10px;padding:8px 12px;margin-top:10px;background:var(--bg)}
+.attach-box .att-head{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
+.attach-box label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--text-secondary)}
+.attach-box input[type=file]{font-size:10.5px;color:var(--text-muted);max-width:260px}
+.att-item{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:11px;color:var(--text);padding:4px 0;border-bottom:1px solid var(--border-subtle)}
+.att-item:last-child{border-bottom:none}
+.att-item .att-meta{color:var(--text-muted);font-size:10px}
+.att-item button{border:none;background:none;color:var(--danger);cursor:pointer;font-size:12px;padding:0 4px}
+.cross-hint{font-size:10px;color:var(--info);margin-top:3px;min-height:12px}
+.line-bar{flex-shrink:0;display:flex;align-items:center;gap:6px;flex-wrap:wrap;background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:6px 10px}
+.lb-label{font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--text-muted);margin-right:2px}
+.lb-chip{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--border-active);border-radius:14px;padding:3px 12px;font-size:11px;font-weight:600;color:var(--text-secondary);cursor:pointer;background:var(--bg-elevated)}
+.lb-chip.active{background:var(--accent-glow);border-color:var(--accent);color:var(--accent)}
+.lb-chip b{color:var(--danger);cursor:pointer;font-size:13px;line-height:1}
+.lb-add{padding:3px 12px !important;font-size:11px !important}
+.top-tabs{display:flex;gap:3px;padding:0 6px;flex-shrink:0;overflow-x:auto}
+.ttab{border:1px solid var(--border);border-bottom:none;border-radius:9px 9px 0 0;background:var(--bg-elevated);color:var(--text-secondary);
+  font-size:11.5px;font-weight:600;padding:7px 16px;cursor:pointer;font-family:inherit;white-space:nowrap;position:relative;top:1px}
+.ttab:hover{color:var(--text)}
+.ttab.active{background:var(--bg-card);color:var(--accent);border-color:var(--border-active);border-bottom:1px solid var(--bg-card)}
+.ttab.qc-sec.active{color:var(--success)}
+.ttab.basic-sec.active{color:var(--info)}
+.sheet-layout{flex:1;display:flex;gap:10px;min-height:0}
+.content-row{flex:1;display:flex;gap:10px;min-height:0}
+.prod-nav{width:196px;flex-shrink:0;background:var(--bg-card);border:1px solid var(--border);border-radius:12px;padding:10px;overflow-y:auto;box-shadow:var(--shadow)}
+.pn-title{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.7px;color:var(--text-muted);margin:0 2px 8px}
+.pn-item{border:1px solid var(--border);border-radius:10px;padding:8px 10px;margin-bottom:6px;cursor:pointer;background:var(--bg-elevated);display:flex;justify-content:space-between;align-items:flex-start;gap:6px}
+.pn-item:hover{border-color:var(--border-active)}
+.pn-item.active{border-color:var(--accent);background:var(--accent-glow)}
+.pn-name{font-size:11.5px;font-weight:700;color:var(--text);line-height:1.3}
+.pn-item.active .pn-name{color:var(--accent)}
+.pn-sub{font-size:10px;color:var(--text-muted);margin-top:2px}
+.pn-x{color:var(--danger);cursor:pointer;font-size:13px;font-weight:700;line-height:1;padding-left:4px}
+.pn-hint{font-size:9.5px;color:var(--text-muted);margin-top:8px;line-height:1.4}
+.panel{display:block !important}
+.sheet-scroll{flex:1;overflow-y:auto;padding:0 0 8px}
+.sheet-sec{border-bottom:2px solid var(--border);padding:10px 18px 14px}
+.sheet-sec:last-child{border-bottom:none}
+.sec-band{display:flex;justify-content:space-between;align-items:baseline;gap:10px;margin-bottom:6px;position:sticky;top:0;background:var(--bg-card);padding:6px 0;z-index:5;border-bottom:1px solid var(--border)}
+.sec-band h2{font-size:13px;margin:0;color:var(--text)}
+.sec-band small{font-size:10px;color:var(--text-muted)}
+.spec-item{display:grid;grid-template-columns:240px 1fr 112px;gap:2px 14px;align-items:center;padding:6px 4px;border-bottom:1px solid var(--border-subtle);margin:0;border-radius:0;background:transparent}
+.spec-item.skipped{opacity:0.45}
+.spec-item.skipped input{pointer-events:none}
+.spec-q{font-size:11.5px;font-weight:600;color:var(--text);display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.spec-hint{font-size:9.5px;color:var(--text-muted);margin-top:1px}
+.spec-val input{margin:0}
+.spec-item .chips{margin-bottom:3px}
+.spec-item .yn{justify-self:end}
+.group-title{font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:0.6px;color:var(--text-secondary);margin:12px 0 2px;padding-bottom:3px;border-bottom:1px solid var(--border-subtle)}
+@media(max-width:760px){.spec-item{grid-template-columns:1fr;gap:4px}.spec-item .yn{justify-self:start}}
+</style>
+</head>
+<body>
+<div class="sheet-wrap">
+  <div class="sheet-hero">
+    <h1>New Order &mdash; Product Specification &amp; QC Plan</h1>
+    <p>Capture the customer's product specification (SPEC) and quality-control plan (QC) in one pass. Work section by section from the navigator; a final requirement matrix is generated for production and QC.</p>
+  </div>
+<div id="sheetContainer"></div>
+  <div id="outputPanel" style="display:none" onclick="if(event.target===this)this.style.display='none'">
+    <div class="out-card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+        <div class="group-title" style="margin:0;border:none;padding:0">Captured Order JSON &mdash; createOrder output</div>
+        <button class="btn btn-ghost" onclick="document.getElementById('outputPanel').style.display='none'">Close</button>
+      </div>
+      <pre id="outputJson"></pre>
+    </div>
+  </div>
+</div>
+
+<script>
+// ============================================================
+// STANDALONE STUBS (replace hub services so this sheet runs alone)
+// ============================================================
+var STORE = { orders:'stub_orders', batches:'stub_batches', nextOrderNum:'stub_nextOrderNum' };
+var CUST_DB_KEY = 'stub_cust_db';
+var appData = { orders: [], batches: [] };
+function lsGet(key) { try { return JSON.parse(localStorage.getItem(key)); } catch(e) { return null; } }
+function lsSet(key, val) { try { localStorage.setItem(key, JSON.stringify(val)); } catch(e) {} }
+function nowISO() { return new Date().toISOString(); }
+function toast(msg, type) {
+  var t = document.createElement('div');
+  t.className = 'toast toast-' + (type || 'success');
+  t.textContent = msg; document.body.appendChild(t);
+  setTimeout(function(){ t.remove(); }, 3000);
+}
+function selectOrder(orderId) {
+  var o = appData.orders.find(function(x){ return x.id === orderId; });
+  var panel = document.getElementById('outputPanel');
+  panel.style.display = 'flex';
+  document.getElementById('outputJson').textContent = JSON.stringify(o, null, 2);
+}
+(function(){
+  if(!localStorage.getItem(CUST_DB_KEY)) {
+    localStorage.setItem(CUST_DB_KEY, JSON.stringify({customers:[
+      {customerId:'CUST-0001', name:'Nykaa', contact:'R. Sharma', phone:'+91-98765-43210', email:'buyer@nykaa.example', city:'Mumbai'},
+      {customerId:'CUST-0002', name:'Wellness Retail', contact:'A. Iyer', phone:'+91-98765-43213', email:'ops@wellness.example', city:'Bengaluru'}
+    ]}));
+  }
+})();
+
+// ===== Verbatim from hub: customer directory + catalogue =====
+function getCustomerDirectory() {
+  try {
+    var db = JSON.parse(localStorage.getItem(CUST_DB_KEY) || 'null');
+    if(db && Array.isArray(db.customers)) return db.customers;
+  } catch(e) {}
+  return [];
+}
+function getUniversalCustomer(customerId) {
+  if(!customerId) return null;
+  var dir = getCustomerDirectory();
+  for(var i = 0; i < dir.length; i++) { if(dir[i].customerId === customerId) return dir[i]; }
+  return null;
+}
+function escapeHtml(str) { if(!str) return ''; return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+var CATALOGUE = {
+  'TR-VC-001': {
+    name: 'TREYFA Vitamin C Glow Cream', brand: 'TREYFA', phMin: 4.5, phMax: 6.0, shelfLife: 12,
+    ingredients: [
+      {code:'RM-WAT-001', name:'Distilled Water', baseQty:7000, unit:'g', phase:'Water', temp:'75C'},
+      {code:'RM-GLY-002', name:'Glycerin', baseQty:450, unit:'g', phase:'Water', temp:'75C'},
+      {code:'RM-COC-003', name:'Coconut Oil', baseQty:800, unit:'g', phase:'Oil', temp:'75C'},
+      {code:'RM-SHE-004', name:'Shea Butter', baseQty:300, unit:'g', phase:'Oil', temp:'75C'},
+      {code:'RM-CET-005', name:'Cetearyl Alcohol', baseQty:250, unit:'g', phase:'Oil', temp:'75C'},
+      {code:'RM-EMW-006', name:'Emulsifying Wax', baseQty:350, unit:'g', phase:'Oil', temp:'75C'},
+      {code:'RM-VC-007', name:'Vitamin C', baseQty:100, unit:'g', phase:'Cool-Down', temp:'40C', sensitive:true},
+      {code:'RM-VE-008', name:'Vitamin E', baseQty:50, unit:'g', phase:'Cool-Down', temp:'40C'},
+      {code:'RM-FRG-009', name:'Fragrance', baseQty:30, unit:'g', phase:'Cool-Down', temp:'35C', sensitive:true},
+      {code:'RM-PRS-010', name:'Preservative', baseQty:70, unit:'g', phase:'Cool-Down', temp:'40C'},
+      {code:'RM-CIT-011', name:'Citric Acid', baseQty:50, unit:'g', phase:'Cool-Down', temp:'40C'},
+      {code:'RM-XAN-012', name:'Xanthan Gum', baseQty:50, unit:'g', phase:'Water', temp:'75C'}
+    ]
+  },
+  'KM-SF-001': {
+    name: 'KUMARIE Pure Soap', brand: 'KUMARIE', phMin: 8, phMax: 10, shelfLife: 24,
+    ingredients: [
+      {code:'RM-COC-100', name:'Coconut Oil', baseQty:3000, unit:'g', phase:'Oil', temp:'40C'},
+      {code:'RM-OLI-101', name:'Olive Oil', baseQty:3000, unit:'g', phase:'Oil', temp:'40C'},
+      {code:'RM-PAL-102', name:'Palm Oil', baseQty:2000, unit:'g', phase:'Oil', temp:'40C'},
+      {code:'RM-NAO-103', name:'Sodium Hydroxide', baseQty:950, unit:'g', phase:'Lye', temp:'25C', danger:true},
+      {code:'RM-DIW-104', name:'Distilled Water', baseQty:2280, unit:'g', phase:'Lye', temp:'25C'},
+      {code:'RM-ESS-105', name:'Essential Oil', baseQty:200, unit:'g', phase:'Trace', temp:'35C'},
+      {code:'RM-SLT-106', name:'Sea Salt', baseQty:50, unit:'g', phase:'Trace', temp:'35C'},
+      {code:'RM-HNY-107', name:'Honey', baseQty:100, unit:'g', phase:'Trace', temp:'35C'}
+    ]
+  },
+  'BK-AL-001': {
+    name: 'BACKERO Aloe Vera Gel', brand: 'BACKERO', phMin: 4.5, phMax: 6.5, shelfLife: 18,
+    ingredients: [
+      {code:'RM-ALV-201', name:'Aloe Concentrate', baseQty:500, unit:'g', phase:'Water', temp:'25C'},
+      {code:'RM-DIW-202', name:'Distilled Water', baseQty:8500, unit:'g', phase:'Water', temp:'25C'},
+      {code:'RM-HYT-203', name:'Hyaluronic Acid', baseQty:50, unit:'g', phase:'Water', temp:'25C'},
+      {code:'RM-GLY-204', name:'Glycerin', baseQty:300, unit:'g', phase:'Water', temp:'25C'},
+      {code:'RM-PAN-205', name:'Panthenol', baseQty:200, unit:'g', phase:'Cool-Down', temp:'30C'},
+      {code:'RM-PRS-206', name:'Preservative', baseQty:80, unit:'g', phase:'Cool-Down', temp:'30C'},
+      {code:'RM-CIT-207', name:'Citric Acid', baseQty:50, unit:'g', phase:'Cool-Down', temp:'30C'}
+    ]
+  }
+};
+function getCat(pid) {
+  if(CATALOGUE[pid]) return CATALOGUE[pid];
+  // Runtime catalogue bridge: Form-15 exports the approved formula of each order here,
+  // so the production hub can execute ANY order created from the Form-15 workflow.
+  try {
+    var extra = JSON.parse(localStorage.getItem('backero_v6_runtime_catalog') || '{}');
+    if(extra && extra[pid]) return extra[pid];
+  } catch(e) {}
+  return null;
+}
+
+// ============================================================
+// UI HELPERS — speed of entry: presets tap-to-fill, free text always
+// ============================================================
+function ynHtml(base, defVal) {
+  defVal = defVal || 'Required';
+  return '<input type="hidden" id="' + base + 'Status" value="' + defVal + '">' +
+    '<span class="yn" id="' + base + 'Yn">' +
+    '<button type="button" class="' + (defVal === 'Required' ? 'on-yes' : '') + '" onclick="setStatus(\'' + base + '\',\'Required\')">Required</button>' +
+    '<button type="button" class="' + (defVal !== 'Required' ? 'on-no' : '') + '" onclick="setStatus(\'' + base + '\',\'Not Required\')">N/A</button>' +
+    '</span>';
+}
+function setStatus(base, v) {
+  var h = document.getElementById(base + 'Status'); if(h) h.value = v;
+  var yn = document.getElementById(base + 'Yn');
+  if(yn) { var bs = yn.getElementsByTagName('button');
+    bs[0].className = (v === 'Required') ? 'on-yes' : '';
+    bs[1].className = (v !== 'Required') ? 'on-no' : ''; }
+  var item = document.getElementById(base + 'Item');
+  if(item) item.classList.toggle('skipped', v !== 'Required');
+}
+function chipsHtml(id, presets) {
+  if(!presets || !presets.length) return '';
+  return '<div class="chips">' + presets.map(function(p) {
+    return '<button type="button" class="chip" onclick=\'setVal(' + JSON.stringify(id) + ',' + JSON.stringify(p) + ')\'>' + escapeHtml(p) + '</button>';
+  }).join('') + '</div>';
+}
+function setVal(id, v) { var el = document.getElementById(id); if(el) { el.value = v; } }
+function isoTag(t) { return t ? ' <span class="iso-tag">' + t + '</span>' : ''; }
+
+function specItemHtml(o) {
+  return '<div class="spec-item"' + (o.status ? ' id="' + o.status + 'Item"' : '') + '>' +
+    '<div class="spec-lab"><div class="spec-q">' + o.q + isoTag(o.iso) + '</div>' +
+    (o.hint ? '<div class="spec-hint">' + o.hint + '</div>' : '') + '</div>' +
+    '<div class="spec-val">' + chipsHtml(o.id, o.presets) +
+    '<input type="text" id="' + o.id + '" placeholder="' + (o.ph || 'Free text — enter customer requirement') + '"' + (o.val ? ' value="' + escapeHtml(o.val) + '"' : '') + '></div>' +
+    (o.status ? ynHtml(o.status, o.defStatus) : '<span></span>') +
+  '</div>';
+}
+function qcItemHtml(o) {
+  return '<div class="spec-item" id="' + o.base + 'Item">' +
+    '<div class="spec-lab"><div class="spec-q">' + o.q + isoTag(o.iso) + '</div>' +
+    (o.hint ? '<div class="spec-hint">' + o.hint + '</div>' : '') + '</div>' +
+    '<div class="spec-val">' + chipsHtml(o.base + 'Spec', o.presets) +
+    '<input type="text" id="' + o.base + 'Spec" placeholder="' + (o.ph || 'Acceptance criteria — free text') + '"' + (o.val ? ' value="' + escapeHtml(o.val) + '"' : '') + '></div>' +
+    ynHtml(o.base, o.defStatus) +
+  '</div>';
+}
+
+// ============================================================
+// CATALOGS — cosmetic / biotech contract-manufacturing order intake
+// (ISO 22716 GMP flow: IPC -> micro & safety -> stability -> release -> docs)
+// ============================================================
+var SPEC_GROUPS = [
+  { title: 'Organoleptic / Sensory Targets', items: [
+    { id:'noColorSpec', status:'noColor', q:'Colour / Shade', hint:'Objective shade or Pantone ref.; retained-sample match acceptable', presets:['Pearly white','Clear / transparent','Cream beige','Soft pink','Match retained sample'], ph:'e.g. Pearly white / Pantone 11-0602', val:'As per approved std sample' },
+    { id:'noOdorSpec', status:'noOdor', q:'Odour / Fragrance Profile', hint:'Note IFRA compliance where applicable', presets:['Fragrance-free','Mild floral (IFRA-compliant)','Sandalwood','Fresh aloe','Match retained sample'], ph:'e.g. Mild floral, IFRA-compliant', val:'As per approved std sample' },
+    { id:'noTextureSpec', status:'noTexture', q:'Texture / Consistency', hint:'Rheology & skin-feel descriptors', presets:['Smooth, non-greasy','Rich & creamy','Non-sticky gel','Fast-absorbing'], ph:'e.g. Smooth, non-greasy, quick-absorb', val:'Smooth, uniform' },
+    { id:'noSpecAppearance', q:'Appearance / Form', hint:'Form, opacity, freedom from separation / air inclusion', presets:['Opaque cream','Clear gel','Pearly lotion','Hard-milled bar','No separation / no air inclusion'], ph:'e.g. Clear gel, free of bubbles' }
+  ]},
+  { title: 'Physicochemical Targets', hint:'Acceptance ranges verified at IPC and release. Select "CM to propose" and we will set the range for the formulation.', items: [
+    { id:'noPhSpec', status:'noPh', q:'pH Range', hint:'Target ± tolerance; typical leave-on 4.5 – 6.0', presets:['4.5 – 6.0','5.5 ± 0.3','3.0 – 3.5 (low-pH actives)','CM to propose'], ph:'e.g. 5.5 ± 0.3', val:'4.5 - 6.0' },
+    { id:'noViscositySpec', status:'noViscosity', q:'Viscosity (cP)', hint:'State spindle/speed where critical (e.g. Brookfield LV S64 @ 12 rpm)', presets:['2000 – 8000 cP','1000 – 5000 cP','15000 – 20000 cP','CM to propose'], ph:'e.g. 2000 – 8000 cP (LV S64 @ 12 rpm)', val:'2000 - 8000 cP' },
+    { id:'noDensitySpec', status:'noDensity', q:'Specific Gravity (g/ml)', hint:'At 25 °C', presets:['0.95 – 1.05 g/ml','Match retained sample','CM to propose'], ph:'e.g. 0.95 – 1.05 g/ml @ 25 °C', val:'0.95 - 1.05 g/ml' },
+    { id:'noAssaySpec', status:'noAssay', q:'Assay / Active Content', hint:'% w/w ± tolerance — critical for biotech actives', presets:['Per approved formula','10.0% w/w ± 0.5%','5.0% w/w ± 0.3%'], ph:'e.g. Ascorbic acid 10.0% ± 0.5% w/w' }
+  ]},
+  { title: 'Packaging Specification', items: [
+    { id:'noPkgFill', q:'Net Fill & Tolerance', presets:['50 g ± 2%','100 ml ± 2%','100 g ± 3%'], ph:'e.g. 50 g ± 2%' },
+    { id:'noPkgContainer', q:'Primary Container', presets:['50 ml Amber Glass Jar','100 ml Tube','100 g Soap Bar','30 ml Airless Pump'], ph:'e.g. 50 ml Amber Glass Jar' },
+    { id:'noPkgCap', q:'Closure', presets:['Gold Aluminium Wad Cap','Flip Top Cap','Wax Paper Wrap','Pump dispenser'], ph:'e.g. Gold Aluminium Wad Cap' },
+    { id:'noPkgSeal', q:'Tamper / Seal Type', presets:['Induction Seal','Heat Seal','None'], ph:'e.g. Induction Seal' },
+    { id:'noPkgLabel', q:'Label Specification', presets:['50x30 mm Digital Foil','50x30 mm Paper','40x25 mm Digital'], ph:'e.g. 50x30 mm Digital Foil' },
+    { id:'noPkgMonoCarton', q:'Mono Carton', presets:['Matte Finish','Gloss Finish','Kraft Paper Box','Not required'], ph:'e.g. Matte Finish' },
+    { id:'noPkgShrinkWrap', q:'Shrink Wrap', presets:['PVC Film 40 micron','PVC Film','Not required'], ph:'e.g. PVC Film 40 micron' },
+    { id:'noPkgLeaflet', q:'Leaflet / Insert', presets:['Product information leaflet','Not required'], ph:'e.g. Product information leaflet' },
+    { id:'noPkgInner', q:'Inner Packing', presets:['Individual silk pouch','Individual box','Wax paper'], ph:'e.g. Individual silk pouch' },
+    { id:'noPkgOuter', q:'Shipper Carton', presets:['5-ply Corrugated','3-ply Corrugated'], ph:'e.g. 5-ply Corrugated' },
+    { id:'noPkgUnitsPerCarton', q:'Units per Carton', presets:['24','36','48'], ph:'e.g. 24' },
+    { id:'noPkgOuterShrink', q:'Pallet Shrink / Stretch Film', presets:['Stretch Film','Stretch Film 23 micron'], ph:'e.g. Stretch Film 23 micron' },
+    { id:'noPkgPallet', q:'Pallet Configuration', presets:['48 cartons per pallet','60 cartons per pallet'], ph:'e.g. 48 cartons per pallet' },
+    { id:'noPkgSpecial', q:'Special Handling / Marking', presets:['Fragile, This Side Up','Keep Dry','Do Not Freeze'], ph:'e.g. Fragile, This Side Up' }
+  ]}
+];
+
+var QC_GROUPS = [
+  { title: 'In-Process Controls (IPC)', badge:'ISO 22716', hint:'Controls applied during manufacture of the bulk.', items: [
+    { base:'noPhysico', q:'Physicochemical Panel', iso:'ISO 22716', presets:['Per ISO 22716 QC plan','pH + viscosity + density at each stage'], val:'Per ISO 22716 QC plan' },
+    { base:'noSensory', q:'Sensory vs Reference Standard', iso:'ISO 6658', presets:['Match approved std sample','Match retained reference'], val:'Match approved std sample' }
+  ]},
+  { title: 'Microbiological & Safety', badge:'ISO 17516 · ISO 11930', hint:'Batch release contingent on specified limits.', items: [
+    { base:'noMicrobial', q:'Microbial Limits', iso:'ISO 17516', hint:'Cat. 1 = eye area / mucous membranes / children <3 y', presets:['Per ISO 17516 (Cat. 2)','Per ISO 17516 (Cat. 1 — strictest)'], val:'Limits per ISO 17516' },
+    { base:'noTpc', q:'Total Aerobic Count (TPC)', iso:'ISO 21149', presets:['< 100 CFU/g','< 1000 CFU/g'], val:'< 100 CFU/g (ISO 21149)' },
+    { base:'noYm', q:'Yeast & Mould Count', iso:'ISO 16212', presets:['< 100 CFU/g','< 10 CFU/g'], val:'< 100 CFU/g (ISO 16212)' },
+    { base:'noPathogen', q:'Specified Pathogens', iso:'ISO 18415', presets:['Absent: P. aeruginosa, S. aureus, E. coli, C. albicans'], val:'Absent (ISO 18415 / 22717 / 22718 / 21150)' },
+    { base:'noPreservative', q:'Preservative Efficacy (Challenge Test)', iso:'ISO 11930', presets:['Meets ISO 11930 (Criteria A)','Meets ISO 11930 (Criteria B)','USP <51> pass'], val:'Meets ISO 11930 criteria' },
+    { base:'noHeavyMetal', q:'Heavy Metals', presets:['Pb/As/Hg/Cd < 10 ppm','Pb < 10, As < 2, Hg < 1, Cd < 5 ppm'], val:'Pb/As/Hg/Cd < 10 ppm' },
+    { base:'noDermatological', q:'Dermatological Safety', presets:['HRIPT pass (n ≥ 50)','Patch test pass','Not required'], val:'HRIPT Pass' }
+  ]},
+  { title: 'Stability & Compatibility', badge:'ISO/TR 18811', hint:'Evidence the product remains within spec over shelf life.', items: [
+    { base:'noStability', q:'Stability Study', iso:'ISO/TR 18811', presets:['40 °C / 75% RH (accelerated)','25 °C / 60% RH (real-time)'], val:'40 °C / 75% RH per ISO/TR 18811' },
+    { base:'noAccelerated', q:'Accelerated Conditions', presets:['25 °C / 60% RH','45 °C oven'], val:'25 °C / 60% RH' },
+    { base:'noDuration', q:'Study Duration', presets:['3 months','6 months','12 months'], val:'6 months' },
+    { base:'noFreezeThaw', q:'Freeze–Thaw Cycling', presets:['3 cycles (−10 °C ↔ 25 °C)','5 cycles (−10 °C ↔ 25 °C)','Not applicable'], val:'3 cycles (−10 °C ↔ 25 °C)' },
+    { base:'noCompat', q:'Pack–Product Compatibility', presets:['Fill test + 40 °C / 8 weeks','Fill test only'], val:'Fill test + 40 °C / 8 weeks' }
+  ]},
+  { title: 'Finished Goods — Release Checks', badge:'ISO 9001 · ISO 22716', items: [
+    { base:'noFqcWeight', q:'Fill Weight Verification', presets:['± 5%','± 3%','± 2%'], val:'+-5%' },
+    { base:'noFqcSeal', q:'Seal Integrity', presets:['No leakage','100% seal inspection'], val:'No leakage' },
+    { base:'noFqcLeak', q:'Leak Test', presets:['Inverted 24 h pass','Inverted 48 h pass'], val:'Pass inverted 24h' },
+    { base:'noFqcLabel', q:'Label Verification vs Artwork', presets:['100% match to artwork'], val:'100% match to artwork' },
+    { base:'noFqcPrint', q:'Print Quality', presets:['No smudge / miscut'], val:'No smudge/cut' },
+    { base:'noFqcCarton', q:'Carton Condition', presets:['No dent / crush damage'], val:'No dent/crush' },
+    { base:'noFqcAppearance', q:'Appearance vs Reference', presets:['Match approved std sample'], val:'Match approved std sample' },
+    { base:'noFqcRelease', q:'Release Criterion', presets:['All required tests pass','QA disposition + all required tests pass'], val:'All Required tests pass' }
+  ]},
+  { title: 'Documentation & Deliverables', badge:'ISO 22716', items: [
+    { base:'noDocumentation', q:'Batch Documentation Pack', presets:['Complete COA','Basic COA'], val:'Complete COA' },
+    { base:'noCoa', q:'Certificate of Analysis', presets:['Per batch, full panel'], val:'Required per batch' },
+    { base:'noMethod', q:'Test Method Basis', presets:['In-house validated + ISO harmonised','ISO methods only'], val:'In-house validated + ISO methods' },
+    { base:'noAllergenDoc', q:'Allergen Declaration', presets:['IFRA fragrance allergen list','Not applicable'], val:'Fragrance allergen list (IFRA)' },
+    { base:'noStabReport', q:'Stability Report', presets:['Full end-of-study report','Summary only'], val:'Full report at end of study' }
+  ]}
+];
+
+// ============================================================
+// RENDER THE SHEET
+// ============================================================
+
+// ===== Customer select + reset (standalone sheet) =====
+function buildCustomerSelectHtml(id) {
+  var dir = getCustomerDirectory();
+  var h = '<select id="' + id + '" onchange="onNewOrderCustomer(this.value)"><option value="">-- Select customer --</option>';
+  dir.forEach(function(c){ h += '<option value="' + escapeHtml(c.customerId) + '">' + escapeHtml(c.customerId + ' \u2014 ' + c.name) + '</option>'; });
+  h += '<option value="__WALKIN__">Walk-in / New customer</option></select>';
+  return h;
+}
+function onNewOrderCustomer(customerId) {
+  var c = getUniversalCustomer(customerId);
+  var map = { noCustomer: c ? (c.name || '') : '', noContact: c ? (c.contact || '') : '',
+    noCustPhone: c ? (c.phone || c.whatsapp || '') : '', noCustEmail: c ? (c.email || '') : '' };
+  Object.keys(map).forEach(function(id){ var el = document.getElementById(id); if (el) el.value = map[id]; });
+  maybeLoadPrevSpec();
+}
+function resetOrderForm() {
+  document.querySelectorAll('#sheetContainer input, #sheetContainer textarea').forEach(function(el){
+    if (el.type === 'hidden') return;
+    el.value = '';
+  });
+  document.querySelectorAll('#sheetContainer select').forEach(function(el){ el.selectedIndex = 0; });
+  ['customSpec-sensory','customSpec-phys','customPkg','customQc-ipc','customQc-micro','customQc-stab','customQc-release','customDoc','customAll'].forEach(function(id){
+    var el = document.getElementById(id); if (el) el.innerHTML = '';
+  });
+  ATT = {};
+  Object.keys({ 'spec-sensory':1,'spec-phys':1,'spec-pack':1,'qc-ipc':1,'qc-micro':1,'qc-stab':1,'qc-release':1,'docs':1,'custom':1 }).forEach(renderAttList);
+  var ph = document.getElementById('pkgCrossHint'); if (ph) ph.textContent = '';
+  var ch = document.getElementById('pkgCartonHint'); if (ch) ch.textContent = '';
+  document.querySelectorAll('#sheetContainer .spec-item').forEach(function(item){
+    var base = item.id.replace(/Item$/, '');
+    setStatus(base, 'Required');
+    var inp = item.querySelector('input[type="text"],input[type="number"],input:not([type])');
+    if (inp) inp.value = '';
+  });
+  var q = document.getElementById('noProduct'); if (q) populateOrderSpecs(q.value);
+  initLines();
+  showSection(0);
+  toast('Form reset', 'warning');
+}
+
+// ===== Single-page workspace: 6 main tabs; SPEC & QC have sub-tabs =====
+var SECTIONS = [
+  { id:'sec-basics',  nav:'Order Details',    cls:'basic-sec', group:'Order',     title:'Order Details',                 sub:'Customer ID (linked to Customer module), product, volume, timeline, artwork status and dispatch.' },
+  { id:'sec-sensory', nav:'Sensory Targets',  cls:'spec-sec',  group:'SPEC',      title:'Sensory Targets',               sub:'Organoleptic acceptance targets — what the product must look, smell and feel like.' },
+  { id:'sec-phys',    nav:'Physicochemical',  cls:'spec-sec',  group:'SPEC',      title:'Physicochemical Targets',       sub:'Measurable product parameters (pH, viscosity, density, assay).' },
+  { id:'sec-qc',      nav:'QC Plan',          cls:'qc-sec',    group:'QC',        title:'Quality Control Plan (QC)',     sub:'ISO-framed controls: framework, in-process, microbiological and stability.' },
+  { id:'sec-finalqc', nav:'Final QC',         cls:'qc-sec',    group:'QC',        title:'Final QC — Release Checks',     sub:'Physical checks executed on finished units before dispatch.' },
+  { id:'sec-pack',    nav:'Packaging',        cls:'spec-sec',  group:'Packaging', title:'Packaging Specification (BOM)', sub:'Primary pack, closure and secondary packaging — cross-related like a bill of materials.' },
+  { id:'sec-docs',    nav:'Documentation',    cls:'qc-sec',    group:'',          title:'Documentation & Deliverables',  sub:'Documents and sign-offs to be supplied with the order.' },
+  { id:'sec-custom',  nav:'Custom Checks',    cls:'qc-sec',    group:'',          title:'Custom Checks & Requirements',  sub:'Customer-specific tests, certifications or audit rights not covered elsewhere.' }
+];
+var curSection = 0;
+
+var SUBTABS = {
+  qc: [ ['ipc','Framework & IPC'], ['micro','Micro & Safety'], ['stab','Stability & Compat.'] ]
+};
+
+function panelHead(sec) {
+  return '<h2>' + escapeHtml(sec.title) + '</h2><small>' + escapeHtml(sec.sub) + '</small>';
+}
+function subtabBar(group) {
+  var h = '<div class="subtabs' + (group === 'qc' ? ' qc-tabs' : '') + '">';
+  SUBTABS[group].forEach(function(t, i) {
+    h += '<button class="subtab' + (i === 0 ? ' active' : '') + '" id="subtab-' + group + '-' + t[0] + '" onclick="showSub(\'' + group + '\',\'' + t[0] + '\')">' + t[1] + '</button>';
+  });
+  return h + '</div>';
+}
+function showSub(group, key) {
+  SUBTABS[group].forEach(function(t) {
+    var p = document.getElementById('subp-' + group + '-' + t[0]);
+    var b = document.getElementById('subtab-' + group + '-' + t[0]);
+    if (p) p.style.display = (t[0] === key ? 'block' : 'none');
+    if (b) b.classList.toggle('active', t[0] === key);
+  });
+}
+function subPanel(group, key, first, inner) {
+  return '<div class="subpanel" id="subp-' + group + '-' + key + '"' + (first ? '' : ' style="display:none"') + '>' + inner + '</div>';
+}
+
+// ---- Attachments (metadata captured per section; files stay local) ----
+var ATT = {};
+function attachHtml(key, hint) {
+  return '<div class="attach-box"><div class="att-head"><label>Attachments</label>' +
+    '<input type="file" multiple onchange="addAttachments(\'' + key + '\', this)"></div>' +
+    '<div class="spec-hint">' + hint + ' Files remain on this device; their names and sizes are recorded in the order JSON.</div>' +
+    '<div id="attList-' + key + '"></div></div>';
+}
+function addAttachments(key, input) {
+  if (!ATT[key]) ATT[key] = [];
+  for (var i = 0; i < input.files.length; i++) {
+    var f = input.files[i];
+    ATT[key].push({ name: f.name, size: f.size, type: f.type || 'file' });
+  }
+  input.value = '';
+  renderAttList(key);
+}
+function removeAtt(key, i) { ATT[key].splice(i, 1); renderAttList(key); }
+function renderAttList(key) {
+  var el = document.getElementById('attList-' + key);
+  if (!el) return;
+  el.innerHTML = (ATT[key] || []).map(function(f, i) {
+    var kb = f.size > 1048576 ? (f.size / 1048576).toFixed(1) + ' MB' : Math.max(1, Math.round(f.size / 1024)) + ' KB';
+    return '<div class="att-item"><span>' + escapeHtml(f.name) + ' <span class="att-meta">' + kb + '</span></span>' +
+      '<button onclick="removeAtt(\'' + key + '\',' + i + ')" title="Remove">&times;</button></div>';
+  }).join('');
+}
+
+// ---- Packaging cross-relation (BOM logic: container drives closure / seal; qty drives cartons) ----
+var PKG_MAP = [
+  { match: ['airless'],                       cap: 'Airless pump actuator (integrated)', seal: 'Tamper-evident band' },
+  { match: ['jar'],                           cap: 'PP screw lid',                       seal: 'Inner seal wad / pressure-sensitive liner' },
+  { match: ['tube'],                          cap: 'Flip-top / nozzle cap',              seal: 'Crimped or foil seal' },
+  { match: ['glass'],                         cap: 'Dropper / lotion pump',              seal: 'Induction seal + shrink band' },
+  { match: ['hdpe', 'pet', 'bottle'],         cap: 'Screw cap / flip-top cap',           seal: 'Induction heat seal' },
+  { match: ['sachet', 'pouch'],               cap: 'Not applicable',                     seal: 'Heat-sealed laminate' },
+  { match: ['bar', 'soap'],                   cap: 'Not applicable',                     seal: 'Flow-wrap / paper wrap' }
+];
+function pkgCross(fromAuto) {
+  var cEl = document.getElementById('noPkgContainer');
+  if (!cEl) return;
+  var v = (cEl.value || '').toLowerCase();
+  var hit = null;
+  PKG_MAP.forEach(function(m) {
+    if (hit) return;
+    for (var i = 0; i < m.match.length; i++) { if (v.indexOf(m.match[i]) !== -1) { hit = m; break; } }
+  });
+  var hint = document.getElementById('pkgCrossHint');
+  if (hit) {
+    var capEl = document.getElementById('noPkgCap'), sealEl = document.getElementById('noPkgSeal');
+    var changed = [];
+    if (capEl && !capEl.value) { capEl.value = hit.cap; changed.push('closure'); }
+    if (sealEl && !sealEl.value) { sealEl.value = hit.seal; changed.push('seal'); }
+    if (hint) hint.textContent = 'Cross-linked' + (changed.length ? ' (auto-filled: ' + changed.join(', ') + ')' : ' — closure & seal compatible') + ' for: ' + cEl.value;
+  } else if (hint) { hint.textContent = ''; }
+  pkgCartons();
+}
+function pkgCartons() {
+  var qty = parseInt((document.getElementById('noQty') || {}).value);
+  var upc = parseInt((document.getElementById('noPkgUnitsPerCarton') || {}).value);
+  var hint = document.getElementById('pkgCartonHint');
+  if (!hint) return;
+  if (!isNaN(qty) && !isNaN(upc) && upc > 0) {
+    hint.textContent = 'Cross-check: ' + qty + ' units / ' + upc + ' per carton = ' + Math.ceil(qty / upc) + ' shipper cartons';
+  } else { hint.textContent = ''; }
+}
+
+function customBlock(listId, group, kind, btnLabel) {
+  return '<div id="' + listId + '"></div>' +
+    '<button class="add-btn' + (kind === 'qc' ? ' qc' : '') + '" onclick="addCustomRow(\'' + kind + '\',\'' + listId + '\',\'' + group + '\')">' + btnLabel + '</button>';
+}
+
+function renderSheet() {
+  var el = document.getElementById('sheetContainer');
+  var nav = '', body = '', lastGroup = '';
+  SECTIONS.forEach(function(sec, i) {
+    nav += '<button class="ttab ' + sec.cls + '" id="nav-' + sec.id + '" onclick="showSection(' + i + ')">' + escapeHtml(sec.nav) + '</button>';
+    var inner = '';
+    if (sec.id === 'sec-basics') {
+      inner =
+        '<div class="grid-2s">' +
+        '<div class="fld"><label>Customer ID <span class="req">*</span> <span class="fhint">(details in Customer module)</span></label>' + buildCustomerSelectHtml('noCustomerId') + '</div>' +
+        '<div class="fld"><label>Product / Formula <span class="req">*</span></label><select id="noProduct" onchange="populateOrderSpecs(this.value)"><option value="">-- Select product --</option>' +
+          Object.keys(CATALOGUE).map(function(pid){ return '<option value="' + pid + '">' + escapeHtml(CATALOGUE[pid].name) + ' (' + pid + ')</option>'; }).join('') +
+          '<option value="CUSTOM">Custom Formulation (brief the lab)</option></select></div>' +
+        '<div class="fld"><label>Order Qty (units) <span class="req">*</span></label><input type="number" id="noQty" min="1" placeholder="e.g. 5000" oninput="pkgCartons()"></div>' +
+        '<div class="fld"><label>Priority</label><select id="noPriority"><option>Normal</option><option>Urgent</option><option>Low</option></select></div>' +
+        '<div class="fld"><label>Requested Delivery</label><input type="date" id="noDelivery"></div>' +
+        '<div class="fld"><label>Lead Time (days) <span class="fhint">(auto)</span></label><input type="number" id="noLeadTime" readonly></div>' +
+        '<div class="fld"><label>Brand / SKU <span class="fhint">(auto)</span></label><input type="text" id="noBrand" readonly></div>' +
+        '<div class="fld"><label>Packaging (auto)</label><input type="text" id="noContainer" readonly></div>' +
+        '<div class="fld"><label>Artwork / Label Status</label><select id="noArtworkStatus"><option value="Artwork approved">Artwork approved</option><option value="Artwork pending customer approval">Artwork pending customer approval</option><option value="In design">In design</option><option value="Customer to supply print-ready">Customer to supply print-ready</option></select></div>' +
+        '<div class="fld"><label>Dispatch Mode</label><select id="noDispatchMode"><option value="Ex-works">Ex-works</option><option value="Door delivery">Door delivery</option><option value="Customer pickup">Customer pickup</option></select></div>' +
+        '</div>' +
+        '<div class="fld"><label>Order Notes <span class="fhint">(optional)</span></label><textarea id="noNotes" rows="2" placeholder="Commercial notes, incoterms, PO reference..."></textarea></div>';
+    }
+    else if (sec.id === 'sec-sensory') {
+      inner = SPEC_GROUPS[0].items.map(specItemHtml).join('') +
+        customBlock('customSpec-sensory', 'Sensory', 'spec', '+ Add custom sensory field') +
+        attachHtml('spec-sensory', 'Shade cards, fragrance blotters, retained-sample photos.');
+    }
+    else if (sec.id === 'sec-phys') {
+      inner = SPEC_GROUPS[1].items.map(specItemHtml).join('') +
+        customBlock('customSpec-phys', 'Physicochemical', 'spec', '+ Add custom physicochemical field') +
+        attachHtml('spec-phys', 'Customer spec sheets, method references, instrument parameters.');
+    }
+    else if (sec.id === 'sec-finalqc') {
+      inner = QC_GROUPS[3].items.map(qcItemHtml).join('') +
+        customBlock('customQc-release', 'Final QC', 'qc', '+ Add custom release check') +
+        attachHtml('qc-release', 'AQL tables, defect classification lists, label verification samples.');
+    }
+    else if (sec.id === 'sec-pack') {
+      inner =
+        SPEC_GROUPS[2].items.map(specItemHtml).join('') +
+        '<div class="grid-2s" style="margin-top:8px">' +
+        '<div class="fld"><label>Batch Coding Convention</label><input type="text" id="noPkgCoding" placeholder="e.g. BATCH: M/Y/####; MFG & EXP inkjet on base"></div>' +
+        '</div>' +
+        '<div class="cross-hint" id="pkgCrossHint"></div><div class="cross-hint" id="pkgCartonHint"></div>' +
+        customBlock('customPkg', 'Packaging', 'spec', '+ Add custom packaging field') +
+        attachHtml('spec-pack', 'Artwork files, dielines, label PDFs, pack photos, BOM references.');
+    }
+    else if (sec.id === 'sec-qc') {
+      inner =
+        '<div class="grid-2s">' +
+        '<div class="fld"><label>Governing QC Standard</label><select id="noQcStandard"><option value="ISO 22716">ISO 22716 (Cosmetics GMP)</option><option value="ISO 9001">ISO 9001 (QMS)</option><option value="Customer-specific">Customer-specific protocol</option><option value="In-house SOP">In-house SOP only</option></select></div>' +
+        '<div class="fld"><label>Sampling Plan</label><select id="noQcSampling"><option value="ISO 2859-1">ISO 2859-1 (AQL sampling)</option><option value="100% inspection">100% inspection</option><option value="Customer-defined">Customer-defined plan</option></select></div>' +
+        '<div class="fld"><label>Retain / Reference Sample</label><select id="noRetainSample"><option value="Yes">Yes — retain per batch</option><option value="No">No</option></select></div>' +
+        '</div>' +
+        '<div class="group-title">In-Process Controls</div>' +
+        QC_GROUPS[0].items.map(qcItemHtml).join('') +
+        customBlock('customQc-ipc', 'In-Process', 'qc', '+ Add custom IPC check') +
+        attachHtml('qc-ipc', 'Customer QC protocols, SOP references.') +
+        '<div class="group-title">Microbiological &amp; Safety</div>' +
+        QC_GROUPS[1].items.map(qcItemHtml).join('') +
+        customBlock('customQc-micro', 'Micro & Safety', 'qc', '+ Add custom micro / safety test') +
+        attachHtml('qc-micro', 'Micro specifications, challenge-test protocols, lab accreditations.') +
+        '<div class="group-title">Stability &amp; Compatibility</div>' +
+        QC_GROUPS[2].items.map(qcItemHtml).join('') +
+        customBlock('customQc-stab', 'Stability', 'qc', '+ Add custom stability requirement') +
+        attachHtml('qc-stab', 'Stability protocols, compatibility data, prior study reports.');
+    }
+    else if (sec.id === 'sec-docs') {
+      inner =
+        QC_GROUPS[4].items.map(qcItemHtml).join('') +
+        '<div class="grid-2s" style="margin-top:8px">' +
+        '<div class="fld"><label>QC Release Authority (sign-off)</label><select id="noReleaseAuthority"><option value="QA Head">QA Head</option><option value="Customer QA">Customer QA</option><option value="Dual sign-off">Dual sign-off (manufacturer + customer)</option></select></div>' +
+        '</div>' +
+        customBlock('customDoc', 'Documentation', 'qc', '+ Add custom document') +
+        attachHtml('docs', 'Regulatory files, PIF references, certificate templates.');
+    }
+    else if (sec.id === 'sec-custom') {
+      inner = '<div class="spec-hint" style="margin-bottom:8px">Examples: SPF in-vivo (ISO 24444), HRIPT patch test, heavy-metal screen, vegan / halal / organic certification, customer audit rights, third-party lab witness.</div>' +
+        customBlock('customAll', 'Custom Checks', 'qc', '+ Add custom check / requirement') +
+        attachHtml('custom', 'Certificates, claim substantiation, audit reports.');
+    }
+    body += '<div class="sheet-sec panel ' + sec.cls + '" id="' + sec.id + '"><div class="sec-band"><h2>' + escapeHtml(sec.title) + '</h2><small>' + escapeHtml(sec.sub) + '</small></div>' + inner + '</div>';
+  });
+  el.innerHTML =
+    '<div class="top-tabs" id="topTabs">' + nav + '</div>' +
+    '<div class="sheet-layout">' +
+      '<div class="prod-nav" id="prodNav"></div>' +
+      '<div class="panel-wrap"><div class="sheet-scroll" id="sheetScroll">' + body +
+        '</div><div class="footer-bar">' +
+          '<button class="btn btn-ghost" onclick="resetOrderForm()">Reset Form</button>' +
+          '<span class="sec-pos" id="secPos"></span>' +
+          '<div style="display:flex;gap:8px">' +
+            '<button class="btn btn-ghost" id="btnPrev" onclick="prevSection()">&larr; Prev</button>' +
+            '<button class="btn btn-ghost" id="btnNext" onclick="nextSection()">Next &rarr;</button>' +
+            '<button class="btn btn-primary" onclick="createOrder()">Create Order</button>' +
+          '</div>' +
+        '</div>' +
+      '</div>' +
+    '</div>';
+  var pc = document.getElementById('noPkgContainer');
+  if (pc) pc.addEventListener('input', function(){ pkgCross(); });
+  initLines();
+  showSection(0);
+}
+
+
+// ===== Multi-product lines: one customer, many products — each line = its own job sheet =====
+var CUSTOM_LISTS = ['customSpec-sensory','customSpec-phys','customPkg','customQc-ipc','customQc-micro','customQc-stab','customQc-release','customDoc','customAll'];
+var ATT_KEYS = ['spec-sensory','spec-phys','spec-pack','qc-ipc','qc-micro','qc-stab','qc-release','docs','custom'];
+var CUSTOMER_FIELDS = ['noCustomerId'];
+var LINES = [];
+var activeLine = -1;
+
+function emptyLineState() { return { values:{}, customs:{}, att:{} }; }
+function initLines() {
+  LINES = [{ state: emptyLineState(), productId:'', qty:'' }];
+  activeLine = 0;
+  renderLineBar();
+}
+function lineLabel(l, i) {
+  var name = 'Line ' + (i + 1);
+  if (l.productId) { var c = getCat(l.productId); name = c ? c.name : l.productId; }
+  return name + (l.qty ? ' \u00d7 ' + l.qty : '');
+}
+function renderLineBar() {
+  var el = document.getElementById('prodNav');
+  if (!el) return;
+  var h = '<div class="pn-title">Products (from catalogue)</div>';
+  LINES.forEach(function(l, i) {
+    var name = 'New line — select product';
+    if (l.productId) { var c = getCat(l.productId); name = c ? c.name : l.productId; }
+    h += '<div class="pn-item' + (i === activeLine ? ' active' : '') + '" onclick="switchLine(' + i + ')">' +
+      '<div><div class="pn-name">' + escapeHtml(name) + '</div>' +
+      '<div class="pn-sub">' + (l.productId ? escapeHtml(l.productId) : 'Line ' + (i + 1)) + (l.qty ? ' · ' + escapeHtml(l.qty) + ' units' : '') + '</div></div>' +
+      (LINES.length > 1 ? '<span class="pn-x" title="Remove line" onclick="event.stopPropagation();removeLine(' + i + ')">&times;</span>' : '') +
+      '</div>';
+  });
+  h += '<button class="add-btn" style="margin-top:4px" onclick="addLine()">+ Add product</button>' +
+    '<div class="pn-hint">Each product becomes its own order &amp; job sheet under the same customer ID and order group.</div>';
+  el.innerHTML = h;
+}
+function serializeLine() {
+  if (activeLine < 0 || !LINES[activeLine]) return;
+  var st = emptyLineState();
+  document.querySelectorAll('#sheetContainer [id]').forEach(function(el) {
+    if (el.id.indexOf('no') !== 0) return;
+    if (CUSTOMER_FIELDS.indexOf(el.id) !== -1) return;
+    if (el.type === 'file') return;
+    st.values[el.id] = el.value;
+  });
+  CUSTOM_LISTS.forEach(function(id) {
+    st.customs[id] = [];
+    document.querySelectorAll('#' + id + ' .custom-row').forEach(function(r) {
+      st.customs[id].push({ name: r.querySelector('.cr-name').value, val: r.querySelector('.cr-val').value, group: r.getAttribute('data-group') || '' });
+    });
+  });
+  st.att = JSON.parse(JSON.stringify(ATT));
+  LINES[activeLine].state = st;
+  var p = document.getElementById('noProduct'), q = document.getElementById('noQty');
+  LINES[activeLine].productId = p ? p.value : '';
+  LINES[activeLine].qty = q ? q.value : '';
+}
+function clearProductFields() {
+  document.querySelectorAll('#sheetContainer [id]').forEach(function(el) {
+    if (el.id.indexOf('no') !== 0) return;
+    if (CUSTOMER_FIELDS.indexOf(el.id) !== -1) return;
+    if (el.type === 'file') return;
+    el.value = '';
+  });
+  document.querySelectorAll('#sheetContainer .spec-item').forEach(function(item) {
+    var base = item.id.replace(/Item$/, '');
+    setStatus(base, 'Required');
+  });
+  CUSTOM_LISTS.forEach(function(id){ var el = document.getElementById(id); if (el) el.innerHTML = ''; });
+  ATT = {};
+  ATT_KEYS.forEach(renderAttList);
+  var ph = document.getElementById('pkgCrossHint'); if (ph) ph.textContent = '';
+  var ch = document.getElementById('pkgCartonHint'); if (ch) ch.textContent = '';
+}
+function restoreLine(st) {
+  clearProductFields();
+  Object.keys(st.values || {}).forEach(function(id) {
+    var el = document.getElementById(id);
+    if (!el) return;
+    if (/Status$/.test(id)) { setStatus(id.replace(/Status$/, ''), st.values[id] || 'Required'); }
+    else { el.value = st.values[id]; }
+  });
+  CUSTOM_LISTS.forEach(function(id) {
+    (st.customs[id] || []).forEach(function(c) {
+      var kind = (id === 'customPkg' || id.indexOf('customSpec') === 0) ? 'spec' : 'qc';
+      addCustomRow(kind, id, c.group);
+      var box = document.getElementById(id);
+      var rows = box.querySelectorAll('.custom-row');
+      var last = rows[rows.length - 1];
+      if (last) { last.querySelector('.cr-name').value = c.name; last.querySelector('.cr-val').value = c.val; }
+    });
+  });
+  ATT = JSON.parse(JSON.stringify(st.att || {}));
+  ATT_KEYS.forEach(renderAttList);
+  pkgCross(true);
+  pkgCartons();
+}
+function switchLine(i) {
+  if (i === activeLine || i < 0 || i >= LINES.length) return;
+  serializeLine();
+  activeLine = i;
+  restoreLine(LINES[i].state);
+  renderLineBar();
+}
+function addLine() {
+  if (activeLine >= 0) serializeLine();
+  LINES.push({ state: emptyLineState(), productId:'', qty:'' });
+  activeLine = LINES.length - 1;
+  restoreLine(LINES[activeLine].state);
+  renderLineBar();
+  showSection(0);
+  toast('Product line ' + (activeLine + 1) + ' added — select its product in Order Details', 'success');
+}
+function removeLine(i) {
+  LINES.splice(i, 1);
+  if (activeLine >= LINES.length) activeLine = LINES.length - 1;
+  if (i < activeLine) activeLine--;
+  restoreLine(LINES[activeLine].state);
+  renderLineBar();
+}
+
+function showSection(i) {
+  curSection = Math.max(0, Math.min(SECTIONS.length - 1, i));
+  SECTIONS.forEach(function(sec, j) {
+    var n = document.getElementById('nav-' + sec.id);
+    if (n) n.classList.toggle('active', j === curSection);
+  });
+  var sec = SECTIONS[curSection];
+  var p = document.getElementById(sec.id);
+  if (p) p.scrollIntoView({ behavior:'smooth', block:'start' });
+  var pos = document.getElementById('secPos');
+  if (pos) pos.textContent = (curSection + 1) + ' / ' + SECTIONS.length;
+  var bp = document.getElementById('btnPrev'), bn = document.getElementById('btnNext');
+  if (bp) bp.disabled = (curSection === 0);
+  if (bn) bn.disabled = (curSection === SECTIONS.length - 1);
+}
+function nextSection() { showSection(curSection + 1); }
+function prevSection() { showSection(curSection - 1); }
+
+// ============================================================
+// CUSTOM ROWS (per sub-tab)
+// ============================================================
+function addCustomRow(kind, listId, group) {
+  var box = document.getElementById(listId || (kind === 'spec' ? 'customSpecList' : 'customQcList'));
+  if (!box) return;
+  var div = document.createElement('div');
+  div.className = 'custom-row';
+  div.setAttribute('data-group', group || '');
+  div.innerHTML = kind === 'spec'
+    ? '<input type="text" class="cr-name" placeholder="Parameter — e.g. Vegan certification">' +
+      '<input type="text" class="cr-val" placeholder="Requirement — e.g. Certified vegan; no animal-derived inputs">' +
+      '<button type="button" class="btn btn-danger" onclick="this.parentNode.remove()">\u2715</button>'
+    : '<input type="text" class="cr-name" placeholder="Test — e.g. SPF determination">' +
+      '<input type="text" class="cr-val" placeholder="Acceptance — e.g. SPF \u2265 30 per ISO 24444">' +
+      '<button type="button" class="btn btn-danger" onclick="this.parentNode.remove()">\u2715</button>';
+  box.appendChild(div);
+  div.getElementsByTagName('input')[0].focus();
+}
+function collectCustom(listId) {
+  var out = [];
+  document.querySelectorAll('#' + listId + ' .custom-row').forEach(function(r) {
+    var name = r.querySelector('.cr-name').value.trim();
+    var val = r.querySelector('.cr-val').value.trim();
+    if (name || val) out.push({ name: name, req: val, group: r.getAttribute('data-group') || '' });
+  });
+  return out;
+}
+
+function populateOrderSpecs(productId) {
+  try {
+    var cat = CATALOGUE[productId];
+    if(!cat) return;
+    var isCream = productId === 'TR-VC-001';
+    var isSoap  = productId === 'KM-SF-001';
+    var set = function(id, v) { var el = document.getElementById(id); if(el) el.value = v; };
+    set('noBrand', cat.brand || '');
+    set('noColorSpec',   isCream ? 'Pearly white cream' : isSoap ? 'Cream beige bar' : 'Clear transparent gel');
+    set('noOdorSpec',    isCream ? 'Mild floral, per std sample' : isSoap ? 'Sandalwood, per std sample' : 'Fresh aloe, per std sample');
+    set('noTextureSpec', isCream ? 'Smooth, non-greasy, quick-absorb' : isSoap ? 'Hard-milled, dense lather' : 'Smooth viscous gel, non-sticky');
+    set('noSpecAppearance', isCream ? 'Opaque glossy cream' : isSoap ? 'Hard bar, even edges' : 'Clear gel, free of bubbles');
+    set('noPhSpec', (cat.phMin || '--') + ' - ' + (cat.phMax || '--'));
+    set('noViscositySpec', isCream ? '2000 - 8000 cP' : isSoap ? 'N/A' : '1000 - 5000 cP');
+    set('noDensitySpec', '0.95 - 1.05 g/ml');
+    set('noAssaySpec', isCream ? 'Ascorbic acid per formula ± 0.5%' : 'Per approved formula');
+    var pkgDefaults = {
+      'TR-VC-001':{container:'50ml Amber Glass Jar',cap:'Gold Aluminium Wad Cap',seal:'Induction Seal',label:'50x30mm Digital Foil',fill:'50g +-2%',monoCarton:'Matte Finish',shrinkWrap:'PVC Film 40 micron',leaflet:'Product info leaflet',inner:'Individual silk pouch',outer:'5-ply Corrugated',units:'24',outerShrink:'Stretch Film 23 micron',pallet:'48 cartons per pallet',special:'Fragile, This Side Up'},
+      'KM-SF-001':{container:'100g Soap Bar',cap:'Wax Paper Wrap',seal:'N/A',label:'50x30mm Paper',fill:'100g +-3%',monoCarton:'Kraft Paper Box',shrinkWrap:'No',leaflet:'Product info leaflet',inner:'Wax paper',outer:'5-ply Corrugated',units:'48',outerShrink:'Stretch Film',pallet:'60 cartons per pallet',special:'Keep Dry'},
+      'BK-AL-001':{container:'100ml Tube',cap:'Flip Top Cap',seal:'Heat Seal',label:'40x25mm Digital',fill:'100ml +-2%',monoCarton:'Gloss Finish',shrinkWrap:'PVC Film',leaflet:'Product info leaflet',inner:'Individual box',outer:'5-ply Corrugated',units:'36',outerShrink:'Stretch Film',pallet:'48 cartons per pallet',special:'Do Not Freeze'}
+    };
+    var pkg = pkgDefaults[productId] || {};
+    set('noContainer', pkg.container || '');
+    var pkgMap = { noPkgContainer:pkg.container, noPkgCap:pkg.cap, noPkgSeal:pkg.seal, noPkgLabel:pkg.label,
+      noPkgFill:pkg.fill, noPkgMonoCarton:pkg.monoCarton, noPkgShrinkWrap:pkg.shrinkWrap, noPkgLeaflet:pkg.leaflet,
+      noPkgInner:pkg.inner, noPkgOuter:pkg.outer, noPkgUnitsPerCarton:pkg.units, noPkgOuterShrink:pkg.outerShrink,
+      noPkgPallet:pkg.pallet, noPkgSpecial:pkg.special };
+    Object.keys(pkgMap).forEach(function(id){ set(id, pkgMap[id] || ''); });
+    set('noQcStandard', 'ISO 22716:2007 + ISO 9001:2015');
+    if (activeLine >= 0 && LINES[activeLine]) { LINES[activeLine].productId = productId; renderLineBar(); }
+    pkgCross(true);
+    pkgCartons();
+    maybeLoadPrevSpec();
+  } catch(e) { console.error('populateOrderSpecs error:', e); }
+}
+
+// ============================================================
+// CREATE ORDER — collects everything (legacy keys kept for the hub)
+// ============================================================
+var PAIR_MAPS = [
+  ['qcPhysico','noPhysico'],['qcPh','noPh'],['qcViscosity','noViscosity'],['qcDensity','noDensity'],
+  ['qcMicrobial','noMicrobial'],['qcTpc','noTpc'],['qcYm','noYm'],['qcPathogen','noPathogen'],
+  ['qcSensory','noSensory'],['qcColor','noColor'],['qcOdor','noOdor'],['qcTexture','noTexture'],
+  ['labStability','noStability'],['labAccelerated','noAccelerated'],['labDuration','noDuration'],
+  ['labPreservative','noPreservative'],['labHeavyMetal','noHeavyMetal'],['labDermatological','noDermatological'],
+  ['labDocumentation','noDocumentation'],['labCoa','noCoa'],['labMethod','noMethod'],
+  ['fqcWeight','noFqcWeight'],['fqcSeal','noFqcSeal'],['fqcLeak','noFqcLeak'],
+  ['fqcLabel','noFqcLabel'],['fqcPrint','noFqcPrint'],['fqcCarton','noFqcCarton'],
+  ['fqcAppearance','noFqcAppearance'],['fqcRelease','noFqcRelease'],
+  ['qcAssay','noAssay'],['qcFreezeThaw','noFreezeThaw'],['qcPackCompat','noCompat'],
+  ['docAllergen','noAllergenDoc'],['docStabilityReport','noStabReport']
+];
+var PLAIN_MAP = [
+  ['pkgContainerType','noPkgContainer'],['pkgCap','noPkgCap'],['pkgSeal','noPkgSeal'],
+  ['pkgLabel','noPkgLabel'],['pkgFillWeight','noPkgFill'],['pkgMonoCarton','noPkgMonoCarton'],
+  ['pkgIndShrinkWrap','noPkgShrinkWrap'],['pkgLeaflet','noPkgLeaflet'],['pkgInnerPacking','noPkgInner'],
+  ['pkgOuterCarton','noPkgOuter'],['pkgUnitsPerCarton','noPkgUnitsPerCarton'],
+  ['pkgOuterShrinkWrap','noPkgOuterShrink'],['pkgPalletInfo','noPkgPallet'],['pkgSpecialHandling','noPkgSpecial'],
+  ['specAppearanceTarget','noSpecAppearance'],
+  ['qcStandard','noQcStandard'],['qcSamplingPlan','noQcSampling'],['qcRetainSample','noRetainSample'],
+  ['artworkStatus','noArtworkStatus'],['dispatchMode','noDispatchMode'],
+  ['pkgBatchCoding','noPkgCoding'],['docReleaseAuthority','noReleaseAuthority']
+];
+var GROUP_TO_LIST = {
+  'Sensory':'customSpec-sensory','Physicochemical':'customSpec-phys','Packaging':'customPkg',
+  'In-Process':'customQc-ipc','Micro & Safety':'customQc-micro','Stability':'customQc-stab',
+  'Final QC':'customQc-release','Release':'customQc-release','Documentation':'customDoc','Custom Checks':'customAll'
+};
+
+// Collects the CURRENT DOM state into one order (one job sheet) for the active product line
+function collectCurrentOrder(orderId, uc, customer, groupId, lineNo) {
+  var productId = document.getElementById('noProduct').value;
+  var qty = parseInt(document.getElementById('noQty').value);
+  var cat = getCat(productId);
+  var crm = {};
+  PAIR_MAPS.forEach(function(m) {
+    var sEl = document.getElementById(m[1] + 'Status');
+    var spEl = document.getElementById(m[1] + 'Spec');
+    if(sEl) crm[m[0] + 'Status'] = sEl.value;
+    if(spEl) crm[m[0] + 'Spec'] = spEl.value;
+  });
+  PLAIN_MAP.forEach(function(m) {
+    var el = document.getElementById(m[1]); if(el) crm[m[0]] = el.value;
+  });
+  crm.customSpecs = collectCustom('customSpec-sensory').concat(collectCustom('customSpec-phys'), collectCustom('customPkg'));
+  crm.customQc = collectCustom('customQc-ipc').concat(collectCustom('customQc-micro'), collectCustom('customQc-stab'), collectCustom('customQc-release'), collectCustom('customDoc'), collectCustom('customAll'));
+  crm.attachments = JSON.parse(JSON.stringify(ATT));
+  crm.sheetVersion = 'workspace-v6';
+  return {
+    id: orderId, orderGroup: groupId, lineNo: lineNo,
+    customerId: uc.customerId, customer: customer,
+    contact: uc.phone || uc.whatsapp || uc.email || '',
+    contactPerson: uc.contact || '', email: uc.email || '', city: uc.city || '',
+    productId: productId, productName: cat.name, brand: cat.brand,
+    qty: qty, container: (document.getElementById('noContainer') || {}).value || '',
+    priority: document.getElementById('noPriority').value,
+    leadTime: parseInt(document.getElementById('noLeadTime').value) || 30,
+    deliveryDate: document.getElementById('noDelivery').value,
+    notes: document.getElementById('noNotes').value,
+    createdAt: nowISO(), status: 'Active', source: 'pro-sheet', crm: crm
+  };
+}
+
+function createOrder() {
+  try {
+    serializeLine();
+    var customerId = (document.getElementById('noCustomerId') || {}).value || '';
+    var uc = getUniversalCustomer(customerId);
+    if(!customerId || !uc) { toast('Select a Customer ID', 'warning'); return; }
+    var customer = (uc.name || uc.contact || '').trim();
+    if(!customer) { toast('Customer details missing', 'warning'); return; }
+    var valid = [];
+    LINES.forEach(function(l, i) {
+      var pid = l.state.values.noProduct || l.productId || '';
+      if (pid) valid.push(i);
+    });
+    if (!valid.length) { toast('Select a product for at least one line', 'warning'); return; }
+    for (var v = 0; v < valid.length; v++) {
+      var st = LINES[valid[v]].state.values;
+      var q = parseInt(st.noQty);
+      if (isNaN(q) || q < 1) { toast('Line ' + (valid[v] + 1) + ': enter order quantity', 'warning'); return; }
+      if (!getCat(st.noProduct)) { toast('Line ' + (valid[v] + 1) + ': product not found', 'danger'); return; }
+    }
+    var nextNum = lsGet(STORE.nextOrderNum) || 1;
+    var groupId = 'OG-26-' + String(nextNum).padStart(4, '0');
+    var prevActive = activeLine;
+    var created = [];
+    valid.forEach(function(li) {
+      activeLine = li;
+      restoreLine(LINES[li].state);
+      var orderId = 'ORD-26-' + String(nextNum).padStart(4, '0');
+      nextNum++;
+      var order = collectCurrentOrder(orderId, uc, customer, groupId, li + 1);
+      appData.orders.push(order);
+      created.push(order);
+    });
+    lsSet(STORE.orders, appData.orders);
+    lsSet(STORE.nextOrderNum, nextNum);
+    activeLine = prevActive;
+    restoreLine(LINES[prevActive].state);
+    renderLineBar();
+    toast(created.length + ' order(s) created under ' + groupId + ' — one job sheet per product', 'success');
+    var panel = document.getElementById('outputPanel');
+    panel.style.display = 'flex';
+    document.getElementById('outputJson').textContent = JSON.stringify(created.length === 1 ? created[0] : created, null, 2);
+  } catch(e) { console.error('createOrder error:', e); toast('Error creating order', 'danger'); }
+}
+
+// ===== Repeat-order pre-fill: load this customer's previous spec for the same product =====
+function findPrevOrder(customerId, productId) {
+  for (var i = appData.orders.length - 1; i >= 0; i--) {
+    var o = appData.orders[i];
+    if (o.customerId === customerId && o.productId === productId && o.crm) return o;
+  }
+  return null;
+}
+function applyPrevSpec(crm) {
+  PAIR_MAPS.forEach(function(m) {
+    var sv = crm[m[0] + 'Status'], sp = crm[m[0] + 'Spec'];
+    if (sv) setStatus(m[1], sv);
+    if (sp) { var el = document.getElementById(m[1] + 'Spec'); if (el) el.value = sp; }
+  });
+  PLAIN_MAP.forEach(function(m) {
+    if (crm[m[0]]) { var el = document.getElementById(m[1]); if (el) el.value = crm[m[0]]; }
+  });
+  ['customSpecs','customQc'].forEach(function(key) {
+    (crm[key] || []).forEach(function(c) {
+      var listId = GROUP_TO_LIST[c.group] || (key === 'customSpecs' ? 'customAll' : 'customAll');
+      var kind = key === 'customSpecs' ? 'spec' : 'qc';
+      addCustomRow(kind, listId, c.group || '');
+      var box = document.getElementById(listId);
+      var rows = box.querySelectorAll('.custom-row');
+      var last = rows[rows.length - 1];
+      if (last) { last.querySelector('.cr-name').value = c.name || ''; last.querySelector('.cr-val').value = c.req || ''; }
+    });
+  });
+  if (crm.attachments) { ATT = JSON.parse(JSON.stringify(crm.attachments)); ATT_KEYS.forEach(renderAttList); }
+  pkgCross(true);
+  pkgCartons();
+}
+function maybeLoadPrevSpec() {
+  var customerId = (document.getElementById('noCustomerId') || {}).value || '';
+  var productId = (document.getElementById('noProduct') || {}).value || '';
+  if (!customerId || !productId) return;
+  var prev = findPrevOrder(customerId, productId);
+  if (prev) {
+    applyPrevSpec(prev.crm);
+    toast('Previous specification loaded from ' + prev.id + ' (repeat order)', 'success');
+  }
+}
+
+window.addEventListener('DOMContentLoaded', function() { renderSheet(); });
+</script>
+</body>
+</html>

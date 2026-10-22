@@ -40,6 +40,7 @@ export default function DocumentWalletPage() {
   const [newVersionDocId, setNewVersionDocId] = useState(null);
   const [newVersionForm, setNewVersionForm] = useState({ v: '', date: '', note: '', expiryDate: '' });
   const [newVersionFiles, setNewVersionFiles] = useState([]);
+  const [savingVersion, setSavingVersion] = useState(false);
   const [addCategoryOpen, setAddCategoryOpen] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState('');
   const [confirmState, setConfirmState] = useState(null); // { title, message, onConfirm }
@@ -267,7 +268,8 @@ export default function DocumentWalletPage() {
 
   const submitNewVersion = async (e) => {
     e.preventDefault();
-    if (!newVersionDocId) return;
+    if (!newVersionDocId || savingVersion) return;
+    setSavingVersion(true);
     try {
       const doc = await documentsApi.addVersion(newVersionDocId, newVersionForm);
       const newVersion = doc.versions[doc.versions.length - 1];
@@ -293,6 +295,8 @@ export default function DocumentWalletPage() {
       setNewVersionFiles([]);
     } catch (err) {
       toast.error(err.response?.data?.message || 'Could not add version');
+    } finally {
+      setSavingVersion(false);
     }
   };
 
@@ -720,8 +724,8 @@ export default function DocumentWalletPage() {
         closeIcon={<X size={18} />}
         footer={
           <Space style={{ width: '100%', justifyContent: 'flex-end' }}>
-            <Button onClick={() => setNewVersionDocId(null)}>Cancel</Button>
-            <Button type="primary" onClick={submitNewVersion}>Save version</Button>
+            <Button onClick={() => setNewVersionDocId(null)} disabled={savingVersion}>Cancel</Button>
+            <Button type="primary" onClick={submitNewVersion} loading={savingVersion} disabled={savingVersion}>Save version</Button>
           </Space>
         }
       >
@@ -815,6 +819,11 @@ export default function DocumentWalletPage() {
             <div className="doc-wallet-viewer-footer">
               <span>{viewer.files[viewer.index]?.name}</span>
               {viewer.blobUrl && <a className="btn-secondary" href={viewer.blobUrl} download={viewer.files[viewer.index]?.name}><Download className="w-4 h-4" /> Download</a>}
+              {viewer.files[viewer.index]?.driveLink && (
+                <a className="btn-secondary" href={viewer.files[viewer.index].driveLink} target="_blank" rel="noopener noreferrer" title="Opens in Google Drive — editable there for Docs/Sheets/Slides/Office files; PDFs and images open as view-only, since Drive itself has no edit mode for those">
+                  <Pencil className="w-4 h-4" /> Edit in Drive
+                </a>
+              )}
             </div>
           </div>
         </div>

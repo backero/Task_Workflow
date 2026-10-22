@@ -1,5 +1,6 @@
 const router = require('express').Router();
 const ctrl = require('../controllers/crm.controller');
+const transcriptionCtrl = require('../controllers/transcription.controller');
 const { authenticate } = require('../middleware/auth.middleware');
 const { orgIsolation } = require('../middleware/orgIsolation.middleware');
 const { authorizeAdminOrAbove, authorizeManagerOrAbove } = require('../middleware/role.middleware');
@@ -8,6 +9,7 @@ const multer = require('multer');
 const imageUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 }, fileFilter: (_, f, cb) => cb(null, f.mimetype.startsWith('image/')) });
 const commLogUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 100 * 1024 * 1024 }, fileFilter: (_, f, cb) => cb(null, f.mimetype.startsWith('image/') || f.mimetype.startsWith('audio/') || f.mimetype.startsWith('video/')) });
 const docUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 25 * 1024 * 1024 } });
+const audioUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 50 * 1024 * 1024 }, fileFilter: (_, f, cb) => cb(null, f.mimetype.startsWith('audio/')) });
 const Organization = require('../models/Organization');
 const { syncLeadsFromSheet, previewSheet, hasWriteCredentials } = require('../services/googleSheets.service');
 
@@ -150,5 +152,9 @@ router.post('/queries/:queryId/attachment', docUpload.single('file'), ctrl.uploa
 router.delete('/queries/:queryId/attachment', ctrl.removeQueryAttachment);
 router.post('/queries/:queryId/reply-attachment', docUpload.single('file'), ctrl.uploadQueryReplyAttachment);
 router.delete('/queries/:queryId/reply-attachment', ctrl.removeQueryReplyAttachment);
+
+// ── Audio Transcription ────────────────────────────────────────────────────────
+
+router.post('/transcribe-audio', audioUpload.single('audio'), transcriptionCtrl.transcribeAudio);
 
 module.exports = router;

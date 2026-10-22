@@ -281,16 +281,16 @@ export default function SampleProduction() {
     return shortfalls;
   };
 
+  // KYC tab is a permanent log of every lead ever created, not just ones still at the
+  // New Lead/Follow-up stage — a lead stays listed here (with its live Stage pill) even
+  // after progressing to Sample/In Progress/Dispatched/etc, instead of disappearing from
+  // KYC the moment it moves on. No status filter == every lead for the org.
   const { data: newLeadsData } = useQuery({
     queryKey: ['sample-production', 'new-leads'],
-    queryFn: () => Promise.all([
-      api.get('/crm/leads', { params: { status: 'New Lead', limit: 200 } }).then((r) => r.data.data || r.data.leads || []),
-      api.get('/crm/leads', { params: { status: 'Follow-up', limit: 200 } }).then((r) => r.data.data || r.data.leads || []),
-    ]),
+    queryFn: () => api.get('/crm/leads', { params: { limit: 500 } }).then((r) => r.data.data || r.data.leads || []),
     refetchInterval: 60 * 1000,
   });
-  const [newStatusLeads, followUpLeads] = newLeadsData || [[], []];
-  const newLeads = [...newStatusLeads, ...followUpLeads];
+  const newLeads = newLeadsData || [];
 
   const { data: sampleQueries } = useQuery({
     queryKey: ['sample-production', 'queries'],

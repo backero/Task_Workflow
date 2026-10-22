@@ -32,6 +32,16 @@ def sync_to_mongo():
         data["ai_insight"] = rows[0] if rows else None
     except Exception:
         data["ai_insight"] = None  # table not created yet (first run)
+    try:
+        # overview()'s own open_alerts is severity counts only ({critical: N, info: M}) --
+        # the unified cross-platform Alerts feed (backero-backend's /v1/alerts) needs the
+        # actual itemized alerts, same as Meesho's top_issues.
+        data["alerts"] = db.q(
+            "SELECT id, ts, severity, module, entity, code, title, reason, fix "
+            "FROM alerts WHERE status='open' ORDER BY ts DESC LIMIT 15"
+        )
+    except Exception:
+        data["alerts"] = []
     upsert_overview("snapdeal", data)
 
 

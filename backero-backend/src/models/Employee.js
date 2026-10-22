@@ -29,6 +29,8 @@ const employeeSchema = new mongoose.Schema({
   // Mutated only via PUT /attendance/payroll/config/:employeeId
   // (payroll:manage_config), never the general employee update route.
   basicMonthlySalary: { type: Number, default: null },
+  photo: { type: String, default: null },
+  photoPublicId: { type: String, select: false, default: null },
   deletedAt: { type: Date, default: null },
   createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   updatedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
