@@ -1,24 +1,12 @@
 name: Deploy to DigitalOcean
 
-# Manual trigger only for now — flip to `push: { branches: [main] }` once the
-# Droplet deployment has been running reliably for a while. There was no
-# CI/CD in this repo before (Render/Vercel/Netlify deployed via their own
-# git-integration), so this is deliberately conservative on day one.
+# Auto-deploy on push to main
 on:
-  workflow_dispatch:
-    inputs:
-      deploy_backend:
-        description: "Deploy backend"
-        type: boolean
-        default: true
-      deploy_frontend:
-        description: "Deploy frontend"
-        type: boolean
-        default: true
+  push:
+    branches: [main]
 
 jobs:
   backend:
-    if: ${{ inputs.deploy_backend }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -46,7 +34,6 @@ jobs:
             curl -f http://127.0.0.1:8080/health
 
   frontend:
-    if: ${{ inputs.deploy_frontend }}
     runs-on: ubuntu-latest
     steps:
       # Full repo checkout (not sparse) — vite.config.js's dashboardSyncPlugin
