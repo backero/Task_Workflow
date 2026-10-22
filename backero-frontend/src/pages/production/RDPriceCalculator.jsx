@@ -5,6 +5,7 @@ import {
   Coins, Dna, Download, Trash2, Plus, Package, Factory, Save, Printer, Clipboard, RefreshCw, FolderOpen, CircleX, X,
 } from 'lucide-react';
 import { Button, Drawer, Space } from 'antd';
+import api from '../../api/axios';
 import './RDPriceCalculator.css';
 
 // ========== DATA (ported 1:1 from public/rd-price-calculator.html) ==========
@@ -194,6 +195,41 @@ export default function RDPriceCalculator({ presetProduct } = {}) {
   const [rawMaterials] = useState(initial.rawMaterials);
   const [catalogProducts] = useState(initial.catalogProducts);
   const [devCustomers] = useState(initial.devCustomers);
+
+  // Auto-sync backend data to localStorage on mount
+  useEffect(() => {
+    const syncData = async () => {
+      try {
+        // Fetch raw materials from backend
+        const rmRes = await api.get('/inventory/raw-materials').catch(() => null);
+        if (rmRes?.data?.materials) {
+          localStorage.setItem(RM_KEY, JSON.stringify({ materials: rmRes.data.materials }));
+        }
+      } catch (e) { /* silent fail */ }
+
+      try {
+        // Fetch products from backend
+        const catRes = await api.get('/catalog/products').catch(() => null);
+        if (catRes?.data?.products) {
+          localStorage.setItem(CAT_KEY, JSON.stringify({ products: catRes.data.products }));
+        }
+      } catch (e) { /* silent fail */ }
+
+      try {
+        // Fetch customers from CRM
+        const custRes = await api.get('/crm/leads').catch(() => null);
+        if (custRes?.data?.leads) {
+          const customers = custRes.data.leads.map(lead => ({ id: lead.code || lead._id, name: lead.name || '', contact: lead.contact || '' }));
+          localStorage.setItem(SD_KEY, JSON.stringify({ customers }));
+        }
+      } catch (e) { /* silent fail */ }
+    };
+
+    // Only sync if DBs are empty
+    if (!localStorage.getItem(RM_KEY) || !localStorage.getItem(CAT_KEY) || !localStorage.getItem(SD_KEY)) {
+      syncData();
+    }
+  }, []);
 
   // ---- Step 1: customer & product ----
   const [quoteNo, setQuoteNo] = useState(() => 'RNDQ-' + String(initial.nextQuoteId).padStart(4, '0'));
