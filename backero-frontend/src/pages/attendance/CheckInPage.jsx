@@ -1,132 +1,184 @@
 import React, { useState, useEffect } from 'react';
-import { Button, Card, Space, message } from 'antd';
-import { CheckCircleOutlined, EnvironmentOutlined, StopOutlined } from '@ant-design/icons';
+import { Button, Card, Space, message, Tag } from 'antd';
+import { CheckCircleOutlined, PauseCircleOutlined, PlayCircleOutlined, LogoutOutlined } from '@ant-design/icons';
 import { api } from '../../api';
 import './CheckInPage.css';
 
 export default function CheckInPage() {
   const [loading, setLoading] = useState(false);
-  const [status, setStatus] = useState('not-checked-in');
-  const [checkInTime, setCheckInTime] = useState(null);
-  const [hours, setHours] = useState(0);
+  const [status, setStatus] = useState('not-punched');
+  const [punches, setPunches] = useState([]);
+  const [workHours, setWorkHours] = useState(0);
+  const [breakHours, setBreakHours] = useState(0);
 
   useEffect(() => {
     fetchStatus();
-    const timer = setInterval(() => {
-      if (checkInTime) {
-        const diff = (Date.now() - new Date(checkInTime)) / (1000 * 60 * 60);
-        setHours(parseFloat(diff.toFixed(2)));
-      }
-    }, 1000);
+    const timer = setInterval(fetchStatus, 5000);
     return () => clearInterval(timer);
-  }, [checkInTime]);
+  }, []);
 
   const fetchStatus = async () => {
     try {
-      const res = await api.get('/attendance/today-status');
-      if (res.data.status === 'checked-in') {
-        setStatus('checked-in');
-        setCheckInTime(res.data.checkInTime);
-      } else if (res.data.status === 'checked-out') {
-        setStatus('checked-out');
-        setHours(res.data.hoursWorked || 0);
-      }
+      const res = await api.get('/attendance/punch/today');
+      setStatus(res.data.status);
+      setPunches(res.data.punches || []);
+      setWorkHours(res.data.totalWorkHours || 0);
+      setBreakHours(res.data.totalBreakHours || 0);
     } catch (err) {
-      console.log('Status fetch error - using default');
+      console.log('Status error');
     }
   };
 
-  const handleCheckIn = async () => {
+  const handlePunch = async (punchType) => {
     setLoading(true);
     try {
-      await api.post('/attendance/check-in', {
+      await api.post('/attendance/punch', {
+        punchType,
         latitude: 11.0084,
         longitude: 76.8511,
         address: 'Office'
       });
-      message.success('Checked in!');
-      fetchStatus();
+      message.success(`${punchType.replace('-', ' ').toUpperCase()} recorded!`);
+      setTimeout(fetchStatus, 500);
     } catch (err) {
-      message.error('Check-in failed');
+      message.error(err.response?.data?.message || 'Punch failed');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleCheckOut = async () => {
-    setLoading(true);
-    try {
-      await api.post('/attendance/check-out', {
-        latitude: 11.0084,
-        longitude: 76.8511,
-        address: 'Office'
-      });
-      message.success('Checked out!');
-      fetchStatus();
-    } catch (err) {
-      message.error('Check-out failed');
-    } finally {
-      setLoading(false);
+  const getPunchLabel = (punchType) => {
+    const labels = {
+      'punch-in': 'Punch In',
+      'break-start': 'Start Break',
+      'break-end': 'Return to Work',
+      'punch-out': 'Punch Out'
+    };
+    return labels[punchType] || punchType;
+  };
+
+  const renderCard = () => {
+    if (status === 'not-punched') {
+      return (
+        <Card className="check-in-card">
+          <Space direction="vertical" style={{ width: '100%', textAlign: 'center' }}>
+            <h2>Good Morning! 🌅</h2>
+            <p style={{ color: '#999' }}>Ready to start your day?</p>
+            <Button
+              type="primary"
+              size="large"
+              icon={<CheckCircleOutlined />}
+              onClick={() => handlePunch('punch-in')}
+              loading={loading}
+              style={{ width: '100%', height: 50, fontSize: 16 }}
+            >
+              Punch In
+            </Button>
+          </Space>
+        </Card>
+      );
+    }
+
+    if (status === 'office-in') {
+      return (
+        <Card className="check-in-card checked-in-card">
+          <Space direction="vertical" style={{ width: '100%', textAlign: 'center' }}>
+            <h2 style={{ color: '#52c41a' }}>✓ Clocked In</h2>
+            <div style={{ fontSize: 32, fontWeight: 'bold', color: '#52c41a' }}>
+              {workHours.toFixed(2)} hrs
+            </div>
+            {breakHours > 0 && (
+              <div style={{ color: '#666', fontSize: 14 }}>
+                Break: {breakHours.toFixed(2)} hrs
+              </div>
+            )}
+            <Space style={{ width: '100%', justifyContent: 'center', marginTop: 20 }}>
+              <Button
+                type="dashed"
+                icon={<PauseCircleOutlined />}
+                onClick={() => handlePunch('break-start')}
+                loading={loading}
+              >
+                Take Break
+              </Button>
+              <Button
+                type="primary"
+                danger
+                icon={<LogoutOutlined />}
+                onClick={() => handlePunch('punch-out')}
+                loading={loading}
+              >
+                Punch Out
+              </Button>
+            </Space>
+          </Space>
+        </Card>
+      );
+    }
+
+    if (status === 'on-break') {
+      return (
+        <Card className="check-in-card on-break-card">
+          <Space direction="vertical" style={{ width: '100%', textAlign: 'center' }}>
+            <h2 style={{ color: '#faad14' }}>☕ On Break</h2>
+            <p style={{ color: '#666' }}>Take your time, we'll be here when you get back</p>
+            <Button
+              type="primary"
+              icon={<PlayCircleOutlined />}
+              onClick={() => handlePunch('break-end')}
+              loading={loading}
+              style={{ width: '100%', height: 50, fontSize: 16 }}
+            >
+              Back to Work
+            </Button>
+          </Space>
+        </Card>
+      );
+    }
+
+    if (status === 'office-out') {
+      return (
+        <Card className="check-in-card checked-out-card">
+          <Space direction="vertical" style={{ width: '100%', textAlign: 'center' }}>
+            <h2 style={{ color: '#1890ff' }}>🎉 Great Work!</h2>
+            <Tag color="blue">Punched Out</Tag>
+            <div style={{ fontSize: 28, fontWeight: 'bold', color: '#52c41a', marginTop: 15 }}>
+              {workHours.toFixed(2)} hours worked
+            </div>
+            {breakHours > 0 && (
+              <div style={{ color: '#666', fontSize: 14 }}>
+                Break time: {breakHours.toFixed(2)} hours
+              </div>
+            )}
+          </Space>
+        </Card>
+      );
     }
   };
 
   return (
     <div className="check-in-page">
-      <h1 style={{ textAlign: 'center', marginBottom: 30 }}>Attendance Check-In</h1>
+      <h1 style={{ textAlign: 'center', marginBottom: 30 }}>Daily Attendance</h1>
 
-      <Card className="check-in-card">
-        <Space direction="vertical" style={{ width: '100%', textAlign: 'center' }}>
-          {status === 'not-checked-in' && (
-            <>
-              <h2>Good Morning! 🌅</h2>
-              <p style={{ color: '#999' }}>Not checked in yet</p>
-              <Button
-                type="primary"
-                size="large"
-                icon={<CheckCircleOutlined />}
-                onClick={handleCheckIn}
-                loading={loading}
-                style={{ width: '100%', height: 50, fontSize: 16 }}
-              >
-                Check In
-              </Button>
-            </>
-          )}
+      {renderCard()}
 
-          {status === 'checked-in' && (
-            <>
-              <h2 style={{ color: '#52c41a' }}>✓ Clocked In</h2>
-              <div style={{ fontSize: 32, fontWeight: 'bold', color: '#52c41a' }}>
-                {hours.toFixed(2)} hours
+      {punches.length > 0 && (
+        <Card style={{ marginTop: 30 }}>
+          <h3>Today's Punches</h3>
+          <Space direction="vertical" style={{ width: '100%' }}>
+            {punches.map((punch, idx) => (
+              <div key={idx} style={{ padding: 10, borderLeft: '3px solid #667eea', paddingLeft: 15 }}>
+                <div style={{ fontWeight: 'bold' }}>
+                  {getPunchLabel(punch.punchType)}
+                </div>
+                <div style={{ color: '#666', fontSize: 12 }}>
+                  {new Date(punch.timestamp).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                </div>
               </div>
-              <Button
-                type="primary"
-                danger
-                size="large"
-                icon={<StopOutlined />}
-                onClick={handleCheckOut}
-                loading={loading}
-                style={{ width: '100%', height: 50, fontSize: 16, marginTop: 20 }}
-              >
-                Check Out
-              </Button>
-            </>
-          )}
-
-          {status === 'checked-out' && (
-            <>
-              <h2 style={{ color: '#1890ff' }}>🎉 Great Work!</h2>
-              <div style={{ fontSize: 28, fontWeight: 'bold', color: '#52c41a' }}>
-                {hours.toFixed(2)} hours worked
-              </div>
-            </>
-          )}
-
-          <div style={{ fontSize: 12, color: '#999', marginTop: 15 }}>
-            <EnvironmentOutlined /> Office
-          </div>
-        </Space>
-      </Card>
+            ))}
+          </Space>
+        </Card>
+      )}
     </div>
   );
 }

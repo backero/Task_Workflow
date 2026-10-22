@@ -294,9 +294,19 @@ router.all('/v1/*', async (req, res) => {
 
 const mountMongoBacked = (prefix, platform) => {
   router.get(`${prefix}/overview`, async (req, res) => {
-    const snap = await MarketflowSnapshot.findOne({ platform, endpoint: 'overview' }).lean();
-    if (!snap) return sendError(res, `No synced data yet for ${platform} — its scraper process may not have run yet`, 503);
-    return res.json(snap.data);
+    try {
+      console.log(`[marketflow] GET ${prefix}/overview for platform=${platform}`);
+      const snap = await MarketflowSnapshot.findOne({ platform, endpoint: 'overview' }).lean();
+      if (!snap) {
+        console.log(`[marketflow] ❌ No snapshot found for ${platform}`);
+        return sendError(res, `No synced data yet for ${platform} — its scraper process may not have run yet`, 503);
+      }
+      console.log(`[marketflow] ✓ Returning ${platform} data with ${Object.keys(snap.data || {}).length} fields`);
+      return res.json(snap.data);
+    } catch (err) {
+      console.error(`[marketflow] ERROR in ${platform}/overview:`, err.message);
+      return sendError(res, err.message, 500);
+    }
   });
 };
 

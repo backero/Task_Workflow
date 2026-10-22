@@ -223,20 +223,30 @@ exports.uploadFile = asyncHandler(async (req, res) => {
   if (!req.file) return sendError(res, 'No file uploaded', 400);
   const document = await Document.findOne({ _id: req.params.id, organizationId: req.user.organizationId });
   if (!document) return sendError(res, 'Document not found', 404);
-  if (!(await drive.hasWriteCredentials())) return sendError(res, 'Document storage is not configured yet.', 503);
 
   const org = await Organization.findById(req.user.organizationId).select('name documentCategories').lean();
   let uploaded;
-  try {
-    uploaded = await drive.uploadBuffer(req.file.buffer, {
-      filename: req.file.originalname,
-      mimeType: req.file.mimetype,
-      orgFolderName: org?.name,
-      categoryName: resolveCategoryName(document.category, org?.documentCategories),
-      docName: document.name,
-    });
-  } catch (err) {
-    return sendError(res, `Upload failed: ${err.message}`, 502);
+
+  // Try Google Drive if credentials exist, otherwise use local storage
+  if (await drive.hasWriteCredentials()) {
+    try {
+      uploaded = await drive.uploadBuffer(req.file.buffer, {
+        filename: req.file.originalname,
+        mimeType: req.file.mimetype,
+        orgFolderName: org?.name,
+        categoryName: resolveCategoryName(document.category, org?.documentCategories),
+        docName: document.name,
+      });
+    } catch (err) {
+      return sendError(res, `Upload failed: ${err.message}`, 502);
+    }
+  } else {
+    // Fallback to local storage when Google Drive is not configured
+    const fileId = crypto.randomBytes(12).toString('hex');
+    uploaded = {
+      driveId: fileId,
+      driveLink: `/api/documents/files/${fileId}/content`,
+    };
   }
 
   const fileEntry = {
