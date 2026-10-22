@@ -74,6 +74,28 @@ const emptyForm = () => ({
 
 function numF(v, d = 2) { return Number(v || 0).toFixed(d); }
 
+function getUnitCost(costPerKg, unit = 'g') {
+  const cost = costPerKg || 0;
+  if (cost === 0) return 0;
+
+  switch(unit) {
+    case 'g':
+      return cost / 1000;
+    case 'kg':
+      return cost;
+    case 'ml':
+      return cost / 1000;
+    case 'L':
+      return cost;
+    case 'oz':
+      return cost / 35.274;
+    case 'pcs':
+      return cost;
+    default:
+      return cost / 1000;
+  }
+}
+
 function calcCostContribution(costPerKg, qty, unit = 'g') {
   const cost = costPerKg || 0;
   if (cost === 0 || qty === 0) return 0;
@@ -1191,7 +1213,12 @@ function FormulationTab({ product, form, setForm, onSave, isPending }) {
                     </td>
                     <td className="px-3 py-1.5"><input type="text" value={r.phase || ''} onChange={e => updateRow(i, { phase: e.target.value })} placeholder="A/B/C" className="input text-xs w-16" /></td>
                     <td className="px-3 py-1.5"><input type="text" value={r.notes || ''} onChange={e => updateRow(i, { notes: e.target.value })} placeholder="Notes" className="input text-xs w-24" /></td>
-                    <td className="px-3 py-1.5"><input type="number" value={r.costPerKg} onChange={e => updateRow(i, { costPerKg: parseFloat(e.target.value) || 0 })} className="input text-xs w-20" /></td>
+                    <td className="px-3 py-1.5">
+                      <div className="space-y-1">
+                        <input type="number" value={r.costPerKg} onChange={e => updateRow(i, { costPerKg: parseFloat(e.target.value) || 0 })} className="input text-xs w-20" placeholder="Cost" />
+                        <span className="text-xs text-gray-500 block">({numF(getUnitCost(r.costPerKg, r.unit || 'g'), 2)} per {r.unit || 'g'})</span>
+                      </div>
+                    </td>
                     <td className="px-3 py-1.5 text-blue-600 font-mono">₹{numF(calcCostContribution(r.costPerKg, qty, r.unit || 'g'))}</td>
                     <td className="px-3 py-1.5"><button onClick={() => removeRow(i)} className="text-red-400 hover:text-red-600"><X size={13} /></button></td>
                   </tr>
