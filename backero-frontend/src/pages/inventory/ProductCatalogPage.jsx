@@ -74,60 +74,6 @@ const emptyForm = () => ({
 
 function numF(v, d = 2) { return Number(v || 0).toFixed(d); }
 
-function getUnitCost(costPerKg, unit = 'g') {
-  const cost = costPerKg || 0;
-  if (cost === 0) return 0;
-
-  switch(unit) {
-    case 'g':
-      return cost / 1000;
-    case 'kg':
-      return cost;
-    case 'ml':
-      return cost / 1000;
-    case 'L':
-      return cost;
-    case 'oz':
-      return cost / 35.274;
-    case 'pcs':
-      return cost;
-    default:
-      return cost / 1000;
-  }
-}
-
-function calcCostContribution(costPerKg, qty, unit = 'g') {
-  const cost = costPerKg || 0;
-  if (cost === 0 || qty === 0) return 0;
-
-  let costPerUnit = cost;
-  if (cost > 0) {
-    switch(unit) {
-      case 'g':
-        costPerUnit = cost / 1000;
-        break;
-      case 'kg':
-        costPerUnit = cost;
-        break;
-      case 'ml':
-        costPerUnit = cost / 1000;
-        break;
-      case 'L':
-        costPerUnit = cost;
-        break;
-      case 'oz':
-        costPerUnit = cost / 35.274;
-        break;
-      case 'pcs':
-        costPerUnit = cost;
-        break;
-      default:
-        costPerUnit = cost / 1000;
-    }
-  }
-  return costPerUnit * qty;
-}
-
 // Batch Tracker's buildIngredientsFromCatalogProduct (backend) scales each row's stored
 // `quantity` field directly to build real production-order weighing targets — it does NOT
 // recompute from percentage. So `quantity` must be kept in sync with the displayed
@@ -1055,6 +1001,60 @@ function IngredientCell({ row, index, rawMaterials, onUpdate }) {
 
 // ─── Formulation Tab ───────────────────────────────────────────────────────────
 function FormulationTab({ product, form, setForm, onSave, isPending }) {
+  function getUnitCost(costPerKg, unit = 'g') {
+    const cost = costPerKg || 0;
+    if (cost === 0) return 0;
+
+    switch(unit) {
+      case 'g':
+        return cost / 1000;
+      case 'kg':
+        return cost;
+      case 'ml':
+        return cost / 1000;
+      case 'L':
+        return cost;
+      case 'oz':
+        return cost / 35.274;
+      case 'pcs':
+        return cost;
+      default:
+        return cost / 1000;
+    }
+  }
+
+  function calcCostContribution(costPerKg, qty, unit = 'g') {
+    const cost = costPerKg || 0;
+    if (cost === 0 || qty === 0) return 0;
+
+    let costPerUnit = cost;
+    if (cost > 0) {
+      switch(unit) {
+        case 'g':
+          costPerUnit = cost / 1000;
+          break;
+        case 'kg':
+          costPerUnit = cost;
+          break;
+        case 'ml':
+          costPerUnit = cost / 1000;
+          break;
+        case 'L':
+          costPerUnit = cost;
+          break;
+        case 'oz':
+          costPerUnit = cost / 35.274;
+          break;
+        case 'pcs':
+          costPerUnit = cost;
+          break;
+        default:
+          costPerUnit = cost / 1000;
+      }
+    }
+    return costPerUnit * qty;
+  }
+
   const [resolving, setResolving] = useState(false);
   const [expanded, setExpanded] = useState(() => new Set());
   const rows = form.formulation?.rows || [];
