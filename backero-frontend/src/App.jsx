@@ -27,6 +27,7 @@ import MyAttendance from './pages/attendance/MyAttendance';
 import MyPayroll from './pages/attendance/MyPayroll';
 import LeaveManagement from './pages/attendance/LeaveManagement';
 import MyLeave from './pages/attendance/MyLeave';
+import CheckInPage from './pages/attendance/CheckInPage';
 
 // Dashboard pages
 import FounderDashboard from './pages/dashboard/FounderDashboard';
@@ -260,6 +261,7 @@ export default function App() {
           <Route path="/my-attendance" element={<MyAttendance />} />
           <Route path="/my-payroll" element={<MyPayroll />} />
           <Route path="/my-leave" element={<MyLeave />} />
+          <Route path="/check-in" element={<CheckInPage />} />
 
           {/* Marketplace Dashboard Hub */}
           <Route path="/marketplace/unified" element={<UnifiedDashboard />} />
