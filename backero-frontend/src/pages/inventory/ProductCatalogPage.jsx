@@ -1040,6 +1040,7 @@ function FormulationTab({ product, form, setForm, onSave, isPending }) {
   const refUnit = form.formulation?.refUnit || 'ml';
   const totalPct = rows.reduce((s, r) => s + (Number(r.percentage) || 0), 0);
   const totalQty = rows.reduce((s, r) => s + (refWeight * (Number(r.percentage) || 0) / 100 * (Number(r.convFactor) || 1)), 0);
+
   const formCost = calcFormCost({ formulation: form.formulation });
   const totalAmount = formCost; // Total cost for the reference weight
   const perUnit = refWeight > 0 ? totalAmount / refWeight : 0; // Cost per unit (per gram/ml)
