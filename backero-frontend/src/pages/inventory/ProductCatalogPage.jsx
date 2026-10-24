@@ -1192,6 +1192,7 @@ function FormulationTab({ product, form, setForm, onSave, isPending }) {
               const isOpen = expanded.has(i);
               const conv = Number(r.convFactor) || 1;
               const qty = refWeight * (Number(r.percentage) || 0) / 100 * conv;
+              const costPerUnit = getUnitCost(Number(r.costPerKg) || 0, r.unit || 'g') * (Number(r.percentage) || 0) / 100;
               return (
                 <React.Fragment key={i}>
                   <tr className="border-t border-gray-100 dark:border-[#1b2e4a]">
@@ -1216,7 +1217,7 @@ function FormulationTab({ product, form, setForm, onSave, isPending }) {
                     <td className="px-3 py-1.5">
                       <div className="space-y-1">
                         <input type="number" value={r.costPerKg || ''} onChange={e => updateRow(i, { costPerKg: parseFloat(e.target.value) || 0 })} className="input text-xs w-20" placeholder="Cost" />
-                        <span className="text-xs text-gray-500 block">({numF(getUnitCost(Number(r.costPerKg) || 0, r.unit || 'g') * (Number(r.percentage) || 0) / 100, 2)} per {r.unit || 'g'})</span>
+                        <span className="text-xs text-gray-500 block">({numF(costPerUnit, 2)} per {r.unit || 'g'})</span>
                       </div>
                     </td>
                     <td className="px-3 py-1.5 text-emerald-600 dark:text-emerald-400 font-mono font-semibold">₹{numF(calcCostContribution(Number(r.costPerKg) || 0, qty, r.unit || 'g'), 2)}</td>
