@@ -271,7 +271,9 @@ export default function RDPriceCalculator({ presetProduct } = {}) {
   const [materialsLump, setMaterialsLump] = useState(initial.settings.materialsLumpDefault);
   const [trialBatches, setTrialBatchesState] = useState(initial.settings.tiers.T0.includedCorrections);
   const [trialBatchesF, setTrialBatchesF] = useState(initial.settings.tiers.T0.includedCorrections);
-  const [trialBatchSize, setTrialBatchSize] = useState(initial.settings.trialBatchSizeDefault);
+  // Auto-use preset product's reference weight if available
+  const presetRefWeight = presetProduct?.formulation?.refWeight || null;
+  const [trialBatchSize, setTrialBatchSize] = useState(presetRefWeight || initial.settings.trialBatchSizeDefault);
   const [formulaRows, setFormulaRows] = useState([]);
 
   // ---- Step 5: samples ----
@@ -317,9 +319,10 @@ export default function RDPriceCalculator({ presetProduct } = {}) {
 
   function getCustomer() { return hasCustomerDb ? (customerSelect === '__custom' ? customerText.trim() : customerSelect) : customerText.trim(); }
   function getProduct() { return hasCatalogDb ? (productSelect === '__custom' ? productText.trim() : productSelect) : productText.trim(); }
-  const selectedCatalogProduct = hasCatalogDb && productSelect && productSelect !== '__custom'
+  // Use preset product if available, otherwise search in catalog
+  const selectedCatalogProduct = presetProduct ? presetProduct : (hasCatalogDb && productSelect && productSelect !== '__custom'
     ? (catalogProducts.find(x => x.name === productSelect) || null)
-    : null;
+    : null);
 
   // ========== TIER / PICKER ==========
   function setTrialBatchesBoth(v) { setTrialBatchesState(v); setTrialBatchesF(v); }
