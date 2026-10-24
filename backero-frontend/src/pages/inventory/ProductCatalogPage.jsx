@@ -1215,11 +1215,11 @@ function FormulationTab({ product, form, setForm, onSave, isPending }) {
                     <td className="px-3 py-1.5"><input type="text" value={r.notes || ''} onChange={e => updateRow(i, { notes: e.target.value })} placeholder="Notes" className="input text-xs w-24" /></td>
                     <td className="px-3 py-1.5">
                       <div className="space-y-1">
-                        <input type="number" value={r.costPerKg} onChange={e => updateRow(i, { costPerKg: parseFloat(e.target.value) || 0 })} className="input text-xs w-20" placeholder="Cost" />
-                        <span className="text-xs text-gray-500 block">({numF(getUnitCost(r.costPerKg, r.unit || 'g'), 2)} per {r.unit || 'g'})</span>
+                        <input type="number" value={r.costPerKg || ''} onChange={e => updateRow(i, { costPerKg: parseFloat(e.target.value) || 0 })} className="input text-xs w-20" placeholder="Cost" />
+                        <span className="text-xs text-gray-500 block">({numF(getUnitCost(Number(r.costPerKg) || 0, r.unit || 'g'), 2)} per {r.unit || 'g'})</span>
                       </div>
                     </td>
-                    <td className="px-3 py-1.5 text-blue-600 font-mono">₹{numF(calcCostContribution(r.costPerKg, qty, r.unit || 'g'))}</td>
+                    <td className="px-3 py-1.5 text-emerald-600 dark:text-emerald-400 font-mono font-semibold">₹{numF(calcCostContribution(Number(r.costPerKg) || 0, qty, r.unit || 'g'), 2)}</td>
                     <td className="px-3 py-1.5"><button onClick={() => removeRow(i)} className="text-red-400 hover:text-red-600"><X size={13} /></button></td>
                   </tr>
                   {isOpen && (
