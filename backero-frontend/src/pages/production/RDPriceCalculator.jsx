@@ -610,7 +610,6 @@ export default function RDPriceCalculator({ presetProduct } = {}) {
       '',
       'QUOTE THIS AMOUNT (one-time): ' + fmtMoney(c.fee),
       'Extra correction round: ' + fmtMoney(c.extraRound) + ' / round',
-      'First-order recovery: ' + (c.perUnit !== null ? fmtMoney(c.perUnit) + '/unit @ ' + c.firstOrderQty + ' pcs' : '—') + ' | @500: ' + fmtMoney(c.fee / 500) + ' | @1000: ' + fmtMoney(c.fee / 1000),
       selectedTests ? 'Outside tests: ' + selectedTests : 'Outside tests: none selected',
       'Payment: ' + PAYMENT_TERMS,
       CORRECTION_CLAUSE,
@@ -1203,13 +1202,6 @@ export default function RDPriceCalculator({ presetProduct } = {}) {
                   <div className="pricing-highlight" style={{ marginBottom: '14px' }}>
                     <div><div className="label">Price for each EXTRA correction round (after the included ones)</div><div className="value">{fmtMoney(liveCalc.extraRound)} / round</div></div>
                   </div>
-                  <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '8px' }}>R&amp;D cost recovered per piece</div>
-                  <div className="recovery-grid" style={{ marginBottom: '10px' }}>
-                    <div className="recovery-item"><div className="r-label">@ {(firstOrderQty || 0).toLocaleString('en-IN')} pcs</div><div className="r-value">{liveCalc.perUnit !== null ? fmtMoney(liveCalc.perUnit) + '/unit' : '—'}</div></div>
-                    <div className="recovery-item"><div className="r-label">@ 500 pcs</div><div className="r-value">{fmtMoney(liveCalc.fee / 500)}/unit</div></div>
-                    <div className="recovery-item"><div className="r-label">@ 1000 pcs</div><div className="r-value">{fmtMoney(liveCalc.fee / 1000)}/unit</div></div>
-                  </div>
-                  <div className="info-note" style={{ marginBottom: '14px' }}><Lightbulb size={14} style={{ verticalAlign: '-2px', marginRight: 4 }} />Recover the whole fee within the first order — customers reorder slowly.</div>
                   <div style={{ marginBottom: '16px' }}>
                     <div className="info-note" style={{ marginBottom: '8px' }}><Lightbulb size={14} style={{ verticalAlign: '-2px', marginRight: 4 }} />{TIER_DEFS[liveCalc.tier].typical} for "{TIER_DEFS[liveCalc.tier].name}".</div>
                     {(liveCalc.fee < GUARD_LOW || liveCalc.fee > GUARD_HIGH) ? (
