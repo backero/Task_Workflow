@@ -1,0 +1,75 @@
+name: Employee Portal CI/CD
+
+# Separate from the main CI/CD workflow since this is an independent static
+# app (attendance-apps/employee-web) with its own deploy target — only runs
+# when that app's own files change.
+on:
+  push:
+    branches: [main]
+    paths:
+      - "attendance-apps/employee-web/**"
+      - ".github/workflows/deploy-employee-portal.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "attendance-apps/employee-web/**"
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: attendance-apps/employee-web/package-lock.json
+
+      - name: Install, type-check and build
+        working-directory: attendance-apps/employee-web
+        run: |
+          npm ci
+          npm run build
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: employee-portal-dist
+          path: attendance-apps/employee-web/dist
+          retention-days: 1
+
+  deploy:
+    needs: check
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download build artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: employee-portal-dist
+          path: dist
+
+      - name: Upload build to Droplet (staging dir)
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.DROPLET_HOST }}
+          username: ${{ secrets.DROPLET_USER }}
+          key: ${{ secrets.DROPLET_SSH_KEY }}
+          source: "dist/**"
+          target: "/var/www/employee-portal/dist-new"
+          strip_components: 1
+
+      - name: Atomically swap in the new build
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.DROPLET_HOST }}
+          username: ${{ secrets.DROPLET_USER }}
+          key: ${{ secrets.DROPLET_SSH_KEY }}
+          script: |
+            set -e
+            cd /var/www/employee-portal
+            test -f dist-new/index.html
+            mv dist dist.bak.$(date +%Y%m%d%H%M%S)
+            mv dist-new dist
+            ls -1dt dist.bak.* | tail -n +6 | xargs -r rm -rf

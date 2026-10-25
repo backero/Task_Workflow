@@ -102,6 +102,7 @@ const allowedOrigins = [
   'https://backero-worktaskflow.netlify.app',
   'https://task-workflow-liart.vercel.app',
   'https://backero-frontend-beta.vercel.app',
+  'https://employee.backero.in',
   ...(process.env.FRONTEND_URL ? [process.env.FRONTEND_URL] : []),
 ];
 
