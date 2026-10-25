@@ -87,6 +87,11 @@ function withComputedQuantity(rows, refWeight) {
   }));
 }
 
+// costPerKg is really "cost per 1 unit of the ingredient's own row unit" (₹/g, ₹/ml, etc — sourced
+// from the raw material's costPrice, which is already a price per 1 of that material's own `unit`,
+// not a true per-kilogram price needing conversion). Kept the old field name to avoid a data
+// migration, but the math multiplies it directly by the row's actual quantity (already expressed
+// in that same unit) — no g/kg/L rescaling needed, since costPrice already means "per 1 of unit".
 function calcFormCost(product) {
   if (!product?.formulation?.rows?.length) return 0;
   // Derive qty from percentage/refWeight/convFactor rather than trusting the row's stored
@@ -95,37 +100,9 @@ function calcFormCost(product) {
   // edited but not yet saved. Deriving it live is always correct for both cases.
   const refWeight = Number(product.formulation.refWeight) || 100;
   return product.formulation.rows.reduce((sum, r) => {
-    const cost = r.costPerKg || 0;
+    const cost = Number(r.costPerKg) || 0;
     const qty = refWeight * (Number(r.percentage) || 0) / 100 * (Number(r.convFactor) || 1);
-    const unit = r.unit || 'g';
-    if (cost === 0 || qty === 0) return sum;
-
-    let costPerUnit = cost;
-    if (cost > 0) {
-      switch(unit) {
-        case 'g':
-          costPerUnit = cost / 1000;
-          break;
-        case 'kg':
-          costPerUnit = cost;
-          break;
-        case 'ml':
-          costPerUnit = cost / 1000;
-          break;
-        case 'L':
-          costPerUnit = cost;
-          break;
-        case 'oz':
-          costPerUnit = cost / 35.274;
-          break;
-        case 'pcs':
-          costPerUnit = cost;
-          break;
-        default:
-          costPerUnit = cost / 1000;
-      }
-    }
-    return sum + (costPerUnit * qty);
+    return sum + cost * qty;
   }, 0);
 }
 
@@ -133,7 +110,9 @@ function calcFormCost(product) {
 // product-catalog.html's recalcOverheads()/renderCosting()/renderMarketplace() formulas.
 function calcOverheadBreakdown(product) {
   const refW = (product?.formulation?.refWeight) || product?.weight || 100;
-  const formCost = refW > 0 ? calcFormCost(product) / refW : 0;
+  // calcFormCost already returns the absolute ₹ cost of the whole reference batch (it multiplies
+  // each row's per-unit price by that row's actual quantity) — no further refW rescale needed.
+  const formCost = calcFormCost(product);
   const sa = product?.standardAssumptions || {};
   const saPct = (sa.equipmentPct || 0) + (sa.consumablesPct || 0) + (sa.storagePct || 0) +
     (sa.housekeepingPct || 0) + (sa.adminPct || 0) + (sa.wastagePct || 0);
@@ -1001,58 +980,10 @@ function IngredientCell({ row, index, rawMaterials, onUpdate }) {
 
 // ─── Formulation Tab ───────────────────────────────────────────────────────────
 function FormulationTab({ product, form, setForm, onSave, isPending }) {
-  function getUnitCost(costPerKg, unit = 'g') {
-    const cost = costPerKg || 0;
-    if (cost === 0) return 0;
-
-    switch(unit) {
-      case 'g':
-        return cost / 1000;
-      case 'kg':
-        return cost;
-      case 'ml':
-        return cost / 1000;
-      case 'L':
-        return cost;
-      case 'oz':
-        return cost / 35.274;
-      case 'pcs':
-        return cost;
-      default:
-        return cost / 1000;
-    }
-  }
-
-  function calcCostContribution(costPerKg, qty, unit = 'g') {
-    const cost = costPerKg || 0;
-    if (cost === 0 || qty === 0) return 0;
-
-    let costPerUnit = cost;
-    if (cost > 0) {
-      switch(unit) {
-        case 'g':
-          costPerUnit = cost / 1000;
-          break;
-        case 'kg':
-          costPerUnit = cost;
-          break;
-        case 'ml':
-          costPerUnit = cost / 1000;
-          break;
-        case 'L':
-          costPerUnit = cost;
-          break;
-        case 'oz':
-          costPerUnit = cost / 35.274;
-          break;
-        case 'pcs':
-          costPerUnit = cost;
-          break;
-        default:
-          costPerUnit = cost / 1000;
-      }
-    }
-    return costPerUnit * qty;
+  // costPerKg is already "₹ per 1 of the row's own unit" (sourced from the raw material's
+  // costPrice), so cost contribution is a direct multiply — no g/kg/L rescaling.
+  function calcCostContribution(costPerKg, qty) {
+    return (Number(costPerKg) || 0) * (Number(qty) || 0);
   }
 
   const [resolving, setResolving] = useState(false);
@@ -1192,8 +1123,8 @@ function FormulationTab({ product, form, setForm, onSave, isPending }) {
               const isOpen = expanded.has(i);
               const conv = Number(r.convFactor) || 1;
               const qty = refWeight * (Number(r.percentage) || 0) / 100 * conv;
-              const matCostPerKg = mat?.costPerKg || Number(r.costPerKg) || 0;
-              const costPerUnit = getUnitCost(matCostPerKg, r.unit || 'g') * (Number(r.percentage) || 0) / 100;
+              const matCostPerKg = mat?.costPrice ?? Number(r.costPerKg) ?? 0;
+              const costPerUnit = matCostPerKg;
               return (
                 <React.Fragment key={i}>
                   <tr className="border-t border-gray-100 dark:border-[#1b2e4a]">
@@ -1218,7 +1149,7 @@ function FormulationTab({ product, form, setForm, onSave, isPending }) {
                     <td className="px-3 py-1.5">
                       <span className="text-emerald-600 dark:text-emerald-400 font-semibold">₹{numF(costPerUnit, 2)}</span>
                     </td>
-                    <td className="px-3 py-1.5 text-emerald-600 dark:text-emerald-400 font-mono font-semibold">₹{numF(calcCostContribution(matCostPerKg, qty, r.unit || 'g'), 2)}</td>
+                    <td className="px-3 py-1.5 text-emerald-600 dark:text-emerald-400 font-mono font-semibold">₹{numF(calcCostContribution(matCostPerKg, qty), 2)}</td>
                     <td className="px-3 py-1.5"><button onClick={() => removeRow(i)} className="text-red-400 hover:text-red-600"><X size={13} /></button></td>
                   </tr>
                   {isOpen && (
