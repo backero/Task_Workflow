@@ -25,6 +25,7 @@ router.post('/products/:id/formulation-versions/:versionId/activate', authorizeM
 router.delete('/products/:id/formulation-versions/:versionId', authorizeManagerOrAbove, ctrl.deleteFormulationVersion);
 router.post('/products/:id/formulation-versions/:versionId/rnd-attachment',   authorizeManagerOrAbove, fileUpload.single('file'), ctrl.uploadFormulationVersionRndAttachment);
 router.delete('/products/:id/formulation-versions/:versionId/rnd-attachment', authorizeManagerOrAbove, ctrl.removeFormulationVersionRndAttachment);
+router.get('/products/:id/cogs-breakdown', ctrl.getCogsBreakdown);
 router.post('/import',           authorizeAdminOrAbove,   ctrl.importProducts);
 router.post('/resolve-ingredients', authorizeManagerOrAbove, ctrl.resolveIngredients);
 

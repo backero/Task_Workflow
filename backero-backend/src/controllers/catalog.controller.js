@@ -456,3 +456,40 @@ exports.resolveIngredients = asyncHandler(async (req, res) => {
 
   sendSuccess(res, { ingredients: result });
 });
+
+// GET /api/catalog/products/:id/cogs-breakdown
+// Calculate cost of goods sold (COGS) breakdown for all SKU sizes
+exports.getCogsBreakdown = asyncHandler(async (req, res) => {
+  const p = await CatalogProduct.findOne({ _id: req.params.id, organizationId: req.user.organizationId });
+  if (!p) return sendError(res, 'Product not found', 404);
+
+  const formulation = p.formulation || {};
+  const rows = formulation.rows || [];
+
+  if (!rows.length) return sendError(res, 'No formulation found', 400);
+
+  // Build BOM from formulation rows
+  const billOfMaterials = await Promise.all(rows.map(async (row) => {
+    const rm = await Product.findOne({
+      organizationId: req.user.organizationId,
+      isRawMaterial: true,
+      $or: [{ sku: row.rawMaterialId }, { _id: row.rawMaterialId }, { name: row.name }]
+    });
+
+    return {
+      name: row.name || 'Unknown',
+      quantity: row.quantity || 0,
+      costPerUnit: rm?.costPrice || row.costPerKg || 0,
+      gstRate: 0.18
+    };
+  }));
+
+  // Use COGS engine to calculate
+  const { calculateAllSkusCogs } = require('../utils/cogsEngine');
+  const results = calculateAllSkusCogs(billOfMaterials);
+
+  sendSuccess(res, {
+    productName: p.name,
+    cogsBreakdown: results
+  });
+});
