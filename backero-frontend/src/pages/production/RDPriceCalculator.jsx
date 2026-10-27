@@ -204,12 +204,14 @@ export default function RDPriceCalculator({ presetProduct } = {}) {
         const rmRes = await api.get('/inventory/raw-materials').catch(() => null);
         if (rmRes?.data?.materials) {
           localStorage.setItem(RM_KEY, JSON.stringify({ materials: rmRes.data.materials }));
-          setRawMaterials((rmRes.data.materials || []).map(m => ({
-            id: m._id || m.id || '', code: m.code || '', name: m.name || '',
+          const materials = (rmRes.data.materials || []).map(m => ({
+            id: m._id || m.id || '', code: m.code || m.sku || '', name: m.name || '',
             unit: m.unit || 'kg', unitPrice: parseFloat(m.costPrice) || 0
-          })));
+          }));
+          console.log('[RDPriceCalculator] Raw materials loaded:', materials.length, 'items');
+          setRawMaterials(materials);
         }
-      } catch (e) { /* silent fail */ }
+      } catch (e) { console.error('[RDPriceCalculator] Failed to fetch raw materials:', e); }
 
       try {
         // Fetch products from backend
@@ -221,7 +223,7 @@ export default function RDPriceCalculator({ presetProduct } = {}) {
             formulation: p.formulation || null
           })));
         }
-      } catch (e) { /* silent fail */ }
+      } catch (e) { console.error('[RDPriceCalculator] Failed to fetch catalog products:', e); }
 
       try {
         // Fetch customers/leads from CRM
@@ -240,13 +242,11 @@ export default function RDPriceCalculator({ presetProduct } = {}) {
             setDevCustomers(customers);
           }
         }
-      } catch (e) { /* silent fail */ }
+      } catch (e) { console.error('[RDPriceCalculator] Failed to fetch customers:', e); }
     };
 
-    // Only sync if DBs are empty
-    if (!localStorage.getItem(RM_KEY) || !localStorage.getItem(CAT_KEY) || !localStorage.getItem(SD_KEY)) {
-      syncData();
-    }
+    // Always fetch fresh data from backend (don't rely on potentially stale localStorage)
+    syncData();
   }, []);
 
   // ---- Step 1: customer & product ----
@@ -397,13 +397,20 @@ export default function RDPriceCalculator({ presetProduct } = {}) {
     }
     if (!v || !v.rows || !v.rows.length) { showToast('No formula rows found for "' + p.name + '"', 'warning'); return; }
     const size = trialBatchSize || settings.trialBatchSizeDefault || 200;
-    const newRows = v.rows.map(r => {
+    console.log('[handleLoadProductFormula] rawMaterials count:', rawMaterials.length, 'formula rows:', v.rows.length);
+    const newRows = v.rows.map((r, idx) => {
       const pct = parseFloat(r.percentage) || 0;
       const rm = rawMaterials.find(m => (r.code && (m.code === r.code || m.id === r.code)) || (r.name && m.name === r.name));
       const unit = rm ? rm.unit : (['kg', 'l', 'liter', 'litre'].indexOf((r.unit || '').toLowerCase()) >= 0 ? r.unit : (r.unit || 'g'));
+      const unitPrice = rm ? (rm.unitPrice || 0) : (parseFloat(r.unitPrice) || 0);
+      if (!rm) {
+        console.warn(`[handleLoadProductFormula] Row ${idx}: "${r.name}" (code: ${r.code}) - NO MATCH in rawMaterials`);
+      } else {
+        console.log(`[handleLoadProductFormula] Row ${idx}: "${r.name}" matched to "${rm.name}" - price: ₹${unitPrice}`);
+      }
       return {
         name: (rm && rm.name) || r.name || '', code: rm ? (rm.code || r.code || '') : (r.code || ''),
-        unit, unitPrice: rm ? (rm.unitPrice || 0) : (parseFloat(r.unitPrice) || 0),
+        unit, unitPrice,
         pct, qty: Math.round((pct / 100) * size * 100) / 100
       };
     });

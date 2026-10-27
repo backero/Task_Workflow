@@ -182,14 +182,31 @@ exports.removeAttachment = asyncHandler(async (req, res) => {
 exports.createFormulationVersion = asyncHandler(async (req, res) => {
   const p = await CatalogProduct.findOne({ _id: req.params.id, organizationId: req.user.organizationId });
   if (!p) return sendError(res, 'Product not found', 404);
+  const { Product } = require('../models');
+
+  // Helper: enrich rows with costPerKg from raw materials
+  const enrichRows = async (rows) => {
+    return Promise.all(rows.map(async (row) => {
+      const rm = await Product.findOne({
+        organizationId: req.user.organizationId,
+        isRawMaterial: true,
+        $or: [{ sku: row.rawMaterialId }, { _id: row.rawMaterialId }, { name: row.name }]
+      });
+      return {
+        ...row,
+        costPerKg: rm ? (parseFloat(rm.costPrice) || 0) : (row.costPerKg || 0)
+      };
+    }));
+  };
 
   if (!p.formulationVersions.length) {
+    const v1Rows = await enrichRows(p.formulation?.rows || []);
     p.formulationVersions.push({
       versionLabel: 'V1',
       status: 'locked',
       refWeight: p.formulation?.refWeight || 100,
       refUnit: p.formulation?.refUnit || 'ml',
-      rows: p.formulation?.rows || [],
+      rows: v1Rows,
       changeNotes: 'Initial formulation',
       rndDoc: { text: p.rndDoc?.text || '', attachments: p.rndDoc?.attachments || [] },
       researchGuide: { text: p.researchGuide?.text || '' },
@@ -202,13 +219,16 @@ exports.createFormulationVersion = asyncHandler(async (req, res) => {
   const source = cloneFrom ? p.formulationVersions.id(cloneFrom) : null;
   const sourceLabel = source ? source.versionLabel : 'Live';
 
+  const sourceRows = source ? source.rows : (p.formulation?.rows || []);
+  const enrichedRows = await enrichRows(sourceRows);
+
   const label = `V${p.formulationVersions.length + 1}`;
   p.formulationVersions.push({
     versionLabel: label,
     status: 'draft',
     refWeight: source ? source.refWeight : (p.formulation?.refWeight ?? 100),
     refUnit: source ? source.refUnit : (p.formulation?.refUnit ?? 'ml'),
-    rows: source ? source.rows : (p.formulation?.rows || []),
+    rows: enrichedRows,
     rndDoc: source
       ? { text: source.rndDoc?.text || '', attachments: source.rndDoc?.attachments || [] }
       : { text: p.rndDoc?.text || '', attachments: p.rndDoc?.attachments || [] },
@@ -231,7 +251,24 @@ exports.updateFormulationVersion = asyncHandler(async (req, res) => {
   if (['locked', 'archived'].includes(version.status)) return sendError(res, 'Cannot edit a locked/archived version', 400);
 
   const { rows, refWeight, refUnit, changeNotes, status, rndDoc, researchGuide } = req.body;
-  if (rows) version.rows = rows;
+
+  // Enrich rows with costPerKg from raw materials database
+  if (rows) {
+    const { Product } = require('../models');
+    const enrichedRows = await Promise.all(rows.map(async (row) => {
+      const rm = await Product.findOne({
+        organizationId: req.user.organizationId,
+        isRawMaterial: true,
+        $or: [{ sku: row.rawMaterialId }, { _id: row.rawMaterialId }, { name: row.name }]
+      });
+      return {
+        ...row,
+        costPerKg: rm ? (parseFloat(rm.costPrice) || 0) : (row.costPerKg || 0)
+      };
+    }));
+    version.rows = enrichedRows;
+  }
+
   if (refWeight !== undefined) version.refWeight = refWeight;
   if (refUnit) version.refUnit = refUnit;
   if (changeNotes !== undefined) version.changeNotes = changeNotes;
@@ -252,10 +289,25 @@ exports.activateFormulationVersion = asyncHandler(async (req, res) => {
   const version = p.formulationVersions.id(req.params.versionId);
   if (!version) return sendError(res, 'Version not found', 404);
 
+  // Enrich rows with costPerKg from raw materials before activating
+  const { Product } = require('../models');
+  const enrichedRows = await Promise.all(version.rows.map(async (row) => {
+    const rm = await Product.findOne({
+      organizationId: req.user.organizationId,
+      isRawMaterial: true,
+      $or: [{ sku: row.rawMaterialId }, { _id: row.rawMaterialId }, { name: row.name }]
+    });
+    return {
+      ...row,
+      costPerKg: rm ? (parseFloat(rm.costPrice) || 0) : (row.costPerKg || 0)
+    };
+  }));
+
   p.formulationVersions.forEach(v => { if (v.status === 'locked') v.status = 'archived'; });
   version.status = 'locked';
   version.activatedAt = new Date();
-  p.formulation = { refWeight: version.refWeight, refUnit: version.refUnit, rows: version.rows };
+  version.rows = enrichedRows;
+  p.formulation = { refWeight: version.refWeight, refUnit: version.refUnit, rows: enrichedRows };
   if (version.rndDoc) p.rndDoc = { text: version.rndDoc.text, attachments: version.rndDoc.attachments, lastUpdated: new Date() };
   if (version.researchGuide) p.researchGuide = { text: version.researchGuide.text, lastUpdated: new Date() };
   p.history.push({ action: 'Formulation version activated', detail: version.versionLabel });
