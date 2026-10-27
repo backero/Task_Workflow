@@ -396,7 +396,7 @@ export default function RDPriceCalculator({ presetProduct } = {}) {
       const unit = rm ? rm.unit : (['kg', 'l', 'liter', 'litre'].indexOf((r.unit || '').toLowerCase()) >= 0 ? r.unit : (r.unit || 'g'));
       return {
         name: (rm && rm.name) || r.name || '', code: rm ? (rm.code || r.code || '') : (r.code || ''),
-        unit, unitPrice: rm ? rm.unitPrice : (parseFloat(r.unitPrice) || 0),
+        unit, unitPrice: rm ? (rm.costPerKg || 0) : (parseFloat(r.unitPrice) || 0),
         pct, qty: Math.round((pct / 100) * size * 100) / 100
       };
     });
