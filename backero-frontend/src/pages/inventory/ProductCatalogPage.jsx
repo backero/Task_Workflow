@@ -20,7 +20,7 @@ export const PRODUCT_TYPES = ['Shampoo', 'Conditioner', 'Hair Oil', 'Serum', 'Cr
 export const UNITS = ['ml', 'g', 'kg', 'L', 'pcs', 'oz'];
 export const GST_RATES = [0, 5, 12, 18, 28];
 export const STATUSES = ['Active', 'Inactive', 'Draft', 'Archived'];
-const TABS = ['Overview', 'Formulation & Procedure', 'R&D Price Calculator', 'R&D & Overheads', 'Costing', 'Marketplace', 'QR Code', 'Documents', 'History'];
+const TABS = ['Overview', 'Formulation & Procedure', 'Cost of Goods', 'R&D Price Calculator', 'R&D & Overheads', 'Costing', 'Marketplace', 'QR Code', 'Documents', 'History'];
 
 const ASSUMPTION_FIELDS = [
   { key: 'equipmentPct', label: 'Equipment (Mold/Tools)', max: 20, hint: '3-5% recommended' },
@@ -793,6 +793,7 @@ export default function ProductCatalogPage() {
                   onDeleteVersion: (versionId) => deleteVersionMutation.mutate({ id: detail._id, versionId }),
                   state: { creating: createVersionMutation.isPending, updating: updateVersionMutation.isPending, activating: activateVersionMutation.isPending, deleting: deleteVersionMutation.isPending },
                 }} />}
+              {activeTab === 'Cost of Goods' && <CostOfGoodsTab product={detail} />}
               {activeTab === 'R&D Price Calculator' && (
                 <div className="-m-6">
                   <RDPriceCalculator presetProduct={detail} />
@@ -2269,6 +2270,101 @@ function HistoryTab({ product: p }) {
             ))}
           </div>
         )}
+      </div>
+    </div>
+  );
+}
+
+// ─── Cost of Goods (COGS) Tab ──────────────────────────────────────────────────
+function CostOfGoodsTab({ product }) {
+  const [cogsData, setCogsData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    async function fetchCogs() {
+      try {
+        const res = await api.get(`/catalog/products/${product._id}/cogs-breakdown`);
+        setCogsData(res.data.breakdown || []);
+        setError(null);
+      } catch (err) {
+        setError(err?.response?.data?.message || 'Failed to load COGS data');
+        setCogsData(null);
+      } finally {
+        setLoading(false);
+      }
+    }
+    if (product?._id) fetchCogs();
+  }, [product?._id]);
+
+  if (loading) {
+    return <div className="text-center py-12 text-slate-400">Loading cost breakdown…</div>;
+  }
+
+  if (error) {
+    return <div className="bg-red-50 border border-red-200 rounded-lg px-4 py-3 text-sm text-red-700">{error}</div>;
+  }
+
+  if (!cogsData || cogsData.length === 0) {
+    return <div className="text-center py-12 text-slate-400">No cost data available. Ensure product has an active formulation.</div>;
+  }
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <p className="text-sm font-bold text-slate-900 flex items-center gap-1.5 mb-4"><BarChart3 size={14} />Cost of Goods Breakdown</p>
+        <div className="overflow-x-auto rounded-xl border border-slate-200">
+          <table className="w-full text-xs">
+            <thead className="bg-slate-50">
+              <tr>
+                {['SKU Weight', 'Material Cost (₹)', 'R&D Cost Per Unit (₹)', 'Overhead Per Unit (₹)', 'Direct Base Cost (₹)', '14% Allowances (₹)', 'Total Cost Ex-GST (₹)', 'Total Cost Incl. GST (₹)'].map(h => (
+                  <th key={h} className="px-4 py-2.5 text-left font-semibold text-slate-600 whitespace-nowrap">{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {cogsData.map((row, i) => (
+                <tr key={i} className="border-t border-slate-100 hover:bg-slate-50 transition-colors">
+                  <td className="px-4 py-2.5 font-semibold text-slate-800">{row.skuWeight}</td>
+                  <td className="px-4 py-2.5 text-slate-700">₹{numF(row.materialCostExGst, 4)}</td>
+                  <td className="px-4 py-2.5 text-slate-700">₹{numF(row.rdCostPerUnit, 4)}</td>
+                  <td className="px-4 py-2.5 text-slate-700">₹{numF(row.overheadPerUnit, 4)}</td>
+                  <td className="px-4 py-2.5 text-slate-700">₹{numF(row.directBaseCost, 4)}</td>
+                  <td className="px-4 py-2.5 text-slate-700">₹{numF(row.allowances14Pct, 4)}</td>
+                  <td className="px-4 py-2.5 font-semibold text-emerald-700">₹{numF(row.totalCostExGst, 4)}</td>
+                  <td className="px-4 py-2.5 font-bold text-blue-700">₹{numF(row.totalCostInclGst, 4)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
+        <div className="rounded-lg border border-slate-200 p-4 bg-slate-50">
+          <p className="text-xs text-slate-500 font-semibold uppercase mb-2">Assumptions</p>
+          <div className="space-y-1 text-xs text-slate-700">
+            <div>• R&D Testing: ₹3,000</div>
+            <div>• R&D Consumables: ₹2,000</div>
+            <div>• Sampling Wastage: ₹1,000</div>
+            <div>• Production Electricity: ₹200</div>
+            <div>• Labor Cost: ₹160</div>
+            <div>• QC Testing: ₹2,000</div>
+            <div>• Standard Allowance: 14%</div>
+            <div>• End Product GST: 5%</div>
+          </div>
+        </div>
+
+        <div className="rounded-lg border border-slate-200 p-4 bg-slate-50">
+          <p className="text-xs text-slate-500 font-semibold uppercase mb-2">SKU Configuration</p>
+          <div className="space-y-1 text-xs text-slate-700">
+            <div>• 100g: 5,000 lifetime units, 100 per batch</div>
+            <div>• 75g: 6,667 lifetime units, 150 per batch</div>
+            <div>• 50g: 10,000 lifetime units, 200 per batch</div>
+            <div>• 25g: 20,000 lifetime units, 400 per batch</div>
+            <div>• 10g: 50,000 lifetime units, 1,000 per batch</div>
+          </div>
+        </div>
       </div>
     </div>
   );
