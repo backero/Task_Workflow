@@ -1199,7 +1199,10 @@ function FormulationTab({ product, form, setForm, onSave, isPending }) {
               const isOpen = expanded.has(i);
               const conv = Number(r.convFactor) || 1;
               const qty = refWeight * (Number(r.percentage) || 0) / 100 * conv;
-              const matCostPerKg = mat?.costPrice || Number(r.costPerKg) || 0;
+              // Prioritize row's stored costPerKg, then try to fetch from raw material
+              const storedCost = Number(r.costPerKg) || 0;
+              const fetchedCost = mat?.costPrice || 0;
+              const matCostPerKg = fetchedCost > 0 ? fetchedCost : storedCost;
               const costPerUnit = getUnitCost(matCostPerKg, r.unit || 'g');
               return (
                 <React.Fragment key={i}>
