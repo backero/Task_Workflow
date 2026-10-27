@@ -194,9 +194,9 @@ router.all('/v1/*', async (req, res) => {
   // Special handling for robot endpoint to support platform parameter
   if (req.method === 'GET' && subPath === '/robot') {
     const platform = req.query.platform || 'amazon';
-    const platformNames = { amazon: 'Amazon', flipkart: 'Flipkart', meesho: 'Meesho', snapdeal: 'Snapdeal', myntra: 'Myntra', jiomart: 'JioMart' };
+    const platformNames = { amazon: 'Amazon', flipkart: 'Flipkart', meesho: 'Meesho', snapdeal: 'Snapdeal' };
 
-    // For Amazon, forward to amazon-server
+    // For Amazon, forward to amazon-server (the only platform with a real robot/job-health concept)
     if (platform === 'amazon') {
       try {
         const { status, data } = await marketflow.forward('v1', 'GET', '/robot', { params: {} });
@@ -206,63 +206,27 @@ router.all('/v1/*', async (req, res) => {
       }
     }
 
-    // For other platforms, return mock robot status
-    const now = new Date().toISOString();
-    const oneHourAgo = new Date(Date.now() - 3600000).toISOString();
-    const mockRobot = {
-      id: `robo-${platform}`,
-      name: `${platformNames[platform]} Robo`,
-      platform: platform,
-      how: `Syncs data from ${platformNames[platform]} Seller Hub every 3 minutes`,
-      state: 'healthy',
-      message: `${platformNames[platform]} data collection is working normally.`,
-      beat: now,
-      jobs: [
-        {
-          id: `job-${platform}-listings`,
-          label: 'Sync Listings',
-          what: `Fetch and update ${platform} catalog listings`,
-          every_minutes: 3,
-          enabled: true,
-          last_run: now,
-          last_status: 'ok',
-          detail: null,
-          duration_s: 45,
-          overdue: false,
-        },
-        {
-          id: `job-${platform}-orders`,
-          label: 'Sync Orders',
-          what: `Fetch new orders and order updates from ${platform}`,
-          every_minutes: 5,
-          enabled: true,
-          last_run: now,
-          last_status: 'ok',
-          detail: null,
-          duration_s: 30,
-          overdue: false,
-        },
-        {
-          id: `job-${platform}-metrics`,
-          label: 'Update Metrics',
-          what: `Calculate KPIs, CTR, CVR, margins, alerts`,
-          every_minutes: 15,
-          enabled: true,
-          last_run: now,
-          last_status: 'ok',
-          detail: null,
-          duration_s: 20,
-          overdue: false,
-        },
-      ],
-      runs: [
-        { finished_at: now, job: `job-${platform}-listings`, status: 'ok', detail: null, duration_s: 45 },
-        { finished_at: now, job: `job-${platform}-orders`, status: 'ok', detail: null, duration_s: 30 },
-        { finished_at: oneHourAgo, job: `job-${platform}-metrics`, status: 'ok', detail: null, duration_s: 20 },
-      ],
-    };
+    // Flipkart/Meesho/Snapdeal have no live robot/job-runner API — they're cron-scheduled Python
+    // scrapers that sync into MarketflowSnapshot. Report honest sync recency instead of inventing
+    // fake "healthy" job/run data.
+    if (['flipkart', 'meesho', 'snapdeal'].includes(platform)) {
+      const snap = await MarketflowSnapshot.findOne({ platform, endpoint: 'overview' }).sort({ syncedAt: -1 }).lean();
+      const staleMs = snap ? Date.now() - new Date(snap.syncedAt).getTime() : null;
+      const state = !snap ? 'unknown' : staleMs > 6 * 3600000 ? 'stale' : 'healthy';
+      return res.json({
+        id: `robo-${platform}`,
+        name: `${platformNames[platform]} Sync`,
+        platform,
+        how: `Scheduled scraper syncs ${platformNames[platform]} overview data into the database`,
+        state,
+        message: snap ? `Last synced ${snap.syncedAt}` : 'No sync data recorded yet.',
+        beat: snap?.syncedAt || null,
+        jobs: [],
+        runs: [],
+      });
+    }
 
-    return res.json(mockRobot);
+    return sendError(res, `Unknown platform "${platform}"`, 404);
   }
 
   // Special handling for unified dashboard — aggregate from all platforms
@@ -297,7 +261,7 @@ router.all('/v1/*', async (req, res) => {
         total_revenue: totals.revenue,
         total_orders: totals.orders,
         total_impressions: totals.impressions,
-        avg_margin: '20.5',
+        avg_margin: amazonData?.avg_margin ?? null,
         comparison: amazonData?.comparison || {},
       });
     } catch (e) {

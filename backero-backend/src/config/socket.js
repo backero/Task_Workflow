@@ -11,6 +11,7 @@ const initSocket = (server) => {
     'http://localhost:3000',
     'https://workflow.backero.in',
     'https://backero-frontend-beta.vercel.app',
+    'https://employee.backero.in',
     ...(process.env.FRONTEND_URL ? [process.env.FRONTEND_URL] : []),
   ];
 

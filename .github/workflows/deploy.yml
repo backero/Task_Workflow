@@ -1,39 +1,37 @@
-name: Deploy to DigitalOcean
+name: CI/CD
 
-# Auto-deploy on push to main
+# Checks run on every push/PR; deploy only runs after both checks pass on a
+# push to main.
 on:
   push:
     branches: [main]
+  pull_request:
+    branches: [main]
 
 jobs:
-  backend:
+  check-backend:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      - name: Copy backend source to Droplet
-        uses: appleboy/scp-action@v0.1.7
+      - uses: actions/setup-node@v4
         with:
-          host: ${{ secrets.DROPLET_HOST }}
-          username: ${{ secrets.DROPLET_USER }}
-          key: ${{ secrets.DROPLET_SSH_KEY }}
-          source: "backero-backend/**"
-          target: "/opt/backero/backend"
-          strip_components: 1
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: backero-backend/package-lock.json
 
-      - name: Build and restart the backend container
-        uses: appleboy/ssh-action@v1.2.0
-        with:
-          host: ${{ secrets.DROPLET_HOST }}
-          username: ${{ secrets.DROPLET_USER }}
-          key: ${{ secrets.DROPLET_SSH_KEY }}
-          script: |
-            cd /opt/backero/backend
-            docker compose -f docker-compose.prod.yml up -d --build
-            sleep 5
-            curl -f http://127.0.0.1:8080/health
+      - name: Install dependencies
+        working-directory: backero-backend
+        run: npm ci
 
-  frontend:
+      - name: Syntax-check all source files
+        working-directory: backero-backend
+        run: find src server.js -name "*.js" -print0 | xargs -0 -n1 node --check
+        # Note: package.json has a "test": "jest" script but jest isn't actually
+        # a dependency and no test files exist yet — nothing to run here until
+        # real tests are added.
+
+  check-frontend:
     runs-on: ubuntu-latest
     steps:
       # Full repo checkout (not sparse) — vite.config.js's dashboardSyncPlugin
@@ -43,22 +41,71 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "20"
+          cache: "npm"
+          cache-dependency-path: backero-frontend/package-lock.json
 
       - name: Install and build
         working-directory: backero-frontend
-        env:
-          VITE_API_URL: ${{ secrets.VITE_API_URL }}
-          VITE_WORKFLOW_API_URL: ${{ secrets.VITE_WORKFLOW_API_URL }}
         run: |
           npm ci
           npm run build
 
-      - name: Upload dist/ to the Droplet's Nginx web root
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-dist
+          path: backero-frontend/dist
+          retention-days: 1
+
+  deploy:
+    needs: [check-backend, check-frontend]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy backend (git checkout + pm2 restart)
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.DROPLET_HOST }}
+          username: ${{ secrets.DROPLET_USER }}
+          key: ${{ secrets.DROPLET_SSH_KEY }}
+          script: |
+            set -e
+            cd /root/Task_Workflow
+            git fetch origin
+            git checkout ${{ github.sha }}
+            cd backero-backend
+            npm install --omit=dev
+            pm2 restart backero-backend
+            sleep 3
+            pm2 describe backero-backend | grep -q "online" || (echo "backend did not come online" && exit 1)
+
+      - name: Download frontend build artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: frontend-dist
+          path: dist
+
+      - name: Upload frontend build to Droplet (staging dir)
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.DROPLET_HOST }}
           username: ${{ secrets.DROPLET_USER }}
           key: ${{ secrets.DROPLET_SSH_KEY }}
-          source: "backero-frontend/dist/**"
-          target: "/opt/backero/frontend"
-          strip_components: 2
+          source: "dist/**"
+          target: "/var/www/task-workflow-frontend/dist-new"
+          strip_components: 1
+
+      - name: Atomically swap in the new frontend build
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.DROPLET_HOST }}
+          username: ${{ secrets.DROPLET_USER }}
+          key: ${{ secrets.DROPLET_SSH_KEY }}
+          script: |
+            set -e
+            cd /var/www/task-workflow-frontend
+            test -f dist-new/index.html
+            mv dist dist.bak.$(date +%Y%m%d%H%M%S)
+            mv dist-new dist
+            # Keep only the 5 most recent backups so these don't accumulate forever.
+            ls -1dt dist.bak.* | tail -n +6 | xargs -r rm -rf
