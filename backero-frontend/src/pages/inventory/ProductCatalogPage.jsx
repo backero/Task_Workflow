@@ -540,7 +540,8 @@ export default function ProductCatalogPage() {
                       <p className="text-xs text-slate-400 mt-1">Add a product or import from CSV</p>
                     </td></tr>
                   ) : products.map(p => {
-                    const cost = calcTotalCostPerUnit(p);
+                    const b = calcOverheadBreakdown(p);
+                    const cost = b.formCost + b.saAmount + b.overheadPerUnit + b.rndPerUnit + b.pkgCost;
                     return (
                       <tr key={p._id} className="border-b border-slate-50 hover:bg-slate-50/60 transition-colors">
                         <td className="px-4 py-3">
