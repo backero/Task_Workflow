@@ -20,7 +20,7 @@ export const PRODUCT_TYPES = ['Shampoo', 'Conditioner', 'Hair Oil', 'Serum', 'Cr
 export const UNITS = ['ml', 'g', 'kg', 'L', 'pcs', 'oz'];
 export const GST_RATES = [0, 5, 12, 18, 28];
 export const STATUSES = ['Active', 'Inactive', 'Draft', 'Archived'];
-const TABS = ['Overview', 'Formulation & Procedure', 'Cost of Goods', 'R&D Price Calculator', 'R&D & Overheads', 'Costing', 'Marketplace', 'QR Code', 'Documents', 'History'];
+const TABS = ['Overview', 'Formulation & Procedure', 'R&D Price Calculator', 'R&D & Overheads', 'Costing', 'Marketplace', 'QR Code', 'Documents', 'History'];
 
 const ASSUMPTION_FIELDS = [
   { key: 'equipmentPct', label: 'Equipment (Mold/Tools)', max: 20, hint: '3-5% recommended' },
@@ -95,37 +95,11 @@ function calcFormCost(product) {
   // edited but not yet saved. Deriving it live is always correct for both cases.
   const refWeight = Number(product.formulation.refWeight) || 100;
   return product.formulation.rows.reduce((sum, r) => {
-    const cost = r.costPerKg || 0;
+    const costPrice = r.costPerKg || 0;
     const qty = refWeight * (Number(r.percentage) || 0) / 100 * (Number(r.convFactor) || 1);
-    const unit = r.unit || 'g';
-    if (cost === 0 || qty === 0) return sum;
-
-    let costPerUnit = cost;
-    if (cost > 0) {
-      switch(unit) {
-        case 'g':
-          costPerUnit = cost / 1000;
-          break;
-        case 'kg':
-          costPerUnit = cost;
-          break;
-        case 'ml':
-          costPerUnit = cost / 1000;
-          break;
-        case 'L':
-          costPerUnit = cost;
-          break;
-        case 'oz':
-          costPerUnit = cost / 35.274;
-          break;
-        case 'pcs':
-          costPerUnit = cost;
-          break;
-        default:
-          costPerUnit = cost / 1000;
-      }
-    }
-    return sum + (costPerUnit * qty);
+    if (costPrice === 0 || qty === 0) return sum;
+    // costPrice is already per unit, just multiply by quantity
+    return sum + (costPrice * qty);
   }, 0);
 }
 
@@ -476,7 +450,12 @@ export default function ProductCatalogPage() {
 
   useEffect(() => {
     if (detail && !showForm) {
-      setForm({ ...emptyForm(), ...detail });
+      const form = { ...emptyForm(), ...detail };
+      // Ensure formulation refUnit matches product unit
+      if (form.formulation) {
+        form.formulation.refUnit = detail.unit || 'ml';
+      }
+      setForm(form);
     }
   }, [detail?._id]);
 
@@ -793,7 +772,6 @@ export default function ProductCatalogPage() {
                   onDeleteVersion: (versionId) => deleteVersionMutation.mutate({ id: detail._id, versionId }),
                   state: { creating: createVersionMutation.isPending, updating: updateVersionMutation.isPending, activating: activateVersionMutation.isPending, deleting: deleteVersionMutation.isPending },
                 }} />}
-              {activeTab === 'Cost of Goods' && <CostOfGoodsTab product={detail} />}
               {activeTab === 'R&D Price Calculator' && (
                 <div className="-m-6">
                   <RDPriceCalculator presetProduct={detail} />
@@ -1024,36 +1002,11 @@ function FormulationTab({ product, form, setForm, onSave, isPending }) {
     }
   }
 
-  function calcCostContribution(costPerKg, qty, unit = 'g') {
-    const cost = costPerKg || 0;
+  function calcCostContribution(costPrice, qty) {
+    const cost = costPrice || 0;
     if (cost === 0 || qty === 0) return 0;
-
-    let costPerUnit = cost;
-    if (cost > 0) {
-      switch(unit) {
-        case 'g':
-          costPerUnit = cost / 1000;
-          break;
-        case 'kg':
-          costPerUnit = cost;
-          break;
-        case 'ml':
-          costPerUnit = cost / 1000;
-          break;
-        case 'L':
-          costPerUnit = cost;
-          break;
-        case 'oz':
-          costPerUnit = cost / 35.274;
-          break;
-        case 'pcs':
-          costPerUnit = cost;
-          break;
-        default:
-          costPerUnit = cost / 1000;
-      }
-    }
-    return costPerUnit * qty;
+    // costPrice is already per unit, just multiply by quantity
+    return cost * qty;
   }
 
   const [resolving, setResolving] = useState(false);
@@ -1076,31 +1029,44 @@ function FormulationTab({ product, form, setForm, onSave, isPending }) {
   const rawMaterials = rmData || [];
 
   function matForRow(r) {
-    if (!r.rawMaterialId) {
-      // Fallback: match by name if rawMaterialId not set
-      if (r.name) {
-        return rawMaterials.find(m => m.name?.toLowerCase() === r.name.toLowerCase()) || null;
-      }
-      return null;
-    }
+    if (!r.rawMaterialId) return null;
     return rawMaterials.find(m => m._id === r.rawMaterialId || m._id?.toString() === r.rawMaterialId) || null;
   }
   function toggleExpand(i) {
     setExpanded(s => { const n = new Set(s); if (n.has(i)) n.delete(i); else n.add(i); return n; });
   }
 
-  // Auto-sync: when raw materials load, update costPerKg for all linked rows
+  // Auto-sync: when raw materials load, update costPerKg for all rows and auto-link unlinked ones by name
   useEffect(() => {
     if (!rawMaterials.length) return;
     setForm(f => {
       const rows = (f.formulation?.rows || []);
-      if (!rows.some(r => r.rawMaterialId)) return f; // nothing linked, skip
       const updated = rows.map(r => {
-        if (!r.rawMaterialId) return r;
-        const mat = rawMaterials.find(m => m._id === r.rawMaterialId || m._id?.toString() === r.rawMaterialId);
+        let mat = null;
+
+        // If already linked, find by ID
+        if (r.rawMaterialId) {
+          mat = rawMaterials.find(m =>
+            m._id === r.rawMaterialId ||
+            m._id?.toString() === r.rawMaterialId
+          );
+        }
+
+        // If not found by ID, try name matching (auto-link)
+        if (!mat && r.name) {
+          mat = rawMaterials.find(m => m.name?.toLowerCase() === r.name?.toLowerCase());
+        }
+
         if (!mat) return r;
+
         const liveCost = parseFloat(mat.costPrice) || 0;
-        return liveCost !== Number(r.costPerKg) ? { ...r, costPerKg: liveCost } : r;
+        // Update or establish link and cost
+        return {
+          ...r,
+          rawMaterialId: mat._id,
+          costPerKg: liveCost,
+          unit: mat.unit || r.unit
+        };
       });
       const changed = updated.some((r, i) => r !== rows[i]);
       return changed ? { ...f, formulation: { ...f.formulation, rows: updated } } : f;
@@ -1199,11 +1165,8 @@ function FormulationTab({ product, form, setForm, onSave, isPending }) {
               const isOpen = expanded.has(i);
               const conv = Number(r.convFactor) || 1;
               const qty = refWeight * (Number(r.percentage) || 0) / 100 * conv;
-              // Prioritize row's stored costPerKg, then try to fetch from raw material
-              const storedCost = Number(r.costPerKg) || 0;
-              const fetchedCost = mat?.costPrice || 0;
-              const matCostPerKg = fetchedCost > 0 ? fetchedCost : storedCost;
-              const costPerUnit = getUnitCost(matCostPerKg, r.unit || 'g');
+              const matCostPrice = mat?.costPerKg || Number(r.costPerKg) || 0;
+              const costPerUnit = matCostPrice * (Number(r.percentage) || 0) / 100;
               return (
                 <React.Fragment key={i}>
                   <tr className="border-t border-gray-100 dark:border-[#1b2e4a]">
@@ -1228,7 +1191,7 @@ function FormulationTab({ product, form, setForm, onSave, isPending }) {
                     <td className="px-3 py-1.5">
                       <span className="text-emerald-600 dark:text-emerald-400 font-semibold">₹{numF(costPerUnit, 2)}</span>
                     </td>
-                    <td className="px-3 py-1.5 text-emerald-600 dark:text-emerald-400 font-mono font-semibold">₹{numF(calcCostContribution(matCostPerKg, qty, r.unit || 'g'), 2)}</td>
+                    <td className="px-3 py-1.5 text-emerald-600 dark:text-emerald-400 font-mono font-semibold">₹{numF(calcCostContribution(matCostPrice, qty), 2)}</td>
                     <td className="px-3 py-1.5"><button onClick={() => removeRow(i)} className="text-red-400 hover:text-red-600"><X size={13} /></button></td>
                   </tr>
                   {isOpen && (
@@ -1623,8 +1586,8 @@ function CostingTab({ product, form, setForm, onSave, isPending }) {
         <HighlightStrip tone="dark" items={[
           { label: 'Ingredients', value: `₹${numF(b.formCost)}` },
           { label: 'Packaging', value: `₹${numF(b.pkgCost)}` },
-          { label: 'Overhead', value: `₹${numF(b.overheadPerUnit + b.saAmount)}` },
-          { label: 'R&D Per Unit', value: `₹${numF(b.rndPerUnit)}` },
+          { label: 'Overhead', value: `₹${numF(b.overheadPerUnit)}` },
+          { label: 'R&D Per Unit', value: `₹${numF(b.saAmount)}` },
           { label: 'Grand Total / Unit', value: `₹${numF(costPerUnit)}`, big: true, accent: true },
         ]} />
       </div>
@@ -2284,97 +2247,3 @@ function HistoryTab({ product: p }) {
   );
 }
 
-// ─── Cost of Goods (COGS) Tab ──────────────────────────────────────────────────
-function CostOfGoodsTab({ product }) {
-  const [cogsData, setCogsData] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-
-  useEffect(() => {
-    async function fetchCogs() {
-      try {
-        const res = await api.get(`/catalog/products/${product._id}/cogs-breakdown`);
-        setCogsData(res.data.cogsBreakdown || []);
-        setError(null);
-      } catch (err) {
-        setError(err?.response?.data?.message || 'Failed to load COGS data');
-        setCogsData(null);
-      } finally {
-        setLoading(false);
-      }
-    }
-    if (product?._id) fetchCogs();
-  }, [product?._id]);
-
-  if (loading) {
-    return <div className="text-center py-12 text-slate-400">Loading cost breakdown…</div>;
-  }
-
-  if (error) {
-    return <div className="bg-red-50 border border-red-200 rounded-lg px-4 py-3 text-sm text-red-700">{error}</div>;
-  }
-
-  if (!cogsData || cogsData.length === 0) {
-    return <div className="text-center py-12 text-slate-400">No cost data available. Ensure product has an active formulation.</div>;
-  }
-
-  return (
-    <div className="space-y-6">
-      <div>
-        <p className="text-sm font-bold text-slate-900 flex items-center gap-1.5 mb-4"><BarChart3 size={14} />Cost of Goods Breakdown</p>
-        <div className="overflow-x-auto rounded-xl border border-slate-200">
-          <table className="w-full text-xs">
-            <thead className="bg-slate-50">
-              <tr>
-                {['SKU Weight', 'Material Cost (₹)', 'R&D Cost Per Unit (₹)', 'Overhead Per Unit (₹)', 'Direct Base Cost (₹)', '14% Allowances (₹)', 'Total Cost Ex-GST (₹)', 'Total Cost Incl. GST (₹)'].map(h => (
-                  <th key={h} className="px-4 py-2.5 text-left font-semibold text-slate-600 whitespace-nowrap">{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {cogsData.map((row, i) => (
-                <tr key={i} className="border-t border-slate-100 hover:bg-slate-50 transition-colors">
-                  <td className="px-4 py-2.5 font-semibold text-slate-800">{row.skuWeight}</td>
-                  <td className="px-4 py-2.5 text-slate-700">₹{numF(row.materialCostExGst, 4)}</td>
-                  <td className="px-4 py-2.5 text-slate-700">₹{numF(row.rdCostPerUnit, 4)}</td>
-                  <td className="px-4 py-2.5 text-slate-700">₹{numF(row.overheadPerUnit, 4)}</td>
-                  <td className="px-4 py-2.5 text-slate-700">₹{numF(row.directBaseCost, 4)}</td>
-                  <td className="px-4 py-2.5 text-slate-700">₹{numF(row.allowances14Pct, 4)}</td>
-                  <td className="px-4 py-2.5 font-semibold text-emerald-700">₹{numF(row.totalCostExGst, 4)}</td>
-                  <td className="px-4 py-2.5 font-bold text-blue-700">₹{numF(row.totalCostInclGst, 4)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-2 gap-4">
-        <div className="rounded-lg border border-slate-200 p-4 bg-slate-50">
-          <p className="text-xs text-slate-500 font-semibold uppercase mb-2">Assumptions</p>
-          <div className="space-y-1 text-xs text-slate-700">
-            <div>• R&D Testing: ₹3,000</div>
-            <div>• R&D Consumables: ₹2,000</div>
-            <div>• Sampling Wastage: ₹1,000</div>
-            <div>• Production Electricity: ₹200</div>
-            <div>• Labor Cost: ₹160</div>
-            <div>• QC Testing: ₹2,000</div>
-            <div>• Standard Allowance: 14%</div>
-            <div>• End Product GST: 5%</div>
-          </div>
-        </div>
-
-        <div className="rounded-lg border border-slate-200 p-4 bg-slate-50">
-          <p className="text-xs text-slate-500 font-semibold uppercase mb-2">SKU Configuration</p>
-          <div className="space-y-1 text-xs text-slate-700">
-            <div>• 100g: 5,000 lifetime units, 100 per batch</div>
-            <div>• 75g: 6,667 lifetime units, 150 per batch</div>
-            <div>• 50g: 10,000 lifetime units, 200 per batch</div>
-            <div>• 25g: 20,000 lifetime units, 400 per batch</div>
-            <div>• 10g: 50,000 lifetime units, 1,000 per batch</div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
