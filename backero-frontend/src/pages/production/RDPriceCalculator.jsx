@@ -206,7 +206,7 @@ export default function RDPriceCalculator({ presetProduct } = {}) {
           localStorage.setItem(RM_KEY, JSON.stringify({ materials: rmRes.data.materials }));
           setRawMaterials((rmRes.data.materials || []).map(m => ({
             id: m._id || m.id || '', code: m.code || '', name: m.name || '',
-            unit: m.unit || 'kg', unitPrice: parseFloat(m.unitPrice) || 0
+            unit: m.unit || 'kg', unitPrice: parseFloat(m.costPrice) || 0
           })));
         }
       } catch (e) { /* silent fail */ }
