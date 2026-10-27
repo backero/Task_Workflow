@@ -2285,7 +2285,7 @@ function CostOfGoodsTab({ product }) {
     async function fetchCogs() {
       try {
         const res = await api.get(`/catalog/products/${product._id}/cogs-breakdown`);
-        setCogsData(res.data.breakdown || []);
+        setCogsData(res.data.cogsBreakdown || []);
         setError(null);
       } catch (err) {
         setError(err?.response?.data?.message || 'Failed to load COGS data');
