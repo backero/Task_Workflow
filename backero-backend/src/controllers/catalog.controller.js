@@ -463,23 +463,37 @@ exports.getCogsBreakdown = asyncHandler(async (req, res) => {
   const p = await CatalogProduct.findOne({ _id: req.params.id, organizationId: req.user.organizationId });
   if (!p) return sendError(res, 'Product not found', 404);
 
-  const formulation = p.formulation || {};
-  const rows = formulation.rows || [];
+  // Check both live formulation and active version
+  let rows = p.formulation?.rows || [];
 
-  if (!rows.length) return sendError(res, 'No formulation found', 400);
+  // If no live formulation, check for active locked version
+  if (!rows.length && p.formulationVersions && p.formulationVersions.length > 0) {
+    const activeVersion = p.formulationVersions.find(v => v.status === 'locked');
+    if (activeVersion) {
+      rows = activeVersion.rows || [];
+    }
+  }
 
-  // Build BOM from formulation rows
+  if (!rows.length) return sendError(res, 'No active formulation found for this product', 400);
+
+  // Build BOM from formulation rows - enrich with raw material costs
   const billOfMaterials = await Promise.all(rows.map(async (row) => {
-    const rm = await Product.findOne({
-      organizationId: req.user.organizationId,
-      isRawMaterial: true,
-      $or: [{ sku: row.rawMaterialId }, { _id: row.rawMaterialId }, { name: row.name }]
-    });
+    // Try to find the raw material to get current cost
+    let cost = row.costPerKg || 0;
+
+    if (row.rawMaterialId) {
+      const rm = await Product.findOne({
+        organizationId: req.user.organizationId,
+        isRawMaterial: true,
+        $or: [{ sku: row.rawMaterialId }, { _id: row.rawMaterialId }]
+      });
+      if (rm) cost = rm.costPrice || 0;
+    }
 
     return {
       name: row.name || 'Unknown',
       quantity: row.quantity || 0,
-      costPerUnit: rm?.costPrice || row.costPerKg || 0,
+      costPerUnit: parseFloat(cost) || 0,
       gstRate: 0.18
     };
   }));
