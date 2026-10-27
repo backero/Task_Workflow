@@ -192,9 +192,9 @@ export default function RDPriceCalculator({ presetProduct } = {}) {
   const [nextQuoteId, setNextQuoteId] = useState(initial.nextQuoteId);
 
   // ---- shared read-only DBs (loaded once) ----
-  const [rawMaterials] = useState(initial.rawMaterials);
-  const [catalogProducts] = useState(initial.catalogProducts);
-  const [devCustomers] = useState(initial.devCustomers);
+  const [rawMaterials, setRawMaterials] = useState(initial.rawMaterials);
+  const [catalogProducts, setCatalogProducts] = useState(initial.catalogProducts);
+  const [devCustomers, setDevCustomers] = useState(initial.devCustomers);
 
   // Auto-sync backend data to localStorage on mount
   useEffect(() => {
@@ -204,6 +204,10 @@ export default function RDPriceCalculator({ presetProduct } = {}) {
         const rmRes = await api.get('/inventory/raw-materials').catch(() => null);
         if (rmRes?.data?.materials) {
           localStorage.setItem(RM_KEY, JSON.stringify({ materials: rmRes.data.materials }));
+          setRawMaterials((rmRes.data.materials || []).map(m => ({
+            id: m._id || m.id || '', code: m.code || '', name: m.name || '',
+            unit: m.unit || 'kg', unitPrice: parseFloat(m.unitPrice) || 0
+          })));
         }
       } catch (e) { /* silent fail */ }
 
@@ -212,6 +216,10 @@ export default function RDPriceCalculator({ presetProduct } = {}) {
         const catRes = await api.get('/catalog/products').catch(() => null);
         if (catRes?.data?.products) {
           localStorage.setItem(CAT_KEY, JSON.stringify({ products: catRes.data.products }));
+          setCatalogProducts((catRes.data.products || []).map(p => ({
+            code: p.code || '', name: p.name || '', category: p.category || '',
+            formulation: p.formulation || null
+          })));
         }
       } catch (e) { /* silent fail */ }
 
@@ -223,14 +231,13 @@ export default function RDPriceCalculator({ presetProduct } = {}) {
           const leads = custRes.data.leads || custRes.data.data || custRes.data;
           const leadsArray = Array.isArray(leads) ? leads : [];
           if (leadsArray.length > 0) {
+            localStorage.setItem(SD_KEY, JSON.stringify({ customers: leadsArray }));
             const customers = leadsArray.map(lead => ({
               id: lead.code || lead._id || lead.id || '',
               name: lead.customerName || lead.name || '',
               contact: lead.contact || lead.mobile || lead.email || ''
-            })).filter(c => c.name); // Only include entries with a name
-            if (customers.length > 0) {
-              localStorage.setItem(SD_KEY, JSON.stringify({ customers }));
-            }
+            })).filter(c => c.name);
+            setDevCustomers(customers);
           }
         }
       } catch (e) { /* silent fail */ }
@@ -396,7 +403,7 @@ export default function RDPriceCalculator({ presetProduct } = {}) {
       const unit = rm ? rm.unit : (['kg', 'l', 'liter', 'litre'].indexOf((r.unit || '').toLowerCase()) >= 0 ? r.unit : (r.unit || 'g'));
       return {
         name: (rm && rm.name) || r.name || '', code: rm ? (rm.code || r.code || '') : (r.code || ''),
-        unit, unitPrice: rm ? (rm.costPerKg || 0) : (parseFloat(r.unitPrice) || 0),
+        unit, unitPrice: rm ? (rm.unitPrice || 0) : (parseFloat(r.unitPrice) || 0),
         pct, qty: Math.round((pct / 100) * size * 100) / 100
       };
     });
