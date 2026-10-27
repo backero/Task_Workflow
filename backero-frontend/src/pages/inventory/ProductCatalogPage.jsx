@@ -1093,7 +1093,7 @@ function FormulationTab({ product, form, setForm, onSave, isPending }) {
         if (!r.rawMaterialId) return r;
         const mat = rawMaterials.find(m => m._id === r.rawMaterialId || m._id?.toString() === r.rawMaterialId);
         if (!mat) return r;
-        const liveCost = mat.costPrice || 0;
+        const liveCost = parseFloat(mat.costPrice) || 0;
         return liveCost !== Number(r.costPerKg) ? { ...r, costPerKg: liveCost } : r;
       });
       const changed = updated.some((r, i) => r !== rows[i]);
@@ -1193,8 +1193,8 @@ function FormulationTab({ product, form, setForm, onSave, isPending }) {
               const isOpen = expanded.has(i);
               const conv = Number(r.convFactor) || 1;
               const qty = refWeight * (Number(r.percentage) || 0) / 100 * conv;
-              const matCostPerKg = mat?.costPerKg || Number(r.costPerKg) || 0;
-              const costPerUnit = getUnitCost(matCostPerKg, r.unit || 'g') * (Number(r.percentage) || 0) / 100;
+              const matCostPerKg = mat?.costPrice || Number(r.costPerKg) || 0;
+              const costPerUnit = getUnitCost(matCostPerKg, r.unit || 'g');
               return (
                 <React.Fragment key={i}>
                   <tr className="border-t border-gray-100 dark:border-[#1b2e4a]">
