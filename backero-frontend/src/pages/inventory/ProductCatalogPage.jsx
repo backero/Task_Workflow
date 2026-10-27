@@ -1076,7 +1076,13 @@ function FormulationTab({ product, form, setForm, onSave, isPending }) {
   const rawMaterials = rmData || [];
 
   function matForRow(r) {
-    if (!r.rawMaterialId) return null;
+    if (!r.rawMaterialId) {
+      // Fallback: match by name if rawMaterialId not set
+      if (r.name) {
+        return rawMaterials.find(m => m.name?.toLowerCase() === r.name.toLowerCase()) || null;
+      }
+      return null;
+    }
     return rawMaterials.find(m => m._id === r.rawMaterialId || m._id?.toString() === r.rawMaterialId) || null;
   }
   function toggleExpand(i) {
