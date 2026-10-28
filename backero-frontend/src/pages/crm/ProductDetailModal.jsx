@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
+import { useNavigate } from 'react-router-dom';
 import api from '../../api/axios';
 import RDPriceCalculator from '../production/RDPriceCalculator';
 
 export default function ProductDetailModal({ productId, onClose, refetchLead }) {
+  const navigate = useNavigate();
   const qc = useQueryClient();
   const { data: productData, isLoading, refetch } = useQuery({
     queryKey: ['catalog-detail', productId],
@@ -61,6 +63,16 @@ export default function ProductDetailModal({ productId, onClose, refetchLead }) 
             <p className="text-sm text-[#8a8171]">{product.code} • {product.category} {product.type && `• ${product.type}`}</p>
           </div>
           <div className="flex items-center gap-2">
+            <button
+              onClick={() => {
+                onClose();
+                navigate(`/inventory/catalog?productId=${productId}`);
+              }}
+              title="Edit in Product Catalog"
+              className="px-4 py-2 rounded-full bg-[#669c2c] text-white text-xs font-semibold hover:brightness-95 transition"
+            >
+              Edit
+            </button>
             <button
               onClick={() => setIsMaximized(!isMaximized)}
               title={isMaximized ? 'Minimize' : 'Maximize'}
