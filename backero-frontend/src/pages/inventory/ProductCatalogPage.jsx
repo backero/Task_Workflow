@@ -7,6 +7,7 @@ import { useSearchParams } from 'react-router-dom';
 import QRCode from 'react-qr-code';
 import api from '../../api/axios';
 import RDPriceCalculator from '../production/RDPriceCalculator';
+import ProductDetailModal from '../crm/ProductDetailModal';
 import {
   ShoppingCart, Package, Tag, Circle, RefreshCw, Download, Upload as UploadIcon, Plus, CircleCheck,
   Search, List, LayoutGrid, Eye, Pencil, Trash2, X, Camera, Save, Image as ImageIcon, Clipboard, Ruler,
@@ -177,6 +178,7 @@ export default function ProductCatalogPage() {
   const [form, setForm] = useState(emptyForm());
   const [importing, setImporting] = useState(false);
   const [imagePreview, setImagePreview] = useState(null);
+  const [viewingProductDetailId, setViewingProductDetailId] = useState(null);
 
   const { data: listData, isLoading, isError } = useQuery({
     queryKey: ['catalog', search, categoryFilter, statusFilter],
@@ -358,7 +360,11 @@ export default function ProductCatalogPage() {
   }
   function closeForm() { setShowForm(false); setEditingProduct(null); setImagePreview(null); }
 
-  function openDetail(p) { setSelectedId(p._id); setActiveTab('Overview'); }
+  function openDetail(p) {
+    setSelectedId(p._id);
+    setActiveTab('Overview');
+    setViewingProductDetailId(p._id);
+  }
   function closeDetail() { setSelectedId(null); setDetailMaximized(false); }
 
   function setF(field, val) { setForm(f => ({ ...f, [field]: val })); }
@@ -806,6 +812,15 @@ export default function ProductCatalogPage() {
           </div>
         </div>,
         document.body
+      )}
+
+      {/* ════════════ PRODUCT DETAIL MODAL (Mirrored Product Catalog) ════════════ */}
+      {viewingProductDetailId && (
+        <ProductDetailModal
+          productId={viewingProductDetailId}
+          onClose={() => setViewingProductDetailId(null)}
+          refetchLead={() => { qc.invalidateQueries({ queryKey: ['catalog'] }); }}
+        />
       )}
     </div>
   );
