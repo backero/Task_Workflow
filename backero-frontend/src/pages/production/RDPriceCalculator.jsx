@@ -1216,9 +1216,6 @@ export default function RDPriceCalculator({ presetProduct } = {}) {
                       </tbody>
                     </table>
                   </div>
-                  <div className="pricing-highlight" style={{ marginBottom: '14px' }}>
-                    <div><div className="label">Price for each EXTRA correction round (after the included ones)</div><div className="value">{fmtMoney(liveCalc.extraRound)} / round</div></div>
-                  </div>
                   <div style={{ marginBottom: '16px' }}>
                     <div className="info-note" style={{ marginBottom: '8px' }}><Lightbulb size={14} style={{ verticalAlign: '-2px', marginRight: 4 }} />{TIER_DEFS[liveCalc.tier].typical} for "{TIER_DEFS[liveCalc.tier].name}".</div>
                     {(liveCalc.fee < GUARD_LOW || liveCalc.fee > GUARD_HIGH) ? (
