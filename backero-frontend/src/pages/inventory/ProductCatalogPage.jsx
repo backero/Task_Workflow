@@ -7,7 +7,6 @@ import { useSearchParams } from 'react-router-dom';
 import QRCode from 'react-qr-code';
 import api from '../../api/axios';
 import RDPriceCalculator from '../production/RDPriceCalculator';
-import ProductDetailModal from '../crm/ProductDetailModal';
 import {
   ShoppingCart, Package, Tag, Circle, RefreshCw, Download, Upload as UploadIcon, Plus, CircleCheck,
   Search, List, LayoutGrid, Eye, Pencil, Trash2, X, Camera, Save, Image as ImageIcon, Clipboard, Ruler,
@@ -814,14 +813,6 @@ export default function ProductCatalogPage() {
         document.body
       )}
 
-      {/* ════════════ PRODUCT DETAIL MODAL (Mirrored Product Catalog) ════════════ */}
-      {viewingProductDetailId && (
-        <ProductDetailModal
-          productId={viewingProductDetailId}
-          onClose={() => setViewingProductDetailId(null)}
-          refetchLead={() => { qc.invalidateQueries({ queryKey: ['catalog'] }); }}
-        />
-      )}
     </div>
   );
 }

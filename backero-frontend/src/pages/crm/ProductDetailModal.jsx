@@ -1,15 +1,32 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import toast from 'react-hot-toast';
-import { useNavigate } from 'react-router-dom';
+import { toast } from 'react-hot-toast';
+import { clsx } from 'clsx';
+import QRCode from 'react-qr-code';
 import api from '../../api/axios';
 import RDPriceCalculator from '../production/RDPriceCalculator';
+import {
+  Package, Pencil, Trash2, X, Camera, Save, Clipboard, Ruler, IndianRupee, Calendar,
+  Award, Calculator, QrCode, Printer, Video, Mic, FileText, Paperclip, Microscope, Factory,
+  FileEdit, Square, Clock, ScrollText, Minimize2, Maximize2
+} from 'lucide-react';
 
-// Calculate formulation cost per unit
-function calcFormCost(product) {
-  if (!product?.formulation?.rows?.length) return 0;
-  const refWeight = Number(product.formulation.refWeight) || 100;
-  return product.formulation.rows.reduce((sum, r) => {
+export const CATEGORIES = ['Hair Care', 'Skin Care', 'Face Care', 'Body Care', 'Oral Care', "Men's Care", 'Baby Care', 'Sun Care', 'Makeup', 'Fragrance', 'Wellness', 'Professional', 'Other'];
+export const PRODUCT_TYPES = ['Shampoo', 'Conditioner', 'Hair Oil', 'Serum', 'Cream', 'Lotion', 'Face Wash', 'Mask', 'Scrub', 'Toner', 'Moisturizer', 'Cleanser', 'Soap', 'Body Wash', 'Sunscreen', 'Lip Balm', 'Deodorant', 'Perfume', 'Other'];
+export const UNITS = ['ml', 'g', 'kg', 'L', 'pcs', 'oz'];
+export const GST_RATES = [0, 5, 12, 18, 28];
+export const STATUSES = ['Active', 'Inactive', 'Draft', 'Archived'];
+const TABS = ['Overview', 'Formulation & Procedure', 'R&D Price Calculator', 'R&D & Overheads', 'Costing', 'Marketplace', 'QR Code', 'Documents', 'History'];
+
+function fmtDate(d) {
+  return d ? new Date(d).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—';
+}
+
+function calcFormCost(p) {
+  if (!p?.formulation?.rows?.length) return 0;
+  const refWeight = Number(p.formulation.refWeight) || 100;
+  return p.formulation.rows.reduce((sum, r) => {
     const costPrice = r.costPerKg || 0;
     const qty = refWeight * (Number(r.percentage) || 0) / 100 * (Number(r.convFactor) || 1);
     if (costPrice === 0 || qty === 0) return sum;
@@ -17,37 +34,57 @@ function calcFormCost(product) {
   }, 0);
 }
 
+function calcOverheadBreakdown(p) {
+  const formCost = calcFormCost(p);
+  const packCost = p.costing?.packagingCost || 0;
+  const saAmount = formCost * ((p.standardAssumptions?.adminPct || 0) / 100);
+  const overheadPerUnit = formCost * ((p.productionOverhead?.percentage || 0) / 100);
+  const rndPerUnit = p.rnd?.costPerUnit || 0;
+  return { formCost, packCost, saAmount, overheadPerUnit, rndPerUnit };
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════════════════
+// PRODUCT DETAIL MODAL - COMPLETE MIRROR OF PRODUCT CATALOG
+// ═══════════════════════════════════════════════════════════════════════════════════════════
+
 export default function ProductDetailModal({ productId, onClose, refetchLead }) {
-  const navigate = useNavigate();
   const qc = useQueryClient();
-  const { data: productData, isLoading, refetch } = useQuery({
+
+  // Load product detail
+  const { data: detailData, isLoading, refetch } = useQuery({
     queryKey: ['catalog-detail', productId],
     queryFn: () => api.get(`/catalog/products/${productId}`).then(r => r.data),
     enabled: !!productId,
   });
-  const product = productData?.product;
+  const detail = detailData?.product;
+
+  // UI state
   const [activeTab, setActiveTab] = useState('Overview');
-  const [editingFormulation, setEditingFormulation] = useState(false);
-  const [formulation, setFormulation] = useState(null);
-  const [isMaximized, setIsMaximized] = useState(false);
+  const [detailMaximized, setDetailMaximized] = useState(false);
 
-  useEffect(() => {
-    if (product?.formulation) {
-      setFormulation(JSON.parse(JSON.stringify(product.formulation)));
-    }
-  }, [product]);
-
-  const updateFormulationMutation = useMutation({
-    mutationFn: (data) => api.put(`/catalog/products/${productId}`, { formulation: data }),
-    onSuccess: () => {
-      refetch();
-      setEditingFormulation(false);
-      toast.success('Formulation saved successfully');
-    },
-    onError: () => toast.error('Failed to save formulation'),
+  // Form state for editing
+  const [form, setForm] = useState({
+    rndDoc: { text: '' },
+    procedure: { text: '' },
+    productionOverhead: { percentage: 0 },
+    rnd: { lifecycle: 1000 },
+    marketplace: { platforms: [] },
   });
 
-  // Detect product updates from ProductCatalog
+  // Sync form when product loads
+  useEffect(() => {
+    if (detail) {
+      setForm({
+        rndDoc: detail.rndDoc || { text: '' },
+        procedure: detail.procedure || { text: '' },
+        productionOverhead: detail.productionOverhead || { percentage: 0 },
+        rnd: detail.rnd || { lifecycle: 1000 },
+        marketplace: detail.marketplace || { platforms: [] },
+      });
+    }
+  }, [detail?._id]);
+
+  // Detect updates from ProductCatalogPage
   useEffect(() => {
     if (sessionStorage.getItem('productUpdated') === 'true') {
       refetch();
@@ -56,71 +93,59 @@ export default function ProductDetailModal({ productId, onClose, refetchLead }) 
     }
   }, [refetch, refetchLead]);
 
-  if (isLoading) return (
-    <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50">
-      <div className="bg-white rounded-xl p-8">Loading product details...</div>
-    </div>
-  );
-  if (!product) return null;
+  // ════ MUTATIONS ════
+  const updateMutation = useMutation({
+    mutationFn: (data) => api.put(`/catalog/products/${productId}`, data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['catalog'] });
+      qc.invalidateQueries({ queryKey: ['catalog-detail', productId] });
+      qc.invalidateQueries({ queryKey: ['production-orders'] });
+      sessionStorage.setItem('productUpdated', 'true');
+      sessionStorage.setItem('updatedProductId', productId);
+      toast.success('Saved');
+      refetch();
+    },
+    onError: (e) => toast.error(e?.response?.data?.message || 'Failed to save'),
+  });
 
-  const TABS = ['Overview', 'Formulation & Procedure', 'R&D Price Calculator', 'R&D & Overheads', 'Costing', 'Marketplace', 'QR Code', 'Documents'];
+  const deleteMutation = useMutation({
+    mutationFn: () => api.delete(`/catalog/products/${productId}`),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['catalog'] });
+      toast.success('Deleted');
+      onClose();
+    },
+    onError: () => toast.error('Failed to delete'),
+  });
 
-  return (
-    <div className={`fixed bg-black/40 flex items-center justify-center z-50 p-2 ${isMaximized ? 'inset-0' : 'inset-0'}`}>
-      <div className={`bg-white rounded-2xl shadow-2xl flex flex-col transition-all ${isMaximized ? 'w-full h-full max-h-screen' : 'w-full max-w-5xl max-h-[95vh]'}`}>
+  if (isLoading) return null;
+  if (!detail) return null;
+
+  const b = calcOverheadBreakdown(detail);
+  const totalCost = b.formCost + b.saAmount + b.overheadPerUnit + b.rndPerUnit + b.packCost;
+
+  return createPortal(
+    <div className={clsx('fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm overflow-y-auto', detailMaximized ? 'p-0' : 'p-4')}>
+      <div className={clsx('bg-white shadow-2xl border border-slate-200 flex flex-col',
+        detailMaximized ? 'w-screen h-screen max-w-none max-h-none rounded-none' : 'rounded-2xl w-full max-w-5xl my-4 max-h-[92vh]')}>
+
         {/* Header */}
-        <div className="border-b border-[#e7e2d6] p-6 flex items-center justify-between flex-shrink-0">
-          <div>
-            <h2 className="text-xl font-bold text-[#1c1917]">{product.name}</h2>
-            <p className="text-sm text-[#8a8171]">{product.code} • {product.category} {product.type && `• ${product.type}`}</p>
+        <div className="flex items-center gap-4 px-6 py-4 border-b border-slate-100 bg-slate-50 flex-shrink-0">
+          <div className="flex-1">
+            <h2 className="font-bold text-slate-900 text-lg">{detail.name}</h2>
+            <p className="text-xs text-slate-400">{detail.code} · {detail.category}{detail.type ? ` · ${detail.type}` : ''} · {detail.unit}</p>
           </div>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => {
-                onClose();
-                navigate(`/inventory/catalog?productId=${productId}`);
-              }}
-              title="Open in Product Catalog for full view and editing"
-              className="px-4 py-2 rounded-full bg-[#669c2c] text-white text-xs font-semibold hover:brightness-95 transition"
-            >
-              Open Full View
-            </button>
-            <button
-              onClick={() => setIsMaximized(!isMaximized)}
-              title={isMaximized ? 'Minimize' : 'Maximize'}
-              className="w-10 h-10 flex items-center justify-center rounded-full hover:bg-[#f1ede4] font-bold text-lg"
-            >
-              {isMaximized ? '−' : '+'}
-            </button>
-            <button
-              onClick={onClose}
-              title="Close"
-              className="w-10 h-10 flex items-center justify-center rounded-full hover:bg-[#f1ede4] font-bold text-xl"
-            >
-              ✕
-            </button>
-          </div>
-        </div>
-
-        {/* Quick Preview Banner */}
-        <div className="bg-[#fef3c7] border-b border-[#fcd34d] px-6 py-2 flex items-center justify-between">
-          <p className="text-xs text-[#92400e]">
-            <span className="font-semibold">Quick Preview:</span> For R&D Documentation, Manufacturing Procedure, Formulation Versions, and full editing capabilities, click "Open Full View"
-          </p>
+          <button onClick={() => { if (window.confirm('Delete ' + detail.name + '?')) deleteMutation.mutate(); }} className="px-3 py-1.5 rounded bg-red-50 text-red-600 text-xs font-semibold hover:bg-red-100">Delete</button>
+          <button onClick={() => setDetailMaximized(m => !m)} className="p-2 hover:bg-slate-100 rounded transition">{detailMaximized ? <Minimize2 size={16} /> : <Maximize2 size={16} />}</button>
+          <button onClick={onClose} className="p-2 hover:bg-slate-100 rounded transition"><X size={18} /></button>
         </div>
 
         {/* Tabs */}
-        <div className="border-b border-[#e7e2d6] px-6 flex gap-1 overflow-x-auto flex-shrink-0">
+        <div className="flex gap-0 px-6 bg-white border-b border-slate-100 overflow-x-auto flex-shrink-0">
           {TABS.map(tab => (
-            <button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
-              className={`px-4 py-3 text-sm font-semibold whitespace-nowrap border-b-2 transition-colors ${
-                activeTab === tab
-                  ? 'text-[#669c2c] border-[#669c2c]'
-                  : 'text-[#8a8171] border-transparent hover:text-[#1c1917]'
-              }`}
-            >
+            <button key={tab} onClick={() => setActiveTab(tab)}
+              className={clsx('px-4 py-3 text-xs font-semibold whitespace-nowrap border-b-2 transition-colors',
+                activeTab === tab ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-500 hover:text-slate-700')}>
               {tab}
             </button>
           ))}
@@ -128,285 +153,267 @@ export default function ProductDetailModal({ productId, onClose, refetchLead }) 
 
         {/* Content */}
         <div className="flex-1 overflow-y-auto p-6">
-          {activeTab === 'Overview' && (
-            <div className="space-y-6">
-              <div className="grid grid-cols-3 gap-6">
-                {/* Basic Info */}
-                <div>
-                  <label className="text-xs font-bold text-[#6b6155] uppercase tracking-wide block mb-2">SKU / Code</label>
-                  <p className="text-sm text-[#1c1917] font-mono">{product.code}</p>
-                </div>
-                <div>
-                  <label className="text-xs font-bold text-[#6b6155] uppercase tracking-wide block mb-2">Category</label>
-                  <p className="text-sm text-[#1c1917]">{product.category}</p>
-                </div>
-                <div>
-                  <label className="text-xs font-bold text-[#6b6155] uppercase tracking-wide block mb-2">Sub-Category</label>
-                  <p className="text-sm text-[#1c1917]">{product.subCategory || '—'}</p>
-                </div>
-                <div>
-                  <label className="text-xs font-bold text-[#6b6155] uppercase tracking-wide block mb-2">Type</label>
-                  <p className="text-sm text-[#1c1917]">{product.type || '—'}</p>
-                </div>
-                <div>
-                  <label className="text-xs font-bold text-[#6b6155] uppercase tracking-wide block mb-2">Status</label>
-                  <span className={`inline-block px-3 py-1 rounded-full text-xs font-bold ${
-                    product.status === 'Active' ? 'bg-[#d1fae5] text-[#065f46]' :
-                    product.status === 'Inactive' ? 'bg-[#fee2e2] text-[#991b1b]' :
-                    'bg-[#fef3c7] text-[#92400e]'
-                  }`}>
-                    {product.status}
-                  </span>
-                </div>
-              </div>
-
-              {/* Specifications */}
-              <div>
-                <h3 className="text-xs font-bold text-[#6b6155] uppercase tracking-wide mb-3">Specifications</h3>
-                <div className="grid grid-cols-3 gap-6">
-                  <div>
-                    <label className="text-xs text-[#8a8171] block mb-1">Base Unit</label>
-                    <p className="text-sm text-[#1c1917]">{product.unit}</p>
-                  </div>
-                  <div>
-                    <label className="text-xs text-[#8a8171] block mb-1">Reference Weight</label>
-                    <p className="text-sm text-[#1c1917]">{product.weight ? `${product.weight} ${product.unit}` : '—'}</p>
-                  </div>
-                  <div>
-                    <label className="text-xs text-[#8a8171] block mb-1">Shelf Life</label>
-                    <p className="text-sm text-[#1c1917]">{product.shelfLife ? `${product.shelfLife} months` : '—'}</p>
-                  </div>
-                  <div>
-                    <label className="text-xs text-[#8a8171] block mb-1">HSN Code</label>
-                    <p className="text-sm text-[#1c1917] font-mono">{product.hsnCode || '—'}</p>
-                  </div>
-                  <div>
-                    <label className="text-xs text-[#8a8171] block mb-1">GST Rate</label>
-                    <p className="text-sm text-[#1c1917]">{product.gstRate || '—'}%</p>
-                  </div>
-                  <div>
-                    <label className="text-xs text-[#8a8171] block mb-1">Barcode</label>
-                    <p className="text-sm text-[#1c1917] font-mono">{product.barcode || '—'}</p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Cost Per Unit */}
-              {product.costPerUnit && (
-                <div>
-                  <h3 className="text-xs font-bold text-[#6b6155] uppercase tracking-wide mb-3">Cost Per Unit</h3>
-                  <div>
-                    <label className="text-xs text-[#8a8171] block mb-1">Formulation Cost</label>
-                    <p className="text-sm font-bold text-[#669c2c]">₹{(product.costPerUnit || 0).toFixed(2)}</p>
-                  </div>
-                </div>
-              )}
-
-              {/* Certifications */}
-              {product.certifications && (
-                <div>
-                  <h3 className="text-xs font-bold text-[#6b6155] uppercase tracking-wide mb-3">Certifications</h3>
-                  <p className="text-sm text-[#1c1917]">{product.certifications}</p>
-                </div>
-              )}
-
-              {/* Description */}
-              {product.description && (
-                <div>
-                  <h3 className="text-xs font-bold text-[#6b6155] uppercase tracking-wide mb-3">Description</h3>
-                  <p className="text-sm text-[#1c1917] leading-relaxed">{product.description}</p>
-                </div>
-              )}
-            </div>
-          )}
+          {activeTab === 'Overview' && <BasicInfoTab product={detail} />}
 
           {activeTab === 'Formulation & Procedure' && (
-            <div className="space-y-4">
-              {formulation?.rows && formulation.rows.length > 0 ? (
-                <div>
-                  <div className="flex items-center justify-between mb-4">
-                    <div>
-                      <label className="text-xs font-bold text-[#6b6155] uppercase tracking-wide">Ref Weight / Volume</label>
-                      {editingFormulation ? (
-                        <input
-                          type="number"
-                          value={formulation.refWeight || 100}
-                          onChange={(e) => setFormulation({...formulation, refWeight: e.target.value})}
-                          className="mt-1 px-2 py-1 border border-[#ddd6c4] rounded text-sm"
-                        />
-                      ) : (
-                        <p className="text-sm text-[#1c1917] mt-1">{formulation.refWeight || 100} {product.unit}</p>
-                      )}
-                    </div>
-                    <button
-                      onClick={() => editingFormulation ? updateFormulationMutation.mutate(formulation) : setEditingFormulation(true)}
-                      disabled={updateFormulationMutation.isPending}
-                      className={`px-4 py-2 rounded-full text-sm font-semibold transition ${
-                        editingFormulation
-                          ? 'bg-[#669c2c] text-white hover:brightness-95'
-                          : 'bg-[#f1ede4] text-[#6b6155] hover:bg-[#e7e2d6]'
-                      }`}
-                    >
-                      {editingFormulation ? (updateFormulationMutation.isPending ? 'Saving...' : 'Save') : 'Edit'}
-                    </button>
-                  </div>
-
-                  <div className="overflow-x-auto rounded-lg border border-[#e7e2d6]">
-                    <table className="w-full text-sm">
-                      <thead>
-                        <tr className="bg-[#f1ede4] border-b border-[#e7e2d6]">
-                          <th className="px-3 py-2 text-left text-xs font-bold text-[#6b6155]">Ingredient</th>
-                          <th className="px-3 py-2 text-left text-xs font-bold text-[#6b6155]">%</th>
-                          <th className="px-3 py-2 text-left text-xs font-bold text-[#6b6155]">Qty</th>
-                          <th className="px-3 py-2 text-left text-xs font-bold text-[#6b6155]">Unit</th>
-                          <th className="px-3 py-2 text-left text-xs font-bold text-[#6b6155]">Cost</th>
+            <div className="space-y-6">
+              <div>
+                <h3 className="font-bold text-slate-900 mb-4 text-sm">Formulation ({detail.formulationVersions?.length || 1} versions)</h3>
+                {detail.formulation?.rows?.length > 0 ? (
+                  <div className="overflow-x-auto rounded border border-slate-200">
+                    <table className="w-full text-xs">
+                      <thead className="bg-slate-50 border-b border-slate-200">
+                        <tr>
+                          <th className="px-3 py-2 text-left font-semibold text-slate-600">Ingredient</th>
+                          <th className="px-3 py-2 text-left font-semibold text-slate-600">%</th>
+                          <th className="px-3 py-2 text-left font-semibold text-slate-600">Qty</th>
+                          <th className="px-3 py-2 text-left font-semibold text-slate-600">Cost/kg</th>
+                          <th className="px-3 py-2 text-left font-semibold text-slate-600">Amount</th>
                         </tr>
                       </thead>
                       <tbody>
-                        {formulation.rows.map((row, i) => {
-                          const refWeight = Number(formulation.refWeight) || 100;
-                          const costPrice = row.costPerKg || 0;
-                          const qty = refWeight * (Number(row.percentage) || 0) / 100 * (Number(row.convFactor) || 1);
-                          const costContribution = costPrice > 0 && qty > 0 ? costPrice * qty : 0;
+                        {detail.formulation.rows.map((r, i) => {
+                          const qty = (detail.formulation.refWeight || 100) * (Number(r.percentage) || 0) / 100 * (Number(r.convFactor) || 1);
+                          const cost = (r.costPerKg || 0) * qty;
                           return (
-                            <tr key={i} className="border-b border-[#e7e2d6]">
-                              <td className="px-3 py-2">
-                                {editingFormulation ? (
-                                  <input
-                                    value={row.name || row.ingredient || ''}
-                                    onChange={(e) => {
-                                      const newRows = [...formulation.rows];
-                                    newRows[i].name = e.target.value;
-                                    if (!newRows[i].ingredient) newRows[i].ingredient = e.target.value;
-                                    setFormulation({...formulation, rows: newRows});
-                                  }}
-                                    className="w-full px-2 py-1 border border-[#ddd6c4] rounded text-sm"
-                                  />
-                                ) : (
-                                  <span className="text-[#1c1917]">{row.name || row.ingredient || '—'}</span>
-                                )}
-                              </td>
-                              <td className="px-3 py-2">
-                                {editingFormulation ? (
-                                  <input
-                                    type="number"
-                                    value={row.percentage || ''}
-                                    onChange={(e) => {
-                                      const newRows = [...formulation.rows];
-                                      newRows[i].percentage = e.target.value;
-                                      setFormulation({...formulation, rows: newRows});
-                                    }}
-                                    className="w-20 px-2 py-1 border border-[#ddd6c4] rounded text-sm"
-                                  />
-                                ) : (
-                                  <span className="text-[#6b6155]">{row.percentage || '—'}%</span>
-                                )}
-                              </td>
-                              <td className="px-3 py-2">
-                                {editingFormulation ? (
-                                  <input
-                                    type="number"
-                                    value={row.quantity || ''}
-                                    onChange={(e) => {
-                                      const newRows = [...formulation.rows];
-                                      newRows[i].quantity = e.target.value;
-                                      setFormulation({...formulation, rows: newRows});
-                                    }}
-                                    className="w-20 px-2 py-1 border border-[#ddd6c4] rounded text-sm"
-                                  />
-                                ) : (
-                                  <span className="text-[#6b6155]">{row.quantity || '—'}</span>
-                                )}
-                              </td>
-                              <td className="px-3 py-2 text-[#6b6155]">{row.unit || '—'}</td>
-                              <td className="px-3 py-2 text-[#669c2c] font-semibold">₹{costContribution.toFixed(2)}</td>
+                            <tr key={i} className={i % 2 === 0 ? 'bg-white' : 'bg-slate-50'}>
+                              <td className="px-3 py-2">{r.name || r.ingredient}</td>
+                              <td className="px-3 py-2">{Number(r.percentage || 0).toFixed(1)}%</td>
+                              <td className="px-3 py-2">{qty.toFixed(2)}</td>
+                              <td className="px-3 py-2">₹{(r.costPerKg || 0).toFixed(2)}</td>
+                              <td className="px-3 py-2 font-bold text-emerald-600">₹{cost.toFixed(2)}</td>
                             </tr>
                           );
                         })}
                       </tbody>
                     </table>
                   </div>
-                </div>
-              ) : (
-                <p className="text-center py-8 text-[#8a8171]">No formulation added yet</p>
-              )}
+                ) : (
+                  <p className="text-sm text-slate-400">No ingredients added</p>
+                )}
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-slate-600 mb-2 block">Manufacturing Procedure</label>
+                <textarea value={form.procedure?.text || ''} onChange={e => setForm(f => ({ ...f, procedure: { ...f.procedure, text: e.target.value } }))}
+                  rows={4} className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm resize-none focus:outline-none focus:border-slate-400"
+                  placeholder="Step-by-step manufacturing procedure..." />
+                <button onClick={() => updateMutation.mutate({ procedure: form.procedure })} disabled={updateMutation.isPending}
+                  className="mt-3 px-4 py-2 bg-blue-600 text-white text-xs font-semibold rounded-lg hover:bg-blue-700 disabled:opacity-60">
+                  {updateMutation.isPending ? 'Saving...' : 'Save Procedure'}
+                </button>
+              </div>
             </div>
           )}
 
-          {activeTab === 'R&D Price Calculator' && product && (
-            <div className="-mx-6 -mb-6">
-              <RDPriceCalculator productId={productId} productName={product.name} />
+          {activeTab === 'R&D Price Calculator' && (
+            <div className="-m-6"><RDPriceCalculator presetProduct={detail} /></div>
+          )}
+
+          {activeTab === 'R&D & Overheads' && (
+            <div className="space-y-6">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-xs font-semibold text-slate-600 mb-2 block">Overhead %</label>
+                  <input type="number" value={form.productionOverhead?.percentage || 0} onChange={e => setForm(f => ({ ...f, productionOverhead: { ...f.productionOverhead, percentage: parseFloat(e.target.value) || 0 } }))}
+                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-slate-400" />
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-slate-600 mb-2 block">Lifecycle Units</label>
+                  <input type="number" value={form.rnd?.lifecycle || 1000} onChange={e => setForm(f => ({ ...f, rnd: { ...f.rnd, lifecycle: parseInt(e.target.value) || 1000 } }))}
+                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-slate-400" />
+                </div>
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-slate-600 mb-2 block">R&D Documentation</label>
+                <textarea value={form.rndDoc?.text || ''} onChange={e => setForm(f => ({ ...f, rndDoc: { ...f.rndDoc, text: e.target.value } }))}
+                  rows={4} className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm resize-none focus:outline-none focus:border-slate-400"
+                  placeholder="R&D notes, testing details, research findings..." />
+              </div>
+              <button onClick={() => updateMutation.mutate({ rnd: form.rnd, productionOverhead: form.productionOverhead, rndDoc: form.rndDoc })}
+                disabled={updateMutation.isPending} className="px-4 py-2 bg-blue-600 text-white text-xs font-semibold rounded-lg hover:bg-blue-700 disabled:opacity-60">
+                {updateMutation.isPending ? 'Saving...' : 'Save R&D Data'}
+              </button>
             </div>
           )}
 
           {activeTab === 'Costing' && (
-            <div className="space-y-6">
-              <div className="grid grid-cols-2 gap-6">
-                {product.costing?.rawMaterialCost !== undefined && (
-                  <div>
-                    <label className="text-xs font-bold text-[#6b6155] uppercase tracking-wide">Raw Material Cost</label>
-                    <p className="text-lg font-semibold text-[#1c1917] mt-2">₹{(product.costing.rawMaterialCost || 0).toFixed(2)}</p>
-                  </div>
-                )}
-                {product.costing?.packagingCost !== undefined && (
-                  <div>
-                    <label className="text-xs font-bold text-[#6b6155] uppercase tracking-wide">Packaging Cost</label>
-                    <p className="text-lg font-semibold text-[#1c1917] mt-2">₹{(product.costing.packagingCost || 0).toFixed(2)}</p>
-                  </div>
-                )}
-                {(product.costPerUnit || calcFormCost(product) > 0) && (
-                  <div>
-                    <label className="text-xs font-bold text-[#6b6155] uppercase tracking-wide">Formulation Cost / Unit</label>
-                    <p className="text-lg font-bold text-[#669c2c] mt-2">₹{(product.costPerUnit || calcFormCost(product)).toFixed(2)}</p>
-                  </div>
-                )}
-                {product.costing?.totalCostPerUnit && (
-                  <div>
-                    <label className="text-xs font-bold text-[#6b6155] uppercase tracking-wide">Total Cost / Unit</label>
-                    <p className="text-lg font-bold text-[#669c2c] mt-2">₹{(product.costing.totalCostPerUnit || 0).toFixed(2)}</p>
-                  </div>
-                )}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="p-4 rounded-lg bg-emerald-50 border border-emerald-200">
+                <p className="text-xs text-emerald-700 font-semibold">Formulation Cost/Unit</p>
+                <p className="text-3xl font-bold text-emerald-700 mt-2">₹{b.formCost.toFixed(2)}</p>
               </div>
-              {!product.costing && calcFormCost(product) === 0 && !product.costPerUnit && (
-                <p className="text-center py-8 text-[#8a8171]">No costing information available yet</p>
-              )}
+              <div className="p-4 rounded-lg bg-blue-50 border border-blue-200">
+                <p className="text-xs text-blue-700 font-semibold">Total Cost/Unit</p>
+                <p className="text-3xl font-bold text-blue-700 mt-2">₹{totalCost.toFixed(2)}</p>
+              </div>
             </div>
           )}
 
           {activeTab === 'Marketplace' && (
             <div className="space-y-4">
-              {product.marketplace && Object.keys(product.marketplace).length > 0 ? (
-                <div className="grid grid-cols-1 gap-4">
-                  {Object.entries(product.marketplace).map(([platform, data]) => (
-                    <div key={platform} className="border border-[#e7e2d6] rounded-lg p-4">
-                      <h4 className="font-bold text-[#1c1917] capitalize mb-2">{platform}</h4>
-                      <p className="text-sm text-[#6b6155]">Status: {data.status || 'Inactive'}</p>
-                      {data.link && <p className="text-sm text-[#669c2c] mt-1"><a href={data.link} target="_blank" rel="noopener noreferrer">View on {platform}</a></p>}
+              {['flipkart', 'amazon', 'meesho', 'snapdeal'].map(platform => {
+                const pm = form.marketplace?.platforms?.find(p => p.platform === platform);
+                return (
+                  <div key={platform} className="p-4 rounded-lg border border-slate-200">
+                    <p className="font-bold text-slate-900 capitalize text-sm mb-3">{platform}</p>
+                    <div className="space-y-2">
+                      <input type="text" value={pm?.link || ''} placeholder={`${platform} listing URL`}
+                        onChange={e => {
+                          const updated = [...(form.marketplace?.platforms || [])];
+                          const idx = updated.findIndex(p => p.platform === platform);
+                          if (idx >= 0) updated[idx] = { ...updated[idx], link: e.target.value };
+                          else updated.push({ platform, link: e.target.value, sku: '' });
+                          setForm(f => ({ ...f, marketplace: { ...f.marketplace, platforms: updated } }));
+                        }}
+                        className="w-full px-3 py-2 border border-slate-200 rounded text-xs focus:outline-none" />
+                      <input type="text" value={pm?.sku || ''} placeholder={`${platform} SKU`}
+                        onChange={e => {
+                          const updated = [...(form.marketplace?.platforms || [])];
+                          const idx = updated.findIndex(p => p.platform === platform);
+                          if (idx >= 0) updated[idx] = { ...updated[idx], sku: e.target.value };
+                          else updated.push({ platform, link: '', sku: e.target.value });
+                          setForm(f => ({ ...f, marketplace: { ...f.marketplace, platforms: updated } }));
+                        }}
+                        className="w-full px-3 py-2 border border-slate-200 rounded text-xs focus:outline-none" />
                     </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-center py-8 text-[#8a8171]">No marketplace listings</p>
-              )}
+                  </div>
+                );
+              })}
+              <button onClick={() => updateMutation.mutate({ marketplace: form.marketplace })} disabled={updateMutation.isPending}
+                className="px-4 py-2 bg-blue-600 text-white text-xs font-semibold rounded-lg hover:bg-blue-700 disabled:opacity-60">
+                {updateMutation.isPending ? 'Saving...' : 'Save Marketplace Details'}
+              </button>
             </div>
           )}
 
           {activeTab === 'QR Code' && (
-            <div className="text-center py-8">
-              <p className="text-[#8a8171] mb-4">QR Code - Click Edit to generate</p>
-              {product.qrCode && <img src={product.qrCode} alt="QR Code" className="w-32 h-32 mx-auto" />}
+            <div className="flex flex-col items-center">
+              {detail.qrCode?.ean ? (
+                <>
+                  <p className="text-sm text-slate-600 mb-4">EAN: {detail.qrCode.ean}</p>
+                  <QRCode value={detail.qrCode.ean} size={200} />
+                </>
+              ) : (
+                <p className="text-slate-400 text-sm">No QR code generated</p>
+              )}
             </div>
           )}
 
           {activeTab === 'Documents' && (
-            <div className="text-center py-8">
-              <p className="text-[#8a8171]">Documents - {product.documents?.length || 0} file(s)</p>
+            <div className="space-y-3">
+              {Object.entries(detail.documents || {}).map(([key, doc]) => (
+                doc?.url && (
+                  <div key={key} className="p-4 rounded-lg border border-slate-200 flex items-center justify-between">
+                    <div>
+                      <p className="font-semibold text-slate-900 text-sm capitalize">{key}</p>
+                      <a href={doc.url} target="_blank" rel="noreferrer" className="text-xs text-blue-600 hover:underline">{doc.name || 'Download'}</a>
+                    </div>
+                    <span className="text-xs text-slate-400">{fmtDate(doc.uploadedAt)}</span>
+                  </div>
+                )
+              ))}
+              {!Object.values(detail.documents || {}).some(d => d?.url) && (
+                <p className="text-slate-400 text-sm text-center py-8">No documents uploaded</p>
+              )}
             </div>
           )}
 
-          {activeTab === 'R&D & Overheads' && (
-            <div className="text-center py-8">
-              <p className="text-[#8a8171]">R&D & Overheads details</p>
+          {activeTab === 'History' && (
+            <div className="space-y-3">
+              <div className="p-4 rounded-lg bg-slate-50 border border-slate-200">
+                <p className="text-xs text-slate-600 font-semibold">Created</p>
+                <p className="text-sm text-slate-900 mt-1">{fmtDate(detail.createdAt)}</p>
+              </div>
+              <div className="p-4 rounded-lg bg-slate-50 border border-slate-200">
+                <p className="text-xs text-slate-600 font-semibold">Last Updated</p>
+                <p className="text-sm text-slate-900 mt-1">{fmtDate(detail.updatedAt)}</p>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>,
+    document.body
+  );
+}
+
+// ════ BASIC INFO TAB ════
+function BasicInfoTab({ product: p }) {
+  const b = calcOverheadBreakdown(p);
+  return (
+    <div className="grid grid-cols-3 gap-6">
+      <div>
+        <p className="text-xs font-bold text-slate-600 uppercase tracking-wide mb-3">Basic Information</p>
+        <div className="space-y-3 text-sm">
+          <div>
+            <span className="text-xs text-slate-500">SKU/Code</span>
+            <p className="font-mono font-bold text-slate-900">{p.code}</p>
+          </div>
+          <div>
+            <span className="text-xs text-slate-500">Category</span>
+            <p className="text-slate-900">{p.category}</p>
+          </div>
+          <div>
+            <span className="text-xs text-slate-500">Sub-Category</span>
+            <p className="text-slate-900">{p.subCategory || '—'}</p>
+          </div>
+          <div>
+            <span className="text-xs text-slate-500">Type</span>
+            <p className="text-slate-900">{p.type || '—'}</p>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <p className="text-xs font-bold text-slate-600 uppercase tracking-wide mb-3">Specifications</p>
+        <div className="space-y-3 text-sm">
+          <div>
+            <span className="text-xs text-slate-500">Base Unit</span>
+            <p className="text-slate-900">{p.unit}</p>
+          </div>
+          <div>
+            <span className="text-xs text-slate-500">Reference Weight</span>
+            <p className="text-slate-900">{p.weight ? `${p.weight} ${p.unit}` : '—'}</p>
+          </div>
+          <div>
+            <span className="text-xs text-slate-500">Shelf Life</span>
+            <p className="text-slate-900">{p.shelfLife ? `${p.shelfLife} months` : '—'}</p>
+          </div>
+          <div>
+            <span className="text-xs text-slate-500">HSN Code</span>
+            <p className="font-mono text-slate-900">{p.hsnCode || '—'}</p>
+          </div>
+          <div>
+            <span className="text-xs text-slate-500">GST Rate</span>
+            <p className="text-slate-900">{p.gstRate}%</p>
+          </div>
+          <div>
+            <span className="text-xs text-slate-500">Barcode</span>
+            <p className="font-mono text-slate-900">{p.barcode || '—'}</p>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <p className="text-xs font-bold text-slate-600 uppercase tracking-wide mb-3">Costs & Status</p>
+        <div className="space-y-3 text-sm">
+          <div>
+            <span className="text-xs text-slate-500">Formulation Cost</span>
+            <p className="font-bold text-emerald-600 text-base">₹{b.formCost.toFixed(2)}</p>
+          </div>
+          <div>
+            <span className="text-xs text-slate-500">Status</span>
+            <p className={clsx('px-3 py-1 rounded-full text-xs font-bold inline-block mt-1',
+              p.status === 'Active' ? 'bg-emerald-100 text-emerald-700' :
+              p.status === 'Draft' ? 'bg-amber-100 text-amber-700' :
+              p.status === 'Archived' ? 'bg-gray-100 text-gray-700' :
+              'bg-red-100 text-red-700'
+            )}>{p.status}</p>
+          </div>
+          {p.description && (
+            <div className="col-span-3">
+              <span className="text-xs text-slate-500">Description</span>
+              <p className="text-slate-900 text-sm mt-1">{p.description}</p>
             </div>
           )}
         </div>
