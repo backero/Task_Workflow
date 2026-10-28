@@ -413,6 +413,30 @@ function BranchedFormulationEditor({ product, selectedVersionId, setSelectedVers
             </div>
           )}
           <VersionRowsTable rows={draftRows} refWeight={draftMeta.refWeight} rawMaterials={rawMaterials} onUpdate={updateDraftRow} onAdd={addDraftRow} onRemove={removeDraftRow} editable />
+
+          {/* Cost Summary Bar */}
+          <div className="bg-slate-900 text-white rounded-lg p-6 flex justify-between items-center">
+            <div>
+              <p className="text-xs text-gray-300">Total Formulation Cost</p>
+              <p className="text-2xl font-bold">₹{calcFormCost({...selected, rows: draftRows, refWeight: draftMeta.refWeight}).toFixed(2)}</p>
+            </div>
+            <div className="text-center">
+              <p className="text-xs text-gray-300">Reference Weight</p>
+              <p className="text-2xl font-bold">{draftMeta.refWeight} {draftMeta.refUnit}</p>
+            </div>
+            <div className="text-right">
+              <p className="text-xs text-gray-300">Cost Per Unit</p>
+              <p className="text-2xl font-bold">₹{(calcFormCost({...selected, rows: draftRows, refWeight: draftMeta.refWeight}) / draftMeta.refWeight).toFixed(4)}</p>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between">
+            <button onClick={onAdd} className="text-xs text-slate-600 hover:text-slate-800">+ Add Ingredient</button>
+            <button onClick={() => onUpdateVersion(selected._id, { rows: withComputedQuantity(draftRows, draftMeta.refWeight), refWeight: draftMeta.refWeight, refUnit: draftMeta.refUnit, changeNotes })}
+              disabled={state.updating} className="px-4 py-2 bg-green-600 text-white text-xs font-bold rounded-lg hover:bg-green-700 disabled:opacity-60">
+              {state.updating ? 'Saving...' : <><Save size={14} className="inline -mt-0.5 mr-1" />Save Formulation</>}
+            </button>
+          </div>
         </>
       ) : (
         <>
