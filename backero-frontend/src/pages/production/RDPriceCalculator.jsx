@@ -847,7 +847,7 @@ export default function RDPriceCalculator({ presetProduct } = {}) {
                   {['T0', 'T1', 'T2', 'T3'].map(k => {
                     const t = settings.tiers[k];
                     const d = TIER_DEFS[k];
-                    const meta = k === 'T3' ? 'Not priced here' : `${t.baseHours} h first version · ${t.includedCorrections} corrections included`;
+                    const meta = k === 'T3' ? 'Not priced here' : `${t.baseHours} h first version · ${t.includedCorrections} prototype samples`;
                     return (
                       <label key={k} className={`tier-card${tier === k ? ' active' : ''}`}>
                         <input type="radio" name="tier" value={k} checked={tier === k} onChange={() => handleTierChange(k)} />
@@ -881,9 +881,9 @@ export default function RDPriceCalculator({ presetProduct } = {}) {
                     <div className="help">Default 5 hours per round of customer feedback.</div>
                   </div>
                   <div className="form-group">
-                    <label>Correction rounds included in the price</label>
+                    <label>Number of samples to prototype</label>
                     <input type="number" min="0" step="1" value={includedCorrections} onChange={handleIncludedCorrectionsChange} />
-                    <div className="help">How many times we will remake the sample for free within this fee.</div>
+                    <div className="help">In professional product development, the bench-top scale or prototype stage involves making multiple samples to fine-tune the recipe based on feedback. This is the number of prototype iterations included in this fee.</div>
                   </div>
                   <div className="form-group">
                     <label>Executive cost per lab hour (₹)</label>
@@ -1354,7 +1354,7 @@ export default function RDPriceCalculator({ presetProduct } = {}) {
               <div className="pq-section"><h3>Scope of Work</h3>
                 <table className="pq-table"><tbody>
                   <tr><td>Type of work</td><td className="amt">{TIER_DEFS[c.tier].name}</td></tr>
-                  <tr><td>Included correction rounds</td><td className="amt">{c.includedCorrections}</td></tr>
+                  <tr><td>Prototype samples included</td><td className="amt">{c.includedCorrections}</td></tr>
                   <tr><td>Estimated lab effort</td><td className="amt">{c.labHours} executive hours ({c.labDays} lab-days)</td></tr>
                   <tr><td>In-house tests</td><td className="amt">pH, viscosity, density, basic sensory/QC — included (no charge)</td></tr>
                 </tbody></table>
@@ -1385,7 +1385,7 @@ export default function RDPriceCalculator({ presetProduct } = {}) {
               </div>
               <div className="pq-fee"><span className="f-label">R&amp;D Fee (one-time)</span><span className="f-val">{fmtMoney(c.fee)}</span></div>
               <table className="pq-table"><tbody>
-                <tr><td>Extra correction round (beyond {c.includedCorrections} included)</td><td className="amt">{fmtMoney(c.extraRound)} / round</td></tr>
+                <tr><td>Additional prototype sample (beyond {c.includedCorrections} included)</td><td className="amt">{fmtMoney(c.extraRound)} / sample</td></tr>
                 <tr><td>R&amp;D recovery over first order</td><td className="amt">{c.perUnit !== null ? fmtMoney(c.perUnit) + ' / unit @ ' + c.firstOrderQty.toLocaleString('en-IN') + ' pcs' : '—'}</td></tr>
                 <tr><td>Payment terms</td><td className="amt">{PAYMENT_TERMS}</td></tr>
               </tbody></table>
