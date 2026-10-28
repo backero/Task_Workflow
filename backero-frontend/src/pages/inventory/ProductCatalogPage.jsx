@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'react-hot-toast';
 import { clsx } from 'clsx';
+import { useSearchParams } from 'react-router-dom';
 import QRCode from 'react-qr-code';
 import api from '../../api/axios';
 import RDPriceCalculator from '../production/RDPriceCalculator';
@@ -161,6 +162,7 @@ function StatusBadge({ status }) {
 // ─── Main Component ────────────────────────────────────────────────────────────
 export default function ProductCatalogPage() {
   const qc = useQueryClient();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
@@ -229,6 +231,14 @@ export default function ProductCatalogPage() {
     }
   }, [isLoading, isError, products.length]);
 
+  useEffect(() => {
+    const productId = searchParams.get('productId');
+    if (productId && !selectedId) {
+      setSelectedId(productId);
+      // Keep URL params so product stays selected when returning
+    }
+  }, [searchParams, selectedId]);
+
   const { data: detailData } = useQuery({
     queryKey: ['catalog-detail', selectedId],
     queryFn: () => api.get(`/catalog/products/${selectedId}`).then(r => r.data),
@@ -247,6 +257,9 @@ export default function ProductCatalogPage() {
     onSuccess: (_, { id }) => {
       qc.invalidateQueries({ queryKey: ['catalog'] });
       qc.invalidateQueries({ queryKey: ['catalog-detail', id] });
+      qc.invalidateQueries({ queryKey: ['production-orders'] });
+      sessionStorage.setItem('productUpdated', 'true');
+      sessionStorage.setItem('updatedProductId', id);
       toast.success('Saved');
       if (showForm) closeForm();
     },

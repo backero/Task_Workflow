@@ -13,6 +13,7 @@ import {
   StageOrder, StageWorkAssignment, StageProcurement, StageWeighing,
   StageBulkQC, StagePackaging, StageFinalQC, StageDispatch, STAGE_NAMES,
 } from './production/StageSteps';
+import RDPriceCalculator from '../production/RDPriceCalculator';
 
 // Full per-lead "Sample Development" window — mirrors the reference design's 7-tab customer
 // window (Overview / Q&A / Products / Formulas / Samples / Payments / Approvals). Everything
@@ -679,6 +680,310 @@ function FormulaEditorModal({ formula, samples, rawMaterials, onClose }) {
   );
 }
 
+// Product Detail Modal Component - Full Mirror of Product Catalog
+function ProductDetailModal({ productId, onClose, refetchLead }) {
+  const qc = useQueryClient();
+  const { data: productData, isLoading, refetch } = useQuery({
+    queryKey: ['catalog-detail', productId],
+    queryFn: () => api.get(`/catalog/products/${productId}`).then(r => r.data),
+    enabled: !!productId,
+  });
+  const product = productData?.product;
+  const [activeTab, setActiveTab] = useState('Overview');
+  const [editingFormulation, setEditingFormulation] = useState(false);
+  const [formulation, setFormulation] = useState(null);
+
+  useEffect(() => {
+    if (product?.formulation) {
+      setFormulation(JSON.parse(JSON.stringify(product.formulation)));
+    }
+  }, [product]);
+
+  const updateFormulationMutation = useMutation({
+    mutationFn: (data) => api.put(`/catalog/products/${productId}`, { formulation: data }),
+    onSuccess: () => {
+      refetch();
+      setEditingFormulation(false);
+      toast.success('Formulation saved successfully');
+    },
+    onError: () => toast.error('Failed to save formulation'),
+  });
+
+  // Detect product updates from ProductCatalog
+  useEffect(() => {
+    if (sessionStorage.getItem('productUpdated') === 'true') {
+      refetch();
+      refetchLead();
+      sessionStorage.removeItem('productUpdated');
+    }
+  }, [refetch, refetchLead]);
+
+  if (isLoading) return (
+    <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50">
+      <div className="bg-white rounded-xl p-8">Loading product details...</div>
+    </div>
+  );
+  if (!product) return null;
+
+  const TABS = ['Overview', 'Formulation & Procedure', 'R&D Price Calculator', 'R&D & Overheads', 'Costing', 'Marketplace', 'QR Code', 'Documents'];
+
+  return (
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-2">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-5xl max-h-[95vh] flex flex-col">
+        {/* Header */}
+        <div className="border-b border-[#e7e2d6] p-6 flex items-center justify-between flex-shrink-0">
+          <div>
+            <h2 className="text-xl font-bold text-[#1c1917]">{product.name}</h2>
+            <p className="text-sm text-[#8a8171]">{product.code} • {product.category} {product.type && `• ${product.type}`}</p>
+          </div>
+          <button onClick={onClose} className="w-10 h-10 flex items-center justify-center rounded-full hover:bg-[#f1ede4] font-bold text-xl">✕</button>
+        </div>
+
+        {/* Tabs */}
+        <div className="border-b border-[#e7e2d6] px-6 flex gap-1 overflow-x-auto flex-shrink-0">
+          {TABS.map(tab => (
+            <button
+              key={tab}
+              onClick={() => setActiveTab(tab)}
+              className={`px-4 py-3 text-sm font-semibold whitespace-nowrap border-b-2 transition-colors ${
+                activeTab === tab
+                  ? 'text-[#669c2c] border-[#669c2c]'
+                  : 'text-[#8a8171] border-transparent hover:text-[#1c1917]'
+              }`}
+            >
+              {tab}
+            </button>
+          ))}
+        </div>
+
+        {/* Content */}
+        <div className="flex-1 overflow-y-auto p-6">
+          {activeTab === 'Overview' && (
+            <div className="space-y-6">
+              <div className="grid grid-cols-2 gap-6">
+                <div>
+                  <label className="text-xs font-bold text-[#6b6155] uppercase tracking-wide">SKU / Code</label>
+                  <p className="text-sm text-[#1c1917] font-mono mt-1">{product.code}</p>
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-[#6b6155] uppercase tracking-wide">Status</label>
+                  <p className="mt-1">
+                    <span className={`inline-block px-3 py-1 rounded-full text-xs font-bold ${
+                      product.status === 'Active' ? 'bg-[#d1fae5] text-[#065f46]' :
+                      product.status === 'Inactive' ? 'bg-[#fee2e2] text-[#991b1b]' :
+                      'bg-[#fef3c7] text-[#92400e]'
+                    }`}>
+                      {product.status}
+                    </span>
+                  </p>
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-[#6b6155] uppercase tracking-wide">Category</label>
+                  <p className="text-sm text-[#1c1917] mt-1">{product.category}</p>
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-[#6b6155] uppercase tracking-wide">Type</label>
+                  <p className="text-sm text-[#1c1917] mt-1">{product.type || '—'}</p>
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-[#6b6155] uppercase tracking-wide">Base Unit</label>
+                  <p className="text-sm text-[#1c1917] mt-1">{product.unit}</p>
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-[#6b6155] uppercase tracking-wide">Reference Weight</label>
+                  <p className="text-sm text-[#1c1917] mt-1">{product.weight || '—'}</p>
+                </div>
+              </div>
+              {product.description && (
+                <div>
+                  <label className="text-xs font-bold text-[#6b6155] uppercase tracking-wide">Description</label>
+                  <p className="text-sm text-[#1c1917] mt-2 leading-relaxed">{product.description}</p>
+                </div>
+              )}
+            </div>
+          )}
+
+          {activeTab === 'Formulation & Procedure' && (
+            <div className="space-y-4">
+              {formulation?.rows && formulation.rows.length > 0 ? (
+                <div>
+                  <div className="flex items-center justify-between mb-4">
+                    <div>
+                      <label className="text-xs font-bold text-[#6b6155] uppercase tracking-wide">Ref Weight / Volume</label>
+                      {editingFormulation ? (
+                        <input
+                          type="number"
+                          value={formulation.refWeight || 100}
+                          onChange={(e) => setFormulation({...formulation, refWeight: e.target.value})}
+                          className="mt-1 px-2 py-1 border border-[#ddd6c4] rounded text-sm"
+                        />
+                      ) : (
+                        <p className="text-sm text-[#1c1917] mt-1">{formulation.refWeight || 100} {product.unit}</p>
+                      )}
+                    </div>
+                    <button
+                      onClick={() => editingFormulation ? updateFormulationMutation.mutate(formulation) : setEditingFormulation(true)}
+                      disabled={updateFormulationMutation.isPending}
+                      className={`px-4 py-2 rounded-full text-sm font-semibold transition ${
+                        editingFormulation
+                          ? 'bg-[#669c2c] text-white hover:brightness-95'
+                          : 'bg-[#f1ede4] text-[#6b6155] hover:bg-[#e7e2d6]'
+                      }`}
+                    >
+                      {editingFormulation ? (updateFormulationMutation.isPending ? 'Saving...' : 'Save') : 'Edit'}
+                    </button>
+                  </div>
+
+                  <div className="overflow-x-auto rounded-lg border border-[#e7e2d6]">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="bg-[#f1ede4] border-b border-[#e7e2d6]">
+                          <th className="px-3 py-2 text-left text-xs font-bold text-[#6b6155]">Ingredient</th>
+                          <th className="px-3 py-2 text-left text-xs font-bold text-[#6b6155]">%</th>
+                          <th className="px-3 py-2 text-left text-xs font-bold text-[#6b6155]">Qty</th>
+                          <th className="px-3 py-2 text-left text-xs font-bold text-[#6b6155]">Unit</th>
+                          <th className="px-3 py-2 text-left text-xs font-bold text-[#6b6155]">Cost</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {formulation.rows.map((row, i) => (
+                          <tr key={i} className="border-b border-[#e7e2d6]">
+                            <td className="px-3 py-2">
+                              {editingFormulation ? (
+                                <input
+                                  value={row.ingredient || ''}
+                                  onChange={(e) => {
+                                    const newRows = [...formulation.rows];
+                                    newRows[i].ingredient = e.target.value;
+                                    setFormulation({...formulation, rows: newRows});
+                                  }}
+                                  className="w-full px-2 py-1 border border-[#ddd6c4] rounded text-sm"
+                                />
+                              ) : (
+                                <span className="text-[#1c1917]">{row.ingredient}</span>
+                              )}
+                            </td>
+                            <td className="px-3 py-2">
+                              {editingFormulation ? (
+                                <input
+                                  type="number"
+                                  value={row.percentage || ''}
+                                  onChange={(e) => {
+                                    const newRows = [...formulation.rows];
+                                    newRows[i].percentage = e.target.value;
+                                    setFormulation({...formulation, rows: newRows});
+                                  }}
+                                  className="w-20 px-2 py-1 border border-[#ddd6c4] rounded text-sm"
+                                />
+                              ) : (
+                                <span className="text-[#6b6155]">{row.percentage || '—'}%</span>
+                              )}
+                            </td>
+                            <td className="px-3 py-2">
+                              {editingFormulation ? (
+                                <input
+                                  type="number"
+                                  value={row.quantity || ''}
+                                  onChange={(e) => {
+                                    const newRows = [...formulation.rows];
+                                    newRows[i].quantity = e.target.value;
+                                    setFormulation({...formulation, rows: newRows});
+                                  }}
+                                  className="w-20 px-2 py-1 border border-[#ddd6c4] rounded text-sm"
+                                />
+                              ) : (
+                                <span className="text-[#6b6155]">{row.quantity || '—'}</span>
+                              )}
+                            </td>
+                            <td className="px-3 py-2 text-[#6b6155]">{row.unit || '—'}</td>
+                            <td className="px-3 py-2 text-[#669c2c] font-semibold">₹{(row.costPerUnit || 0).toFixed(2)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              ) : (
+                <p className="text-center py-8 text-[#8a8171]">No formulation added yet</p>
+              )}
+            </div>
+          )}
+
+          {activeTab === 'R&D Price Calculator' && product && (
+            <div className="-mx-6 -mb-6">
+              <RDPriceCalculator productId={productId} productName={product.name} />
+            </div>
+          )}
+
+          {activeTab === 'Costing' && (
+            <div className="space-y-6">
+              {product.costing ? (
+                <div className="grid grid-cols-2 gap-6">
+                  <div>
+                    <label className="text-xs font-bold text-[#6b6155] uppercase tracking-wide">Raw Material Cost</label>
+                    <p className="text-lg font-semibold text-[#1c1917] mt-2">₹{(product.costing.rawMaterialCost || 0).toFixed(2)}</p>
+                  </div>
+                  <div>
+                    <label className="text-xs font-bold text-[#6b6155] uppercase tracking-wide">Packaging Cost</label>
+                    <p className="text-lg font-semibold text-[#1c1917] mt-2">₹{(product.costing.packagingCost || 0).toFixed(2)}</p>
+                  </div>
+                  <div>
+                    <label className="text-xs font-bold text-[#6b6155] uppercase tracking-wide">Labor Cost</label>
+                    <p className="text-lg font-semibold text-[#1c1917] mt-2">₹{(product.costing.laborCost || 0).toFixed(2)}</p>
+                  </div>
+                  <div>
+                    <label className="text-xs font-bold text-[#6b6155] uppercase tracking-wide">Total Cost / Unit</label>
+                    <p className="text-lg font-bold text-[#669c2c] mt-2">₹{(product.costing.totalCostPerUnit || 0).toFixed(2)}</p>
+                  </div>
+                </div>
+              ) : (
+                <p className="text-center py-8 text-[#8a8171]">No costing information available</p>
+              )}
+            </div>
+          )}
+
+          {activeTab === 'Marketplace' && (
+            <div className="space-y-4">
+              {product.marketplace && Object.keys(product.marketplace).length > 0 ? (
+                <div className="grid grid-cols-1 gap-4">
+                  {Object.entries(product.marketplace).map(([platform, data]) => (
+                    <div key={platform} className="border border-[#e7e2d6] rounded-lg p-4">
+                      <h4 className="font-bold text-[#1c1917] capitalize mb-2">{platform}</h4>
+                      <p className="text-sm text-[#6b6155]">Status: {data.status || 'Inactive'}</p>
+                      {data.link && <p className="text-sm text-[#669c2c] mt-1"><a href={data.link} target="_blank" rel="noopener noreferrer">View on {platform}</a></p>}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-center py-8 text-[#8a8171]">No marketplace listings</p>
+              )}
+            </div>
+          )}
+
+          {activeTab === 'QR Code' && (
+            <div className="text-center py-8">
+              <p className="text-[#8a8171] mb-4">QR Code - Click Edit to generate</p>
+              {product.qrCode && <img src={product.qrCode} alt="QR Code" className="w-32 h-32 mx-auto" />}
+            </div>
+          )}
+
+          {activeTab === 'Documents' && (
+            <div className="text-center py-8">
+              <p className="text-[#8a8171]">Documents - {product.documents?.length || 0} file(s)</p>
+            </div>
+          )}
+
+          {activeTab === 'R&D & Overheads' && (
+            <div className="text-center py-8">
+              <p className="text-[#8a8171]">R&D & Overheads details</p>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function SampleLeadDetail({ leadId, onClose, initialTab, initialOrderId }) {
   const qc = useQueryClient();
   const navigate = useNavigate();
@@ -727,6 +1032,8 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab, initialO
   const [productModalOpen, setProductModalOpen] = useState(false);
   const [productModalEditing, setProductModalEditing] = useState(null);
   const [quoteModalFor, setQuoteModalFor] = useState(null);
+  const [viewingProductId, setViewingProductId] = useState(null);
+  const [viewingProductTab, setViewingProductTab] = useState('Overview');
   // "🆕 Create Product" from a Q&A query — creates a real Product Catalog entry (unlike the
   // ProductLinkModal above, which can only search/attach an existing one or a lead-only shadow link).
   const [quickCreateOpen, setQuickCreateOpen] = useState(false);
@@ -853,11 +1160,20 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab, initialO
   const [approveMaximized, setApproveMaximized] = useState(false);
   const [rejectMaximized, setRejectMaximized] = useState(false);
 
-  const { data: lead, isLoading } = useQuery({
+  const { data: lead, isLoading, refetch: refetchLead } = useQuery({
     queryKey: ['crm', 'lead', leadId],
     queryFn: () => api.get(`/crm/leads/${leadId}`).then((r) => r.data.lead),
     enabled: !!leadId,
   });
+
+  // Refetch lead when user returns from ProductCatalog after editing
+  useEffect(() => {
+    if (sessionStorage.getItem('productUpdated') === 'true') {
+      refetchLead();
+      sessionStorage.removeItem('productUpdated');
+      sessionStorage.removeItem('updatedProductId');
+    }
+  }, [refetchLead]);
 
   const { data: queries } = useQuery({
     queryKey: ['crm', 'lead', leadId, 'queries'],
@@ -1834,7 +2150,7 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab, initialO
                           <td className="px-3 py-2 font-mono text-xs text-[#6b6155] cursor-pointer" title="Edit product link" onClick={() => { setProductModalEditing(p); setProductModalOpen(true); }}>
                             {p.productId}
                           </td>
-                          <td className="px-3 py-2 text-[#1c1917] font-medium cursor-pointer" title="Edit product link" onClick={() => { setProductModalEditing(p); setProductModalOpen(true); }}>
+                          <td className="px-3 py-2 text-[#1c1917] font-medium cursor-pointer hover:text-[#669c2c]" title="View product details" onClick={() => p.catalogProductId && setViewingProductId(p.catalogProductId)}>
                             {p.name}
                           </td>
                           <td className="px-3 py-2 text-xs text-[#6b6155]">{p.basis || '—'}</td>
@@ -1869,6 +2185,9 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab, initialO
                               <button title="✓ Accept Price" onClick={() => updateProductMutation.mutate({ productId: p.productId, priceStatus: 'Accepted' })} className="mr-2">✓</button>
                             )}
                             <button title="Paid in CRM (mirror)" onClick={() => updateProductMutation.mutate({ productId: p.productId, paymentStatus: p.paymentStatus === 'full_paid' ? 'pending' : 'full_paid' })} className="mr-2">💳</button>
+                            {p.catalogProductId && (
+                              <button title="View in Product Catalog" onClick={() => navigate(`/inventory/catalog?productId=${p.catalogProductId}`)} className="mr-2">📋</button>
+                            )}
                             <button title="Edit" onClick={() => { setProductModalEditing(p); setProductModalOpen(true); }}>✏️</button>
                           </td>
                         </tr>
@@ -2533,6 +2852,15 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab, initialO
             </div>
           </div>
         </div>
+      )}
+
+      {/* Product Detail Modal */}
+      {viewingProductId && (
+        <ProductDetailModal
+          productId={viewingProductId}
+          onClose={() => { setViewingProductId(null); setViewingProductTab('Overview'); }}
+          refetchLead={() => refetchLead()}
+        />
       )}
 
       {productModalOpen && (

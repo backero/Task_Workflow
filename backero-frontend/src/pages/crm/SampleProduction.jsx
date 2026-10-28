@@ -243,11 +243,21 @@ export default function SampleProduction() {
   // Orders tab's main table is lead-driven, so these need their own list underneath it. Also
   // backs each production-stage tab's list (every order at that stage, across all leads).
   const currentProdStageTab = PROD_STAGE_TABS.find((t) => t.key === tab);
-  const { data: allProductionOrders } = useQuery({
+  const { data: allProductionOrders, refetch: refetchOrders } = useQuery({
     queryKey: ['production-orders'],
     queryFn: () => api.get('/production', { params: { limit: 200 } }).then((r) => r.data.data || []),
     refetchInterval: 60 * 1000,
   });
+
+  // Refetch when user returns from ProductCatalog after editing
+  useEffect(() => {
+    if (sessionStorage.getItem('productUpdated') === 'true') {
+      refetchOrders();
+      sessionStorage.removeItem('productUpdated');
+      sessionStorage.removeItem('updatedProductId');
+    }
+  }, [refetchOrders]);
+
   const orphanOrders = (allProductionOrders || []).filter((o) => !o.leadId);
   const prodStageCounts = PROD_STAGE_TABS.reduce((acc, t) => {
     acc[t.key] = (allProductionOrders || []).filter((o) => o.stage === t.stage).length;
@@ -1435,7 +1445,19 @@ export default function SampleProduction() {
                         </td>
                       )}
                       <td className="px-4 py-2.5 text-[#1c1917] whitespace-nowrap">{o.customer || '—'}</td>
-                      <td className="px-4 py-2.5 text-[#6b6155] text-xs whitespace-nowrap">{o.catalogProduct?.name || '—'}</td>
+                      <td className="px-4 py-2.5 text-[#6b6155] text-xs whitespace-nowrap">
+                        {o.catalogProduct ? (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              navigate(`/inventory/catalog?productId=${o.catalogProduct._id}&customer=${encodeURIComponent(o.customer || '')}`);
+                            }}
+                            className="text-[#669c2c] hover:underline font-semibold"
+                          >
+                            {o.catalogProduct.name}
+                          </button>
+                        ) : '—'}
+                      </td>
                       <td className="px-4 py-2.5 text-[#6b6155] text-xs whitespace-nowrap">{o.batchSizeKg ? `${o.batchSizeKg} kg` : '—'}</td>
                       <td className="px-4 py-2.5 text-[#6b6155] text-xs whitespace-nowrap">{o.deliveryDate || '—'}</td>
                       {showStockColumn && (
