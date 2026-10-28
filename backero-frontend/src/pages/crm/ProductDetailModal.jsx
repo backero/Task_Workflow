@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
+import { useNavigate } from 'react-router-dom';
 import api from '../../api/axios';
 import RDPriceCalculator from '../production/RDPriceCalculator';
 
@@ -17,6 +18,7 @@ function calcFormCost(product) {
 }
 
 export default function ProductDetailModal({ productId, onClose, refetchLead }) {
+  const navigate = useNavigate();
   const qc = useQueryClient();
   const { data: productData, isLoading, refetch } = useQuery({
     queryKey: ['catalog-detail', productId],
@@ -74,6 +76,16 @@ export default function ProductDetailModal({ productId, onClose, refetchLead }) 
           </div>
           <div className="flex items-center gap-2">
             <button
+              onClick={() => {
+                onClose();
+                navigate(`/inventory/catalog?productId=${productId}`);
+              }}
+              title="Open in Product Catalog for full view and editing"
+              className="px-4 py-2 rounded-full bg-[#669c2c] text-white text-xs font-semibold hover:brightness-95 transition"
+            >
+              Open Full View
+            </button>
+            <button
               onClick={() => setIsMaximized(!isMaximized)}
               title={isMaximized ? 'Minimize' : 'Maximize'}
               className="w-10 h-10 flex items-center justify-center rounded-full hover:bg-[#f1ede4] font-bold text-lg"
@@ -88,6 +100,13 @@ export default function ProductDetailModal({ productId, onClose, refetchLead }) 
               ✕
             </button>
           </div>
+        </div>
+
+        {/* Quick Preview Banner */}
+        <div className="bg-[#fef3c7] border-b border-[#fcd34d] px-6 py-2 flex items-center justify-between">
+          <p className="text-xs text-[#92400e]">
+            <span className="font-semibold">Quick Preview:</span> For R&D Documentation, Manufacturing Procedure, Formulation Versions, and full editing capabilities, click "Open Full View"
+          </p>
         </div>
 
         {/* Tabs */}
