@@ -190,16 +190,17 @@ export default function ProductDetailModal({ productId, onClose, refetchLead }) 
                             <td className="px-3 py-2">
                               {editingFormulation ? (
                                 <input
-                                  value={row.ingredient || ''}
+                                  value={row.name || row.ingredient || ''}
                                   onChange={(e) => {
                                     const newRows = [...formulation.rows];
-                                    newRows[i].ingredient = e.target.value;
+                                    newRows[i].name = e.target.value;
+                                    if (!newRows[i].ingredient) newRows[i].ingredient = e.target.value;
                                     setFormulation({...formulation, rows: newRows});
                                   }}
                                   className="w-full px-2 py-1 border border-[#ddd6c4] rounded text-sm"
                                 />
                               ) : (
-                                <span className="text-[#1c1917]">{row.ingredient}</span>
+                                <span className="text-[#1c1917]">{row.name || row.ingredient || '—'}</span>
                               )}
                             </td>
                             <td className="px-3 py-2">
