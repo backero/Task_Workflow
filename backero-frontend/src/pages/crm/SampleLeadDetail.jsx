@@ -692,6 +692,7 @@ function ProductDetailModal({ productId, onClose, refetchLead }) {
   const [activeTab, setActiveTab] = useState('Overview');
   const [editingFormulation, setEditingFormulation] = useState(false);
   const [formulation, setFormulation] = useState(null);
+  const [isMaximized, setIsMaximized] = useState(false);
 
   useEffect(() => {
     if (product?.formulation) {
@@ -728,15 +729,30 @@ function ProductDetailModal({ productId, onClose, refetchLead }) {
   const TABS = ['Overview', 'Formulation & Procedure', 'R&D Price Calculator', 'R&D & Overheads', 'Costing', 'Marketplace', 'QR Code', 'Documents'];
 
   return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-2">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-5xl max-h-[95vh] flex flex-col">
+    <div className={`fixed bg-black/40 flex items-center justify-center z-50 p-2 ${isMaximized ? 'inset-0' : 'inset-0'}`}>
+      <div className={`bg-white rounded-2xl shadow-2xl flex flex-col transition-all ${isMaximized ? 'w-full h-full max-h-screen' : 'w-full max-w-5xl max-h-[95vh]'}`}>
         {/* Header */}
         <div className="border-b border-[#e7e2d6] p-6 flex items-center justify-between flex-shrink-0">
           <div>
             <h2 className="text-xl font-bold text-[#1c1917]">{product.name}</h2>
             <p className="text-sm text-[#8a8171]">{product.code} • {product.category} {product.type && `• ${product.type}`}</p>
           </div>
-          <button onClick={onClose} className="w-10 h-10 flex items-center justify-center rounded-full hover:bg-[#f1ede4] font-bold text-xl">✕</button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setIsMaximized(!isMaximized)}
+              title={isMaximized ? 'Minimize' : 'Maximize'}
+              className="w-10 h-10 flex items-center justify-center rounded-full hover:bg-[#f1ede4] font-bold text-lg"
+            >
+              {isMaximized ? '−' : '+'}
+            </button>
+            <button
+              onClick={onClose}
+              title="Close"
+              className="w-10 h-10 flex items-center justify-center rounded-full hover:bg-[#f1ede4] font-bold text-xl"
+            >
+              ✕
+            </button>
+          </div>
         </div>
 
         {/* Tabs */}
@@ -917,27 +933,34 @@ function ProductDetailModal({ productId, onClose, refetchLead }) {
 
           {activeTab === 'Costing' && (
             <div className="space-y-6">
-              {product.costing ? (
-                <div className="grid grid-cols-2 gap-6">
+              <div className="grid grid-cols-2 gap-6">
+                {product.costing?.rawMaterialCost !== undefined && (
                   <div>
                     <label className="text-xs font-bold text-[#6b6155] uppercase tracking-wide">Raw Material Cost</label>
                     <p className="text-lg font-semibold text-[#1c1917] mt-2">₹{(product.costing.rawMaterialCost || 0).toFixed(2)}</p>
                   </div>
+                )}
+                {product.costing?.packagingCost !== undefined && (
                   <div>
                     <label className="text-xs font-bold text-[#6b6155] uppercase tracking-wide">Packaging Cost</label>
                     <p className="text-lg font-semibold text-[#1c1917] mt-2">₹{(product.costing.packagingCost || 0).toFixed(2)}</p>
                   </div>
+                )}
+                {product.costPerUnit && (
                   <div>
-                    <label className="text-xs font-bold text-[#6b6155] uppercase tracking-wide">Labor Cost</label>
-                    <p className="text-lg font-semibold text-[#1c1917] mt-2">₹{(product.costing.laborCost || 0).toFixed(2)}</p>
+                    <label className="text-xs font-bold text-[#6b6155] uppercase tracking-wide">Formulation Cost / Unit</label>
+                    <p className="text-lg font-bold text-[#669c2c] mt-2">₹{(product.costPerUnit || 0).toFixed(2)}</p>
                   </div>
+                )}
+                {product.costing?.totalCostPerUnit && (
                   <div>
                     <label className="text-xs font-bold text-[#6b6155] uppercase tracking-wide">Total Cost / Unit</label>
                     <p className="text-lg font-bold text-[#669c2c] mt-2">₹{(product.costing.totalCostPerUnit || 0).toFixed(2)}</p>
                   </div>
-                </div>
-              ) : (
-                <p className="text-center py-8 text-[#8a8171]">No costing information available</p>
+                )}
+              </div>
+              {!product.costing && !product.costPerUnit && (
+                <p className="text-center py-8 text-[#8a8171]">No costing information available yet</p>
               )}
             </div>
           )}
@@ -2859,7 +2882,7 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab, initialO
         <ProductDetailModal
           productId={viewingProductId}
           onClose={() => { setViewingProductId(null); setViewingProductTab('Overview'); }}
-          refetchLead={() => refetchLead()}
+          refetchLead={refetchLead}
         />
       )}
 
