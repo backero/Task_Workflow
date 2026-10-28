@@ -424,6 +424,61 @@ function BranchedFormulationEditor({ product, selectedVersionId, setSelectedVers
   );
 }
 
+function RndResearchGuidePanel({ product, selectedVersionId, form, setForm, onSaveLive, onAttachLive, onRemoveAttachLive, onSaveVersionRnd, onAttachVersionRnd, onRemoveAttachVersionRnd }) {
+  const version = selectedVersionId ? (product?.formulationVersions || []).find(v => v._id === selectedVersionId) : null;
+  const locked = version && ['locked', 'archived'].includes(version.status);
+
+  const [vRnd, setVRnd] = useState('');
+  const [vGuide, setVGuide] = useState('');
+  useEffect(() => {
+    if (version) { setVRnd(version.rndDoc?.text || ''); setVGuide(version.researchGuide?.text || ''); }
+  }, [selectedVersionId]);
+
+  function onFile(e) {
+    const f = e.target.files[0]; if (!f) return;
+    if (version) onAttachVersionRnd(selectedVersionId, f); else onAttachLive(f);
+    e.target.value = '';
+  }
+  function handleBlur() {
+    if (version) onSaveVersionRnd(selectedVersionId, { rndDoc: { text: vRnd }, researchGuide: { text: vGuide } });
+    else onSaveLive();
+  }
+
+  const rndText = version ? vRnd : (form.rndDoc?.text || '');
+  const guideText = version ? vGuide : (form.researchGuide?.text || '');
+  const attachments = version ? version.rndDoc?.attachments : product?.rndDoc?.attachments;
+
+  return (
+    <div className="space-y-4">
+      <div>
+        <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
+          <p className="text-sm font-bold text-gray-700">
+            <FileEdit size={13} className="inline -mt-0.5 mr-1" />R&D Documentation & Research Guide
+            <span className="ml-2 text-[11px] font-semibold text-gray-400">
+              · {version ? `${version.versionLabel} (${(FORM_VERSION_STATUS[version.status] || {}).label || version.status})` : 'Live'}
+            </span>
+          </p>
+          <div>
+            <input type="file" id="rndDocFile" accept=".pdf,.doc,.docx,.xlsx,.jpg,.png" className="hidden" onChange={onFile} disabled={locked} />
+            <button onClick={() => document.getElementById('rndDocFile').click()} disabled={locked} className="btn-secondary text-xs disabled:opacity-50 inline-flex items-center gap-1"><Paperclip size={12} />Attach R&D Doc</button>
+          </div>
+        </div>
+        <textarea value={rndText} disabled={locked} onBlur={handleBlur}
+          onChange={e => version ? setVRnd(e.target.value) : setForm(prev => ({ ...prev, rndDoc: { ...prev.rndDoc, text: e.target.value } }))}
+          rows={4} className="input resize-none text-xs w-full disabled:opacity-50" placeholder="Research notes, formulation history, test results, stability studies…" />
+        <AttachmentList attachments={attachments} onRemove={(id) => version ? onRemoveAttachVersionRnd(selectedVersionId, id) : onRemoveAttachLive(id)} />
+      </div>
+
+      <div>
+        <p className="text-sm font-bold text-gray-700 mb-2 flex items-center gap-1.5"><Microscope size={14} />Research Guide</p>
+        <textarea value={guideText} disabled={locked} onBlur={handleBlur}
+          onChange={e => version ? setVGuide(e.target.value) : setForm(prev => ({ ...prev, researchGuide: { ...prev.researchGuide, text: e.target.value } }))}
+          rows={3} className="input resize-none text-xs w-full disabled:opacity-50" placeholder="Literature sources, patent references, regulatory guidelines, safety assessments…" />
+      </div>
+    </div>
+  );
+}
+
 function ManufacturingProcedureTab({ product, form, setForm, onSave, isPending, onAttach, onRemoveAttach }) {
   const [recording, setRecording] = useState(false);
   const [recSeconds, setRecSeconds] = useState(0);
@@ -838,37 +893,53 @@ export default function ProductDetailModal({ productId, onClose, refetchLead }) 
 
           {activeTab === 'Formulation & Procedure' && detail && (
             <div className="space-y-6">
-              <div className="flex gap-4 items-start">
-                <FormulationVersionSidebar product={detail} selectedVersionId={selectedVersionId} setSelectedVersionId={setSelectedVersionId} versionActions={versionActions} />
-                <div className="flex-1 min-w-0">
-                  {selectedVersionId
-                    ? <BranchedFormulationEditor product={detail} selectedVersionId={selectedVersionId} setSelectedVersionId={setSelectedVersionId} versionActions={versionActions} />
-                    : <div className="space-y-4">
-                        <h3 className="font-bold text-slate-900 text-sm">Current Formulation</h3>
-                        {detail.formulation?.rows?.length > 0 && (
-                          <div className="overflow-x-auto rounded border border-slate-200">
-                            <table className="w-full text-xs">
-                              <thead className="bg-slate-50"><tr><th className="px-3 py-2 text-left">Ingredient</th><th className="px-3 py-2 text-left">%</th><th className="px-3 py-2 text-left">Qty</th><th className="px-3 py-2 text-left">Cost/kg</th><th className="px-3 py-2 text-left">Amount</th></tr></thead>
-                              <tbody>
-                                {detail.formulation.rows.map((r, i) => {
-                                  const qty = (detail.formulation.refWeight || 100) * (Number(r.percentage) || 0) / 100 * (Number(r.convFactor) || 1);
-                                  const cost = (r.costPerKg || 0) * qty;
-                                  return (
-                                    <tr key={i} className={i % 2 === 0 ? 'bg-white' : 'bg-slate-50'}>
-                                      <td className="px-3 py-2">{r.name || r.ingredient}</td>
-                                      <td className="px-3 py-2">{Number(r.percentage || 0).toFixed(1)}%</td>
-                                      <td className="px-3 py-2">{qty.toFixed(2)}</td>
-                                      <td className="px-3 py-2">₹{(r.costPerKg || 0).toFixed(2)}</td>
-                                      <td className="px-3 py-2 font-bold text-emerald-600">₹{cost.toFixed(2)}</td>
-                                    </tr>
-                                  );
-                                })}
-                              </tbody>
-                            </table>
-                          </div>
-                        )}
-                      </div>
-                  }
+              <RndResearchGuidePanel
+                product={detail}
+                selectedVersionId={selectedVersionId}
+                form={form}
+                setForm={setForm}
+                onSaveLive={() => updateMutation.mutate({ rndDoc: form.rndDoc, researchGuide: form.researchGuide })}
+                onAttachLive={(f) => attachMutation.mutate({ file: f, kind: 'rndDoc' })}
+                onRemoveAttachLive={(id) => removeAttachMutation.mutate({ kind: 'rndDoc', attachmentId: id })}
+                onSaveVersionRnd={(versionId, data) => updateVersionMutation.mutate({ versionId, data })}
+                onAttachVersionRnd={(versionId, f) => attachMutation.mutate({ file: f, kind: 'procedure' })}
+                onRemoveAttachVersionRnd={(versionId, id) => removeAttachMutation.mutate({ kind: 'procedure', attachmentId: id })}
+              />
+              <hr className="border-gray-100" />
+              <div>
+                <p className="text-sm font-bold text-gray-700 mb-3 flex items-center gap-1.5"><FlaskConical size={14} />Product Formulation</p>
+                <div className="flex gap-4 items-start">
+                  <FormulationVersionSidebar product={detail} selectedVersionId={selectedVersionId} setSelectedVersionId={setSelectedVersionId} versionActions={versionActions} />
+                  <div className="flex-1 min-w-0">
+                    {selectedVersionId
+                      ? <BranchedFormulationEditor product={detail} selectedVersionId={selectedVersionId} setSelectedVersionId={setSelectedVersionId} versionActions={versionActions} />
+                      : <div className="space-y-4">
+                          <h3 className="font-bold text-slate-900 text-sm">Current Formulation</h3>
+                          {detail.formulation?.rows?.length > 0 && (
+                            <div className="overflow-x-auto rounded border border-slate-200">
+                              <table className="w-full text-xs">
+                                <thead className="bg-slate-50"><tr><th className="px-3 py-2 text-left">Ingredient</th><th className="px-3 py-2 text-left">%</th><th className="px-3 py-2 text-left">Qty</th><th className="px-3 py-2 text-left">Cost/kg</th><th className="px-3 py-2 text-left">Amount</th></tr></thead>
+                                <tbody>
+                                  {detail.formulation.rows.map((r, i) => {
+                                    const qty = (detail.formulation.refWeight || 100) * (Number(r.percentage) || 0) / 100 * (Number(r.convFactor) || 1);
+                                    const cost = (r.costPerKg || 0) * qty;
+                                    return (
+                                      <tr key={i} className={i % 2 === 0 ? 'bg-white' : 'bg-slate-50'}>
+                                        <td className="px-3 py-2">{r.name || r.ingredient}</td>
+                                        <td className="px-3 py-2">{Number(r.percentage || 0).toFixed(1)}%</td>
+                                        <td className="px-3 py-2">{qty.toFixed(2)}</td>
+                                        <td className="px-3 py-2">₹{(r.costPerKg || 0).toFixed(2)}</td>
+                                        <td className="px-3 py-2 font-bold text-emerald-600">₹{cost.toFixed(2)}</td>
+                                      </tr>
+                                    );
+                                  })}
+                                </tbody>
+                              </table>
+                            </div>
+                          )}
+                        </div>
+                    }
+                  </div>
                 </div>
               </div>
               <hr className="border-gray-100" />
