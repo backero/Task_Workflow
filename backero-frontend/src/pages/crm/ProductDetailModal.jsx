@@ -1,12 +1,22 @@
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
-import { useNavigate } from 'react-router-dom';
 import api from '../../api/axios';
 import RDPriceCalculator from '../production/RDPriceCalculator';
 
+// Calculate formulation cost per unit
+function calcFormCost(product) {
+  if (!product?.formulation?.rows?.length) return 0;
+  const refWeight = Number(product.formulation.refWeight) || 100;
+  return product.formulation.rows.reduce((sum, r) => {
+    const costPrice = r.costPerKg || 0;
+    const qty = refWeight * (Number(r.percentage) || 0) / 100 * (Number(r.convFactor) || 1);
+    if (costPrice === 0 || qty === 0) return sum;
+    return sum + (costPrice * qty);
+  }, 0);
+}
+
 export default function ProductDetailModal({ productId, onClose, refetchLead }) {
-  const navigate = useNavigate();
   const qc = useQueryClient();
   const { data: productData, isLoading, refetch } = useQuery({
     queryKey: ['catalog-detail', productId],
@@ -63,16 +73,6 @@ export default function ProductDetailModal({ productId, onClose, refetchLead }) 
             <p className="text-sm text-[#8a8171]">{product.code} • {product.category} {product.type && `• ${product.type}`}</p>
           </div>
           <div className="flex items-center gap-2">
-            <button
-              onClick={() => {
-                onClose();
-                navigate(`/inventory/catalog?productId=${productId}`);
-              }}
-              title="Edit in Product Catalog"
-              className="px-4 py-2 rounded-full bg-[#669c2c] text-white text-xs font-semibold hover:brightness-95 transition"
-            >
-              Edit
-            </button>
             <button
               onClick={() => setIsMaximized(!isMaximized)}
               title={isMaximized ? 'Minimize' : 'Maximize'}
@@ -244,60 +244,66 @@ export default function ProductDetailModal({ productId, onClose, refetchLead }) 
                         </tr>
                       </thead>
                       <tbody>
-                        {formulation.rows.map((row, i) => (
-                          <tr key={i} className="border-b border-[#e7e2d6]">
-                            <td className="px-3 py-2">
-                              {editingFormulation ? (
-                                <input
-                                  value={row.name || row.ingredient || ''}
-                                  onChange={(e) => {
-                                    const newRows = [...formulation.rows];
+                        {formulation.rows.map((row, i) => {
+                          const refWeight = Number(formulation.refWeight) || 100;
+                          const costPrice = row.costPerKg || 0;
+                          const qty = refWeight * (Number(row.percentage) || 0) / 100 * (Number(row.convFactor) || 1);
+                          const costContribution = costPrice > 0 && qty > 0 ? costPrice * qty : 0;
+                          return (
+                            <tr key={i} className="border-b border-[#e7e2d6]">
+                              <td className="px-3 py-2">
+                                {editingFormulation ? (
+                                  <input
+                                    value={row.name || row.ingredient || ''}
+                                    onChange={(e) => {
+                                      const newRows = [...formulation.rows];
                                     newRows[i].name = e.target.value;
                                     if (!newRows[i].ingredient) newRows[i].ingredient = e.target.value;
                                     setFormulation({...formulation, rows: newRows});
                                   }}
-                                  className="w-full px-2 py-1 border border-[#ddd6c4] rounded text-sm"
-                                />
-                              ) : (
-                                <span className="text-[#1c1917]">{row.name || row.ingredient || '—'}</span>
-                              )}
-                            </td>
-                            <td className="px-3 py-2">
-                              {editingFormulation ? (
-                                <input
-                                  type="number"
-                                  value={row.percentage || ''}
-                                  onChange={(e) => {
-                                    const newRows = [...formulation.rows];
-                                    newRows[i].percentage = e.target.value;
-                                    setFormulation({...formulation, rows: newRows});
-                                  }}
-                                  className="w-20 px-2 py-1 border border-[#ddd6c4] rounded text-sm"
-                                />
-                              ) : (
-                                <span className="text-[#6b6155]">{row.percentage || '—'}%</span>
-                              )}
-                            </td>
-                            <td className="px-3 py-2">
-                              {editingFormulation ? (
-                                <input
-                                  type="number"
-                                  value={row.quantity || ''}
-                                  onChange={(e) => {
-                                    const newRows = [...formulation.rows];
-                                    newRows[i].quantity = e.target.value;
-                                    setFormulation({...formulation, rows: newRows});
-                                  }}
-                                  className="w-20 px-2 py-1 border border-[#ddd6c4] rounded text-sm"
-                                />
-                              ) : (
-                                <span className="text-[#6b6155]">{row.quantity || '—'}</span>
-                              )}
-                            </td>
-                            <td className="px-3 py-2 text-[#6b6155]">{row.unit || '—'}</td>
-                            <td className="px-3 py-2 text-[#669c2c] font-semibold">₹{(row.costPerUnit || 0).toFixed(2)}</td>
-                          </tr>
-                        ))}
+                                    className="w-full px-2 py-1 border border-[#ddd6c4] rounded text-sm"
+                                  />
+                                ) : (
+                                  <span className="text-[#1c1917]">{row.name || row.ingredient || '—'}</span>
+                                )}
+                              </td>
+                              <td className="px-3 py-2">
+                                {editingFormulation ? (
+                                  <input
+                                    type="number"
+                                    value={row.percentage || ''}
+                                    onChange={(e) => {
+                                      const newRows = [...formulation.rows];
+                                      newRows[i].percentage = e.target.value;
+                                      setFormulation({...formulation, rows: newRows});
+                                    }}
+                                    className="w-20 px-2 py-1 border border-[#ddd6c4] rounded text-sm"
+                                  />
+                                ) : (
+                                  <span className="text-[#6b6155]">{row.percentage || '—'}%</span>
+                                )}
+                              </td>
+                              <td className="px-3 py-2">
+                                {editingFormulation ? (
+                                  <input
+                                    type="number"
+                                    value={row.quantity || ''}
+                                    onChange={(e) => {
+                                      const newRows = [...formulation.rows];
+                                      newRows[i].quantity = e.target.value;
+                                      setFormulation({...formulation, rows: newRows});
+                                    }}
+                                    className="w-20 px-2 py-1 border border-[#ddd6c4] rounded text-sm"
+                                  />
+                                ) : (
+                                  <span className="text-[#6b6155]">{row.quantity || '—'}</span>
+                                )}
+                              </td>
+                              <td className="px-3 py-2 text-[#6b6155]">{row.unit || '—'}</td>
+                              <td className="px-3 py-2 text-[#669c2c] font-semibold">₹{costContribution.toFixed(2)}</td>
+                            </tr>
+                          );
+                        })}
                       </tbody>
                     </table>
                   </div>
@@ -329,10 +335,10 @@ export default function ProductDetailModal({ productId, onClose, refetchLead }) 
                     <p className="text-lg font-semibold text-[#1c1917] mt-2">₹{(product.costing.packagingCost || 0).toFixed(2)}</p>
                   </div>
                 )}
-                {product.costPerUnit && (
+                {(product.costPerUnit || calcFormCost(product) > 0) && (
                   <div>
                     <label className="text-xs font-bold text-[#6b6155] uppercase tracking-wide">Formulation Cost / Unit</label>
-                    <p className="text-lg font-bold text-[#669c2c] mt-2">₹{(product.costPerUnit || 0).toFixed(2)}</p>
+                    <p className="text-lg font-bold text-[#669c2c] mt-2">₹{(product.costPerUnit || calcFormCost(product)).toFixed(2)}</p>
                   </div>
                 )}
                 {product.costing?.totalCostPerUnit && (
@@ -342,7 +348,7 @@ export default function ProductDetailModal({ productId, onClose, refetchLead }) 
                   </div>
                 )}
               </div>
-              {!product.costing && !product.costPerUnit && (
+              {!product.costing && calcFormCost(product) === 0 && !product.costPerUnit && (
                 <p className="text-center py-8 text-[#8a8171]">No costing information available yet</p>
               )}
             </div>
