@@ -99,44 +99,91 @@ export default function ProductDetailModal({ productId, onClose, refetchLead }) 
         <div className="flex-1 overflow-y-auto p-6">
           {activeTab === 'Overview' && (
             <div className="space-y-6">
-              <div className="grid grid-cols-2 gap-6">
+              <div className="grid grid-cols-3 gap-6">
+                {/* Basic Info */}
                 <div>
-                  <label className="text-xs font-bold text-[#6b6155] uppercase tracking-wide">SKU / Code</label>
-                  <p className="text-sm text-[#1c1917] font-mono mt-1">{product.code}</p>
+                  <label className="text-xs font-bold text-[#6b6155] uppercase tracking-wide block mb-2">SKU / Code</label>
+                  <p className="text-sm text-[#1c1917] font-mono">{product.code}</p>
                 </div>
                 <div>
-                  <label className="text-xs font-bold text-[#6b6155] uppercase tracking-wide">Status</label>
-                  <p className="mt-1">
-                    <span className={`inline-block px-3 py-1 rounded-full text-xs font-bold ${
-                      product.status === 'Active' ? 'bg-[#d1fae5] text-[#065f46]' :
-                      product.status === 'Inactive' ? 'bg-[#fee2e2] text-[#991b1b]' :
-                      'bg-[#fef3c7] text-[#92400e]'
-                    }`}>
-                      {product.status}
-                    </span>
-                  </p>
+                  <label className="text-xs font-bold text-[#6b6155] uppercase tracking-wide block mb-2">Category</label>
+                  <p className="text-sm text-[#1c1917]">{product.category}</p>
                 </div>
                 <div>
-                  <label className="text-xs font-bold text-[#6b6155] uppercase tracking-wide">Category</label>
-                  <p className="text-sm text-[#1c1917] mt-1">{product.category}</p>
+                  <label className="text-xs font-bold text-[#6b6155] uppercase tracking-wide block mb-2">Sub-Category</label>
+                  <p className="text-sm text-[#1c1917]">{product.subCategory || '—'}</p>
                 </div>
                 <div>
-                  <label className="text-xs font-bold text-[#6b6155] uppercase tracking-wide">Type</label>
-                  <p className="text-sm text-[#1c1917] mt-1">{product.type || '—'}</p>
+                  <label className="text-xs font-bold text-[#6b6155] uppercase tracking-wide block mb-2">Type</label>
+                  <p className="text-sm text-[#1c1917]">{product.type || '—'}</p>
                 </div>
                 <div>
-                  <label className="text-xs font-bold text-[#6b6155] uppercase tracking-wide">Base Unit</label>
-                  <p className="text-sm text-[#1c1917] mt-1">{product.unit}</p>
-                </div>
-                <div>
-                  <label className="text-xs font-bold text-[#6b6155] uppercase tracking-wide">Reference Weight</label>
-                  <p className="text-sm text-[#1c1917] mt-1">{product.weight || '—'}</p>
+                  <label className="text-xs font-bold text-[#6b6155] uppercase tracking-wide block mb-2">Status</label>
+                  <span className={`inline-block px-3 py-1 rounded-full text-xs font-bold ${
+                    product.status === 'Active' ? 'bg-[#d1fae5] text-[#065f46]' :
+                    product.status === 'Inactive' ? 'bg-[#fee2e2] text-[#991b1b]' :
+                    'bg-[#fef3c7] text-[#92400e]'
+                  }`}>
+                    {product.status}
+                  </span>
                 </div>
               </div>
+
+              {/* Specifications */}
+              <div>
+                <h3 className="text-xs font-bold text-[#6b6155] uppercase tracking-wide mb-3">Specifications</h3>
+                <div className="grid grid-cols-3 gap-6">
+                  <div>
+                    <label className="text-xs text-[#8a8171] block mb-1">Base Unit</label>
+                    <p className="text-sm text-[#1c1917]">{product.unit}</p>
+                  </div>
+                  <div>
+                    <label className="text-xs text-[#8a8171] block mb-1">Reference Weight</label>
+                    <p className="text-sm text-[#1c1917]">{product.weight ? `${product.weight} ${product.unit}` : '—'}</p>
+                  </div>
+                  <div>
+                    <label className="text-xs text-[#8a8171] block mb-1">Shelf Life</label>
+                    <p className="text-sm text-[#1c1917]">{product.shelfLife ? `${product.shelfLife} months` : '—'}</p>
+                  </div>
+                  <div>
+                    <label className="text-xs text-[#8a8171] block mb-1">HSN Code</label>
+                    <p className="text-sm text-[#1c1917] font-mono">{product.hsnCode || '—'}</p>
+                  </div>
+                  <div>
+                    <label className="text-xs text-[#8a8171] block mb-1">GST Rate</label>
+                    <p className="text-sm text-[#1c1917]">{product.gstRate || '—'}%</p>
+                  </div>
+                  <div>
+                    <label className="text-xs text-[#8a8171] block mb-1">Barcode</label>
+                    <p className="text-sm text-[#1c1917] font-mono">{product.barcode || '—'}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Cost Per Unit */}
+              {product.costPerUnit && (
+                <div>
+                  <h3 className="text-xs font-bold text-[#6b6155] uppercase tracking-wide mb-3">Cost Per Unit</h3>
+                  <div>
+                    <label className="text-xs text-[#8a8171] block mb-1">Formulation Cost</label>
+                    <p className="text-sm font-bold text-[#669c2c]">₹{(product.costPerUnit || 0).toFixed(2)}</p>
+                  </div>
+                </div>
+              )}
+
+              {/* Certifications */}
+              {product.certifications && (
+                <div>
+                  <h3 className="text-xs font-bold text-[#6b6155] uppercase tracking-wide mb-3">Certifications</h3>
+                  <p className="text-sm text-[#1c1917]">{product.certifications}</p>
+                </div>
+              )}
+
+              {/* Description */}
               {product.description && (
                 <div>
-                  <label className="text-xs font-bold text-[#6b6155] uppercase tracking-wide">Description</label>
-                  <p className="text-sm text-[#1c1917] mt-2 leading-relaxed">{product.description}</p>
+                  <h3 className="text-xs font-bold text-[#6b6155] uppercase tracking-wide mb-3">Description</h3>
+                  <p className="text-sm text-[#1c1917] leading-relaxed">{product.description}</p>
                 </div>
               )}
             </div>
