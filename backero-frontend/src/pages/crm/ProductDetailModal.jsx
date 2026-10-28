@@ -323,10 +323,14 @@ function BranchedFormulationEditor({ product, selectedVersionId, setSelectedVers
     }
   }, [selectedVersionId]);
 
-  const { data: rmData } = useQuery({
+  const { data: rmData, isLoading: rmLoading, refetch: rmRefetch } = useQuery({
     queryKey: ['raw-materials-list'],
-    queryFn: () => api.get('/inventory/raw-materials').then(r => r.data.materials || []),
+    queryFn: () => api.get('/inventory/raw-materials').then(r => {
+      console.log('Raw materials loaded:', r.data.materials?.length || 0);
+      return r.data.materials || [];
+    }),
     staleTime: 60000,
+    retry: 2,
   });
   const rawMaterials = rmData || [];
 
@@ -399,7 +403,15 @@ function BranchedFormulationEditor({ product, selectedVersionId, setSelectedVers
             <div className="flex-1"><label className="text-[10px] text-gray-400">Change Note</label>
               <input value={changeNotes} onChange={e => setChangeNotes(e.target.value)} placeholder="e.g. Reduced tack, added ferulic 0.5%" className="input text-xs w-full" />
             </div>
+            <button onClick={() => rmRefetch()} disabled={rmLoading} className="px-2 py-1 text-xs rounded bg-slate-100 hover:bg-slate-200 disabled:opacity-50" title="Reload raw materials">
+              {rmLoading ? 'Loading...' : <RefreshCw size={12} className="inline" />}
+            </button>
           </div>
+          {rawMaterials.length === 0 && !rmLoading && (
+            <div className="px-3 py-2 text-xs bg-amber-50 border border-amber-200 rounded text-amber-700">
+              ⚠️ No raw materials found. Create raw materials in Inventory > Raw Materials first, then use the reload button above.
+            </div>
+          )}
           <VersionRowsTable rows={draftRows} refWeight={draftMeta.refWeight} rawMaterials={rawMaterials} onUpdate={updateDraftRow} onAdd={addDraftRow} onRemove={removeDraftRow} editable />
         </>
       ) : (
