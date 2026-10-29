@@ -229,7 +229,7 @@ export default function ProductOverheadsTab({ product, form, setForm, onSaveProd
                   { label: 'Combined Total', value: `₹${numF(combinedTotal)}` },
                 ]} />
                 <HighlightStrip tone="dark" items={[
-                  { label: 'Per Unit Formulation', value: `₹${numF(perUnitFormulationCost, 4)}` },
+                  { label: `Per ${batchUnit}`, value: `₹${numF(totalBatchPrice / selectedBatch, 4)}` },
                   { label: 'Per Unit Overhead', value: `₹${numF(perUnitOverhead, 4)}` },
                   { label: 'Combined Per Unit', value: `₹${numF(perUnitCombined, 4)}`, big: true, accent: true },
                 ]} />
