@@ -24,6 +24,7 @@ export default function ProductOverheadsTab({ product, form, setForm, onSaveProd
   const [batchUnit, setBatchUnit] = useState('g');
   const [roundToNearest100, setRoundToNearest100] = useState(false);
   const [showContainerGST, setShowContainerGST] = useState(false);
+  const [showFinalGST, setShowFinalGST] = useState(false);
 
   const convertToBaseUnit = (qty, unit) => {
     const conversions = {
@@ -372,42 +373,6 @@ export default function ProductOverheadsTab({ product, form, setForm, onSaveProd
         <hr className="border-gray-100 dark:border-[#1b2e4a]" />
 
         <div>
-          <p className="text-sm font-bold text-gray-700 dark:text-gray-200 mb-4 flex items-center gap-1.5"><Factory size={14} />Complete Cost Summary (with Margins)</p>
-          {selectedBatch && (() => {
-            const batchCost = calculateBatchCost(selectedBatch, batchUnit);
-            const costBreakdown = batchCost.totalAll || 0;
-
-            const containersTotal = (form.containers || []).reduce((s, item) => {
-              const batchQtyInBaseUnit = convertToBaseUnit(selectedBatch, batchUnit);
-              const containerWeightInBaseUnit = convertToBaseUnit(Number(item.weight) || 0, item.unit || 'g');
-              const costPerPiece = Number(item.costPerPiece) || 0;
-              const unitsNeeded = containerWeightInBaseUnit > 0 ? batchQtyInBaseUnit / containerWeightInBaseUnit : 0;
-              const itemCost = unitsNeeded * costPerPiece * (showContainerGST ? 1.18 : 1);
-              return s + itemCost;
-            }, 0);
-
-            const pkgItems = form.packaging?.items || [];
-            const pkgCharges = form.packaging?.charges || {};
-            const packagingTotal = pkgItems.reduce((s, i) => s + (Number(i.amount) || Number(i.qty) * Number(i.rate) || 0), 0) + Number(pkgCharges.machine || 0) + Number(pkgCharges.shrinkWrap || 0) + Number(pkgCharges.other || 0);
-
-            const subtotal = costBreakdown + containersTotal + packagingTotal;
-
-            return (
-              <div className="space-y-3 p-4 bg-gray-50 dark:bg-[#0f1a2e] rounded-lg">
-                <div className="flex justify-between text-sm"><span className="text-gray-700 dark:text-gray-300">Cost Breakdown Total:</span><span className="font-mono font-bold">₹{numF(costBreakdown)}</span></div>
-                <div className="flex justify-between text-sm"><span className="text-gray-700 dark:text-gray-300">Containers Cost:</span><span className="font-mono font-bold">₹{numF(containersTotal)}</span></div>
-                <div className="flex justify-between text-sm"><span className="text-gray-700 dark:text-gray-300">Packaging Cost:</span><span className="font-mono font-bold">₹{numF(packagingTotal)}</span></div>
-                <div className="border-t border-gray-200 dark:border-[#1b2e4a] pt-2 flex justify-between text-sm font-bold"><span className="text-gray-800 dark:text-gray-100">Subtotal:</span><span className="font-mono text-lg">₹{numF(subtotal)}</span></div>
-                <div className="pt-2 text-xs text-gray-500">Note: Apply margin settings in Packaging & Labeling → Costing section for final pricing</div>
-              </div>
-            );
-          })()}
-          {!selectedBatch && <p className="text-xs text-gray-400">Enter batch quantity to see complete cost summary</p>}
-        </div>
-
-        <hr className="border-gray-100 dark:border-[#1b2e4a]" />
-
-        <div>
           <CostingPackagingTab
             product={product}
             form={form}
@@ -503,6 +468,61 @@ export default function ProductOverheadsTab({ product, form, setForm, onSaveProd
             </>
           );
         })()}
+
+        {/* Complete Cost Summary */}
+        <hr className="border-gray-200 dark:border-[#1b2e4a] my-4" />
+        <p className="text-sm font-bold text-gray-700 dark:text-gray-200 mb-3 flex items-center gap-1.5"><Factory size={14} />Complete Cost Breakdown</p>
+        {selectedBatch && (() => {
+          const batchCost = calculateBatchCost(selectedBatch, batchUnit);
+          const costBreakdown = batchCost.totalAll || 0;
+
+          const containersTotal = (form.containers || []).reduce((s, item) => {
+            const batchQtyInBaseUnit = convertToBaseUnit(selectedBatch, batchUnit);
+            const containerWeightInBaseUnit = convertToBaseUnit(Number(item.weight) || 0, item.unit || 'g');
+            const costPerPiece = Number(item.costPerPiece) || 0;
+            const unitsNeeded = containerWeightInBaseUnit > 0 ? batchQtyInBaseUnit / containerWeightInBaseUnit : 0;
+            const itemCost = unitsNeeded * costPerPiece;
+            return s + itemCost;
+          }, 0);
+
+          const pkgItems = form.packaging?.items || [];
+          const pkgCharges = form.packaging?.charges || {};
+          const packagingTotal = pkgItems.reduce((s, i) => s + (Number(i.amount) || Number(i.qty) * Number(i.rate) || 0), 0) + Number(pkgCharges.machine || 0) + Number(pkgCharges.shrinkWrap || 0) + Number(pkgCharges.other || 0);
+
+          const subtotal = costBreakdown + containersTotal + packagingTotal;
+          const withGST = showFinalGST ? subtotal * 1.18 : subtotal;
+
+          return (
+            <div className="space-y-2 p-3 bg-gray-50 dark:bg-[#0f1a2e] rounded-lg">
+              <div className="flex justify-between text-xs"><span className="text-gray-600 dark:text-gray-400">Cost Breakdown:</span><span className="font-mono font-semibold">₹{numF(costBreakdown)}</span></div>
+              <div className="flex justify-between text-xs"><span className="text-gray-600 dark:text-gray-400">Containers:</span><span className="font-mono font-semibold">₹{numF(containersTotal)}</span></div>
+              <div className="flex justify-between text-xs"><span className="text-gray-600 dark:text-gray-400">Packaging:</span><span className="font-mono font-semibold">₹{numF(packagingTotal)}</span></div>
+              <div className="border-t border-gray-200 dark:border-[#1b2e4a] pt-2 flex justify-between text-sm font-bold">
+                <span className="text-gray-700 dark:text-gray-200">Subtotal:</span>
+                <span className="font-mono">₹{numF(subtotal)}</span>
+              </div>
+              {showFinalGST && (
+                <div className="flex justify-between text-xs bg-amber-50 dark:bg-amber-500/10 -mx-3 -mb-3 px-3 py-2 rounded-b-lg border-t border-amber-200 dark:border-amber-800/40">
+                  <span className="text-amber-700 dark:text-amber-300 font-semibold">With GST (18%):</span>
+                  <span className="font-mono font-bold text-amber-700 dark:text-amber-300">₹{numF(withGST)}</span>
+                </div>
+              )}
+              <div className="flex items-center gap-2 mt-2 pt-2 border-t border-gray-200 dark:border-[#1b2e4a]">
+                <input
+                  type="checkbox"
+                  checked={showFinalGST}
+                  onChange={e => setShowFinalGST(e.target.checked)}
+                  className="w-3 h-3"
+                  id="finalGSTChk"
+                />
+                <label htmlFor="finalGSTChk" className="text-xs font-semibold text-gray-600 dark:text-gray-400 cursor-pointer">
+                  Include GST (18%)
+                </label>
+              </div>
+            </div>
+          );
+        })()}
+        {!selectedBatch && <p className="text-xs text-gray-400">Enter batch quantity to see cost breakdown</p>}
       </div>
     </div>
   );
