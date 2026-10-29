@@ -297,20 +297,20 @@ export default function ProductOverheadsTab({ product, form, setForm, onSaveProd
               <div className="space-y-4">
                 <HighlightStrip tone="dark" items={[
                   { label: 'Total Formulation Cost', value: `₹${numF(totalFormulation)}` },
-                  { label: `Standard Assumptions (${saPct}%)`, value: `₹${numF(saAmount)}` },
                   { label: 'Production Overhead', value: `₹${numF(totalOverheadForBatch)}` },
+                  { label: `Standard Assumptions (${saPct}%)`, value: `₹${numF(saAmount)}` },
                   { label: 'Combined Total', value: `₹${numF(totalWithSAAndOverhead)}`, big: true, accent: true },
                 ]} />
                 <HighlightStrip tone="dark" items={[
                   { label: `Per ${batchUnit} (Formulation)`, value: `₹${numF(perUnitFormulation, 4)}` },
-                  { label: `Per ${batchUnit} (SA)`, value: `₹${numF(perUnitSA, 4)}` },
                   { label: `Per ${batchUnit} (Overhead)`, value: `₹${numF(perUnitOverhead, 4)}` },
+                  { label: `Per ${batchUnit} (SA)`, value: `₹${numF(perUnitSA, 4)}` },
                   { label: `Per ${batchUnit} (Total)`, value: `₹${numF(perUnitCombined, 4)}`, big: true, accent: true },
                 ]} />
                 <HighlightStrip tone="dark" items={[
                   { label: `Per ${alternateLabel} (Formulation)`, value: `₹${numF(perAltFormulation, 4)}` },
-                  { label: `Per ${alternateLabel} (SA)`, value: `₹${numF(perAltSA, 4)}` },
                   { label: `Per ${alternateLabel} (Overhead)`, value: `₹${numF(perAltOverhead, 4)}` },
+                  { label: `Per ${alternateLabel} (SA)`, value: `₹${numF(perAltSA, 4)}` },
                   { label: `Per ${alternateLabel} (Total)`, value: `₹${numF(perAlternateUnit, 4)}`, big: true, accent: true },
                 ]} />
               </div>
