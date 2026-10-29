@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Save, Factory, FileEdit, BarChart3, Camera, TriangleAlert } from 'lucide-react';
+import { Factory, FileEdit, TriangleAlert } from 'lucide-react';
 import LastUpdatedBadge from './shared/LastUpdatedBadge';
 
 function numF(v, d = 2) { return Number(v || 0).toFixed(d); }
@@ -127,16 +127,6 @@ export default function RndOverheadsTab({ product, form, setForm, onSave, isPend
         )}
       </div>
 
-      <hr className="border-gray-100 dark:border-[#1b2e4a]" />
-
-      <div>
-        <p className="text-sm font-bold text-gray-700 dark:text-gray-200 mb-3 flex items-center gap-1.5"><BarChart3 size={14} />Total Overhead &amp; R&amp;D Cost Summary</p>
-        <HighlightStrip tone="dark" items={[
-          { label: 'Production Overhead Per Unit', value: `₹${numF(b.overheadPerUnit, 4)}` },
-          { label: 'Standard Assumptions Per Unit', value: `₹${numF(b.saAmount, 4)}` },
-          { label: 'Total Overhead & R&D Per Unit', value: `₹${numF(b.rndPerUnit + b.overheadPerUnit + b.saAmount, 4)}`, big: true, accent: true },
-        ]} />
-      </div>
     </div>
   );
 }
