@@ -438,12 +438,14 @@ export default function ProductOverheadsTab({ product, form, setForm, onSaveProd
           const saPct = [sa.equipmentPct, sa.consumablesPct, sa.storagePct, sa.housekeepingPct, sa.adminPct, sa.wastagePct].reduce((s, v) => s + (Number(v) || 0), 0);
           const saAmount = totalFormCost * (saPct / 100);
 
-          // Containers cost
-          const containersCost = (form.containers || []).reduce((s, item) => {
+          // Containers cost (recalculate Pcs Needed since it's based on batch)
+          const containersCost = selectedBatch ? (form.containers || []).reduce((s, item) => {
+            const batchQtyBase = convertToBaseUnit(selectedBatch, batchUnit);
+            const containerWtBase = convertToBaseUnit(Number(item.weight) || 0, item.unit || 'g');
+            const pcsNeeded = containerWtBase > 0 ? Math.round(batchQtyBase / containerWtBase) : 0;
             const costPerPiece = Number(item.costPerPiece) || 0;
-            const pcsNeeded = Number(item.pcsNeeded) || 0;
             return s + (costPerPiece * pcsNeeded);
-          }, 0);
+          }, 0) : 0;
 
           // Packaging cost
           const pkgItems = pkg.items || [];
@@ -488,6 +490,45 @@ export default function ProductOverheadsTab({ product, form, setForm, onSaveProd
                     <tr className="bg-gray-100 dark:bg-[#0f1a2e]">
                       <td className="px-3 py-2.5 font-bold text-gray-800 dark:text-gray-100">Subtotal</td>
                       <td className="px-3 py-2.5 text-right font-mono font-bold text-gray-900 dark:text-white">₹{numF(subtotalBeforeMargin, 2)}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
+              <div className="overflow-x-auto rounded-lg border border-gray-200 dark:border-[#1b2e4a] mb-4 mt-4">
+                <table className="w-full text-xs">
+                  <tbody>
+                    <tr className="border-b border-gray-200 dark:border-[#1b2e4a] bg-blue-50 dark:bg-blue-500/10">
+                      <td className="px-3 py-2 font-semibold text-blue-700 dark:text-blue-300">Formulation</td>
+                      <td className="px-3 py-2 text-right font-mono font-bold text-blue-700 dark:text-blue-300">₹{numF(totalFormCost, 2)}</td>
+                    </tr>
+                    <tr className="border-b border-gray-200 dark:border-[#1b2e4a]">
+                      <td className="px-3 py-2 font-semibold text-gray-700 dark:text-gray-300">Production Overhead</td>
+                      <td className="px-3 py-2 text-right font-mono font-bold text-gray-900 dark:text-white">₹{numF(totalOverhead, 2)}</td>
+                    </tr>
+                    <tr className="border-b border-gray-200 dark:border-[#1b2e4a]">
+                      <td className="px-3 py-2 font-semibold text-gray-700 dark:text-gray-300">Standard Assumptions</td>
+                      <td className="px-3 py-2 text-right font-mono font-bold text-gray-900 dark:text-white">₹{numF(saAmount, 2)}</td>
+                    </tr>
+                    <tr className="border-b border-gray-200 dark:border-[#1b2e4a]">
+                      <td className="px-3 py-2 font-semibold text-gray-700 dark:text-gray-300">Containers & Labeling</td>
+                      <td className="px-3 py-2 text-right font-mono font-bold text-gray-900 dark:text-white">₹{numF(containersCost, 2)}</td>
+                    </tr>
+                    <tr className="border-b border-gray-200 dark:border-[#1b2e4a]">
+                      <td className="px-3 py-2 font-semibold text-gray-700 dark:text-gray-300">Packaging & Labeling</td>
+                      <td className="px-3 py-2 text-right font-mono font-bold text-gray-900 dark:text-white">₹{numF(pkgCostTotal, 2)}</td>
+                    </tr>
+                    <tr className="border-b border-gray-200 dark:border-[#1b2e4a] bg-amber-50 dark:bg-amber-500/10">
+                      <td className="px-3 py-2 font-semibold text-amber-700 dark:text-amber-300">Subtotal (Before Margin)</td>
+                      <td className="px-3 py-2 text-right font-mono font-bold text-amber-700 dark:text-amber-300">₹{numF(subtotalBeforeMargin, 2)}</td>
+                    </tr>
+                    <tr className="border-b border-gray-200 dark:border-[#1b2e4a]">
+                      <td className="px-3 py-2 font-semibold text-gray-700 dark:text-gray-300">Margin ({activeMarginType.toUpperCase()} {marginPercent}%)</td>
+                      <td className="px-3 py-2 text-right font-mono font-bold text-gray-900 dark:text-white">₹{numF(marginAmount, 2)}</td>
+                    </tr>
+                    <tr className="bg-slate-900 text-white">
+                      <td className="px-3 py-2.5 font-bold">FINAL TOTAL</td>
+                      <td className="px-3 py-2.5 text-right font-mono font-bold text-amber-300 text-lg">₹{numF(subtotalWithMargin, 2)}</td>
                     </tr>
                   </tbody>
                 </table>
