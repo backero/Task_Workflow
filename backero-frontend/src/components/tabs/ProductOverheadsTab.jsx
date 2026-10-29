@@ -19,13 +19,6 @@ function HighlightStrip({ items, tone = 'light' }) {
   );
 }
 
-const BATCH_SIZES = [
-  { label: '3kg', value: 3000 },
-  { label: '5kg', value: 5000 },
-  { label: '7kg', value: 7000 },
-  { label: '10kg', value: 10000 },
-];
-
 export default function ProductOverheadsTab({ product, form, setForm, onSaveProductionOverheads, onSavePackaging, onSaveVariants, onSaveCosting, isPending }) {
   const [selectedBatch, setSelectedBatch] = useState(null);
 
@@ -69,26 +62,23 @@ export default function ProductOverheadsTab({ product, form, setForm, onSaveProd
     <div className="space-y-8">
       <div>
         <p className="text-sm font-bold text-gray-700 dark:text-gray-200 mb-4 flex items-center gap-1.5"><Factory size={14} />Batch Quantity Calculator</p>
-        <div className="flex gap-2 flex-wrap mb-4">
-          {BATCH_SIZES.map(batch => (
-            <button
-              key={batch.value}
-              onClick={() => setSelectedBatch(batch.value)}
-              className={`px-4 py-2 rounded-lg font-semibold text-sm transition-all ${
-                selectedBatch === batch.value
-                  ? 'bg-emerald-600 text-white shadow-md'
-                  : 'bg-gray-100 dark:bg-[#1b2e4a] text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-[#2a3f5f]'
-              }`}
-            >
-              {batch.label}
-            </button>
-          ))}
+        <div className="mb-4">
+          <label className="label">Enter Batch Quantity (grams)</label>
+          <input
+            type="number"
+            min="0"
+            step="100"
+            value={selectedBatch || ''}
+            onChange={e => setSelectedBatch(e.target.value ? Number(e.target.value) : null)}
+            className="input text-sm w-full"
+            placeholder="Enter quantity in grams (e.g., 3000, 5000, 10000)"
+          />
         </div>
         {selectedBatch && (() => {
           const batchCost = calculateBatchCost(selectedBatch);
           return (
             <HighlightStrip tone="dark" items={[
-              { label: `Batch Size`, value: `${selectedBatch / 1000}kg` },
+              { label: `Batch Size`, value: `${(selectedBatch / 1000).toFixed(2)}g` },
               { label: 'Overhead Cost', value: `₹${numF(batchCost.totalOverhead)}` },
               { label: 'Standard Assumptions', value: `₹${numF(batchCost.totalSA)}` },
               { label: 'Total Batch Cost', value: `₹${numF(batchCost.totalAll)}`, big: true, accent: true },
