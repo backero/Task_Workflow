@@ -137,8 +137,6 @@ export default function RndOverheadsTab({ product, form, setForm, onSave, isPend
           { label: 'Total Overhead & R&D Per Unit', value: `₹${numF(b.rndPerUnit + b.overheadPerUnit + b.saAmount, 4)}`, big: true, accent: true },
         ]} />
       </div>
-
-      <button onClick={onSave} disabled={isPending} className="btn-primary text-sm disabled:opacity-50">{isPending ? 'Saving…' : <><Save size={13} className="inline -mt-0.5 mr-1" />Save Production Overheads</>}</button>
     </div>
   );
 }
