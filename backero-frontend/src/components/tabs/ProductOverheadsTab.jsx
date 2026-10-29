@@ -296,15 +296,19 @@ export default function ProductOverheadsTab({ product, form, setForm, onSaveProd
           <p className="text-sm font-bold text-gray-700 dark:text-gray-200 mb-4 flex items-center gap-1.5"><Factory size={14} />Containers & Labeling</p>
           <div className="space-y-3">
             {(form.containers || []).map((item, idx) => {
-              const batchSize = selectedBatch || 1000;
-              const amount = (Number(item.grams) || 0) * (Number(item.pricePerGram) || 0);
+              const refWInBaseUnit = convertToBaseUnit(refW, refUnit);
+              const batchQtyInBaseUnit = selectedBatch ? convertToBaseUnit(selectedBatch, batchUnit) : 0;
+              const gramPerUnit = Number(item.grams) || 0;
+              const pricePerGram = Number(item.pricePerGram) || 0;
+              const unitsNeeded = gramPerUnit > 0 ? batchQtyInBaseUnit / gramPerUnit : 0;
+              const amount = unitsNeeded * gramPerUnit * pricePerGram;
               const amountWithGST = showContainerGST ? amount * 1.18 : amount;
               return (
                 <div key={idx} className="flex gap-3 items-end border border-gray-200 dark:border-[#1b2e4a] rounded-lg p-3">
                   <div className="flex-1"><label className="label text-xs">Item Name</label><input type="text" value={item.name || ''} onChange={e => { const c = [...(form.containers || [])]; c[idx].name = e.target.value; setForm(f => ({ ...f, containers: c })); }} className="input text-xs w-full" placeholder="e.g., Bottle, Label, Cap" /></div>
-                  <div className="w-24"><label className="label text-xs">Grams/Batch</label><input type="number" step="0.1" value={item.grams || ''} onChange={e => { const c = [...(form.containers || [])]; c[idx].grams = Number(e.target.value) || 0; setForm(f => ({ ...f, containers: c })); }} className="input text-xs" /></div>
+                  <div className="w-24"><label className="label text-xs">Gram per Unit</label><input type="number" step="0.1" value={item.grams || ''} onChange={e => { const c = [...(form.containers || [])]; c[idx].grams = Number(e.target.value) || 0; setForm(f => ({ ...f, containers: c })); }} className="input text-xs" /></div>
                   <div className="w-20"><label className="label text-xs">₹/gram</label><input type="number" step="0.01" value={item.pricePerGram || ''} onChange={e => { const c = [...(form.containers || [])]; c[idx].pricePerGram = Number(e.target.value) || 0; setForm(f => ({ ...f, containers: c })); }} className="input text-xs" /></div>
-                  <div className="w-20"><label className="label text-xs">Amount</label><input type="text" readOnly value={numF(amountWithGST)} className="input text-xs bg-gray-50 dark:bg-[#0f1a2e] font-mono font-bold" /></div>
+                  <div className="w-28"><label className="label text-xs">Amount ({selectedBatch ? batchUnit : '—'})</label><input type="text" readOnly value={selectedBatch ? numF(amountWithGST) : '—'} className="input text-xs bg-gray-50 dark:bg-[#0f1a2e] font-mono font-bold" /></div>
                   <button onClick={() => setForm(f => ({ ...f, containers: (f.containers || []).filter((_, i) => i !== idx) }))} className="text-red-500 hover:text-red-700 mb-1">✕</button>
                 </div>
               );
@@ -317,7 +321,14 @@ export default function ProductOverheadsTab({ product, form, setForm, onSaveProd
           </div>
           <div className="mt-3 p-3 bg-slate-900 text-white rounded-lg text-sm font-bold flex justify-between">
             <span>Total Containers Cost:</span>
-            <span>₹{numF((form.containers || []).reduce((s, item) => s + (Number(item.grams) || 0) * (Number(item.pricePerGram) || 0) * (showContainerGST ? 1.18 : 1), 0))}</span>
+            <span>₹{selectedBatch ? numF((form.containers || []).reduce((s, item) => {
+              const batchQtyInBaseUnit = convertToBaseUnit(selectedBatch, batchUnit);
+              const gramPerUnit = Number(item.grams) || 0;
+              const pricePerGram = Number(item.pricePerGram) || 0;
+              const unitsNeeded = gramPerUnit > 0 ? batchQtyInBaseUnit / gramPerUnit : 0;
+              const itemCost = unitsNeeded * gramPerUnit * pricePerGram * (showContainerGST ? 1.18 : 1);
+              return s + itemCost;
+            }, 0)) : '—'}</span>
           </div>
         </div>
 
