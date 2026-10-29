@@ -251,9 +251,10 @@ export default function ProductOverheadsTab({ product, form, setForm, onSaveProd
             const totalOverheadForBatch = overheadTotal;
 
             const saPct = [sa.equipmentPct, sa.consumablesPct, sa.storagePct, sa.housekeepingPct, sa.adminPct, sa.wastagePct].reduce((s, v) => s + (Number(v) || 0), 0);
-            const saAmount = totalFormulation * (saPct / 100);
+            const subtotal = totalFormulation + totalOverheadForBatch;
+            const saAmount = subtotal * (saPct / 100);
 
-            const totalWithSAAndOverhead = totalFormulation + saAmount + totalOverheadForBatch;
+            const totalWithSAAndOverhead = subtotal + saAmount;
             const perUnitFormulation = totalFormulation / batchQtyInBaseUnit;
             const perUnitSA = saAmount / batchQtyInBaseUnit;
             const perUnitOverhead = totalOverheadForBatch / batchQtyInBaseUnit;
