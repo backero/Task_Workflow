@@ -941,34 +941,7 @@ export default function ProductDetailModal({ productId, onClose, refetchLead }) 
                 <div className="flex gap-4 items-start">
                   <FormulationVersionSidebar product={detail} selectedVersionId={selectedVersionId} setSelectedVersionId={setSelectedVersionId} versionActions={versionActions} />
                   <div className="flex-1 min-w-0">
-                    {selectedVersionId
-                      ? <BranchedFormulationEditor product={detail} selectedVersionId={selectedVersionId} setSelectedVersionId={setSelectedVersionId} versionActions={versionActions} />
-                      : <div className="space-y-4">
-                          <h3 className="font-bold text-slate-900 text-sm">Current Formulation</h3>
-                          {detail.formulation?.rows?.length > 0 && (
-                            <div className="overflow-x-auto rounded border border-slate-200">
-                              <table className="w-full text-xs">
-                                <thead className="bg-slate-50"><tr><th className="px-3 py-2 text-left">Ingredient</th><th className="px-3 py-2 text-left">%</th><th className="px-3 py-2 text-left">Qty</th><th className="px-3 py-2 text-left">Cost/kg</th><th className="px-3 py-2 text-left">Amount</th></tr></thead>
-                                <tbody>
-                                  {detail.formulation.rows.map((r, i) => {
-                                    const qty = (detail.formulation.refWeight || 100) * (Number(r.percentage) || 0) / 100 * (Number(r.convFactor) || 1);
-                                    const cost = (r.costPerKg || 0) * qty;
-                                    return (
-                                      <tr key={i} className={i % 2 === 0 ? 'bg-white' : 'bg-slate-50'}>
-                                        <td className="px-3 py-2">{r.name || r.ingredient}</td>
-                                        <td className="px-3 py-2">{Number(r.percentage || 0).toFixed(1)}%</td>
-                                        <td className="px-3 py-2">{qty.toFixed(2)}</td>
-                                        <td className="px-3 py-2">₹{(r.costPerKg || 0).toFixed(2)}</td>
-                                        <td className="px-3 py-2 font-bold text-emerald-600">₹{cost.toFixed(2)}</td>
-                                      </tr>
-                                    );
-                                  })}
-                                </tbody>
-                              </table>
-                            </div>
-                          )}
-                        </div>
-                    }
+                    <BranchedFormulationEditor product={detail} selectedVersionId={selectedVersionId} setSelectedVersionId={setSelectedVersionId} versionActions={versionActions} />
                   </div>
                 </div>
               </div>
