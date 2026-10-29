@@ -36,39 +36,33 @@ export default function ProductOverheadsTab({ product, form, setForm, onSaveProd
     return qty * (conversions[unit] || 1);
   };
 
-  // Auto-sync containers Pcs Needed to packaging items
+  // Auto-sync: Use first container's Pcs Needed for ALL packaging items
   React.useEffect(() => {
     if (!selectedBatch || !form.containers?.length) return;
 
-    const syncPkg = () => {
-      const containers = form.containers;
-      const batchQtyBase = convertToBaseUnit(selectedBatch, batchUnit);
-      const pkgItems = form.packaging?.items || [];
+    const containers = form.containers;
+    const firstContainer = containers[0];
+    if (!firstContainer) return;
 
-      if (pkgItems.length === 0) return;
+    const batchQtyBase = convertToBaseUnit(selectedBatch, batchUnit);
+    const containerWtBase = convertToBaseUnit(Number(firstContainer.weight) || 0, firstContainer.unit || 'g');
+    const mainPcsNeeded = containerWtBase > 0 ? Math.round(batchQtyBase / containerWtBase) : 0;
 
-      const updated = pkgItems.map((item, idx) => {
-        const container = containers[idx];
-        if (!container) return item;
+    const pkgItems = form.packaging?.items || [];
+    if (pkgItems.length === 0 || mainPcsNeeded === 0) return;
 
-        const containerWtBase = convertToBaseUnit(Number(container.weight) || 0, container.unit || 'g');
-        const pcsNeeded = containerWtBase > 0 ? Math.round(batchQtyBase / containerWtBase) : 0;
+    // Apply first container's Pcs Needed to ALL packaging items
+    const updated = pkgItems.map(item => ({
+      ...item,
+      qty: mainPcsNeeded,
+      amount: mainPcsNeeded * (item.rate || 0)
+    }));
 
-        return {
-          ...item,
-          qty: pcsNeeded,
-          amount: pcsNeeded * (item.rate || 0)
-        };
-      });
-
-      setForm(prev => ({
-        ...prev,
-        packaging: { ...prev.packaging, items: updated }
-      }));
-    };
-
-    syncPkg();
-  }, [selectedBatch, batchUnit]);
+    setForm(prev => ({
+      ...prev,
+      packaging: { ...prev.packaging, items: updated }
+    }));
+  }, [selectedBatch, batchUnit, form.containers?.[0]?.weight, form.containers?.[0]?.unit]);
 
   const calculateBatchCost = (batchQty, unit) => {
     const b = { ...product, ...form };
