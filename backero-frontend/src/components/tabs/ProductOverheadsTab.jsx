@@ -66,9 +66,14 @@ export default function ProductOverheadsTab({ product, form, setForm, onSaveProd
 
     const units = refWInBaseUnit > 0 ? batchQtyInBaseUnit / refWInBaseUnit : 0;
     const totalFormCostForBatch = formCost * units;
+    const totalSAForBatch = saAmount * units;
+    const totalOverheadForBatch = overheadPerUnit * batchQtyInBaseUnit;
+    const totalWithAll = totalFormCostForBatch + totalSAForBatch + totalOverheadForBatch;
     return {
       totalFormCost: totalFormCostForBatch,
-      totalAll: totalFormCostForBatch,
+      totalSA: totalSAForBatch,
+      totalOverhead: totalOverheadForBatch,
+      totalAll: totalWithAll,
       units,
       batchQtyInBaseUnit,
       unit
@@ -213,14 +218,15 @@ export default function ProductOverheadsTab({ product, form, setForm, onSaveProd
         <div>
           <p className="text-sm font-bold text-gray-700 dark:text-gray-200 mb-4 flex items-center gap-1.5"><Factory size={14} />Total Cost Breakdown</p>
           {selectedBatch && (() => {
-            const po = form.productionOverhead || {};
-            const overheadTotal = Number(po.electricity || 0) + Number(po.labor || 0) + Number(po.labTesting || 0) + Number(po.other || 0);
             const batchCost = calculateBatchCost(selectedBatch, batchUnit);
             const totalBatchPrice = batchCost.totalAll || 0;
-            const combinedTotal = overheadTotal + totalBatchPrice;
-            const perUnitFormulationCost = refW > 0 ? totalBatchPrice / refW : 0;
-            const perUnitOverhead = refW > 0 ? overheadTotal / refW : 0;
-            const perUnitCombined = refW > 0 ? combinedTotal / refW : 0;
+            const totalFormulation = batchCost.totalFormCost || 0;
+            const totalSA = batchCost.totalSA || 0;
+            const totalOverhead = batchCost.totalOverhead || 0;
+            const perUnitFormulation = refW > 0 ? totalFormulation / selectedBatch : 0;
+            const perUnitSA = refW > 0 ? totalSA / selectedBatch : 0;
+            const perUnitOverhead = refW > 0 ? totalOverhead / selectedBatch : 0;
+            const perUnitCombined = refW > 0 ? totalBatchPrice / selectedBatch : 0;
 
             const perSelectedUnit = totalBatchPrice / selectedBatch;
             let perAlternateUnit = perSelectedUnit;
@@ -244,15 +250,16 @@ export default function ProductOverheadsTab({ product, form, setForm, onSaveProd
             return (
               <div className="space-y-4">
                 <HighlightStrip tone="dark" items={[
-                  { label: 'Total Production Overhead', value: `₹${numF(overheadTotal)}` },
-                  { label: 'Total Price for Batch', value: `₹${numF(totalBatchPrice)}` },
-                  { label: 'Combined Total', value: `₹${numF(combinedTotal)}` },
+                  { label: 'Total Formulation Cost', value: `₹${numF(totalFormulation)}` },
+                  { label: 'Total Standard Assumptions', value: `₹${numF(totalSA)}` },
+                  { label: 'Total Production Overhead', value: `₹${numF(totalOverhead)}` },
+                  { label: 'Combined Total', value: `₹${numF(totalBatchPrice)}`, big: true, accent: true },
                 ]} />
                 <HighlightStrip tone="dark" items={[
-                  { label: `Per ${batchUnit}`, value: `₹${numF(perSelectedUnit, 4)}` },
-                  { label: `Per ${alternateLabel}`, value: `₹${numF(perAlternateUnit, 4)}` },
-                  { label: 'Per Unit Overhead', value: `₹${numF(perUnitOverhead, 4)}` },
-                  { label: 'Combined Per Unit', value: `₹${numF(perUnitCombined, 4)}`, big: true, accent: true },
+                  { label: `Per ${batchUnit} (Formulation)`, value: `₹${numF(perUnitFormulation, 4)}` },
+                  { label: `Per ${batchUnit} (SA)`, value: `₹${numF(perUnitSA, 4)}` },
+                  { label: `Per ${batchUnit} (Overhead)`, value: `₹${numF(perUnitOverhead, 4)}` },
+                  { label: `Per ${batchUnit} (Total)`, value: `₹${numF(perUnitCombined, 4)}`, big: true, accent: true },
                 ]} />
               </div>
             );
