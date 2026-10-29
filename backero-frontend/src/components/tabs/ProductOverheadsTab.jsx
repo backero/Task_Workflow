@@ -296,24 +296,30 @@ export default function ProductOverheadsTab({ product, form, setForm, onSaveProd
           <p className="text-sm font-bold text-gray-700 dark:text-gray-200 mb-4 flex items-center gap-1.5"><Factory size={14} />Containers & Labeling</p>
           <div className="space-y-3">
             {(form.containers || []).map((item, idx) => {
-              const refWInBaseUnit = convertToBaseUnit(refW, refUnit);
               const batchQtyInBaseUnit = selectedBatch ? convertToBaseUnit(selectedBatch, batchUnit) : 0;
-              const gramPerUnit = Number(item.grams) || 0;
+              const containerWeightInBaseUnit = convertToBaseUnit(Number(item.weight) || 0, item.unit || 'g');
               const pricePerGram = Number(item.pricePerGram) || 0;
-              const unitsNeeded = gramPerUnit > 0 ? batchQtyInBaseUnit / gramPerUnit : 0;
-              const amount = unitsNeeded * gramPerUnit * pricePerGram;
+              const unitsNeeded = containerWeightInBaseUnit > 0 ? batchQtyInBaseUnit / containerWeightInBaseUnit : 0;
+              const amount = unitsNeeded * containerWeightInBaseUnit * pricePerGram;
               const amountWithGST = showContainerGST ? amount * 1.18 : amount;
               return (
-                <div key={idx} className="flex gap-3 items-end border border-gray-200 dark:border-[#1b2e4a] rounded-lg p-3">
-                  <div className="flex-1"><label className="label text-xs">Item Name</label><input type="text" value={item.name || ''} onChange={e => { const c = [...(form.containers || [])]; c[idx].name = e.target.value; setForm(f => ({ ...f, containers: c })); }} className="input text-xs w-full" placeholder="e.g., Bottle, Label, Cap" /></div>
-                  <div className="w-24"><label className="label text-xs">Gram per Unit</label><input type="number" step="0.1" value={item.grams || ''} onChange={e => { const c = [...(form.containers || [])]; c[idx].grams = Number(e.target.value) || 0; setForm(f => ({ ...f, containers: c })); }} className="input text-xs" /></div>
-                  <div className="w-20"><label className="label text-xs">₹/gram</label><input type="number" step="0.01" value={item.pricePerGram || ''} onChange={e => { const c = [...(form.containers || [])]; c[idx].pricePerGram = Number(e.target.value) || 0; setForm(f => ({ ...f, containers: c })); }} className="input text-xs" /></div>
-                  <div className="w-28"><label className="label text-xs">Amount ({selectedBatch ? batchUnit : '—'})</label><input type="text" readOnly value={selectedBatch ? numF(amountWithGST) : '—'} className="input text-xs bg-gray-50 dark:bg-[#0f1a2e] font-mono font-bold" /></div>
-                  <button onClick={() => setForm(f => ({ ...f, containers: (f.containers || []).filter((_, i) => i !== idx) }))} className="text-red-500 hover:text-red-700 mb-1">✕</button>
+                <div key={idx} className="space-y-2 border border-gray-200 dark:border-[#1b2e4a] rounded-lg p-3">
+                  <div className="flex gap-3">
+                    <div className="flex-1"><label className="label text-xs">Item Name</label><input type="text" value={item.name || ''} onChange={e => { const c = [...(form.containers || [])]; c[idx].name = e.target.value; setForm(f => ({ ...f, containers: c })); }} className="input text-xs w-full" placeholder="e.g., Bottle, Label, Cap" /></div>
+                  </div>
+                  <div className="flex gap-3">
+                    <div className="flex-1"><label className="label text-xs">Weight of One Container</label><input type="number" step="0.1" value={item.weight || ''} onChange={e => { const c = [...(form.containers || [])]; c[idx].weight = Number(e.target.value) || 0; setForm(f => ({ ...f, containers: c })); }} className="input text-xs w-full" placeholder="e.g., 5, 0.5, 250" /></div>
+                    <div className="w-20"><label className="label text-xs">Unit</label><select value={item.unit || 'g'} onChange={e => { const c = [...(form.containers || [])]; c[idx].unit = e.target.value; setForm(f => ({ ...f, containers: c })); }} className="input text-xs w-full"><option value="g">g</option><option value="kg">kg</option><option value="ml">ml</option><option value="L">L</option></select></div>
+                  </div>
+                  <div className="flex gap-3">
+                    <div className="flex-1"><label className="label text-xs">₹ per gram</label><input type="number" step="0.01" value={item.pricePerGram || ''} onChange={e => { const c = [...(form.containers || [])]; c[idx].pricePerGram = Number(e.target.value) || 0; setForm(f => ({ ...f, containers: c })); }} className="input text-xs w-full" /></div>
+                    <div className="w-28"><label className="label text-xs">Amount ({selectedBatch ? batchUnit : '—'})</label><input type="text" readOnly value={selectedBatch ? numF(amountWithGST) : '—'} className="input text-xs bg-gray-50 dark:bg-[#0f1a2e] font-mono font-bold" /></div>
+                    <button onClick={() => setForm(f => ({ ...f, containers: (f.containers || []).filter((_, i) => i !== idx) }))} className="text-red-500 hover:text-red-700">✕</button>
+                  </div>
                 </div>
               );
             })}
-            <button onClick={() => setForm(f => ({ ...f, containers: [...(f.containers || []), { name: '', grams: 0, pricePerGram: 0 }] }))} className="btn-secondary text-sm w-full">+ Add Container Item</button>
+            <button onClick={() => setForm(f => ({ ...f, containers: [...(f.containers || []), { name: '', weight: 0, unit: 'g', pricePerGram: 0 }] }))} className="btn-secondary text-sm w-full">+ Add Container Item</button>
           </div>
           <div className="flex items-center gap-2 mt-3 p-2 bg-gray-50 dark:bg-[#0f1a2e] rounded">
             <input type="checkbox" checked={showContainerGST} onChange={e => setShowContainerGST(e.target.checked)} id="containerGST" className="w-4 h-4" />
@@ -323,10 +329,10 @@ export default function ProductOverheadsTab({ product, form, setForm, onSaveProd
             <span>Total Containers Cost:</span>
             <span>₹{selectedBatch ? numF((form.containers || []).reduce((s, item) => {
               const batchQtyInBaseUnit = convertToBaseUnit(selectedBatch, batchUnit);
-              const gramPerUnit = Number(item.grams) || 0;
+              const containerWeightInBaseUnit = convertToBaseUnit(Number(item.weight) || 0, item.unit || 'g');
               const pricePerGram = Number(item.pricePerGram) || 0;
-              const unitsNeeded = gramPerUnit > 0 ? batchQtyInBaseUnit / gramPerUnit : 0;
-              const itemCost = unitsNeeded * gramPerUnit * pricePerGram * (showContainerGST ? 1.18 : 1);
+              const unitsNeeded = containerWeightInBaseUnit > 0 ? batchQtyInBaseUnit / containerWeightInBaseUnit : 0;
+              const itemCost = unitsNeeded * containerWeightInBaseUnit * pricePerGram * (showContainerGST ? 1.18 : 1);
               return s + itemCost;
             }, 0)) : '—'}</span>
           </div>
