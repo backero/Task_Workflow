@@ -314,7 +314,8 @@ export default function ProductOverheadsTab({ product, form, setForm, onSaveProd
                   </div>
                   <div className="flex gap-3">
                     <div className="flex-1"><label className="label text-xs">₹ per gram</label><input type="number" step="0.01" value={item.pricePerGram || ''} onChange={e => { const c = [...(form.containers || [])]; c[idx].pricePerGram = Number(e.target.value) || 0; setForm(f => ({ ...f, containers: c })); }} className="input text-xs w-full" /></div>
-                    <div className="w-28"><label className="label text-xs">Amount ({selectedBatch ? batchUnit : '—'})</label><input type="text" readOnly value={selectedBatch ? numF(amountWithGST) : '—'} className="input text-xs bg-gray-50 dark:bg-[#0f1a2e] font-mono font-bold" /></div>
+                    <div className="w-24"><label className="label text-xs">Cost/Pcs</label><input type="text" readOnly value={selectedBatch && containerWeightInBaseUnit > 0 ? numF(containerWeightInBaseUnit * pricePerGram) : '—'} className="input text-xs bg-blue-50 dark:bg-blue-500/10 font-mono font-bold text-blue-700 dark:text-blue-300" /></div>
+                    <div className="w-28"><label className="label text-xs">Total ({selectedBatch ? batchUnit : '—'})</label><input type="text" readOnly value={selectedBatch ? numF(amountWithGST) : '—'} className="input text-xs bg-gray-50 dark:bg-[#0f1a2e] font-mono font-bold" /></div>
                     <button onClick={() => setForm(f => ({ ...f, containers: (f.containers || []).filter((_, i) => i !== idx) }))} className="text-red-500 hover:text-red-700">✕</button>
                   </div>
                 </div>
