@@ -219,33 +219,50 @@ export default function ProductOverheadsTab({ product, form, setForm, onSaveProd
             const totalFormulation = batchCost.totalFormCost || 0;
 
             const overheadTotal = Number(po.electricity || 0) + Number(po.labor || 0) + Number(po.labTesting || 0) + Number(po.other || 0);
-            const overheadPerUnit = refW > 0 ? overheadTotal / refW : 0;
-            const totalOverheadForBatch = overheadPerUnit * selectedBatch;
+            const refWInBaseUnit = convertToBaseUnit(refW, refUnit);
+            const overheadPerUnit = refWInBaseUnit > 0 ? overheadTotal / refWInBaseUnit : 0;
+            const batchQtyInBaseUnit = convertToBaseUnit(selectedBatch, batchUnit);
+            const totalOverheadForBatch = overheadPerUnit * batchQtyInBaseUnit;
 
             const saPct = [sa.equipmentPct, sa.consumablesPct, sa.storagePct, sa.housekeepingPct, sa.adminPct, sa.wastagePct].reduce((s, v) => s + (Number(v) || 0), 0);
             const saAmount = totalFormulation * (saPct / 100);
 
             const totalWithSAAndOverhead = totalFormulation + saAmount + totalOverheadForBatch;
-            const perUnitFormulation = totalFormulation / selectedBatch;
-            const perUnitSA = saAmount / selectedBatch;
-            const perUnitOverhead = totalOverheadForBatch / selectedBatch;
-            const perUnitCombined = totalWithSAAndOverhead / selectedBatch;
+            const perUnitFormulation = totalFormulation / batchQtyInBaseUnit;
+            const perUnitSA = saAmount / batchQtyInBaseUnit;
+            const perUnitOverhead = totalOverheadForBatch / batchQtyInBaseUnit;
+            const perUnitCombined = totalWithSAAndOverhead / batchQtyInBaseUnit;
 
             let perAlternateUnit = perUnitCombined;
+            let perAltFormulation = perUnitFormulation;
+            let perAltSA = perUnitSA;
+            let perAltOverhead = perUnitOverhead;
             let alternateLabel = batchUnit;
 
             // Add alternate unit conversions for common units
             if (batchUnit === 'L') {
               perAlternateUnit = perUnitCombined / 1000; // Convert L to ml
+              perAltFormulation = perUnitFormulation / 1000;
+              perAltSA = perUnitSA / 1000;
+              perAltOverhead = perUnitOverhead / 1000;
               alternateLabel = 'ml';
             } else if (batchUnit === 'ml') {
               perAlternateUnit = perUnitCombined * 1000; // Convert ml to L
+              perAltFormulation = perUnitFormulation * 1000;
+              perAltSA = perUnitSA * 1000;
+              perAltOverhead = perUnitOverhead * 1000;
               alternateLabel = 'L';
             } else if (batchUnit === 'kg') {
               perAlternateUnit = perUnitCombined / 1000; // Convert kg to g
+              perAltFormulation = perUnitFormulation / 1000;
+              perAltSA = perUnitSA / 1000;
+              perAltOverhead = perUnitOverhead / 1000;
               alternateLabel = 'g';
             } else if (batchUnit === 'g') {
               perAlternateUnit = perUnitCombined * 1000; // Convert g to kg
+              perAltFormulation = perUnitFormulation * 1000;
+              perAltSA = perUnitSA * 1000;
+              perAltOverhead = perUnitOverhead * 1000;
               alternateLabel = 'kg';
             }
 
@@ -262,6 +279,12 @@ export default function ProductOverheadsTab({ product, form, setForm, onSaveProd
                   { label: `Per ${batchUnit} (SA)`, value: `₹${numF(perUnitSA, 4)}` },
                   { label: `Per ${batchUnit} (Overhead)`, value: `₹${numF(perUnitOverhead, 4)}` },
                   { label: `Per ${batchUnit} (Total)`, value: `₹${numF(perUnitCombined, 4)}`, big: true, accent: true },
+                ]} />
+                <HighlightStrip tone="dark" items={[
+                  { label: `Per ${alternateLabel} (Formulation)`, value: `₹${numF(perAltFormulation, 4)}` },
+                  { label: `Per ${alternateLabel} (SA)`, value: `₹${numF(perAltSA, 4)}` },
+                  { label: `Per ${alternateLabel} (Overhead)`, value: `₹${numF(perAltOverhead, 4)}` },
+                  { label: `Per ${alternateLabel} (Total)`, value: `₹${numF(perAlternateUnit, 4)}`, big: true, accent: true },
                 ]} />
               </div>
             );
