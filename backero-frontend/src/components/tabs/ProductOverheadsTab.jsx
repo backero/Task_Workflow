@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Factory, Star } from 'lucide-react';
 import RndOverheadsTab from './RndOverheadsTab';
 import CostingPackagingTab from './CostingPackagingTab';
@@ -35,6 +35,45 @@ export default function ProductOverheadsTab({ product, form, setForm, onSaveProd
     };
     return qty * (conversions[unit] || 1);
   };
+
+  useEffect(() => {
+    if (!selectedBatch) return;
+    const containers = form.containers || [];
+    if (containers.length === 0) return;
+
+    const fm = form.formulation || {};
+    const refW = Number(fm.refWeight) || 100;
+    const refUnit = fm.refUnit || 'g';
+    const batchQtyInBaseUnit = convertToBaseUnit(selectedBatch, batchUnit);
+    const refWInBaseUnit = convertToBaseUnit(refW, refUnit);
+
+    const pkgItems = form.packaging?.items || [];
+    const updated = [...pkgItems];
+
+    containers.forEach((container, idx) => {
+      const containerWeightInBaseUnit = convertToBaseUnit(Number(container.weight) || 0, container.unit || 'g');
+      const unitsNeeded = containerWeightInBaseUnit > 0 ? batchQtyInBaseUnit / containerWeightInBaseUnit : 0;
+      const roundedPcs = Math.round(unitsNeeded);
+
+      while (updated.length <= idx) {
+        updated.push({ name: '', qty: 0, rate: 0, amount: 0, optional: false });
+      }
+
+      if (updated[idx].qty !== roundedPcs) {
+        const rate = updated[idx]?.rate || 0;
+        updated[idx] = {
+          ...updated[idx],
+          name: container.name || updated[idx].name,
+          qty: roundedPcs,
+          amount: roundedPcs * rate
+        };
+      }
+    });
+
+    if (JSON.stringify(pkgItems) !== JSON.stringify(updated)) {
+      setForm(prev => ({ ...prev, packaging: { ...prev.packaging, items: updated } }));
+    }
+  }, [selectedBatch, batchUnit, form.containers?.length, form.containers?.map(c => `${c.weight}-${c.unit}`)?.join('|')]);
 
   const calculateBatchCost = (batchQty, unit) => {
     const b = { ...product, ...form };
