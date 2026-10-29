@@ -21,6 +21,7 @@ function HighlightStrip({ items, tone = 'light' }) {
 
 export default function ProductOverheadsTab({ product, form, setForm, onSaveProductionOverheads, onSavePackaging, onSaveVariants, onSaveCosting, isPending }) {
   const [selectedBatch, setSelectedBatch] = useState(null);
+  const [batchUnit, setBatchUnit] = useState('g');
   const [roundToNearest100, setRoundToNearest100] = useState(false);
   const [showContainerGST, setShowContainerGST] = useState(false);
 
@@ -143,17 +144,33 @@ export default function ProductOverheadsTab({ product, form, setForm, onSaveProd
 
         <div>
           <p className="text-sm font-bold text-gray-700 dark:text-gray-200 mb-4 flex items-center gap-1.5"><Factory size={14} />Batch Quantity Calculator</p>
-          <div className="mb-4">
-            <label className="label">Enter Batch Quantity (grams)</label>
-            <input
-              type="number"
-              min="0"
-              step="100"
-              value={selectedBatch || ''}
-              onChange={e => setSelectedBatch(e.target.value ? Number(e.target.value) : null)}
-              className="input text-sm w-full"
-              placeholder="Enter quantity in grams (e.g., 3000, 5000, 10000)"
-            />
+          <div className="grid grid-cols-3 gap-3 mb-4">
+            <div className="col-span-2">
+              <label className="label">Enter Batch Quantity</label>
+              <input
+                type="number"
+                min="0"
+                step="100"
+                value={selectedBatch || ''}
+                onChange={e => setSelectedBatch(e.target.value ? Number(e.target.value) : null)}
+                className="input text-sm w-full"
+                placeholder="e.g., 3000, 5000, 10000"
+              />
+            </div>
+            <div>
+              <label className="label">Unit</label>
+              <select
+                value={batchUnit}
+                onChange={e => setBatchUnit(e.target.value)}
+                className="input text-sm w-full"
+              >
+                <option value="g">g (grams)</option>
+                <option value="kg">kg</option>
+                <option value="ml">ml</option>
+                <option value="L">L</option>
+                <option value="pcs">pcs</option>
+              </select>
+            </div>
           </div>
           {selectedBatch && (() => {
             const batchCost = calculateBatchCost(selectedBatch);
