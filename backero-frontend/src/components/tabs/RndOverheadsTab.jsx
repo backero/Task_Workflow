@@ -126,11 +126,6 @@ export default function RndOverheadsTab({ product, form, setForm, onSave, isPend
             </div>
           ))}
         </div>
-        <HighlightStrip items={[
-          { label: 'Total Indirect % on Material Cost', value: `${numF(b.saPct, 1)}%` },
-          { label: 'Total Amount / Unit (at ref cost)', value: `₹${numF(b.saAmount, 4)}`, big: true },
-          { label: 'Reference Weight', value: b.refW ? `${b.refW} ${form.formulation?.refUnit || form.unit || ''}` : '—' },
-        ]} />
         {(b.saPct < 15 || b.saPct > 30) && (
           <div className="mt-3 flex items-start gap-2 text-xs bg-amber-50 dark:bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800/40 rounded-lg px-3 py-2">
             <TriangleAlert size={13} /><span>Industry range for total indirect: 15% – 30%. Adjust sliders if your total is outside this range.</span>
