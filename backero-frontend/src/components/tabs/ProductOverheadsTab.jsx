@@ -36,36 +36,40 @@ export default function ProductOverheadsTab({ product, form, setForm, onSaveProd
     return qty * (conversions[unit] || 1);
   };
 
-  // Auto-sync: Update existing packaging items' QTY based on container Pcs Needed
+  // Auto-sync: Update packaging items' QTY based on container Pcs Needed
   React.useEffect(() => {
-    if (!selectedBatch || !form.containers?.length) return;
+    if (!selectedBatch || !form.containers?.length || !form.packaging?.items?.length) return;
 
     const containers = form.containers;
-    const fm = form.formulation || {};
     const batchQtyBase = convertToBaseUnit(selectedBatch, batchUnit);
-    const pkgItems = form.packaging?.items || [];
+    const pkgItems = [...form.packaging.items];
 
-    if (pkgItems.length === 0) return; // Only update if packaging items already exist
-
+    let hasChanged = false;
     const updated = pkgItems.map((item, idx) => {
       const container = containers[idx];
-      if (!container) return item; // Skip if no matching container
+      if (!container) return item;
 
       const containerWtBase = convertToBaseUnit(Number(container.weight) || 0, container.unit || 'g');
       const pcsNeeded = containerWtBase > 0 ? Math.round(batchQtyBase / containerWtBase) : 0;
 
-      return {
-        ...item,
-        qty: pcsNeeded,
-        amount: pcsNeeded * (item.rate || 0)
-      };
+      if (item.qty !== pcsNeeded) {
+        hasChanged = true;
+        return {
+          ...item,
+          qty: pcsNeeded,
+          amount: pcsNeeded * (item.rate || 0)
+        };
+      }
+      return item;
     });
 
-    setForm(prev => ({
-      ...prev,
-      packaging: { ...prev.packaging, items: updated }
-    }));
-  }, [selectedBatch, batchUnit, form.containers?.length]);
+    if (hasChanged) {
+      setForm(prev => ({
+        ...prev,
+        packaging: { ...prev.packaging, items: updated }
+      }));
+    }
+  }, [selectedBatch, batchUnit, form.containers?.length, form.packaging?.items?.length]);
 
   const calculateBatchCost = (batchQty, unit) => {
     const b = { ...product, ...form };
