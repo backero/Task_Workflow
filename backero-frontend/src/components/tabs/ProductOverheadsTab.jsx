@@ -25,6 +25,7 @@ export default function ProductOverheadsTab({ product, form, setForm, onSaveProd
   const [showContainerGST, setShowContainerGST] = useState(false);
   const [showFinalGST, setShowFinalGST] = useState(false);
   const [showQuoteGST, setShowQuoteGST] = useState(false);
+  const [activeMarginType, setActiveMarginType] = useState('b2c');
   const [marginPercent, setMarginPercent] = useState(form.costing?.margins?.b2c || 0);
 
   const convertToBaseUnit = (qty, unit) => {
@@ -371,6 +372,44 @@ export default function ProductOverheadsTab({ product, form, setForm, onSaveProd
           </div>
         </div>
 
+        <hr className="border-gray-100 dark:border-[#1b2e4a]" />
+
+        <div>
+          <p className="text-sm font-bold text-gray-700 dark:text-gray-200 mb-3 flex items-center gap-1.5"><Factory size={14} />Packaging & Labeling</p>
+          <div className="space-y-4">
+            <div className="overflow-x-auto rounded-xl border border-gray-200 dark:border-[#1b2e4a]">
+              <table className="w-full text-xs">
+                <thead className="bg-gray-50 dark:bg-[#0f1a2e]">
+                  <tr>{['Item', 'Pcs', 'Rate (₹)', 'Amount (₹)', 'Optional', ''].map(h => <th key={h} className="px-3 py-2 text-left font-semibold text-gray-500">{h}</th>)}</tr>
+                </thead>
+                <tbody>
+                  {(form.packaging?.items || []).map((item, i) => (
+                    <tr key={i} className="border-t border-gray-100 dark:border-[#1b2e4a]">
+                      <td className="px-2 py-1.5"><input value={item.name} onChange={e => setForm(prev => { const it = [...(prev.packaging?.items || [])]; it[i] = { ...it[i], name: e.target.value }; return { ...prev, packaging: { ...prev.packaging, items: it } }; })} className="input text-xs w-32" /></td>
+                      <td className="px-2 py-1.5"><input type="number" value={item.qty} onChange={e => setForm(prev => { const it = [...(prev.packaging?.items || [])]; it[i] = { ...it[i], qty: Number(e.target.value) }; return { ...prev, packaging: { ...prev.packaging, items: it } }; })} className="input text-sm font-bold w-24" /></td>
+                      <td className="px-2 py-1.5"><input type="number" value={item.rate} onChange={e => setForm(prev => { const it = [...(prev.packaging?.items || [])]; it[i] = { ...it[i], rate: Number(e.target.value) }; return { ...prev, packaging: { ...prev.packaging, items: it } }; })} className="input text-xs w-20" /></td>
+                      <td className="px-2 py-1.5"><input type="number" value={item.amount || item.qty * item.rate} onChange={e => setForm(prev => { const it = [...(prev.packaging?.items || [])]; it[i] = { ...it[i], amount: Number(e.target.value) }; return { ...prev, packaging: { ...prev.packaging, items: it } }; })} className="input text-xs w-20" /></td>
+                      <td className="px-2 py-1.5"><input type="checkbox" checked={item.optional} onChange={e => setForm(prev => { const it = [...(prev.packaging?.items || [])]; it[i] = { ...it[i], optional: e.target.checked }; return { ...prev, packaging: { ...prev.packaging, items: it } }; })} className="w-4 h-4" /></td>
+                      <td className="px-2 py-1.5"><button onClick={() => setForm(prev => ({ ...prev, packaging: { ...prev.packaging, items: prev.packaging?.items?.filter((_, idx) => idx !== i) } }))} className="text-red-400 hover:text-red-600">✕</button></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <div className="grid grid-cols-3 gap-3">
+              {[['machine', 'Machine Charges'], ['shrinkWrap', 'Shrink Wrap'], ['other', 'Other']].map(([f, label]) => (
+                <div key={f}><label className="label">{label} (₹)</label><input type="number" value={form.packaging?.charges?.[f] || 0} onChange={e => setForm(prev => ({ ...prev, packaging: { ...prev.packaging, charges: { ...prev.packaging?.charges, [f]: Number(e.target.value) } } }))} className="input" /></div>
+              ))}
+            </div>
+            <div className="rounded-lg bg-green-50 dark:bg-green-900/10 border border-green-200 dark:border-green-800/30 px-4 py-2">
+              <p className="text-xs font-semibold text-green-700 dark:text-green-400">Total Packaging Cost: ₹{numF((form.packaging?.items || []).reduce((s, i) => s + (Number(i.amount) || Number(i.qty) * Number(i.rate) || 0), 0) + Number(form.packaging?.charges?.machine || 0) + Number(form.packaging?.charges?.shrinkWrap || 0) + Number(form.packaging?.charges?.other || 0))}</p>
+            </div>
+            <div className="flex gap-3">
+              <button onClick={() => setForm(prev => ({ ...prev, packaging: { ...prev.packaging, items: [...(prev.packaging?.items || []), { name: '', qty: 1, rate: 0, amount: 0, optional: false }] } }))} className="btn-secondary text-sm">+ Add Item</button>
+              <button onClick={onSavePackaging} disabled={isPending} className="btn-primary text-sm disabled:opacity-50 ml-auto">{isPending ? 'Saving…' : '💾 Save Packaging'}</button>
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* RIGHT COLUMN: Sticky Quote Summary */}
@@ -456,17 +495,53 @@ export default function ProductOverheadsTab({ product, form, setForm, onSaveProd
 
               <div className="space-y-2 p-3 bg-gray-50 dark:bg-[#0f1a2e] rounded-lg mb-4">
                 <p className="text-xs font-semibold text-gray-600 dark:text-gray-400 mb-2">Margin Settings</p>
+
+                <div className="grid grid-cols-2 gap-2 mb-3">
+                  {[['b2b', 'B2B'], ['b2c', 'B2C']].map(([type, label]) => (
+                    <button
+                      key={type}
+                      onClick={() => {
+                        setActiveMarginType(type);
+                        setMarginPercent(Number(form.costing?.margins?.[type]) || 0);
+                      }}
+                      className={`py-2 px-3 rounded text-xs font-semibold transition-all border ${
+                        activeMarginType === type
+                          ? 'bg-emerald-100 dark:bg-emerald-500/20 border-emerald-500 text-emerald-700 dark:text-emerald-300'
+                          : 'bg-white dark:bg-[#1b2e4a] border-gray-200 dark:border-[#1b2e4a] text-gray-700 dark:text-gray-300 hover:border-gray-300'
+                      }`}
+                    >
+                      {label}
+                      <div className="text-[10px] text-gray-600 dark:text-gray-400 mt-0.5">
+                        {form.costing?.margins?.[type] || 0}%
+                      </div>
+                    </button>
+                  ))}
+                </div>
+
                 <div className="flex items-center gap-2">
                   <input
                     type="number"
                     min="0"
                     step="0.5"
                     value={marginPercent}
-                    onChange={e => setMarginPercent(Number(e.target.value))}
+                    onChange={e => {
+                      const val = Number(e.target.value);
+                      setMarginPercent(val);
+                      setForm(prev => ({
+                        ...prev,
+                        costing: {
+                          ...prev.costing,
+                          margins: {
+                            ...prev.costing?.margins,
+                            [activeMarginType]: val
+                          }
+                        }
+                      }));
+                    }}
                     className="input text-sm w-16"
                     placeholder="0"
                   />
-                  <span className="text-xs font-semibold text-gray-600 dark:text-gray-400">% Margin</span>
+                  <span className="text-xs font-semibold text-gray-600 dark:text-gray-400">% {activeMarginType.toUpperCase()}</span>
                   <span className="text-xs font-mono font-bold text-gray-900 dark:text-white ml-auto">+ ₹{numF(marginAmount, 2)}</span>
                 </div>
 
