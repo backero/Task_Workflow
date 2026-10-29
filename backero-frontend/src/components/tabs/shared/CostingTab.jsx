@@ -62,6 +62,11 @@ export default function CostingTab({ product, form, setForm, onSave, isPending }
   const [activeMarginType, setActiveMarginType] = useState(null);
   const gstRate = (form.gstRate || 0) / 100;
 
+  const rndData = form.rnd || {};
+  const rndTotal = (Number(rndData.testing) || 0) + (Number(rndData.consumables) || 0) +
+                   (Number(rndData.samples) || 0) + (Number(rndData.overhead) || 0) +
+                   (Number(rndData.otherOverhead) || 0) + (Number(rndData.qc) || 0);
+
   function setMargin(f, v) { setForm(prev => ({ ...prev, costing: { ...prev.costing, margins: { ...prev.costing?.margins, [f]: Number(v) } } })); }
 
   function computeVariantPricing(v) {
@@ -95,7 +100,7 @@ export default function CostingTab({ product, form, setForm, onSave, isPending }
 
       <div className="rounded-xl border border-gray-200 dark:border-[#1b2e4a] p-4 space-y-4">
         <div className="text-xs p-2 bg-blue-50 dark:bg-blue-500/10 rounded border border-blue-200 dark:border-blue-800">
-          <p className="text-gray-600 dark:text-gray-300"><span className="font-semibold">R&D Cost:</span> ₹{numF(form.rndDoc?.cost || 0)}</p>
+          <p className="text-gray-600 dark:text-gray-300"><span className="font-semibold">R&D Cost:</span> ₹{numF(rndTotal)}</p>
           <p className="text-gray-500 text-[10px] mt-1">From R&D Price Calculator</p>
         </div>
 
