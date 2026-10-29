@@ -85,13 +85,6 @@ export default function RndOverheadsTab({ product, form, setForm, onSave, isPend
   function setPODate(v) { setForm(prev => ({ ...prev, productionOverhead: { ...prev.productionOverhead, lastUpdated: v } })); }
   function setSA(f, v) { setForm(prev => ({ ...prev, standardAssumptions: { ...prev.standardAssumptions, [f]: v, lastUpdated: new Date().toISOString() } })); }
 
-  function onImage(e) {
-    const f = e.target.files[0]; if (!f) return;
-    const r = new FileReader();
-    r.onload = ev => setForm(prev => ({ ...prev, standardAssumptions: { ...prev.standardAssumptions, image: ev.target.result, lastUpdated: new Date().toISOString() } }));
-    r.readAsDataURL(f);
-  }
-
   return (
     <div className="space-y-6">
       <div>
@@ -132,13 +125,6 @@ export default function RndOverheadsTab({ product, form, setForm, onSave, isPend
             <TriangleAlert size={13} /><span>Industry range for total indirect: 15% – 30%. Adjust sliders if your total is outside this range.</span>
           </div>
         )}
-        <div className="mt-4">
-          <label className="label flex items-center gap-1"><Camera size={12} />Reference Image / Basis</label>
-          <div onClick={() => document.getElementById('saImageInput').click()} className="w-full h-28 border-2 border-dashed border-gray-200 dark:border-[#1b2e4a] rounded-xl flex items-center justify-center cursor-pointer overflow-hidden bg-gray-50 dark:bg-[#0f1a2e] hover:border-gray-400 transition-colors">
-            {sa.image ? <img src={sa.image} alt="Basis" className="w-full h-full object-cover" /> : <span className="text-xs text-gray-400 inline-flex items-center gap-1"><Camera size={12} />Click to upload reference image / basis document</span>}
-          </div>
-          <input type="file" id="saImageInput" accept="image/*" className="hidden" onChange={onImage} />
-        </div>
       </div>
 
       <hr className="border-gray-100 dark:border-[#1b2e4a]" />
