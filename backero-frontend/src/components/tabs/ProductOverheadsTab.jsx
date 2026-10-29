@@ -80,20 +80,6 @@ export default function ProductOverheadsTab({ product, form, setForm, onSaveProd
       <hr className="border-gray-100 dark:border-[#1b2e4a]" />
 
       <div>
-        <CostingPackagingTab
-          product={product}
-          form={form}
-          setForm={setForm}
-          isPending={isPending}
-          onSavePackaging={onSavePackaging}
-          onSaveVariants={onSaveVariants}
-          onSaveCosting={onSaveCosting}
-        />
-      </div>
-
-      <hr className="border-gray-100 dark:border-[#1b2e4a]" />
-
-      <div>
         <p className="text-sm font-bold text-gray-700 dark:text-gray-200 mb-4 flex items-center gap-1.5"><Factory size={14} />Batch Quantity Calculator</p>
         <div className="flex gap-2 flex-wrap mb-4">
           {BATCH_SIZES.map(batch => (
@@ -121,6 +107,20 @@ export default function ProductOverheadsTab({ product, form, setForm, onSaveProd
             ]} />
           );
         })()}
+      </div>
+
+      <hr className="border-gray-100 dark:border-[#1b2e4a]" />
+
+      <div>
+        <CostingPackagingTab
+          product={product}
+          form={form}
+          setForm={setForm}
+          isPending={isPending}
+          onSavePackaging={onSavePackaging}
+          onSaveVariants={onSaveVariants}
+          onSaveCosting={onSaveCosting}
+        />
       </div>
     </div>
   );
