@@ -119,78 +119,80 @@ export default function ProductOverheadsTab({ product, form, setForm, onSaveProd
   const perUnit = refW > 0 ? formCost / refW : 0;
 
   return (
-    <div className="space-y-8">
-      <div>
-        <p className="text-sm font-bold text-gray-700 dark:text-gray-200 mb-4 flex items-center gap-1.5"><Factory size={14} />Ingredients Price Summary</p>
-        {fm.rows && fm.rows.length > 0 ? (
-          <div className="grid grid-cols-3 gap-4 bg-slate-900 text-white rounded-2xl px-6 py-4">
-            <div><p className="text-[11px] text-slate-300">Total Formulation Cost</p><p className="text-lg font-bold">₹{numF(formCost)}</p></div>
-            <div><p className="text-[11px] text-slate-300">Reference Weight</p><p className="text-lg font-bold">{refW} {refUnit}</p></div>
-            <div><p className="text-[11px] text-slate-300">Cost Per Unit</p><p className="text-lg font-bold">₹{numF(perUnit, 4)}</p></div>
+    <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-8">
+      {/* LEFT COLUMN: Forms */}
+      <div className="space-y-8">
+        <div>
+          <p className="text-sm font-bold text-gray-700 dark:text-gray-200 mb-4 flex items-center gap-1.5"><Factory size={14} />Ingredients Price Summary</p>
+          {fm.rows && fm.rows.length > 0 ? (
+            <div className="grid grid-cols-3 gap-4 bg-slate-900 text-white rounded-2xl px-6 py-4">
+              <div><p className="text-[11px] text-slate-300">Total Formulation Cost</p><p className="text-lg font-bold">₹{numF(formCost)}</p></div>
+              <div><p className="text-[11px] text-slate-300">Reference Weight</p><p className="text-lg font-bold">{refW} {refUnit}</p></div>
+              <div><p className="text-[11px] text-slate-300">Cost Per Unit</p><p className="text-lg font-bold">₹{numF(perUnit, 4)}</p></div>
+            </div>
+          ) : (
+            <p className="text-xs text-gray-400">No formulation data. Add ingredients in Formulation & Procedure tab.</p>
+          )}
+        </div>
+
+        <hr className="border-gray-100 dark:border-[#1b2e4a]" />
+
+        <div>
+          <p className="text-sm font-bold text-gray-700 dark:text-gray-200 mb-4 flex items-center gap-1.5"><Factory size={14} />Batch Quantity Calculator</p>
+          <div className="mb-4">
+            <label className="label">Enter Batch Quantity (grams)</label>
+            <input
+              type="number"
+              min="0"
+              step="100"
+              value={selectedBatch || ''}
+              onChange={e => setSelectedBatch(e.target.value ? Number(e.target.value) : null)}
+              className="input text-sm w-full"
+              placeholder="Enter quantity in grams (e.g., 3000, 5000, 10000)"
+            />
           </div>
-        ) : (
-          <p className="text-xs text-gray-400">No formulation data. Add ingredients in Formulation & Procedure tab.</p>
-        )}
-      </div>
+          {selectedBatch && (() => {
+            const batchCost = calculateBatchCost(selectedBatch);
+            return (
+              <HighlightStrip tone="dark" items={[
+                { label: `Batch Size`, value: `${(selectedBatch / 1000).toFixed(2)}g` },
+                { label: 'Overhead Cost', value: `₹${numF(batchCost.totalOverhead)}` },
+                { label: 'Standard Assumptions', value: `₹${numF(batchCost.totalSA)}` },
+                { label: 'Total Batch Cost', value: `₹${numF(batchCost.totalAll)}`, big: true, accent: true },
+              ]} />
+            );
+          })()}
+        </div>
 
-      <hr className="border-gray-100 dark:border-[#1b2e4a]" />
+        <hr className="border-gray-100 dark:border-[#1b2e4a]" />
 
-      <div>
-        <p className="text-sm font-bold text-gray-700 dark:text-gray-200 mb-4 flex items-center gap-1.5"><Factory size={14} />Batch Quantity Calculator</p>
-        <div className="mb-4">
-          <label className="label">Enter Batch Quantity (grams)</label>
-          <input
-            type="number"
-            min="0"
-            step="100"
-            value={selectedBatch || ''}
-            onChange={e => setSelectedBatch(e.target.value ? Number(e.target.value) : null)}
-            className="input text-sm w-full"
-            placeholder="Enter quantity in grams (e.g., 3000, 5000, 10000)"
+        <div>
+          <RndOverheadsTab
+            product={product}
+            form={form}
+            setForm={setForm}
+            onSave={onSaveProductionOverheads}
+            isPending={isPending}
           />
         </div>
-        {selectedBatch && (() => {
-          const batchCost = calculateBatchCost(selectedBatch);
-          return (
-            <HighlightStrip tone="dark" items={[
-              { label: `Batch Size`, value: `${(selectedBatch / 1000).toFixed(2)}g` },
-              { label: 'Overhead Cost', value: `₹${numF(batchCost.totalOverhead)}` },
-              { label: 'Standard Assumptions', value: `₹${numF(batchCost.totalSA)}` },
-              { label: 'Total Batch Cost', value: `₹${numF(batchCost.totalAll)}`, big: true, accent: true },
-            ]} />
-          );
-        })()}
+
+        <hr className="border-gray-100 dark:border-[#1b2e4a]" />
+
+        <div>
+          <CostingPackagingTab
+            product={product}
+            form={form}
+            setForm={setForm}
+            isPending={isPending}
+            onSavePackaging={onSavePackaging}
+            onSaveVariants={onSaveVariants}
+            onSaveCosting={onSaveCosting}
+          />
+        </div>
       </div>
 
-      <hr className="border-gray-100 dark:border-[#1b2e4a]" />
-
-      <div>
-        <RndOverheadsTab
-          product={product}
-          form={form}
-          setForm={setForm}
-          onSave={onSaveProductionOverheads}
-          isPending={isPending}
-        />
-      </div>
-
-      <hr className="border-gray-100 dark:border-[#1b2e4a]" />
-
-      <div>
-        <CostingPackagingTab
-          product={product}
-          form={form}
-          setForm={setForm}
-          isPending={isPending}
-          onSavePackaging={onSavePackaging}
-          onSaveVariants={onSaveVariants}
-          onSaveCosting={onSaveCosting}
-        />
-      </div>
-
-      <hr className="border-gray-100 dark:border-[#1b2e4a]" />
-
-      <div>
+      {/* RIGHT COLUMN: Sticky Quote Summary */}
+      <div className="lg:sticky lg:top-20 h-fit">
         <p className="text-sm font-bold text-gray-700 dark:text-gray-200 mb-4 flex items-center gap-1.5"><Star size={14} fill="currentColor" />Final: Quote Summary</p>
         {(() => {
           const q = calculateQuoteSummary();
