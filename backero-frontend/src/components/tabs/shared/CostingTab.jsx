@@ -59,9 +59,11 @@ export default function CostingTab({ product, form, setForm, onSave, isPending }
   const margins = form.costing?.margins || {};
   const variants = form.variants || [];
   const [showGST, setShowGST] = useState(false);
+  const [activeMarginType, setActiveMarginType] = useState(null);
   const gstRate = (form.gstRate || 0) / 100;
 
   function setMargin(f, v) { setForm(prev => ({ ...prev, costing: { ...prev.costing, margins: { ...prev.costing?.margins, [f]: Number(v) } } })); }
+  function setRndCost(v) { setForm(prev => ({ ...prev, rndDoc: { ...prev.rndDoc, cost: Number(v) || 0 } })); }
 
   function computeVariantPricing(v) {
     const refW = b.refW || 1;
@@ -92,17 +94,30 @@ export default function CostingTab({ product, form, setForm, onSave, isPending }
         ]} />
       </div>
 
-      <div className="rounded-xl border border-gray-200 dark:border-[#1b2e4a] p-4">
-        <p className="text-xs font-bold text-gray-600 dark:text-gray-300 mb-3">Margin Settings (%)</p>
-        <div className="grid grid-cols-5 gap-3 mb-2">
-          {[['exFactory', 'Ex-Factory'], ['dealer', 'Dealer'], ['distributor', 'Distributor'], ['retailer', 'Retailer'], ['selling', 'Selling']].map(([f, label]) => (
-            <div key={f}><label className="text-[10px] text-gray-500">{label}</label><input type="number" step="0.1" value={margins[f] || 0} onChange={e => setMargin(f, e.target.value)} className="input text-xs w-full" /></div>
-          ))}
+      <div className="rounded-xl border border-gray-200 dark:border-[#1b2e4a] p-4 space-y-4">
+        <div>
+          <label className="label text-xs">R&D Cost</label>
+          <input type="number" min="0" step="0.01" value={form.rndDoc?.cost || 0} onChange={e => setRndCost(e.target.value)} className="input text-xs w-full" placeholder="Enter R&D cost" />
         </div>
-        <div className="grid grid-cols-2 gap-3">
-          {[['b2b', 'B2B Margin (%)'], ['b2c', 'B2C Margin (%)']].map(([f, label]) => (
-            <div key={f}><label className="text-[10px] text-gray-500">{label}</label><input type="number" step="0.1" value={margins[f] || 0} onChange={e => setMargin(f, e.target.value)} className="input text-xs w-full" /></div>
-          ))}
+
+        <div>
+          <p className="text-xs font-bold text-gray-600 dark:text-gray-300 mb-3">Margin Settings</p>
+          <div className="grid grid-cols-2 gap-3">
+            {[['b2b', 'B2B'], ['b2c', 'B2C']].map(([f, label]) => (
+              <button key={f} onClick={() => setActiveMarginType(activeMarginType === f ? null : f)} className={`p-3 rounded-lg border-2 transition-all ${activeMarginType === f ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-500/10' : 'border-gray-200 dark:border-[#1b2e4a] hover:border-gray-300'}`}>
+                <p className="text-sm font-bold text-gray-700 dark:text-gray-200">{label}</p>
+                <p className="text-xs text-gray-500">{margins[f] || 0}%</p>
+              </button>
+            ))}
+          </div>
+
+          {activeMarginType && (
+            <div className="mt-3 p-3 bg-emerald-50 dark:bg-emerald-500/10 rounded-lg">
+              <label className="label text-xs mb-2">{activeMarginType === 'b2b' ? 'B2B' : 'B2C'} Margin (%)</label>
+              <input type="number" step="0.1" value={margins[activeMarginType] || 0} onChange={e => setMargin(activeMarginType, e.target.value)} className="input text-sm w-full" placeholder="Enter margin %" />
+              <p className="text-xs text-gray-500 mt-2">Production Cost: ₹{numF(costPerUnit)} → Final: ₹{numF(costPerUnit * (1 + (Number(margins[activeMarginType]) || 0) / 100))}</p>
+            </div>
+          )}
         </div>
       </div>
 
