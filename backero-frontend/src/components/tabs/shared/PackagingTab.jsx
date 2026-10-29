@@ -18,7 +18,7 @@ export default function PackagingTab({ product, form, setForm, onSave, isPending
       <div className="overflow-x-auto rounded-xl border border-gray-200 dark:border-[#1b2e4a]">
         <table className="w-full text-xs">
           <thead className="bg-gray-50 dark:bg-[#0f1a2e]">
-            <tr>{['Item', 'Qty', 'Rate (₹)', 'Amount (₹)', 'Optional', ''].map(h => <th key={h} className="px-3 py-2 text-left font-semibold text-gray-500">{h}</th>)}</tr>
+            <tr>{['Item', 'Pcs', 'Rate (₹)', 'Amount (₹)', 'Optional', ''].map(h => <th key={h} className="px-3 py-2 text-left font-semibold text-gray-500">{h}</th>)}</tr>
           </thead>
           <tbody>
             {items.map((item, i) => (
