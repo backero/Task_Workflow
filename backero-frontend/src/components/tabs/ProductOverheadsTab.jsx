@@ -298,9 +298,9 @@ export default function ProductOverheadsTab({ product, form, setForm, onSaveProd
             {(form.containers || []).map((item, idx) => {
               const batchQtyInBaseUnit = selectedBatch ? convertToBaseUnit(selectedBatch, batchUnit) : 0;
               const containerWeightInBaseUnit = convertToBaseUnit(Number(item.weight) || 0, item.unit || 'g');
-              const pricePerGram = Number(item.pricePerGram) || 0;
+              const costPerPiece = Number(item.costPerPiece) || 0;
               const unitsNeeded = containerWeightInBaseUnit > 0 ? batchQtyInBaseUnit / containerWeightInBaseUnit : 0;
-              const amount = unitsNeeded * containerWeightInBaseUnit * pricePerGram;
+              const amount = unitsNeeded * costPerPiece;
               const amountWithGST = showContainerGST ? amount * 1.18 : amount;
               return (
                 <div key={idx} className="space-y-2 border border-gray-200 dark:border-[#1b2e4a] rounded-lg p-3">
@@ -313,15 +313,14 @@ export default function ProductOverheadsTab({ product, form, setForm, onSaveProd
                     <div className="w-20"><label className="label text-xs">Pcs Needed</label><input type="text" readOnly value={selectedBatch ? numF(unitsNeeded, 0) : '—'} className="input text-xs bg-amber-50 dark:bg-amber-500/10 font-mono font-bold text-amber-700 dark:text-amber-300" /></div>
                   </div>
                   <div className="flex gap-3">
-                    <div className="flex-1"><label className="label text-xs">₹ per gram</label><input type="number" step="0.01" value={item.pricePerGram || ''} onChange={e => { const c = [...(form.containers || [])]; c[idx].pricePerGram = Number(e.target.value) || 0; setForm(f => ({ ...f, containers: c })); }} className="input text-xs w-full" /></div>
-                    <div className="w-24"><label className="label text-xs">Cost/Pcs</label><input type="text" readOnly value={selectedBatch && containerWeightInBaseUnit > 0 ? numF(containerWeightInBaseUnit * pricePerGram) : '—'} className="input text-xs bg-blue-50 dark:bg-blue-500/10 font-mono font-bold text-blue-700 dark:text-blue-300" /></div>
+                    <div className="flex-1"><label className="label text-xs">Cost per Piece (₹)</label><input type="number" step="0.01" value={item.costPerPiece || ''} onChange={e => { const c = [...(form.containers || [])]; c[idx].costPerPiece = Number(e.target.value) || 0; setForm(f => ({ ...f, containers: c })); }} className="input text-xs w-full" placeholder="₹ per piece" /></div>
                     <div className="w-28"><label className="label text-xs">Total ({selectedBatch ? batchUnit : '—'})</label><input type="text" readOnly value={selectedBatch ? numF(amountWithGST) : '—'} className="input text-xs bg-gray-50 dark:bg-[#0f1a2e] font-mono font-bold" /></div>
                     <button onClick={() => setForm(f => ({ ...f, containers: (f.containers || []).filter((_, i) => i !== idx) }))} className="text-red-500 hover:text-red-700">✕</button>
                   </div>
                 </div>
               );
             })}
-            <button onClick={() => setForm(f => ({ ...f, containers: [...(f.containers || []), { name: '', weight: 0, unit: 'g', pricePerGram: 0 }] }))} className="btn-secondary text-sm w-full">+ Add Container Item</button>
+            <button onClick={() => setForm(f => ({ ...f, containers: [...(f.containers || []), { name: '', weight: 0, unit: 'g', costPerPiece: 0 }] }))} className="btn-secondary text-sm w-full">+ Add Container Item</button>
           </div>
           <div className="flex items-center gap-2 mt-3 p-2 bg-gray-50 dark:bg-[#0f1a2e] rounded">
             <input type="checkbox" checked={showContainerGST} onChange={e => setShowContainerGST(e.target.checked)} id="containerGST" className="w-4 h-4" />
@@ -332,9 +331,9 @@ export default function ProductOverheadsTab({ product, form, setForm, onSaveProd
             <span>₹{selectedBatch ? numF((form.containers || []).reduce((s, item) => {
               const batchQtyInBaseUnit = convertToBaseUnit(selectedBatch, batchUnit);
               const containerWeightInBaseUnit = convertToBaseUnit(Number(item.weight) || 0, item.unit || 'g');
-              const pricePerGram = Number(item.pricePerGram) || 0;
+              const costPerPiece = Number(item.costPerPiece) || 0;
               const unitsNeeded = containerWeightInBaseUnit > 0 ? batchQtyInBaseUnit / containerWeightInBaseUnit : 0;
-              const itemCost = unitsNeeded * containerWeightInBaseUnit * pricePerGram * (showContainerGST ? 1.18 : 1);
+              const itemCost = unitsNeeded * costPerPiece * (showContainerGST ? 1.18 : 1);
               return s + itemCost;
             }, 0)) : '—'}</span>
           </div>
