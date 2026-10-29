@@ -92,6 +92,20 @@ export default function CostingTab({ product, form, setForm, onSave, isPending }
         ]} />
       </div>
 
+      <div className="rounded-xl border border-gray-200 dark:border-[#1b2e4a] p-4">
+        <p className="text-xs font-bold text-gray-600 dark:text-gray-300 mb-3">Margin Settings (%)</p>
+        <div className="grid grid-cols-5 gap-3 mb-2">
+          {[['exFactory', 'Ex-Factory'], ['dealer', 'Dealer'], ['distributor', 'Distributor'], ['retailer', 'Retailer'], ['selling', 'Selling']].map(([f, label]) => (
+            <div key={f}><label className="text-[10px] text-gray-500">{label}</label><input type="number" step="0.1" value={margins[f] || 0} onChange={e => setMargin(f, e.target.value)} className="input text-xs w-full" /></div>
+          ))}
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          {[['b2b', 'B2B Margin (%)'], ['b2c', 'B2C Margin (%)']].map(([f, label]) => (
+            <div key={f}><label className="text-[10px] text-gray-500">{label}</label><input type="number" step="0.1" value={margins[f] || 0} onChange={e => setMargin(f, e.target.value)} className="input text-xs w-full" /></div>
+          ))}
+        </div>
+      </div>
+
       <div className="flex items-center gap-3 flex-wrap">
         <label className="flex items-center gap-2 cursor-pointer text-xs font-semibold text-gray-600 dark:text-gray-300">
           <input type="checkbox" checked={showGST} onChange={e => setShowGST(e.target.checked)} className="w-4 h-4" />
