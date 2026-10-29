@@ -65,14 +65,16 @@ export default function ProductOverheadsTab({ product, form, setForm, onSaveProd
     const rndPerUnit = lifecycle > 0 ? rndTotal / lifecycle : 0;
 
     const units = refWInBaseUnit > 0 ? batchQtyInBaseUnit / refWInBaseUnit : 0;
+    const totalFormCostForBatch = formCost * units;
     const totalOverheadForBatch = overheadTotal * units;
     const totalSAForBatch = saAmount * units;
     const totalRndForBatch = rndPerUnit * units;
     return {
+      totalFormCost: totalFormCostForBatch,
       totalOverhead: totalOverheadForBatch,
       totalSA: totalSAForBatch,
       totalRnd: totalRndForBatch,
-      totalAll: totalOverheadForBatch + totalSAForBatch + totalRndForBatch,
+      totalAll: totalFormCostForBatch + totalOverheadForBatch + totalSAForBatch + totalRndForBatch,
       units,
       batchQtyInBaseUnit,
       unit
