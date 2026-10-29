@@ -73,7 +73,7 @@ export default function ProductOverheadsTab({ product, form, setForm, onSaveProd
     if (JSON.stringify(pkgItems) !== JSON.stringify(updated)) {
       setForm(prev => ({ ...prev, packaging: { ...prev.packaging, items: updated } }));
     }
-  }, [selectedBatch, batchUnit, form.containers?.length, form.containers?.map(c => `${c.weight}-${c.unit}`)?.join('|')]);
+  }, [selectedBatch, batchUnit, JSON.stringify(form.containers)]);
 
   const calculateBatchCost = (batchQty, unit) => {
     const b = { ...product, ...form };
