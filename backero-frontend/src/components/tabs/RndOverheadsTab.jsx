@@ -157,38 +157,6 @@ export default function RndOverheadsTab({ product, form, setForm, onSave, isPend
         </div>
       </div>
 
-      <hr className="border-gray-100 dark:border-[#1b2e4a]" />
-
-      <div>
-        <p className="text-sm font-bold text-gray-700 dark:text-gray-200 mb-4 flex items-center gap-1.5"><Factory size={14} />Batch Quantity Calculator</p>
-        <div className="flex gap-2 flex-wrap mb-4">
-          {BATCH_SIZES.map(batch => (
-            <button
-              key={batch.value}
-              onClick={() => setSelectedBatch(batch.value)}
-              className={`px-4 py-2 rounded-lg font-semibold text-sm transition-all ${
-                selectedBatch === batch.value
-                  ? 'bg-emerald-600 text-white shadow-md'
-                  : 'bg-gray-100 dark:bg-[#1b2e4a] text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-[#2a3f5f]'
-              }`}
-            >
-              {batch.label}
-            </button>
-          ))}
-        </div>
-        {selectedBatch && (() => {
-          const batchCost = calculateBatchCost(selectedBatch);
-          return (
-            <HighlightStrip tone="dark" items={[
-              { label: `Batch Size`, value: `${selectedBatch / 1000}kg` },
-              { label: 'Overhead Cost', value: `₹${numF(batchCost.totalOverhead)}` },
-              { label: 'Standard Assumptions', value: `₹${numF(batchCost.totalSA)}` },
-              { label: 'Total Batch Cost', value: `₹${numF(batchCost.totalAll)}`, big: true, accent: true },
-            ]} />
-          );
-        })()}
-      </div>
-
       <button onClick={onSave} disabled={isPending} className="btn-primary text-sm disabled:opacity-50">{isPending ? 'Saving…' : <><Save size={13} className="inline -mt-0.5 mr-1" />Save Production Overheads</>}</button>
     </div>
   );
