@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Factory, Star } from 'lucide-react';
 import RndOverheadsTab from './RndOverheadsTab';
-import CostingPackagingTab from './CostingPackagingTab';
 
 function numF(v, d = 2) { return Number(v || 0).toFixed(d); }
 
@@ -19,12 +18,14 @@ function HighlightStrip({ items, tone = 'light' }) {
   );
 }
 
-export default function ProductOverheadsTab({ product, form, setForm, onSaveProductionOverheads, onSavePackaging, onSaveVariants, onSaveCosting, isPending }) {
+export default function ProductOverheadsTab({ product, form, setForm, onSaveProductionOverheads, onSavePackaging, isPending }) {
   const [selectedBatch, setSelectedBatch] = useState(null);
   const [batchUnit, setBatchUnit] = useState('g');
   const [roundToNearest100, setRoundToNearest100] = useState(false);
   const [showContainerGST, setShowContainerGST] = useState(false);
   const [showFinalGST, setShowFinalGST] = useState(false);
+  const [showQuoteGST, setShowQuoteGST] = useState(false);
+  const [marginPercent, setMarginPercent] = useState(form.costing?.margins?.b2c || 0);
 
   const convertToBaseUnit = (qty, unit) => {
     const conversions = {
@@ -370,100 +371,130 @@ export default function ProductOverheadsTab({ product, form, setForm, onSaveProd
           </div>
         </div>
 
-        <hr className="border-gray-100 dark:border-[#1b2e4a]" />
-
-        <div>
-          <CostingPackagingTab
-            product={product}
-            form={form}
-            setForm={setForm}
-            isPending={isPending}
-            onSavePackaging={onSavePackaging}
-            onSaveVariants={onSaveVariants}
-            onSaveCosting={onSaveCosting}
-          />
-        </div>
       </div>
 
       {/* RIGHT COLUMN: Sticky Quote Summary */}
       <div className="lg:sticky lg:top-20 h-fit">
         <p className="text-sm font-bold text-gray-700 dark:text-gray-200 mb-4 flex items-center gap-1.5"><Star size={14} fill="currentColor" />Final: Quote Summary</p>
         {(() => {
-          const q = calculateQuoteSummary();
+          const b = { ...product, ...form };
+          const fm = b.formulation || {};
+          const po = b.productionOverhead || {};
+          const sa = b.standardAssumptions || {};
+          const rnd = b.rnd || {};
+          const pkg = b.packaging || {};
+          const refW = Number(fm.refWeight) || 100;
+
+          // Calculate per-unit costs
+          const formCostPerUnit = (fm.rows || []).reduce((s, r) => {
+            const qty = refW * (Number(r.percentage) || 0) / 100 * (Number(r.convFactor) || 1);
+            const cost = (Number(r.costPerKg) || 0) * qty / 1000;
+            return s + cost;
+          }, 0);
+
+          const overheadTotal = Number(po.electricity || 0) + Number(po.labor || 0) + Number(po.labTesting || 0) + Number(po.other || 0);
+          const overheadPerUnit = refW > 0 ? overheadTotal / refW : 0;
+
+          const saPct = [sa.equipmentPct, sa.consumablesPct, sa.storagePct, sa.housekeepingPct, sa.adminPct, sa.wastagePct].reduce((s, v) => s + (Number(v) || 0), 0);
+          const saPerUnit = formCostPerUnit * (saPct / 100);
+
+          const pkgItems = pkg.items || [];
+          const pkgCharges = pkg.charges || {};
+          const pkgCostTotal = pkgItems.reduce((s, i) => s + (Number(i.amount) || Number(i.qty) * Number(i.rate) || 0), 0) + Number(pkgCharges.machine || 0) + Number(pkgCharges.shrinkWrap || 0) + Number(pkgCharges.other || 0);
+
+          const containersCost = (form.containers || []).reduce((s, item) => {
+            const costPerPiece = Number(item.costPerPiece) || 0;
+            const pcsNeeded = Number(item.pcsNeeded) || 0;
+            return s + (costPerPiece * pcsNeeded);
+          }, 0);
+
+          // Calculate subtotal before margin
+          const subtotalBeforeMargin = formCostPerUnit + overheadPerUnit + saPerUnit + containersCost + pkgCostTotal;
+
+          // Apply margin
+          const marginAmount = subtotalBeforeMargin * (marginPercent / 100);
+          const subtotalWithMargin = subtotalBeforeMargin + marginAmount;
+
+          // Apply GST if enabled
+          const finalAmount = showQuoteGST ? subtotalWithMargin * 1.18 : subtotalWithMargin;
+
           return (
             <>
-              <div className="bg-slate-900 text-white rounded-2xl px-6 py-4 mb-4">
-                <p className="text-xs font-semibold text-slate-400 mb-2">QUOTE THIS AMOUNT (ONE-TIME)</p>
-                <p className="text-4xl font-bold text-amber-300 mb-1">₹{numF(q.finalAmount)}</p>
-                <p className="text-xs text-slate-400">raw ₹{numF(q.finalAmount - (q.finalAmount - (q.subtotalPerUnit + q.safetyBuffer)))} — rounded to nearest ₹100</p>
+              <div className="space-y-3 p-3 bg-gray-50 dark:bg-[#0f1a2e] rounded-lg mb-4">
+                <div className="flex justify-between items-center text-sm py-2 border-b border-gray-200 dark:border-[#1b2e4a]">
+                  <p className="font-semibold text-gray-700 dark:text-gray-200">Total Formulation Cost</p>
+                  <p className="font-mono font-bold text-gray-900 dark:text-white">₹{numF(formCostPerUnit, 2)}</p>
+                </div>
+
+                <div className="flex justify-between items-center text-sm py-2 border-b border-gray-200 dark:border-[#1b2e4a]">
+                  <p className="font-semibold text-gray-700 dark:text-gray-200">Total Production Overhead</p>
+                  <p className="font-mono font-bold text-gray-900 dark:text-white">₹{numF(overheadPerUnit, 2)}</p>
+                </div>
+
+                <div className="flex justify-between items-center text-sm py-2 border-b border-gray-200 dark:border-[#1b2e4a]">
+                  <p className="font-semibold text-gray-700 dark:text-gray-200">Standard Assumptions</p>
+                  <p className="font-mono font-bold text-gray-900 dark:text-white">₹{numF(saPerUnit, 2)}</p>
+                </div>
+
+                <div className="flex justify-between items-center text-sm py-2 border-b border-gray-200 dark:border-[#1b2e4a]">
+                  <p className="font-semibold text-gray-700 dark:text-gray-200">Containers & Labeling</p>
+                  <p className="font-mono font-bold text-gray-900 dark:text-white">₹{numF(containersCost, 2)}</p>
+                </div>
+
+                <div className="flex justify-between items-center text-sm py-2 border-b border-gray-200 dark:border-[#1b2e4a]">
+                  <p className="font-semibold text-gray-700 dark:text-gray-200">Packaging & Labeling</p>
+                  <p className="font-mono font-bold text-gray-900 dark:text-white">₹{numF(pkgCostTotal, 2)}</p>
+                </div>
+
+                <div className="flex justify-between items-center text-sm py-3 bg-gray-100 dark:bg-[#0f1a2e] px-3 rounded-lg font-bold border border-gray-200 dark:border-[#1b2e4a]">
+                  <p className="text-gray-700 dark:text-gray-200">Subtotal</p>
+                  <p className="font-mono text-gray-900 dark:text-white">₹{numF(subtotalBeforeMargin, 2)}</p>
+                </div>
+
+                <div className="flex items-center gap-2 py-2">
+                  <label className="text-sm font-semibold text-gray-700 dark:text-gray-200">Margin:</label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.5"
+                    value={marginPercent}
+                    onChange={e => setMarginPercent(Number(e.target.value))}
+                    className="input text-sm w-20"
+                    placeholder="0"
+                  />
+                  <span className="text-xs text-gray-500">%</span>
+                  <span className="text-xs font-mono text-gray-600 dark:text-gray-400 ml-auto">₹{numF(marginAmount, 2)}</span>
+                </div>
+
+                <div className="flex justify-between items-center text-sm py-2 border-t border-gray-200 dark:border-[#1b2e4a]">
+                  <p className="font-semibold text-gray-700 dark:text-gray-200">With Margin</p>
+                  <p className="font-mono font-bold text-gray-900 dark:text-white">₹{numF(subtotalWithMargin, 2)}</p>
+                </div>
+
+                <div className="flex items-center gap-2 pt-2 border-t border-gray-200 dark:border-[#1b2e4a]">
+                  <input
+                    type="checkbox"
+                    checked={showQuoteGST}
+                    onChange={e => setShowQuoteGST(e.target.checked)}
+                    className="w-3 h-3"
+                    id="quoteGSTChk"
+                  />
+                  <label htmlFor="quoteGSTChk" className="text-xs font-semibold text-gray-600 dark:text-gray-400 cursor-pointer">
+                    Include GST (18%)
+                  </label>
+                </div>
+
+                {showQuoteGST && (
+                  <div className="flex justify-between items-center text-sm py-2 px-2 bg-amber-50 dark:bg-amber-500/10 rounded border border-amber-200 dark:border-amber-800/40">
+                    <p className="font-semibold text-amber-700 dark:text-amber-300">Final with GST:</p>
+                    <p className="font-mono font-bold text-amber-700 dark:text-amber-300">₹{numF(finalAmount, 2)}</p>
+                  </div>
+                )}
               </div>
 
-              <div className="flex items-center gap-2 mb-4 p-3 bg-gray-50 dark:bg-[#0f1a2e] rounded-lg">
-                <input
-                  type="checkbox"
-                  checked={roundToNearest100}
-                  onChange={e => setRoundToNearest100(e.target.checked)}
-                  className="w-4 h-4"
-                  id="roundChk"
-                />
-                <label htmlFor="roundChk" className="text-xs font-semibold text-gray-700 dark:text-gray-200 cursor-pointer">
-                  Round fee to nearest ₹100 (looks cleaner)
-                </label>
-              </div>
-
-              <div className="space-y-3">
-                <div className="flex justify-between items-center text-sm py-2 border-b border-gray-200 dark:border-[#1b2e4a]">
-                  <div>
-                    <p className="font-semibold text-gray-700 dark:text-gray-200">Ingredients Cost</p>
-                    <p className="text-xs text-gray-400">from formulation</p>
-                  </div>
-                  <p className="font-mono font-bold text-gray-900 dark:text-white">₹{numF(q.formCost)}</p>
-                </div>
-
-                <div className="flex justify-between items-center text-sm py-2 border-b border-gray-200 dark:border-[#1b2e4a]">
-                  <div>
-                    <p className="font-semibold text-gray-700 dark:text-gray-200">Production Overhead</p>
-                    <p className="text-xs text-gray-400">per unit</p>
-                  </div>
-                  <p className="font-mono font-bold text-gray-900 dark:text-white">₹{numF(q.overheadPerUnit, 4)}</p>
-                </div>
-
-                <div className="flex justify-between items-center text-sm py-2 border-b border-gray-200 dark:border-[#1b2e4a]">
-                  <div>
-                    <p className="font-semibold text-gray-700 dark:text-gray-200">Standard Assumptions</p>
-                    <p className="text-xs text-gray-400">equipment, consumables, storage, etc.</p>
-                  </div>
-                  <p className="font-mono font-bold text-gray-900 dark:text-white">₹{numF(q.saAmount, 4)}</p>
-                </div>
-
-                <div className="flex justify-between items-center text-sm py-2 border-b border-gray-200 dark:border-[#1b2e4a]">
-                  <div>
-                    <p className="font-semibold text-gray-700 dark:text-gray-200">R&D Cost</p>
-                    <p className="text-xs text-gray-400">per unit</p>
-                  </div>
-                  <p className="font-mono font-bold text-gray-900 dark:text-white">₹{numF(q.rndPerUnit, 4)}</p>
-                </div>
-
-                <div className="flex justify-between items-center text-sm py-2 border-b border-gray-200 dark:border-[#1b2e4a]">
-                  <div>
-                    <p className="font-semibold text-gray-700 dark:text-gray-200">Packaging Cost</p>
-                    <p className="text-xs text-gray-400">materials & charges</p>
-                  </div>
-                  <p className="font-mono font-bold text-gray-900 dark:text-white">₹{numF(q.pkgCost, 4)}</p>
-                </div>
-
-                <div className="flex justify-between items-center text-sm py-3 bg-gray-100 dark:bg-[#0f1a2e] px-3 rounded-lg font-bold">
-                  <p className="text-gray-700 dark:text-gray-200">Subtotal (all costs)</p>
-                  <p className="font-mono text-gray-900 dark:text-white">₹{numF(q.subtotalPerUnit)}</p>
-                </div>
-
-                <div className="flex justify-between items-center text-sm py-2 border-b border-gray-200 dark:border-[#1b2e4a]">
-                  <div>
-                    <p className="font-semibold text-gray-700 dark:text-gray-200">Safety Buffer</p>
-                    <p className="text-xs text-gray-400">10% on subtotal</p>
-                  </div>
-                  <p className="font-mono font-bold text-gray-900 dark:text-white">₹{numF(q.safetyBuffer)}</p>
-                </div>
+              <div className="bg-slate-900 text-white rounded-2xl px-6 py-4">
+                <p className="text-xs font-semibold text-slate-400 mb-2">FINAL QUOTE AMOUNT</p>
+                <p className="text-4xl font-bold text-amber-300">₹{numF(finalAmount, 2)}</p>
               </div>
             </>
           );
