@@ -50,7 +50,7 @@ export default function ProductOverheadsTab({ product, form, setForm, onSaveProd
 
     const formCost = (fm.rows || []).reduce((s, r) => {
       const qty = refWInBaseUnit * (Number(r.percentage) || 0) / 100 * (Number(r.convFactor) || 1);
-      const cost = (Number(r.costPerKg) || 0) * qty / 1000;
+      const cost = (Number(r.costPerKg) || 0) * qty;
       return s + cost;
     }, 0);
 
