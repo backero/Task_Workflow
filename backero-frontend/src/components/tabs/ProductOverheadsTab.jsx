@@ -304,18 +304,6 @@ export default function ProductOverheadsTab({ product, form, setForm, onSaveProd
                   { label: `Standard Assumptions (${saPct}%)`, value: `₹${numF(saAmount)}` },
                   { label: 'Combined Total', value: `₹${numF(totalWithSAAndOverhead)}`, big: true, accent: true },
                 ]} />
-                <HighlightStrip tone="dark" items={[
-                  { label: `Per ${batchUnit} (Formulation)`, value: `₹${numF(perUnitFormulation, 4)}` },
-                  { label: `Per ${batchUnit} (Overhead)`, value: `₹${numF(perUnitOverhead, 4)}` },
-                  { label: `Per ${batchUnit} (SA)`, value: `₹${numF(perUnitSA, 4)}` },
-                  { label: `Per ${batchUnit} (Total)`, value: `₹${numF(perUnitCombined, 4)}`, big: true, accent: true },
-                ]} />
-                <HighlightStrip tone="dark" items={[
-                  { label: `Per ${alternateLabel} (Formulation)`, value: `₹${numF(perAltFormulation, 4)}` },
-                  { label: `Per ${alternateLabel} (Overhead)`, value: `₹${numF(perAltOverhead, 4)}` },
-                  { label: `Per ${alternateLabel} (SA)`, value: `₹${numF(perAltSA, 4)}` },
-                  { label: `Per ${alternateLabel} (Total)`, value: `₹${numF(perAlternateUnit, 4)}`, big: true, accent: true },
-                ]} />
               </div>
             );
           })()}
@@ -410,6 +398,111 @@ export default function ProductOverheadsTab({ product, form, setForm, onSaveProd
             </div>
           </div>
         </div>
+
+        <hr className="border-gray-100 dark:border-[#1b2e4a]" />
+
+        {/* Final Cost Summary Card */}
+        {selectedBatch && (() => {
+          const b = { ...product, ...form };
+          const fm = b.formulation || {};
+          const po = b.productionOverhead || {};
+          const sa = b.standardAssumptions || {};
+          const refW = Number(fm.refWeight) || 100;
+
+          const totalFormCost = (fm.rows || []).reduce((s, r) => {
+            const qty = refW * (Number(r.percentage) || 0) / 100 * (Number(r.convFactor) || 1);
+            const cost = (Number(r.costPerKg) || 0) * qty;
+            return s + cost;
+          }, 0);
+
+          const totalOverhead = Number(po.electricity || 0) + Number(po.labor || 0) + Number(po.labTesting || 0) + Number(po.other || 0);
+
+          const saPct = [sa.equipmentPct, sa.consumablesPct, sa.storagePct, sa.housekeepingPct, sa.adminPct, sa.wastagePct].reduce((s, v) => s + (Number(v) || 0), 0);
+          const saAmount = totalFormCost * (saPct / 100);
+
+          const containersCost = (form.containers || []).reduce((s, item) => {
+            const batchQtyBase = convertToBaseUnit(selectedBatch, batchUnit);
+            const containerWtBase = convertToBaseUnit(Number(item.weight) || 0, item.unit || 'g');
+            const pcsNeeded = containerWtBase > 0 ? Math.round(batchQtyBase / containerWtBase) : 0;
+            const costPerPiece = Number(item.costPerPiece) || 0;
+            return s + (costPerPiece * pcsNeeded);
+          }, 0);
+
+          const pkgItems = form.packaging?.items || [];
+          const pkgCharges = form.packaging?.charges || {};
+          const pkgCostTotal = pkgItems.reduce((s, i) => s + (Number(i.amount) || Number(i.qty) * Number(i.rate) || 0), 0) + Number(pkgCharges.machine || 0) + Number(pkgCharges.shrinkWrap || 0) + Number(pkgCharges.other || 0);
+
+          const subtotalBeforeMargin = totalFormCost + totalOverhead + saAmount + containersCost + pkgCostTotal;
+          const marginAmount = subtotalBeforeMargin * (marginPercent / 100);
+          const finalWithMargin = subtotalBeforeMargin + marginAmount;
+
+          return (
+            <>
+              <div className="mt-6">
+                <p className="text-sm font-bold text-gray-700 dark:text-gray-200 mb-3">Cost Summary</p>
+                <div className="rounded-lg border border-gray-200 dark:border-[#1b2e4a] overflow-hidden">
+                  <table className="w-full text-sm">
+                    <tbody>
+                      <tr className="border-b border-gray-200 dark:border-[#1b2e4a]">
+                        <td className="px-4 py-2.5 text-gray-700 dark:text-gray-300">Formulation</td>
+                        <td className="px-4 py-2.5 text-right font-mono font-bold text-gray-900 dark:text-white">₹{numF(totalFormCost, 2)}</td>
+                      </tr>
+                      <tr className="border-b border-gray-200 dark:border-[#1b2e4a]">
+                        <td className="px-4 py-2.5 text-gray-700 dark:text-gray-300">Production Overhead</td>
+                        <td className="px-4 py-2.5 text-right font-mono font-bold text-gray-900 dark:text-white">₹{numF(totalOverhead, 2)}</td>
+                      </tr>
+                      <tr className="border-b border-gray-200 dark:border-[#1b2e4a]">
+                        <td className="px-4 py-2.5 text-gray-700 dark:text-gray-300">Standard Assumptions</td>
+                        <td className="px-4 py-2.5 text-right font-mono font-bold text-gray-900 dark:text-white">₹{numF(saAmount, 2)}</td>
+                      </tr>
+                      <tr className="border-b border-gray-200 dark:border-[#1b2e4a]">
+                        <td className="px-4 py-2.5 text-gray-700 dark:text-gray-300">Containers & Labeling</td>
+                        <td className="px-4 py-2.5 text-right font-mono font-bold text-gray-900 dark:text-white">₹{numF(containersCost, 2)}</td>
+                      </tr>
+                      <tr className="border-b border-gray-200 dark:border-[#1b2e4a]">
+                        <td className="px-4 py-2.5 text-gray-700 dark:text-gray-300">Packaging & Labeling</td>
+                        <td className="px-4 py-2.5 text-right font-mono font-bold text-gray-900 dark:text-white">₹{numF(pkgCostTotal, 2)}</td>
+                      </tr>
+                      <tr className="border-b border-gray-200 dark:border-[#1b2e4a] bg-amber-50 dark:bg-amber-500/10">
+                        <td className="px-4 py-2.5 font-semibold text-amber-700 dark:text-amber-300">Subtotal (Before Margin)</td>
+                        <td className="px-4 py-2.5 text-right font-mono font-bold text-amber-700 dark:text-amber-300">₹{numF(subtotalBeforeMargin, 2)}</td>
+                      </tr>
+                      <tr className="bg-slate-900 text-white">
+                        <td className="px-4 py-3 font-bold">Margin (B2B {marginPercent}%)</td>
+                        <td className="px-4 py-3 text-right font-mono font-bold">₹{numF(marginAmount, 2)}</td>
+                      </tr>
+                      <tr className="bg-slate-900 text-white">
+                        <td className="px-4 py-3 font-bold">FINAL TOTAL</td>
+                        <td className="px-4 py-3 text-right font-mono font-bold text-amber-300 text-lg">₹{numF(finalWithMargin, 2)}</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              <div className="mt-4 bg-slate-900 text-white rounded-xl px-6 py-4">
+                <div className="grid grid-cols-4 gap-4 text-center">
+                  <div>
+                    <p className="text-xs text-slate-400 mb-1">Per {batchUnit} (Formulation)</p>
+                    <p className="font-bold text-white">₹{numF(totalFormCost / (selectedBatch || 1), 4)}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-slate-400 mb-1">Per {batchUnit} (Overhead)</p>
+                    <p className="font-bold text-white">₹{numF(totalOverhead / (selectedBatch || 1), 4)}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-slate-400 mb-1">Per {batchUnit} (SA)</p>
+                    <p className="font-bold text-white">₹{numF(saAmount / (selectedBatch || 1), 4)}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-slate-400 mb-1">Per {batchUnit} (Total)</p>
+                    <p className="font-bold text-amber-300">₹{numF((totalFormCost + totalOverhead + saAmount) / (selectedBatch || 1), 4)}</p>
+                  </div>
+                </div>
+              </div>
+            </>
+          );
+        })()}
       </div>
 
       {/* RIGHT COLUMN: Sticky Quote Summary */}
