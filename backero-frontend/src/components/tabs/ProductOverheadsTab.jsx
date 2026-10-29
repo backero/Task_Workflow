@@ -221,6 +221,26 @@ export default function ProductOverheadsTab({ product, form, setForm, onSaveProd
             const perUnitFormulationCost = refW > 0 ? totalBatchPrice / refW : 0;
             const perUnitOverhead = refW > 0 ? overheadTotal / refW : 0;
             const perUnitCombined = refW > 0 ? combinedTotal / refW : 0;
+
+            const perSelectedUnit = totalBatchPrice / selectedBatch;
+            let perAlternateUnit = perSelectedUnit;
+            let alternateLabel = batchUnit;
+
+            // Add alternate unit conversions for common units
+            if (batchUnit === 'L') {
+              perAlternateUnit = perSelectedUnit / 1000; // Convert L to ml
+              alternateLabel = 'ml';
+            } else if (batchUnit === 'ml') {
+              perAlternateUnit = perSelectedUnit * 1000; // Convert ml to L
+              alternateLabel = 'L';
+            } else if (batchUnit === 'kg') {
+              perAlternateUnit = perSelectedUnit / 1000; // Convert kg to g
+              alternateLabel = 'g';
+            } else if (batchUnit === 'g') {
+              perAlternateUnit = perSelectedUnit * 1000; // Convert g to kg
+              alternateLabel = 'kg';
+            }
+
             return (
               <div className="space-y-4">
                 <HighlightStrip tone="dark" items={[
@@ -229,7 +249,8 @@ export default function ProductOverheadsTab({ product, form, setForm, onSaveProd
                   { label: 'Combined Total', value: `₹${numF(combinedTotal)}` },
                 ]} />
                 <HighlightStrip tone="dark" items={[
-                  { label: `Per ${batchUnit}`, value: `₹${numF(totalBatchPrice / selectedBatch, 4)}` },
+                  { label: `Per ${batchUnit}`, value: `₹${numF(perSelectedUnit, 4)}` },
+                  { label: `Per ${alternateLabel}`, value: `₹${numF(perAlternateUnit, 4)}` },
                   { label: 'Per Unit Overhead', value: `₹${numF(perUnitOverhead, 4)}` },
                   { label: 'Combined Per Unit', value: `₹${numF(perUnitCombined, 4)}`, big: true, accent: true },
                 ]} />
