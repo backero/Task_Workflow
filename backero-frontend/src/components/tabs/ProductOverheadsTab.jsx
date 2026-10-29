@@ -36,34 +36,34 @@ export default function ProductOverheadsTab({ product, form, setForm, onSaveProd
     return qty * (conversions[unit] || 1);
   };
 
-  // Auto-sync containers to packaging items
+  // Auto-sync: Update existing packaging items' QTY based on container Pcs Needed
   React.useEffect(() => {
     if (!selectedBatch || !form.containers?.length) return;
 
     const containers = form.containers;
     const fm = form.formulation || {};
-    const refW = Number(fm.refWeight) || 100;
-    const refUnit = fm.refUnit || 'g';
     const batchQtyBase = convertToBaseUnit(selectedBatch, batchUnit);
+    const pkgItems = form.packaging?.items || [];
 
-    const newPkgItems = [];
-    containers.forEach((container, idx) => {
+    if (pkgItems.length === 0) return; // Only update if packaging items already exist
+
+    const updated = pkgItems.map((item, idx) => {
+      const container = containers[idx];
+      if (!container) return item; // Skip if no matching container
+
       const containerWtBase = convertToBaseUnit(Number(container.weight) || 0, container.unit || 'g');
       const pcsNeeded = containerWtBase > 0 ? Math.round(batchQtyBase / containerWtBase) : 0;
-      const existingRate = form.packaging?.items?.[idx]?.rate || 0;
 
-      newPkgItems.push({
-        name: container.name || `Item ${idx + 1}`,
+      return {
+        ...item,
         qty: pcsNeeded,
-        rate: existingRate,
-        amount: pcsNeeded * existingRate,
-        optional: form.packaging?.items?.[idx]?.optional || false
-      });
+        amount: pcsNeeded * (item.rate || 0)
+      };
     });
 
     setForm(prev => ({
       ...prev,
-      packaging: { ...prev.packaging, items: newPkgItems }
+      packaging: { ...prev.packaging, items: updated }
     }));
   }, [selectedBatch, batchUnit, form.containers?.length]);
 
