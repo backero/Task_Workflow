@@ -218,14 +218,22 @@ export default function ProductOverheadsTab({ product, form, setForm, onSaveProd
             const batchCost = calculateBatchCost(selectedBatch, batchUnit);
             const totalBatchPrice = batchCost.totalAll || 0;
             const combinedTotal = overheadTotal + totalBatchPrice;
-            const perUnitAmount = refW > 0 ? combinedTotal / refW : 0;
+            const perUnitFormulationCost = refW > 0 ? totalBatchPrice / refW : 0;
+            const perUnitOverhead = refW > 0 ? overheadTotal / refW : 0;
+            const perUnitCombined = refW > 0 ? combinedTotal / refW : 0;
             return (
-              <HighlightStrip tone="dark" items={[
-                { label: 'Total Production Overhead', value: `₹${numF(overheadTotal)}` },
-                { label: 'Total Price for Batch', value: `₹${numF(totalBatchPrice)}` },
-                { label: 'Combined Total', value: `₹${numF(combinedTotal)}` },
-                { label: 'Per Unit', value: `₹${numF(perUnitAmount, 4)}`, big: true, accent: true },
-              ]} />
+              <div className="space-y-4">
+                <HighlightStrip tone="dark" items={[
+                  { label: 'Total Production Overhead', value: `₹${numF(overheadTotal)}` },
+                  { label: 'Total Price for Batch', value: `₹${numF(totalBatchPrice)}` },
+                  { label: 'Combined Total', value: `₹${numF(combinedTotal)}` },
+                ]} />
+                <HighlightStrip tone="dark" items={[
+                  { label: 'Per Unit Formulation', value: `₹${numF(perUnitFormulationCost, 4)}` },
+                  { label: 'Per Unit Overhead', value: `₹${numF(perUnitOverhead, 4)}` },
+                  { label: 'Combined Per Unit', value: `₹${numF(perUnitCombined, 4)}`, big: true, accent: true },
+                ]} />
+              </div>
             );
           })()}
           {!selectedBatch && <p className="text-xs text-gray-400">Enter a batch quantity to see cost breakdown</p>}
