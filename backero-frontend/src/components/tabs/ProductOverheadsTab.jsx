@@ -59,15 +59,13 @@ export default function ProductOverheadsTab({ product, form, setForm, onSaveProd
         updated.push({ name: '', qty: 0, rate: 0, amount: 0, optional: false });
       }
 
-      if (updated[idx].qty !== roundedPcs) {
-        const rate = updated[idx]?.rate || 0;
-        updated[idx] = {
-          ...updated[idx],
-          name: container.name || updated[idx].name,
-          qty: roundedPcs,
-          amount: roundedPcs * rate
-        };
-      }
+      const rate = updated[idx]?.rate || 0;
+      updated[idx] = {
+        ...updated[idx],
+        name: container.name || updated[idx].name,
+        qty: roundedPcs,
+        amount: roundedPcs * rate
+      };
     });
 
     if (JSON.stringify(pkgItems) !== JSON.stringify(updated)) {
