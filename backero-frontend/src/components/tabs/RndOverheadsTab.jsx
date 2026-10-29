@@ -149,12 +149,6 @@ export default function RndOverheadsTab({ product, form, setForm, onSave, isPend
           { label: 'Standard Assumptions Per Unit', value: `₹${numF(b.saAmount, 4)}` },
           { label: 'Total Overhead & R&D Per Unit', value: `₹${numF(b.rndPerUnit + b.overheadPerUnit + b.saAmount, 4)}`, big: true, accent: true },
         ]} />
-        <div className="mt-3">
-          <HighlightStrip items={[
-            { label: 'Total Cost for Product (at ref weight)', value: `₹${numF((b.rndPerUnit + b.overheadPerUnit + b.saAmount) * b.refW)}` },
-            { label: 'Reference Weight', value: b.refW ? `${b.refW} ${form.formulation?.refUnit || form.unit || ''}` : '—' },
-          ]} />
-        </div>
       </div>
 
       <button onClick={onSave} disabled={isPending} className="btn-primary text-sm disabled:opacity-50">{isPending ? 'Saving…' : <><Save size={13} className="inline -mt-0.5 mr-1" />Save Production Overheads</>}</button>

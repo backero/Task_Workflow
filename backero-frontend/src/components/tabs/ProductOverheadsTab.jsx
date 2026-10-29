@@ -58,8 +58,33 @@ export default function ProductOverheadsTab({ product, form, setForm, onSaveProd
     };
   };
 
+  const fm = { ...product, ...form }.formulation || {};
+  const refW = Number(fm.refWeight) || 100;
+  const refUnit = fm.refUnit || 'ml';
+  const formCost = (fm.rows || []).reduce((s, r) => {
+    const qty = refW * (Number(r.percentage) || 0) / 100 * (Number(r.convFactor) || 1);
+    const cost = (Number(r.costPerKg) || 0) * qty / 1000;
+    return s + cost;
+  }, 0);
+  const perUnit = refW > 0 ? formCost / refW : 0;
+
   return (
     <div className="space-y-8">
+      <div>
+        <p className="text-sm font-bold text-gray-700 dark:text-gray-200 mb-4 flex items-center gap-1.5"><Factory size={14} />Ingredients Price Summary</p>
+        {fm.rows && fm.rows.length > 0 ? (
+          <div className="grid grid-cols-3 gap-4 bg-slate-900 text-white rounded-2xl px-6 py-4">
+            <div><p className="text-[11px] text-slate-300">Total Formulation Cost</p><p className="text-lg font-bold">₹{numF(formCost)}</p></div>
+            <div><p className="text-[11px] text-slate-300">Reference Weight</p><p className="text-lg font-bold">{refW} {refUnit}</p></div>
+            <div><p className="text-[11px] text-slate-300">Cost Per Unit</p><p className="text-lg font-bold">₹{numF(perUnit, 4)}</p></div>
+          </div>
+        ) : (
+          <p className="text-xs text-gray-400">No formulation data. Add ingredients in Formulation & Procedure tab.</p>
+        )}
+      </div>
+
+      <hr className="border-gray-100 dark:border-[#1b2e4a]" />
+
       <div>
         <p className="text-sm font-bold text-gray-700 dark:text-gray-200 mb-4 flex items-center gap-1.5"><Factory size={14} />Batch Quantity Calculator</p>
         <div className="mb-4">
