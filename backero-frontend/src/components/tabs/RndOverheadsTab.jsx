@@ -8,7 +8,7 @@ function calcOverheadBreakdown(p) {
   const fm = p.formulation || {};
   const po = p.productionOverhead || {};
   const sa = p.standardAssumptions || {};
-  const rnd = p.rndDoc || {};
+  const rnd = p.rnd || {};
   const refW = Number(fm.refWeight) || 100;
 
   const formCost = (fm.rows || []).reduce((s, r) => {
@@ -23,10 +23,11 @@ function calcOverheadBreakdown(p) {
   const saPct = [sa.equipmentPct, sa.consumablesPct, sa.storagePct, sa.housekeepingPct, sa.adminPct, sa.wastagePct].reduce((s, v) => s + (Number(v) || 0), 0);
   const saAmount = formCost * (saPct / 100);
 
-  const rndCost = Number(rnd.cost || rnd.investmentHours || 0);
-  const rndPerUnit = refW > 0 ? rndCost / refW : 0;
+  const lifecycle = rnd.lifecycle || 1000;
+  const rndTotal = (Number(rnd.testing) || 0) + (Number(rnd.consumables) || 0) + (Number(rnd.samples) || 0) + (Number(rnd.overhead) || 0) + (Number(rnd.otherOverhead) || 0) + (Number(rnd.qc) || 0);
+  const rndPerUnit = lifecycle > 0 ? rndTotal / lifecycle : 0;
 
-  return { formCost, overheadTotal, overheadPerUnit, saPct, saAmount, rndCost, rndPerUnit, refW };
+  return { formCost, overheadTotal, overheadPerUnit, saPct, saAmount, rndTotal, rndPerUnit, refW };
 }
 
 function HighlightStrip({ items, tone = 'light' }) {
