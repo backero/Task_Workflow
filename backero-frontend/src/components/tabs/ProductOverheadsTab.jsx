@@ -304,6 +304,47 @@ export default function ProductOverheadsTab({ product, form, setForm, onSaveProd
                   { label: `Standard Assumptions (${saPct}%)`, value: `₹${numF(saAmount)}` },
                   { label: 'Combined Total', value: `₹${numF(totalWithSAAndOverhead)}`, big: true, accent: true },
                 ]} />
+
+                <div className="bg-slate-900 text-white rounded-xl px-6 py-4">
+                  <div className="grid grid-cols-4 gap-4 text-center mb-4">
+                    <div>
+                      <p className="text-xs text-slate-400 mb-1">Per {batchUnit} (Form)</p>
+                      <p className="font-bold text-white">₹{numF(perUnitFormulation, 4)}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-slate-400 mb-1">Per {batchUnit} (OH)</p>
+                      <p className="font-bold text-white">₹{numF(perUnitOverhead, 4)}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-slate-400 mb-1">Per {batchUnit} (SA)</p>
+                      <p className="font-bold text-white">₹{numF(perUnitSA, 4)}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-slate-400 mb-1">Per {batchUnit} (Total)</p>
+                      <p className="font-bold text-amber-300">₹{numF(perUnitCombined, 4)}</p>
+                    </div>
+                  </div>
+                  <div className="border-t border-slate-700 pt-4">
+                    <div className="grid grid-cols-4 gap-4 text-center">
+                      <div>
+                        <p className="text-xs text-slate-400 mb-1">Per {alternateLabel} (Form)</p>
+                        <p className="font-bold text-white">₹{numF(perAltFormulation, 4)}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-slate-400 mb-1">Per {alternateLabel} (OH)</p>
+                        <p className="font-bold text-white">₹{numF(perAltOverhead, 4)}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-slate-400 mb-1">Per {alternateLabel} (SA)</p>
+                        <p className="font-bold text-white">₹{numF(perAltSA, 4)}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-slate-400 mb-1">Per {alternateLabel} (Total)</p>
+                        <p className="font-bold text-amber-300">₹{numF(perAlternateUnit, 4)}</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
             );
           })()}
@@ -418,7 +459,7 @@ export default function ProductOverheadsTab({ product, form, setForm, onSaveProd
           const totalOverhead = Number(po.electricity || 0) + Number(po.labor || 0) + Number(po.labTesting || 0) + Number(po.other || 0);
 
           const saPct = [sa.equipmentPct, sa.consumablesPct, sa.storagePct, sa.housekeepingPct, sa.adminPct, sa.wastagePct].reduce((s, v) => s + (Number(v) || 0), 0);
-          const saAmount = totalFormCost * (saPct / 100);
+          const saAmount = (totalFormCost + totalOverhead) * (saPct / 100);
 
           const containersCost = (form.containers || []).reduce((s, item) => {
             const batchQtyBase = convertToBaseUnit(selectedBatch, batchUnit);
@@ -434,11 +475,90 @@ export default function ProductOverheadsTab({ product, form, setForm, onSaveProd
 
           const subtotalBeforeMargin = totalFormCost + totalOverhead + saAmount + containersCost + pkgCostTotal;
           const marginAmount = subtotalBeforeMargin * (marginPercent / 100);
-          const finalWithMargin = subtotalBeforeMargin + marginAmount;
+          const subtotalWithMargin = subtotalBeforeMargin + marginAmount;
+          const finalAmount = showQuoteGST ? subtotalWithMargin * 1.18 : subtotalWithMargin;
 
           return (
             <>
-              <div className="mt-6">
+              <div className="mt-6 space-y-4">
+                <div className="space-y-2 p-3 bg-gray-50 dark:bg-[#0f1a2e] rounded-lg">
+                  <p className="text-xs font-semibold text-gray-600 dark:text-gray-400 mb-2">Margin Settings</p>
+
+                  <div className="grid grid-cols-2 gap-2 mb-3">
+                    {[['b2b', 'B2B'], ['b2c', 'B2C']].map(([type, label]) => (
+                      <button
+                        key={type}
+                        onClick={() => {
+                          setActiveMarginType(type);
+                          setMarginPercent(Number(form.costing?.margins?.[type]) || 0);
+                        }}
+                        className={`py-2 px-3 rounded text-xs font-semibold transition-all border ${
+                          activeMarginType === type
+                            ? 'bg-emerald-100 dark:bg-emerald-500/20 border-emerald-500 text-emerald-700 dark:text-emerald-300'
+                            : 'bg-white dark:bg-[#1b2e4a] border-gray-200 dark:border-[#1b2e4a] text-gray-700 dark:text-gray-300 hover:border-gray-300'
+                        }`}
+                      >
+                        {label}
+                        <div className="text-[10px] text-gray-600 dark:text-gray-400 mt-0.5">
+                          {form.costing?.margins?.[type] || 0}%
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.5"
+                      value={marginPercent}
+                      onChange={e => {
+                        const val = Number(e.target.value);
+                        setMarginPercent(val);
+                        setForm(prev => ({
+                          ...prev,
+                          costing: {
+                            ...prev.costing,
+                            margins: {
+                              ...prev.costing?.margins,
+                              [activeMarginType]: val
+                            }
+                          }
+                        }));
+                      }}
+                      className="input text-sm w-16"
+                      placeholder="0"
+                    />
+                    <span className="text-xs font-semibold text-gray-600 dark:text-gray-400">% {activeMarginType.toUpperCase()}</span>
+                    <span className="text-xs font-mono font-bold text-gray-900 dark:text-white ml-auto">+ ₹{numF(marginAmount, 2)}</span>
+                  </div>
+
+                  <div className="flex justify-between items-center text-sm pt-2 border-t border-gray-200 dark:border-[#1b2e4a]">
+                    <p className="font-semibold text-gray-700 dark:text-gray-200">With Margin</p>
+                    <p className="font-mono font-bold text-gray-900 dark:text-white">₹{numF(subtotalWithMargin, 2)}</p>
+                  </div>
+
+                  <div className="flex items-center gap-2 pt-2">
+                    <input
+                      type="checkbox"
+                      checked={showQuoteGST}
+                      onChange={e => setShowQuoteGST(e.target.checked)}
+                      className="w-3 h-3"
+                      id="quoteGSTChk"
+                    />
+                    <label htmlFor="quoteGSTChk" className="text-xs font-semibold text-gray-600 dark:text-gray-400 cursor-pointer">
+                      Include GST (18%)
+                    </label>
+                  </div>
+
+                  {showQuoteGST && (
+                    <div className="flex justify-between items-center text-sm py-2 px-2 bg-amber-50 dark:bg-amber-500/10 rounded border border-amber-200 dark:border-amber-800/40">
+                      <p className="font-semibold text-amber-700 dark:text-amber-300">Final with GST:</p>
+                      <p className="font-mono font-bold text-amber-700 dark:text-amber-300">₹{numF(subtotalWithMargin * 1.18, 2)}</p>
+                    </div>
+                  )}
+                </div>
+
                 <p className="text-sm font-bold text-gray-700 dark:text-gray-200 mb-3">Cost Summary</p>
                 <div className="rounded-lg border border-gray-200 dark:border-[#1b2e4a] overflow-hidden">
                   <table className="w-full text-sm">
@@ -473,111 +593,13 @@ export default function ProductOverheadsTab({ product, form, setForm, onSaveProd
                       </tr>
                       <tr className="bg-slate-900 text-white">
                         <td className="px-4 py-3 font-bold">FINAL TOTAL</td>
-                        <td className="px-4 py-3 text-right font-mono font-bold text-amber-300 text-lg">₹{numF(finalWithMargin, 2)}</td>
+                        <td className="px-4 py-3 text-right font-mono font-bold text-amber-300 text-lg">₹{numF(finalAmount, 2)}</td>
                       </tr>
                     </tbody>
                   </table>
                 </div>
               </div>
 
-              <div className="mt-4 bg-slate-900 text-white rounded-xl px-6 py-4">
-                <div className="grid grid-cols-4 gap-4 text-center">
-                  <div>
-                    <p className="text-xs text-slate-400 mb-1">Per {batchUnit} (Formulation)</p>
-                    <p className="font-bold text-white">₹{numF(totalFormCost / (selectedBatch || 1), 4)}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-slate-400 mb-1">Per {batchUnit} (Overhead)</p>
-                    <p className="font-bold text-white">₹{numF(totalOverhead / (selectedBatch || 1), 4)}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-slate-400 mb-1">Per {batchUnit} (SA)</p>
-                    <p className="font-bold text-white">₹{numF(saAmount / (selectedBatch || 1), 4)}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-slate-400 mb-1">Per {batchUnit} (Total)</p>
-                    <p className="font-bold text-amber-300">₹{numF((totalFormCost + totalOverhead + saAmount) / (selectedBatch || 1), 4)}</p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="mt-4 space-y-2 p-3 bg-gray-50 dark:bg-[#0f1a2e] rounded-lg">
-                <p className="text-xs font-semibold text-gray-600 dark:text-gray-400 mb-2">Margin Settings</p>
-
-                <div className="grid grid-cols-2 gap-2 mb-3">
-                  {[['b2b', 'B2B'], ['b2c', 'B2C']].map(([type, label]) => (
-                    <button
-                      key={type}
-                      onClick={() => {
-                        setActiveMarginType(type);
-                        setMarginPercent(Number(form.costing?.margins?.[type]) || 0);
-                      }}
-                      className={`py-2 px-3 rounded text-xs font-semibold transition-all border ${
-                        activeMarginType === type
-                          ? 'bg-emerald-100 dark:bg-emerald-500/20 border-emerald-500 text-emerald-700 dark:text-emerald-300'
-                          : 'bg-white dark:bg-[#1b2e4a] border-gray-200 dark:border-[#1b2e4a] text-gray-700 dark:text-gray-300 hover:border-gray-300'
-                      }`}
-                    >
-                      {label}
-                      <div className="text-[10px] text-gray-600 dark:text-gray-400 mt-0.5">
-                        {form.costing?.margins?.[type] || 0}%
-                      </div>
-                    </button>
-                  ))}
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <input
-                    type="number"
-                    min="0"
-                    step="0.5"
-                    value={marginPercent}
-                    onChange={e => {
-                      const val = Number(e.target.value);
-                      setMarginPercent(val);
-                      setForm(prev => ({
-                        ...prev,
-                        costing: {
-                          ...prev.costing,
-                          margins: {
-                            ...prev.costing?.margins,
-                            [activeMarginType]: val
-                          }
-                        }
-                      }));
-                    }}
-                    className="input text-sm w-16"
-                    placeholder="0"
-                  />
-                  <span className="text-xs font-semibold text-gray-600 dark:text-gray-400">% {activeMarginType.toUpperCase()}</span>
-                  <span className="text-xs font-mono font-bold text-gray-900 dark:text-white ml-auto">+ ₹{numF(marginAmount, 2)}</span>
-                </div>
-
-                <div className="flex justify-between items-center text-sm pt-2 border-t border-gray-200 dark:border-[#1b2e4a]">
-                  <p className="font-semibold text-gray-700 dark:text-gray-200">With Margin</p>
-                  <p className="font-mono font-bold text-gray-900 dark:text-white">₹{numF(subtotalWithMargin, 2)}</p>
-                </div>
-
-                <div className="flex items-center gap-2 pt-2">
-                  <input
-                    type="checkbox"
-                    checked={showQuoteGST}
-                    onChange={e => setShowQuoteGST(e.target.checked)}
-                    className="w-3 h-3"
-                    id="quoteGSTChk"
-                  />
-                  <label htmlFor="quoteGSTChk" className="text-xs font-semibold text-gray-600 dark:text-gray-400 cursor-pointer">
-                    Include GST (18%)
-                  </label>
-                </div>
-
-                {showQuoteGST && (
-                  <div className="flex justify-between items-center text-sm py-2 px-2 bg-amber-50 dark:bg-amber-500/10 rounded border border-amber-200 dark:border-amber-800/40">
-                    <p className="font-semibold text-amber-700 dark:text-amber-300">Final with GST:</p>
-                    <p className="font-mono font-bold text-amber-700 dark:text-amber-300">₹{numF(finalAmount, 2)}</p>
-                  </div>
-                )}
-              </div>
             </>
           );
         })()}
@@ -595,23 +617,21 @@ export default function ProductOverheadsTab({ product, form, setForm, onSaveProd
           const pkg = b.packaging || {};
           const refW = Number(fm.refWeight) || 100;
 
-          // Total formulation cost for reference weight
-          const totalFormCost = (fm.rows || []).reduce((s, r) => {
-            const qty = refW * (Number(r.percentage) || 0) / 100 * (Number(r.convFactor) || 1);
-            const cost = (Number(r.costPerKg) || 0) * qty;
-            return s + cost;
-          }, 0);
+          // Total formulation cost for batch (using calculateBatchCost from earlier in the component)
+          const batchQtyInBaseUnit = convertToBaseUnit(selectedBatch, batchUnit);
+          const batchCostCalc = calculateBatchCost(selectedBatch, batchUnit);
+          const totalFormCost = batchCostCalc.totalFormCost || 0;
 
           // Total production overhead (not per unit)
           const totalOverhead = Number(po.electricity || 0) + Number(po.labor || 0) + Number(po.labTesting || 0) + Number(po.other || 0);
 
-          // Standard assumptions percentage applied to formulation
+          // Standard assumptions percentage applied to formulation + overhead
           const saPct = [sa.equipmentPct, sa.consumablesPct, sa.storagePct, sa.housekeepingPct, sa.adminPct, sa.wastagePct].reduce((s, v) => s + (Number(v) || 0), 0);
-          const saAmount = totalFormCost * (saPct / 100);
+          const saAmount = (totalFormCost + totalOverhead) * (saPct / 100);
 
           // Containers cost (recalculate Pcs Needed since it's based on batch)
           const containersCost = selectedBatch ? (form.containers || []).reduce((s, item) => {
-            const batchQtyBase = convertToBaseUnit(selectedBatch, batchUnit);
+            const batchQtyBase = batchQtyInBaseUnit;
             const containerWtBase = convertToBaseUnit(Number(item.weight) || 0, item.unit || 'g');
             const pcsNeeded = containerWtBase > 0 ? Math.round(batchQtyBase / containerWtBase) : 0;
             const costPerPiece = Number(item.costPerPiece) || 0;
