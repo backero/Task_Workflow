@@ -500,65 +500,8 @@ export default function ProductOverheadsTab({ product, form, setForm, onSaveProd
                   </div>
                 </div>
               </div>
-            </>
-          );
-        })()}
-      </div>
 
-      {/* RIGHT COLUMN: Sticky Quote Summary */}
-      <div className="lg:sticky lg:top-20 h-fit">
-        <p className="text-sm font-bold text-gray-700 dark:text-gray-200 mb-3 flex items-center gap-1.5"><Star size={14} fill="currentColor" />Final: Cost Summary</p>
-
-        {(() => {
-          const b = { ...product, ...form };
-          const fm = b.formulation || {};
-          const po = b.productionOverhead || {};
-          const sa = b.standardAssumptions || {};
-          const pkg = b.packaging || {};
-          const refW = Number(fm.refWeight) || 100;
-
-          // Total formulation cost for reference weight
-          const totalFormCost = (fm.rows || []).reduce((s, r) => {
-            const qty = refW * (Number(r.percentage) || 0) / 100 * (Number(r.convFactor) || 1);
-            const cost = (Number(r.costPerKg) || 0) * qty;
-            return s + cost;
-          }, 0);
-
-          // Total production overhead (not per unit)
-          const totalOverhead = Number(po.electricity || 0) + Number(po.labor || 0) + Number(po.labTesting || 0) + Number(po.other || 0);
-
-          // Standard assumptions percentage applied to formulation
-          const saPct = [sa.equipmentPct, sa.consumablesPct, sa.storagePct, sa.housekeepingPct, sa.adminPct, sa.wastagePct].reduce((s, v) => s + (Number(v) || 0), 0);
-          const saAmount = totalFormCost * (saPct / 100);
-
-          // Containers cost (recalculate Pcs Needed since it's based on batch)
-          const containersCost = selectedBatch ? (form.containers || []).reduce((s, item) => {
-            const batchQtyBase = convertToBaseUnit(selectedBatch, batchUnit);
-            const containerWtBase = convertToBaseUnit(Number(item.weight) || 0, item.unit || 'g');
-            const pcsNeeded = containerWtBase > 0 ? Math.round(batchQtyBase / containerWtBase) : 0;
-            const costPerPiece = Number(item.costPerPiece) || 0;
-            return s + (costPerPiece * pcsNeeded);
-          }, 0) : 0;
-
-          // Packaging cost
-          const pkgItems = pkg.items || [];
-          const pkgCharges = pkg.charges || {};
-          const pkgCostTotal = pkgItems.reduce((s, i) => s + (Number(i.amount) || Number(i.qty) * Number(i.rate) || 0), 0) + Number(pkgCharges.machine || 0) + Number(pkgCharges.shrinkWrap || 0) + Number(pkgCharges.other || 0);
-
-          // Calculate subtotal before margin
-          const subtotalBeforeMargin = totalFormCost + totalOverhead + saAmount + containersCost + pkgCostTotal;
-
-          // Apply margin
-          const marginAmount = subtotalBeforeMargin * (marginPercent / 100);
-          const subtotalWithMargin = subtotalBeforeMargin + marginAmount;
-
-          // Apply GST if enabled
-          const finalAmount = showQuoteGST ? subtotalWithMargin * 1.18 : subtotalWithMargin;
-
-          return (
-            <>
-
-              <div className="space-y-2 p-3 bg-gray-50 dark:bg-[#0f1a2e] rounded-lg mb-4">
+              <div className="mt-4 space-y-2 p-3 bg-gray-50 dark:bg-[#0f1a2e] rounded-lg">
                 <p className="text-xs font-semibold text-gray-600 dark:text-gray-400 mb-2">Margin Settings</p>
 
                 <div className="grid grid-cols-2 gap-2 mb-3">
@@ -635,6 +578,63 @@ export default function ProductOverheadsTab({ product, form, setForm, onSaveProd
                   </div>
                 )}
               </div>
+            </>
+          );
+        })()}
+      </div>
+
+      {/* RIGHT COLUMN: Sticky Quote Summary */}
+      <div className="lg:sticky lg:top-20 h-fit">
+        <p className="text-sm font-bold text-gray-700 dark:text-gray-200 mb-3 flex items-center gap-1.5"><Star size={14} fill="currentColor" />Final: Cost Summary</p>
+
+        {(() => {
+          const b = { ...product, ...form };
+          const fm = b.formulation || {};
+          const po = b.productionOverhead || {};
+          const sa = b.standardAssumptions || {};
+          const pkg = b.packaging || {};
+          const refW = Number(fm.refWeight) || 100;
+
+          // Total formulation cost for reference weight
+          const totalFormCost = (fm.rows || []).reduce((s, r) => {
+            const qty = refW * (Number(r.percentage) || 0) / 100 * (Number(r.convFactor) || 1);
+            const cost = (Number(r.costPerKg) || 0) * qty;
+            return s + cost;
+          }, 0);
+
+          // Total production overhead (not per unit)
+          const totalOverhead = Number(po.electricity || 0) + Number(po.labor || 0) + Number(po.labTesting || 0) + Number(po.other || 0);
+
+          // Standard assumptions percentage applied to formulation
+          const saPct = [sa.equipmentPct, sa.consumablesPct, sa.storagePct, sa.housekeepingPct, sa.adminPct, sa.wastagePct].reduce((s, v) => s + (Number(v) || 0), 0);
+          const saAmount = totalFormCost * (saPct / 100);
+
+          // Containers cost (recalculate Pcs Needed since it's based on batch)
+          const containersCost = selectedBatch ? (form.containers || []).reduce((s, item) => {
+            const batchQtyBase = convertToBaseUnit(selectedBatch, batchUnit);
+            const containerWtBase = convertToBaseUnit(Number(item.weight) || 0, item.unit || 'g');
+            const pcsNeeded = containerWtBase > 0 ? Math.round(batchQtyBase / containerWtBase) : 0;
+            const costPerPiece = Number(item.costPerPiece) || 0;
+            return s + (costPerPiece * pcsNeeded);
+          }, 0) : 0;
+
+          // Packaging cost
+          const pkgItems = pkg.items || [];
+          const pkgCharges = pkg.charges || {};
+          const pkgCostTotal = pkgItems.reduce((s, i) => s + (Number(i.amount) || Number(i.qty) * Number(i.rate) || 0), 0) + Number(pkgCharges.machine || 0) + Number(pkgCharges.shrinkWrap || 0) + Number(pkgCharges.other || 0);
+
+          // Calculate subtotal before margin
+          const subtotalBeforeMargin = totalFormCost + totalOverhead + saAmount + containersCost + pkgCostTotal;
+
+          // Apply margin
+          const marginAmount = subtotalBeforeMargin * (marginPercent / 100);
+          const subtotalWithMargin = subtotalBeforeMargin + marginAmount;
+
+          // Apply GST if enabled
+          const finalAmount = showQuoteGST ? subtotalWithMargin * 1.18 : subtotalWithMargin;
+
+          return (
+            <>
 
               <div className="bg-slate-900 text-white rounded-2xl px-6 py-4">
                 <p className="text-xs font-semibold text-slate-400 mb-2">FINAL QUOTE AMOUNT</p>
