@@ -113,7 +113,8 @@ export default function ProductOverheadsTab({ product, form, setForm, onSaveProd
   const refUnit = fm.refUnit || 'ml';
   const formCost = (fm.rows || []).reduce((s, r) => {
     const qty = refW * (Number(r.percentage) || 0) / 100 * (Number(r.convFactor) || 1);
-    const cost = (Number(r.costPerKg) || 0) * qty / 1000;
+    const costPerKg = Number(r.costPerKg) || 0;
+    const cost = costPerKg * (Number(r.percentage) || 0) / 100;
     return s + cost;
   }, 0);
   const perUnit = refW > 0 ? formCost / refW : 0;
