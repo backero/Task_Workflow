@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Save, Download, BarChart3, IndianRupee, FlaskConical } from 'lucide-react';
+import { Save, BarChart3, IndianRupee } from 'lucide-react';
 import { clsx } from 'clsx';
 
 function numF(v, d = 2) { return Number(v || 0).toFixed(d); }
@@ -81,15 +81,6 @@ export default function CostingTab({ product, form, setForm, onSave, isPending }
 
   return (
     <div className="space-y-5">
-      <div className="rounded-xl border border-gray-200 dark:border-[#1b2e4a] p-4 space-y-2">
-        <p className="text-xs font-bold text-gray-600 dark:text-gray-300 mb-1 flex items-center gap-1"><Download size={12} />Cost Inputs</p>
-        <div className="flex justify-between text-xs"><span className="text-gray-500 inline-flex items-center gap-1"><FlaskConical size={12} />Ingredients Cost Per Unit (from Formulation)</span><span className="font-mono font-semibold">₹{numF(b.formCost, 4)}</span></div>
-        <div className="flex justify-between text-xs bg-slate-900 text-white rounded-lg px-3 py-2 mt-2">
-          <span className="text-white/80 inline-flex items-center gap-1"><BarChart3 size={12} />Total Input Cost Per Unit (Formulation + R&D + Overheads)</span>
-          <span className="font-mono font-bold text-amber-300">₹{numF(totalInputPerUnit, 4)}</span>
-        </div>
-      </div>
-
       <div>
         <p className="text-xs font-bold text-gray-600 dark:text-gray-300 mb-2 flex items-center gap-1"><BarChart3 size={12} />Unit Cost Summary</p>
         <HighlightStrip tone="dark" items={[
