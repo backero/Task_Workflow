@@ -1445,19 +1445,7 @@ export default function SampleProduction() {
                         </td>
                       )}
                       <td className="px-4 py-2.5 text-[#1c1917] whitespace-nowrap">{o.customer || '—'}</td>
-                      <td className="px-4 py-2.5 text-[#6b6155] text-xs whitespace-nowrap">
-                        {o.catalogProduct ? (
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              navigate(`/inventory/catalog?productId=${o.catalogProduct._id}&customer=${encodeURIComponent(o.customer || '')}`);
-                            }}
-                            className="text-[#669c2c] hover:underline font-semibold"
-                          >
-                            {o.catalogProduct.name}
-                          </button>
-                        ) : '—'}
-                      </td>
+                      <td className="px-4 py-2.5 text-[#6b6155] text-xs whitespace-nowrap">{o.catalogProduct?.name || '—'}</td>
                       <td className="px-4 py-2.5 text-[#6b6155] text-xs whitespace-nowrap">{o.batchSizeKg ? `${o.batchSizeKg} kg` : '—'}</td>
                       <td className="px-4 py-2.5 text-[#6b6155] text-xs whitespace-nowrap">{o.deliveryDate || '—'}</td>
                       {showStockColumn && (
