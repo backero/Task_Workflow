@@ -7,6 +7,8 @@ import { useSearchParams } from 'react-router-dom';
 import QRCode from 'react-qr-code';
 import api from '../../api/axios';
 import RDPriceCalculator from '../production/RDPriceCalculator';
+import RndOverheadsTab from '../../components/tabs/RndOverheadsTab';
+import CostingPackagingTab from '../../components/tabs/CostingPackagingTab';
 import {
   ShoppingCart, Package, Tag, Circle, RefreshCw, Download, Upload as UploadIcon, Plus, CircleCheck,
   Search, List, LayoutGrid, Eye, Pencil, Trash2, X, Camera, Save, Image as ImageIcon, Clipboard, Ruler,
@@ -21,7 +23,7 @@ export const PRODUCT_TYPES = ['Shampoo', 'Conditioner', 'Hair Oil', 'Serum', 'Cr
 export const UNITS = ['ml', 'g', 'kg', 'L', 'pcs', 'oz'];
 export const GST_RATES = [0, 5, 12, 18, 28];
 export const STATUSES = ['Active', 'Inactive', 'Draft', 'Archived'];
-const TABS = ['Overview', 'Formulation & Procedure', 'R&D Price Calculator', 'R&D & Overheads', 'Costing', 'Marketplace', 'QR Code', 'Documents', 'History'];
+const TABS = ['Overview', 'Formulation & Procedure', 'R&D Price Calculator', 'Production Overheads', 'Costing', 'Marketplace', 'QR Code', 'Documents', 'History'];
 
 const ASSUMPTION_FIELDS = [
   { key: 'equipmentPct', label: 'Equipment (Mold/Tools)', max: 20, hint: '3-5% recommended' },
@@ -796,7 +798,7 @@ export default function ProductCatalogPage() {
                   <RDPriceCalculator presetProduct={detail} />
                 </div>
               )}
-              {activeTab === 'R&D & Overheads' && <RndOverheadsTab product={detail} form={form} setForm={setForm} onSave={() => updateMutation.mutate({ id: detail._id, data: { rnd: form.rnd, productionOverhead: form.productionOverhead, standardAssumptions: form.standardAssumptions } })} isPending={isPending} />}
+              {activeTab === 'Production Overheads' && <RndOverheadsTab product={detail} form={form} setForm={setForm} onSave={() => updateMutation.mutate({ id: detail._id, data: { rnd: form.rnd, productionOverhead: form.productionOverhead, standardAssumptions: form.standardAssumptions } })} isPending={isPending} />}
               {activeTab === 'Costing' && <CostingPackagingTab product={detail} form={form} setForm={setForm} isPending={isPending}
                 onSavePackaging={() => updateMutation.mutate({ id: detail._id, data: { packaging: form.packaging } })}
                 onSaveVariants={() => updateMutation.mutate({ id: detail._id, data: { variants: form.variants } })}
@@ -1735,27 +1737,6 @@ function PackagingTab({ product, form, setForm, onSave, isPending }) {
   );
 }
 
-// ─── Costing (with Packaging & Variant Pricing merged in) ───────────────────────
-function CostingPackagingTab({ product, form, setForm, isPending, onSavePackaging, onSaveVariants, onSaveCosting }) {
-  return (
-    <div className="space-y-8">
-      <div>
-        <p className="text-sm font-bold text-gray-700 dark:text-gray-200 mb-3 flex items-center gap-1.5"><Package size={14} />Packaging & Labeling</p>
-        <PackagingTab product={product} form={form} setForm={setForm} onSave={onSavePackaging} isPending={isPending} />
-      </div>
-      <hr className="border-gray-100 dark:border-[#1b2e4a]" />
-      <div>
-        <p className="text-sm font-bold text-gray-700 dark:text-gray-200 mb-3 flex items-center gap-1.5"><Ruler size={14} />Variants</p>
-        <VariantsTab product={product} form={form} setForm={setForm} onSave={onSaveVariants} isPending={isPending} />
-      </div>
-      <hr className="border-gray-100 dark:border-[#1b2e4a]" />
-      <div>
-        <p className="text-sm font-bold text-gray-700 dark:text-gray-200 mb-3 flex items-center gap-1.5"><BarChart3 size={14} />Costing &amp; Variant Pricing</p>
-        <CostingTab product={product} form={form} setForm={setForm} onSave={onSaveCosting} isPending={isPending} />
-      </div>
-    </div>
-  );
-}
 
 // ─── Marketplace Tab ───────────────────────────────────────────────────────────
 function MarketplaceTab({ product, form, setForm, onSave, isPending }) {
@@ -1899,101 +1880,6 @@ function LastUpdatedBadge({ date, onChange }) {
   );
 }
 
-// ─── R&D & Overheads Tab ────────────────────────────────────────────────────────
-function RndOverheadsTab({ product, form, setForm, onSave, isPending }) {
-  const po = form.productionOverhead || {};
-  const sa = form.standardAssumptions || {};
-  const b = calcOverheadBreakdown({ ...product, ...form });
-
-  function setPO(f, v) { setForm(prev => ({ ...prev, productionOverhead: { ...prev.productionOverhead, [f]: v, lastUpdated: new Date().toISOString() } })); }
-  function setPODate(v) { setForm(prev => ({ ...prev, productionOverhead: { ...prev.productionOverhead, lastUpdated: v } })); }
-  function setSA(f, v) { setForm(prev => ({ ...prev, standardAssumptions: { ...prev.standardAssumptions, [f]: v, lastUpdated: new Date().toISOString() } })); }
-
-  function onImage(e) {
-    const f = e.target.files[0]; if (!f) return;
-    const r = new FileReader();
-    r.onload = ev => setForm(prev => ({ ...prev, standardAssumptions: { ...prev.standardAssumptions, image: ev.target.result, lastUpdated: new Date().toISOString() } }));
-    r.readAsDataURL(f);
-  }
-
-  return (
-    <div className="space-y-6">
-      {/* Production Overhead */}
-      <div>
-        <div className="flex items-center justify-between flex-wrap gap-3 mb-3">
-          <p className="text-sm font-bold text-gray-700 dark:text-gray-200 flex items-center gap-1.5"><Factory size={14} />Production Overhead</p>
-          <LastUpdatedBadge date={po.lastUpdated} onChange={setPODate} />
-        </div>
-        <div className="grid grid-cols-2 gap-3 mb-4">
-          {[['electricity', 'Electricity (₹)'], ['labor', 'Production Labor (₹)'], ['labTesting', 'Lab Testing Cost (₹)'], ['other', 'Other Production Overhead (₹)']].map(([f, label]) => (
-            <div key={f}><label className="label">{label}</label><input type="number" min="0" step="0.01" value={po[f] || 0} onChange={e => setPO(f, Number(e.target.value))} className="input text-xs w-full" /></div>
-          ))}
-        </div>
-        <HighlightStrip items={[
-          { label: 'Total Production Overhead', value: `₹${numF(b.overheadTotal)}` },
-          { label: 'Per Unit', value: `₹${numF(b.overheadPerUnit, 4)}`, big: true },
-          { label: 'Reference Weight', value: b.refW ? `${b.refW} ${form.formulation?.refUnit || form.unit || ''}` : '—' },
-        ]} />
-      </div>
-
-      <hr className="border-gray-100 dark:border-[#1b2e4a]" />
-
-      {/* Standard Assumptions */}
-      <div>
-        <p className="text-sm font-bold text-gray-700 dark:text-gray-200 mb-3 flex items-center gap-1.5"><FileEdit size={14} />Standard Assumptions (Industry STD%)</p>
-        <div className="grid grid-cols-3 gap-4 mb-4">
-          {ASSUMPTION_FIELDS.map(({ key, label, max, hint }) => (
-            <div key={key}>
-              <label className="label">{label} <span className="text-gray-400">%</span></label>
-              <div className="flex items-center gap-2">
-                <input type="range" min="0" max={max} step="0.5" value={sa[key] ?? 0} onChange={e => setSA(key, Number(e.target.value))} className="flex-1" />
-                <span className="text-xs font-semibold text-gray-700 dark:text-gray-200 w-10 text-right">{sa[key] ?? 0}%</span>
-              </div>
-              <p className="text-[10px] text-gray-400 mt-0.5">{hint}</p>
-            </div>
-          ))}
-        </div>
-        <HighlightStrip items={[
-          { label: 'Total Indirect % on Material Cost', value: `${numF(b.saPct, 1)}%` },
-          { label: 'Total Amount / Unit (at ref cost)', value: `₹${numF(b.saAmount, 4)}`, big: true },
-          { label: 'Reference Weight', value: b.refW ? `${b.refW} ${form.formulation?.refUnit || form.unit || ''}` : '—' },
-        ]} />
-        {(b.saPct < 15 || b.saPct > 30) && (
-          <div className="mt-3 flex items-start gap-2 text-xs bg-amber-50 dark:bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800/40 rounded-lg px-3 py-2">
-            <TriangleAlert size={13} /><span>Industry range for total indirect: 15% – 30%. Adjust sliders if your total is outside this range.</span>
-          </div>
-        )}
-        <div className="mt-4">
-          <label className="label flex items-center gap-1"><Camera size={12} />Reference Image / Basis</label>
-          <div onClick={() => document.getElementById('saImageInput').click()} className="w-full h-28 border-2 border-dashed border-gray-200 dark:border-[#1b2e4a] rounded-xl flex items-center justify-center cursor-pointer overflow-hidden bg-gray-50 dark:bg-[#0f1a2e] hover:border-gray-400 transition-colors">
-            {sa.image ? <img src={sa.image} alt="Basis" className="w-full h-full object-cover" /> : <span className="text-xs text-gray-400 inline-flex items-center gap-1"><Camera size={12} />Click to upload reference image / basis document</span>}
-          </div>
-          <input type="file" id="saImageInput" accept="image/*" className="hidden" onChange={onImage} />
-        </div>
-      </div>
-
-      <hr className="border-gray-100 dark:border-[#1b2e4a]" />
-
-      {/* Grand Total Summary */}
-      <div>
-        <p className="text-sm font-bold text-gray-700 dark:text-gray-200 mb-3 flex items-center gap-1.5"><BarChart3 size={14} />Total Overhead &amp; R&amp;D Cost Summary</p>
-        <HighlightStrip tone="dark" items={[
-          { label: 'Production Overhead Per Unit', value: `₹${numF(b.overheadPerUnit, 4)}` },
-          { label: 'Standard Assumptions Per Unit', value: `₹${numF(b.saAmount, 4)}` },
-          { label: 'Total Overhead & R&D Per Unit', value: `₹${numF(b.rndPerUnit + b.overheadPerUnit + b.saAmount, 4)}`, big: true, accent: true },
-        ]} />
-        <div className="mt-3">
-          <HighlightStrip items={[
-            { label: 'Total Cost for Product (at ref weight)', value: `₹${numF((b.rndPerUnit + b.overheadPerUnit + b.saAmount) * b.refW)}` },
-            { label: 'Reference Weight', value: b.refW ? `${b.refW} ${form.formulation?.refUnit || form.unit || ''}` : '—' },
-          ]} />
-        </div>
-      </div>
-
-      <button onClick={onSave} disabled={isPending} className="btn-primary text-sm disabled:opacity-50">{isPending ? 'Saving…' : <><Save size={13} className="inline -mt-0.5 mr-1" />Save R&D & Overheads</>}</button>
-    </div>
-  );
-}
 
 // ─── QR Code Tab ─────────────────────────────────────────────────────────────
 function QRCodeTab({ product: p }) {

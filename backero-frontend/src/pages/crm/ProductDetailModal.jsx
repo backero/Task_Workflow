@@ -6,6 +6,8 @@ import { clsx } from 'clsx';
 import QRCode from 'react-qr-code';
 import api from '../../api/axios';
 import RDPriceCalculator from '../production/RDPriceCalculator';
+import RndOverheadsTab from '../../components/tabs/RndOverheadsTab';
+import CostingPackagingTab from '../../components/tabs/CostingPackagingTab';
 import {
   ShoppingCart, Package, Tag, Circle, Search, Download, Upload as UploadIcon, Plus, CircleCheck, Pencil, Trash2, X, Camera, Save, Image as ImageIcon, Clipboard, Ruler,
   IndianRupee, Calendar, Award, FlaskConical, BarChart3, Scale, Lock, Archive, Minimize2, Maximize2, Calculator, QrCode, Printer, Video, Mic, FileText, Paperclip, Microscope, Factory,
@@ -17,7 +19,7 @@ export const PRODUCT_TYPES = ['Shampoo', 'Conditioner', 'Hair Oil', 'Serum', 'Cr
 export const UNITS = ['ml', 'g', 'kg', 'L', 'pcs', 'oz'];
 export const GST_RATES = [0, 5, 12, 18, 28];
 export const STATUSES = ['Active', 'Inactive', 'Draft', 'Archived'];
-const TABS = ['Overview', 'Formulation & Procedure', 'R&D Price Calculator', 'R&D & Overheads', 'Costing', 'Marketplace', 'QR Code', 'Documents', 'History'];
+const TABS = ['Overview', 'Formulation & Procedure', 'R&D Price Calculator', 'Production Overheads', 'Costing', 'Marketplace', 'QR Code', 'Documents', 'History'];
 const PLATFORMS = ['flipkart', 'amazon', 'meesho', 'snapdeal'];
 const PLATFORM_ICONS = { flipkart: <ShoppingCart size={14} />, amazon: <Package size={14} />, meesho: <Tag size={14} />, snapdeal: <Circle size={14} /> };
 
@@ -503,6 +505,287 @@ function RndResearchGuidePanel({ product, selectedVersionId, form, setForm, onSa
   );
 }
 
+function InfoRow({ label, value, mono, badge, accent }) {
+  return (
+    <div className="flex items-center gap-2">
+      <span className="text-xs text-gray-400 w-28 flex-shrink-0">{label}</span>
+      {badge ? (
+        <span className={clsx('text-xs px-2 py-0.5 rounded-full font-medium', badge === 'green' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : badge === 'yellow' ? 'bg-amber-100 text-amber-700' : badge === 'blue' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' : 'bg-gray-100 text-gray-500')}>{value ?? '-'}</span>
+      ) : (
+        <span className={clsx('text-xs', mono && 'font-mono', accent ? 'text-base font-bold text-blue-600 dark:text-blue-400' : 'text-gray-800 dark:text-gray-200')}>{value ?? '-'}</span>
+      )}
+    </div>
+  );
+}
+
+function FormulationTab({ product, form, setForm, onSave, isPending }) {
+  function getUnitCost(costPerKg, unit = 'g') {
+    const cost = costPerKg || 0;
+    if (cost === 0) return 0;
+
+    switch(unit) {
+      case 'g':
+        return cost / 1000;
+      case 'kg':
+        return cost;
+      case 'ml':
+        return cost / 1000;
+      case 'L':
+        return cost;
+      case 'oz':
+        return cost / 35.274;
+      case 'pcs':
+        return cost;
+      default:
+        return cost / 1000;
+    }
+  }
+
+  function calcCostContribution(costPrice, qty) {
+    const cost = costPrice || 0;
+    if (cost === 0 || qty === 0) return 0;
+    return cost * qty;
+  }
+
+  const [resolving, setResolving] = useState(false);
+  const [expanded, setExpanded] = useState(() => new Set());
+  const rows = form.formulation?.rows || [];
+  const refWeight = Number(form.formulation?.refWeight) || 100;
+  const refUnit = form.formulation?.refUnit || 'ml';
+  const totalPct = rows.reduce((s, r) => s + (Number(r.percentage) || 0), 0);
+  const totalQty = rows.reduce((s, r) => s + (refWeight * (Number(r.percentage) || 0) / 100 * (Number(r.convFactor) || 1)), 0);
+
+  const formCost = calcFormCost({ formulation: form.formulation });
+  const totalAmount = formCost;
+  const perUnit = refWeight > 0 ? totalAmount / refWeight : 0;
+
+  const { data: rmData } = useQuery({
+    queryKey: ['raw-materials-list'],
+    queryFn: () => api.get('/inventory/raw-materials').then(r => r.data.materials || []),
+    staleTime: 60_000,
+  });
+  const rawMaterials = rmData || [];
+
+  function matForRow(r) {
+    if (!r.rawMaterialId) return null;
+    return rawMaterials.find(m => m._id === r.rawMaterialId || m._id?.toString() === r.rawMaterialId) || null;
+  }
+  function toggleExpand(i) {
+    setExpanded(s => { const n = new Set(s); if (n.has(i)) n.delete(i); else n.add(i); return n; });
+  }
+
+  useEffect(() => {
+    if (!rawMaterials.length) return;
+    setForm(f => {
+      const rows = (f.formulation?.rows || []);
+      const updated = rows.map(r => {
+        let mat = null;
+
+        if (r.rawMaterialId) {
+          mat = rawMaterials.find(m =>
+            m._id === r.rawMaterialId ||
+            m._id?.toString() === r.rawMaterialId
+          );
+        }
+
+        if (!mat && r.name) {
+          mat = rawMaterials.find(m => m.name?.toLowerCase() === r.name?.toLowerCase());
+        }
+
+        if (!mat) return r;
+
+        const liveCost = parseFloat(mat.costPrice) || 0;
+        return {
+          ...r,
+          rawMaterialId: mat._id,
+          costPerKg: liveCost,
+          unit: mat.unit || r.unit
+        };
+      });
+      const changed = updated.some((r, i) => r !== rows[i]);
+      return changed ? { ...f, formulation: { ...f.formulation, rows: updated } } : f;
+    });
+  }, [rawMaterials]);
+
+  function addRow() {
+    setForm(f => ({ ...f, formulation: { ...f.formulation, rows: [...(f.formulation?.rows || []), { name: '', rawMaterialId: '', percentage: 0, quantity: 0, unit: 'g', costPerKg: 0, phase: '', convFactor: 1, notes: '' }] } }));
+  }
+  function updateRow(i, fields) {
+    setForm(f => {
+      const rows = [...(f.formulation?.rows || [])];
+      rows[i] = { ...rows[i], ...fields };
+      return { ...f, formulation: { ...f.formulation, rows } };
+    });
+  }
+  function removeRow(i) {
+    setForm(f => ({ ...f, formulation: { ...f.formulation, rows: (f.formulation?.rows || []).filter((_, idx) => idx !== i) } }));
+  }
+
+  async function handleSave() {
+    const unresolved = rows.filter(r => r.name?.trim() && !r.rawMaterialId);
+    if (unresolved.length > 0) {
+      setResolving(true);
+      try {
+        const res = await api.post('/catalog/resolve-ingredients', {
+          ingredients: unresolved.map(r => ({ name: r.name, unit: r.unit, costPerKg: r.costPerKg })),
+        });
+        const resolved = res.data.ingredients || [];
+        const resolvedMap = Object.fromEntries(resolved.map(r => [r.name.toLowerCase(), r]));
+        setForm(f => {
+          const newRows = (f.formulation?.rows || []).map(r => {
+            if (!r.rawMaterialId && r.name?.trim()) {
+              const match = resolvedMap[r.name.toLowerCase()];
+              if (match) return { ...r, rawMaterialId: match.rawMaterialId, unit: match.unit, costPerKg: r.costPerKg || match.costPerKg };
+            }
+            return r;
+          });
+          return { ...f, formulation: { ...f.formulation, rows: newRows } };
+        });
+        const newCreated = resolved.filter(r => r.isNew).length;
+        if (newCreated > 0) toast.success(`${newCreated} new raw material${newCreated > 1 ? 's' : ''} added to inventory`);
+      } catch (e) {
+        toast.error('Could not resolve some ingredients');
+      } finally {
+        setResolving(false);
+      }
+    }
+    onSave();
+  }
+
+  const linkedCount = rows.filter(r => r.rawMaterialId).length;
+  const pctDiff = totalPct - 100;
+  const alertBanner = Math.abs(pctDiff) < 0.1 ? null : pctDiff > 0
+    ? { cls: 'bg-red-50 text-red-700 border-red-200', text: 'Total percentage exceeds 100%' }
+    : { cls: 'bg-amber-50 text-amber-700 border-amber-200', text: `Total percentage is ${numF(totalPct, 2)}% (should be 100%)` };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center gap-4 flex-wrap">
+        <div><label className="label">Ref. Batch Weight</label>
+          <div className="flex gap-2">
+            <input type="number" value={form.formulation?.refWeight || ''} onChange={e => setForm(f => ({ ...f, formulation: { ...f.formulation, refWeight: Number(e.target.value) } }))} className="input w-24" />
+            <select value={form.formulation?.refUnit || 'ml'} onChange={e => setForm(f => ({ ...f, formulation: { ...f.formulation, refUnit: e.target.value } }))} className="input w-20">
+              {UNITS.map(u => <option key={u}>{u}</option>)}
+            </select>
+          </div>
+        </div>
+        {rows.length > 0 && (
+          <div className="text-xs text-gray-500 dark:text-gray-400">
+            <span className="text-emerald-600 dark:text-emerald-400 font-semibold">{linkedCount}</span>/{rows.length} linked to inventory
+          </div>
+        )}
+      </div>
+
+      <div className="grid grid-cols-4 gap-3">
+        <MetricCard label="Total Ingredients" value={rows.length} icon={<FlaskConical size={18} />} iconBg="bg-blue-100" />
+        <MetricCard label="Total Percentage" value={`${numF(totalPct, 2)}%`} icon={<BarChart3 size={18} />} iconBg="bg-emerald-100" />
+        <MetricCard label="Total Quantity" value={numF(totalQty, 2)} icon={<Scale size={18} />} iconBg="bg-orange-100" />
+        <MetricCard label="Reference Weight" value={`${refWeight} ${refUnit}`} icon={<Ruler size={18} />} iconBg="bg-purple-100" />
+      </div>
+
+      <div className="overflow-x-auto rounded-xl border border-gray-200 dark:border-[#1b2e4a]">
+        <table className="w-full text-xs">
+          <thead className="bg-gray-50 dark:bg-[#0f1a2e]">
+            <tr>
+              {['', '#', 'Code', 'Ingredient', '%', 'Qty', 'Conv. Factor', 'Unit', 'Phase', 'Notes', 'Cost/unit (₹)', 'Cost Contrib.', ''].map((h, idx) => (
+                <th key={idx} className="px-3 py-2 text-left font-semibold text-gray-500 dark:text-gray-400">{h}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r, i) => {
+              const mat = matForRow(r);
+              const isOpen = expanded.has(i);
+              const conv = Number(r.convFactor) || 1;
+              const qty = refWeight * (Number(r.percentage) || 0) / 100 * conv;
+              const matCostPrice = mat?.costPerKg || Number(r.costPerKg) || 0;
+              const costPerUnit = matCostPrice * (Number(r.percentage) || 0) / 100;
+              return (
+                <React.Fragment key={i}>
+                  <tr className="border-t border-gray-100 dark:border-[#1b2e4a]">
+                    <td className="px-2 py-1.5">
+                      <button onClick={() => toggleExpand(i)} className="text-gray-400 hover:text-gray-700 transition-transform" style={{ transform: isOpen ? 'rotate(90deg)' : 'none' }} title="Details">▶</button>
+                    </td>
+                    <td className="px-2 py-1.5 text-gray-400">{i + 1}</td>
+                    <td className="px-3 py-1.5"><span className="font-mono text-[11px] text-gray-500">{mat?.code || mat?.sku || '—'}</span></td>
+                    <td className="px-3 py-1.5">
+                      <IngredientCell row={r} index={i} rawMaterials={rawMaterials} onUpdate={updateRow} />
+                    </td>
+                    <td className="px-3 py-1.5"><input type="number" value={r.percentage} onChange={e => updateRow(i, { percentage: parseFloat(e.target.value) || 0 })} className="input text-xs w-16" /></td>
+                    <td className="px-3 py-1.5"><span className="text-gray-500">{numF(qty, 2)}</span></td>
+                    <td className="px-3 py-1.5"><input type="number" step="0.01" value={r.convFactor ?? 1} onChange={e => updateRow(i, { convFactor: parseFloat(e.target.value) || 1 })} className="input text-xs w-16" /></td>
+                    <td className="px-3 py-1.5">
+                      <select value={r.unit || 'g'} onChange={e => updateRow(i, { unit: e.target.value })} className="input text-xs w-16">
+                        {UNITS.map(u => <option key={u}>{u}</option>)}
+                      </select>
+                    </td>
+                    <td className="px-3 py-1.5"><input type="text" value={r.phase || ''} onChange={e => updateRow(i, { phase: e.target.value })} placeholder="A/B/C" className="input text-xs w-16" /></td>
+                    <td className="px-3 py-1.5"><input type="text" value={r.notes || ''} onChange={e => updateRow(i, { notes: e.target.value })} placeholder="Notes" className="input text-xs w-24" /></td>
+                    <td className="px-3 py-1.5">
+                      <span className="text-emerald-600 dark:text-emerald-400 font-semibold">₹{numF(costPerUnit, 2)}</span>
+                    </td>
+                    <td className="px-3 py-1.5 text-emerald-600 dark:text-emerald-400 font-mono font-semibold">₹{numF(calcCostContribution(matCostPrice, qty), 2)}</td>
+                    <td className="px-3 py-1.5"><button onClick={() => removeRow(i)} className="text-red-400 hover:text-red-600"><X size={13} /></button></td>
+                  </tr>
+                  {isOpen && (
+                    <tr className="border-t border-gray-100 dark:border-[#1b2e4a] bg-gray-50/60 dark:bg-[#0f1a2e]/60">
+                      <td colSpan={13} className="px-4 py-3">
+                        {mat ? (
+                          <div className="grid grid-cols-4 gap-x-6 gap-y-2">
+                            <InfoRow label="Category" value={mat.category} />
+                            <InfoRow label="HSN Code" value={mat.hsnCode} mono />
+                            <InfoRow label="Supplier" value={mat.supplier} />
+                            <InfoRow label="Location" value={mat.location} />
+                            <InfoRow label="GST Rate" value={mat.gstRate != null ? `${mat.gstRate}%` : null} />
+                            <InfoRow label="Min Stock Level" value={mat.minStockLevel != null ? `${mat.minStockLevel} ${mat.unit || ''}` : null} />
+                            <InfoRow label="QC Checker" value={mat.qcChecker} />
+                            <InfoRow label="QC Number" value={mat.qcNumber} />
+                            <InfoRow label="Ref Check #" value={mat.refCheckNumber} />
+                            <InfoRow label="QC Result" value={mat.qcPassed ? 'PASS' : (mat.qcChecker ? 'FAIL / Pending' : null)} badge={mat.qcPassed ? 'green' : mat.qcChecker ? 'yellow' : undefined} />
+                            <InfoRow label="QC Notes" value={mat.qcNotes} />
+                          </div>
+                        ) : (
+                          <p className="text-[11px] text-gray-400">Link this ingredient to a raw material to see category, HSN, supplier, location and QC details here.</p>
+                        )}
+                      </td>
+                    </tr>
+                  )}
+                </React.Fragment>
+              );
+            })}
+            {rows.length === 0 && (
+              <tr><td colSpan={13} className="px-3 py-6 text-center text-gray-400">No ingredients yet. Click "+ Add Ingredient" to start.</td></tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      {alertBanner && (
+        <div className={clsx('px-4 py-2.5 rounded-lg text-xs font-semibold border', alertBanner.cls)}>{alertBanner.text}</div>
+      )}
+
+      {rows.length > 0 && (
+        <div className="grid grid-cols-3 gap-4 bg-slate-900 text-white rounded-2xl px-6 py-4">
+          <div><p className="text-[11px] text-slate-300">Total Formulation Cost</p><p className="text-lg font-bold">₹{numF(totalAmount)}</p></div>
+          <div><p className="text-[11px] text-slate-300">Reference Weight</p><p className="text-lg font-bold">{refWeight} {refUnit}</p></div>
+          <div><p className="text-[11px] text-slate-300">Cost Per Unit</p><p className="text-lg font-bold">₹{numF(perUnit, 4)}</p></div>
+        </div>
+      )}
+
+      <div className="flex items-center gap-3 flex-wrap">
+        <button onClick={addRow} className="btn-secondary text-sm">+ Add Ingredient</button>
+        <div className="text-[11px] text-gray-400 flex items-center gap-3">
+          <span><span className="text-emerald-600 dark:text-emerald-400 font-bold">●</span> Linked to inventory</span>
+          <span><span className="text-orange-400 font-bold">+</span> Will auto-create as raw material</span>
+        </div>
+        <button onClick={handleSave} disabled={isPending || resolving} className="btn-primary text-sm disabled:opacity-50 ml-auto">
+          {resolving ? <>Linking…</> : isPending ? 'Saving…' : <><Save size={13} className="inline -mt-0.5 mr-1" />Save Formulation</>}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function ManufacturingProcedureTab({ product, form, setForm, onSave, isPending, onAttach, onRemoveAttach }) {
   const [recording, setRecording] = useState(false);
   const [recSeconds, setRecSeconds] = useState(0);
@@ -573,69 +856,240 @@ function ManufacturingProcedureTab({ product, form, setForm, onSave, isPending, 
   );
 }
 
-function RndOverheadsTab({ product, form, setForm, onSave, isPending }) {
-  const po = form.productionOverhead || {};
-  const sa = form.standardAssumptions || {};
-  const b = calcOverheadBreakdown({ ...product, ...form });
-
-  function setPO(f, v) { setForm(prev => ({ ...prev, productionOverhead: { ...prev.productionOverhead, [f]: v } })); }
-  function setSA(f, v) { setForm(prev => ({ ...prev, standardAssumptions: { ...prev.standardAssumptions, [f]: v } })); }
-
+function LastUpdatedBadge({ date, onChange }) {
   return (
-    <div className="space-y-6">
-      <div>
-        <p className="text-sm font-bold text-gray-700 flex items-center gap-1.5 mb-3"><Factory size={14} />Production Overhead</p>
-        <div className="grid grid-cols-2 gap-3 mb-4">
-          {[['electricity', 'Electricity (₹)'], ['labor', 'Production Labor (₹)'], ['labTesting', 'Lab Testing Cost (₹)'], ['other', 'Other Production Overhead (₹)']].map(([f, label]) => (
-            <div key={f}><label className="text-xs text-gray-600 block mb-1">{label}</label><input type="number" min="0" step="0.01" value={po[f] || 0} onChange={e => setPO(f, Number(e.target.value))} className="input text-xs w-full" /></div>
-          ))}
-        </div>
-        <HighlightStrip items={[
-          { label: 'Total Production Overhead', value: `₹${numF(b.overheadTotal)}` },
-          { label: 'Per Unit', value: `₹${numF(b.overheadPerUnit, 4)}`, big: true },
-        ]} />
-      </div>
-
-      <hr className="border-gray-100" />
-
-      <div>
-        <p className="text-sm font-bold text-gray-700 mb-3 flex items-center gap-1.5"><FileEdit size={14} />Standard Assumptions (Industry STD%)</p>
-        <div className="grid grid-cols-3 gap-4 mb-4">
-          {ASSUMPTION_FIELDS.map(({ key, label, max, hint }) => (
-            <div key={key}>
-              <label className="text-xs text-gray-600 block mb-1">{label} <span className="text-gray-400">%</span></label>
-              <div className="flex items-center gap-2">
-                <input type="range" min="0" max={max} step="0.5" value={sa[key] ?? 0} onChange={e => setSA(key, Number(e.target.value))} className="flex-1" />
-                <span className="text-xs font-semibold text-gray-700 w-10 text-right">{sa[key] ?? 0}%</span>
-              </div>
-              <p className="text-[10px] text-gray-400 mt-0.5">{hint}</p>
-            </div>
-          ))}
-        </div>
-        <HighlightStrip items={[
-          { label: 'Total Indirect % on Material Cost', value: `${numF(b.saPct, 1)}%` },
-          { label: 'Total Amount / Unit (at ref cost)', value: `₹${numF(b.saAmount, 4)}`, big: true },
-        ]} />
-      </div>
-
-      <button onClick={onSave} disabled={isPending} className="btn-primary text-sm disabled:opacity-50">{isPending ? 'Saving…' : <><Save size={13} className="inline -mt-0.5 mr-1" />Save R&D & Overheads</>}</button>
+    <div className="flex items-center gap-2 flex-wrap">
+      <span className="inline-flex items-center px-3 py-1 rounded-full text-[11px] font-semibold bg-blue-100 text-blue-700 dark:bg-blue-500/10 dark:text-blue-300">
+        <Clock size={11} className="inline -mt-0.5 mr-1" />Last updated: {fmtDate(date)}
+      </span>
+      <input type="date" value={date ? new Date(date).toISOString().split('T')[0] : ''} onChange={e => onChange(e.target.value ? new Date(e.target.value).toISOString() : null)}
+        className="text-[11px] px-2 py-1 border border-gray-200 dark:border-[#1b2e4a] rounded-lg bg-white dark:bg-[#0d1b2e]" title="Edit last updated date" />
     </div>
   );
 }
 
-function CostingPackagingTab({ product, form, setForm, isPending, onSavePackaging, onSaveVariants, onSaveCosting }) {
+function PackagingTab({ product, form, setForm, onSave, isPending }) {
+  const items = form.packaging?.items || [];
+  const charges = form.packaging?.charges || {};
+  const totalPkg = items.reduce((s, i) => s + (Number(i.amount) || Number(i.qty) * Number(i.rate) || 0), 0) + Number(charges.machine || 0) + Number(charges.shrinkWrap || 0) + Number(charges.other || 0);
+
+  function updateItem(i, f, v) { setForm(prev => { const it = [...(prev.packaging?.items || [])]; it[i] = { ...it[i], [f]: v }; return { ...prev, packaging: { ...prev.packaging, items: it } }; }); }
+  function removeItem(i) { setForm(prev => ({ ...prev, packaging: { ...prev.packaging, items: prev.packaging?.items?.filter((_, idx) => idx !== i) } })); }
+  function addItem() { setForm(prev => ({ ...prev, packaging: { ...prev.packaging, items: [...(prev.packaging?.items || []), { name: '', qty: 1, rate: 0, amount: 0, optional: false }] } })); }
+  function setCharge(f, v) { setForm(prev => ({ ...prev, packaging: { ...prev.packaging, charges: { ...prev.packaging?.charges, [f]: Number(v) } } })); }
+
   return (
-    <div className="space-y-8">
+    <div className="space-y-4">
+      <div className="overflow-x-auto rounded-xl border border-gray-200 dark:border-[#1b2e4a]">
+        <table className="w-full text-xs">
+          <thead className="bg-gray-50 dark:bg-[#0f1a2e]">
+            <tr>{['Item', 'Qty', 'Rate (₹)', 'Amount (₹)', 'Optional', ''].map(h => <th key={h} className="px-3 py-2 text-left font-semibold text-gray-500">{h}</th>)}</tr>
+          </thead>
+          <tbody>
+            {items.map((item, i) => (
+              <tr key={i} className="border-t border-gray-100 dark:border-[#1b2e4a]">
+                <td className="px-2 py-1.5"><input value={item.name} onChange={e => updateItem(i, 'name', e.target.value)} className="input text-xs w-32" /></td>
+                <td className="px-2 py-1.5"><input type="number" value={item.qty} onChange={e => updateItem(i, 'qty', Number(e.target.value))} className="input text-xs w-14" /></td>
+                <td className="px-2 py-1.5"><input type="number" value={item.rate} onChange={e => updateItem(i, 'rate', Number(e.target.value))} className="input text-xs w-20" /></td>
+                <td className="px-2 py-1.5"><input type="number" value={item.amount || item.qty * item.rate} onChange={e => updateItem(i, 'amount', Number(e.target.value))} className="input text-xs w-20" /></td>
+                <td className="px-2 py-1.5"><input type="checkbox" checked={item.optional} onChange={e => updateItem(i, 'optional', e.target.checked)} className="w-4 h-4" /></td>
+                <td className="px-2 py-1.5"><button onClick={() => removeItem(i)} className="text-red-400 hover:text-red-600"><X size={13} /></button></td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <div className="grid grid-cols-3 gap-3">
+        {[['machine', 'Machine Charges'], ['shrinkWrap', 'Shrink Wrap'], ['other', 'Other']].map(([f, label]) => (
+          <div key={f}><label className="label">{label} (₹)</label><input type="number" value={charges[f] || 0} onChange={e => setCharge(f, e.target.value)} className="input" /></div>
+        ))}
+      </div>
+      <div className="rounded-lg bg-green-50 dark:bg-green-900/10 border border-green-200 dark:border-green-800/30 px-4 py-2">
+        <p className="text-xs font-semibold text-green-700 dark:text-green-400">Total Packaging Cost: ₹{numF(totalPkg)}</p>
+      </div>
+      <div className="flex gap-3">
+        <button onClick={addItem} className="btn-secondary text-sm">+ Add Item</button>
+        <button onClick={onSave} disabled={isPending} className="btn-primary text-sm disabled:opacity-50 ml-auto">{isPending ? 'Saving…' : <><Save size={13} className="inline -mt-0.5 mr-1" />Save Packaging</>}</button>
+      </div>
+    </div>
+  );
+}
+
+function VariantsTab({ product, form, setForm, onSave, isPending }) {
+  const variants = form.variants || [];
+
+  function addVariant() {
+    setForm(f => ({ ...f, variants: [...(f.variants || []), { name: '', weight: 0, unit: product.unit || 'ml', stock: 0, stockUnit: 'pcs', mrp: 0, sellingPrice: 0, b2bPrice: 0, costPrice: 0, size: 0, moq: 0, moqUnit: 'pcs' }] }));
+  }
+  function updateV(i, field, val) {
+    setForm(f => { const v = [...(f.variants || [])]; v[i] = { ...v[i], [field]: val }; return { ...f, variants: v }; });
+  }
+  function removeV(i) { setForm(f => ({ ...f, variants: (f.variants || []).filter((_, idx) => idx !== i) })); }
+
+  return (
+    <div className="space-y-4">
+      <div className="overflow-x-auto rounded-xl border border-gray-200 dark:border-[#1b2e4a]">
+        <table className="w-full text-xs">
+          <thead className="bg-gray-50 dark:bg-[#0f1a2e]">
+            <tr>
+              {['Variant', 'Weight', 'Unit', 'Size', 'Stock', 'MOQ', 'MOQ Unit', 'MRP (₹)', 'Selling (₹)', 'B2B (₹)', ''].map(h => (
+                <th key={h} className="px-3 py-2 text-left font-semibold text-gray-500 dark:text-gray-400">{h}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {variants.map((v, i) => (
+              <tr key={i} className="border-t border-gray-100 dark:border-[#1b2e4a]">
+                <td className="px-2 py-1.5"><input value={v.name} onChange={e => updateV(i, 'name', e.target.value)} className="input text-xs w-24" placeholder="100ml" /></td>
+                <td className="px-2 py-1.5"><input type="number" value={v.weight} onChange={e => updateV(i, 'weight', e.target.value)} className="input text-xs w-16" /></td>
+                <td className="px-2 py-1.5">
+                  <select value={v.unit} onChange={e => updateV(i, 'unit', e.target.value)} className="input text-xs w-14">
+                    {UNITS.map(u => <option key={u}>{u}</option>)}
+                  </select>
+                </td>
+                <td className="px-2 py-1.5"><input type="number" value={v.size ?? 0} onChange={e => updateV(i, 'size', e.target.value)} className="input text-xs w-16" placeholder="Size" /></td>
+                <td className="px-2 py-1.5"><input type="number" value={v.stock} onChange={e => updateV(i, 'stock', e.target.value)} className="input text-xs w-16" /></td>
+                <td className="px-2 py-1.5"><input type="number" value={v.moq ?? 0} onChange={e => updateV(i, 'moq', e.target.value)} className="input text-xs w-16" placeholder="MOQ" /></td>
+                <td className="px-2 py-1.5"><input value={v.moqUnit ?? 'pcs'} onChange={e => updateV(i, 'moqUnit', e.target.value)} className="input text-xs w-16" placeholder="pcs" /></td>
+                <td className="px-2 py-1.5"><input type="number" value={v.mrp} onChange={e => updateV(i, 'mrp', e.target.value)} className="input text-xs w-20" /></td>
+                <td className="px-2 py-1.5"><input type="number" value={v.sellingPrice} onChange={e => updateV(i, 'sellingPrice', e.target.value)} className="input text-xs w-20" /></td>
+                <td className="px-2 py-1.5"><input type="number" value={v.b2bPrice} onChange={e => updateV(i, 'b2bPrice', e.target.value)} className="input text-xs w-20" /></td>
+                <td className="px-2 py-1.5"><button onClick={() => removeV(i)} className="text-red-400 hover:text-red-600"><X size={13} /></button></td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        {!variants.length && <p className="text-xs text-gray-400 text-center py-6">No variants yet — add sizes below</p>}
+      </div>
+      <div className="flex gap-3">
+        <button onClick={addVariant} className="btn-secondary text-sm">+ Add Variant</button>
+        <button onClick={onSave} disabled={isPending} className="btn-primary text-sm disabled:opacity-50 ml-auto">{isPending ? 'Saving…' : <><Save size={13} className="inline -mt-0.5 mr-1" />Save Variants</>}</button>
+      </div>
+    </div>
+  );
+}
+
+function CostingTab({ product, form, setForm, onSave, isPending }) {
+  const merged = { ...product, ...form };
+  const b = calcOverheadBreakdown(merged);
+  const totalInputPerUnit = b.formCost + b.saAmount + b.overheadPerUnit + b.rndPerUnit;
+  const costPerUnit = totalInputPerUnit + b.pkgCost;
+  const margins = form.costing?.margins || {};
+  const variants = form.variants || [];
+  const [showGST, setShowGST] = useState(false);
+  const gstRate = (form.gstRate || 0) / 100;
+
+  function setMargin(f, v) { setForm(prev => ({ ...prev, costing: { ...prev.costing, margins: { ...prev.costing?.margins, [f]: Number(v) } } })); }
+
+  function computeVariantPricing(v) {
+    const refW = b.refW || 1;
+    const sizeRatio = refW > 0 && Number(v.size) > 0 ? Number(v.size) / refW : 1;
+    const productionCost = costPerUnit * sizeRatio;
+    const exFactory = productionCost * (1 + (Number(margins.exFactory) || 0) / 100);
+    const dealer = exFactory * (1 + (Number(margins.dealer) || 0) / 100);
+    const distributor = dealer * (1 + (Number(margins.distributor) || 0) / 100);
+    const retailer = distributor * (1 + (Number(margins.retailer) || 0) / 100);
+    const selling = retailer * (1 + (Number(margins.selling) || 0) / 100);
+    const b2b = productionCost * (1 + (Number(margins.b2b) || 0) / 100);
+    const b2c = productionCost * (1 + (Number(margins.b2c) || 0) / 100);
+    return { productionCost, exFactory, dealer, distributor, retailer, selling, b2b, b2c };
+  }
+
+  const firstVariantPricing = variants.length ? computeVariantPricing(variants[0]) : null;
+
+  return (
+    <div className="space-y-5">
+      <div className="rounded-xl border border-gray-200 dark:border-[#1b2e4a] p-4 space-y-2">
+        <p className="text-xs font-bold text-gray-600 dark:text-gray-300 mb-1 flex items-center gap-1"><Download size={12} />Cost Inputs</p>
+        <div className="flex justify-between text-xs"><span className="text-gray-500 inline-flex items-center gap-1"><FlaskConical size={12} />Ingredients Cost Per Unit (from Formulation)</span><span className="font-mono font-semibold">₹{numF(b.formCost, 4)}</span></div>
+        <div className="flex justify-between text-xs bg-slate-900 text-white rounded-lg px-3 py-2 mt-2">
+          <span className="text-white/80 inline-flex items-center gap-1"><BarChart3 size={12} />Total Input Cost Per Unit (Formulation + R&D + Overheads)</span>
+          <span className="font-mono font-bold text-amber-300">₹{numF(totalInputPerUnit, 4)}</span>
+        </div>
+      </div>
+
       <div>
-        <p className="text-sm font-bold text-gray-700 mb-3 flex items-center gap-1.5"><Package size={14} />Costing & Pricing</p>
+        <p className="text-xs font-bold text-gray-600 dark:text-gray-300 mb-2 flex items-center gap-1"><BarChart3 size={12} />Unit Cost Summary</p>
         <HighlightStrip tone="dark" items={[
-          { label: 'Ingredients Cost', value: `₹${numF(calcFormCost(form))}` },
-          { label: 'Total Unit Cost', value: `₹${numF(calcTotalCostPerUnit({ ...product, ...form }))}`, big: true, accent: true },
+          { label: 'Ingredients', value: `₹${numF(b.formCost)}` },
+          { label: 'Packaging', value: `₹${numF(b.pkgCost)}` },
+          { label: 'Overhead', value: `₹${numF(b.overheadPerUnit)}` },
+          { label: 'R&D Per Unit', value: `₹${numF(b.saAmount)}` },
+          { label: 'Grand Total / Unit', value: `₹${numF(costPerUnit)}`, big: true, accent: true },
         ]} />
       </div>
+
+      <div className="rounded-xl border border-gray-200 dark:border-[#1b2e4a] p-4">
+        <p className="text-xs font-bold text-gray-600 dark:text-gray-300 mb-3">Margin Settings (%)</p>
+        <div className="grid grid-cols-5 gap-3 mb-2">
+          {[['exFactory', 'Ex-Factory'], ['dealer', 'Dealer'], ['distributor', 'Distributor'], ['retailer', 'Retailer'], ['selling', 'Selling']].map(([f, label]) => (
+            <div key={f}><label className="text-[10px] text-gray-500">{label}</label><input type="number" step="0.1" value={margins[f] || 0} onChange={e => setMargin(f, e.target.value)} className="input text-xs w-full" /></div>
+          ))}
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          {[['b2b', 'B2B Margin (%)'], ['b2c', 'B2C Margin (%)']].map(([f, label]) => (
+            <div key={f}><label className="text-[10px] text-gray-500">{label}</label><input type="number" step="0.1" value={margins[f] || 0} onChange={e => setMargin(f, e.target.value)} className="input text-xs w-full" /></div>
+          ))}
+        </div>
+      </div>
+
+      <div className="flex items-center gap-3 flex-wrap">
+        <label className="flex items-center gap-2 cursor-pointer text-xs font-semibold text-gray-600 dark:text-gray-300">
+          <input type="checkbox" checked={showGST} onChange={e => setShowGST(e.target.checked)} className="w-4 h-4" />
+          Show GST Inclusive Prices
+        </label>
+        <span className="text-[11px] text-gray-400">GST Rate: {form.gstRate || 0}%</span>
+      </div>
+
+      <div className="overflow-x-auto rounded-xl border border-gray-200 dark:border-[#1b2e4a]">
+        <table className="w-full text-xs">
+          <thead className="bg-gray-50 dark:bg-[#0f1a2e]">
+            <tr>{['Variant', 'Size', 'Unit', 'MOQ', 'MOQ Unit', 'Prod. Cost', 'Ex-Factory', 'Dealer', 'Dist.', 'Retail', 'Selling', 'B2B', 'B2C'].map(h => <th key={h} className="px-3 py-2 text-left font-semibold text-gray-500 dark:text-gray-400 whitespace-nowrap">{h}</th>)}</tr>
+          </thead>
+          <tbody>
+            {variants.map((v, i) => {
+              const p = computeVariantPricing(v);
+              const isRef = Math.abs(Number(v.size) - b.refW) < 0.001;
+              return (
+                <tr key={i} className={clsx('border-t border-gray-100 dark:border-[#1b2e4a]', isRef && 'bg-amber-50/60 dark:bg-amber-500/5')}>
+                  <td className="px-3 py-1.5 font-semibold whitespace-nowrap">{v.name || '—'}{isRef && <span className="ml-1 text-amber-500" title="Reference weight">⭐</span>}</td>
+                  <td className="px-3 py-1.5 whitespace-nowrap">{v.size ?? 0}</td>
+                  <td className="px-3 py-1.5 whitespace-nowrap">{v.unit}</td>
+                  <td className="px-3 py-1.5 whitespace-nowrap">{v.moq ?? 0}</td>
+                  <td className="px-3 py-1.5 whitespace-nowrap">{v.moqUnit || 'pcs'}</td>
+                  <td className="px-3 py-1.5 font-mono">₹{numF(p.productionCost)}</td>
+                  <td className="px-3 py-1.5 font-mono">₹{numF(p.exFactory)}</td>
+                  <td className="px-3 py-1.5 font-mono">₹{numF(p.dealer)}</td>
+                  <td className="px-3 py-1.5 font-mono">₹{numF(p.distributor)}</td>
+                  <td className="px-3 py-1.5 font-mono">₹{numF(p.retailer)}</td>
+                  <td className="px-3 py-1.5 font-mono font-semibold">₹{numF(p.selling)}</td>
+                  <td className="px-3 py-1.5 font-mono">₹{numF(p.b2b)}</td>
+                  <td className="px-3 py-1.5 font-mono">₹{numF(p.b2c)}</td>
+                </tr>
+              );
+            })}
+            {!variants.length && <tr><td colSpan={13} className="px-3 py-6 text-center text-gray-400">No variants. Add sizes in the Variants tab.</td></tr>}
+          </tbody>
+        </table>
+      </div>
+
+      {showGST && firstVariantPricing && (
+        <div className="rounded-xl border border-gray-200 dark:border-[#1b2e4a] p-4">
+          <p className="text-xs font-bold text-gray-600 dark:text-gray-300 mb-3 flex items-center gap-1"><IndianRupee size={12} />GST Inclusive Prices (First Variant)</p>
+          <div className="grid grid-cols-3 gap-3 text-xs">
+            <div className="flex justify-between"><span className="text-gray-500">Ex-Factory (with GST)</span><span className="font-mono font-semibold">₹{numF(firstVariantPricing.exFactory * (1 + gstRate))}</span></div>
+            <div className="flex justify-between"><span className="text-gray-500">Selling (with GST)</span><span className="font-mono font-semibold">₹{numF(firstVariantPricing.selling * (1 + gstRate))}</span></div>
+            <div className="flex justify-between"><span className="text-gray-500">B2C (with GST)</span><span className="font-mono font-semibold">₹{numF(firstVariantPricing.b2c * (1 + gstRate))}</span></div>
+          </div>
+          <p className="text-[10px] text-gray-400 mt-2">All calculations are done without GST. GST is added only for display purposes at the selected rate.</p>
+        </div>
+      )}
+
+      <button onClick={onSave} disabled={isPending} className="btn-primary text-sm disabled:opacity-50">{isPending ? 'Saving…' : <><Save size={13} className="inline -mt-0.5 mr-1" />Save Costing</>}</button>
     </div>
   );
 }
+
 
 function MarketplaceTab({ product, form, setForm, onSave, isPending }) {
   return (
@@ -941,7 +1395,9 @@ export default function ProductDetailModal({ productId, onClose, refetchLead }) 
                 <div className="flex gap-4 items-start">
                   <FormulationVersionSidebar product={detail} selectedVersionId={selectedVersionId} setSelectedVersionId={setSelectedVersionId} versionActions={versionActions} />
                   <div className="flex-1 min-w-0">
-                    <BranchedFormulationEditor product={detail} selectedVersionId={selectedVersionId} setSelectedVersionId={setSelectedVersionId} versionActions={versionActions} />
+                    {selectedVersionId
+                      ? <BranchedFormulationEditor product={detail} selectedVersionId={selectedVersionId} setSelectedVersionId={setSelectedVersionId} versionActions={versionActions} />
+                      : <FormulationTab product={detail} form={form} setForm={setForm} onSave={() => updateMutation.mutate({ formulation: { ...form.formulation, rows: withComputedQuantity(form.formulation?.rows, form.formulation?.refWeight) } })} isPending={updateMutation.isPending} />}
                   </div>
                 </div>
               </div>
@@ -952,7 +1408,7 @@ export default function ProductDetailModal({ productId, onClose, refetchLead }) 
 
           {activeTab === 'R&D Price Calculator' && <div className="-m-6"><RDPriceCalculator presetProduct={detail} /></div>}
 
-          {activeTab === 'R&D & Overheads' && <RndOverheadsTab product={detail} form={form} setForm={setForm} onSave={() => updateMutation.mutate({ rnd: form.rnd, productionOverhead: form.productionOverhead, standardAssumptions: form.standardAssumptions })} isPending={updateMutation.isPending} />}
+          {activeTab === 'Production Overheads' && <RndOverheadsTab product={detail} form={form} setForm={setForm} onSave={() => updateMutation.mutate({ rnd: form.rnd, productionOverhead: form.productionOverhead, standardAssumptions: form.standardAssumptions })} isPending={updateMutation.isPending} />}
 
           {activeTab === 'Costing' && <CostingPackagingTab product={detail} form={form} setForm={setForm} isPending={updateMutation.isPending} onSavePackaging={() => updateMutation.mutate({ packaging: form.packaging })} onSaveVariants={() => updateMutation.mutate({ variants: form.variants })} onSaveCosting={() => updateMutation.mutate({ costing: form.costing })} />}
 
