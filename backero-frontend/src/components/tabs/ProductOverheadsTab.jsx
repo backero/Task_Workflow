@@ -194,9 +194,7 @@ export default function ProductOverheadsTab({ product, form, setForm, onSaveProd
             return (
               <HighlightStrip tone="dark" items={[
                 { label: `Batch Size`, value: `${selectedBatch} ${batchUnit}` },
-                { label: 'Overhead Cost', value: `₹${numF(batchCost.totalOverhead)}` },
-                { label: 'Standard Assumptions', value: `₹${numF(batchCost.totalSA)}` },
-                { label: 'Total Batch Cost', value: `₹${numF(batchCost.totalAll)}`, big: true, accent: true },
+                { label: 'Total Price for Batch', value: `₹${numF(batchCost.totalAll)}`, big: true, accent: true },
               ]} />
             );
           })()}
