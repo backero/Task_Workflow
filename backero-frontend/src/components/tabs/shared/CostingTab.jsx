@@ -8,7 +8,7 @@ function calcOverheadBreakdown(p) {
   const fm = p.formulation || {};
   const po = p.productionOverhead || {};
   const sa = p.standardAssumptions || {};
-  const rnd = p.rndDoc || {};
+  const rnd = p.rnd || {};
   const pkg = p.packaging || {};
   const refW = Number(fm.refWeight) || 100;
 
@@ -28,11 +28,12 @@ function calcOverheadBreakdown(p) {
   const saPct = [sa.equipmentPct, sa.consumablesPct, sa.storagePct, sa.housekeepingPct, sa.adminPct, sa.wastagePct].reduce((s, v) => s + (Number(v) || 0), 0);
   const saAmount = formCost * (saPct / 100);
 
-  const rndCost = Number(rnd.cost || rnd.investmentHours || 0);
-  const rndPerUnit = refW > 0 ? rndCost / refW : 0;
+  const lifecycle = rnd.lifecycle || 1000;
+  const rndTotal = (Number(rnd.testing) || 0) + (Number(rnd.consumables) || 0) + (Number(rnd.samples) || 0) + (Number(rnd.overhead) || 0) + (Number(rnd.otherOverhead) || 0) + (Number(rnd.qc) || 0);
+  const rndPerUnit = lifecycle > 0 ? rndTotal / lifecycle : 0;
 
   return {
-    formCost, pkgCost, overheadTotal, overheadPerUnit, saPct, saAmount, rndCost, rndPerUnit, refW
+    formCost, pkgCost, overheadTotal, overheadPerUnit, saPct, saAmount, rndTotal, rndPerUnit, refW
   };
 }
 
@@ -61,11 +62,6 @@ export default function CostingTab({ product, form, setForm, onSave, isPending }
   const [showGST, setShowGST] = useState(false);
   const [activeMarginType, setActiveMarginType] = useState(null);
   const gstRate = (form.gstRate || 0) / 100;
-
-  const rndData = form.rnd || {};
-  const rndTotal = (Number(rndData.testing) || 0) + (Number(rndData.consumables) || 0) +
-                   (Number(rndData.samples) || 0) + (Number(rndData.overhead) || 0) +
-                   (Number(rndData.otherOverhead) || 0) + (Number(rndData.qc) || 0);
 
   function setMargin(f, v) { setForm(prev => ({ ...prev, costing: { ...prev.costing, margins: { ...prev.costing?.margins, [f]: Number(v) } } })); }
 
@@ -100,7 +96,7 @@ export default function CostingTab({ product, form, setForm, onSave, isPending }
 
       <div className="rounded-xl border border-gray-200 dark:border-[#1b2e4a] p-4 space-y-4">
         <div className="text-xs p-2 bg-blue-50 dark:bg-blue-500/10 rounded border border-blue-200 dark:border-blue-800">
-          <p className="text-gray-600 dark:text-gray-300"><span className="font-semibold">R&D Cost:</span> ₹{numF(rndTotal)}</p>
+          <p className="text-gray-600 dark:text-gray-300"><span className="font-semibold">R&D Cost:</span> ₹{numF(b.rndTotal)}</p>
           <p className="text-gray-500 text-[10px] mt-1">From R&D Price Calculator</p>
         </div>
 
