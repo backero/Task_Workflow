@@ -6,8 +6,7 @@ import { clsx } from 'clsx';
 import QRCode from 'react-qr-code';
 import api from '../../api/axios';
 import RDPriceCalculator from '../production/RDPriceCalculator';
-import RndOverheadsTab from '../../components/tabs/RndOverheadsTab';
-import CostingPackagingTab from '../../components/tabs/CostingPackagingTab';
+import ProductOverheadsTab from '../../components/tabs/ProductOverheadsTab';
 import {
   ShoppingCart, Package, Tag, Circle, Search, Download, Upload as UploadIcon, Plus, CircleCheck, Pencil, Trash2, X, Camera, Save, Image as ImageIcon, Clipboard, Ruler,
   IndianRupee, Calendar, Award, FlaskConical, BarChart3, Scale, Lock, Archive, Minimize2, Maximize2, Calculator, QrCode, Printer, Video, Mic, FileText, Paperclip, Microscope, Factory,
@@ -19,7 +18,7 @@ export const PRODUCT_TYPES = ['Shampoo', 'Conditioner', 'Hair Oil', 'Serum', 'Cr
 export const UNITS = ['ml', 'g', 'kg', 'L', 'pcs', 'oz'];
 export const GST_RATES = [0, 5, 12, 18, 28];
 export const STATUSES = ['Active', 'Inactive', 'Draft', 'Archived'];
-const TABS = ['Overview', 'Formulation & Procedure', 'R&D Price Calculator', 'Production Overheads', 'Costing', 'Marketplace', 'QR Code', 'Documents', 'History'];
+const TABS = ['Overview', 'Formulation & Procedure', 'R&D Price Calculator', 'Product Overheads', 'Marketplace', 'QR Code', 'Documents', 'History'];
 const PLATFORMS = ['flipkart', 'amazon', 'meesho', 'snapdeal'];
 const PLATFORM_ICONS = { flipkart: <ShoppingCart size={14} />, amazon: <Package size={14} />, meesho: <Tag size={14} />, snapdeal: <Circle size={14} /> };
 
@@ -1408,9 +1407,7 @@ export default function ProductDetailModal({ productId, onClose, refetchLead }) 
 
           {activeTab === 'R&D Price Calculator' && <div className="-m-6"><RDPriceCalculator presetProduct={detail} /></div>}
 
-          {activeTab === 'Production Overheads' && <RndOverheadsTab product={detail} form={form} setForm={setForm} onSave={() => updateMutation.mutate({ rnd: form.rnd, productionOverhead: form.productionOverhead, standardAssumptions: form.standardAssumptions })} isPending={updateMutation.isPending} />}
-
-          {activeTab === 'Costing' && <CostingPackagingTab product={detail} form={form} setForm={setForm} isPending={updateMutation.isPending} onSavePackaging={() => updateMutation.mutate({ packaging: form.packaging })} onSaveVariants={() => updateMutation.mutate({ variants: form.variants })} onSaveCosting={() => updateMutation.mutate({ costing: form.costing })} />}
+          {activeTab === 'Product Overheads' && <ProductOverheadsTab product={detail} form={form} setForm={setForm} onSaveProductionOverheads={() => updateMutation.mutate({ rnd: form.rnd, productionOverhead: form.productionOverhead, standardAssumptions: form.standardAssumptions })} onSavePackaging={() => updateMutation.mutate({ packaging: form.packaging })} onSaveVariants={() => updateMutation.mutate({ variants: form.variants })} onSaveCosting={() => updateMutation.mutate({ costing: form.costing })} isPending={updateMutation.isPending} />}
 
           {activeTab === 'Marketplace' && <MarketplaceTab product={detail} form={form} setForm={setForm} onSave={() => updateMutation.mutate({ marketplace: form.marketplace })} isPending={updateMutation.isPending} />}
 

@@ -7,8 +7,7 @@ import { useSearchParams } from 'react-router-dom';
 import QRCode from 'react-qr-code';
 import api from '../../api/axios';
 import RDPriceCalculator from '../production/RDPriceCalculator';
-import RndOverheadsTab from '../../components/tabs/RndOverheadsTab';
-import CostingPackagingTab from '../../components/tabs/CostingPackagingTab';
+import ProductOverheadsTab from '../../components/tabs/ProductOverheadsTab';
 import {
   ShoppingCart, Package, Tag, Circle, RefreshCw, Download, Upload as UploadIcon, Plus, CircleCheck,
   Search, List, LayoutGrid, Eye, Pencil, Trash2, X, Camera, Save, Image as ImageIcon, Clipboard, Ruler,
@@ -23,7 +22,7 @@ export const PRODUCT_TYPES = ['Shampoo', 'Conditioner', 'Hair Oil', 'Serum', 'Cr
 export const UNITS = ['ml', 'g', 'kg', 'L', 'pcs', 'oz'];
 export const GST_RATES = [0, 5, 12, 18, 28];
 export const STATUSES = ['Active', 'Inactive', 'Draft', 'Archived'];
-const TABS = ['Overview', 'Formulation & Procedure', 'R&D Price Calculator', 'Production Overheads', 'Costing', 'Marketplace', 'QR Code', 'Documents', 'History'];
+const TABS = ['Overview', 'Formulation & Procedure', 'R&D Price Calculator', 'Product Overheads', 'Marketplace', 'QR Code', 'Documents', 'History'];
 
 const ASSUMPTION_FIELDS = [
   { key: 'equipmentPct', label: 'Equipment (Mold/Tools)', max: 20, hint: '3-5% recommended' },
@@ -798,8 +797,8 @@ export default function ProductCatalogPage() {
                   <RDPriceCalculator presetProduct={detail} />
                 </div>
               )}
-              {activeTab === 'Production Overheads' && <RndOverheadsTab product={detail} form={form} setForm={setForm} onSave={() => updateMutation.mutate({ id: detail._id, data: { rnd: form.rnd, productionOverhead: form.productionOverhead, standardAssumptions: form.standardAssumptions } })} isPending={isPending} />}
-              {activeTab === 'Costing' && <CostingPackagingTab product={detail} form={form} setForm={setForm} isPending={isPending}
+              {activeTab === 'Product Overheads' && <ProductOverheadsTab product={detail} form={form} setForm={setForm} isPending={isPending}
+                onSaveProductionOverheads={() => updateMutation.mutate({ id: detail._id, data: { rnd: form.rnd, productionOverhead: form.productionOverhead, standardAssumptions: form.standardAssumptions } })}
                 onSavePackaging={() => updateMutation.mutate({ id: detail._id, data: { packaging: form.packaging } })}
                 onSaveVariants={() => updateMutation.mutate({ id: detail._id, data: { variants: form.variants } })}
                 onSaveCosting={() => updateMutation.mutate({ id: detail._id, data: { costing: form.costing } })} />}
