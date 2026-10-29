@@ -333,6 +333,7 @@ export default function ProductOverheadsTab({ product, form, setForm, onSaveProd
 
         <div>
           <p className="text-sm font-bold text-gray-700 dark:text-gray-200 mb-4 flex items-center gap-1.5"><Factory size={14} />Containers & Labeling</p>
+          {!selectedBatch && <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-500/10 text-blue-700 dark:text-blue-300 rounded-lg text-xs border border-blue-200 dark:border-blue-800"><strong>Note:</strong> Enter a batch quantity above to calculate Pcs Needed and costs</div>}
           <div className="space-y-3">
             {(form.containers || []).map((item, idx) => {
               const batchQtyInBaseUnit = selectedBatch ? convertToBaseUnit(selectedBatch, batchUnit) : 0;
