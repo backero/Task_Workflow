@@ -808,6 +808,12 @@ export default function ProductDetailModal({ productId, onClose, refetchLead }) 
   useEffect(() => {
     if (detail) {
       setForm(detail);
+      // Auto-select the active/latest formulation version for editing
+      const versions = detail.formulationVersions || [];
+      if (versions.length > 0) {
+        const activeVersion = versions.find(v => v.status === 'locked') || versions[versions.length - 1];
+        if (activeVersion) setSelectedVersionId(activeVersion._id);
+      }
     }
   }, [detail?._id]);
 
