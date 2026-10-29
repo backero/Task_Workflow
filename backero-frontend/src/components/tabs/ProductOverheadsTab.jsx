@@ -66,14 +66,9 @@ export default function ProductOverheadsTab({ product, form, setForm, onSaveProd
 
     const units = refWInBaseUnit > 0 ? batchQtyInBaseUnit / refWInBaseUnit : 0;
     const totalFormCostForBatch = formCost * units;
-    const totalSAForBatch = saAmount * units;
-    const totalOverheadForBatch = overheadPerUnit * batchQtyInBaseUnit;
-    const totalWithAll = totalFormCostForBatch + totalSAForBatch + totalOverheadForBatch;
     return {
       totalFormCost: totalFormCostForBatch,
-      totalSA: totalSAForBatch,
-      totalOverhead: totalOverheadForBatch,
-      totalAll: totalWithAll,
+      totalAll: totalFormCostForBatch,
       units,
       batchQtyInBaseUnit,
       unit
@@ -218,32 +213,39 @@ export default function ProductOverheadsTab({ product, form, setForm, onSaveProd
         <div>
           <p className="text-sm font-bold text-gray-700 dark:text-gray-200 mb-4 flex items-center gap-1.5"><Factory size={14} />Total Cost Breakdown</p>
           {selectedBatch && (() => {
+            const po = form.productionOverhead || {};
+            const sa = form.standardAssumptions || {};
             const batchCost = calculateBatchCost(selectedBatch, batchUnit);
-            const totalBatchPrice = batchCost.totalAll || 0;
             const totalFormulation = batchCost.totalFormCost || 0;
-            const totalSA = batchCost.totalSA || 0;
-            const totalOverhead = batchCost.totalOverhead || 0;
-            const perUnitFormulation = refW > 0 ? totalFormulation / selectedBatch : 0;
-            const perUnitSA = refW > 0 ? totalSA / selectedBatch : 0;
-            const perUnitOverhead = refW > 0 ? totalOverhead / selectedBatch : 0;
-            const perUnitCombined = refW > 0 ? totalBatchPrice / selectedBatch : 0;
 
-            const perSelectedUnit = totalBatchPrice / selectedBatch;
-            let perAlternateUnit = perSelectedUnit;
+            const overheadTotal = Number(po.electricity || 0) + Number(po.labor || 0) + Number(po.labTesting || 0) + Number(po.other || 0);
+            const overheadPerUnit = refW > 0 ? overheadTotal / refW : 0;
+            const totalOverheadForBatch = overheadPerUnit * selectedBatch;
+
+            const saPct = [sa.equipmentPct, sa.consumablesPct, sa.storagePct, sa.housekeepingPct, sa.adminPct, sa.wastagePct].reduce((s, v) => s + (Number(v) || 0), 0);
+            const saAmount = totalFormulation * (saPct / 100);
+
+            const totalWithSAAndOverhead = totalFormulation + saAmount + totalOverheadForBatch;
+            const perUnitFormulation = totalFormulation / selectedBatch;
+            const perUnitSA = saAmount / selectedBatch;
+            const perUnitOverhead = totalOverheadForBatch / selectedBatch;
+            const perUnitCombined = totalWithSAAndOverhead / selectedBatch;
+
+            let perAlternateUnit = perUnitCombined;
             let alternateLabel = batchUnit;
 
             // Add alternate unit conversions for common units
             if (batchUnit === 'L') {
-              perAlternateUnit = perSelectedUnit / 1000; // Convert L to ml
+              perAlternateUnit = perUnitCombined / 1000; // Convert L to ml
               alternateLabel = 'ml';
             } else if (batchUnit === 'ml') {
-              perAlternateUnit = perSelectedUnit * 1000; // Convert ml to L
+              perAlternateUnit = perUnitCombined * 1000; // Convert ml to L
               alternateLabel = 'L';
             } else if (batchUnit === 'kg') {
-              perAlternateUnit = perSelectedUnit / 1000; // Convert kg to g
+              perAlternateUnit = perUnitCombined / 1000; // Convert kg to g
               alternateLabel = 'g';
             } else if (batchUnit === 'g') {
-              perAlternateUnit = perSelectedUnit * 1000; // Convert g to kg
+              perAlternateUnit = perUnitCombined * 1000; // Convert g to kg
               alternateLabel = 'kg';
             }
 
@@ -251,9 +253,9 @@ export default function ProductOverheadsTab({ product, form, setForm, onSaveProd
               <div className="space-y-4">
                 <HighlightStrip tone="dark" items={[
                   { label: 'Total Formulation Cost', value: `₹${numF(totalFormulation)}` },
-                  { label: 'Total Standard Assumptions', value: `₹${numF(totalSA)}` },
-                  { label: 'Total Production Overhead', value: `₹${numF(totalOverhead)}` },
-                  { label: 'Combined Total', value: `₹${numF(totalBatchPrice)}`, big: true, accent: true },
+                  { label: `Standard Assumptions (${saPct}%)`, value: `₹${numF(saAmount)}` },
+                  { label: 'Production Overhead', value: `₹${numF(totalOverheadForBatch)}` },
+                  { label: 'Combined Total', value: `₹${numF(totalWithSAAndOverhead)}`, big: true, accent: true },
                 ]} />
                 <HighlightStrip tone="dark" items={[
                   { label: `Per ${batchUnit} (Formulation)`, value: `₹${numF(perUnitFormulation, 4)}` },
