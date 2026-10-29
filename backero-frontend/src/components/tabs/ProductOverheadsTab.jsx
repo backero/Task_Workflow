@@ -25,22 +25,37 @@ export default function ProductOverheadsTab({ product, form, setForm, onSaveProd
   const [roundToNearest100, setRoundToNearest100] = useState(false);
   const [showContainerGST, setShowContainerGST] = useState(false);
 
-  const calculateBatchCost = (batchQtyGrams) => {
+  const convertToBaseUnit = (qty, unit) => {
+    const conversions = {
+      'g': 1,
+      'kg': 1000,
+      'ml': 1,
+      'L': 1000,
+      'pcs': 1
+    };
+    return qty * (conversions[unit] || 1);
+  };
+
+  const calculateBatchCost = (batchQty, unit) => {
     const b = { ...product, ...form };
     const fm = b.formulation || {};
     const po = b.productionOverhead || {};
     const sa = b.standardAssumptions || {};
     const rnd = b.rnd || {};
     const refW = Number(fm.refWeight) || 100;
+    const refUnit = fm.refUnit || 'g';
+
+    const batchQtyInBaseUnit = convertToBaseUnit(batchQty, unit);
+    const refWInBaseUnit = convertToBaseUnit(refW, refUnit);
 
     const formCost = (fm.rows || []).reduce((s, r) => {
-      const qty = refW * (Number(r.percentage) || 0) / 100 * (Number(r.convFactor) || 1);
+      const qty = refWInBaseUnit * (Number(r.percentage) || 0) / 100 * (Number(r.convFactor) || 1);
       const cost = (Number(r.costPerKg) || 0) * qty / 1000;
       return s + cost;
     }, 0);
 
     const overheadTotal = Number(po.electricity || 0) + Number(po.labor || 0) + Number(po.labTesting || 0) + Number(po.other || 0);
-    const overheadPerUnit = refW > 0 ? overheadTotal / refW : 0;
+    const overheadPerUnit = refWInBaseUnit > 0 ? overheadTotal / refWInBaseUnit : 0;
 
     const saPct = [sa.equipmentPct, sa.consumablesPct, sa.storagePct, sa.housekeepingPct, sa.adminPct, sa.wastagePct].reduce((s, v) => s + (Number(v) || 0), 0);
     const saAmount = formCost * (saPct / 100);
@@ -49,7 +64,7 @@ export default function ProductOverheadsTab({ product, form, setForm, onSaveProd
     const rndTotal = (Number(rnd.testing) || 0) + (Number(rnd.consumables) || 0) + (Number(rnd.samples) || 0) + (Number(rnd.overhead) || 0) + (Number(rnd.otherOverhead) || 0) + (Number(rnd.qc) || 0);
     const rndPerUnit = lifecycle > 0 ? rndTotal / lifecycle : 0;
 
-    const units = batchQtyGrams / refW;
+    const units = refWInBaseUnit > 0 ? batchQtyInBaseUnit / refWInBaseUnit : 0;
     const totalOverheadForBatch = overheadTotal * units;
     const totalSAForBatch = saAmount * units;
     const totalRndForBatch = rndPerUnit * units;
@@ -58,7 +73,9 @@ export default function ProductOverheadsTab({ product, form, setForm, onSaveProd
       totalSA: totalSAForBatch,
       totalRnd: totalRndForBatch,
       totalAll: totalOverheadForBatch + totalSAForBatch + totalRndForBatch,
-      units
+      units,
+      batchQtyInBaseUnit,
+      unit
     };
   };
 
@@ -173,10 +190,10 @@ export default function ProductOverheadsTab({ product, form, setForm, onSaveProd
             </div>
           </div>
           {selectedBatch && (() => {
-            const batchCost = calculateBatchCost(selectedBatch);
+            const batchCost = calculateBatchCost(selectedBatch, batchUnit);
             return (
               <HighlightStrip tone="dark" items={[
-                { label: `Batch Size`, value: `${(selectedBatch / 1000).toFixed(2)}g` },
+                { label: `Batch Size`, value: `${selectedBatch} ${batchUnit}` },
                 { label: 'Overhead Cost', value: `₹${numF(batchCost.totalOverhead)}` },
                 { label: 'Standard Assumptions', value: `₹${numF(batchCost.totalSA)}` },
                 { label: 'Total Batch Cost', value: `₹${numF(batchCost.totalAll)}`, big: true, accent: true },
