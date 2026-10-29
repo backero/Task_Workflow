@@ -36,42 +36,36 @@ export default function ProductOverheadsTab({ product, form, setForm, onSaveProd
     return qty * (conversions[unit] || 1);
   };
 
-  useEffect(() => {
-    if (!selectedBatch) return;
-    const containers = form.containers || [];
-    if (containers.length === 0) return;
+  // Auto-sync containers to packaging items
+  React.useEffect(() => {
+    if (!selectedBatch || !form.containers?.length) return;
 
+    const containers = form.containers;
     const fm = form.formulation || {};
     const refW = Number(fm.refWeight) || 100;
     const refUnit = fm.refUnit || 'g';
-    const batchQtyInBaseUnit = convertToBaseUnit(selectedBatch, batchUnit);
-    const refWInBaseUnit = convertToBaseUnit(refW, refUnit);
+    const batchQtyBase = convertToBaseUnit(selectedBatch, batchUnit);
 
-    const pkgItems = form.packaging?.items || [];
-    const updated = [...pkgItems];
-
+    const newPkgItems = [];
     containers.forEach((container, idx) => {
-      const containerWeightInBaseUnit = convertToBaseUnit(Number(container.weight) || 0, container.unit || 'g');
-      const unitsNeeded = containerWeightInBaseUnit > 0 ? batchQtyInBaseUnit / containerWeightInBaseUnit : 0;
-      const roundedPcs = Math.round(unitsNeeded);
+      const containerWtBase = convertToBaseUnit(Number(container.weight) || 0, container.unit || 'g');
+      const pcsNeeded = containerWtBase > 0 ? Math.round(batchQtyBase / containerWtBase) : 0;
+      const existingRate = form.packaging?.items?.[idx]?.rate || 0;
 
-      while (updated.length <= idx) {
-        updated.push({ name: '', qty: 0, rate: 0, amount: 0, optional: false });
-      }
-
-      const rate = updated[idx]?.rate || 0;
-      updated[idx] = {
-        ...updated[idx],
-        name: container.name || updated[idx].name,
-        qty: roundedPcs,
-        amount: roundedPcs * rate
-      };
+      newPkgItems.push({
+        name: container.name || `Item ${idx + 1}`,
+        qty: pcsNeeded,
+        rate: existingRate,
+        amount: pcsNeeded * existingRate,
+        optional: form.packaging?.items?.[idx]?.optional || false
+      });
     });
 
-    if (JSON.stringify(pkgItems) !== JSON.stringify(updated)) {
-      setForm(prev => ({ ...prev, packaging: { ...prev.packaging, items: updated } }));
-    }
-  }, [selectedBatch, batchUnit, JSON.stringify(form.containers)]);
+    setForm(prev => ({
+      ...prev,
+      packaging: { ...prev.packaging, items: newPkgItems }
+    }));
+  }, [selectedBatch, batchUnit, form.containers?.length]);
 
   const calculateBatchCost = (batchQty, unit) => {
     const b = { ...product, ...form };
