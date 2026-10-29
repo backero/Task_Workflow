@@ -211,6 +211,29 @@ export default function ProductOverheadsTab({ product, form, setForm, onSaveProd
         <hr className="border-gray-100 dark:border-[#1b2e4a]" />
 
         <div>
+          <p className="text-sm font-bold text-gray-700 dark:text-gray-200 mb-4 flex items-center gap-1.5"><Factory size={14} />Total Cost Breakdown</p>
+          {selectedBatch && (() => {
+            const po = form.productionOverhead || {};
+            const overheadTotal = Number(po.electricity || 0) + Number(po.labor || 0) + Number(po.labTesting || 0) + Number(po.other || 0);
+            const batchCost = calculateBatchCost(selectedBatch, batchUnit);
+            const totalBatchPrice = batchCost.totalAll || 0;
+            const combinedTotal = overheadTotal + totalBatchPrice;
+            const perUnitAmount = refW > 0 ? combinedTotal / refW : 0;
+            return (
+              <HighlightStrip tone="dark" items={[
+                { label: 'Total Production Overhead', value: `₹${numF(overheadTotal)}` },
+                { label: 'Total Price for Batch', value: `₹${numF(totalBatchPrice)}` },
+                { label: 'Combined Total', value: `₹${numF(combinedTotal)}` },
+                { label: 'Per Unit', value: `₹${numF(perUnitAmount, 4)}`, big: true, accent: true },
+              ]} />
+            );
+          })()}
+          {!selectedBatch && <p className="text-xs text-gray-400">Enter a batch quantity to see cost breakdown</p>}
+        </div>
+
+        <hr className="border-gray-100 dark:border-[#1b2e4a]" />
+
+        <div>
           <p className="text-sm font-bold text-gray-700 dark:text-gray-200 mb-4 flex items-center gap-1.5"><Factory size={14} />Containers & Labeling</p>
           <div className="space-y-3">
             {(form.containers || []).map((item, idx) => {
