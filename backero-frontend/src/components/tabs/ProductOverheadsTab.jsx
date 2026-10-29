@@ -36,36 +36,39 @@ export default function ProductOverheadsTab({ product, form, setForm, onSaveProd
     return qty * (conversions[unit] || 1);
   };
 
-  // Sync packaging items' Pcs with container Pcs Needed
-  const syncPackagingPcs = () => {
-    if (!selectedBatch || !form.containers?.length || !form.packaging?.items?.length) {
-      alert('Please enter batch quantity and add both containers and packaging items first');
-      return;
-    }
+  // Auto-sync containers Pcs Needed to packaging items
+  React.useEffect(() => {
+    if (!selectedBatch || !form.containers?.length) return;
 
-    const containers = form.containers;
-    const batchQtyBase = convertToBaseUnit(selectedBatch, batchUnit);
-    const pkgItems = [...form.packaging.items];
+    const syncPkg = () => {
+      const containers = form.containers;
+      const batchQtyBase = convertToBaseUnit(selectedBatch, batchUnit);
+      const pkgItems = form.packaging?.items || [];
 
-    const updated = pkgItems.map((item, idx) => {
-      const container = containers[idx];
-      if (!container) return item;
+      if (pkgItems.length === 0) return;
 
-      const containerWtBase = convertToBaseUnit(Number(container.weight) || 0, container.unit || 'g');
-      const pcsNeeded = containerWtBase > 0 ? Math.round(batchQtyBase / containerWtBase) : 0;
+      const updated = pkgItems.map((item, idx) => {
+        const container = containers[idx];
+        if (!container) return item;
 
-      return {
-        ...item,
-        qty: pcsNeeded,
-        amount: pcsNeeded * (item.rate || 0)
-      };
-    });
+        const containerWtBase = convertToBaseUnit(Number(container.weight) || 0, container.unit || 'g');
+        const pcsNeeded = containerWtBase > 0 ? Math.round(batchQtyBase / containerWtBase) : 0;
 
-    setForm(prev => ({
-      ...prev,
-      packaging: { ...prev.packaging, items: updated }
-    }));
-  };
+        return {
+          ...item,
+          qty: pcsNeeded,
+          amount: pcsNeeded * (item.rate || 0)
+        };
+      });
+
+      setForm(prev => ({
+        ...prev,
+        packaging: { ...prev.packaging, items: updated }
+      }));
+    };
+
+    syncPkg();
+  }, [selectedBatch, batchUnit]);
 
   const calculateBatchCost = (batchQty, unit) => {
     const b = { ...product, ...form };
@@ -372,10 +375,6 @@ export default function ProductOverheadsTab({ product, form, setForm, onSaveProd
         </div>
 
         <hr className="border-gray-100 dark:border-[#1b2e4a]" />
-
-        <div>
-          <button onClick={syncPackagingPcs} className="btn-primary text-sm mb-4 flex items-center gap-2"><span>🔄 Sync Packaging Pcs from Containers</span></button>
-        </div>
 
         <div>
           <CostingPackagingTab
