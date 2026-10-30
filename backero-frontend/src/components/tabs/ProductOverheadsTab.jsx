@@ -789,24 +789,26 @@ export default function ProductOverheadsTab({ product, form, setForm, onSaveProd
                       </div>
                     </div>
 
-                    <div className="flex gap-2 items-end pt-1">
-                      <div className="flex-1">
-                        <label className="text-[10px] text-gray-400">Custom Qty</label>
+                    <div className="pt-1">
+                      <label className="text-[10px] text-gray-400">Custom Qty</label>
+                      <div className="flex gap-2">
                         <input
                           type="number"
                           min="0"
                           value={customQty}
                           onChange={e => setCustomQty(e.target.value)}
                           placeholder="e.g. 250"
-                          className="input text-xs w-full"
+                          className="input text-xs flex-1 min-w-0"
                         />
+                        <select value={customUnit} onChange={e => setCustomUnit(e.target.value)} className="input text-xs w-16 shrink-0 px-1">
+                          <option value="g">g</option>
+                          <option value="kg">kg</option>
+                          <option value="ml">ml</option>
+                          <option value="L">L</option>
+                        </select>
                       </div>
-                      <select value={customUnit} onChange={e => setCustomUnit(e.target.value)} className="input text-xs">
-                        <option value="g">g</option>
-                        <option value="kg">kg</option>
-                        <option value="ml">ml</option>
-                        <option value="L">L</option>
-                      </select>
+                    </div>
+                    <div>
                       <button
                         onClick={() => {
                           const qtyBase = convertToBaseUnit(Number(customQty) || 0, customUnit);
@@ -817,7 +819,7 @@ export default function ProductOverheadsTab({ product, form, setForm, onSaveProd
                           });
                         }}
                         disabled={!customQty}
-                        className="px-3 py-2 bg-blue-500 hover:bg-blue-600 disabled:bg-gray-300 disabled:cursor-not-allowed text-white rounded-lg text-xs font-semibold transition"
+                        className="w-full px-3 py-2 bg-blue-500 hover:bg-blue-600 disabled:bg-gray-300 disabled:cursor-not-allowed text-white rounded-lg text-xs font-semibold transition"
                       >
                         Get Price
                       </button>
