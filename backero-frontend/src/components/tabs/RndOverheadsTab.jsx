@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { Factory, FileEdit, TriangleAlert } from 'lucide-react';
-import LastUpdatedBadge from './shared/LastUpdatedBadge';
 
 function numF(v, d = 2) { return Number(v || 0).toFixed(d); }
 
@@ -81,16 +80,14 @@ export default function RndOverheadsTab({ product, form, setForm, onSave, isPend
     };
   };
 
-  function setPO(f, v) { setForm(prev => ({ ...prev, productionOverhead: { ...prev.productionOverhead, [f]: v, lastUpdated: new Date().toISOString() } })); }
-  function setPODate(v) { setForm(prev => ({ ...prev, productionOverhead: { ...prev.productionOverhead, lastUpdated: v } })); }
-  function setSA(f, v) { setForm(prev => ({ ...prev, standardAssumptions: { ...prev.standardAssumptions, [f]: v, lastUpdated: new Date().toISOString() } })); }
+  function setPO(f, v) { setForm(prev => ({ ...prev, productionOverhead: { ...prev.productionOverhead, [f]: v } })); }
+  function setSA(f, v) { setForm(prev => ({ ...prev, standardAssumptions: { ...prev.standardAssumptions, [f]: v } })); }
 
   return (
     <div className="space-y-6">
       <div>
-        <div className="flex items-center justify-between flex-wrap gap-3 mb-3">
+        <div className="mb-3">
           <p className="text-sm font-bold text-gray-700 dark:text-gray-200 flex items-center gap-1.5"><Factory size={14} />Production Overhead</p>
-          <LastUpdatedBadge date={po.lastUpdated} onChange={setPODate} />
         </div>
         <div className="grid grid-cols-2 gap-3 mb-4">
           {[['electricity', 'Electricity (₹)'], ['labor', 'Production Labor (₹)'], ['labTesting', 'Lab Testing Cost (₹)'], ['other', 'Other Production Overhead (₹)']].map(([f, label]) => (
