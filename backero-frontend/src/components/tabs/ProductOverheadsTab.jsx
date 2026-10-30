@@ -665,50 +665,47 @@ export default function ProductOverheadsTab({ product, form, setForm, onSaveProd
         <p className="text-sm font-bold text-gray-700 dark:text-gray-200 mb-3 flex items-center gap-1.5"><Factory size={14} />Complete Cost Breakdown</p>
         {selectedBatch && (() => {
           const batchCost = calculateBatchCost(selectedBatch, batchUnit);
-          const costBreakdown = batchCost.totalAll || 0;
+          const totalFormCost = batchCost.totalFormCost || 0;
+          const totalOverheadCost = batchCost.totalOverheadCost || 0;
+          const saAmount = batchCost.saAmount || 0;
 
           const containersTotal = (form.containers || []).reduce((s, item) => {
             const batchQtyInBaseUnit = convertToBaseUnit(selectedBatch, batchUnit);
             const containerWeightInBaseUnit = convertToBaseUnit(Number(item.weight) || 0, item.unit || 'g');
+            const pcsNeeded = containerWeightInBaseUnit > 0 ? Math.round(batchQtyInBaseUnit / containerWeightInBaseUnit) : 0;
             const costPerPiece = Number(item.costPerPiece) || 0;
-            const unitsNeeded = containerWeightInBaseUnit > 0 ? batchQtyInBaseUnit / containerWeightInBaseUnit : 0;
-            const itemCost = unitsNeeded * costPerPiece;
-            return s + itemCost;
+            const baseAmount = pcsNeeded * costPerPiece;
+            const amount = item.gstIncluded ? baseAmount * 1.18 : baseAmount;
+            return s + amount;
           }, 0);
 
           const pkgItems = form.packaging?.items || [];
           const pkgCharges = form.packaging?.charges || {};
-          const packagingTotal = pkgItems.reduce((s, i) => s + (Number(i.amount) || Number(i.qty) * Number(i.rate) || 0), 0) + Number(pkgCharges.machine || 0) + Number(pkgCharges.other || 0);
+          const packagingTotal = pkgItems.reduce((s, i) => {
+            const baseAmount = Number(i.qty) * Number(i.rate) || 0;
+            const amount = i.gstIncluded ? baseAmount * 1.18 : baseAmount;
+            return s + amount;
+          }, 0) + Number(pkgCharges.other || 0);
 
-          const subtotal = costBreakdown + containersTotal + packagingTotal;
-          const withGST = showFinalGST ? subtotal * 1.18 : subtotal;
+          const subtotalBeforeMargin = totalFormCost + totalOverheadCost + saAmount + containersTotal + packagingTotal;
+          const marginAmount = subtotalBeforeMargin * (marginPercent / 100);
+          const finalTotal = subtotalBeforeMargin + marginAmount;
 
           return (
-            <div className="space-y-2 p-3 bg-gray-50 dark:bg-[#0f1a2e] rounded-lg">
-              <div className="flex justify-between text-xs"><span className="text-gray-600 dark:text-gray-400">Cost Breakdown:</span><span className="font-mono font-semibold">₹{numF(costBreakdown)}</span></div>
-              <div className="flex justify-between text-xs"><span className="text-gray-600 dark:text-gray-400">Containers:</span><span className="font-mono font-semibold">₹{numF(containersTotal)}</span></div>
-              <div className="flex justify-between text-xs"><span className="text-gray-600 dark:text-gray-400">Packaging:</span><span className="font-mono font-semibold">₹{numF(packagingTotal)}</span></div>
-              <div className="border-t border-gray-200 dark:border-[#1b2e4a] pt-2 flex justify-between text-sm font-bold">
+            <div className="space-y-2 p-3 bg-gray-50 dark:bg-[#0f1a2e] rounded-lg text-xs">
+              <div className="flex justify-between"><span className="text-gray-600 dark:text-gray-400">Formulation:</span><span className="font-mono font-semibold">₹{numF(totalFormCost)}</span></div>
+              <div className="flex justify-between"><span className="text-gray-600 dark:text-gray-400">Production Overhead:</span><span className="font-mono font-semibold">₹{numF(totalOverheadCost)}</span></div>
+              <div className="flex justify-between"><span className="text-gray-600 dark:text-gray-400">Standard Assumptions:</span><span className="font-mono font-semibold">₹{numF(saAmount)}</span></div>
+              <div className="flex justify-between"><span className="text-gray-600 dark:text-gray-400">Containers & Labeling:</span><span className="font-mono font-semibold">₹{numF(containersTotal)}</span></div>
+              <div className="flex justify-between"><span className="text-gray-600 dark:text-gray-400">Packaging & Labeling:</span><span className="font-mono font-semibold">₹{numF(packagingTotal)}</span></div>
+              <div className="border-t border-gray-200 dark:border-[#1b2e4a] pt-2 flex justify-between font-semibold">
                 <span className="text-gray-700 dark:text-gray-200">Subtotal:</span>
-                <span className="font-mono">₹{numF(subtotal)}</span>
+                <span className="font-mono">₹{numF(subtotalBeforeMargin)}</span>
               </div>
-              {showFinalGST && (
-                <div className="flex justify-between text-xs bg-amber-50 dark:bg-amber-500/10 -mx-3 -mb-3 px-3 py-2 rounded-b-lg border-t border-amber-200 dark:border-amber-800/40">
-                  <span className="text-amber-700 dark:text-amber-300 font-semibold">With GST (18%):</span>
-                  <span className="font-mono font-bold text-amber-700 dark:text-amber-300">₹{numF(withGST)}</span>
-                </div>
-              )}
-              <div className="flex items-center gap-2 mt-2 pt-2 border-t border-gray-200 dark:border-[#1b2e4a]">
-                <input
-                  type="checkbox"
-                  checked={showFinalGST}
-                  onChange={e => setShowFinalGST(e.target.checked)}
-                  className="w-3 h-3"
-                  id="finalGSTChk"
-                />
-                <label htmlFor="finalGSTChk" className="text-xs font-semibold text-gray-600 dark:text-gray-400 cursor-pointer">
-                  Include GST (18%)
-                </label>
+              <div className="flex justify-between font-semibold"><span className="text-gray-700 dark:text-gray-200">Margin ({marginPercent}%):</span><span className="font-mono">₹{numF(marginAmount)}</span></div>
+              <div className="border-t border-gray-200 dark:border-[#1b2e4a] pt-2 flex justify-between font-bold text-base">
+                <span className="text-gray-900 dark:text-white">Final Total:</span>
+                <span className="font-mono text-amber-600 dark:text-amber-400">₹{numF(finalTotal)}</span>
               </div>
             </div>
           );
