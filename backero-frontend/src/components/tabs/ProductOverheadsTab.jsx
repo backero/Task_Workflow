@@ -240,6 +240,9 @@ export default function ProductOverheadsTab({ product, form, setForm, onSaveProd
             setForm={setForm}
             onSave={onSaveProductionOverheads}
             isPending={isPending}
+            selectedBatch={selectedBatch}
+            batchUnit={batchUnit}
+            calculateBatchCost={calculateBatchCost}
           />
         </div>
 
@@ -458,18 +461,15 @@ export default function ProductOverheadsTab({ product, form, setForm, onSaveProd
         <div>
           <p className="text-sm font-bold text-gray-700 dark:text-gray-200 mb-4 flex items-center gap-1.5"><Factory size={14} />Total Cost Breakdown</p>
           {selectedBatch && (() => {
-            const po = form.productionOverhead || {};
             const sa = form.standardAssumptions || {};
             const batchCost = calculateBatchCost(selectedBatch, batchUnit);
             const totalFormulation = batchCost.totalFormCost || 0;
-
-            const overheadTotal = Number(po.electricity || 0) + Number(po.labor || 0) + Number(po.labTesting || 0) + Number(po.other || 0);
-            const batchQtyInBaseUnit = convertToBaseUnit(selectedBatch, batchUnit);
-            const totalOverheadForBatch = overheadTotal;
+            const totalOverheadForBatch = batchCost.totalOverheadCost || 0;
+            const saAmount = batchCost.saAmount || 0;
+            const batchQtyInBaseUnit = batchCost.batchQtyInBaseUnit || 0;
 
             const saPct = [sa.equipmentPct, sa.consumablesPct, sa.storagePct, sa.housekeepingPct, sa.adminPct, sa.wastagePct].reduce((s, v) => s + (Number(v) || 0), 0);
             const subtotal = totalFormulation + totalOverheadForBatch;
-            const saAmount = subtotal * (saPct / 100);
 
             const totalWithSAAndOverhead = subtotal + saAmount;
             const perUnitFormulation = totalFormulation / batchQtyInBaseUnit;

@@ -20,7 +20,7 @@ function calcOverheadBreakdown(p) {
   const overheadPerUnit = refW > 0 ? overheadTotal / refW : 0;
 
   const saPct = [sa.equipmentPct, sa.consumablesPct, sa.storagePct, sa.housekeepingPct, sa.adminPct, sa.wastagePct].reduce((s, v) => s + (Number(v) || 0), 0);
-  const saAmount = (formCost + overheadTotal) * (saPct / 100);
+  const saAmount = (formCost + overheadPerUnit) * (saPct / 100);
 
   const lifecycle = rnd.lifecycle || 1000;
   const rndTotal = (Number(rnd.testing) || 0) + (Number(rnd.consumables) || 0) + (Number(rnd.samples) || 0) + (Number(rnd.overhead) || 0) + (Number(rnd.otherOverhead) || 0) + (Number(rnd.qc) || 0);
@@ -52,11 +52,15 @@ const ASSUMPTION_FIELDS = [
   { key: 'wastagePct', label: 'Wastage (Production)', max: 10, hint: '2-5% recommended' },
 ];
 
-export default function RndOverheadsTab({ product, form, setForm, onSave, isPending }) {
-  const [selectedBatch, setSelectedBatch] = useState(null);
+export default function RndOverheadsTab({ product, form, setForm, onSave, isPending, selectedBatch, batchUnit, calculateBatchCost }) {
   const po = form.productionOverhead || {};
   const sa = form.standardAssumptions || {};
   const b = calcOverheadBreakdown({ ...product, ...form });
+
+  const convertToBaseUnit = (qty, unit) => {
+    const conversions = { 'g': 1, 'kg': 1000, 'ml': 1, 'L': 1000, 'pcs': 1 };
+    return qty * (conversions[unit] || 1);
+  };
 
   const BATCH_SIZES = [
     { label: '3kg', value: 3000 },
@@ -64,22 +68,6 @@ export default function RndOverheadsTab({ product, form, setForm, onSave, isPend
     { label: '7kg', value: 7000 },
     { label: '10kg', value: 10000 },
   ];
-
-  const calculateBatchCost = (batchQtyGrams) => {
-    const refW = b.refW || 100;
-    const units = batchQtyGrams / refW;
-    const totalFormCostForBatch = b.formCost * units;
-    const totalOverheadForBatch = b.overheadTotal * units;
-    const totalSAForBatch = (totalFormCostForBatch + totalOverheadForBatch) * (b.saPct / 100);
-    const totalRndForBatch = b.rndPerUnit * units;
-    return {
-      totalOverhead: totalOverheadForBatch,
-      totalSA: totalSAForBatch,
-      totalRnd: totalRndForBatch,
-      totalAll: totalOverheadForBatch + totalSAForBatch + totalRndForBatch,
-      units
-    };
-  };
 
   function setPO(f, v) { setForm(prev => ({ ...prev, productionOverhead: { ...prev.productionOverhead, [f]: v } })); }
   function setSA(f, v) { setForm(prev => ({ ...prev, standardAssumptions: { ...prev.standardAssumptions, [f]: v } })); }
@@ -116,20 +104,26 @@ export default function RndOverheadsTab({ product, form, setForm, onSave, isPend
             </div>
           ))}
         </div>
-        {(() => {
-          const batchQty = form.costing?.batchQuantity || 10000; // Default 10L if not set
-          const refW = b.refW || 100;
-          const units = batchQty / refW;
-          const saBatchAmount = (b.formCost + b.overheadTotal) * (b.saPct / 100) * units;
-          const batchLabel = form.costing?.batchUnit === 'L' ? `${form.costing.batchQuantity}L` : `${batchQty}g`;
+
+        {selectedBatch && calculateBatchCost && (() => {
+          const batchCost = calculateBatchCost(selectedBatch, batchUnit);
+          const totalSA = batchCost.saAmount || 0;
+          const saPct = [form.standardAssumptions?.equipmentPct, form.standardAssumptions?.consumablesPct, form.standardAssumptions?.storagePct, form.standardAssumptions?.housekeepingPct, form.standardAssumptions?.adminPct, form.standardAssumptions?.wastagePct].reduce((s, v) => s + (Number(v) || 0), 0);
 
           return (
-            <HighlightStrip items={[
-              { label: 'Total Assumption %', value: `${b.saPct}%` },
-              { label: `Standard Assumptions (${batchLabel})`, value: `₹${numF(saBatchAmount, 2)}`, big: true, accent: true },
-            ]} />
+            <div className="mt-4 grid grid-cols-2 gap-3">
+              <div className="bg-slate-900 text-white rounded-lg px-4 py-3">
+                <p className="text-xs text-slate-400 mb-1">Total Assumption %</p>
+                <p className="font-bold text-lg text-white">{saPct}%</p>
+              </div>
+              <div className="bg-slate-900 text-white rounded-lg px-4 py-3">
+                <p className="text-xs text-slate-400 mb-1">Standard Assumptions</p>
+                <p className="font-bold text-lg text-amber-300">₹{numF(totalSA)}</p>
+              </div>
+            </div>
           );
         })()}
+
         {(b.saPct < 15 || b.saPct > 30) && (
           <div className="mt-3 flex items-start gap-2 text-xs bg-amber-50 dark:bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800/40 rounded-lg px-3 py-2">
             <TriangleAlert size={13} /><span>Industry range for total indirect: 15% – 30%. Adjust sliders if your total is outside this range.</span>
