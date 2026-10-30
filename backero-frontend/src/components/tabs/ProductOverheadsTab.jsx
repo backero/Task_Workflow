@@ -411,19 +411,24 @@ export default function ProductOverheadsTab({ product, form, setForm, onSaveProd
             <div className="overflow-x-auto rounded-xl border border-gray-200 dark:border-[#1b2e4a]">
               <table className="w-full text-xs">
                 <thead className="bg-gray-50 dark:bg-[#0f1a2e]">
-                  <tr>{['Item', 'Pcs', 'Rate (₹)', 'Amount (₹)', 'Optional', ''].map(h => <th key={h} className="px-3 py-2 text-left font-semibold text-gray-500">{h}</th>)}</tr>
+                  <tr>{['Item', 'Pcs', 'Rate (₹)', 'Include 18%', 'Amount (₹)', 'Optional', ''].map(h => <th key={h} className="px-3 py-2 text-left font-semibold text-gray-500">{h}</th>)}</tr>
                 </thead>
                 <tbody>
-                  {(form.packaging?.items || []).map((item, i) => (
-                    <tr key={i} className="border-t border-gray-100 dark:border-[#1b2e4a]">
-                      <td className="px-2 py-1.5"><input value={item.name} onChange={e => setForm(prev => { const it = [...(prev.packaging?.items || [])]; it[i] = { ...it[i], name: e.target.value }; return { ...prev, packaging: { ...prev.packaging, items: it } }; })} className="input text-xs w-32" /></td>
-                      <td className="px-2 py-1.5"><input type="number" value={item.qty} onChange={e => setForm(prev => { const it = [...(prev.packaging?.items || [])]; it[i] = { ...it[i], qty: Number(e.target.value) }; return { ...prev, packaging: { ...prev.packaging, items: it } }; })} className="input text-sm font-bold w-24" /></td>
-                      <td className="px-2 py-1.5"><input type="number" value={item.rate} onChange={e => setForm(prev => { const it = [...(prev.packaging?.items || [])]; it[i] = { ...it[i], rate: Number(e.target.value) }; return { ...prev, packaging: { ...prev.packaging, items: it } }; })} className="input text-xs w-20" /></td>
-                      <td className="px-2 py-1.5"><input type="number" value={item.amount || item.qty * item.rate} onChange={e => setForm(prev => { const it = [...(prev.packaging?.items || [])]; it[i] = { ...it[i], amount: Number(e.target.value) }; return { ...prev, packaging: { ...prev.packaging, items: it } }; })} className="input text-xs w-20" /></td>
-                      <td className="px-2 py-1.5"><input type="checkbox" checked={item.optional} onChange={e => setForm(prev => { const it = [...(prev.packaging?.items || [])]; it[i] = { ...it[i], optional: e.target.checked }; return { ...prev, packaging: { ...prev.packaging, items: it } }; })} className="w-4 h-4" /></td>
-                      <td className="px-2 py-1.5"><button onClick={() => setForm(prev => ({ ...prev, packaging: { ...prev.packaging, items: prev.packaging?.items?.filter((_, idx) => idx !== i) } }))} className="text-red-400 hover:text-red-600">✕</button></td>
-                    </tr>
-                  ))}
+                  {(form.packaging?.items || []).map((item, i) => {
+                    const baseAmount = item.qty * item.rate;
+                    const amount = item.gstIncluded ? baseAmount * 1.18 : baseAmount;
+                    return (
+                      <tr key={i} className="border-t border-gray-100 dark:border-[#1b2e4a]">
+                        <td className="px-2 py-1.5"><input value={item.name} onChange={e => setForm(prev => { const it = [...(prev.packaging?.items || [])]; it[i] = { ...it[i], name: e.target.value }; return { ...prev, packaging: { ...prev.packaging, items: it } }; })} className="input text-xs w-32" /></td>
+                        <td className="px-2 py-1.5"><input type="number" value={item.qty} onChange={e => setForm(prev => { const it = [...(prev.packaging?.items || [])]; it[i] = { ...it[i], qty: Number(e.target.value) }; return { ...prev, packaging: { ...prev.packaging, items: it } }; })} className="input text-sm font-bold w-24" /></td>
+                        <td className="px-2 py-1.5"><input type="number" value={item.rate} onChange={e => setForm(prev => { const it = [...(prev.packaging?.items || [])]; it[i] = { ...it[i], rate: Number(e.target.value) }; return { ...prev, packaging: { ...prev.packaging, items: it } }; })} className="input text-xs w-20" /></td>
+                        <td className="px-2 py-1.5"><input type="checkbox" checked={item.gstIncluded || false} onChange={e => setForm(prev => { const it = [...(prev.packaging?.items || [])]; it[i] = { ...it[i], gstIncluded: e.target.checked }; return { ...prev, packaging: { ...prev.packaging, items: it } }; })} className="w-4 h-4" /></td>
+                        <td className="px-2 py-1.5"><input type="text" readOnly value={numF(amount)} className="input text-xs bg-gray-50 dark:bg-[#0f1a2e] font-mono font-bold w-24" /></td>
+                        <td className="px-2 py-1.5"><input type="checkbox" checked={item.optional} onChange={e => setForm(prev => { const it = [...(prev.packaging?.items || [])]; it[i] = { ...it[i], optional: e.target.checked }; return { ...prev, packaging: { ...prev.packaging, items: it } }; })} className="w-4 h-4" /></td>
+                        <td className="px-2 py-1.5"><button onClick={() => setForm(prev => ({ ...prev, packaging: { ...prev.packaging, items: prev.packaging?.items?.filter((_, idx) => idx !== i) } }))} className="text-red-400 hover:text-red-600">✕</button></td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
@@ -433,10 +438,14 @@ export default function ProductOverheadsTab({ product, form, setForm, onSaveProd
               ))}
             </div>
             <div className="rounded-lg bg-green-50 dark:bg-green-900/10 border border-green-200 dark:border-green-800/30 px-4 py-2">
-              <p className="text-xs font-semibold text-green-700 dark:text-green-400">Total Packaging Cost: ₹{numF((form.packaging?.items || []).reduce((s, i) => s + (Number(i.amount) || Number(i.qty) * Number(i.rate) || 0), 0) + Number(form.packaging?.charges?.machine || 0) + Number(form.packaging?.charges?.other || 0))}</p>
+              <p className="text-xs font-semibold text-green-700 dark:text-green-400">Total Packaging Cost: ₹{numF((form.packaging?.items || []).reduce((s, i) => {
+                const baseAmount = Number(i.qty) * Number(i.rate) || 0;
+                const amount = i.gstIncluded ? baseAmount * 1.18 : baseAmount;
+                return s + amount;
+              }, 0) + Number(form.packaging?.charges?.machine || 0) + Number(form.packaging?.charges?.other || 0))}</p>
             </div>
             <div className="flex gap-3">
-              <button onClick={() => setForm(prev => ({ ...prev, packaging: { ...prev.packaging, items: [...(prev.packaging?.items || []), { name: '', qty: 1, rate: 0, amount: 0, optional: false }] } }))} className="btn-secondary text-sm">+ Add Item</button>
+              <button onClick={() => setForm(prev => ({ ...prev, packaging: { ...prev.packaging, items: [...(prev.packaging?.items || []), { name: '', qty: 1, rate: 0, amount: 0, optional: false, gstIncluded: false }] } }))} className="btn-secondary text-sm">+ Add Item</button>
               <button onClick={onSavePackaging} disabled={isPending} className="btn-primary text-sm disabled:opacity-50 ml-auto">{isPending ? 'Saving…' : '💾 Save Packaging'}</button>
             </div>
           </div>
@@ -473,7 +482,11 @@ export default function ProductOverheadsTab({ product, form, setForm, onSaveProd
 
           const pkgItems = form.packaging?.items || [];
           const pkgCharges = form.packaging?.charges || {};
-          const pkgCostTotal = pkgItems.reduce((s, i) => s + (Number(i.amount) || Number(i.qty) * Number(i.rate) || 0), 0) + Number(pkgCharges.machine || 0) + Number(pkgCharges.other || 0);
+          const pkgCostTotal = pkgItems.reduce((s, i) => {
+            const baseAmount = Number(i.qty) * Number(i.rate) || 0;
+            const amount = i.gstIncluded ? baseAmount * 1.18 : baseAmount;
+            return s + amount;
+          }, 0) + Number(pkgCharges.machine || 0) + Number(pkgCharges.other || 0);
 
           const subtotalBeforeMargin = totalFormCost + totalOverhead + saAmount + containersCost + pkgCostTotal;
           const marginAmount = subtotalBeforeMargin * (marginPercent / 100);
