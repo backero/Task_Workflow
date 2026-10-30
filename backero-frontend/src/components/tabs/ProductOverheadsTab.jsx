@@ -405,7 +405,16 @@ export default function ProductOverheadsTab({ product, form, setForm, onSaveProd
         <hr className="border-gray-100 dark:border-[#1b2e4a]" />
 
         <div>
-          <p className="text-sm font-bold text-gray-700 dark:text-gray-200 mb-3 flex items-center gap-1.5"><Factory size={14} />Packaging & Labeling</p>
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-sm font-bold text-gray-700 dark:text-gray-200 flex items-center gap-1.5"><Factory size={14} />Packaging & Labeling</p>
+            <div className="rounded-lg bg-green-50 dark:bg-green-900/10 border border-green-200 dark:border-green-800/30 px-4 py-2">
+              <p className="text-xs font-semibold text-green-700 dark:text-green-400">Total: ₹{numF((form.packaging?.items || []).reduce((s, i) => {
+                const baseAmount = Number(i.qty) * Number(i.rate) || 0;
+                const amount = i.gstIncluded ? baseAmount * 1.18 : baseAmount;
+                return s + amount;
+              }, 0) + Number(form.packaging?.charges?.machine || 0) + Number(form.packaging?.charges?.other || 0))}</p>
+            </div>
+          </div>
           <div className="space-y-4">
             <div className="overflow-x-auto rounded-xl border border-gray-200 dark:border-[#1b2e4a]">
               <table className="w-full text-xs">
@@ -435,13 +444,6 @@ export default function ProductOverheadsTab({ product, form, setForm, onSaveProd
               {[['machine', 'Machine Charges'], ['other', 'Other']].map(([f, label]) => (
                 <div key={f}><label className="label">{label} (₹)</label><input type="number" value={form.packaging?.charges?.[f] || 0} onChange={e => setForm(prev => ({ ...prev, packaging: { ...prev.packaging, charges: { ...prev.packaging?.charges, [f]: Number(e.target.value) } } }))} className="input" /></div>
               ))}
-            </div>
-            <div className="rounded-lg bg-green-50 dark:bg-green-900/10 border border-green-200 dark:border-green-800/30 px-4 py-2">
-              <p className="text-xs font-semibold text-green-700 dark:text-green-400">Total Packaging Cost: ₹{numF((form.packaging?.items || []).reduce((s, i) => {
-                const baseAmount = Number(i.qty) * Number(i.rate) || 0;
-                const amount = i.gstIncluded ? baseAmount * 1.18 : baseAmount;
-                return s + amount;
-              }, 0) + Number(form.packaging?.charges?.machine || 0) + Number(form.packaging?.charges?.other || 0))}</p>
             </div>
             <div className="flex gap-3">
               <button onClick={() => setForm(prev => ({ ...prev, packaging: { ...prev.packaging, items: [...(prev.packaging?.items || []), { name: '', qty: 1, rate: 0, amount: 0, optional: false, gstIncluded: false }] } }))} className="btn-secondary text-sm">+ Add Item</button>
