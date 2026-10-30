@@ -370,7 +370,7 @@ export default function ProductOverheadsTab({ product, form, setForm, onSaveProd
             <div className="overflow-x-auto rounded-xl border border-gray-200 dark:border-[#1b2e4a]">
               <table className="w-full text-xs">
                 <thead className="bg-gray-50 dark:bg-[#0f1a2e]">
-                  <tr>{['Item', 'Weight', 'Unit', 'Pcs Needed', 'Rate (₹)', 'Include 18%', 'Amount (₹)', ''].map(h => <th key={h} className="px-3 py-2 text-left font-semibold text-gray-500">{h}</th>)}</tr>
+                  <tr>{['Item', 'Weight', 'Unit', 'Pcs Needed', 'Rate (₹)', 'GST', 'Amount (₹)', ''].map(h => <th key={h} className="px-3 py-2 text-left font-semibold text-gray-500">{h}</th>)}</tr>
                 </thead>
                 <tbody>
                   {(form.containers || []).map((item, idx) => {
@@ -410,7 +410,7 @@ export default function ProductOverheadsTab({ product, form, setForm, onSaveProd
             <div className="overflow-x-auto rounded-xl border border-gray-200 dark:border-[#1b2e4a]">
               <table className="w-full text-xs">
                 <thead className="bg-gray-50 dark:bg-[#0f1a2e]">
-                  <tr>{['Item', 'Pcs', 'Rate (₹)', 'Include 18%', 'Amount (₹)', 'Optional', ''].map(h => <th key={h} className="px-3 py-2 text-left font-semibold text-gray-500">{h}</th>)}</tr>
+                  <tr>{['Item', 'Pcs', 'Rate (₹)', 'GST', 'Amount (₹)', 'Optional', ''].map(h => <th key={h} className="px-3 py-2 text-left font-semibold text-gray-500">{h}</th>)}</tr>
                 </thead>
                 <tbody>
                   {(form.packaging?.items || []).map((item, i) => {
