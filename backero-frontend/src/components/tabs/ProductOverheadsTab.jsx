@@ -30,6 +30,7 @@ export default function ProductOverheadsTab({ product, form, setForm, onSaveProd
   const [customQty, setCustomQty] = useState('');
   const [customUnit, setCustomUnit] = useState('g');
   const [customResult, setCustomResult] = useState(null);
+  const [includeRndFee, setIncludeRndFee] = useState(false);
 
   useEffect(() => {
     if (!product?.id) return;
@@ -201,6 +202,16 @@ export default function ProductOverheadsTab({ product, form, setForm, onSaveProd
     };
   };
 
+  const computeRndFeeForBatch = () => {
+    if (!selectedBatch) return 0;
+    const rnd = form.rnd || {};
+    const rndTotal = (Number(rnd.testing) || 0) + (Number(rnd.consumables) || 0) + (Number(rnd.samples) || 0) + (Number(rnd.overhead) || 0) + (Number(rnd.otherOverhead) || 0) + (Number(rnd.qc) || 0);
+    const lifecycle = rnd.lifecycle || 1000;
+    const rndPerUnit = lifecycle > 0 ? rndTotal / lifecycle : 0;
+    const batchQtyBase = convertToBaseUnit(selectedBatch, batchUnit);
+    return rndPerUnit * batchQtyBase;
+  };
+
   const computeFinalTotal = () => {
     if (!selectedBatch) return 0;
 
@@ -227,8 +238,9 @@ export default function ProductOverheadsTab({ product, form, setForm, onSaveProd
       return s + amount;
     }, 0);
     const otherCharges = Number(pkgCharges.other || 0);
+    const rndFee = includeRndFee ? computeRndFeeForBatch() : 0;
 
-    const subtotalBeforeMargin = totalFormCost + totalOverheadCost + saAmount + containersTotal + packagingTotal + otherCharges;
+    const subtotalBeforeMargin = totalFormCost + totalOverheadCost + saAmount + containersTotal + packagingTotal + otherCharges + rndFee;
     const marginAmount = subtotalBeforeMargin * (marginPercent / 100);
     return subtotalBeforeMargin + marginAmount;
   };
@@ -698,8 +710,10 @@ export default function ProductOverheadsTab({ product, form, setForm, onSaveProd
             return s + amount;
           }, 0) + Number(pkgCharges.other || 0);
 
+          const rndFeeAmount = includeRndFee ? computeRndFeeForBatch() : 0;
+
           // Calculate subtotal before margin
-          const subtotalBeforeMargin = totalFormCost + totalOverheadCost + saAmount + containersCost + pkgCostTotal;
+          const subtotalBeforeMargin = totalFormCost + totalOverheadCost + saAmount + containersCost + pkgCostTotal + rndFeeAmount;
 
           // Apply margin
           const marginAmount = subtotalBeforeMargin * (marginPercent / 100);
@@ -745,8 +759,9 @@ export default function ProductOverheadsTab({ product, form, setForm, onSaveProd
             return s + amount;
           }, 0);
           const otherCharges = Number(pkgCharges.other || 0);
+          const rndFee = includeRndFee ? computeRndFeeForBatch() : 0;
 
-          const subtotalBeforeMargin = totalFormCost + totalOverheadCost + saAmount + containersTotal + packagingTotal + otherCharges;
+          const subtotalBeforeMargin = totalFormCost + totalOverheadCost + saAmount + containersTotal + packagingTotal + otherCharges + rndFee;
           const marginAmount = subtotalBeforeMargin * (marginPercent / 100);
           const finalTotal = subtotalBeforeMargin + marginAmount;
 
@@ -758,6 +773,22 @@ export default function ProductOverheadsTab({ product, form, setForm, onSaveProd
               <div className="flex justify-between"><span className="text-gray-600 dark:text-gray-400">Containers:</span><span className="font-mono font-semibold">₹{numF(containersTotal)}</span></div>
               <div className="flex justify-between"><span className="text-gray-600 dark:text-gray-400">Packaging & Labeling:</span><span className="font-mono font-semibold">₹{numF(packagingTotal)}</span></div>
               <div className="flex justify-between"><span className="text-gray-600 dark:text-gray-400">Other Charges:</span><span className="font-mono font-semibold">₹{numF(otherCharges)}</span></div>
+              <div className="flex justify-between items-center">
+                <span className="text-gray-600 dark:text-gray-400">R&D Fee:</span>
+                <div className="flex items-center gap-2">
+                  {includeRndFee && <span className="font-mono font-semibold">₹{numF(rndFee)}</span>}
+                  <button
+                    onClick={() => setIncludeRndFee(v => !v)}
+                    className={`px-2 py-0.5 rounded text-[10px] font-semibold transition ${
+                      includeRndFee
+                        ? 'bg-red-100 dark:bg-red-500/20 text-red-600 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-500/30'
+                        : 'bg-blue-100 dark:bg-blue-500/20 text-blue-600 dark:text-blue-400 hover:bg-blue-200 dark:hover:bg-blue-500/30'
+                    }`}
+                  >
+                    {includeRndFee ? '✕ Remove' : '+ Add'}
+                  </button>
+                </div>
+              </div>
               <div className="border-t border-gray-200 dark:border-[#1b2e4a] pt-2 flex justify-between font-semibold">
                 <span className="text-gray-700 dark:text-gray-200">Subtotal:</span>
                 <span className="font-mono">₹{numF(subtotalBeforeMargin)}</span>
