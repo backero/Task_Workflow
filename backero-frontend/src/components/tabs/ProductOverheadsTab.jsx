@@ -608,6 +608,10 @@ export default function ProductOverheadsTab({ product, form, setForm, onSaveProd
             </>
           );
         })()}
+
+        <hr className="border-gray-100 dark:border-[#1b2e4a]" />
+
+        <SavedQuotes productId={product?.id} form={form} setForm={setForm} />
       </div>
 
       {/* RIGHT COLUMN: Sticky Quote Summary */}
@@ -722,10 +726,6 @@ export default function ProductOverheadsTab({ product, form, setForm, onSaveProd
           );
         })()}
         {!selectedBatch && <p className="text-xs text-gray-400">Enter batch quantity to see cost breakdown</p>}
-
-        <hr className="border-gray-200 dark:border-[#1b2e4a] my-4" />
-
-        <SavedQuotes productId={product?.id} form={form} setForm={setForm} />
       </div>
     </div>
   );
