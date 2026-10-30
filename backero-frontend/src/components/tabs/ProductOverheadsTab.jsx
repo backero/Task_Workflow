@@ -196,7 +196,11 @@ export default function ProductOverheadsTab({ product, form, setForm, onSaveProd
                 min="0"
                 step="100"
                 value={selectedBatch || ''}
-                onChange={e => setSelectedBatch(e.target.value ? Number(e.target.value) : null)}
+                onChange={e => {
+                  const val = e.target.value ? Number(e.target.value) : null;
+                  setSelectedBatch(val);
+                  setForm(prev => ({ ...prev, costing: { ...prev.costing, selectedBatch: val } }));
+                }}
                 className="input text-sm w-full"
                 placeholder="e.g., 3000, 5000, 10000"
               />

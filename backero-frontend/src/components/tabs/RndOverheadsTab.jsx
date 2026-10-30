@@ -86,19 +86,6 @@ export default function RndOverheadsTab({ product, form, setForm, onSave, isPend
   return (
     <div className="space-y-6">
       <div>
-        <label className="label text-xs">Batch Quantity for Standard Assumptions (ml/g)</label>
-        <input
-          type="number"
-          value={selectedBatch || ''}
-          onChange={e => setSelectedBatch(Number(e.target.value) || null)}
-          placeholder="e.g., 10000 for 10L"
-          className="input text-sm w-full mb-3"
-        />
-      </div>
-
-      <hr className="border-gray-100 dark:border-[#1b2e4a]" />
-
-      <div>
         <div className="mb-3">
           <p className="text-sm font-bold text-gray-700 dark:text-gray-200 flex items-center gap-1.5"><Factory size={14} />Production Overhead</p>
         </div>
@@ -128,20 +115,28 @@ export default function RndOverheadsTab({ product, form, setForm, onSave, isPend
             </div>
           ))}
         </div>
-        <div className="bg-slate-900 text-white rounded-xl px-6 py-4 mb-4 grid grid-cols-2 gap-4">
-          <div>
-            <p className="text-xs text-slate-400 mb-1">Total Assumption %</p>
-            <p className="text-lg font-bold">{b.saPct}%</p>
-          </div>
-          <div>
-            <p className="text-xs text-slate-400 mb-1">
-              {selectedBatch ? `Amount (for ${selectedBatch}ml/g)` : `Amount (per ${b.refW}ml/g)`}
-            </p>
-            <p className="text-lg font-bold text-amber-300">
-              {selectedBatch ? `₹${numF(calculateBatchCost(selectedBatch).totalSA, 2)}` : `₹${numF(b.saAmount, 2)}`}
-            </p>
-          </div>
-        </div>
+        {(() => {
+          const batchFromForm = form.costing?.selectedBatch;
+          const hasBatch = batchFromForm && batchFromForm > 0;
+          const saAmountDisplay = hasBatch ? calculateBatchCost(batchFromForm).totalSA : b.saAmount;
+
+          return (
+            <div className="bg-slate-900 text-white rounded-xl px-6 py-4 mb-4 grid grid-cols-2 gap-4">
+              <div>
+                <p className="text-xs text-slate-400 mb-1">Total Assumption %</p>
+                <p className="text-lg font-bold">{b.saPct}%</p>
+              </div>
+              <div>
+                <p className="text-xs text-slate-400 mb-1">
+                  {hasBatch ? `Amount (Batch Total)` : `Amount (per ${b.refW}ml/g)`}
+                </p>
+                <p className="text-lg font-bold text-amber-300">
+                  ₹{numF(saAmountDisplay, 2)}
+                </p>
+              </div>
+            </div>
+          );
+        })()}
         {(b.saPct < 15 || b.saPct > 30) && (
           <div className="mt-3 flex items-start gap-2 text-xs bg-amber-50 dark:bg-amber-500/10 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800/40 rounded-lg px-3 py-2">
             <TriangleAlert size={13} /><span>Industry range for total indirect: 15% – 30%. Adjust sliders if your total is outside this range.</span>
