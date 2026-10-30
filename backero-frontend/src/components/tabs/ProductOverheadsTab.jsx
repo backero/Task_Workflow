@@ -644,7 +644,16 @@ export default function ProductOverheadsTab({ product, form, setForm, onSaveProd
           )}
         </div>
 
-        <SavedQuotes productId={product?._id} form={form} setForm={setForm} currentTotal={computeFinalTotal()} />
+        <SavedQuotes
+          productId={product?._id}
+          form={form}
+          setForm={setForm}
+          currentTotal={computeFinalTotal()}
+          selectedBatch={selectedBatch}
+          batchUnit={batchUnit}
+          setSelectedBatch={setSelectedBatch}
+          setBatchUnit={setBatchUnit}
+        />
       </div>
 
       {/* RIGHT COLUMN: Sticky Quote Summary */}

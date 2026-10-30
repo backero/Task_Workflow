@@ -5,7 +5,7 @@ import api from '../api/axios';
 
 function numF(v, d = 2) { return Number(v || 0).toFixed(d); }
 
-export default function SavedQuotes({ productId, form, setForm, onLoad, currentTotal }) {
+export default function SavedQuotes({ productId, form, setForm, onLoad, currentTotal, selectedBatch, batchUnit, setSelectedBatch, setBatchUnit }) {
   const [quotes, setQuotes] = useState([]);
   const [showSaveDialog, setShowSaveDialog] = useState(false);
   const [quoteName, setQuoteName] = useState('');
@@ -50,7 +50,9 @@ export default function SavedQuotes({ productId, form, setForm, onLoad, currentT
         rnd: form.rnd,
         containers: form.containers,
         packaging: form.packaging,
-        costing: form.costing
+        costing: form.costing,
+        selectedBatch: selectedBatch,
+        batchUnit: batchUnit
       };
 
       const payload = {
@@ -100,6 +102,14 @@ export default function SavedQuotes({ productId, form, setForm, onLoad, currentT
         packaging: quoteData.data.packaging ?? prev.packaging,
         costing: quoteData.data.costing ?? prev.costing
       }));
+
+      // Restore batch quantity/unit — Complete Cost Breakdown is computed from these
+      if (quoteData.data.selectedBatch != null && setSelectedBatch) {
+        setSelectedBatch(quoteData.data.selectedBatch);
+      }
+      if (quoteData.data.batchUnit && setBatchUnit) {
+        setBatchUnit(quoteData.data.batchUnit);
+      }
 
       setTimeout(() => {
         window.scrollTo({ top: 0, behavior: 'smooth' });

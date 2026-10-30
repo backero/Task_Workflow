@@ -23,7 +23,9 @@ const SavedQuotesSchema = new mongoose.Schema(
       rnd: mongoose.Schema.Types.Mixed,
       containers: mongoose.Schema.Types.Mixed,
       packaging: mongoose.Schema.Types.Mixed,
-      costing: mongoose.Schema.Types.Mixed
+      costing: mongoose.Schema.Types.Mixed,
+      selectedBatch: mongoose.Schema.Types.Mixed,
+      batchUnit: mongoose.Schema.Types.Mixed
     },
     total: {
       type: Number,
