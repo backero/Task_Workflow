@@ -173,7 +173,8 @@ export default function ProductOverheadsTab({ product, form, setForm, onSaveProd
     }, 0);
 
     const overheadTotal = Number(po.electricity || 0) + Number(po.labor || 0) + Number(po.labTesting || 0) + Number(po.other || 0);
-    const overheadPerUnit = refWInBaseUnit > 0 ? overheadTotal / refWInBaseUnit : 0;
+    const units = refWInBaseUnit > 0 ? batchQtyInBaseUnit / refWInBaseUnit : 0;
+    const overheadPerUnit = units > 0 ? overheadTotal / units : 0;
 
     const saPct = [sa.equipmentPct, sa.consumablesPct, sa.storagePct, sa.housekeepingPct, sa.adminPct, sa.wastagePct].reduce((s, v) => s + (Number(v) || 0), 0);
 
@@ -181,9 +182,8 @@ export default function ProductOverheadsTab({ product, form, setForm, onSaveProd
     const rndTotal = (Number(rnd.testing) || 0) + (Number(rnd.consumables) || 0) + (Number(rnd.samples) || 0) + (Number(rnd.overhead) || 0) + (Number(rnd.otherOverhead) || 0) + (Number(rnd.qc) || 0);
     const rndPerUnit = lifecycle > 0 ? rndTotal / lifecycle : 0;
 
-    const units = refWInBaseUnit > 0 ? batchQtyInBaseUnit / refWInBaseUnit : 0;
     const totalFormCostForBatch = formCost * units;
-    const totalOverheadCost = overheadTotal * units;
+    const totalOverheadCost = overheadTotal;
     const saAmount = (totalFormCostForBatch + totalOverheadCost) * (saPct / 100);
 
     return {
@@ -361,7 +361,7 @@ export default function ProductOverheadsTab({ product, form, setForm, onSaveProd
 
         <div>
           <div className="flex items-center justify-between mb-3">
-            <p className="text-sm font-bold text-gray-700 dark:text-gray-200 flex items-center gap-1.5"><Factory size={14} />Containers & Labeling</p>
+            <p className="text-sm font-bold text-gray-700 dark:text-gray-200 flex items-center gap-1.5"><Factory size={14} />Containers</p>
             <div className="rounded-lg bg-slate-900 text-white px-4 py-2">
               <p className="text-xs font-semibold">Total: ₹{selectedBatch ? numF((form.containers || []).reduce((s, item) => {
                 const batchQtyInBaseUnit = selectedBatch ? convertToBaseUnit(selectedBatch, batchUnit) : 0;
@@ -825,7 +825,7 @@ export default function ProductOverheadsTab({ product, form, setForm, onSaveProd
               <div className="flex justify-between"><span className="text-gray-600 dark:text-gray-400">Formulation:</span><span className="font-mono font-semibold">₹{numF(totalFormCost)}</span></div>
               <div className="flex justify-between"><span className="text-gray-600 dark:text-gray-400">Production Overhead:</span><span className="font-mono font-semibold">₹{numF(totalOverheadCost)}</span></div>
               <div className="flex justify-between"><span className="text-gray-600 dark:text-gray-400">Standard Assumptions:</span><span className="font-mono font-semibold">₹{numF(saAmount)}</span></div>
-              <div className="flex justify-between"><span className="text-gray-600 dark:text-gray-400">Containers & Labeling:</span><span className="font-mono font-semibold">₹{numF(containersTotal)}</span></div>
+              <div className="flex justify-between"><span className="text-gray-600 dark:text-gray-400">Containers:</span><span className="font-mono font-semibold">₹{numF(containersTotal)}</span></div>
               <div className="flex justify-between"><span className="text-gray-600 dark:text-gray-400">Packaging & Labeling:</span><span className="font-mono font-semibold">₹{numF(packagingTotal)}</span></div>
               <div className="border-t border-gray-200 dark:border-[#1b2e4a] pt-2 flex justify-between font-semibold">
                 <span className="text-gray-700 dark:text-gray-200">Subtotal:</span>

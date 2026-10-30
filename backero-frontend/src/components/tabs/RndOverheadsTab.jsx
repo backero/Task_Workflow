@@ -17,7 +17,7 @@ function calcOverheadBreakdown(p) {
   }, 0);
 
   const overheadTotal = Number(po.electricity || 0) + Number(po.labor || 0) + Number(po.labTesting || 0) + Number(po.other || 0);
-  const overheadPerUnit = refW > 0 ? overheadTotal / refW : 0;
+  const overheadPerUnit = refW > 0 ? overheadTotal / 100 : 0;
 
   const saPct = [sa.equipmentPct, sa.consumablesPct, sa.storagePct, sa.housekeepingPct, sa.adminPct, sa.wastagePct].reduce((s, v) => s + (Number(v) || 0), 0);
   const saAmount = (formCost + overheadPerUnit) * (saPct / 100);
@@ -76,15 +76,15 @@ export default function RndOverheadsTab({ product, form, setForm, onSave, isPend
     <div className="space-y-6">
       <div>
         <div className="mb-3">
-          <p className="text-sm font-bold text-gray-700 dark:text-gray-200 flex items-center gap-1.5"><Factory size={14} />Production Overhead</p>
+          <p className="text-sm font-bold text-gray-700 dark:text-gray-200 flex items-center gap-1.5"><Factory size={14} />Production Overhead (For Entire Batch)</p>
         </div>
         <div className="grid grid-cols-2 gap-3 mb-4">
           {[['electricity', 'Electricity (₹)'], ['labor', 'Production Labor (₹)'], ['labTesting', 'Lab Testing Cost (₹)'], ['other', 'Other Production Overhead (₹)']].map(([f, label]) => (
-            <div key={f}><label className="label">{label}</label><input type="number" min="0" step="0.01" value={po[f] || 0} onChange={e => setPO(f, Number(e.target.value))} className="input text-xs w-full" /></div>
+            <div key={f}><label className="label">{label} <span className="text-xs text-gray-400">batch</span></label><input type="number" min="0" step="0.01" value={po[f] || 0} onChange={e => setPO(f, Number(e.target.value))} className="input text-xs w-full" placeholder="e.g., 40" /></div>
           ))}
         </div>
         <HighlightStrip items={[
-          { label: 'Total Production Overhead', value: `₹${numF(b.overheadTotal)}` },
+          { label: 'Total Production Overhead (Batch)', value: `₹${numF(b.overheadTotal)}` },
         ]} />
       </div>
 
