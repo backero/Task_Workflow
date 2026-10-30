@@ -611,7 +611,7 @@ export default function ProductOverheadsTab({ product, form, setForm, onSaveProd
 
         <hr className="border-gray-100 dark:border-[#1b2e4a]" />
 
-        <SavedQuotes productId={product?.id} form={form} setForm={setForm} />
+        <SavedQuotes productId={product?.id} form={form} setForm={setForm} selectedBatch={selectedBatch} batchUnit={batchUnit} />
       </div>
 
       {/* RIGHT COLUMN: Sticky Quote Summary */}
