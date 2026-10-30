@@ -9,8 +9,9 @@ export default function SavedQuotes({ productId, form, setForm, onLoad }) {
   const [showSaveDialog, setShowSaveDialog] = useState(false);
   const [quoteName, setQuoteName] = useState('');
 
-  // Use a fallback key if productId is undefined
+  // Use a fallback key if productId is undefined (productId should be product._id)
   const storageKey = `quotes_${productId || 'default'}`;
+  console.log('SavedQuotes: productId=', productId, 'storageKey=', storageKey);
 
   useEffect(() => {
     const savedQuotes = localStorage.getItem(storageKey);
