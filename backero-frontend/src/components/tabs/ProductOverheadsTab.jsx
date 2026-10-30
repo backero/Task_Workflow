@@ -353,50 +353,53 @@ export default function ProductOverheadsTab({ product, form, setForm, onSaveProd
         <hr className="border-gray-100 dark:border-[#1b2e4a]" />
 
         <div>
-          <p className="text-sm font-bold text-gray-700 dark:text-gray-200 mb-4 flex items-center gap-1.5"><Factory size={14} />Containers & Labeling</p>
-          {!selectedBatch && <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-500/10 text-blue-700 dark:text-blue-300 rounded-lg text-xs border border-blue-200 dark:border-blue-800"><strong>Note:</strong> Enter a batch quantity above to calculate Pcs Needed and costs</div>}
-          <div className="space-y-3">
-            {(form.containers || []).map((item, idx) => {
-              const batchQtyInBaseUnit = selectedBatch ? convertToBaseUnit(selectedBatch, batchUnit) : 0;
-              const containerWeightInBaseUnit = convertToBaseUnit(Number(item.weight) || 0, item.unit || 'g');
-              const costPerPiece = Number(item.costPerPiece) || 0;
-              const unitsNeeded = containerWeightInBaseUnit > 0 ? batchQtyInBaseUnit / containerWeightInBaseUnit : 0;
-              const amount = unitsNeeded * costPerPiece;
-              const amountWithGST = showContainerGST ? amount * 1.18 : amount;
-              return (
-                <div key={idx} className="space-y-2 border border-gray-200 dark:border-[#1b2e4a] rounded-lg p-3">
-                  <div className="flex gap-3">
-                    <div className="flex-1"><label className="label text-xs">Item Name</label><input type="text" value={item.name || ''} onChange={e => { const c = [...(form.containers || [])]; c[idx].name = e.target.value; setForm(f => ({ ...f, containers: c })); }} className="input text-xs w-full" placeholder="e.g., Bottle, Label, Cap" /></div>
-                  </div>
-                  <div className="flex gap-3">
-                    <div className="flex-1"><label className="label text-xs">Weight of One Container</label><input type="number" step="0.1" value={item.weight || ''} onChange={e => { const c = [...(form.containers || [])]; c[idx].weight = Number(e.target.value) || 0; setForm(f => ({ ...f, containers: c })); }} className="input text-xs w-full" placeholder="e.g., 5, 0.5, 250" /></div>
-                    <div className="w-20"><label className="label text-xs">Unit</label><select value={item.unit || 'g'} onChange={e => { const c = [...(form.containers || [])]; c[idx].unit = e.target.value; setForm(f => ({ ...f, containers: c })); }} className="input text-xs w-full"><option value="g">g</option><option value="kg">kg</option><option value="ml">ml</option><option value="L">L</option></select></div>
-                    <div className="w-20"><label className="label text-xs">Pcs Needed</label><input type="text" readOnly value={selectedBatch ? numF(unitsNeeded, 0) : '—'} className="input text-xs bg-amber-50 dark:bg-amber-500/10 font-mono font-bold text-amber-700 dark:text-amber-300" /></div>
-                  </div>
-                  <div className="flex gap-3">
-                    <div className="flex-1"><label className="label text-xs">Cost per Piece (₹)</label><input type="number" step="0.01" value={item.costPerPiece || ''} onChange={e => { const c = [...(form.containers || [])]; c[idx].costPerPiece = Number(e.target.value) || 0; setForm(f => ({ ...f, containers: c })); }} className="input text-xs w-full" placeholder="₹ per piece" /></div>
-                    <div className="w-28"><label className="label text-xs">Total ({selectedBatch ? batchUnit : '—'})</label><input type="text" readOnly value={selectedBatch ? numF(amountWithGST) : '—'} className="input text-xs bg-gray-50 dark:bg-[#0f1a2e] font-mono font-bold" /></div>
-                    <button onClick={() => setForm(f => ({ ...f, containers: (f.containers || []).filter((_, i) => i !== idx) }))} className="text-red-500 hover:text-red-700">✕</button>
-                  </div>
-                </div>
-              );
-            })}
-            <button onClick={() => setForm(f => ({ ...f, containers: [...(f.containers || []), { name: '', weight: 0, unit: 'g', costPerPiece: 0 }] }))} className="btn-secondary text-sm w-full">+ Add Container Item</button>
-          </div>
-          <div className="flex items-center gap-2 mt-3 p-2 bg-gray-50 dark:bg-[#0f1a2e] rounded">
-            <input type="checkbox" checked={showContainerGST} onChange={e => setShowContainerGST(e.target.checked)} id="containerGST" className="w-4 h-4" />
-            <label htmlFor="containerGST" className="text-xs font-semibold text-gray-700 dark:text-gray-200 cursor-pointer">Include GST (18%)</label>
-          </div>
-          <div className="mt-3 p-3 bg-slate-900 text-white rounded-lg text-sm font-bold flex justify-between">
-            <span>Total Containers Cost:</span>
-            <span>₹{selectedBatch ? numF((form.containers || []).reduce((s, item) => {
-              const batchQtyInBaseUnit = convertToBaseUnit(selectedBatch, batchUnit);
-              const containerWeightInBaseUnit = convertToBaseUnit(Number(item.weight) || 0, item.unit || 'g');
-              const costPerPiece = Number(item.costPerPiece) || 0;
-              const unitsNeeded = containerWeightInBaseUnit > 0 ? batchQtyInBaseUnit / containerWeightInBaseUnit : 0;
-              const itemCost = unitsNeeded * costPerPiece * (showContainerGST ? 1.18 : 1);
-              return s + itemCost;
-            }, 0)) : '—'}</span>
+          <p className="text-sm font-bold text-gray-700 dark:text-gray-200 mb-3 flex items-center gap-1.5"><Factory size={14} />Containers & Labeling</p>
+          <div className="space-y-4">
+            <div className="overflow-x-auto rounded-xl border border-gray-200 dark:border-[#1b2e4a]">
+              <table className="w-full text-xs">
+                <thead className="bg-gray-50 dark:bg-[#0f1a2e]">
+                  <tr>{['Item', 'Weight', 'Unit', 'Pcs Needed', 'Rate (₹)', 'Amount (₹)', ''].map(h => <th key={h} className="px-3 py-2 text-left font-semibold text-gray-500">{h}</th>)}</tr>
+                </thead>
+                <tbody>
+                  {(form.containers || []).map((item, idx) => {
+                    const batchQtyInBaseUnit = selectedBatch ? convertToBaseUnit(selectedBatch, batchUnit) : 0;
+                    const containerWeightInBaseUnit = convertToBaseUnit(Number(item.weight) || 0, item.unit || 'g');
+                    const costPerPiece = Number(item.costPerPiece) || 0;
+                    const unitsNeeded = containerWeightInBaseUnit > 0 ? batchQtyInBaseUnit / containerWeightInBaseUnit : 0;
+                    const amount = unitsNeeded * costPerPiece * (showContainerGST ? 1.18 : 1);
+                    return (
+                      <tr key={idx} className="border-t border-gray-100 dark:border-[#1b2e4a]">
+                        <td className="px-2 py-1.5"><input value={item.name} onChange={e => { const c = [...(form.containers || [])]; c[idx].name = e.target.value; setForm(f => ({ ...f, containers: c })); }} className="input text-xs w-32" placeholder="e.g., Bottle" /></td>
+                        <td className="px-2 py-1.5"><input type="number" step="0.1" value={item.weight || ''} onChange={e => { const c = [...(form.containers || [])]; c[idx].weight = Number(e.target.value) || 0; setForm(f => ({ ...f, containers: c })); }} className="input text-xs w-20" /></td>
+                        <td className="px-2 py-1.5"><select value={item.unit || 'g'} onChange={e => { const c = [...(form.containers || [])]; c[idx].unit = e.target.value; setForm(f => ({ ...f, containers: c })); }} className="input text-xs w-16"><option value="g">g</option><option value="kg">kg</option><option value="ml">ml</option><option value="L">L</option></select></td>
+                        <td className="px-2 py-1.5"><input type="text" readOnly value={selectedBatch ? numF(unitsNeeded, 0) : '—'} className="input text-xs bg-amber-50 dark:bg-amber-500/10 font-mono font-bold text-amber-700 dark:text-amber-300 w-20" /></td>
+                        <td className="px-2 py-1.5"><input type="number" step="0.01" value={item.costPerPiece || ''} onChange={e => { const c = [...(form.containers || [])]; c[idx].costPerPiece = Number(e.target.value) || 0; setForm(f => ({ ...f, containers: c })); }} className="input text-xs w-20" /></td>
+                        <td className="px-2 py-1.5"><input type="text" readOnly value={selectedBatch ? numF(amount) : '—'} className="input text-xs bg-gray-50 dark:bg-[#0f1a2e] font-mono font-bold w-24" /></td>
+                        <td className="px-2 py-1.5"><button onClick={() => setForm(f => ({ ...f, containers: (f.containers || []).filter((_, i) => i !== idx) }))} className="text-red-400 hover:text-red-600">✕</button></td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+            <div className="flex items-center gap-2 p-2 bg-gray-50 dark:bg-[#0f1a2e] rounded">
+              <input type="checkbox" checked={showContainerGST} onChange={e => setShowContainerGST(e.target.checked)} id="containerGST" className="w-4 h-4" />
+              <label htmlFor="containerGST" className="text-xs font-semibold text-gray-700 dark:text-gray-200 cursor-pointer">Include GST (18%)</label>
+            </div>
+            <div className="rounded-lg bg-slate-900 text-white px-4 py-2">
+              <p className="text-xs font-semibold">Total Containers Cost: ₹{selectedBatch ? numF((form.containers || []).reduce((s, item) => {
+                const batchQtyInBaseUnit = convertToBaseUnit(selectedBatch, batchUnit);
+                const containerWeightInBaseUnit = convertToBaseUnit(Number(item.weight) || 0, item.unit || 'g');
+                const costPerPiece = Number(item.costPerPiece) || 0;
+                const unitsNeeded = containerWeightInBaseUnit > 0 ? batchQtyInBaseUnit / containerWeightInBaseUnit : 0;
+                const itemCost = unitsNeeded * costPerPiece * (showContainerGST ? 1.18 : 1);
+                return s + itemCost;
+              }, 0)) : '—'}</p>
+            </div>
+            <div className="flex gap-3">
+              <button onClick={() => setForm(f => ({ ...f, containers: [...(f.containers || []), { name: '', weight: 0, unit: 'g', costPerPiece: 0 }] }))} className="btn-secondary text-sm">+ Add Container</button>
+              <button onClick={onSaveProductionOverheads} disabled={isPending} className="btn-primary text-sm disabled:opacity-50 ml-auto">{isPending ? 'Saving…' : '💾 Save Containers'}</button>
+            </div>
           </div>
         </div>
 
