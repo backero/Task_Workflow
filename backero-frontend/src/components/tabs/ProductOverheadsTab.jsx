@@ -568,46 +568,6 @@ export default function ProductOverheadsTab({ product, form, setForm, onSaveProd
                   </div>
 
                 </div>
-
-                <p className="text-sm font-bold text-gray-700 dark:text-gray-200 mb-3">Cost Summary</p>
-                <div className="rounded-lg border border-gray-200 dark:border-[#1b2e4a] overflow-hidden">
-                  <table className="w-full text-sm">
-                    <tbody>
-                      <tr className="border-b border-gray-200 dark:border-[#1b2e4a]">
-                        <td className="px-4 py-2.5 text-gray-700 dark:text-gray-300">Formulation</td>
-                        <td className="px-4 py-2.5 text-right font-mono font-bold text-gray-900 dark:text-white">₹{numF(totalFormCost, 2)}</td>
-                      </tr>
-                      <tr className="border-b border-gray-200 dark:border-[#1b2e4a]">
-                        <td className="px-4 py-2.5 text-gray-700 dark:text-gray-300">Production Overhead</td>
-                        <td className="px-4 py-2.5 text-right font-mono font-bold text-gray-900 dark:text-white">₹{numF(totalOverheadCost, 2)}</td>
-                      </tr>
-                      <tr className="border-b border-gray-200 dark:border-[#1b2e4a]">
-                        <td className="px-4 py-2.5 text-gray-700 dark:text-gray-300">Standard Assumptions</td>
-                        <td className="px-4 py-2.5 text-right font-mono font-bold text-gray-900 dark:text-white">₹{numF(saAmount, 2)}</td>
-                      </tr>
-                      <tr className="border-b border-gray-200 dark:border-[#1b2e4a]">
-                        <td className="px-4 py-2.5 text-gray-700 dark:text-gray-300">Containers & Labeling</td>
-                        <td className="px-4 py-2.5 text-right font-mono font-bold text-gray-900 dark:text-white">₹{numF(containersCost, 2)}</td>
-                      </tr>
-                      <tr className="border-b border-gray-200 dark:border-[#1b2e4a]">
-                        <td className="px-4 py-2.5 text-gray-700 dark:text-gray-300">Packaging & Labeling</td>
-                        <td className="px-4 py-2.5 text-right font-mono font-bold text-gray-900 dark:text-white">₹{numF(pkgCostTotal, 2)}</td>
-                      </tr>
-                      <tr className="border-b border-gray-200 dark:border-[#1b2e4a] bg-amber-50 dark:bg-amber-500/10">
-                        <td className="px-4 py-2.5 font-semibold text-amber-700 dark:text-amber-300">Subtotal (Before Margin)</td>
-                        <td className="px-4 py-2.5 text-right font-mono font-bold text-amber-700 dark:text-amber-300">₹{numF(subtotalBeforeMargin, 2)}</td>
-                      </tr>
-                      <tr className="bg-slate-900 text-white">
-                        <td className="px-4 py-3 font-bold">Margin (B2B {marginPercent}%)</td>
-                        <td className="px-4 py-3 text-right font-mono font-bold">₹{numF(marginAmount, 2)}</td>
-                      </tr>
-                      <tr className="bg-slate-900 text-white">
-                        <td className="px-4 py-3 font-bold">FINAL TOTAL</td>
-                        <td className="px-4 py-3 text-right font-mono font-bold text-amber-300 text-lg">₹{numF(finalAmount, 2)}</td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
               </div>
 
             </>
