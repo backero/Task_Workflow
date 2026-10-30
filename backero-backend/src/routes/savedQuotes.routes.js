@@ -1,13 +1,17 @@
 const express = require('express');
 const router = express.Router();
 const SavedQuotes = require('../models/SavedQuotes');
+const { authenticate } = require('../middleware/auth.middleware');
+const { orgIsolation } = require('../middleware/orgIsolation.middleware');
+
+router.use(authenticate, orgIsolation);
 
 // Get all quotes for a product
 router.get('/:productId', async (req, res) => {
   try {
     const { productId } = req.params;
 
-    const quotes = await SavedQuotes.find({ productId })
+    const quotes = await SavedQuotes.find({ productId, organizationId: req.orgId })
       .sort({ createdAt: -1 })
       .lean();
 
@@ -32,7 +36,8 @@ router.get('/:productId/:quoteId', async (req, res) => {
 
     const quote = await SavedQuotes.findOne({
       _id: quoteId,
-      productId
+      productId,
+      organizationId: req.orgId
     }).lean();
 
     if (!quote) {
@@ -74,7 +79,9 @@ router.post('/:productId', async (req, res) => {
       name,
       date: date || new Date().toLocaleDateString('en-IN'),
       data,
-      total: total || 0
+      total: total || 0,
+      organizationId: req.orgId,
+      createdBy: req.user._id
     });
 
     const savedQuote = await newQuote.save();
@@ -103,7 +110,8 @@ router.delete('/:productId/:quoteId', async (req, res) => {
 
     const deletedQuote = await SavedQuotes.findOneAndDelete({
       _id: quoteId,
-      productId
+      productId,
+      organizationId: req.orgId
     });
 
     if (!deletedQuote) {

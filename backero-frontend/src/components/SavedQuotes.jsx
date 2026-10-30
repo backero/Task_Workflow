@@ -1,125 +1,153 @@
 import React, { useState, useEffect } from 'react';
 import { Save, Copy, Trash2, FolderOpen, X } from 'lucide-react';
 import toast from 'react-hot-toast';
+import api from '../api/axios';
 
 function numF(v, d = 2) { return Number(v || 0).toFixed(d); }
 
-export default function SavedQuotes({ productId, form, setForm, onLoad }) {
+export default function SavedQuotes({ productId, form, setForm, onLoad, currentTotal }) {
   const [quotes, setQuotes] = useState([]);
   const [showSaveDialog, setShowSaveDialog] = useState(false);
   const [quoteName, setQuoteName] = useState('');
-
-  const storageKey = `quotes_${productId || 'default'}`;
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    loadQuotesFromStorage();
-  }, [storageKey]);
+    if (!productId) return;
+    fetchQuotes();
+  }, [productId]);
 
-  const loadQuotesFromStorage = () => {
+  const fetchQuotes = async () => {
     try {
-      const saved = localStorage.getItem(storageKey);
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        console.log('Loaded quotes from storage:', parsed);
-        setQuotes(parsed);
-      }
-    } catch (e) {
-      console.error('Failed to load quotes:', e);
+      setLoading(true);
+      const res = await api.get(`/saved-quotes/${productId}`);
+      console.log('Fetched quotes from database:', res.data.quotes);
+      setQuotes(res.data.quotes || []);
+    } catch (error) {
+      console.error('Failed to fetch quotes from database:', error);
+      toast.error('Failed to load saved quotes');
+    } finally {
+      setLoading(false);
     }
   };
 
-  const saveQuote = () => {
+  const saveQuote = async () => {
     if (!quoteName.trim()) {
       toast.error('Please enter a quote name');
       return;
     }
+    if (!productId) {
+      toast.error('Save the product first before saving a quote');
+      return;
+    }
 
     try {
-      // Save entire form as-is for complete restoration
-      const newQuote = {
-        id: Date.now(),
-        name: quoteName,
-        date: new Date().toLocaleDateString('en-IN'),
-        data: JSON.parse(JSON.stringify(form)),  // Deep copy of entire form
-        total: form.costing?.totalFinalCost || 0  // Use actual final cost from form
+      setLoading(true);
+
+      const formOnlyData = {
+        formulation: form.formulation,
+        productionOverhead: form.productionOverhead,
+        standardAssumptions: form.standardAssumptions,
+        rnd: form.rnd,
+        containers: form.containers,
+        packaging: form.packaging,
+        costing: form.costing
       };
 
-      console.log('Saving quote:', newQuote);
+      const payload = {
+        name: quoteName,
+        date: new Date().toLocaleDateString('en-IN'),
+        data: formOnlyData,
+        total: currentTotal || 0
+      };
 
-      const updated = [...quotes, newQuote];
-      setQuotes(updated);
-      localStorage.setItem(storageKey, JSON.stringify(updated));
+      console.log('Saving quote to database:', payload);
 
+      const res = await api.post(`/saved-quotes/${productId}`, payload);
+      console.log('Quote saved:', res.data.quote);
+
+      setQuotes(prev => [res.data.quote, ...prev]);
       setQuoteName('');
       setShowSaveDialog(false);
       toast.success('✓ Quote saved: ' + quoteName);
     } catch (error) {
       console.error('Error saving quote:', error);
       toast.error('Failed to save quote');
+    } finally {
+      setLoading(false);
     }
   };
 
-  const loadQuote = (quote) => {
+  const loadQuote = async (quote) => {
     try {
       console.log('=== LOADING QUOTE ===', quote.name);
-      console.log('Quote data:', quote.data);
 
-      if (!quote.data) {
+      const res = await api.get(`/saved-quotes/${productId}/${quote._id}`);
+      const quoteData = res.data.quote;
+      console.log('Quote data fetched from database:', quoteData.data);
+
+      if (!quoteData.data) {
         toast.error('Quote data is corrupted');
         return;
       }
 
-      // Deep copy the loaded data
-      const loadedData = JSON.parse(JSON.stringify(quote.data));
-      console.log('Setting form to:', loadedData);
-
-      // Use function form of setForm to ensure proper state update
-      setForm(() => loadedData);
+      setForm(prev => ({
+        ...prev,
+        formulation: quoteData.data.formulation ?? prev.formulation,
+        productionOverhead: quoteData.data.productionOverhead ?? prev.productionOverhead,
+        standardAssumptions: quoteData.data.standardAssumptions ?? prev.standardAssumptions,
+        rnd: quoteData.data.rnd ?? prev.rnd,
+        containers: quoteData.data.containers ?? prev.containers,
+        packaging: quoteData.data.packaging ?? prev.packaging,
+        costing: quoteData.data.costing ?? prev.costing
+      }));
 
       setTimeout(() => {
         window.scrollTo({ top: 0, behavior: 'smooth' });
-        console.log('Scrolled to top');
       }, 50);
 
       if (onLoad) onLoad();
       toast.success(`✓ Loaded: ${quote.name}`);
-      console.log('Toast shown');
     } catch (e) {
       console.error('Error loading quote:', e);
       toast.error('Failed to load quote');
     }
   };
 
-  const copyQuote = (quote) => {
+  const copyQuote = async (quote) => {
     try {
-      const copied = {
-        ...quote,
-        id: Date.now(),
+      setLoading(true);
+
+      const payload = {
         name: `${quote.name} (Copy)`,
-        date: new Date().toLocaleDateString('en-IN')
+        date: new Date().toLocaleDateString('en-IN'),
+        data: quote.data,
+        total: quote.total
       };
 
-      const updated = [...quotes, copied];
-      setQuotes(updated);
-      localStorage.setItem(storageKey, JSON.stringify(updated));
+      const res = await api.post(`/saved-quotes/${productId}`, payload);
+      setQuotes(prev => [res.data.quote, ...prev]);
       toast.success('✓ Quote copied');
     } catch (error) {
       console.error('Error copying quote:', error);
       toast.error('Failed to copy quote');
+    } finally {
+      setLoading(false);
     }
   };
 
-  const deleteQuote = (id) => {
+  const deleteQuote = async (quoteId) => {
     if (!window.confirm('Delete this quote?')) return;
 
     try {
-      const updated = quotes.filter(q => q.id !== id);
-      setQuotes(updated);
-      localStorage.setItem(storageKey, JSON.stringify(updated));
+      setLoading(true);
+      await api.delete(`/saved-quotes/${productId}/${quoteId}`);
+      setQuotes(prev => prev.filter(q => q._id !== quoteId));
       toast.success('✓ Quote deleted');
     } catch (error) {
       console.error('Error deleting quote:', error);
       toast.error('Failed to delete quote');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -136,6 +164,7 @@ export default function SavedQuotes({ productId, form, setForm, onLoad }) {
             {quotes.length} saved
           </span>
         )}
+        {loading && <span className="text-xs text-blue-500">Loading...</span>}
       </div>
 
       {/* Save Dialog */}
@@ -158,7 +187,7 @@ export default function SavedQuotes({ productId, form, setForm, onLoad }) {
               autoFocus
             />
             <div className="flex gap-2">
-              <button onClick={saveQuote} className="flex-1 px-4 py-2 bg-emerald-500 text-white rounded-lg font-semibold hover:bg-emerald-600">
+              <button onClick={saveQuote} disabled={loading} className="flex-1 px-4 py-2 bg-emerald-500 text-white rounded-lg font-semibold hover:bg-emerald-600 disabled:bg-gray-400">
                 Save
               </button>
               <button onClick={() => setShowSaveDialog(false)} className="flex-1 px-4 py-2 bg-gray-200 dark:bg-[#1b2e4a] text-gray-900 dark:text-white rounded-lg font-semibold hover:bg-gray-300">
@@ -184,7 +213,7 @@ export default function SavedQuotes({ productId, form, setForm, onLoad }) {
             <tbody>
               {quotes.map((quote, idx) => (
                 <tr
-                  key={quote.id}
+                  key={quote._id}
                   className={`border-t border-gray-100 dark:border-[#1b2e4a] hover:bg-gray-50 dark:hover:bg-[#0f1a2e]/50 transition ${
                     idx % 2 === 0 ? 'bg-white dark:bg-[#1a2a3a]/50' : 'bg-gray-50 dark:bg-[#0f1a2e]'
                   }`}
@@ -200,21 +229,24 @@ export default function SavedQuotes({ productId, form, setForm, onLoad }) {
                     <div className="flex gap-2 justify-center">
                       <button
                         onClick={() => loadQuote(quote)}
-                        className="p-1.5 rounded hover:bg-blue-100 dark:hover:bg-blue-500/20 text-blue-600 dark:text-blue-400 transition"
+                        disabled={loading}
+                        className="p-1.5 rounded hover:bg-blue-100 dark:hover:bg-blue-500/20 text-blue-600 dark:text-blue-400 transition disabled:opacity-50"
                         title="Load Quote"
                       >
                         <FolderOpen size={14} />
                       </button>
                       <button
                         onClick={() => copyQuote(quote)}
-                        className="p-1.5 rounded hover:bg-green-100 dark:hover:bg-green-500/20 text-green-600 dark:text-green-400 transition"
+                        disabled={loading}
+                        className="p-1.5 rounded hover:bg-green-100 dark:hover:bg-green-500/20 text-green-600 dark:text-green-400 transition disabled:opacity-50"
                         title="Copy"
                       >
                         <Copy size={14} />
                       </button>
                       <button
-                        onClick={() => deleteQuote(quote.id)}
-                        className="p-1.5 rounded hover:bg-red-100 dark:hover:bg-red-500/20 text-red-600 dark:text-red-400 transition"
+                        onClick={() => deleteQuote(quote._id)}
+                        disabled={loading}
+                        className="p-1.5 rounded hover:bg-red-100 dark:hover:bg-red-500/20 text-red-600 dark:text-red-400 transition disabled:opacity-50"
                         title="Delete"
                       >
                         <Trash2 size={14} />
@@ -236,7 +268,8 @@ export default function SavedQuotes({ productId, form, setForm, onLoad }) {
       {/* Save Quote Button at Bottom */}
       <button
         onClick={() => setShowSaveDialog(true)}
-        className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white text-sm font-semibold transition"
+        disabled={loading}
+        className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white text-sm font-semibold transition disabled:bg-gray-400"
       >
         <Save size={16} /> Save Quote
       </button>

@@ -198,6 +198,38 @@ export default function ProductOverheadsTab({ product, form, setForm, onSaveProd
     };
   };
 
+  const computeFinalTotal = () => {
+    if (!selectedBatch) return 0;
+
+    const batchCost = calculateBatchCost(selectedBatch, batchUnit);
+    const totalFormCost = batchCost.totalFormCost || 0;
+    const totalOverheadCost = batchCost.totalOverheadCost || 0;
+    const saAmount = batchCost.saAmount || 0;
+
+    const containersTotal = (form.containers || []).reduce((s, item) => {
+      const batchQtyBase = convertToBaseUnit(selectedBatch, batchUnit);
+      const containerWtBase = convertToBaseUnit(Number(item.weight) || 0, item.unit || 'g');
+      const pcsNeeded = containerWtBase > 0 ? Math.round(batchQtyBase / containerWtBase) : 0;
+      const costPerPiece = Number(item.costPerPiece) || 0;
+      const baseAmount = pcsNeeded * costPerPiece;
+      const amount = item.gstIncluded ? baseAmount * 1.18 : baseAmount;
+      return s + amount;
+    }, 0);
+
+    const pkgItems = form.packaging?.items || [];
+    const pkgCharges = form.packaging?.charges || {};
+    const packagingTotal = pkgItems.reduce((s, i) => {
+      const baseAmount = Number(i.qty) * Number(i.rate) || 0;
+      const amount = i.gstIncluded ? baseAmount * 1.18 : baseAmount;
+      return s + amount;
+    }, 0);
+    const otherCharges = Number(pkgCharges.other || 0);
+
+    const subtotalBeforeMargin = totalFormCost + totalOverheadCost + saAmount + containersTotal + packagingTotal + otherCharges;
+    const marginAmount = subtotalBeforeMargin * (marginPercent / 100);
+    return subtotalBeforeMargin + marginAmount;
+  };
+
   const calculateQuoteSummary = () => {
     const b = { ...product, ...form };
     const fm = b.formulation || {};
@@ -612,7 +644,7 @@ export default function ProductOverheadsTab({ product, form, setForm, onSaveProd
           )}
         </div>
 
-        <SavedQuotes productId={product?._id} form={form} setForm={setForm} />
+        <SavedQuotes productId={product?._id} form={form} setForm={setForm} currentTotal={computeFinalTotal()} />
       </div>
 
       {/* RIGHT COLUMN: Sticky Quote Summary */}
