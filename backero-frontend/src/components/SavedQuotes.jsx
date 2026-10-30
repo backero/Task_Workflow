@@ -147,25 +147,17 @@ export default function SavedQuotes({ productId, form, setForm, onLoad }) {
 
   return (
     <div className="space-y-4 w-full">
-      {/* Header with Save Button */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
-            <Save size={16} className="text-blue-600 dark:text-blue-400" />
-          </div>
-          <h3 className="text-sm font-bold text-gray-900 dark:text-white">Saved Quotes</h3>
-          {quotes.length > 0 && (
-            <span className="text-xs font-semibold text-gray-500 dark:text-gray-400">
-              {quotes.length} saved
-            </span>
-          )}
+      {/* Header */}
+      <div className="flex items-center gap-2">
+        <div className="w-8 h-8 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
+          <Save size={16} className="text-blue-600 dark:text-blue-400" />
         </div>
-        <button
-          onClick={() => setShowSaveDialog(true)}
-          className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-semibold transition"
-        >
-          <Save size={14} /> Save Quote
-        </button>
+        <h3 className="text-sm font-bold text-gray-900 dark:text-white">Saved Quotes</h3>
+        {quotes.length > 0 && (
+          <span className="text-xs font-semibold text-gray-500 dark:text-gray-400">
+            {quotes.length} saved
+          </span>
+        )}
       </div>
 
       {/* Save Dialog */}
@@ -262,6 +254,14 @@ export default function SavedQuotes({ productId, form, setForm, onLoad }) {
           <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">Click "Save Quote" to create one</p>
         </div>
       )}
+
+      {/* Save Quote Button at Bottom */}
+      <button
+        onClick={() => setShowSaveDialog(true)}
+        className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white text-sm font-semibold transition"
+      >
+        <Save size={16} /> Save Quote
+      </button>
     </div>
   );
 }
