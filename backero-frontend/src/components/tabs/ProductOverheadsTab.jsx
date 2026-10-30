@@ -693,9 +693,10 @@ export default function ProductOverheadsTab({ product, form, setForm, onSaveProd
             const baseAmount = Number(i.qty) * Number(i.rate) || 0;
             const amount = i.gstIncluded ? baseAmount * 1.18 : baseAmount;
             return s + amount;
-          }, 0) + Number(pkgCharges.other || 0);
+          }, 0);
+          const otherCharges = Number(pkgCharges.other || 0);
 
-          const subtotalBeforeMargin = totalFormCost + totalOverheadCost + saAmount + containersTotal + packagingTotal;
+          const subtotalBeforeMargin = totalFormCost + totalOverheadCost + saAmount + containersTotal + packagingTotal + otherCharges;
           const marginAmount = subtotalBeforeMargin * (marginPercent / 100);
           const finalTotal = subtotalBeforeMargin + marginAmount;
 
@@ -706,6 +707,7 @@ export default function ProductOverheadsTab({ product, form, setForm, onSaveProd
               <div className="flex justify-between"><span className="text-gray-600 dark:text-gray-400">Standard Assumptions:</span><span className="font-mono font-semibold">₹{numF(saAmount)}</span></div>
               <div className="flex justify-between"><span className="text-gray-600 dark:text-gray-400">Containers:</span><span className="font-mono font-semibold">₹{numF(containersTotal)}</span></div>
               <div className="flex justify-between"><span className="text-gray-600 dark:text-gray-400">Packaging & Labeling:</span><span className="font-mono font-semibold">₹{numF(packagingTotal)}</span></div>
+              <div className="flex justify-between"><span className="text-gray-600 dark:text-gray-400">Other Charges:</span><span className="font-mono font-semibold">₹{numF(otherCharges)}</span></div>
               <div className="border-t border-gray-200 dark:border-[#1b2e4a] pt-2 flex justify-between font-semibold">
                 <span className="text-gray-700 dark:text-gray-200">Subtotal:</span>
                 <span className="font-mono">₹{numF(subtotalBeforeMargin)}</span>
