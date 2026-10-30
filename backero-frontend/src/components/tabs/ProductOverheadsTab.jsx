@@ -25,6 +25,95 @@ export default function ProductOverheadsTab({ product, form, setForm, onSaveProd
   const [showFinalGST, setShowFinalGST] = useState(false);
   const [activeMarginType, setActiveMarginType] = useState('b2c');
   const [marginPercent, setMarginPercent] = useState(form.costing?.margins?.b2c || 0);
+  const [saveStatus, setSaveStatus] = useState(null);
+
+  useEffect(() => {
+    if (!product?.id) return;
+
+    const savedData = localStorage.getItem(`product_overheads_${product.id}`);
+
+    if (savedData) {
+      try {
+        const parsed = JSON.parse(savedData);
+
+        setForm(prev => {
+          const merged = { ...prev };
+
+          if (parsed.productionOverhead) merged.productionOverhead = parsed.productionOverhead;
+          if (parsed.standardAssumptions) merged.standardAssumptions = parsed.standardAssumptions;
+          if (parsed.rnd) merged.rnd = parsed.rnd;
+          if (parsed.containers) merged.containers = parsed.containers;
+          if (parsed.packaging) merged.packaging = parsed.packaging;
+          if (parsed.costing) merged.costing = parsed.costing;
+
+          return merged;
+        });
+
+        if (parsed.selectedBatch) setSelectedBatch(parsed.selectedBatch);
+        if (parsed.batchUnit) setBatchUnit(parsed.batchUnit);
+      } catch (e) {
+        console.error('Failed to load saved data:', e);
+      }
+    }
+  }, [product?.id]);
+
+  useEffect(() => {
+    if (!product?.id) return;
+
+    try {
+      const autoSaveData = {
+        productionOverhead: form.productionOverhead,
+        standardAssumptions: form.standardAssumptions,
+        rnd: form.rnd,
+        containers: form.containers,
+        packaging: form.packaging,
+        costing: form.costing,
+        selectedBatch: selectedBatch,
+        batchUnit: batchUnit
+      };
+
+      const jsonString = JSON.stringify(autoSaveData);
+      localStorage.setItem(`product_overheads_${product.id}`, jsonString);
+      console.log(`Auto-saved data for product ${product.id}. Size: ${jsonString.length} bytes`);
+    } catch (error) {
+      console.error('Auto-save failed:', error);
+      if (error.name === 'QuotaExceededError') {
+        alert('Storage full! Unable to save data.');
+      }
+    }
+  }, [form, selectedBatch, batchUnit, product?.id]);
+
+  const saveAllData = async () => {
+    try {
+      setSaveStatus('saving');
+
+      const dataToSave = {
+        productionOverhead: form.productionOverhead,
+        standardAssumptions: form.standardAssumptions,
+        rnd: form.rnd,
+        containers: form.containers,
+        packaging: form.packaging,
+        costing: form.costing,
+        selectedBatch: selectedBatch,
+        batchUnit: batchUnit
+      };
+
+      console.log('Saving data to localStorage:', dataToSave);
+      localStorage.setItem(`product_overheads_${product?.id}`, JSON.stringify(dataToSave));
+      console.log('Data saved successfully for product:', product?.id);
+
+      if (onSaveProductionOverheads) {
+        await onSaveProductionOverheads();
+      }
+
+      setSaveStatus('saved');
+      setTimeout(() => setSaveStatus(null), 3000);
+    } catch (error) {
+      console.error('Save failed:', error);
+      setSaveStatus('error');
+      setTimeout(() => setSaveStatus(null), 3000);
+    }
+  };
 
   const convertToBaseUnit = (qty, unit) => {
     const conversions = {
@@ -173,6 +262,30 @@ export default function ProductOverheadsTab({ product, form, setForm, onSaveProd
     <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-8">
       {/* LEFT COLUMN: Forms */}
       <div className="space-y-8">
+        <div className="flex gap-3">
+          <button
+            onClick={saveAllData}
+            disabled={isPending}
+            className={`px-6 py-2 rounded-lg font-semibold text-sm transition-all ${
+              saveStatus === 'saved'
+                ? 'bg-green-500 text-white'
+                : saveStatus === 'error'
+                ? 'bg-red-500 text-white'
+                : isPending
+                ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                : 'bg-blue-500 hover:bg-blue-600 text-white'
+            }`}
+          >
+            {saveStatus === 'saved' ? '✓ Saved' : saveStatus === 'saving' ? 'Saving...' : saveStatus === 'error' ? '✗ Error' : '💾 Save All'}
+          </button>
+          {saveStatus && (
+            <p className="text-xs text-gray-500 dark:text-gray-400 self-center">
+              {saveStatus === 'saved' && 'All data saved successfully'}
+              {saveStatus === 'error' && 'Failed to save data'}
+            </p>
+          )}
+        </div>
+
         <div>
           <p className="text-sm font-bold text-gray-700 dark:text-gray-200 mb-4 flex items-center gap-1.5"><Factory size={14} />Ingredients Price Summary</p>
           {fm.rows && fm.rows.length > 0 ? (

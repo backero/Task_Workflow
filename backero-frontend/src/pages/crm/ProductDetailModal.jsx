@@ -1257,10 +1257,28 @@ export default function ProductDetailModal({ productId, onClose, refetchLead }) 
   const [detailMaximized, setDetailMaximized] = useState(false);
   const [form, setForm] = useState({});
   const [selectedVersionId, setSelectedVersionId] = useState(null);
+  const [saveStatus, setSaveStatus] = useState(null);
 
   useEffect(() => {
     if (detail) {
-      setForm(detail);
+      const key = `product_${productId}`;
+      const savedData = localStorage.getItem(key);
+      console.log(`Loading product data. Key: ${key}, Found: ${!!savedData}`);
+
+      if (savedData) {
+        try {
+          const parsed = JSON.parse(savedData);
+          console.log('Loaded from localStorage:', parsed);
+          setForm(parsed);
+        } catch (e) {
+          console.error('Failed to parse saved data:', e);
+          setForm(detail);
+        }
+      } else {
+        console.log('No saved data found, using detail from API');
+        setForm(detail);
+      }
+
       // Auto-select the active/latest formulation version for editing
       const versions = detail.formulationVersions || [];
       if (versions.length > 0) {
@@ -1268,7 +1286,24 @@ export default function ProductDetailModal({ productId, onClose, refetchLead }) 
         if (activeVersion) setSelectedVersionId(activeVersion._id);
       }
     }
-  }, [detail?._id]);
+  }, [detail?._id, productId]);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      try {
+        const key = `product_${productId}`;
+        const data = JSON.stringify(form);
+        localStorage.setItem(key, data);
+        console.log(`Auto-saved to localStorage (${key}). Size: ${data.length} bytes`);
+      } catch (e) {
+        console.error('Auto-save failed:', e);
+        if (e.name === 'QuotaExceededError') {
+          console.error('LocalStorage quota exceeded');
+        }
+      }
+    }, 3000);
+    return () => clearInterval(timer);
+  }, [form, productId]);
 
   const { data: rmData } = useQuery({
     queryKey: ['raw-materials-list'],
@@ -1284,10 +1319,22 @@ export default function ProductDetailModal({ productId, onClose, refetchLead }) 
       qc.invalidateQueries({ queryKey: ['catalog-detail', productId] });
       sessionStorage.setItem('productUpdated', 'true');
       sessionStorage.setItem('updatedProductId', productId);
-      toast.success('Saved');
+      setSaveStatus('saved');
+      setTimeout(() => setSaveStatus(null), 3000);
+      toast.success('All data saved successfully');
     },
-    onError: (e) => toast.error(e?.response?.data?.message || 'Failed to save'),
+    onError: (e) => {
+      setSaveStatus('error');
+      setTimeout(() => setSaveStatus(null), 3000);
+      toast.error(e?.response?.data?.message || 'Failed to save');
+    },
   });
+
+  const saveAllData = () => {
+    console.log('Save All clicked. Form data:', form);
+    setSaveStatus('saving');
+    updateMutation.mutate(form);
+  };
 
   const attachMutation = useMutation({
     mutationFn: ({ file, kind }) => { const fd = new FormData(); fd.append('file', file); fd.append('kind', kind); return api.post(`/catalog/products/${productId}/attachment`, fd); },
@@ -1356,6 +1403,21 @@ export default function ProductDetailModal({ productId, onClose, refetchLead }) 
             <h2 className="font-bold text-slate-900 text-lg">{detail.name}</h2>
             <p className="text-xs text-slate-400">{detail.code} · {detail.category}{detail.type ? ` · ${detail.type}` : ''} · {detail.unit}</p>
           </div>
+          <button
+            onClick={saveAllData}
+            disabled={updateMutation.isPending}
+            className={`px-4 py-1.5 rounded font-semibold text-xs transition-all ${
+              saveStatus === 'saved'
+                ? 'bg-green-500 text-white'
+                : saveStatus === 'error'
+                ? 'bg-red-500 text-white'
+                : updateMutation.isPending
+                ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                : 'bg-blue-500 hover:bg-blue-600 text-white'
+            }`}
+          >
+            {saveStatus === 'saved' ? '✓ Saved' : saveStatus === 'saving' ? 'Saving...' : saveStatus === 'error' ? '✗ Error' : '💾 Save All'}
+          </button>
           <button onClick={() => { if (window.confirm('Delete ' + detail.name + '?')) deleteMutation.mutate(); }} className="px-3 py-1.5 rounded bg-red-50 text-red-600 text-xs font-semibold hover:bg-red-100">Delete</button>
           <button onClick={() => setDetailMaximized(m => !m)} className="p-2 hover:bg-slate-100 rounded transition">{detailMaximized ? <Minimize2 size={16} /> : <Maximize2 size={16} />}</button>
           <button onClick={onClose} className="p-2 hover:bg-slate-100 rounded transition"><X size={18} /></button>
