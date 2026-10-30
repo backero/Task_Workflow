@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Factory, Star } from 'lucide-react';
 import RndOverheadsTab from './RndOverheadsTab';
+import SavedQuotes from '../SavedQuotes';
 
 function numF(v, d = 2) { return Number(v || 0).toFixed(d); }
 
@@ -285,6 +286,10 @@ export default function ProductOverheadsTab({ product, form, setForm, onSaveProd
             </p>
           )}
         </div>
+
+        <hr className="border-gray-100 dark:border-[#1b2e4a]" />
+
+        <SavedQuotes productId={product?.id} form={form} setForm={setForm} />
 
         <div>
           <p className="text-sm font-bold text-gray-700 dark:text-gray-200 mb-4 flex items-center gap-1.5"><Factory size={14} />Ingredients Price Summary</p>
