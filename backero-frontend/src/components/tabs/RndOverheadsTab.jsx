@@ -20,7 +20,7 @@ function calcOverheadBreakdown(p) {
   const overheadPerUnit = refW > 0 ? overheadTotal / refW : 0;
 
   const saPct = [sa.equipmentPct, sa.consumablesPct, sa.storagePct, sa.housekeepingPct, sa.adminPct, sa.wastagePct].reduce((s, v) => s + (Number(v) || 0), 0);
-  const saAmount = formCost * (saPct / 100);
+  const saAmount = (formCost + overheadTotal) * (saPct / 100);
 
   const lifecycle = rnd.lifecycle || 1000;
   const rndTotal = (Number(rnd.testing) || 0) + (Number(rnd.consumables) || 0) + (Number(rnd.samples) || 0) + (Number(rnd.overhead) || 0) + (Number(rnd.otherOverhead) || 0) + (Number(rnd.qc) || 0);
@@ -68,8 +68,9 @@ export default function RndOverheadsTab({ product, form, setForm, onSave, isPend
   const calculateBatchCost = (batchQtyGrams) => {
     const refW = b.refW || 100;
     const units = batchQtyGrams / refW;
+    const totalFormCostForBatch = b.formCost * units;
     const totalOverheadForBatch = b.overheadTotal * units;
-    const totalSAForBatch = b.saAmount * units;
+    const totalSAForBatch = (totalFormCostForBatch + totalOverheadForBatch) * (b.saPct / 100);
     const totalRndForBatch = b.rndPerUnit * units;
     return {
       totalOverhead: totalOverheadForBatch,
@@ -116,25 +117,17 @@ export default function RndOverheadsTab({ product, form, setForm, onSave, isPend
           ))}
         </div>
         {(() => {
-          const batchFromForm = form.costing?.selectedBatch;
-          const hasBatch = batchFromForm && batchFromForm > 0;
-          const saAmountDisplay = hasBatch ? calculateBatchCost(batchFromForm).totalSA : b.saAmount;
+          const batchQty = form.costing?.batchQuantity || 10000; // Default 10L if not set
+          const refW = b.refW || 100;
+          const units = batchQty / refW;
+          const saBatchAmount = (b.formCost + b.overheadTotal) * (b.saPct / 100) * units;
+          const batchLabel = form.costing?.batchUnit === 'L' ? `${form.costing.batchQuantity}L` : `${batchQty}g`;
 
           return (
-            <div className="bg-slate-900 text-white rounded-xl px-6 py-4 mb-4 grid grid-cols-2 gap-4">
-              <div>
-                <p className="text-xs text-slate-400 mb-1">Total Assumption %</p>
-                <p className="text-lg font-bold">{b.saPct}%</p>
-              </div>
-              <div>
-                <p className="text-xs text-slate-400 mb-1">
-                  {hasBatch ? `Amount (Batch Total)` : `Amount (per ${b.refW}ml/g)`}
-                </p>
-                <p className="text-lg font-bold text-amber-300">
-                  ₹{numF(saAmountDisplay, 2)}
-                </p>
-              </div>
-            </div>
+            <HighlightStrip items={[
+              { label: 'Total Assumption %', value: `${b.saPct}%` },
+              { label: `Standard Assumptions (${batchLabel})`, value: `₹${numF(saBatchAmount, 2)}`, big: true, accent: true },
+            ]} />
           );
         })()}
         {(b.saPct < 15 || b.saPct > 30) && (
