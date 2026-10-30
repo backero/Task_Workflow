@@ -287,10 +287,6 @@ export default function ProductOverheadsTab({ product, form, setForm, onSaveProd
           )}
         </div>
 
-        <hr className="border-gray-100 dark:border-[#1b2e4a]" />
-
-        <SavedQuotes productId={product?.id} form={form} setForm={setForm} />
-
         <div>
           <p className="text-sm font-bold text-gray-700 dark:text-gray-200 mb-4 flex items-center gap-1.5"><Factory size={14} />Ingredients Price Summary</p>
           {fm.rows && fm.rows.length > 0 ? (
@@ -726,6 +722,10 @@ export default function ProductOverheadsTab({ product, form, setForm, onSaveProd
           );
         })()}
         {!selectedBatch && <p className="text-xs text-gray-400">Enter batch quantity to see cost breakdown</p>}
+
+        <hr className="border-gray-200 dark:border-[#1b2e4a] my-4" />
+
+        <SavedQuotes productId={product?.id} form={form} setForm={setForm} />
       </div>
     </div>
   );
