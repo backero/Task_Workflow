@@ -441,7 +441,7 @@ export default function ProductOverheadsTab({ product, form, setForm, onSaveProd
               </table>
             </div>
             <div className="grid grid-cols-3 gap-3">
-              {[['machine', 'Machine Charges'], ['other', 'Other']].map(([f, label]) => (
+              {[['other', 'Other']].map(([f, label]) => (
                 <div key={f}><label className="label">{label} (₹)</label><input type="number" value={form.packaging?.charges?.[f] || 0} onChange={e => setForm(prev => ({ ...prev, packaging: { ...prev.packaging, charges: { ...prev.packaging?.charges, [f]: Number(e.target.value) } } }))} className="input" /></div>
               ))}
             </div>
