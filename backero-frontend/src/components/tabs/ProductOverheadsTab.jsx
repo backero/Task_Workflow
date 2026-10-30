@@ -22,7 +22,6 @@ export default function ProductOverheadsTab({ product, form, setForm, onSaveProd
   const [selectedBatch, setSelectedBatch] = useState(null);
   const [batchUnit, setBatchUnit] = useState('g');
   const [roundToNearest100, setRoundToNearest100] = useState(false);
-  const [showContainerGST, setShowContainerGST] = useState(false);
   const [showFinalGST, setShowFinalGST] = useState(false);
   const [activeMarginType, setActiveMarginType] = useState('b2c');
   const [marginPercent, setMarginPercent] = useState(form.costing?.margins?.b2c || 0);
@@ -353,12 +352,25 @@ export default function ProductOverheadsTab({ product, form, setForm, onSaveProd
         <hr className="border-gray-100 dark:border-[#1b2e4a]" />
 
         <div>
-          <p className="text-sm font-bold text-gray-700 dark:text-gray-200 mb-3 flex items-center gap-1.5"><Factory size={14} />Containers & Labeling</p>
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-sm font-bold text-gray-700 dark:text-gray-200 flex items-center gap-1.5"><Factory size={14} />Containers & Labeling</p>
+            <div className="rounded-lg bg-slate-900 text-white px-4 py-2">
+              <p className="text-xs font-semibold">Total: ₹{selectedBatch ? numF((form.containers || []).reduce((s, item) => {
+                const batchQtyInBaseUnit = selectedBatch ? convertToBaseUnit(selectedBatch, batchUnit) : 0;
+                const containerWeightInBaseUnit = convertToBaseUnit(Number(item.weight) || 0, item.unit || 'g');
+                const costPerPiece = Number(item.costPerPiece) || 0;
+                const unitsNeeded = containerWeightInBaseUnit > 0 ? Math.round(batchQtyInBaseUnit / containerWeightInBaseUnit) : 0;
+                const baseAmount = unitsNeeded * costPerPiece;
+                const itemCost = item.gstIncluded ? baseAmount * 1.18 : baseAmount;
+                return s + itemCost;
+              }, 0)) : '—'}</p>
+            </div>
+          </div>
           <div className="space-y-4">
             <div className="overflow-x-auto rounded-xl border border-gray-200 dark:border-[#1b2e4a]">
               <table className="w-full text-xs">
                 <thead className="bg-gray-50 dark:bg-[#0f1a2e]">
-                  <tr>{['Item', 'Weight', 'Unit', 'Pcs Needed', 'Rate (₹)', 'Amount (₹)', ''].map(h => <th key={h} className="px-3 py-2 text-left font-semibold text-gray-500">{h}</th>)}</tr>
+                  <tr>{['Item', 'Weight', 'Unit', 'Pcs Needed', 'Rate (₹)', 'Amount (₹)', 'Include 18%', ''].map(h => <th key={h} className="px-3 py-2 text-left font-semibold text-gray-500">{h}</th>)}</tr>
                 </thead>
                 <tbody>
                   {(form.containers || []).map((item, idx) => {
@@ -367,7 +379,7 @@ export default function ProductOverheadsTab({ product, form, setForm, onSaveProd
                     const costPerPiece = Number(item.costPerPiece) || 0;
                     const unitsNeeded = selectedBatch && containerWeightInBaseUnit > 0 ? Math.round(batchQtyInBaseUnit / containerWeightInBaseUnit) : 0;
                     const baseAmount = unitsNeeded * costPerPiece;
-                    const amount = showContainerGST ? baseAmount * 1.18 : baseAmount;
+                    const amount = item.gstIncluded ? baseAmount * 1.18 : baseAmount;
                     return (
                       <tr key={idx} className="border-t border-gray-100 dark:border-[#1b2e4a]">
                         <td className="px-2 py-1.5"><input value={item.name} onChange={e => { const c = [...(form.containers || [])]; c[idx].name = e.target.value; setForm(f => ({ ...f, containers: c })); }} className="input text-xs w-32" placeholder="e.g., Bottle" /></td>
@@ -376,29 +388,13 @@ export default function ProductOverheadsTab({ product, form, setForm, onSaveProd
                         <td className="px-2 py-1.5"><input type="text" readOnly value={selectedBatch ? numF(unitsNeeded, 0) : '—'} className="input text-xs bg-amber-50 dark:bg-amber-500/10 font-mono font-bold text-amber-700 dark:text-amber-300 w-20" /></td>
                         <td className="px-2 py-1.5"><input type="number" step="0.01" value={item.costPerPiece || ''} onChange={e => { const c = [...(form.containers || [])]; c[idx].costPerPiece = Number(e.target.value) || 0; setForm(f => ({ ...f, containers: c })); }} className="input text-xs w-20" /></td>
                         <td className="px-2 py-1.5"><input type="text" readOnly value={selectedBatch ? numF(amount) : '—'} className="input text-xs bg-gray-50 dark:bg-[#0f1a2e] font-mono font-bold w-24" /></td>
+                        <td className="px-2 py-1.5"><input type="checkbox" checked={item.gstIncluded || false} onChange={e => { const c = [...(form.containers || [])]; c[idx].gstIncluded = e.target.checked; setForm(f => ({ ...f, containers: c })); }} className="w-4 h-4" /></td>
                         <td className="px-2 py-1.5"><button onClick={() => setForm(f => ({ ...f, containers: (f.containers || []).filter((_, i) => i !== idx) }))} className="text-red-400 hover:text-red-600">✕</button></td>
                       </tr>
                     );
                   })}
                 </tbody>
               </table>
-            </div>
-            <div className="flex items-start justify-between gap-4">
-              <div className="flex items-center gap-2 p-2 bg-gray-50 dark:bg-[#0f1a2e] rounded">
-                <input type="checkbox" checked={showContainerGST} onChange={e => setShowContainerGST(e.target.checked)} id="containerGST" className="w-4 h-4" />
-                <label htmlFor="containerGST" className="text-xs font-semibold text-gray-700 dark:text-gray-200 cursor-pointer">Include GST (18%)</label>
-              </div>
-              <div className="rounded-lg bg-slate-900 text-white px-4 py-2">
-                <p className="text-xs font-semibold">Total Containers Cost: ₹{selectedBatch ? numF((form.containers || []).reduce((s, item) => {
-                  const batchQtyInBaseUnit = convertToBaseUnit(selectedBatch, batchUnit);
-                  const containerWeightInBaseUnit = convertToBaseUnit(Number(item.weight) || 0, item.unit || 'g');
-                  const costPerPiece = Number(item.costPerPiece) || 0;
-                  const unitsNeeded = containerWeightInBaseUnit > 0 ? Math.round(batchQtyInBaseUnit / containerWeightInBaseUnit) : 0;
-                  const baseAmount = unitsNeeded * costPerPiece;
-                  const itemCost = showContainerGST ? baseAmount * 1.18 : baseAmount;
-                  return s + itemCost;
-                }, 0)) : '—'}</p>
-              </div>
             </div>
             <div className="flex gap-3">
               <button onClick={() => setForm(f => ({ ...f, containers: [...(f.containers || []), { name: '', weight: 0, unit: 'g', costPerPiece: 0 }] }))} className="btn-secondary text-sm">+ Add Container</button>
