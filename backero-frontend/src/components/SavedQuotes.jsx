@@ -71,30 +71,22 @@ export default function SavedQuotes({ productId, form, setForm, onLoad }) {
     }
 
     try {
-      // Log what we're about to set
       console.log('Current form before load:', form);
       console.log('Quote data to restore:', quote.data);
 
-      // Force update by creating new object reference
-      const newFormData = {
-        ...form,
-        formulation: quote.data.formulation ?? form.formulation,
-        productionOverhead: quote.data.productionOverhead ?? form.productionOverhead,
-        standardAssumptions: quote.data.standardAssumptions ?? form.standardAssumptions,
-        rnd: quote.data.rnd ?? form.rnd,
-        containers: quote.data.containers ?? form.containers,
-        packaging: quote.data.packaging ?? form.packaging,
-        costing: quote.data.costing ?? form.costing
-      };
+      // Create completely new form object with only quote data to ensure update
+      const newFormData = JSON.parse(JSON.stringify(quote.data));
+      console.log('Loading quote data directly:', newFormData);
 
-      console.log('New form data to set:', newFormData);
+      // Call setForm with the new data
       setForm(newFormData);
-      console.log('setForm called with new data');
+      console.log('setForm called - form should update now');
 
-      // Scroll to top to show changes
+      // Give React time to update state and then scroll
       setTimeout(() => {
+        console.log('Form after load (setTimeout):', newFormData);
         window.scrollTo({ top: 0, behavior: 'smooth' });
-      }, 100);
+      }, 50);
 
       if (onLoad) onLoad();
       toast.success(`✓ Loaded: ${quote.name}`);
