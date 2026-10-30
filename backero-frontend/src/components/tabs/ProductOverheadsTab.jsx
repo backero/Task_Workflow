@@ -263,29 +263,6 @@ export default function ProductOverheadsTab({ product, form, setForm, onSaveProd
     <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-8">
       {/* LEFT COLUMN: Forms */}
       <div className="space-y-8">
-        <div className="flex gap-3">
-          <button
-            onClick={saveAllData}
-            disabled={isPending}
-            className={`px-6 py-2 rounded-lg font-semibold text-sm transition-all ${
-              saveStatus === 'saved'
-                ? 'bg-green-500 text-white'
-                : saveStatus === 'error'
-                ? 'bg-red-500 text-white'
-                : isPending
-                ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                : 'bg-blue-500 hover:bg-blue-600 text-white'
-            }`}
-          >
-            {saveStatus === 'saved' ? '✓ Saved' : saveStatus === 'saving' ? 'Saving...' : saveStatus === 'error' ? '✗ Error' : '💾 Save All'}
-          </button>
-          {saveStatus && (
-            <p className="text-xs text-gray-500 dark:text-gray-400 self-center">
-              {saveStatus === 'saved' && 'All data saved successfully'}
-              {saveStatus === 'error' && 'Failed to save data'}
-            </p>
-          )}
-        </div>
 
         <div>
           <p className="text-sm font-bold text-gray-700 dark:text-gray-200 mb-4 flex items-center gap-1.5"><Factory size={14} />Ingredients Price Summary</p>
@@ -610,6 +587,30 @@ export default function ProductOverheadsTab({ product, form, setForm, onSaveProd
         })()}
 
         <hr className="border-gray-100 dark:border-[#1b2e4a]" />
+
+        <div className="flex gap-3">
+          <button
+            onClick={saveAllData}
+            disabled={isPending}
+            className={`flex-1 px-6 py-2 rounded-lg font-semibold text-sm transition-all ${
+              saveStatus === 'saved'
+                ? 'bg-green-500 text-white'
+                : saveStatus === 'error'
+                ? 'bg-red-500 text-white'
+                : isPending
+                ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                : 'bg-blue-500 hover:bg-blue-600 text-white'
+            }`}
+          >
+            {saveStatus === 'saved' ? '✓ Saved' : saveStatus === 'saving' ? 'Saving...' : saveStatus === 'error' ? '✗ Error' : '💾 Save All'}
+          </button>
+          {saveStatus && (
+            <p className="text-xs text-gray-500 dark:text-gray-400 self-center">
+              {saveStatus === 'saved' && 'All data saved successfully'}
+              {saveStatus === 'error' && 'Failed to save data'}
+            </p>
+          )}
+        </div>
 
         <SavedQuotes productId={product?._id} form={form} setForm={setForm} />
       </div>
