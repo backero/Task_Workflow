@@ -44,13 +44,32 @@ export default function SavedQuotes({ productId, form, setForm, onLoad }) {
   };
 
   const loadQuote = (quote) => {
-    console.log('Loading quote:', quote.name, quote.data);
-    if (quote.data) {
-      setForm({ ...quote.data });
-      if (onLoad) onLoad();
-      toast.success(`Loaded quote: ${quote.name}`);
-    } else {
+    console.log('Loading quote:', quote.name);
+    console.log('Quote data structure:', quote.data);
+
+    if (!quote.data) {
       toast.error('Quote data is corrupted');
+      return;
+    }
+
+    try {
+      // Create a deep copy of the quote data
+      const loadedData = JSON.parse(JSON.stringify(quote.data));
+      console.log('Deep copied data:', loadedData);
+
+      // Set the form with the loaded data
+      setForm(loadedData);
+
+      // Scroll to top so user sees the form has changed
+      setTimeout(() => {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }, 100);
+
+      if (onLoad) onLoad();
+      toast.success(`✓ Loaded: ${quote.name}`);
+    } catch (e) {
+      console.error('Error loading quote:', e);
+      toast.error('Failed to load quote');
     }
   };
 
