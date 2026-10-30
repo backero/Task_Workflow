@@ -203,13 +203,32 @@ export default function ProductOverheadsTab({ product, form, setForm, onSaveProd
   };
 
   const computeRndFeeForBatch = () => {
-    if (!selectedBatch) return 0;
-    const rnd = form.rnd || {};
-    const rndTotal = (Number(rnd.testing) || 0) + (Number(rnd.consumables) || 0) + (Number(rnd.samples) || 0) + (Number(rnd.overhead) || 0) + (Number(rnd.otherOverhead) || 0) + (Number(rnd.qc) || 0);
-    const lifecycle = rnd.lifecycle || 1000;
-    const rndPerUnit = lifecycle > 0 ? rndTotal / lifecycle : 0;
-    const batchQtyBase = convertToBaseUnit(selectedBatch, batchUnit);
-    return rndPerUnit * batchQtyBase;
+    // Pulls the one-time R&D fee from the R&D Price Calculator's saved quotes
+    // (localStorage 'rndPricingDB_v1'), matched by product name. Not scaled by
+    // batch size — the R&D Price Calculator already quotes it as a flat one-time fee.
+    try {
+      const raw = localStorage.getItem('rndPricingDB_v1');
+      if (!raw) return 0;
+      const db = JSON.parse(raw);
+      const quotes = db.quotes || [];
+      const productName = (product?.name || '').trim().toLowerCase();
+      if (!productName) return 0;
+
+      const matches = quotes.filter(q => (q.product || '').trim().toLowerCase() === productName);
+      if (matches.length === 0) return 0;
+
+      // Use the most recent matching quote (highest numeric id, e.g. RNDQ-0011)
+      const latest = matches.reduce((best, q) => {
+        const num = parseInt((q.id || '').replace(/\D/g, ''), 10) || 0;
+        const bestNum = parseInt((best?.id || '').replace(/\D/g, ''), 10) || 0;
+        return num > bestNum ? q : best;
+      }, matches[0]);
+
+      return Number(latest.fee) || 0;
+    } catch (e) {
+      console.error('Failed to read R&D Price Calculator fee:', e);
+      return 0;
+    }
   };
 
   const computeFinalTotal = () => {
@@ -774,7 +793,7 @@ export default function ProductOverheadsTab({ product, form, setForm, onSaveProd
               <div className="flex justify-between"><span className="text-gray-600 dark:text-gray-400">Packaging & Labeling:</span><span className="font-mono font-semibold">₹{numF(packagingTotal)}</span></div>
               <div className="flex justify-between"><span className="text-gray-600 dark:text-gray-400">Other Charges:</span><span className="font-mono font-semibold">₹{numF(otherCharges)}</span></div>
               <div className="flex justify-between items-center">
-                <span className="text-gray-600 dark:text-gray-400">R&D Fee:</span>
+                <span className="text-gray-600 dark:text-gray-400" title="From R&D Price Calculator">R&D Fee:</span>
                 <div className="flex items-center gap-2">
                   {includeRndFee && <span className="font-mono font-semibold">₹{numF(rndFee)}</span>}
                   <button
