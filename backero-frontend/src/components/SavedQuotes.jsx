@@ -137,16 +137,29 @@ export default function SavedQuotes({ productId, form, setForm, onLoad }) {
   };
 
   return (
-    <div className="space-y-4">
-      <div className="flex gap-3 mb-4">
+    <div className="space-y-4 w-full">
+      {/* Header with Save Button */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <div className="w-8 h-8 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
+            <Save size={16} className="text-blue-600 dark:text-blue-400" />
+          </div>
+          <h3 className="text-sm font-bold text-gray-900 dark:text-white">Saved Quotes</h3>
+          {quotes.length > 0 && (
+            <span className="text-xs font-semibold text-gray-500 dark:text-gray-400">
+              {quotes.length} saved
+            </span>
+          )}
+        </div>
         <button
           onClick={() => setShowSaveDialog(true)}
-          className="flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-500 hover:bg-blue-600 text-white text-sm font-semibold transition"
+          className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-semibold transition"
         >
-          <Save size={16} /> Save Quote
+          <Save size={14} /> Save Quote
         </button>
       </div>
 
+      {/* Save Dialog */}
       {showSaveDialog && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-white dark:bg-[#0f1a2e] rounded-lg p-6 w-96">
@@ -163,9 +176,10 @@ export default function SavedQuotes({ productId, form, setForm, onLoad }) {
               onChange={e => setQuoteName(e.target.value)}
               className="w-full px-3 py-2 border border-gray-200 dark:border-[#1b2e4a] rounded-lg mb-4 bg-white dark:bg-[#1b2e4a] text-gray-900 dark:text-white"
               onKeyPress={e => e.key === 'Enter' && saveQuote()}
+              autoFocus
             />
             <div className="flex gap-2">
-              <button onClick={saveQuote} className="flex-1 px-4 py-2 bg-blue-500 text-white rounded-lg font-semibold hover:bg-blue-600">
+              <button onClick={saveQuote} className="flex-1 px-4 py-2 bg-emerald-500 text-white rounded-lg font-semibold hover:bg-emerald-600">
                 Save
               </button>
               <button onClick={() => setShowSaveDialog(false)} className="flex-1 px-4 py-2 bg-gray-200 dark:bg-[#1b2e4a] text-gray-900 dark:text-white rounded-lg font-semibold hover:bg-gray-300">
@@ -176,42 +190,68 @@ export default function SavedQuotes({ productId, form, setForm, onLoad }) {
         </div>
       )}
 
-      {quotes.length > 0 && (
-        <div className="overflow-x-auto rounded-lg border border-gray-200 dark:border-[#1b2e4a]">
+      {/* Quotes Table */}
+      {quotes.length > 0 ? (
+        <div className="rounded-lg border border-gray-200 dark:border-[#1b2e4a] overflow-hidden">
           <table className="w-full text-xs">
-            <thead className="bg-gray-50 dark:bg-[#0f1a2e]">
-              <tr>
-                {['Quote Name', 'Date', 'Total', 'Actions'].map(h => (
-                  <th key={h} className="px-4 py-3 text-left font-semibold text-gray-600 dark:text-gray-400">{h}</th>
-                ))}
+            <thead>
+              <tr className="bg-gray-50 dark:bg-[#0f1a2e] border-b border-gray-200 dark:border-[#1b2e4a]">
+                <th className="px-4 py-3 text-left font-semibold text-gray-600 dark:text-gray-400">Quote Name</th>
+                <th className="px-4 py-3 text-left font-semibold text-gray-600 dark:text-gray-400">Date</th>
+                <th className="px-4 py-3 text-right font-semibold text-gray-600 dark:text-gray-400">Total</th>
+                <th className="px-4 py-3 text-center font-semibold text-gray-600 dark:text-gray-400">Actions</th>
               </tr>
             </thead>
             <tbody>
-              {quotes.map(quote => (
-                <tr key={quote.id} className="border-t border-gray-100 dark:border-[#1b2e4a] hover:bg-gray-50 dark:hover:bg-[#1b2e4a]/50">
-                  <td className="px-4 py-3 font-medium text-gray-900 dark:text-white">{quote.name}</td>
+              {quotes.map((quote, idx) => (
+                <tr
+                  key={quote.id}
+                  className={`border-t border-gray-100 dark:border-[#1b2e4a] hover:bg-gray-50 dark:hover:bg-[#0f1a2e]/50 transition ${
+                    idx % 2 === 0 ? 'bg-white dark:bg-[#1a2a3a]/50' : 'bg-gray-50 dark:bg-[#0f1a2e]'
+                  }`}
+                >
+                  <td className="px-4 py-3">
+                    <div className="font-medium text-gray-900 dark:text-white">{quote.name}</div>
+                  </td>
                   <td className="px-4 py-3 text-gray-600 dark:text-gray-400">{quote.date}</td>
-                  <td className="px-4 py-3 font-mono font-bold text-gray-900 dark:text-white">₹{numF(quote.total)}</td>
-                  <td className="px-4 py-3 flex gap-2">
-                    <button onClick={() => loadQuote(quote)} className="text-blue-500 hover:text-blue-700 p-1" title="Load">
-                      <Download size={16} />
-                    </button>
-                    <button onClick={() => copyQuote(quote)} className="text-green-500 hover:text-green-700 p-1" title="Copy">
-                      <Copy size={16} />
-                    </button>
-                    <button onClick={() => deleteQuote(quote.id)} className="text-red-500 hover:text-red-700 p-1" title="Delete">
-                      <Trash2 size={16} />
-                    </button>
+                  <td className="px-4 py-3 text-right">
+                    <span className="font-mono font-bold text-gray-900 dark:text-white">₹{numF(quote.total)}</span>
+                  </td>
+                  <td className="px-4 py-3">
+                    <div className="flex gap-2 justify-center">
+                      <button
+                        onClick={() => loadQuote(quote)}
+                        className="p-1.5 rounded hover:bg-blue-100 dark:hover:bg-blue-500/20 text-blue-600 dark:text-blue-400 transition"
+                        title="Load"
+                      >
+                        <Download size={14} />
+                      </button>
+                      <button
+                        onClick={() => copyQuote(quote)}
+                        className="p-1.5 rounded hover:bg-green-100 dark:hover:bg-green-500/20 text-green-600 dark:text-green-400 transition"
+                        title="Copy"
+                      >
+                        <Copy size={14} />
+                      </button>
+                      <button
+                        onClick={() => deleteQuote(quote.id)}
+                        className="p-1.5 rounded hover:bg-red-100 dark:hover:bg-red-500/20 text-red-600 dark:text-red-400 transition"
+                        title="Delete"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
-      )}
-
-      {quotes.length === 0 && (
-        <p className="text-xs text-gray-400 text-center py-8">No saved quotes yet. Click "Save Quote" to create one.</p>
+      ) : (
+        <div className="text-center py-8 px-4 rounded-lg border border-dashed border-gray-200 dark:border-[#1b2e4a]">
+          <p className="text-sm text-gray-500 dark:text-gray-400">No saved quotes yet</p>
+          <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">Click "Save Quote" to create one</p>
+        </div>
       )}
     </div>
   );
