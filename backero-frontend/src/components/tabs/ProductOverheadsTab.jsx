@@ -24,7 +24,6 @@ export default function ProductOverheadsTab({ product, form, setForm, onSaveProd
   const [roundToNearest100, setRoundToNearest100] = useState(false);
   const [showContainerGST, setShowContainerGST] = useState(false);
   const [showFinalGST, setShowFinalGST] = useState(false);
-  const [showQuoteGST, setShowQuoteGST] = useState(false);
   const [activeMarginType, setActiveMarginType] = useState('b2c');
   const [marginPercent, setMarginPercent] = useState(form.costing?.margins?.b2c || 0);
 
@@ -133,7 +132,7 @@ export default function ProductOverheadsTab({ product, form, setForm, onSaveProd
 
     const pkgItems = pkg.items || [];
     const pkgCharges = pkg.charges || {};
-    const pkgCost = pkgItems.reduce((s, i) => s + (Number(i.amount) || Number(i.qty) * Number(i.rate) || 0), 0) + Number(pkgCharges.machine || 0) + Number(pkgCharges.shrinkWrap || 0) + Number(pkgCharges.other || 0);
+    const pkgCost = pkgItems.reduce((s, i) => s + (Number(i.amount) || Number(i.qty) * Number(i.rate) || 0), 0) + Number(pkgCharges.machine || 0) + Number(pkgCharges.other || 0);
 
     const subtotalPerUnit = formCost + overheadPerUnit + saAmount + rndPerUnit + pkgCost;
     const safetyBuffer = subtotalPerUnit * 0.1;
@@ -426,12 +425,12 @@ export default function ProductOverheadsTab({ product, form, setForm, onSaveProd
               </table>
             </div>
             <div className="grid grid-cols-3 gap-3">
-              {[['machine', 'Machine Charges'], ['shrinkWrap', 'Shrink Wrap'], ['other', 'Other']].map(([f, label]) => (
+              {[['machine', 'Machine Charges'], ['other', 'Other']].map(([f, label]) => (
                 <div key={f}><label className="label">{label} (₹)</label><input type="number" value={form.packaging?.charges?.[f] || 0} onChange={e => setForm(prev => ({ ...prev, packaging: { ...prev.packaging, charges: { ...prev.packaging?.charges, [f]: Number(e.target.value) } } }))} className="input" /></div>
               ))}
             </div>
             <div className="rounded-lg bg-green-50 dark:bg-green-900/10 border border-green-200 dark:border-green-800/30 px-4 py-2">
-              <p className="text-xs font-semibold text-green-700 dark:text-green-400">Total Packaging Cost: ₹{numF((form.packaging?.items || []).reduce((s, i) => s + (Number(i.amount) || Number(i.qty) * Number(i.rate) || 0), 0) + Number(form.packaging?.charges?.machine || 0) + Number(form.packaging?.charges?.shrinkWrap || 0) + Number(form.packaging?.charges?.other || 0))}</p>
+              <p className="text-xs font-semibold text-green-700 dark:text-green-400">Total Packaging Cost: ₹{numF((form.packaging?.items || []).reduce((s, i) => s + (Number(i.amount) || Number(i.qty) * Number(i.rate) || 0), 0) + Number(form.packaging?.charges?.machine || 0) + Number(form.packaging?.charges?.other || 0))}</p>
             </div>
             <div className="flex gap-3">
               <button onClick={() => setForm(prev => ({ ...prev, packaging: { ...prev.packaging, items: [...(prev.packaging?.items || []), { name: '', qty: 1, rate: 0, amount: 0, optional: false }] } }))} className="btn-secondary text-sm">+ Add Item</button>
@@ -471,12 +470,12 @@ export default function ProductOverheadsTab({ product, form, setForm, onSaveProd
 
           const pkgItems = form.packaging?.items || [];
           const pkgCharges = form.packaging?.charges || {};
-          const pkgCostTotal = pkgItems.reduce((s, i) => s + (Number(i.amount) || Number(i.qty) * Number(i.rate) || 0), 0) + Number(pkgCharges.machine || 0) + Number(pkgCharges.shrinkWrap || 0) + Number(pkgCharges.other || 0);
+          const pkgCostTotal = pkgItems.reduce((s, i) => s + (Number(i.amount) || Number(i.qty) * Number(i.rate) || 0), 0) + Number(pkgCharges.machine || 0) + Number(pkgCharges.other || 0);
 
           const subtotalBeforeMargin = totalFormCost + totalOverhead + saAmount + containersCost + pkgCostTotal;
           const marginAmount = subtotalBeforeMargin * (marginPercent / 100);
           const subtotalWithMargin = subtotalBeforeMargin + marginAmount;
-          const finalAmount = showQuoteGST ? subtotalWithMargin * 1.18 : subtotalWithMargin;
+          const finalAmount = subtotalWithMargin;
 
           return (
             <>
@@ -538,25 +537,6 @@ export default function ProductOverheadsTab({ product, form, setForm, onSaveProd
                     <p className="font-mono font-bold text-gray-900 dark:text-white">₹{numF(subtotalWithMargin, 2)}</p>
                   </div>
 
-                  <div className="flex items-center gap-2 pt-2">
-                    <input
-                      type="checkbox"
-                      checked={showQuoteGST}
-                      onChange={e => setShowQuoteGST(e.target.checked)}
-                      className="w-3 h-3"
-                      id="quoteGSTChk"
-                    />
-                    <label htmlFor="quoteGSTChk" className="text-xs font-semibold text-gray-600 dark:text-gray-400 cursor-pointer">
-                      Include GST (18%)
-                    </label>
-                  </div>
-
-                  {showQuoteGST && (
-                    <div className="flex justify-between items-center text-sm py-2 px-2 bg-amber-50 dark:bg-amber-500/10 rounded border border-amber-200 dark:border-amber-800/40">
-                      <p className="font-semibold text-amber-700 dark:text-amber-300">Final with GST:</p>
-                      <p className="font-mono font-bold text-amber-700 dark:text-amber-300">₹{numF(subtotalWithMargin * 1.18, 2)}</p>
-                    </div>
-                  )}
                 </div>
 
                 <p className="text-sm font-bold text-gray-700 dark:text-gray-200 mb-3">Cost Summary</p>
@@ -641,7 +621,7 @@ export default function ProductOverheadsTab({ product, form, setForm, onSaveProd
           // Packaging cost
           const pkgItems = pkg.items || [];
           const pkgCharges = pkg.charges || {};
-          const pkgCostTotal = pkgItems.reduce((s, i) => s + (Number(i.amount) || Number(i.qty) * Number(i.rate) || 0), 0) + Number(pkgCharges.machine || 0) + Number(pkgCharges.shrinkWrap || 0) + Number(pkgCharges.other || 0);
+          const pkgCostTotal = pkgItems.reduce((s, i) => s + (Number(i.amount) || Number(i.qty) * Number(i.rate) || 0), 0) + Number(pkgCharges.machine || 0) + Number(pkgCharges.other || 0);
 
           // Calculate subtotal before margin
           const subtotalBeforeMargin = totalFormCost + totalOverhead + saAmount + containersCost + pkgCostTotal;
@@ -650,8 +630,7 @@ export default function ProductOverheadsTab({ product, form, setForm, onSaveProd
           const marginAmount = subtotalBeforeMargin * (marginPercent / 100);
           const subtotalWithMargin = subtotalBeforeMargin + marginAmount;
 
-          // Apply GST if enabled
-          const finalAmount = showQuoteGST ? subtotalWithMargin * 1.18 : subtotalWithMargin;
+          const finalAmount = subtotalWithMargin;
 
           return (
             <>
@@ -682,7 +661,7 @@ export default function ProductOverheadsTab({ product, form, setForm, onSaveProd
 
           const pkgItems = form.packaging?.items || [];
           const pkgCharges = form.packaging?.charges || {};
-          const packagingTotal = pkgItems.reduce((s, i) => s + (Number(i.amount) || Number(i.qty) * Number(i.rate) || 0), 0) + Number(pkgCharges.machine || 0) + Number(pkgCharges.shrinkWrap || 0) + Number(pkgCharges.other || 0);
+          const packagingTotal = pkgItems.reduce((s, i) => s + (Number(i.amount) || Number(i.qty) * Number(i.rate) || 0), 0) + Number(pkgCharges.machine || 0) + Number(pkgCharges.other || 0);
 
           const subtotal = costBreakdown + containersTotal + packagingTotal;
           const withGST = showFinalGST ? subtotal * 1.18 : subtotal;
