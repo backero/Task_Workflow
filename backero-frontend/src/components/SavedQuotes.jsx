@@ -61,7 +61,7 @@ export default function SavedQuotes({ productId, form, setForm, onLoad }) {
 
   const loadQuote = (quote) => {
     try {
-      console.log('Loading quote:', quote.name);
+      console.log('=== LOADING QUOTE ===', quote.name);
       console.log('Quote data:', quote.data);
 
       if (!quote.data) {
@@ -69,18 +69,21 @@ export default function SavedQuotes({ productId, form, setForm, onLoad }) {
         return;
       }
 
-      // Directly set the entire saved form
+      // Deep copy the loaded data
       const loadedData = JSON.parse(JSON.stringify(quote.data));
       console.log('Setting form to:', loadedData);
 
-      setForm(loadedData);
+      // Use function form of setForm to ensure proper state update
+      setForm(() => loadedData);
 
       setTimeout(() => {
         window.scrollTo({ top: 0, behavior: 'smooth' });
+        console.log('Scrolled to top');
       }, 50);
 
       if (onLoad) onLoad();
       toast.success(`✓ Loaded: ${quote.name}`);
+      console.log('Toast shown');
     } catch (e) {
       console.error('Error loading quote:', e);
       toast.error('Failed to load quote');
