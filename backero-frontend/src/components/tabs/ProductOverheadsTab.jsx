@@ -398,7 +398,6 @@ export default function ProductOverheadsTab({ product, form, setForm, onSaveProd
             </div>
             <div className="flex gap-3">
               <button onClick={() => setForm(f => ({ ...f, containers: [...(f.containers || []), { name: '', weight: 0, unit: 'g', costPerPiece: 0 }] }))} className="btn-secondary text-sm">+ Add Container</button>
-              <button onClick={onSaveProductionOverheads} disabled={isPending} className="btn-primary text-sm disabled:opacity-50 ml-auto">{isPending ? 'Saving…' : '💾 Save Containers'}</button>
             </div>
           </div>
         </div>
@@ -446,7 +445,6 @@ export default function ProductOverheadsTab({ product, form, setForm, onSaveProd
             </div>
             <div className="flex gap-3">
               <button onClick={() => setForm(prev => ({ ...prev, packaging: { ...prev.packaging, items: [...(prev.packaging?.items || []), { name: '', qty: 1, rate: 0, amount: 0, optional: false, gstIncluded: false }] } }))} className="btn-secondary text-sm">+ Add Item</button>
-              <button onClick={onSavePackaging} disabled={isPending} className="btn-primary text-sm disabled:opacity-50 ml-auto">{isPending ? 'Saving…' : '💾 Save Packaging'}</button>
             </div>
           </div>
         </div>
