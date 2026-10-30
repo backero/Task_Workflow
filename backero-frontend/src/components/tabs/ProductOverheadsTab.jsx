@@ -440,13 +440,19 @@ export default function ProductOverheadsTab({ product, form, setForm, onSaveProd
                 </tbody>
               </table>
             </div>
-            <div className="grid grid-cols-3 gap-3">
-              {[['other', 'Other']].map(([f, label]) => (
-                <div key={f}><label className="label">{label} (₹)</label><input type="number" value={form.packaging?.charges?.[f] || 0} onChange={e => setForm(prev => ({ ...prev, packaging: { ...prev.packaging, charges: { ...prev.packaging?.charges, [f]: Number(e.target.value) } } }))} className="input" /></div>
-              ))}
-            </div>
             <div className="flex gap-3">
               <button onClick={() => setForm(prev => ({ ...prev, packaging: { ...prev.packaging, items: [...(prev.packaging?.items || []), { name: '', qty: 1, rate: 0, amount: 0, optional: false, gstIncluded: false }] } }))} className="btn-secondary text-sm">+ Add Item</button>
+            </div>
+          </div>
+        </div>
+
+        <hr className="border-gray-100 dark:border-[#1b2e4a]" />
+
+        <div>
+          <p className="text-sm font-bold text-gray-700 dark:text-gray-200 mb-3 flex items-center gap-1.5"><Factory size={14} />Other Charges</p>
+          <div className="space-y-4">
+            <div className="grid grid-cols-3 gap-3">
+              <div><label className="label">Other (₹)</label><input type="number" value={form.packaging?.charges?.other || 0} onChange={e => setForm(prev => ({ ...prev, packaging: { ...prev.packaging, charges: { ...prev.packaging?.charges, other: Number(e.target.value) } } }))} className="input" /></div>
             </div>
           </div>
         </div>
