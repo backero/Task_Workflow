@@ -241,134 +241,6 @@ export default function ProductOverheadsTab({ product, form, setForm, onSaveProd
           />
         </div>
 
-        <hr className="border-gray-100 dark:border-[#1b2e4a]" />
-
-        <div>
-          <p className="text-sm font-bold text-gray-700 dark:text-gray-200 mb-4 flex items-center gap-1.5"><Factory size={14} />Total Cost Breakdown</p>
-          {selectedBatch && (() => {
-            const po = form.productionOverhead || {};
-            const sa = form.standardAssumptions || {};
-            const batchCost = calculateBatchCost(selectedBatch, batchUnit);
-            const totalFormulation = batchCost.totalFormCost || 0;
-
-            const overheadTotal = Number(po.electricity || 0) + Number(po.labor || 0) + Number(po.labTesting || 0) + Number(po.other || 0);
-            const batchQtyInBaseUnit = convertToBaseUnit(selectedBatch, batchUnit);
-            const totalOverheadForBatch = overheadTotal;
-
-            const saPct = [sa.equipmentPct, sa.consumablesPct, sa.storagePct, sa.housekeepingPct, sa.adminPct, sa.wastagePct].reduce((s, v) => s + (Number(v) || 0), 0);
-            const subtotal = totalFormulation + totalOverheadForBatch;
-            const saAmount = subtotal * (saPct / 100);
-
-            const totalWithSAAndOverhead = subtotal + saAmount;
-            const perUnitFormulation = totalFormulation / batchQtyInBaseUnit;
-            const perUnitSA = saAmount / batchQtyInBaseUnit;
-            const perUnitOverhead = totalOverheadForBatch / batchQtyInBaseUnit;
-            const perUnitCombined = totalWithSAAndOverhead / batchQtyInBaseUnit;
-
-            let perAlternateUnit = perUnitCombined;
-            let perAltFormulation = perUnitFormulation;
-            let perAltSA = perUnitSA;
-            let perAltOverhead = perUnitOverhead;
-            let alternateLabel = batchUnit;
-
-            // Add alternate unit conversions for common units
-            if (batchUnit === 'L') {
-              perAlternateUnit = perUnitCombined / 1000; // Convert L to ml
-              perAltFormulation = perUnitFormulation / 1000;
-              perAltSA = perUnitSA / 1000;
-              perAltOverhead = perUnitOverhead / 1000;
-              alternateLabel = 'ml';
-            } else if (batchUnit === 'ml') {
-              perAlternateUnit = perUnitCombined * 1000; // Convert ml to L
-              perAltFormulation = perUnitFormulation * 1000;
-              perAltSA = perUnitSA * 1000;
-              perAltOverhead = perUnitOverhead * 1000;
-              alternateLabel = 'L';
-            } else if (batchUnit === 'kg') {
-              perAlternateUnit = perUnitCombined / 1000; // Convert kg to g
-              perAltFormulation = perUnitFormulation / 1000;
-              perAltSA = perUnitSA / 1000;
-              perAltOverhead = perUnitOverhead / 1000;
-              alternateLabel = 'g';
-            } else if (batchUnit === 'g') {
-              perAlternateUnit = perUnitCombined * 1000; // Convert g to kg
-              perAltFormulation = perUnitFormulation * 1000;
-              perAltSA = perUnitSA * 1000;
-              perAltOverhead = perUnitOverhead * 1000;
-              alternateLabel = 'kg';
-            }
-
-            return (
-              <div className="space-y-3">
-                <div className="bg-slate-900 text-white rounded-xl px-6 py-4">
-                  <div className="grid grid-cols-4 gap-4 text-center">
-                    <div>
-                      <p className="text-xs text-slate-400 mb-2">Total Formulation Cost</p>
-                      <p className="font-bold text-lg text-white">₹{numF(totalFormulation)}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-slate-400 mb-2">Production Overhead</p>
-                      <p className="font-bold text-lg text-white">₹{numF(totalOverheadForBatch)}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-slate-400 mb-2">Standard Assumptions ({saPct}%)</p>
-                      <p className="font-bold text-lg text-white">₹{numF(saAmount)}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-slate-400 mb-2">Combined Total</p>
-                      <p className="font-bold text-lg text-amber-300">₹{numF(totalWithSAAndOverhead)}</p>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="bg-slate-900 text-white rounded-xl px-6 py-4">
-                  <div className="grid grid-cols-4 gap-4 text-center mb-4">
-                    <div>
-                      <p className="text-xs text-slate-400 mb-1">Per {batchUnit} (Form)</p>
-                      <p className="font-bold text-white">₹{numF(perUnitFormulation, 4)}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-slate-400 mb-1">Per {batchUnit} (OH)</p>
-                      <p className="font-bold text-white">₹{numF(perUnitOverhead, 4)}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-slate-400 mb-1">Per {batchUnit} (SA)</p>
-                      <p className="font-bold text-white">₹{numF(perUnitSA, 4)}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-slate-400 mb-1">Per {batchUnit} (Total)</p>
-                      <p className="font-bold text-amber-300">₹{numF(perUnitCombined, 4)}</p>
-                    </div>
-                  </div>
-                  <div className="border-t border-slate-700 pt-4">
-                    <div className="grid grid-cols-4 gap-4 text-center">
-                      <div>
-                        <p className="text-xs text-slate-400 mb-1">Per {alternateLabel} (Form)</p>
-                        <p className="font-bold text-white">₹{numF(perAltFormulation, 4)}</p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-slate-400 mb-1">Per {alternateLabel} (OH)</p>
-                        <p className="font-bold text-white">₹{numF(perAltOverhead, 4)}</p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-slate-400 mb-1">Per {alternateLabel} (SA)</p>
-                        <p className="font-bold text-white">₹{numF(perAltSA, 4)}</p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-slate-400 mb-1">Per {alternateLabel} (Total)</p>
-                        <p className="font-bold text-amber-300">₹{numF(perAlternateUnit, 4)}</p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            );
-          })()}
-          {!selectedBatch && <p className="text-xs text-gray-400">Enter a batch quantity to see cost breakdown</p>}
-        </div>
-
-        <hr className="border-gray-100 dark:border-[#1b2e4a]" />
-
         <div>
           <div className="flex items-center justify-between mb-3">
             <p className="text-sm font-bold text-gray-700 dark:text-gray-200 flex items-center gap-1.5"><Factory size={14} />Containers & Labeling</p>
@@ -473,6 +345,131 @@ export default function ProductOverheadsTab({ product, form, setForm, onSaveProd
               <div><label className="label">Other (₹)</label><input type="number" value={form.packaging?.charges?.other || 0} onChange={e => setForm(prev => ({ ...prev, packaging: { ...prev.packaging, charges: { ...prev.packaging?.charges, other: Number(e.target.value) } } }))} className="input" /></div>
             </div>
           </div>
+        </div>
+
+        <hr className="border-gray-100 dark:border-[#1b2e4a]" />
+
+        <div>
+          <p className="text-sm font-bold text-gray-700 dark:text-gray-200 mb-4 flex items-center gap-1.5"><Factory size={14} />Total Cost Breakdown</p>
+          {selectedBatch && (() => {
+            const po = form.productionOverhead || {};
+            const sa = form.standardAssumptions || {};
+            const batchCost = calculateBatchCost(selectedBatch, batchUnit);
+            const totalFormulation = batchCost.totalFormCost || 0;
+
+            const overheadTotal = Number(po.electricity || 0) + Number(po.labor || 0) + Number(po.labTesting || 0) + Number(po.other || 0);
+            const batchQtyInBaseUnit = convertToBaseUnit(selectedBatch, batchUnit);
+            const totalOverheadForBatch = overheadTotal;
+
+            const saPct = [sa.equipmentPct, sa.consumablesPct, sa.storagePct, sa.housekeepingPct, sa.adminPct, sa.wastagePct].reduce((s, v) => s + (Number(v) || 0), 0);
+            const subtotal = totalFormulation + totalOverheadForBatch;
+            const saAmount = subtotal * (saPct / 100);
+
+            const totalWithSAAndOverhead = subtotal + saAmount;
+            const perUnitFormulation = totalFormulation / batchQtyInBaseUnit;
+            const perUnitSA = saAmount / batchQtyInBaseUnit;
+            const perUnitOverhead = totalOverheadForBatch / batchQtyInBaseUnit;
+            const perUnitCombined = totalWithSAAndOverhead / batchQtyInBaseUnit;
+
+            let perAlternateUnit = perUnitCombined;
+            let perAltFormulation = perUnitFormulation;
+            let perAltSA = perUnitSA;
+            let perAltOverhead = perUnitOverhead;
+            let alternateLabel = batchUnit;
+
+            if (batchUnit === 'L') {
+              perAlternateUnit = perUnitCombined / 1000;
+              perAltFormulation = perUnitFormulation / 1000;
+              perAltSA = perUnitSA / 1000;
+              perAltOverhead = perUnitOverhead / 1000;
+              alternateLabel = 'ml';
+            } else if (batchUnit === 'ml') {
+              perAlternateUnit = perUnitCombined * 1000;
+              perAltFormulation = perUnitFormulation * 1000;
+              perAltSA = perUnitSA * 1000;
+              perAltOverhead = perUnitOverhead * 1000;
+              alternateLabel = 'L';
+            } else if (batchUnit === 'kg') {
+              perAlternateUnit = perUnitCombined / 1000;
+              perAltFormulation = perUnitFormulation / 1000;
+              perAltSA = perUnitSA / 1000;
+              perAltOverhead = perUnitOverhead / 1000;
+              alternateLabel = 'g';
+            } else if (batchUnit === 'g') {
+              perAlternateUnit = perUnitCombined * 1000;
+              perAltFormulation = perUnitFormulation * 1000;
+              perAltSA = perUnitSA * 1000;
+              perAltOverhead = perUnitOverhead * 1000;
+              alternateLabel = 'kg';
+            }
+
+            return (
+              <div className="space-y-3">
+                <div className="bg-slate-900 text-white rounded-xl px-6 py-4">
+                  <div className="grid grid-cols-4 gap-4 text-center">
+                    <div>
+                      <p className="text-xs text-slate-400 mb-2">Total Formulation Cost</p>
+                      <p className="font-bold text-lg text-white">₹{numF(totalFormulation)}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-slate-400 mb-2">Production Overhead</p>
+                      <p className="font-bold text-lg text-white">₹{numF(totalOverheadForBatch)}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-slate-400 mb-2">Standard Assumptions ({saPct}%)</p>
+                      <p className="font-bold text-lg text-white">₹{numF(saAmount)}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-slate-400 mb-2">Combined Total</p>
+                      <p className="font-bold text-lg text-amber-300">₹{numF(totalWithSAAndOverhead)}</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-slate-900 text-white rounded-xl px-6 py-4">
+                  <div className="grid grid-cols-4 gap-4 text-center mb-4">
+                    <div>
+                      <p className="text-xs text-slate-400 mb-1">Per {batchUnit} (Form)</p>
+                      <p className="font-bold text-white">₹{numF(perUnitFormulation, 4)}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-slate-400 mb-1">Per {batchUnit} (OH)</p>
+                      <p className="font-bold text-white">₹{numF(perUnitOverhead, 4)}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-slate-400 mb-1">Per {batchUnit} (SA)</p>
+                      <p className="font-bold text-white">₹{numF(perUnitSA, 4)}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-slate-400 mb-1">Per {batchUnit} (Total)</p>
+                      <p className="font-bold text-amber-300">₹{numF(perUnitCombined, 4)}</p>
+                    </div>
+                  </div>
+                  <div className="border-t border-slate-700 pt-4">
+                    <div className="grid grid-cols-4 gap-4 text-center">
+                      <div>
+                        <p className="text-xs text-slate-400 mb-1">Per {alternateLabel} (Form)</p>
+                        <p className="font-bold text-white">₹{numF(perAltFormulation, 4)}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-slate-400 mb-1">Per {alternateLabel} (OH)</p>
+                        <p className="font-bold text-white">₹{numF(perAltOverhead, 4)}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-slate-400 mb-1">Per {alternateLabel} (SA)</p>
+                        <p className="font-bold text-white">₹{numF(perAltSA, 4)}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-slate-400 mb-1">Per {alternateLabel} (Total)</p>
+                        <p className="font-bold text-amber-300">₹{numF(perAlternateUnit, 4)}</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
+          {!selectedBatch && <p className="text-xs text-gray-400">Enter a batch quantity to see cost breakdown</p>}
         </div>
 
         <hr className="border-gray-100 dark:border-[#1b2e4a]" />
