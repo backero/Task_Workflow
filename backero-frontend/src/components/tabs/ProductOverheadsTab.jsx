@@ -383,20 +383,22 @@ export default function ProductOverheadsTab({ product, form, setForm, onSaveProd
                 </tbody>
               </table>
             </div>
-            <div className="flex items-center gap-2 p-2 bg-gray-50 dark:bg-[#0f1a2e] rounded">
-              <input type="checkbox" checked={showContainerGST} onChange={e => setShowContainerGST(e.target.checked)} id="containerGST" className="w-4 h-4" />
-              <label htmlFor="containerGST" className="text-xs font-semibold text-gray-700 dark:text-gray-200 cursor-pointer">Include GST (18%)</label>
-            </div>
-            <div className="rounded-lg bg-slate-900 text-white px-4 py-2">
-              <p className="text-xs font-semibold">Total Containers Cost: ₹{selectedBatch ? numF((form.containers || []).reduce((s, item) => {
-                const batchQtyInBaseUnit = convertToBaseUnit(selectedBatch, batchUnit);
-                const containerWeightInBaseUnit = convertToBaseUnit(Number(item.weight) || 0, item.unit || 'g');
-                const costPerPiece = Number(item.costPerPiece) || 0;
-                const unitsNeeded = containerWeightInBaseUnit > 0 ? Math.round(batchQtyInBaseUnit / containerWeightInBaseUnit) : 0;
-                const baseAmount = unitsNeeded * costPerPiece;
-                const itemCost = showContainerGST ? baseAmount * 1.18 : baseAmount;
-                return s + itemCost;
-              }, 0)) : '—'}</p>
+            <div className="flex items-start justify-between gap-4">
+              <div className="flex items-center gap-2 p-2 bg-gray-50 dark:bg-[#0f1a2e] rounded">
+                <input type="checkbox" checked={showContainerGST} onChange={e => setShowContainerGST(e.target.checked)} id="containerGST" className="w-4 h-4" />
+                <label htmlFor="containerGST" className="text-xs font-semibold text-gray-700 dark:text-gray-200 cursor-pointer">Include GST (18%)</label>
+              </div>
+              <div className="rounded-lg bg-slate-900 text-white px-4 py-2">
+                <p className="text-xs font-semibold">Total Containers Cost: ₹{selectedBatch ? numF((form.containers || []).reduce((s, item) => {
+                  const batchQtyInBaseUnit = convertToBaseUnit(selectedBatch, batchUnit);
+                  const containerWeightInBaseUnit = convertToBaseUnit(Number(item.weight) || 0, item.unit || 'g');
+                  const costPerPiece = Number(item.costPerPiece) || 0;
+                  const unitsNeeded = containerWeightInBaseUnit > 0 ? Math.round(batchQtyInBaseUnit / containerWeightInBaseUnit) : 0;
+                  const baseAmount = unitsNeeded * costPerPiece;
+                  const itemCost = showContainerGST ? baseAmount * 1.18 : baseAmount;
+                  return s + itemCost;
+                }, 0)) : '—'}</p>
+              </div>
             </div>
             <div className="flex gap-3">
               <button onClick={() => setForm(f => ({ ...f, containers: [...(f.containers || []), { name: '', weight: 0, unit: 'g', costPerPiece: 0 }] }))} className="btn-secondary text-sm">+ Add Container</button>
