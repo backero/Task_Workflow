@@ -62,7 +62,7 @@ export default function SavedQuotes({ productId, form, setForm, onLoad }) {
 
   const loadQuote = (quote) => {
     console.log('Loading quote:', quote.name);
-    console.log('Quote data structure:', quote.data);
+    console.log('Quote data:', quote.data);
 
     if (!quote.data) {
       toast.error('Quote data is corrupted');
@@ -70,23 +70,25 @@ export default function SavedQuotes({ productId, form, setForm, onLoad }) {
     }
 
     try {
-      // Use merge pattern like ProductOverheadsTab does
+      // Preserve existing form structure while updating quote fields
       setForm(prev => {
-        const merged = { ...prev };
+        // Start with current form to keep any fields we're not updating
+        const updated = JSON.parse(JSON.stringify(prev));
 
-        if (quote.data.formulation) merged.formulation = quote.data.formulation;
-        if (quote.data.productionOverhead) merged.productionOverhead = quote.data.productionOverhead;
-        if (quote.data.standardAssumptions) merged.standardAssumptions = quote.data.standardAssumptions;
-        if (quote.data.rnd) merged.rnd = quote.data.rnd;
-        if (quote.data.containers) merged.containers = quote.data.containers;
-        if (quote.data.packaging) merged.packaging = quote.data.packaging;
-        if (quote.data.costing) merged.costing = quote.data.costing;
+        // Update each section with saved quote data
+        updated.formulation = quote.data.formulation || prev.formulation;
+        updated.productionOverhead = quote.data.productionOverhead || prev.productionOverhead;
+        updated.standardAssumptions = quote.data.standardAssumptions || prev.standardAssumptions;
+        updated.rnd = quote.data.rnd || prev.rnd;
+        updated.containers = quote.data.containers || prev.containers;
+        updated.packaging = quote.data.packaging || prev.packaging;
+        updated.costing = quote.data.costing || prev.costing;
 
-        console.log('Merged form state:', merged);
-        return merged;
+        console.log('Updated form:', updated);
+        return updated;
       });
 
-      // Scroll to top so user sees the form has changed
+      // Scroll to top to show changes
       setTimeout(() => {
         window.scrollTo({ top: 0, behavior: 'smooth' });
       }, 100);
