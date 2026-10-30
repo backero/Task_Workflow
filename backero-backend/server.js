@@ -63,6 +63,7 @@ const biometricDeviceRoutes   = require('./src/routes/biometricDevice.routes');
 const locationRoutes          = require('./src/routes/location.routes');
 const payrollRoutes           = require('./src/routes/payroll.routes');
 const leaveRoutes             = require('./src/routes/leave.routes');
+const savedQuotesRoutes       = require('./src/routes/savedQuotes.routes');
 
 const app = express();
 const server = http.createServer(app);
@@ -231,6 +232,7 @@ app.use('/api/devices', biometricDeviceRoutes);
 app.use('/api/locations', locationRoutes);
 app.use('/api/payroll', payrollRoutes);
 app.use('/api/leave', leaveRoutes);
+app.use('/api/saved-quotes', savedQuotesRoutes);
 
 // 404 handler
 app.use('*', (req, res) => {
