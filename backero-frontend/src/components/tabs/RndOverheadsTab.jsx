@@ -86,6 +86,27 @@ export default function RndOverheadsTab({ product, form, setForm, onSave, isPend
   return (
     <div className="space-y-6">
       <div>
+        <p className="text-sm font-bold text-gray-700 dark:text-gray-200 mb-3">Select Batch for Calculations</p>
+        <div className="flex gap-2 flex-wrap">
+          {BATCH_SIZES.map(({ label, value }) => (
+            <button
+              key={value}
+              onClick={() => setSelectedBatch(value)}
+              className={`px-4 py-2 rounded text-sm font-semibold transition-all ${
+                selectedBatch === value
+                  ? 'bg-blue-500 text-white'
+                  : 'bg-gray-100 dark:bg-[#1b2e4a] text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-[#2a3d5a]'
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <hr className="border-gray-100 dark:border-[#1b2e4a]" />
+
+      <div>
         <div className="mb-3">
           <p className="text-sm font-bold text-gray-700 dark:text-gray-200 flex items-center gap-1.5"><Factory size={14} />Production Overhead</p>
         </div>
@@ -121,8 +142,10 @@ export default function RndOverheadsTab({ product, form, setForm, onSave, isPend
             <p className="text-lg font-bold">{b.saPct}%</p>
           </div>
           <div>
-            <p className="text-xs text-slate-400 mb-1">Amount (per {b.refW} {product?.formulation?.refUnit || 'g'})</p>
-            <p className="text-lg font-bold text-amber-300">₹{numF(b.saAmount, 2)}</p>
+            <p className="text-xs text-slate-400 mb-1">{selectedBatch ? `Amount (for ${selectedBatch}g)` : 'Amount (select batch)'}</p>
+            <p className="text-lg font-bold text-amber-300">
+              {selectedBatch ? `₹${numF(calculateBatchCost(selectedBatch).totalSA, 2)}` : '₹0.00'}
+            </p>
           </div>
         </div>
         {(b.saPct < 15 || b.saPct > 30) && (
