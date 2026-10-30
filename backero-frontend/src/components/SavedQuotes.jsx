@@ -4,7 +4,7 @@ import toast from 'react-hot-toast';
 
 function numF(v, d = 2) { return Number(v || 0).toFixed(d); }
 
-export default function SavedQuotes({ productId, form, setForm, onLoad, selectedBatch, batchUnit }) {
+export default function SavedQuotes({ productId, form, setForm, onLoad }) {
   const [quotes, setQuotes] = useState([]);
   const [showSaveDialog, setShowSaveDialog] = useState(false);
   const [quoteName, setQuoteName] = useState('');
@@ -44,9 +44,14 @@ export default function SavedQuotes({ productId, form, setForm, onLoad, selected
   };
 
   const loadQuote = (quote) => {
-    setForm(quote.data);
-    if (onLoad) onLoad();
-    toast.success(`Loaded quote: ${quote.name}`);
+    console.log('Loading quote:', quote.name, quote.data);
+    if (quote.data) {
+      setForm({ ...quote.data });
+      if (onLoad) onLoad();
+      toast.success(`Loaded quote: ${quote.name}`);
+    } else {
+      toast.error('Quote data is corrupted');
+    }
   };
 
   const copyQuote = (quote) => {
@@ -72,64 +77,27 @@ export default function SavedQuotes({ productId, form, setForm, onLoad, selected
     }
   };
 
-  const convertToBaseUnit = (qty, unit) => {
-    const conversions = { 'g': 1, 'kg': 1000, 'ml': 1, 'L': 1000, 'pcs': 1 };
-    return qty * (conversions[unit] || 1);
-  };
-
   const calculateTotal = (f) => {
-    if (!selectedBatch || !batchUnit) return 0;
+    try {
+      const po = f.productionOverhead || {};
+      const costing = f.costing || {};
+      const margin = Number(costing.margins?.b2b || costing.margins?.b2c || 0);
 
-    const fm = f.formulation || {};
-    const po = f.productionOverhead || {};
-    const sa = f.standardAssumptions || {};
-    const refW = Number(fm.refWeight) || 100;
+      // Simple calculation: overhead + SA%
+      const overhead = Number(po.electricity || 0) + Number(po.labor || 0) + Number(po.labTesting || 0) + Number(po.other || 0);
+      const sa = f.standardAssumptions || {};
+      const saPct = [sa.equipmentPct, sa.consumablesPct, sa.storagePct, sa.housekeepingPct, sa.adminPct, sa.wastagePct]
+        .reduce((s, v) => s + (Number(v) || 0), 0);
 
-    // Formulation cost
-    const formCost = (fm.rows || []).reduce((s, r) => {
-      const qty = refW * (Number(r.percentage) || 0) / 100 * (Number(r.convFactor) || 1);
-      const cost = (Number(r.costPerKg) || 0) * qty / 1000;
-      return s + cost;
-    }, 0);
+      // Basic total: overhead + SA + margin
+      const subtotal = overhead * (1 + saPct / 100);
+      const total = subtotal * (1 + margin / 100);
 
-    const batchQtyBase = convertToBaseUnit(selectedBatch, batchUnit);
-    const perUnitFormCost = refW > 0 ? formCost : 0;
-    const totalFormCost = perUnitFormCost * (batchQtyBase / refW);
-
-    // Production overhead (batch total, not per-unit)
-    const totalOverheadCost = Number(po.electricity || 0) + Number(po.labor || 0) + Number(po.labTesting || 0) + Number(po.other || 0);
-
-    // Standard Assumptions
-    const saPct = [sa.equipmentPct, sa.consumablesPct, sa.storagePct, sa.housekeepingPct, sa.adminPct, sa.wastagePct].reduce((s, v) => s + (Number(v) || 0), 0);
-    const saAmount = (perUnitFormCost + (totalOverheadCost / 100)) * (saPct / 100);
-
-    // Containers
-    const containersCost = (f.containers || []).reduce((s, item) => {
-      const containerWtBase = convertToBaseUnit(Number(item.weight) || 0, item.unit || 'g');
-      const pcsNeeded = containerWtBase > 0 ? Math.round(batchQtyBase / containerWtBase) : 0;
-      const costPerPiece = Number(item.costPerPiece) || 0;
-      const baseAmount = pcsNeeded * costPerPiece;
-      const amount = item.gstIncluded ? baseAmount * 1.18 : baseAmount;
-      return s + amount;
-    }, 0);
-
-    // Packaging
-    const pkgItems = f.packaging?.items || [];
-    const pkgCharges = f.packaging?.charges || {};
-    const packagingTotal = pkgItems.reduce((s, i) => {
-      const baseAmount = Number(i.qty) * Number(i.rate) || 0;
-      const amount = i.gstIncluded ? baseAmount * 1.18 : baseAmount;
-      return s + amount;
-    }, 0) + Number(pkgCharges.other || 0);
-
-    // Subtotal before margin
-    const subtotal = totalFormCost + totalOverheadCost + saAmount + containersCost + packagingTotal;
-
-    // Apply margin
-    const margin = f.costing?.margins?.b2b || f.costing?.margins?.b2c || 0;
-    const marginAmount = subtotal * (margin / 100);
-
-    return subtotal + marginAmount;
+      return isNaN(total) || !isFinite(total) ? 0 : total;
+    } catch (e) {
+      console.error('Error calculating total:', e);
+      return 0;
+    }
   };
 
   return (
