@@ -85,20 +85,6 @@ export default function RndOverheadsTab({ product, form, setForm, onSave, isPend
 
   return (
     <div className="space-y-6">
-      <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800/40 rounded-lg p-4">
-        <label className="label">Enter Batch Quantity for Calculation (in ml or g)</label>
-        <input
-          type="number"
-          value={selectedBatch || ''}
-          onChange={e => setSelectedBatch(Number(e.target.value) || null)}
-          placeholder="e.g., 10000 for 10L (in ml) or 5000 for 5kg (in g)"
-          className="input text-sm w-full"
-        />
-        <p className="text-xs text-gray-600 dark:text-gray-400 mt-2">For 10L, enter 10000 (since 1L = 1000ml)</p>
-      </div>
-
-      <hr className="border-gray-100 dark:border-[#1b2e4a]" />
-
       <div>
         <div className="mb-3">
           <p className="text-sm font-bold text-gray-700 dark:text-gray-200 flex items-center gap-1.5"><Factory size={14} />Production Overhead</p>
@@ -135,12 +121,8 @@ export default function RndOverheadsTab({ product, form, setForm, onSave, isPend
             <p className="text-lg font-bold">{b.saPct}%</p>
           </div>
           <div>
-            <p className="text-xs text-slate-400 mb-1">
-              {selectedBatch ? `Amount (for ${selectedBatch}ml/g)` : `Amount (per ${b.refW} ${product?.formulation?.refUnit || 'g'})`}
-            </p>
-            <p className="text-lg font-bold text-amber-300">
-              {selectedBatch ? `₹${numF(calculateBatchCost(selectedBatch).totalSA, 2)}` : `₹${numF(b.saAmount, 2)}`}
-            </p>
+            <p className="text-xs text-slate-400 mb-1">Amount (per {b.refW} {product?.formulation?.refUnit || 'g'})</p>
+            <p className="text-lg font-bold text-amber-300">₹{numF(b.saAmount, 2)}</p>
           </div>
         </div>
         {(b.saPct < 15 || b.saPct > 30) && (
