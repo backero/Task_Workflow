@@ -349,6 +349,95 @@ export default function ProductOverheadsTab({ product, form, setForm, onSaveProd
 
         <hr className="border-gray-100 dark:border-[#1b2e4a]" />
 
+        {selectedBatch && (() => {
+          const batchCalc = calculateBatchCost(selectedBatch, batchUnit);
+          const totalFormCost = batchCalc.totalFormCost;
+          const totalOverheadCost = batchCalc.totalOverheadCost;
+          const saAmount = batchCalc.saAmount;
+
+          const containersCost = (form.containers || []).reduce((s, item) => {
+            const batchQtyBase = convertToBaseUnit(selectedBatch, batchUnit);
+            const containerWtBase = convertToBaseUnit(Number(item.weight) || 0, item.unit || 'g');
+            const pcsNeeded = containerWtBase > 0 ? Math.round(batchQtyBase / containerWtBase) : 0;
+            const costPerPiece = Number(item.costPerPiece) || 0;
+            const baseAmount = pcsNeeded * costPerPiece;
+            const amount = item.gstIncluded ? baseAmount * 1.18 : baseAmount;
+            return s + amount;
+          }, 0);
+
+          const pkgItems = form.packaging?.items || [];
+          const pkgCharges = form.packaging?.charges || {};
+          const pkgCostTotal = pkgItems.reduce((s, i) => {
+            const baseAmount = Number(i.qty) * Number(i.rate) || 0;
+            const amount = i.gstIncluded ? baseAmount * 1.18 : baseAmount;
+            return s + amount;
+          }, 0) + Number(pkgCharges.other || 0);
+
+          const subtotalBeforeMargin = totalFormCost + totalOverheadCost + saAmount + containersCost + pkgCostTotal;
+          const marginAmount = subtotalBeforeMargin * (marginPercent / 100);
+          const subtotalWithMargin = subtotalBeforeMargin + marginAmount;
+
+          return (
+            <div className="space-y-2 p-3 bg-gray-50 dark:bg-[#0f1a2e] rounded-lg mb-4">
+              <p className="text-xs font-semibold text-gray-600 dark:text-gray-400 mb-2">Margin Settings</p>
+
+              <div className="grid grid-cols-2 gap-2 mb-3">
+                {[['b2b', 'B2B'], ['b2c', 'B2C']].map(([type, label]) => (
+                  <button
+                    key={type}
+                    onClick={() => {
+                      setActiveMarginType(type);
+                      setMarginPercent(Number(form.costing?.margins?.[type]) || 0);
+                    }}
+                    className={`py-2 px-3 rounded text-xs font-semibold transition-all border ${
+                      activeMarginType === type
+                        ? 'bg-emerald-100 dark:bg-emerald-500/20 border-emerald-500 text-emerald-700 dark:text-emerald-300'
+                        : 'bg-white dark:bg-[#1b2e4a] border-gray-200 dark:border-[#1b2e4a] text-gray-700 dark:text-gray-300 hover:border-gray-300'
+                    }`}
+                  >
+                    {label}
+                    <div className="text-[10px] text-gray-600 dark:text-gray-400 mt-0.5">
+                      {form.costing?.margins?.[type] || 0}%
+                    </div>
+                  </button>
+                ))}
+              </div>
+
+              <div className="flex items-center gap-2">
+                <input
+                  type="number"
+                  min="0"
+                  step="0.5"
+                  value={marginPercent}
+                  onChange={e => {
+                    const val = Number(e.target.value);
+                    setMarginPercent(val);
+                    setForm(prev => ({
+                      ...prev,
+                      costing: {
+                        ...prev.costing,
+                        margins: {
+                          ...prev.costing?.margins,
+                          [activeMarginType]: val
+                        }
+                      }
+                    }));
+                  }}
+                  className="input text-sm w-16"
+                  placeholder="0"
+                />
+                <span className="text-xs font-semibold text-gray-600 dark:text-gray-400">% {activeMarginType.toUpperCase()}</span>
+                <span className="text-xs font-mono font-bold text-gray-900 dark:text-white ml-auto">+ ₹{numF(marginAmount, 2)}</span>
+              </div>
+
+              <div className="flex justify-between items-center text-sm pt-2 border-t border-gray-200 dark:border-[#1b2e4a]">
+                <p className="font-semibold text-gray-700 dark:text-gray-200">With Margin</p>
+                <p className="font-mono font-bold text-gray-900 dark:text-white">₹{numF(subtotalWithMargin, 2)}</p>
+              </div>
+            </div>
+          );
+        })()}
+
         <div>
           <p className="text-sm font-bold text-gray-700 dark:text-gray-200 mb-4 flex items-center gap-1.5"><Factory size={14} />Total Cost Breakdown</p>
           {selectedBatch && (() => {
@@ -506,67 +595,6 @@ export default function ProductOverheadsTab({ product, form, setForm, onSaveProd
 
           return (
             <>
-              <div className="mt-6 space-y-4">
-                <div className="space-y-2 p-3 bg-gray-50 dark:bg-[#0f1a2e] rounded-lg">
-                  <p className="text-xs font-semibold text-gray-600 dark:text-gray-400 mb-2">Margin Settings</p>
-
-                  <div className="grid grid-cols-2 gap-2 mb-3">
-                    {[['b2b', 'B2B'], ['b2c', 'B2C']].map(([type, label]) => (
-                      <button
-                        key={type}
-                        onClick={() => {
-                          setActiveMarginType(type);
-                          setMarginPercent(Number(form.costing?.margins?.[type]) || 0);
-                        }}
-                        className={`py-2 px-3 rounded text-xs font-semibold transition-all border ${
-                          activeMarginType === type
-                            ? 'bg-emerald-100 dark:bg-emerald-500/20 border-emerald-500 text-emerald-700 dark:text-emerald-300'
-                            : 'bg-white dark:bg-[#1b2e4a] border-gray-200 dark:border-[#1b2e4a] text-gray-700 dark:text-gray-300 hover:border-gray-300'
-                        }`}
-                      >
-                        {label}
-                        <div className="text-[10px] text-gray-600 dark:text-gray-400 mt-0.5">
-                          {form.costing?.margins?.[type] || 0}%
-                        </div>
-                      </button>
-                    ))}
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="number"
-                      min="0"
-                      step="0.5"
-                      value={marginPercent}
-                      onChange={e => {
-                        const val = Number(e.target.value);
-                        setMarginPercent(val);
-                        setForm(prev => ({
-                          ...prev,
-                          costing: {
-                            ...prev.costing,
-                            margins: {
-                              ...prev.costing?.margins,
-                              [activeMarginType]: val
-                            }
-                          }
-                        }));
-                      }}
-                      className="input text-sm w-16"
-                      placeholder="0"
-                    />
-                    <span className="text-xs font-semibold text-gray-600 dark:text-gray-400">% {activeMarginType.toUpperCase()}</span>
-                    <span className="text-xs font-mono font-bold text-gray-900 dark:text-white ml-auto">+ ₹{numF(marginAmount, 2)}</span>
-                  </div>
-
-                  <div className="flex justify-between items-center text-sm pt-2 border-t border-gray-200 dark:border-[#1b2e4a]">
-                    <p className="font-semibold text-gray-700 dark:text-gray-200">With Margin</p>
-                    <p className="font-mono font-bold text-gray-900 dark:text-white">₹{numF(subtotalWithMargin, 2)}</p>
-                  </div>
-
-                </div>
-              </div>
-
             </>
           );
         })()}
