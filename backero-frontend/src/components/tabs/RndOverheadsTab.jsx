@@ -96,8 +96,6 @@ export default function RndOverheadsTab({ product, form, setForm, onSave, isPend
         </div>
         <HighlightStrip items={[
           { label: 'Total Production Overhead', value: `₹${numF(b.overheadTotal)}` },
-          { label: 'Per Unit', value: `₹${numF(b.overheadPerUnit, 4)}`, big: true },
-          { label: 'Reference Weight', value: b.refW ? `${b.refW} ${form.formulation?.refUnit || form.unit || ''}` : '—' },
         ]} />
       </div>
 
