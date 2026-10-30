@@ -9,8 +9,11 @@ export default function SavedQuotes({ productId, form, setForm, onLoad }) {
   const [showSaveDialog, setShowSaveDialog] = useState(false);
   const [quoteName, setQuoteName] = useState('');
 
+  // Use a fallback key if productId is undefined
+  const storageKey = `quotes_${productId || 'default'}`;
+
   useEffect(() => {
-    const savedQuotes = localStorage.getItem(`quotes_${productId}`);
+    const savedQuotes = localStorage.getItem(storageKey);
     if (savedQuotes) {
       try {
         setQuotes(JSON.parse(savedQuotes));
@@ -18,7 +21,7 @@ export default function SavedQuotes({ productId, form, setForm, onLoad }) {
         console.error('Failed to load quotes:', e);
       }
     }
-  }, [productId]);
+  }, [storageKey]);
 
   const saveQuote = () => {
     if (!quoteName.trim()) {
@@ -26,21 +29,34 @@ export default function SavedQuotes({ productId, form, setForm, onLoad }) {
       return;
     }
 
+    // Extract only form-related fields, not product metadata
+    const formOnlyData = {
+      formulation: form.formulation,
+      productionOverhead: form.productionOverhead,
+      standardAssumptions: form.standardAssumptions,
+      rnd: form.rnd,
+      containers: form.containers,
+      packaging: form.packaging,
+      costing: form.costing
+    };
+
+    console.log('Saving quote with data:', formOnlyData);
+
     const newQuote = {
       id: Date.now(),
       name: quoteName,
       date: new Date().toLocaleDateString('en-IN'),
-      data: form,
-      total: calculateTotal(form)
+      data: formOnlyData,
+      total: calculateTotal(formOnlyData)
     };
 
     const updated = [...quotes, newQuote];
     setQuotes(updated);
-    localStorage.setItem(`quotes_${productId}`, JSON.stringify(updated));
+    localStorage.setItem(storageKey, JSON.stringify(updated));
 
     setQuoteName('');
     setShowSaveDialog(false);
-    toast.success('Quote saved successfully');
+    toast.success('✓ Quote saved: ' + quoteName);
   };
 
   const loadQuote = (quote) => {
@@ -83,16 +99,16 @@ export default function SavedQuotes({ productId, form, setForm, onLoad }) {
 
     const updated = [...quotes, copied];
     setQuotes(updated);
-    localStorage.setItem(`quotes_${productId}`, JSON.stringify(updated));
-    toast.success('Quote copied');
+    localStorage.setItem(storageKey, JSON.stringify(updated));
+    toast.success('✓ Quote copied');
   };
 
   const deleteQuote = (id) => {
     if (window.confirm('Delete this quote?')) {
       const updated = quotes.filter(q => q.id !== id);
       setQuotes(updated);
-      localStorage.setItem(`quotes_${productId}`, JSON.stringify(updated));
-      toast.success('Quote deleted');
+      localStorage.setItem(storageKey, JSON.stringify(updated));
+      toast.success('✓ Quote deleted');
     }
   };
 
