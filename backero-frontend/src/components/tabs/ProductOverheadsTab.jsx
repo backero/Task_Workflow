@@ -348,6 +348,21 @@ export default function ProductOverheadsTab({ product, form, setForm, onSaveProd
         <hr className="border-gray-100 dark:border-[#1b2e4a]" />
 
         {selectedBatch && (() => {
+          const sa = form.standardAssumptions || {};
+          const saPct = [sa.equipmentPct, sa.consumablesPct, sa.storagePct, sa.housekeepingPct, sa.adminPct, sa.wastagePct].reduce((s, v) => s + (Number(v) || 0), 0);
+
+          const batchCalc = calculateBatchCost(selectedBatch, batchUnit);
+          const saAmount = batchCalc.saAmount;
+
+          return (
+            <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-[#0f1a2e] rounded-lg mb-4">
+              <p className="text-sm font-semibold text-gray-700 dark:text-gray-300">Standard Assumptions ({saPct}%)</p>
+              <p className="text-sm font-bold text-gray-900 dark:text-white font-mono">₹{numF(saAmount)}</p>
+            </div>
+          );
+        })()}
+
+        {selectedBatch && (() => {
           const batchCalc = calculateBatchCost(selectedBatch, batchUnit);
           const totalFormCost = batchCalc.totalFormCost;
           const totalOverheadCost = batchCalc.totalOverheadCost;
