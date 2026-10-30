@@ -461,29 +461,19 @@ export default function ProductOverheadsTab({ product, form, setForm, onSaveProd
 
         {/* Final Cost Summary Card */}
         {selectedBatch && (() => {
-          const b = { ...product, ...form };
-          const fm = b.formulation || {};
-          const po = b.productionOverhead || {};
-          const sa = b.standardAssumptions || {};
-          const refW = Number(fm.refWeight) || 100;
-
-          const totalFormCost = (fm.rows || []).reduce((s, r) => {
-            const qty = refW * (Number(r.percentage) || 0) / 100 * (Number(r.convFactor) || 1);
-            const cost = (Number(r.costPerKg) || 0) * qty;
-            return s + cost;
-          }, 0);
-
-          const totalOverhead = Number(po.electricity || 0) + Number(po.labor || 0) + Number(po.labTesting || 0) + Number(po.other || 0);
-
-          const saPct = [sa.equipmentPct, sa.consumablesPct, sa.storagePct, sa.housekeepingPct, sa.adminPct, sa.wastagePct].reduce((s, v) => s + (Number(v) || 0), 0);
-          const saAmount = (totalFormCost + totalOverhead) * (saPct / 100);
+          const batchCalc = calculateBatchCost(selectedBatch, batchUnit);
+          const totalFormCost = batchCalc.totalFormCost;
+          const totalOverheadCost = batchCalc.totalOverheadCost;
+          const saAmount = batchCalc.saAmount;
 
           const containersCost = (form.containers || []).reduce((s, item) => {
             const batchQtyBase = convertToBaseUnit(selectedBatch, batchUnit);
             const containerWtBase = convertToBaseUnit(Number(item.weight) || 0, item.unit || 'g');
             const pcsNeeded = containerWtBase > 0 ? Math.round(batchQtyBase / containerWtBase) : 0;
             const costPerPiece = Number(item.costPerPiece) || 0;
-            return s + (costPerPiece * pcsNeeded);
+            const baseAmount = pcsNeeded * costPerPiece;
+            const amount = item.gstIncluded ? baseAmount * 1.18 : baseAmount;
+            return s + amount;
           }, 0);
 
           const pkgItems = form.packaging?.items || [];
@@ -492,9 +482,9 @@ export default function ProductOverheadsTab({ product, form, setForm, onSaveProd
             const baseAmount = Number(i.qty) * Number(i.rate) || 0;
             const amount = i.gstIncluded ? baseAmount * 1.18 : baseAmount;
             return s + amount;
-          }, 0) + Number(pkgCharges.machine || 0) + Number(pkgCharges.other || 0);
+          }, 0) + Number(pkgCharges.other || 0);
 
-          const subtotalBeforeMargin = totalFormCost + totalOverhead + saAmount + containersCost + pkgCostTotal;
+          const subtotalBeforeMargin = totalFormCost + totalOverheadCost + saAmount + containersCost + pkgCostTotal;
           const marginAmount = subtotalBeforeMargin * (marginPercent / 100);
           const subtotalWithMargin = subtotalBeforeMargin + marginAmount;
           const finalAmount = subtotalWithMargin;
@@ -571,7 +561,7 @@ export default function ProductOverheadsTab({ product, form, setForm, onSaveProd
                       </tr>
                       <tr className="border-b border-gray-200 dark:border-[#1b2e4a]">
                         <td className="px-4 py-2.5 text-gray-700 dark:text-gray-300">Production Overhead</td>
-                        <td className="px-4 py-2.5 text-right font-mono font-bold text-gray-900 dark:text-white">₹{numF(totalOverhead, 2)}</td>
+                        <td className="px-4 py-2.5 text-right font-mono font-bold text-gray-900 dark:text-white">₹{numF(totalOverheadCost, 2)}</td>
                       </tr>
                       <tr className="border-b border-gray-200 dark:border-[#1b2e4a]">
                         <td className="px-4 py-2.5 text-gray-700 dark:text-gray-300">Standard Assumptions</td>
@@ -623,30 +613,31 @@ export default function ProductOverheadsTab({ product, form, setForm, onSaveProd
           const batchQtyInBaseUnit = convertToBaseUnit(selectedBatch, batchUnit);
           const batchCostCalc = calculateBatchCost(selectedBatch, batchUnit);
           const totalFormCost = batchCostCalc.totalFormCost || 0;
+          const totalOverheadCost = batchCostCalc.totalOverheadCost || 0;
+          const saAmount = batchCostCalc.saAmount || 0;
 
-          // Total production overhead (not per unit)
-          const totalOverhead = Number(po.electricity || 0) + Number(po.labor || 0) + Number(po.labTesting || 0) + Number(po.other || 0);
-
-          // Standard assumptions percentage applied to formulation + overhead
-          const saPct = [sa.equipmentPct, sa.consumablesPct, sa.storagePct, sa.housekeepingPct, sa.adminPct, sa.wastagePct].reduce((s, v) => s + (Number(v) || 0), 0);
-          const saAmount = (totalFormCost + totalOverhead) * (saPct / 100);
-
-          // Containers cost (recalculate Pcs Needed since it's based on batch)
+          // Containers cost (with per-item GST support)
           const containersCost = selectedBatch ? (form.containers || []).reduce((s, item) => {
             const batchQtyBase = batchQtyInBaseUnit;
             const containerWtBase = convertToBaseUnit(Number(item.weight) || 0, item.unit || 'g');
             const pcsNeeded = containerWtBase > 0 ? Math.round(batchQtyBase / containerWtBase) : 0;
             const costPerPiece = Number(item.costPerPiece) || 0;
-            return s + (costPerPiece * pcsNeeded);
+            const baseAmount = pcsNeeded * costPerPiece;
+            const amount = item.gstIncluded ? baseAmount * 1.18 : baseAmount;
+            return s + amount;
           }, 0) : 0;
 
-          // Packaging cost
+          // Packaging cost (with per-item GST support)
           const pkgItems = pkg.items || [];
           const pkgCharges = pkg.charges || {};
-          const pkgCostTotal = pkgItems.reduce((s, i) => s + (Number(i.amount) || Number(i.qty) * Number(i.rate) || 0), 0) + Number(pkgCharges.machine || 0) + Number(pkgCharges.other || 0);
+          const pkgCostTotal = pkgItems.reduce((s, i) => {
+            const baseAmount = Number(i.qty) * Number(i.rate) || 0;
+            const amount = i.gstIncluded ? baseAmount * 1.18 : baseAmount;
+            return s + amount;
+          }, 0) + Number(pkgCharges.other || 0);
 
           // Calculate subtotal before margin
-          const subtotalBeforeMargin = totalFormCost + totalOverhead + saAmount + containersCost + pkgCostTotal;
+          const subtotalBeforeMargin = totalFormCost + totalOverheadCost + saAmount + containersCost + pkgCostTotal;
 
           // Apply margin
           const marginAmount = subtotalBeforeMargin * (marginPercent / 100);
