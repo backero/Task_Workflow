@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Save, Copy, Trash2, Download, X } from 'lucide-react';
+import { Save, Copy, Trash2, FolderOpen, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 function numF(v, d = 2) { return Number(v || 0).toFixed(d); }
@@ -61,32 +61,35 @@ export default function SavedQuotes({ productId, form, setForm, onLoad }) {
   };
 
   const loadQuote = (quote) => {
-    console.log('Loading quote:', quote.name);
-    console.log('Quote data:', quote.data);
+    console.log('=== LOADING QUOTE ===', quote.name);
+    console.log('Quote data to load:', quote.data);
 
     if (!quote.data) {
+      console.error('No quote data found');
       toast.error('Quote data is corrupted');
       return;
     }
 
     try {
-      // Preserve existing form structure while updating quote fields
-      setForm(prev => {
-        // Start with current form to keep any fields we're not updating
-        const updated = JSON.parse(JSON.stringify(prev));
+      // Log what we're about to set
+      console.log('Current form before load:', form);
+      console.log('Quote data to restore:', quote.data);
 
-        // Update each section with saved quote data
-        updated.formulation = quote.data.formulation || prev.formulation;
-        updated.productionOverhead = quote.data.productionOverhead || prev.productionOverhead;
-        updated.standardAssumptions = quote.data.standardAssumptions || prev.standardAssumptions;
-        updated.rnd = quote.data.rnd || prev.rnd;
-        updated.containers = quote.data.containers || prev.containers;
-        updated.packaging = quote.data.packaging || prev.packaging;
-        updated.costing = quote.data.costing || prev.costing;
+      // Force update by creating new object reference
+      const newFormData = {
+        ...form,
+        formulation: quote.data.formulation ?? form.formulation,
+        productionOverhead: quote.data.productionOverhead ?? form.productionOverhead,
+        standardAssumptions: quote.data.standardAssumptions ?? form.standardAssumptions,
+        rnd: quote.data.rnd ?? form.rnd,
+        containers: quote.data.containers ?? form.containers,
+        packaging: quote.data.packaging ?? form.packaging,
+        costing: quote.data.costing ?? form.costing
+      };
 
-        console.log('Updated form:', updated);
-        return updated;
-      });
+      console.log('New form data to set:', newFormData);
+      setForm(newFormData);
+      console.log('setForm called with new data');
 
       // Scroll to top to show changes
       setTimeout(() => {
@@ -225,9 +228,9 @@ export default function SavedQuotes({ productId, form, setForm, onLoad }) {
                       <button
                         onClick={() => loadQuote(quote)}
                         className="p-1.5 rounded hover:bg-blue-100 dark:hover:bg-blue-500/20 text-blue-600 dark:text-blue-400 transition"
-                        title="Load"
+                        title="Load Quote"
                       >
-                        <Download size={14} />
+                        <FolderOpen size={14} />
                       </button>
                       <button
                         onClick={() => copyQuote(quote)}
