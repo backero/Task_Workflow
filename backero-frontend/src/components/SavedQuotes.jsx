@@ -1,121 +1,199 @@
 import React, { useState, useEffect } from 'react';
 import { Save, Copy, Trash2, FolderOpen, X } from 'lucide-react';
 import toast from 'react-hot-toast';
+import axios from 'axios';
 
 function numF(v, d = 2) { return Number(v || 0).toFixed(d); }
+
+const API_BASE = 'http://localhost:5000/api';
 
 export default function SavedQuotes({ productId, form, setForm, onLoad }) {
   const [quotes, setQuotes] = useState([]);
   const [showSaveDialog, setShowSaveDialog] = useState(false);
   const [quoteName, setQuoteName] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  // Use a fallback key if productId is undefined (productId should be product._id)
-  const storageKey = `quotes_${productId || 'default'}`;
-  console.log('SavedQuotes: productId=', productId, 'storageKey=', storageKey);
-
+  // Fetch quotes from database on mount and when productId changes
   useEffect(() => {
-    const savedQuotes = localStorage.getItem(storageKey);
-    if (savedQuotes) {
-      try {
-        setQuotes(JSON.parse(savedQuotes));
-      } catch (e) {
-        console.error('Failed to load quotes:', e);
-      }
-    }
-  }, [storageKey]);
+    if (!productId) return;
+    fetchQuotes();
+  }, [productId]);
 
-  const saveQuote = () => {
+  const fetchQuotes = async () => {
+    try {
+      setLoading(true);
+      const response = await axios.get(`${API_BASE}/saved-quotes/${productId}`);
+      console.log('Fetched quotes from database:', response.data);
+      setQuotes(response.data.quotes || []);
+    } catch (error) {
+      console.error('Failed to fetch quotes:', error);
+      // Fallback to localStorage if database fails
+      const savedQuotes = localStorage.getItem(`quotes_${productId}`);
+      if (savedQuotes) {
+        try {
+          setQuotes(JSON.parse(savedQuotes));
+        } catch (e) {
+          console.error('Failed to load quotes from localStorage:', e);
+        }
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const saveQuote = async () => {
     if (!quoteName.trim()) {
       toast.error('Please enter a quote name');
       return;
     }
 
-    // Extract only form-related fields, not product metadata
-    const formOnlyData = {
-      formulation: form.formulation,
-      productionOverhead: form.productionOverhead,
-      standardAssumptions: form.standardAssumptions,
-      rnd: form.rnd,
-      containers: form.containers,
-      packaging: form.packaging,
-      costing: form.costing
-    };
+    try {
+      setLoading(true);
 
-    console.log('Saving quote with data:', formOnlyData);
+      // Extract only form-related fields
+      const formOnlyData = {
+        formulation: form.formulation,
+        productionOverhead: form.productionOverhead,
+        standardAssumptions: form.standardAssumptions,
+        rnd: form.rnd,
+        containers: form.containers,
+        packaging: form.packaging,
+        costing: form.costing
+      };
 
-    const newQuote = {
-      id: Date.now(),
-      name: quoteName,
-      date: new Date().toLocaleDateString('en-IN'),
-      data: formOnlyData,
-      total: calculateTotal(formOnlyData)
-    };
+      const newQuote = {
+        name: quoteName,
+        date: new Date().toLocaleDateString('en-IN'),
+        data: formOnlyData,
+        total: calculateTotal(formOnlyData)
+      };
 
-    const updated = [...quotes, newQuote];
-    setQuotes(updated);
-    localStorage.setItem(storageKey, JSON.stringify(updated));
+      console.log('Saving quote to database:', newQuote);
 
-    setQuoteName('');
-    setShowSaveDialog(false);
-    toast.success('✓ Quote saved: ' + quoteName);
+      // Save to database
+      const response = await axios.post(`${API_BASE}/saved-quotes/${productId}`, newQuote);
+      console.log('Quote saved successfully:', response.data);
+
+      // Update local quotes list
+      setQuotes([...quotes, response.data.quote]);
+
+      // Also save to localStorage as backup
+      localStorage.setItem(`quotes_${productId}`, JSON.stringify([...quotes, response.data.quote]));
+
+      setQuoteName('');
+      setShowSaveDialog(false);
+      toast.success('✓ Quote saved: ' + quoteName);
+    } catch (error) {
+      console.error('Error saving quote:', error);
+      toast.error('Failed to save quote. Retrying locally...');
+
+      // Fallback: save to localStorage only
+      const newQuote = {
+        id: Date.now(),
+        name: quoteName,
+        date: new Date().toLocaleDateString('en-IN'),
+        data: form,
+        total: calculateTotal(form)
+      };
+      const updated = [...quotes, newQuote];
+      setQuotes(updated);
+      localStorage.setItem(`quotes_${productId}`, JSON.stringify(updated));
+      setQuoteName('');
+      setShowSaveDialog(false);
+      toast.success('✓ Quote saved locally');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const loadQuote = (quote) => {
-    console.log('=== LOADING QUOTE ===', quote.name);
-    console.log('Quote data to load:', quote.data);
-
-    if (!quote.data) {
-      console.error('No quote data found');
-      toast.error('Quote data is corrupted');
-      return;
-    }
-
+  const loadQuote = async (quote) => {
     try {
-      console.log('Current form before load:', form);
-      console.log('Quote data to restore:', quote.data);
+      console.log('Loading quote from database:', quote.name);
 
-      // Create completely new form object with only quote data to ensure update
-      const newFormData = JSON.parse(JSON.stringify(quote.data));
-      console.log('Loading quote data directly:', newFormData);
+      // Fetch the specific quote from database to ensure we have latest data
+      const response = await axios.get(`${API_BASE}/saved-quotes/${productId}/${quote._id || quote.id}`);
+      const quoteData = response.data.quote;
 
-      // Call setForm with the new data
-      setForm(newFormData);
-      console.log('setForm called - form should update now');
+      console.log('Quote data fetched from database:', quoteData.data);
 
-      // Give React time to update state and then scroll
+      if (!quoteData.data) {
+        toast.error('Quote data is corrupted');
+        return;
+      }
+
+      // Set form with loaded data
+      setForm(JSON.parse(JSON.stringify(quoteData.data)));
+
       setTimeout(() => {
-        console.log('Form after load (setTimeout):', newFormData);
         window.scrollTo({ top: 0, behavior: 'smooth' });
       }, 50);
 
       if (onLoad) onLoad();
       toast.success(`✓ Loaded: ${quote.name}`);
-    } catch (e) {
-      console.error('Error loading quote:', e);
-      toast.error('Failed to load quote');
+    } catch (error) {
+      console.error('Error loading quote:', error);
+
+      // Fallback: load from localStorage
+      if (quote.data) {
+        setForm(JSON.parse(JSON.stringify(quote.data)));
+        toast.success(`✓ Loaded (offline): ${quote.name}`);
+      } else {
+        toast.error('Failed to load quote');
+      }
     }
   };
 
-  const copyQuote = (quote) => {
-    const copied = {
-      ...quote,
-      id: Date.now(),
-      name: `${quote.name} (Copy)`,
-      date: new Date().toLocaleDateString('en-IN')
-    };
+  const copyQuote = async (quote) => {
+    try {
+      setLoading(true);
 
-    const updated = [...quotes, copied];
-    setQuotes(updated);
-    localStorage.setItem(storageKey, JSON.stringify(updated));
-    toast.success('✓ Quote copied');
+      const copied = {
+        name: `${quote.name} (Copy)`,
+        date: new Date().toLocaleDateString('en-IN'),
+        data: quote.data,
+        total: quote.total
+      };
+
+      // Save copy to database
+      const response = await axios.post(`${API_BASE}/saved-quotes/${productId}`, copied);
+
+      // Update local list
+      setQuotes([...quotes, response.data.quote]);
+
+      // Also update localStorage
+      localStorage.setItem(`quotes_${productId}`, JSON.stringify([...quotes, response.data.quote]));
+
+      toast.success('✓ Quote copied');
+    } catch (error) {
+      console.error('Error copying quote:', error);
+      toast.error('Failed to copy quote');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const deleteQuote = (id) => {
-    if (window.confirm('Delete this quote?')) {
-      const updated = quotes.filter(q => q.id !== id);
+  const deleteQuote = async (quoteId) => {
+    if (!window.confirm('Delete this quote?')) return;
+
+    try {
+      setLoading(true);
+
+      // Delete from database
+      await axios.delete(`${API_BASE}/saved-quotes/${productId}/${quoteId}`);
+
+      // Update local list
+      const updated = quotes.filter(q => q._id !== quoteId && q.id !== quoteId);
       setQuotes(updated);
-      localStorage.setItem(storageKey, JSON.stringify(updated));
+
+      // Update localStorage
+      localStorage.setItem(`quotes_${productId}`, JSON.stringify(updated));
+
       toast.success('✓ Quote deleted');
+    } catch (error) {
+      console.error('Error deleting quote:', error);
+      toast.error('Failed to delete quote');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -125,13 +203,11 @@ export default function SavedQuotes({ productId, form, setForm, onLoad }) {
       const costing = f.costing || {};
       const margin = Number(costing.margins?.b2b || costing.margins?.b2c || 0);
 
-      // Simple calculation: overhead + SA%
       const overhead = Number(po.electricity || 0) + Number(po.labor || 0) + Number(po.labTesting || 0) + Number(po.other || 0);
       const sa = f.standardAssumptions || {};
       const saPct = [sa.equipmentPct, sa.consumablesPct, sa.storagePct, sa.housekeepingPct, sa.adminPct, sa.wastagePct]
         .reduce((s, v) => s + (Number(v) || 0), 0);
 
-      // Basic total: overhead + SA + margin
       const subtotal = overhead * (1 + saPct / 100);
       const total = subtotal * (1 + margin / 100);
 
@@ -155,6 +231,7 @@ export default function SavedQuotes({ productId, form, setForm, onLoad }) {
             {quotes.length} saved
           </span>
         )}
+        {loading && <span className="text-xs text-blue-500">Loading...</span>}
       </div>
 
       {/* Save Dialog */}
@@ -177,7 +254,7 @@ export default function SavedQuotes({ productId, form, setForm, onLoad }) {
               autoFocus
             />
             <div className="flex gap-2">
-              <button onClick={saveQuote} className="flex-1 px-4 py-2 bg-emerald-500 text-white rounded-lg font-semibold hover:bg-emerald-600">
+              <button onClick={saveQuote} disabled={loading} className="flex-1 px-4 py-2 bg-emerald-500 text-white rounded-lg font-semibold hover:bg-emerald-600 disabled:bg-gray-400">
                 Save
               </button>
               <button onClick={() => setShowSaveDialog(false)} className="flex-1 px-4 py-2 bg-gray-200 dark:bg-[#1b2e4a] text-gray-900 dark:text-white rounded-lg font-semibold hover:bg-gray-300">
@@ -203,7 +280,7 @@ export default function SavedQuotes({ productId, form, setForm, onLoad }) {
             <tbody>
               {quotes.map((quote, idx) => (
                 <tr
-                  key={quote.id}
+                  key={quote._id || quote.id}
                   className={`border-t border-gray-100 dark:border-[#1b2e4a] hover:bg-gray-50 dark:hover:bg-[#0f1a2e]/50 transition ${
                     idx % 2 === 0 ? 'bg-white dark:bg-[#1a2a3a]/50' : 'bg-gray-50 dark:bg-[#0f1a2e]'
                   }`}
@@ -219,21 +296,24 @@ export default function SavedQuotes({ productId, form, setForm, onLoad }) {
                     <div className="flex gap-2 justify-center">
                       <button
                         onClick={() => loadQuote(quote)}
-                        className="p-1.5 rounded hover:bg-blue-100 dark:hover:bg-blue-500/20 text-blue-600 dark:text-blue-400 transition"
+                        disabled={loading}
+                        className="p-1.5 rounded hover:bg-blue-100 dark:hover:bg-blue-500/20 text-blue-600 dark:text-blue-400 transition disabled:opacity-50"
                         title="Load Quote"
                       >
                         <FolderOpen size={14} />
                       </button>
                       <button
                         onClick={() => copyQuote(quote)}
-                        className="p-1.5 rounded hover:bg-green-100 dark:hover:bg-green-500/20 text-green-600 dark:text-green-400 transition"
+                        disabled={loading}
+                        className="p-1.5 rounded hover:bg-green-100 dark:hover:bg-green-500/20 text-green-600 dark:text-green-400 transition disabled:opacity-50"
                         title="Copy"
                       >
                         <Copy size={14} />
                       </button>
                       <button
-                        onClick={() => deleteQuote(quote.id)}
-                        className="p-1.5 rounded hover:bg-red-100 dark:hover:bg-red-500/20 text-red-600 dark:text-red-400 transition"
+                        onClick={() => deleteQuote(quote._id || quote.id)}
+                        disabled={loading}
+                        className="p-1.5 rounded hover:bg-red-100 dark:hover:bg-red-500/20 text-red-600 dark:text-red-400 transition disabled:opacity-50"
                         title="Delete"
                       >
                         <Trash2 size={14} />
@@ -255,7 +335,8 @@ export default function SavedQuotes({ productId, form, setForm, onLoad }) {
       {/* Save Quote Button at Bottom */}
       <button
         onClick={() => setShowSaveDialog(true)}
-        className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white text-sm font-semibold transition"
+        disabled={loading}
+        className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white text-sm font-semibold transition disabled:bg-gray-400"
       >
         <Save size={16} /> Save Quote
       </button>
