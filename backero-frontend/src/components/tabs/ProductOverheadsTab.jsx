@@ -370,7 +370,7 @@ export default function ProductOverheadsTab({ product, form, setForm, onSaveProd
             <div className="overflow-x-auto rounded-xl border border-gray-200 dark:border-[#1b2e4a]">
               <table className="w-full text-xs">
                 <thead className="bg-gray-50 dark:bg-[#0f1a2e]">
-                  <tr>{['Item', 'Weight', 'Unit', 'Pcs Needed', 'Rate (₹)', 'Amount (₹)', 'Include 18%', ''].map(h => <th key={h} className="px-3 py-2 text-left font-semibold text-gray-500">{h}</th>)}</tr>
+                  <tr>{['Item', 'Weight', 'Unit', 'Pcs Needed', 'Rate (₹)', 'Include 18%', 'Amount (₹)', ''].map(h => <th key={h} className="px-3 py-2 text-left font-semibold text-gray-500">{h}</th>)}</tr>
                 </thead>
                 <tbody>
                   {(form.containers || []).map((item, idx) => {
@@ -387,8 +387,8 @@ export default function ProductOverheadsTab({ product, form, setForm, onSaveProd
                         <td className="px-2 py-1.5"><select value={item.unit || 'g'} onChange={e => { const c = [...(form.containers || [])]; c[idx].unit = e.target.value; setForm(f => ({ ...f, containers: c })); }} className="input text-xs w-16"><option value="g">g</option><option value="kg">kg</option><option value="ml">ml</option><option value="L">L</option></select></td>
                         <td className="px-2 py-1.5"><input type="text" readOnly value={selectedBatch ? numF(unitsNeeded, 0) : '—'} className="input text-xs bg-amber-50 dark:bg-amber-500/10 font-mono font-bold text-amber-700 dark:text-amber-300 w-20" /></td>
                         <td className="px-2 py-1.5"><input type="number" step="0.01" value={item.costPerPiece || ''} onChange={e => { const c = [...(form.containers || [])]; c[idx].costPerPiece = Number(e.target.value) || 0; setForm(f => ({ ...f, containers: c })); }} className="input text-xs w-20" /></td>
-                        <td className="px-2 py-1.5"><input type="text" readOnly value={selectedBatch ? numF(amount) : '—'} className="input text-xs bg-gray-50 dark:bg-[#0f1a2e] font-mono font-bold w-24" /></td>
                         <td className="px-2 py-1.5"><input type="checkbox" checked={item.gstIncluded || false} onChange={e => { const c = [...(form.containers || [])]; c[idx].gstIncluded = e.target.checked; setForm(f => ({ ...f, containers: c })); }} className="w-4 h-4" /></td>
+                        <td className="px-2 py-1.5"><input type="text" readOnly value={selectedBatch ? numF(amount) : '—'} className="input text-xs bg-gray-50 dark:bg-[#0f1a2e] font-mono font-bold w-24" /></td>
                         <td className="px-2 py-1.5"><button onClick={() => setForm(f => ({ ...f, containers: (f.containers || []).filter((_, i) => i !== idx) }))} className="text-red-400 hover:text-red-600">✕</button></td>
                       </tr>
                     );
