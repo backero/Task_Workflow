@@ -299,13 +299,27 @@ export default function ProductOverheadsTab({ product, form, setForm, onSaveProd
             }
 
             return (
-              <div className="space-y-4">
-                <HighlightStrip tone="dark" items={[
-                  { label: 'Total Formulation Cost', value: `₹${numF(totalFormulation)}` },
-                  { label: 'Production Overhead', value: `₹${numF(totalOverheadForBatch)}` },
-                  { label: `Standard Assumptions (${saPct}%)`, value: `₹${numF(saAmount)}` },
-                  { label: 'Combined Total', value: `₹${numF(totalWithSAAndOverhead)}`, big: true, accent: true },
-                ]} />
+              <div className="space-y-3">
+                <div className="bg-slate-900 text-white rounded-xl px-6 py-4">
+                  <div className="grid grid-cols-4 gap-4 text-center">
+                    <div>
+                      <p className="text-xs text-slate-400 mb-2">Total Formulation Cost</p>
+                      <p className="font-bold text-lg text-white">₹{numF(totalFormulation)}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-slate-400 mb-2">Production Overhead</p>
+                      <p className="font-bold text-lg text-white">₹{numF(totalOverheadForBatch)}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-slate-400 mb-2">Standard Assumptions ({saPct}%)</p>
+                      <p className="font-bold text-lg text-white">₹{numF(saAmount)}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-slate-400 mb-2">Combined Total</p>
+                      <p className="font-bold text-lg text-amber-300">₹{numF(totalWithSAAndOverhead)}</p>
+                    </div>
+                  </div>
+                </div>
 
                 <div className="bg-slate-900 text-white rounded-xl px-6 py-4">
                   <div className="grid grid-cols-4 gap-4 text-center mb-4">
