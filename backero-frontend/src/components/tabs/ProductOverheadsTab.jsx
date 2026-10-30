@@ -87,7 +87,6 @@ export default function ProductOverheadsTab({ product, form, setForm, onSaveProd
     const overheadPerUnit = refWInBaseUnit > 0 ? overheadTotal / refWInBaseUnit : 0;
 
     const saPct = [sa.equipmentPct, sa.consumablesPct, sa.storagePct, sa.housekeepingPct, sa.adminPct, sa.wastagePct].reduce((s, v) => s + (Number(v) || 0), 0);
-    const saAmount = formCost * (saPct / 100);
 
     const lifecycle = rnd.lifecycle || 1000;
     const rndTotal = (Number(rnd.testing) || 0) + (Number(rnd.consumables) || 0) + (Number(rnd.samples) || 0) + (Number(rnd.overhead) || 0) + (Number(rnd.otherOverhead) || 0) + (Number(rnd.qc) || 0);
@@ -95,8 +94,13 @@ export default function ProductOverheadsTab({ product, form, setForm, onSaveProd
 
     const units = refWInBaseUnit > 0 ? batchQtyInBaseUnit / refWInBaseUnit : 0;
     const totalFormCostForBatch = formCost * units;
+    const totalOverheadCost = overheadTotal * units;
+    const saAmount = (totalFormCostForBatch + totalOverheadCost) * (saPct / 100);
+
     return {
       totalFormCost: totalFormCostForBatch,
+      totalOverheadCost: totalOverheadCost,
+      saAmount: saAmount,
       totalAll: totalFormCostForBatch,
       units,
       batchQtyInBaseUnit,
