@@ -70,12 +70,21 @@ export default function SavedQuotes({ productId, form, setForm, onLoad }) {
     }
 
     try {
-      // Create a deep copy of the quote data
-      const loadedData = JSON.parse(JSON.stringify(quote.data));
-      console.log('Deep copied data:', loadedData);
+      // Use merge pattern like ProductOverheadsTab does
+      setForm(prev => {
+        const merged = { ...prev };
 
-      // Set the form with the loaded data
-      setForm(loadedData);
+        if (quote.data.formulation) merged.formulation = quote.data.formulation;
+        if (quote.data.productionOverhead) merged.productionOverhead = quote.data.productionOverhead;
+        if (quote.data.standardAssumptions) merged.standardAssumptions = quote.data.standardAssumptions;
+        if (quote.data.rnd) merged.rnd = quote.data.rnd;
+        if (quote.data.containers) merged.containers = quote.data.containers;
+        if (quote.data.packaging) merged.packaging = quote.data.packaging;
+        if (quote.data.costing) merged.costing = quote.data.costing;
+
+        console.log('Merged form state:', merged);
+        return merged;
+      });
 
       // Scroll to top so user sees the form has changed
       setTimeout(() => {
