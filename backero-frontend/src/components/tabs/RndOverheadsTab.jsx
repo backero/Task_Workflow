@@ -123,8 +123,8 @@ export default function RndOverheadsTab({ product, form, setForm, onSave, isPend
             <p className="text-lg font-bold">{b.saPct}%</p>
           </div>
           <div>
-            <p className="text-xs text-slate-400 mb-1">Total Amount</p>
-            <p className="text-lg font-bold text-amber-300">₹{numF(b.saAmount)}</p>
+            <p className="text-xs text-slate-400 mb-1">Amount (per {b.refW} {product?.formulation?.refUnit || 'g'})</p>
+            <p className="text-lg font-bold text-amber-300">₹{numF(b.saAmount, 2)}</p>
           </div>
         </div>
         {(b.saPct < 15 || b.saPct > 30) && (
