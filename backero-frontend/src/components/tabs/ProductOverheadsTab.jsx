@@ -365,8 +365,9 @@ export default function ProductOverheadsTab({ product, form, setForm, onSaveProd
                     const batchQtyInBaseUnit = selectedBatch ? convertToBaseUnit(selectedBatch, batchUnit) : 0;
                     const containerWeightInBaseUnit = convertToBaseUnit(Number(item.weight) || 0, item.unit || 'g');
                     const costPerPiece = Number(item.costPerPiece) || 0;
-                    const unitsNeeded = containerWeightInBaseUnit > 0 ? batchQtyInBaseUnit / containerWeightInBaseUnit : 0;
-                    const amount = unitsNeeded * costPerPiece * (showContainerGST ? 1.18 : 1);
+                    const unitsNeeded = selectedBatch && containerWeightInBaseUnit > 0 ? Math.round(batchQtyInBaseUnit / containerWeightInBaseUnit) : 0;
+                    const baseAmount = unitsNeeded * costPerPiece;
+                    const amount = showContainerGST ? baseAmount * 1.18 : baseAmount;
                     return (
                       <tr key={idx} className="border-t border-gray-100 dark:border-[#1b2e4a]">
                         <td className="px-2 py-1.5"><input value={item.name} onChange={e => { const c = [...(form.containers || [])]; c[idx].name = e.target.value; setForm(f => ({ ...f, containers: c })); }} className="input text-xs w-32" placeholder="e.g., Bottle" /></td>
@@ -391,8 +392,9 @@ export default function ProductOverheadsTab({ product, form, setForm, onSaveProd
                 const batchQtyInBaseUnit = convertToBaseUnit(selectedBatch, batchUnit);
                 const containerWeightInBaseUnit = convertToBaseUnit(Number(item.weight) || 0, item.unit || 'g');
                 const costPerPiece = Number(item.costPerPiece) || 0;
-                const unitsNeeded = containerWeightInBaseUnit > 0 ? batchQtyInBaseUnit / containerWeightInBaseUnit : 0;
-                const itemCost = unitsNeeded * costPerPiece * (showContainerGST ? 1.18 : 1);
+                const unitsNeeded = containerWeightInBaseUnit > 0 ? Math.round(batchQtyInBaseUnit / containerWeightInBaseUnit) : 0;
+                const baseAmount = unitsNeeded * costPerPiece;
+                const itemCost = showContainerGST ? baseAmount * 1.18 : baseAmount;
                 return s + itemCost;
               }, 0)) : '—'}</p>
             </div>
