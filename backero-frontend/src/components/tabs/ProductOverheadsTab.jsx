@@ -27,6 +27,9 @@ export default function ProductOverheadsTab({ product, form, setForm, onSaveProd
   const [activeMarginType, setActiveMarginType] = useState('b2c');
   const [marginPercent, setMarginPercent] = useState(form.costing?.margins?.b2c || 0);
   const [saveStatus, setSaveStatus] = useState(null);
+  const [customQty, setCustomQty] = useState('');
+  const [customUnit, setCustomUnit] = useState('g');
+  const [customResult, setCustomResult] = useState(null);
 
   useEffect(() => {
     if (!product?.id) return;
@@ -764,6 +767,71 @@ export default function ProductOverheadsTab({ product, form, setForm, onSaveProd
                 <span className="text-gray-900 dark:text-white">Final Total:</span>
                 <span className="font-mono text-amber-600 dark:text-amber-400">₹{numF(finalTotal)}</span>
               </div>
+
+              {(() => {
+                const batchQtyBase = convertToBaseUnit(selectedBatch, batchUnit);
+                const pricePerBaseUnit = batchQtyBase > 0 ? finalTotal / batchQtyBase : 0;
+                const isVolume = batchUnit === 'ml' || batchUnit === 'L';
+                const smallUnitLabel = isVolume ? 'ml' : 'g';
+                const bigUnitLabel = isVolume ? 'L' : 'kg';
+
+                return (
+                  <div className="mt-3 pt-3 border-t border-gray-200 dark:border-[#1b2e4a] space-y-2">
+                    <p className="text-xs font-semibold text-gray-600 dark:text-gray-400">Unit Price Breakdown</p>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="bg-white dark:bg-[#1b2e4a] border border-gray-200 dark:border-[#263a56] rounded-lg p-2 text-center">
+                        <p className="text-[10px] text-gray-400">Per {smallUnitLabel}</p>
+                        <p className="font-mono font-bold text-gray-900 dark:text-white text-sm">₹{numF(pricePerBaseUnit, 3)}</p>
+                      </div>
+                      <div className="bg-white dark:bg-[#1b2e4a] border border-gray-200 dark:border-[#263a56] rounded-lg p-2 text-center">
+                        <p className="text-[10px] text-gray-400">Per {bigUnitLabel}</p>
+                        <p className="font-mono font-bold text-gray-900 dark:text-white text-sm">₹{numF(pricePerBaseUnit * 1000, 2)}</p>
+                      </div>
+                    </div>
+
+                    <div className="flex gap-2 items-end pt-1">
+                      <div className="flex-1">
+                        <label className="text-[10px] text-gray-400">Custom Qty</label>
+                        <input
+                          type="number"
+                          min="0"
+                          value={customQty}
+                          onChange={e => setCustomQty(e.target.value)}
+                          placeholder="e.g. 250"
+                          className="input text-xs w-full"
+                        />
+                      </div>
+                      <select value={customUnit} onChange={e => setCustomUnit(e.target.value)} className="input text-xs">
+                        <option value="g">g</option>
+                        <option value="kg">kg</option>
+                        <option value="ml">ml</option>
+                        <option value="L">L</option>
+                      </select>
+                      <button
+                        onClick={() => {
+                          const qtyBase = convertToBaseUnit(Number(customQty) || 0, customUnit);
+                          setCustomResult({
+                            qty: customQty,
+                            unit: customUnit,
+                            price: qtyBase * pricePerBaseUnit
+                          });
+                        }}
+                        disabled={!customQty}
+                        className="px-3 py-2 bg-blue-500 hover:bg-blue-600 disabled:bg-gray-300 disabled:cursor-not-allowed text-white rounded-lg text-xs font-semibold transition"
+                      >
+                        Get Price
+                      </button>
+                    </div>
+
+                    {customResult && (
+                      <div className="flex justify-between items-center text-xs pt-2 mt-1 border-t border-gray-100 dark:border-[#1b2e4a]">
+                        <span className="text-gray-600 dark:text-gray-400">Price for {customResult.qty}{customResult.unit}:</span>
+                        <span className="font-mono font-bold text-amber-600 dark:text-amber-400">₹{numF(customResult.price, 2)}</span>
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
             </div>
           );
         })()}
