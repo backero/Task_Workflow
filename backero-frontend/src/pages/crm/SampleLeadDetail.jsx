@@ -24,7 +24,7 @@ import RDPriceCalculator from '../production/RDPriceCalculator';
 // SampleProduction.jsx's cream palette, imported from there so both stay in sync.
 
 const SUB_STAGES = ['Requested', 'In Lab', 'Sent', 'Feedback', 'Approved', 'Rejected'];
-const TABS = ['Overview', 'Q&A', 'Products', "RND's Payments", 'Formulas', 'Samples', 'Invoice'];
+const TABS = ['Overview', 'Q&A', 'Products', "RND's Payments", 'Samples', 'Invoice'];
 
 // Overview tab's status chain, and the modal's own top-level tabs, continue into the production
 // floor once a lead is linked to an order — same stages as SampleProduction.jsx's
@@ -1366,7 +1366,7 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab, initialO
             // Order" button when no order exists yet. Every other stage still waits until the
             // order actually exists and has reached it.
             const locked = !!stageMeta && stageMeta.stage > 0 && (!productionOrderId || actualStage === undefined || stageMeta.stage > actualStage);
-            const count = t === 'Q&A' ? (queries || []).length : t === 'Products' ? products.length : t === 'Formulas' ? formulas.length : t === 'Samples' ? samples.length : t === 'Invoice' ? approvedSamples.length : null;
+            const count = t === 'Q&A' ? (queries || []).length : t === 'Products' ? products.length : t === 'Samples' ? samples.length : t === 'Invoice' ? approvedSamples.length : null;
             return (
               <button
                 key={t}
@@ -1899,100 +1899,7 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab, initialO
             </div>
           )}
 
-          {!isLoading && tab === 'Formulas' && (
-            <div className="space-y-3">
-              <div className="flex items-center justify-between gap-2">
-                <p className="text-xs font-semibold text-[#8a8171] uppercase tracking-wide">{formulas.length} custom formula(s)</p>
-                <p className="text-[11px] text-[#8a8171]">View only — ingredients are built in Product Catalog's Formulation tab and shown here live once linked. Start a new one from the Products tab.</p>
-              </div>
-
-              {products.length > 0 && (
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className="text-[10px] font-bold uppercase tracking-wide text-[#8a8171]">Products:</span>
-                  {products.map((p) => (
-                    <button
-                      key={p.productId}
-                      onClick={() => setProductFilterId((cur) => (cur === p.productId ? null : p.productId))}
-                      className={clsx('rounded-full border-[1.5px] px-3 py-1 text-xs font-semibold transition-colors',
-                        productFilterId === p.productId ? 'border-[#669c2c] bg-[#f3e6c8] text-[#1c1917]' : 'border-[#ddd6c4] bg-white text-[#6b6155] hover:bg-[#fbfaf7]')}
-                    >
-                      {p.name} <span className="font-mono font-normal opacity-75">{p.productId}</span>
-                    </button>
-                  ))}
-                  {productFilterId && <button onClick={() => setProductFilterId(null)} className={textLink}>Clear filter</button>}
-                </div>
-              )}
-
-              {formulas.length === 0 && <p className="text-sm text-[#8a8171] text-center py-6">No custom formulas yet.</p>}
-
-              {formulas.length > 0 && (
-                <div className="overflow-x-auto rounded-[10px] border border-[#e7e2d6]">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="text-left text-[11px] uppercase tracking-wide text-[#6b6155] border-b border-[#ddd6c4] bg-[#f1ede4]">
-                        <th className="px-3 py-2">Formula ID</th><th className="px-3 py-2">Name</th><th className="px-3 py-2">Product</th>
-                        <th className="px-3 py-2">Current V</th><th className="px-3 py-2">Version Status</th><th className="px-3 py-2">Cost/Unit</th><th className="px-3 py-2"></th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {formulas.filter((f) => !productFilterId || f.productId === productFilterId).map((f) => {
-                        const latest = f.versions[f.versions.length - 1];
-                        const linkedProduct = products.find((p) => p.productId === f.productId);
-                        return (
-                          <tr key={f.formulaId} className="border-b border-[#e7e2d6] cursor-pointer hover:bg-[#f1ede4]/60" onClick={() => setEditorFormulaId(f.formulaId)}>
-                            <td className="px-3 py-2 font-mono text-xs text-[#6b6155]">{f.formulaId}</td>
-                            <td className="px-3 py-2 text-[#1c1917] font-medium">{f.name}</td>
-                            <td className="px-3 py-2 text-xs" onClick={(e) => e.stopPropagation()}>
-                              {linkedProduct ? (
-                                <span className="text-[#8a8171]">
-                                  {f.catalogProductId && <span title="Linked from Product Catalog" className="mr-1">🔗</span>}
-                                  {linkedProduct.name}
-                                </span>
-                              ) : products.length > 0 ? (
-                                <select
-                                  defaultValue=""
-                                  onChange={(e) => { if (e.target.value) linkFormulaProductMutation.mutate({ formulaId: f.formulaId, productId: e.target.value }); }}
-                                  className="text-[10px] border border-[#a13d34]/40 rounded px-1 py-0.5 bg-[#f5e3e0] text-[#a13d34]"
-                                >
-                                  <option value="">🔗 Link product…</option>
-                                  {products.map((p) => <option key={p.productId} value={p.productId}>{p.name}</option>)}
-                                </select>
-                              ) : (
-                                <span className="text-[#a13d34] font-semibold">Not linked</span>
-                              )}
-                            </td>
-                            <td className="px-3 py-2 text-xs">V{f.currentVersion}</td>
-                            <td className="px-3 py-2">
-                              <span className={clsx('text-[10px] font-semibold rounded-full px-2 py-0.5', formulaVersionPillCls(latest?.status))}>{latest?.status}</span>
-                            </td>
-                            <td className="px-3 py-2 text-xs">
-                              ₹{(latest?.costPerUnit || 0).toFixed(2)}
-                              {latest?.rows?.length > 0 && <p className="text-[10px] text-[#8a8171]">{latest.rows.length} ingredient(s)</p>}
-                            </td>
-                            <td className="px-3 py-2 text-right">
-                              <button onClick={(e) => { e.stopPropagation(); setEditorFormulaId(f.formulaId); }} className={textLink}>👁️ View</button>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-
-              {editorFormulaId && formulas.find((f) => f.formulaId === editorFormulaId) && (
-                <FormulaEditorModal
-                  key={editorFormulaId}
-                  formula={formulas.find((f) => f.formulaId === editorFormulaId)}
-                  samples={samples}
-                  rawMaterials={rawMaterials}
-                  onClose={() => setEditorFormulaId(null)}
-                />
-              )}
-            </div>
-          )}
-
-          {!isLoading && tab === 'Samples' && !openSample && (
+{!isLoading && tab === 'Samples' && !openSample && (
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <p className="text-xs font-semibold text-[#8a8171] uppercase tracking-wide">{samples.length} sample(s)</p>
