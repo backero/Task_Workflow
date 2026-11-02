@@ -21,12 +21,6 @@ export default function ProductHistory({ productId }) {
     setLoading(false);
   };
 
-  const formatValue = (value) => {
-    if (value === null || value === undefined) return '—';
-    if (typeof value === 'object') return JSON.stringify(value);
-    return String(value).slice(0, 100);
-  };
-
   const formatDate = (isoString) => {
     const date = new Date(isoString);
     return date.toLocaleString('en-IN', {
@@ -82,29 +76,8 @@ export default function ProductHistory({ productId }) {
                 </div>
               </div>
 
-              <div className="space-y-2 text-sm">
-                <div className="flex gap-4">
-                  <div className="flex-1">
-                    <p className="text-xs text-gray-500 font-semibold mb-1">
-                      Old Value
-                    </p>
-                    <div className="bg-red-50 border border-red-200 rounded p-2 font-mono text-xs text-red-700 break-words">
-                      {formatValue(entry.oldValue)}
-                    </div>
-                  </div>
-                  <div className="flex-1">
-                    <p className="text-xs text-gray-500 font-semibold mb-1">
-                      New Value
-                    </p>
-                    <div className="bg-green-50 border border-green-200 rounded p-2 font-mono text-xs text-green-700 break-words">
-                      {formatValue(entry.newValue)}
-                    </div>
-                  </div>
-                </div>
-              </div>
-
               {entry.changeDescription && (
-                <p className="text-xs text-gray-600 mt-2 italic">
+                <p className="text-sm text-gray-700 mt-2">
                   {entry.changeDescription}
                 </p>
               )}
