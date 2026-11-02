@@ -18,7 +18,7 @@ export const PRODUCT_TYPES = ['Shampoo', 'Conditioner', 'Hair Oil', 'Serum', 'Cr
 export const UNITS = ['ml', 'g', 'kg', 'L', 'pcs', 'oz'];
 export const GST_RATES = [0, 5, 12, 18, 28];
 export const STATUSES = ['Active', 'Inactive', 'Draft', 'Archived'];
-const TABS = ['Overview', 'Formulation & Procedure', 'R&D Price Calculator', 'Product Overheads', 'Marketplace', 'QR Code', 'Documents', 'History'];
+const TABS = ['Overview', 'R&D Price Calculator', 'Product Overheads', 'Marketplace', 'QR Code', 'Documents', 'History'];
 const PLATFORMS = ['flipkart', 'amazon', 'meesho', 'snapdeal'];
 const PLATFORM_ICONS = { flipkart: <ShoppingCart size={14} />, amazon: <Package size={14} />, meesho: <Tag size={14} />, snapdeal: <Circle size={14} /> };
 
@@ -1435,37 +1435,6 @@ export default function ProductDetailModal({ productId, onClose, refetchLead }) 
 
         <div className="flex-1 overflow-y-auto p-6">
           {activeTab === 'Overview' && <BasicInfoTab product={detail} />}
-
-          {activeTab === 'Formulation & Procedure' && detail && (
-            <div className="space-y-6">
-              <RndResearchGuidePanel
-                product={detail}
-                selectedVersionId={selectedVersionId}
-                form={form}
-                setForm={setForm}
-                onSaveLive={() => updateMutation.mutate({ rndDoc: form.rndDoc, researchGuide: form.researchGuide })}
-                onAttachLive={(f) => attachMutation.mutate({ file: f, kind: 'rndDoc' })}
-                onRemoveAttachLive={(id) => removeAttachMutation.mutate({ kind: 'rndDoc', attachmentId: id })}
-                onSaveVersionRnd={(versionId, data) => updateVersionMutation.mutate({ versionId, data })}
-                onAttachVersionRnd={(versionId, f) => attachMutation.mutate({ file: f, kind: 'procedure' })}
-                onRemoveAttachVersionRnd={(versionId, id) => removeAttachMutation.mutate({ kind: 'procedure', attachmentId: id })}
-              />
-              <hr className="border-gray-100" />
-              <div>
-                <p className="text-sm font-bold text-gray-700 mb-3 flex items-center gap-1.5"><FlaskConical size={14} />Product Formulation</p>
-                <div className="flex gap-4 items-start">
-                  <FormulationVersionSidebar product={detail} selectedVersionId={selectedVersionId} setSelectedVersionId={setSelectedVersionId} versionActions={versionActions} />
-                  <div className="flex-1 min-w-0">
-                    {selectedVersionId
-                      ? <BranchedFormulationEditor product={detail} selectedVersionId={selectedVersionId} setSelectedVersionId={setSelectedVersionId} versionActions={versionActions} />
-                      : <FormulationTab product={detail} form={form} setForm={setForm} onSave={() => updateMutation.mutate({ formulation: { ...form.formulation, rows: withComputedQuantity(form.formulation?.rows, form.formulation?.refWeight) } })} isPending={updateMutation.isPending} />}
-                  </div>
-                </div>
-              </div>
-              <hr className="border-gray-100" />
-              <ManufacturingProcedureTab product={detail} form={form} setForm={setForm} onSave={() => updateMutation.mutate({ procedure: form.procedure })} isPending={updateMutation.isPending} onAttach={(f, k) => attachMutation.mutate({ file: f, kind: k })} onRemoveAttach={(k, id) => removeAttachMutation.mutate({ kind: k, attachmentId: id })} />
-            </div>
-          )}
 
           {activeTab === 'R&D Price Calculator' && <div className="-m-6"><RDPriceCalculator presetProduct={detail} /></div>}
 
