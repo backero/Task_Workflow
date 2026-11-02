@@ -10,11 +10,20 @@ export default function SavedQuotes({ productId, form, setForm, onLoad, currentT
   const [showSaveDialog, setShowSaveDialog] = useState(false);
   const [quoteName, setQuoteName] = useState('');
   const [loading, setLoading] = useState(false);
+  const [generatedQuoteId, setGeneratedQuoteId] = useState('');
 
   useEffect(() => {
     if (!productId) return;
     fetchQuotes();
   }, [productId]);
+
+  useEffect(() => {
+    if (showSaveDialog) {
+      setGeneratedQuoteId(generateQuoteId());
+    } else {
+      setGeneratedQuoteId('');
+    }
+  }, [showSaveDialog]);
 
   const fetchQuotes = async () => {
     try {
@@ -28,6 +37,12 @@ export default function SavedQuotes({ productId, form, setForm, onLoad, currentT
     } finally {
       setLoading(false);
     }
+  };
+
+  const generateQuoteId = () => {
+    const timestamp = Date.now().toString().slice(-8);
+    const random = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
+    return `QT-${timestamp}${random}`;
   };
 
   const saveQuote = async () => {
@@ -56,6 +71,7 @@ export default function SavedQuotes({ productId, form, setForm, onLoad, currentT
       };
 
       const payload = {
+        quoteId: generatedQuoteId,
         name: quoteName,
         date: new Date().toLocaleDateString('en-IN'),
         data: formOnlyData,
@@ -70,7 +86,8 @@ export default function SavedQuotes({ productId, form, setForm, onLoad, currentT
       setQuotes(prev => [res.data.quote, ...prev]);
       setQuoteName('');
       setShowSaveDialog(false);
-      toast.success('✓ Quote saved: ' + quoteName);
+      setGeneratedQuoteId('');
+      toast.success(`✓ Quote saved: ${quoteName} (${generatedQuoteId})`);
     } catch (error) {
       console.error('Error saving quote:', error);
       toast.error('Failed to save quote');
@@ -127,7 +144,10 @@ export default function SavedQuotes({ productId, form, setForm, onLoad, currentT
     try {
       setLoading(true);
 
+      const quoteId = generateQuoteId();
+
       const payload = {
+        quoteId: quoteId,
         name: `${quote.name} (Copy)`,
         date: new Date().toLocaleDateString('en-IN'),
         data: quote.data,
@@ -136,7 +156,7 @@ export default function SavedQuotes({ productId, form, setForm, onLoad, currentT
 
       const res = await api.post(`/saved-quotes/${productId}`, payload);
       setQuotes(prev => [res.data.quote, ...prev]);
-      toast.success('✓ Quote copied');
+      toast.success(`✓ Quote copied (${quoteId})`);
     } catch (error) {
       console.error('Error copying quote:', error);
       toast.error('Failed to copy quote');
@@ -183,9 +203,15 @@ export default function SavedQuotes({ productId, form, setForm, onLoad, currentT
           <div className="bg-white dark:bg-[#0f1a2e] rounded-lg p-6 w-96">
             <div className="flex justify-between items-center mb-4">
               <h3 className="font-bold text-lg">Save Quote</h3>
-              <button onClick={() => setShowSaveDialog(false)} className="p-1 hover:bg-gray-100 dark:hover:bg-[#1b2e4a] rounded">
+              <button onClick={() => { setShowSaveDialog(false); setGeneratedQuoteId(''); }} className="p-1 hover:bg-gray-100 dark:hover:bg-[#1b2e4a] rounded">
                 <X size={20} />
               </button>
+            </div>
+            <div className="mb-4">
+              <label className="text-xs font-semibold text-gray-600 dark:text-gray-400 block mb-2">Quote ID (Auto-generated)</label>
+              <div className="w-full px-3 py-2 border border-gray-300 dark:border-[#1b2e4a] rounded-lg bg-gray-100 dark:bg-[#0f1a2e] text-gray-900 dark:text-white font-mono font-bold">
+                {generatedQuoteId}
+              </div>
             </div>
             <input
               type="text"
@@ -200,7 +226,7 @@ export default function SavedQuotes({ productId, form, setForm, onLoad, currentT
               <button onClick={saveQuote} disabled={loading} className="flex-1 px-4 py-2 bg-emerald-500 text-white rounded-lg font-semibold hover:bg-emerald-600 disabled:bg-gray-400">
                 Save
               </button>
-              <button onClick={() => setShowSaveDialog(false)} className="flex-1 px-4 py-2 bg-gray-200 dark:bg-[#1b2e4a] text-gray-900 dark:text-white rounded-lg font-semibold hover:bg-gray-300">
+              <button onClick={() => { setShowSaveDialog(false); setGeneratedQuoteId(''); }} className="flex-1 px-4 py-2 bg-gray-200 dark:bg-[#1b2e4a] text-gray-900 dark:text-white rounded-lg font-semibold hover:bg-gray-300">
                 Cancel
               </button>
             </div>
@@ -215,6 +241,7 @@ export default function SavedQuotes({ productId, form, setForm, onLoad, currentT
             <thead>
               <tr className="bg-gray-50 dark:bg-[#0f1a2e] border-b border-gray-200 dark:border-[#1b2e4a]">
                 <th className="px-4 py-3 text-left font-semibold text-gray-600 dark:text-gray-400">Quote Name</th>
+                <th className="px-4 py-3 text-left font-semibold text-gray-600 dark:text-gray-400">Quote ID</th>
                 <th className="px-4 py-3 text-left font-semibold text-gray-600 dark:text-gray-400">Date</th>
                 <th className="px-4 py-3 text-right font-semibold text-gray-600 dark:text-gray-400">Total</th>
                 <th className="px-4 py-3 text-center font-semibold text-gray-600 dark:text-gray-400">Actions</th>
@@ -230,6 +257,9 @@ export default function SavedQuotes({ productId, form, setForm, onLoad, currentT
                 >
                   <td className="px-4 py-3">
                     <div className="font-medium text-gray-900 dark:text-white">{quote.name}</div>
+                  </td>
+                  <td className="px-4 py-3">
+                    <span className="font-mono text-xs bg-blue-50 dark:bg-blue-500/10 text-blue-700 dark:text-blue-300 px-2 py-1 rounded">{quote.quoteId || '—'}</span>
                   </td>
                   <td className="px-4 py-3 text-gray-600 dark:text-gray-400">{quote.date}</td>
                   <td className="px-4 py-3 text-right">

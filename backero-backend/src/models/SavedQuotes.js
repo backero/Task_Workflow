@@ -12,6 +12,11 @@ const SavedQuotesSchema = new mongoose.Schema(
       required: true,
       trim: true
     },
+    quoteId: {
+      type: String,
+      unique: true,
+      sparse: true
+    },
     date: {
       type: String,
       required: true

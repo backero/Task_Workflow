@@ -10,7 +10,7 @@ import {
   Box, Zap, BarChart3, Settings, Megaphone,
   Store, Banknote, UsersRound,
   Wrench, Trophy, Sparkles, X,
-  Fingerprint, ClipboardCheck, Receipt, CalendarOff, Clock,
+  Fingerprint, ClipboardCheck, Receipt, CalendarOff, Clock, ListTodo,
 } from 'lucide-react';
 
 const { Text } = Typography;
@@ -55,6 +55,7 @@ export default function Sidebar({ variant = 'desktop', onNavigate, onClose }) {
       { label: 'My Attendance', to: '/my-attendance', icon: ClipboardCheck },
       { label: 'My Payroll', to: '/my-payroll', icon: Receipt },
       { label: 'My Leave', to: '/my-leave', icon: CalendarOff },
+      ...(isAdmin ? [{ label: 'Remainder', to: '/remainder', icon: ListTodo }] : []),
     ],
   });
 

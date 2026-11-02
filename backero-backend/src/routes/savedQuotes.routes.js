@@ -65,7 +65,7 @@ router.get('/:productId/:quoteId', async (req, res) => {
 router.post('/:productId', async (req, res) => {
   try {
     const { productId } = req.params;
-    const { name, date, data, total } = req.body;
+    const { quoteId, name, date, data, total } = req.body;
 
     if (!name || !data) {
       return res.status(400).json({
@@ -76,6 +76,7 @@ router.post('/:productId', async (req, res) => {
 
     const newQuote = new SavedQuotes({
       productId,
+      quoteId,
       name,
       date: date || new Date().toLocaleDateString('en-IN'),
       data,
@@ -84,13 +85,16 @@ router.post('/:productId', async (req, res) => {
       createdBy: req.user._id
     });
 
+    console.log('Creating quote with quoteId:', quoteId);
+
     const savedQuote = await newQuote.save();
 
-    console.log('Quote saved:', savedQuote._id);
+    console.log('Quote saved:', savedQuote._id, 'quoteId:', savedQuote.quoteId);
+    console.log('Full saved quote:', JSON.stringify(savedQuote, null, 2));
 
     res.status(201).json({
       success: true,
-      quote: savedQuote,
+      quote: savedQuote.toObject ? savedQuote.toObject() : savedQuote,
       message: 'Quote saved successfully'
     });
   } catch (error) {

@@ -64,6 +64,8 @@ const locationRoutes          = require('./src/routes/location.routes');
 const payrollRoutes           = require('./src/routes/payroll.routes');
 const leaveRoutes             = require('./src/routes/leave.routes');
 const savedQuotesRoutes       = require('./src/routes/savedQuotes.routes');
+const productHistoryRoutes    = require('./src/routes/productHistory.routes');
+const remainderRoutes         = require('./src/routes/remainder.routes');
 
 const app = express();
 const server = http.createServer(app);
@@ -233,6 +235,8 @@ app.use('/api/locations', locationRoutes);
 app.use('/api/payroll', payrollRoutes);
 app.use('/api/leave', leaveRoutes);
 app.use('/api/saved-quotes', savedQuotesRoutes);
+app.use('/api/product-history', productHistoryRoutes);
+app.use('/api/remainders', remainderRoutes);
 
 // 404 handler
 app.use('*', (req, res) => {

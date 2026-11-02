@@ -90,6 +90,11 @@ const startAutomationEngine = (socketIo) => {
     runDueTodayTaskReminder().catch(logger.error);
   });
 
+  // Every day at 9 AM IST: send pending reminders to admins
+  cron.schedule('30 3 * * *', () => {  // 9 AM IST = 3:30 AM UTC
+    runAdminRemindersCheck().catch(logger.error);
+  });
+
   // Every 5 minutes: sync Google Sheets leads for all connected orgs
   cron.schedule('*/5 * * * *', () => {
     autoSyncAllOrgs().catch(logger.error);
@@ -151,7 +156,7 @@ const runOverdueTaskCheck = async () => {
         type: 'task', priority: 'high',
         actionUrl: `/tasks/${task._id}`,
         reference: { model: 'Task', id: task._id },
-        channels: { inApp: true, whatsapp: false },
+        channels: { inApp: true, whatsapp: true },
       }, io);
 
       // Direct WhatsApp to employee
@@ -174,7 +179,7 @@ const runOverdueTaskCheck = async () => {
         type: 'escalation', priority: 'high',
         actionUrl: `/tasks/${task._id}`,
         reference: { model: 'Task', id: task._id },
-        channels: { inApp: true, whatsapp: false },
+        channels: { inApp: true, whatsapp: true },
       }, io);
 
       // Direct WhatsApp to manager
@@ -229,7 +234,7 @@ const escalateToFounders = async (task, employeeName = 'Team member', excludeId 
       type: 'escalation', priority: 'high',
       actionUrl: `/tasks/${task._id}`,
       reference: { model: 'Task', id: task._id },
-      channels: { inApp: true, whatsapp: false },
+      channels: { inApp: true, whatsapp: true },
     }, io);
 
     // Direct WhatsApp to admin
@@ -877,7 +882,7 @@ const runDailyReport = async (targetPhones = null) => {
           type: 'system',
           priority: (tasksOverdue || 0) > 5 ? 'high' : 'medium',
           actionUrl: '/dashboard/founder',
-          channels: { inApp: true, whatsapp: false },
+          channels: { inApp: true, whatsapp: true },
         }, io);
 
         const adminPhone = admin.whatsapp || admin.phone;
@@ -1049,4 +1054,63 @@ const runWeeklyTeamRewardCheck = async () => {
   }
 };
 
-module.exports = { startAutomationEngine, runOverdueTaskCheck, runWeeklyStockDigest, runMonthlyStockDigest, runOverdueInvoiceCheck, runDailyReport, runOverdueFollowUpCheck, runStaleLedCheck, runWeeklyTeamRewardCheck };
+// Send daily reminders to admins for pending remainders
+const runAdminRemindersCheck = async () => {
+  try {
+    logger.info('Running admin reminders check...');
+    const Remainder = require('../models/Remainder');
+
+    const orgs = await Organization.find({ isActive: true }).lean();
+
+    for (const org of orgs) {
+      // Get all pending reminders
+      const reminders = await Remainder.find({
+        organizationId: org._id,
+        status: 'Pending',
+        dueDate: { $lte: new Date(new Date().getTime() + 7 * 24 * 60 * 60 * 1000) } // Due within 7 days
+      }).sort({ dueDate: 1 }).lean();
+
+      if (reminders.length === 0) continue;
+
+      // Get all admins in this org
+      const admins = await User.find({
+        organizationId: org._id,
+        role: { $in: ['admin', 'super_admin', 'founder', 'chairman'] },
+        isActive: true
+      }).select('phone whatsapp settings');
+
+      // Send reminders to each admin
+      for (const admin of admins) {
+        const waPhone = admin.whatsapp || admin.phone;
+        if (!waPhone || admin.settings?.notifications?.whatsapp === false) continue;
+
+        const reminderText = reminders.map((r, idx) => {
+          const daysLeft = Math.ceil((new Date(r.dueDate) - new Date()) / (1000 * 60 * 60 * 24));
+          return `${idx + 1}. ${r.title} (${r.type}) - Due in ${daysLeft} days`;
+        }).join('\n');
+
+        const message = `📋 *Pending Reminders*\n\n${reminderText}\n\nPlease complete these tasks today!`;
+
+        try {
+          const { sendMessage } = require('./whatsapp.service');
+          await sendMessage(waPhone, message);
+
+          // Update reminderSentDates for all reminders
+          await Promise.all(reminders.map(r =>
+            Remainder.findByIdAndUpdate(r._id, {
+              $push: { reminderSentDates: new Date() }
+            })
+          ));
+        } catch (err) {
+          logger.error(`Failed to send reminder to ${waPhone}:`, err.message);
+        }
+      }
+    }
+
+    logger.info('Admin reminders check completed');
+  } catch (error) {
+    logger.error('Error in runAdminRemindersCheck:', error);
+  }
+};
+
+module.exports = { startAutomationEngine, runOverdueTaskCheck, runWeeklyStockDigest, runMonthlyStockDigest, runOverdueInvoiceCheck, runDailyReport, runOverdueFollowUpCheck, runStaleLedCheck, runWeeklyTeamRewardCheck, runAdminRemindersCheck };

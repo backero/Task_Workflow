@@ -5,6 +5,7 @@ import { format, formatDistanceToNowStrict } from 'date-fns';
 import clsx from 'clsx';
 import toast from 'react-hot-toast';
 import api from '../../api/axios';
+import { History, Clock, Clipboard, IndianRupee } from 'lucide-react';
 import { PILL, SUB_STAGE_PILL, StatCard } from './sampleTheme';
 import { customerId } from '../../utils/leadHelpers';
 import EditKycModal from './EditKycModal';
@@ -726,13 +727,59 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab, initialO
   // linkedProductLinkId / convertedTo badge without a dedicated conversion modal.
   const [qaConvertQueryId, setQaConvertQueryId] = useState(null);
 
+  // History tracking for R&D Payments synced data
+  const [paymentSyncHistory, setPaymentSyncHistory] = useState(() => {
+    try {
+      const stored = localStorage.getItem(`paymentSyncHistory_${leadId}`);
+      return stored ? JSON.parse(stored) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  const logPaymentSyncEvent = (productId, eventType, details) => {
+    const newEvent = {
+      id: Date.now() + Math.random(),
+      timestamp: new Date().toISOString(),
+      productId,
+      eventType,
+      details,
+      user: 'Current User',
+    };
+    const updated = [newEvent, ...paymentSyncHistory];
+    setPaymentSyncHistory(updated);
+    try {
+      localStorage.setItem(`paymentSyncHistory_${leadId}`, JSON.stringify(updated));
+    } catch (e) {
+      console.error('Failed to save payment sync history:', e);
+    }
+  };
+
+  // Saved quotes per product — fetched from backend API
+  const [savedQuotesPerProduct, setSavedQuotesPerProduct] = useState({});
+  // Selected quote per product for R&D Payments
+  const [selectedQuotePerProduct, setSelectedQuotePerProduct] = useState({});
+
   // Products — dedicated Link/Edit modal + a separate Quote Price mini-modal (pricing is not
   // captured in the link form itself, matching the reference's productModal/quoteModal split).
   const [productModalOpen, setProductModalOpen] = useState(false);
   const [productModalEditing, setProductModalEditing] = useState(null);
   const [quoteModalFor, setQuoteModalFor] = useState(null);
-  const [viewingProductId, setViewingProductId] = useState(null);
-  const [viewingProductTab, setViewingProductTab] = useState('Overview');
+  // Expandable product detail panel — tracks which product row is expanded, only one at a time
+  const [expandedProductId, setExpandedProductId] = useState(null);
+  const expandedPanelRef = useRef(null);
+
+  // Click-outside detection for expanded product panel
+  useEffect(() => {
+    if (!expandedProductId) return;
+    const handleClickOutside = (e) => {
+      if (expandedPanelRef.current && !expandedPanelRef.current.contains(e.target)) {
+        setExpandedProductId(null);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [expandedProductId]);
   // "🆕 Create Product" from a Q&A query — creates a real Product Catalog entry (unlike the
   // ProductLinkModal above, which can only search/attach an existing one or a lead-only shadow link).
   const [quickCreateOpen, setQuickCreateOpen] = useState(false);
@@ -1314,6 +1361,27 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab, initialO
   const samples = lead?.samples || [];
   const formulas = lead?.customFormulas || [];
   const products = lead?.productLinks || [];
+
+  // Fetch saved quotes for each product from the backend
+  useEffect(() => {
+    if (!products || products.length === 0) return;
+    const fetchQuotes = async () => {
+      const quotesMap = {};
+      for (const p of products) {
+        if (!p.catalogProductId) continue;
+        try {
+          const res = await api.get(`/saved-quotes/${p.catalogProductId}`);
+          quotesMap[p.catalogProductId] = res.data.quotes || [];
+        } catch (error) {
+          console.warn(`Failed to fetch quotes for product ${p.catalogProductId}:`, error);
+          quotesMap[p.catalogProductId] = [];
+        }
+      }
+      setSavedQuotesPerProduct(quotesMap);
+    };
+    fetchQuotes();
+  }, [products]);
+
   // Resolves via the sample's own productId first; falls back to its formula's productId so a
   // sample made before its formula was linked to a product (or before this feature existed)
   // still reflects correctly the moment the formula gets linked — no per-sample backfill needed.
@@ -1844,52 +1912,69 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab, initialO
                     <tbody>
                       {products.map((p) => {
                         const production = productionForProduct(p.productId);
+                        const isExpanded = expandedProductId === p.catalogProductId;
                         return (
-                        <tr key={p.productId} className="border-b border-[#e7e2d6]">
-                          <td className="px-3 py-2 font-mono text-xs text-[#6b6155] cursor-pointer" title="Edit product link" onClick={() => { setProductModalEditing(p); setProductModalOpen(true); }}>
-                            {p.productId}
-                          </td>
-                          <td className="px-3 py-2 text-[#1c1917] font-medium cursor-pointer hover:text-[#669c2c]" title="View product details" onClick={() => p.catalogProductId && setViewingProductId(p.catalogProductId)}>
-                            {p.name}
-                          </td>
-                          <td className="px-3 py-2 text-xs text-[#6b6155]">{p.basis || '—'}</td>
-                          <td className="px-3 py-2 text-xs text-[#1c1917]">{p.approxPrice > 0 ? `₹${p.approxPrice.toLocaleString('en-IN')}` : '—'}</td>
-                          <td className="px-3 py-2">
-                            <span className={clsx('text-[10px] font-semibold px-2 py-0.5 rounded-full',
-                              p.priceStatus === 'Accepted' ? PILL.success : p.priceStatus === 'Quoted' ? PILL.info : PILL.gray)}>
-                              {p.priceStatus || 'Not quoted'}
-                            </span>
-                          </td>
-                          <td className="px-3 py-2">
-                            <span className={clsx('text-[10px] font-semibold px-2 py-0.5 rounded-full', p.paymentStatus === 'full_paid' ? PILL.success : PILL.warning)}>
-                              {p.paymentStatus === 'full_paid' ? '✓ Paid' : '⏳ Pending'}
-                            </span>
-                          </td>
-                          <td className="px-3 py-2">
-                            {production ? (
-                              <button
-                                onClick={() => { setTab('Orders'); setViewStage(production.order.stage); }}
-                                className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-[#f3e6c8] text-[#669c2c] hover:brightness-95"
-                                title={`${production.order.orderNumber} — click to open`}
-                              >
-                                {STAGE_NAMES[production.order.stage] || production.order.status} ▸
-                              </button>
-                            ) : (
-                              <span className="text-[10px] text-[#8a8171]">Not in production</span>
+                          <>
+                            <tr key={p.productId} className="border-b border-[#e7e2d6]">
+                              <td className="px-3 py-2 font-mono text-xs text-[#6b6155] cursor-pointer" title="Edit product link" onClick={() => { setProductModalEditing(p); setProductModalOpen(true); }}>
+                                {p.productId}
+                              </td>
+                              <td className="px-3 py-2 text-[#1c1917] font-medium cursor-pointer hover:text-[#669c2c]" title="View product details" onClick={() => p.catalogProductId && setExpandedProductId(expandedProductId === p.catalogProductId ? null : p.catalogProductId)}>
+                                {p.name}
+                              </td>
+                              <td className="px-3 py-2 text-xs text-[#6b6155]">{p.basis || '—'}</td>
+                              <td className="px-3 py-2 text-xs text-[#1c1917]">{p.approxPrice > 0 ? `₹${p.approxPrice.toLocaleString('en-IN')}` : '—'}</td>
+                              <td className="px-3 py-2">
+                                <span className={clsx('text-[10px] font-semibold px-2 py-0.5 rounded-full',
+                                  p.priceStatus === 'Accepted' ? PILL.success : p.priceStatus === 'Quoted' ? PILL.info : PILL.gray)}>
+                                  {p.priceStatus || 'Not quoted'}
+                                </span>
+                              </td>
+                              <td className="px-3 py-2">
+                                <span className={clsx('text-[10px] font-semibold px-2 py-0.5 rounded-full', p.paymentStatus === 'full_paid' ? PILL.success : PILL.warning)}>
+                                  {p.paymentStatus === 'full_paid' ? '✓ Paid' : '⏳ Pending'}
+                                </span>
+                              </td>
+                              <td className="px-3 py-2">
+                                {production ? (
+                                  <button
+                                    onClick={() => { setTab('Orders'); setViewStage(production.order.stage); }}
+                                    className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-[#f3e6c8] text-[#669c2c] hover:brightness-95"
+                                    title={`${production.order.orderNumber} — click to open`}
+                                  >
+                                    {STAGE_NAMES[production.order.stage] || production.order.status} ▸
+                                  </button>
+                                ) : (
+                                  <span className="text-[10px] text-[#8a8171]">Not in production</span>
+                                )}
+                              </td>
+                              <td className="px-3 py-2 text-right whitespace-nowrap">
+                                <button title="💰 Quote Price" onClick={() => setQuoteModalFor(p)} className="mr-2">💰</button>
+                                {p.priceStatus === 'Quoted' && (
+                                  <button title="✓ Accept Price" onClick={() => updateProductMutation.mutate({ productId: p.productId, priceStatus: 'Accepted' })} className="mr-2">✓</button>
+                                )}
+                                <button title="Paid in CRM (mirror)" onClick={() => updateProductMutation.mutate({ productId: p.productId, paymentStatus: p.paymentStatus === 'full_paid' ? 'pending' : 'full_paid' })} className="mr-2">💳</button>
+                                {p.catalogProductId && (
+                                  <button title="View in Product Catalog" onClick={() => navigate(`/inventory/catalog?productId=${p.catalogProductId}`)} className="mr-2">📋</button>
+                                )}
+                                <button title="View product details" onClick={() => p.catalogProductId && setExpandedProductId(expandedProductId === p.catalogProductId ? null : p.catalogProductId)}>✏️</button>
+                              </td>
+                            </tr>
+                            {isExpanded && p.catalogProductId && (
+                              <tr className="border-b border-[#e7e2d6] bg-[#f9f8f5]">
+                                <td colSpan="8" className="p-4">
+                                  <div ref={expandedPanelRef} className="rounded-[10px] border border-[#ddd6c4] bg-[#fbfaf7] shadow-sm overflow-hidden">
+                                    <ProductDetailModal
+                                      productId={p.catalogProductId}
+                                      onClose={() => { setExpandedProductId(null); }}
+                                      refetchLead={refetchLead}
+                                      isInlinePanel={true}
+                                    />
+                                  </div>
+                                </td>
+                              </tr>
                             )}
-                          </td>
-                          <td className="px-3 py-2 text-right whitespace-nowrap">
-                            <button title="💰 Quote Price" onClick={() => setQuoteModalFor(p)} className="mr-2">💰</button>
-                            {p.priceStatus === 'Quoted' && (
-                              <button title="✓ Accept Price" onClick={() => updateProductMutation.mutate({ productId: p.productId, priceStatus: 'Accepted' })} className="mr-2">✓</button>
-                            )}
-                            <button title="Paid in CRM (mirror)" onClick={() => updateProductMutation.mutate({ productId: p.productId, paymentStatus: p.paymentStatus === 'full_paid' ? 'pending' : 'full_paid' })} className="mr-2">💳</button>
-                            {p.catalogProductId && (
-                              <button title="View in Product Catalog" onClick={() => navigate(`/inventory/catalog?productId=${p.catalogProductId}`)} className="mr-2">📋</button>
-                            )}
-                            <button title="Edit" onClick={() => { setProductModalEditing(p); setProductModalOpen(true); }}>✏️</button>
-                          </td>
-                        </tr>
+                          </>
                         );
                       })}
                     </tbody>
@@ -2103,7 +2188,7 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab, initialO
           )}
 
           {!isLoading && tab === "RND's Payments" && (
-            <div className="space-y-4">
+            <div className="space-y-6">
               <p className="text-[11px] text-[#8a8171]">Payment is per product — whichever product is paid for, only that product's samples unlock past "Requested". The rest stay locked until their own payment is confirmed.</p>
 
               {products.length > 0 && (
@@ -2128,24 +2213,58 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab, initialO
 
               {products.length === 0 && <p className="text-sm text-[#8a8171] text-center py-6">No products linked yet — add one in the Products tab first.</p>}
 
+              {/* UNIFIED R&D PAYMENTS TABLE - Quotes + Payment Tracking */}
               {products.length > 0 && (
                 <div className="overflow-x-auto rounded-[10px] border border-[#e7e2d6]">
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="text-left text-[11px] uppercase tracking-wide text-[#6b6155] border-b border-[#ddd6c4] bg-[#f1ede4]">
-                        <th className="px-3 py-2">Product ID</th><th className="px-3 py-2">Product</th><th className="px-3 py-2">Price</th>
-                        <th className="px-3 py-2">Status</th><th className="px-3 py-2">Mode</th><th className="px-3 py-2">Txn / Ref</th>
-                        <th className="px-3 py-2">Paid On</th><th className="px-3 py-2">Received By</th><th className="px-3 py-2 w-28"></th>
+                        <th className="px-3 py-2">Product ID</th>
+                        <th className="px-3 py-2">Product</th>
+                        <th className="px-3 py-2">Quote ID</th>
+                        <th className="px-3 py-2">Quote Name</th>
+                        <th className="px-3 py-2">Quote Date</th>
+                        <th className="px-3 py-2">Price</th>
+                        <th className="px-3 py-2">Status</th>
+                        <th className="px-3 py-2">Mode</th>
+                        <th className="px-3 py-2">Txn / Ref</th>
+                        <th className="px-3 py-2">Paid On</th>
+                        <th className="px-3 py-2">Received By</th>
+                        <th className="px-3 py-2 w-28"></th>
                       </tr>
                     </thead>
                     <tbody>
                       {products.map((p) => {
                         const paid = p.paymentStatus === 'full_paid';
+                        const savedQuotes = savedQuotesPerProduct[p.catalogProductId] || [];
+                        const selectedQuoteIndex = selectedQuotePerProduct[p.productId] ?? 0;
+                        const selectedQuote = savedQuotes[selectedQuoteIndex] || (savedQuotes.length > 0 ? savedQuotes[0] : null);
+                        const quoteAmount = selectedQuote?.total || (p.chargeAmount || p.approxPrice || 0);
+
                         return (
-                          <tr key={p.productId} className="border-b border-[#e7e2d6] whitespace-nowrap">
+                          <tr key={p.productId} className="border-b border-[#e7e2d6] whitespace-nowrap hover:bg-[#f9f8f5]">
                             <td className="px-3 py-2 font-mono text-xs text-[#6b6155]">{p.productId}</td>
                             <td className="px-3 py-2 text-[#1c1917] font-medium">{p.name}</td>
-                            <td className="px-3 py-2 text-xs text-[#1c1917]">₹{(p.chargeAmount || p.approxPrice || 0).toLocaleString('en-IN')}</td>
+                            <td className="px-3 py-2 font-mono text-xs font-semibold text-[#669c2c]">{selectedQuote?.quoteId || '—'}</td>
+                            <td className="px-3 py-2 text-xs text-[#1c1917]">
+                              {savedQuotes.length > 0 ? (
+                                <select
+                                  value={selectedQuoteIndex}
+                                  onChange={(e) => setSelectedQuotePerProduct(prev => ({ ...prev, [p.productId]: parseInt(e.target.value) }))}
+                                  className="px-2 py-1 border border-[#ddd6c4] rounded text-xs bg-white text-[#1c1917] cursor-pointer"
+                                >
+                                  {savedQuotes.map((quote, idx) => (
+                                    <option key={idx} value={idx}>
+                                      {quote.name || `Quote ${idx + 1}`}
+                                    </option>
+                                  ))}
+                                </select>
+                              ) : (
+                                '—'
+                              )}
+                            </td>
+                            <td className="px-3 py-2 text-xs text-[#6b6155]">{selectedQuote?.date || '—'}</td>
+                            <td className="px-3 py-2 text-xs text-[#1c1917] font-semibold">₹{quoteAmount.toLocaleString('en-IN')}</td>
                             <td className="px-3 py-2">
                               <span className={clsx('text-[10px] font-semibold px-2 py-0.5 rounded-full', paid ? PILL.success : PILL.warning)}>
                                 {paid ? '✓ Paid' : '⏳ Pending'}
@@ -2157,7 +2276,7 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab, initialO
                             <td className="px-3 py-2 text-xs text-[#6b6155]">{paid ? (p.receivedBy || '—') : '—'}</td>
                             <td className="px-3 py-2 text-right">
                               {paid ? (
-                                <button onClick={() => updateProductMutation.mutate({ productId: p.productId, paymentStatus: 'pending' })} disabled={updateProductMutation.isPending} className={textLink}>
+                                <button onClick={() => { logPaymentSyncEvent(p.productId, 'payment_revoked', `Payment revoked for ${p.name}`); updateProductMutation.mutate({ productId: p.productId, paymentStatus: 'pending' }); }} disabled={updateProductMutation.isPending} className={textLink}>
                                   Revoke
                                 </button>
                               ) : (
@@ -2206,11 +2325,15 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab, initialO
                     <div className="flex gap-3 pt-1">
                       <button onClick={() => setPayingProductId(null)} className={clsx(outlineBtn, 'flex-1 justify-center')}>Cancel</button>
                       <button
-                        onClick={() => updateProductMutation.mutate({
-                          productId: payingProductId, paymentStatus: 'full_paid', paymentMode: payMode,
-                          paymentTxnRef: payTxnRef.trim() || undefined, paidAt: payDate || undefined,
-                          receivedBy: payReceivedBy.trim() || undefined, paymentNotes: payNotes.trim() || undefined,
-                        }, { onSuccess: () => setPayingProductId(null) })}
+                        onClick={() => {
+                          const payProduct = products.find(p => p.productId === payingProductId);
+                          logPaymentSyncEvent(payingProductId, 'payment_recorded', `Payment recorded: ${payMode} on ${payDate}${payTxnRef ? ` (Ref: ${payTxnRef})` : ''}`);
+                          updateProductMutation.mutate({
+                            productId: payingProductId, paymentStatus: 'full_paid', paymentMode: payMode,
+                            paymentTxnRef: payTxnRef.trim() || undefined, paidAt: payDate || undefined,
+                            receivedBy: payReceivedBy.trim() || undefined, paymentNotes: payNotes.trim() || undefined,
+                          }, { onSuccess: () => setPayingProductId(null) });
+                        }}
                         disabled={updateProductMutation.isPending}
                         className={clsx(accentBtn, 'flex-1 justify-center')}
                       >
@@ -2458,15 +2581,6 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab, initialO
             </div>
           </div>
         </div>
-      )}
-
-      {/* Product Detail Modal */}
-      {viewingProductId && (
-        <ProductDetailModal
-          productId={viewingProductId}
-          onClose={() => { setViewingProductId(null); setViewingProductTab('Overview'); }}
-          refetchLead={refetchLead}
-        />
       )}
 
       {productModalOpen && (

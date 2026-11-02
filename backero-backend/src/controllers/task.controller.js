@@ -244,7 +244,7 @@ exports.createTask = asyncHandler(async (req, res) => {
       priority: priority === 'critical' || priority === 'urgent' ? 'high' : 'medium',
       actionUrl: `/tasks/${task._id}`,
       reference: { model: 'Task', id: task._id },
-      channels: { inApp: true, whatsapp: false },
+      channels: { inApp: true, whatsapp: true },
     }, io);
 
     // Fetch assignee for WA and email
@@ -405,7 +405,7 @@ exports.updateTask = asyncHandler(async (req, res) => {
       priority: task.priority === 'critical' || task.priority === 'urgent' ? 'high' : 'medium',
       actionUrl: `/tasks/${task._id}`,
       reference: { model: 'Task', id: task._id },
-      channels: { inApp: true, whatsapp: false },
+      channels: { inApp: true, whatsapp: true },
     }, io);
 
     // WhatsApp — send if user has a phone and hasn't opted out
@@ -891,7 +891,7 @@ exports.approveDeptHub = asyncHandler(async (req, res) => {
       priority: 'high',
       actionUrl: `/workflow/${task._id}`,
       reference: { model: 'Task', id: task._id },
-      channels: { inApp: true, whatsapp: false },
+      channels: { inApp: true, whatsapp: true },
     }, io);
   }
 
@@ -948,7 +948,7 @@ exports.rejectDeptHub = asyncHandler(async (req, res) => {
       priority: 'high',
       actionUrl: '/workflow',
       reference: { model: 'Task', id: task._id },
-      channels: { inApp: true, whatsapp: false },
+      channels: { inApp: true, whatsapp: true },
     }, io);
   }
 
@@ -993,7 +993,7 @@ exports.approveManagerAssignment = asyncHandler(async (req, res) => {
       type: 'task', priority: 'high',
       actionUrl: `/workflow/${task._id}`,
       reference: { model: 'Task', id: task._id },
-      channels: { inApp: true, whatsapp: false },
+      channels: { inApp: true, whatsapp: true },
     }, io);
   }
 
@@ -1007,7 +1007,7 @@ exports.approveManagerAssignment = asyncHandler(async (req, res) => {
       type: 'task', priority: 'high',
       actionUrl: `/workflow/${task._id}`,
       reference: { model: 'Task', id: task._id },
-      channels: { inApp: true, whatsapp: false },
+      channels: { inApp: true, whatsapp: true },
     }, io);
   }
 
@@ -1047,7 +1047,7 @@ exports.rejectManagerAssignment = asyncHandler(async (req, res) => {
       type: 'task', priority: 'high',
       actionUrl: '/workflow',
       reference: { model: 'Task', id: task._id },
-      channels: { inApp: true, whatsapp: false },
+      channels: { inApp: true, whatsapp: true },
     }, io);
   }
 

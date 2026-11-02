@@ -7,6 +7,8 @@ import QRCode from 'react-qr-code';
 import api from '../../api/axios';
 import RDPriceCalculator from '../production/RDPriceCalculator';
 import ProductOverheadsTab from '../../components/tabs/ProductOverheadsTab';
+import ProductHistory from '../../components/ProductHistory';
+import { trackMultipleChanges } from '../../utils/historyTracker';
 import {
   ShoppingCart, Package, Tag, Circle, Search, Download, Upload as UploadIcon, Plus, CircleCheck, Pencil, Trash2, X, Camera, Save, Image as ImageIcon, Clipboard, Ruler,
   IndianRupee, Calendar, Award, FlaskConical, BarChart3, Scale, Lock, Archive, Minimize2, Maximize2, Calculator, QrCode, Printer, Video, Mic, FileText, Paperclip, Microscope, Factory,
@@ -1182,27 +1184,9 @@ function QRCodeTab({ product: p }) {
 }
 
 function HistoryTab({ product: p }) {
-  const events = [...(p.history || [])];
-  if (p.rnd?.lastUpdated) events.push({ action: 'R&D costing updated', date: p.rnd.lastUpdated });
-  if (p.productionOverhead?.lastUpdated) events.push({ action: 'Production Overhead updated', date: p.productionOverhead.lastUpdated });
-  if (p.standardAssumptions?.lastUpdated) events.push({ action: 'Standard Assumptions updated', date: p.standardAssumptions.lastUpdated });
-  events.sort((a, b) => new Date(b.date) - new Date(a.date));
-
   return (
     <div className="space-y-6">
-      <p className="text-sm font-bold text-gray-700 flex items-center gap-1.5"><Clock size={14} />Activity History</p>
-      {!events.length ? (
-        <p className="text-xs text-gray-400 bg-gray-50 rounded-lg px-4 py-3">No activity history recorded yet.</p>
-      ) : (
-        <div className="space-y-2">
-          {events.map((e, i) => (
-            <div key={i} className="flex items-start gap-3 px-3 py-2 rounded-lg border border-gray-100 text-xs">
-              <span className="text-gray-400 whitespace-nowrap">{fmtDate(e.date)}</span>
-              <p className="font-semibold text-gray-700">{e.action}</p>
-            </div>
-          ))}
-        </div>
-      )}
+      {p._id && <ProductHistory productId={p._id} />}
     </div>
   );
 }
@@ -1243,7 +1227,7 @@ function BasicInfoTab({ product: p }) {
 }
 
 // Main Modal Component
-export default function ProductDetailModal({ productId, onClose, refetchLead }) {
+export default function ProductDetailModal({ productId, onClose, refetchLead, isInlinePanel = false }) {
   const qc = useQueryClient();
 
   const { data: detailData, isLoading } = useQuery({
@@ -1313,7 +1297,32 @@ export default function ProductDetailModal({ productId, onClose, refetchLead }) 
   const rawMaterials = rmData || [];
 
   const updateMutation = useMutation({
-    mutationFn: (data) => api.put(`/catalog/products/${productId}`, data),
+    mutationFn: async (data) => {
+      const res = await api.put(`/catalog/products/${productId}`, data);
+      // Track changes for history
+      if (detail) {
+        const tabMap = {
+          formulation: 'Formulation & Procedure',
+          procedure: 'Formulation & Procedure',
+          rndDoc: 'Formulation & Procedure',
+          researchGuide: 'Formulation & Procedure',
+          rnd: 'R&D Price Calculator',
+          productionOverhead: 'Product Overheads',
+          standardAssumptions: 'Product Overheads',
+          packaging: 'Product Overheads',
+          variants: 'Product Overheads',
+          costing: 'Product Overheads',
+          marketplace: 'Marketplace',
+        };
+
+        for (const [key, tabName] of Object.entries(tabMap)) {
+          if (data[key]) {
+            await trackMultipleChanges(productId, tabName, detail[key] || {}, data[key]);
+          }
+        }
+      }
+      return res;
+    },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['catalog'] });
       qc.invalidateQueries({ queryKey: ['catalog-detail', productId] });
@@ -1395,91 +1404,107 @@ export default function ProductDetailModal({ productId, onClose, refetchLead }) 
     state: { creating: createVersionMutation.isPending, updating: updateVersionMutation.isPending, activating: activateVersionMutation.isPending, deleting: deleteVersionMutation.isPending },
   };
 
-  return createPortal(
-    <div className={clsx('fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm overflow-y-auto', detailMaximized ? 'p-0' : 'p-4')}>
-      <div className={clsx('bg-white shadow-2xl border border-slate-200 flex flex-col', detailMaximized ? 'w-screen h-screen max-w-none max-h-none rounded-none' : 'rounded-2xl w-full max-w-6xl my-4 max-h-[92vh]')}>
-        <div className="flex items-center gap-4 px-6 py-4 border-b border-slate-100 bg-slate-50 flex-shrink-0">
-          <div className="flex-1 min-w-0">
-            <h2 className="font-bold text-slate-900 text-lg">{detail.name}</h2>
-            <p className="text-xs text-slate-400">{detail.code} · {detail.category}{detail.type ? ` · ${detail.type}` : ''} · {detail.unit}</p>
-          </div>
-          <button
-            onClick={saveAllData}
-            disabled={updateMutation.isPending}
-            className={`px-4 py-1.5 rounded font-semibold text-xs transition-all ${
-              saveStatus === 'saved'
-                ? 'bg-green-500 text-white'
-                : saveStatus === 'error'
-                ? 'bg-red-500 text-white'
-                : updateMutation.isPending
-                ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                : 'bg-blue-500 hover:bg-blue-600 text-white'
-            }`}
-          >
-            {saveStatus === 'saved' ? '✓ Saved' : saveStatus === 'saving' ? 'Saving...' : saveStatus === 'error' ? '✗ Error' : '💾 Save All'}
+  const contentRender = (
+    <div className={clsx(
+      'flex flex-col',
+      isInlinePanel
+        ? 'bg-white rounded-[10px] border border-[#ddd6c4] overflow-hidden'
+        : 'bg-white shadow-2xl border border-slate-200',
+      isInlinePanel
+        ? ''
+        : (detailMaximized ? 'w-screen h-screen max-w-none max-h-none rounded-none' : 'rounded-2xl w-full max-w-6xl my-4 max-h-[92vh]')
+    )}>
+      <div className={clsx('flex items-center gap-4 px-6 py-4 border-b border-slate-100 bg-slate-50 flex-shrink-0', isInlinePanel && 'rounded-t-[10px]')}>
+        <div className="flex-1 min-w-0">
+          <h2 className={clsx('font-bold text-slate-900', isInlinePanel ? 'text-base' : 'text-lg')}>{detail.name}</h2>
+          <p className="text-xs text-slate-400">{detail.code} · {detail.category}{detail.type ? ` · ${detail.type}` : ''} · {detail.unit}</p>
+        </div>
+        <button
+          onClick={saveAllData}
+          disabled={updateMutation.isPending}
+          className={`px-4 py-1.5 rounded font-semibold text-xs transition-all ${
+            saveStatus === 'saved'
+              ? 'bg-green-500 text-white'
+              : saveStatus === 'error'
+              ? 'bg-red-500 text-white'
+              : updateMutation.isPending
+              ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+              : 'bg-blue-500 hover:bg-blue-600 text-white'
+          }`}
+        >
+          {saveStatus === 'saved' ? '✓ Saved' : saveStatus === 'saving' ? 'Saving...' : saveStatus === 'error' ? '✗ Error' : '💾 Save All'}
+        </button>
+        <button onClick={() => { if (window.confirm('Delete ' + detail.name + '?')) deleteMutation.mutate(); }} className="px-3 py-1.5 rounded bg-red-50 text-red-600 text-xs font-semibold hover:bg-red-100">Delete</button>
+        {!isInlinePanel && <button onClick={() => setDetailMaximized(m => !m)} className="p-2 hover:bg-slate-100 rounded transition">{detailMaximized ? <Minimize2 size={16} /> : <Maximize2 size={16} />}</button>}
+        <button onClick={onClose} className="p-2 hover:bg-slate-100 rounded transition"><X size={18} /></button>
+      </div>
+
+      <div className="flex gap-0 px-6 bg-white border-b border-slate-100 overflow-x-auto flex-shrink-0">
+        {TABS.map(tab => (
+          <button key={tab} onClick={() => setActiveTab(tab)}
+            className={clsx('px-4 py-3 text-xs font-semibold whitespace-nowrap border-b-2 transition-colors',
+              activeTab === tab ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-500 hover:text-slate-700')}>
+            {tab}
           </button>
-          <button onClick={() => { if (window.confirm('Delete ' + detail.name + '?')) deleteMutation.mutate(); }} className="px-3 py-1.5 rounded bg-red-50 text-red-600 text-xs font-semibold hover:bg-red-100">Delete</button>
-          <button onClick={() => setDetailMaximized(m => !m)} className="p-2 hover:bg-slate-100 rounded transition">{detailMaximized ? <Minimize2 size={16} /> : <Maximize2 size={16} />}</button>
-          <button onClick={onClose} className="p-2 hover:bg-slate-100 rounded transition"><X size={18} /></button>
-        </div>
+        ))}
+      </div>
 
-        <div className="flex gap-0 px-6 bg-white border-b border-slate-100 overflow-x-auto flex-shrink-0">
-          {TABS.map(tab => (
-            <button key={tab} onClick={() => setActiveTab(tab)}
-              className={clsx('px-4 py-3 text-xs font-semibold whitespace-nowrap border-b-2 transition-colors',
-                activeTab === tab ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-500 hover:text-slate-700')}>
-              {tab}
-            </button>
-          ))}
-        </div>
+      <div className={clsx('overflow-y-auto', isInlinePanel ? 'max-h-96 p-4' : 'flex-1 p-6')}>
+        {activeTab === 'Overview' && <BasicInfoTab product={detail} />}
 
-        <div className="flex-1 overflow-y-auto p-6">
-          {activeTab === 'Overview' && <BasicInfoTab product={detail} />}
-
-          {activeTab === 'Formulation & Procedure' && detail && (
-            <div className="space-y-6">
-              <RndResearchGuidePanel
-                product={detail}
-                selectedVersionId={selectedVersionId}
-                form={form}
-                setForm={setForm}
-                onSaveLive={() => updateMutation.mutate({ rndDoc: form.rndDoc, researchGuide: form.researchGuide })}
-                onAttachLive={(f) => attachMutation.mutate({ file: f, kind: 'rndDoc' })}
-                onRemoveAttachLive={(id) => removeAttachMutation.mutate({ kind: 'rndDoc', attachmentId: id })}
-                onSaveVersionRnd={(versionId, data) => updateVersionMutation.mutate({ versionId, data })}
-                onAttachVersionRnd={(versionId, f) => attachMutation.mutate({ file: f, kind: 'procedure' })}
-                onRemoveAttachVersionRnd={(versionId, id) => removeAttachMutation.mutate({ kind: 'procedure', attachmentId: id })}
-              />
-              <hr className="border-gray-100" />
-              <div>
-                <p className="text-sm font-bold text-gray-700 mb-3 flex items-center gap-1.5"><FlaskConical size={14} />Product Formulation</p>
-                <div className="flex gap-4 items-start">
-                  <FormulationVersionSidebar product={detail} selectedVersionId={selectedVersionId} setSelectedVersionId={setSelectedVersionId} versionActions={versionActions} />
-                  <div className="flex-1 min-w-0">
-                    {selectedVersionId
-                      ? <BranchedFormulationEditor product={detail} selectedVersionId={selectedVersionId} setSelectedVersionId={setSelectedVersionId} versionActions={versionActions} />
-                      : <FormulationTab product={detail} form={form} setForm={setForm} onSave={() => updateMutation.mutate({ formulation: { ...form.formulation, rows: withComputedQuantity(form.formulation?.rows, form.formulation?.refWeight) } })} isPending={updateMutation.isPending} />}
-                  </div>
+        {activeTab === 'Formulation & Procedure' && detail && (
+          <div className="space-y-6">
+            <RndResearchGuidePanel
+              product={detail}
+              selectedVersionId={selectedVersionId}
+              form={form}
+              setForm={setForm}
+              onSaveLive={() => updateMutation.mutate({ rndDoc: form.rndDoc, researchGuide: form.researchGuide })}
+              onAttachLive={(f) => attachMutation.mutate({ file: f, kind: 'rndDoc' })}
+              onRemoveAttachLive={(id) => removeAttachMutation.mutate({ kind: 'rndDoc', attachmentId: id })}
+              onSaveVersionRnd={(versionId, data) => updateVersionMutation.mutate({ versionId, data })}
+              onAttachVersionRnd={(versionId, f) => attachMutation.mutate({ file: f, kind: 'procedure' })}
+              onRemoveAttachVersionRnd={(versionId, id) => removeAttachMutation.mutate({ kind: 'procedure', attachmentId: id })}
+            />
+            <hr className="border-gray-100" />
+            <div>
+              <p className="text-sm font-bold text-gray-700 mb-3 flex items-center gap-1.5"><FlaskConical size={14} />Product Formulation</p>
+              <div className="flex gap-4 items-start">
+                <FormulationVersionSidebar product={detail} selectedVersionId={selectedVersionId} setSelectedVersionId={setSelectedVersionId} versionActions={versionActions} />
+                <div className="flex-1 min-w-0">
+                  {selectedVersionId
+                    ? <BranchedFormulationEditor product={detail} selectedVersionId={selectedVersionId} setSelectedVersionId={setSelectedVersionId} versionActions={versionActions} />
+                    : <FormulationTab product={detail} form={form} setForm={setForm} onSave={() => updateMutation.mutate({ formulation: { ...form.formulation, rows: withComputedQuantity(form.formulation?.rows, form.formulation?.refWeight) } })} isPending={updateMutation.isPending} />}
                 </div>
               </div>
-              <hr className="border-gray-100" />
-              <ManufacturingProcedureTab product={detail} form={form} setForm={setForm} onSave={() => updateMutation.mutate({ procedure: form.procedure })} isPending={updateMutation.isPending} onAttach={(f, k) => attachMutation.mutate({ file: f, kind: k })} onRemoveAttach={(k, id) => removeAttachMutation.mutate({ kind: k, attachmentId: id })} />
             </div>
-          )}
+            <hr className="border-gray-100" />
+            <ManufacturingProcedureTab product={detail} form={form} setForm={setForm} onSave={() => updateMutation.mutate({ procedure: form.procedure })} isPending={updateMutation.isPending} onAttach={(f, k) => attachMutation.mutate({ file: f, kind: k })} onRemoveAttach={(k, id) => removeAttachMutation.mutate({ kind: k, attachmentId: id })} />
+          </div>
+        )}
 
-          {activeTab === 'R&D Price Calculator' && <div className="-m-6"><RDPriceCalculator presetProduct={detail} /></div>}
+        {activeTab === 'R&D Price Calculator' && <div className="-m-6"><RDPriceCalculator presetProduct={detail} /></div>}
 
-          {activeTab === 'Product Overheads' && <ProductOverheadsTab product={detail} form={form} setForm={setForm} onSaveProductionOverheads={() => updateMutation.mutate({ rnd: form.rnd, productionOverhead: form.productionOverhead, standardAssumptions: form.standardAssumptions })} onSavePackaging={() => updateMutation.mutate({ packaging: form.packaging })} onSaveVariants={() => updateMutation.mutate({ variants: form.variants })} onSaveCosting={() => updateMutation.mutate({ costing: form.costing })} isPending={updateMutation.isPending} />}
+        {activeTab === 'Product Overheads' && <ProductOverheadsTab product={detail} form={form} setForm={setForm} onSaveProductionOverheads={() => updateMutation.mutate({ rnd: form.rnd, productionOverhead: form.productionOverhead, standardAssumptions: form.standardAssumptions })} onSavePackaging={() => updateMutation.mutate({ packaging: form.packaging })} onSaveVariants={() => updateMutation.mutate({ variants: form.variants })} onSaveCosting={() => updateMutation.mutate({ costing: form.costing })} isPending={updateMutation.isPending} />}
 
-          {activeTab === 'Marketplace' && <MarketplaceTab product={detail} form={form} setForm={setForm} onSave={() => updateMutation.mutate({ marketplace: form.marketplace })} isPending={updateMutation.isPending} />}
+        {activeTab === 'Marketplace' && <MarketplaceTab product={detail} form={form} setForm={setForm} onSave={() => updateMutation.mutate({ marketplace: form.marketplace })} isPending={updateMutation.isPending} />}
 
-          {activeTab === 'QR Code' && <QRCodeTab product={detail} />}
+        {activeTab === 'QR Code' && <QRCodeTab product={detail} />}
 
-          {activeTab === 'Documents' && <DocumentsTab product={detail} onAttach={(f, k) => attachMutation.mutate({ file: f, kind: k })} onRemoveAttach={(k) => removeAttachMutation.mutate({ kind: k, attachmentId: null })} />}
+        {activeTab === 'Documents' && <DocumentsTab product={detail} onAttach={(f, k) => attachMutation.mutate({ file: f, kind: k })} onRemoveAttach={(k) => removeAttachMutation.mutate({ kind: k, attachmentId: null })} />}
 
-          {activeTab === 'History' && <HistoryTab product={detail} />}
-        </div>
+        {activeTab === 'History' && <HistoryTab product={detail} />}
       </div>
+    </div>
+  );
+
+  if (isInlinePanel) {
+    return contentRender;
+  }
+
+  return createPortal(
+    <div className={clsx('fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm overflow-y-auto', detailMaximized ? 'p-0' : 'p-4')}>
+      {contentRender}
     </div>,
     document.body
   );
