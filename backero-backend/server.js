@@ -66,6 +66,7 @@ const leaveRoutes             = require('./src/routes/leave.routes');
 const savedQuotesRoutes       = require('./src/routes/savedQuotes.routes');
 const productHistoryRoutes    = require('./src/routes/productHistory.routes');
 const remainderRoutes         = require('./src/routes/remainder.routes');
+const waChatsRoutes           = require('./src/routes/waChats.routes');
 
 const app = express();
 const server = http.createServer(app);
@@ -237,6 +238,7 @@ app.use('/api/leave', leaveRoutes);
 app.use('/api/saved-quotes', savedQuotesRoutes);
 app.use('/api/product-history', productHistoryRoutes);
 app.use('/api/remainders', remainderRoutes);
+app.use('/api/wa-chats', waChatsRoutes);
 
 // 404 handler
 app.use('*', (req, res) => {
