@@ -7,6 +7,7 @@ import Layout from './components/layout/Layout';
 import ProtectedRoute from './components/common/ProtectedRoute';
 import PermissionRoute from './components/common/PermissionRoute';
 import DevAutoLogin from './components/common/DevAutoLogin';
+import PrivacyPolicy from './pages/legal/PrivacyPolicy';
 import LoadingScreen from './components/common/LoadingScreen';
 import { workflowTheme } from './theme/workflowTheme';
 
@@ -184,6 +185,7 @@ export default function App() {
         <Route path="/reset-password" element={!user ? <ResetPassword /> : <Navigate to="/" replace />} />
         <Route path="/register" element={<Navigate to="/login" replace />} />
         <Route path="/auth/callback" element={<AuthCallback />} />
+        <Route path="/privacy-policy" element={<PrivacyPolicy />} />
 
         {/* Protected routes */}
         <Route element={<ProtectedRoute><Layout /></ProtectedRoute>}>
