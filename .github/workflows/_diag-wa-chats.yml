@@ -1,0 +1,41 @@
+name: Diagnose WA Chats Config
+on: workflow_dispatch
+
+jobs:
+  diag:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check droplet .env + pm2 state (no secret values printed)
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.DROPLET_HOST }}
+          username: ${{ secrets.DROPLET_USER }}
+          key: ${{ secrets.DROPLET_SSH_KEY }}
+          script: |
+            set -e
+            ENV_FILE=/var/www/Task_Workflow/backero-backend/.env
+            echo "=== .env file ==="
+            if [ -f "$ENV_FILE" ]; then
+              echo "exists: yes"
+              echo "last modified: $(stat -c '%y' "$ENV_FILE")"
+              if grep -q '^BOUNCE_GUARD_SECRET=' "$ENV_FILE"; then
+                VAL=$(grep '^BOUNCE_GUARD_SECRET=' "$ENV_FILE" | cut -d= -f2-)
+                echo "BOUNCE_GUARD_SECRET: present, length=${#VAL}"
+              else
+                echo "BOUNCE_GUARD_SECRET: MISSING (no line in .env)"
+              fi
+              if grep -q '^WA_CHATS_ORG_ID=' "$ENV_FILE"; then
+                VAL=$(grep '^WA_CHATS_ORG_ID=' "$ENV_FILE" | cut -d= -f2-)
+                echo "WA_CHATS_ORG_ID: present, length=${#VAL}"
+              else
+                echo "WA_CHATS_ORG_ID: MISSING (no line in .env)"
+              fi
+            else
+              echo "exists: NO — .env file not found at $ENV_FILE"
+            fi
+            echo ""
+            echo "=== pm2 backero-backend ==="
+            pm2 describe backero-backend | grep -E "status|pm2 env|pm_uptime|restart time|script path|cwd" || true
+            echo ""
+            echo "=== current backend commit ==="
+            cd /var/www/Task_Workflow && git log -1 --oneline
