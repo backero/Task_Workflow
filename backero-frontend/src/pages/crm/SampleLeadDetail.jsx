@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { format, formatDistanceToNowStrict } from 'date-fns';
 import clsx from 'clsx';
+import LeadWhatsAppChat from '../../components/crm/LeadWhatsAppChat';
 import toast from 'react-hot-toast';
 import api from '../../api/axios';
 import { History, Clock, Clipboard, IndianRupee } from 'lucide-react';
@@ -1629,6 +1630,7 @@ export default function SampleLeadDetail({ leadId, onClose, initialTab, initialO
 
           {!isLoading && tab === 'Q&A' && (
             <div className="space-y-3">
+              <LeadWhatsAppChat leadId={leadId} />
               <div className="flex items-center justify-between">
                 <p className="text-xs font-semibold text-[#8a8171] uppercase tracking-wide">
                   {(queries || []).length} quer{(queries || []).length === 1 ? 'y' : 'ies'} · {pendingQueries} open

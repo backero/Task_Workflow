@@ -4,6 +4,9 @@ const mongoose = require('mongoose');
 const router = express.Router();
 const WaChatMessage = require('../models/WaChatMessage');
 const WaChatContact = require('../models/WaChatContact');
+const WaChatSummary = require('../models/WaChatSummary');
+const Lead = require('../models/Lead');
+const { summarizeWhatsAppChat } = require('../utils/groq');
 const { authenticate } = require('../middleware/auth.middleware');
 const { orgIsolation } = require('../middleware/orgIsolation.middleware');
 const { ROLE_HIERARCHY } = require('../utils/constants');
@@ -184,6 +187,102 @@ router.get('/threads/:business/:contact', async (req, res, next) => {
       WaChatContact.findOne({ organizationId: req.orgId, business, contact }).select('name').lean(),
     ]);
     res.json({ success: true, business, contact, name: who?.name || null, messages });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// ---- One client (lead): their chat and its AI summary, for the lead's Q&A tab ----
+
+const SUMMARY_MAX_MESSAGES = 400;
+const SUMMARY_MAX_CHARS = 30000;
+
+// A lead's numbers as stored on WhatsApp: 10-digit Indian numbers become 91XXXXXXXXXX.
+const leadContacts = (lead) => {
+  const out = new Set();
+  for (const raw of [lead.phone, lead.phone2, lead.whatsapp]) {
+    const d = digits(raw);
+    if (d.length < 10) continue;
+    const ten = d.slice(-10);
+    out.add(ten);
+    out.add(`91${ten}`);
+    out.add(d);
+  }
+  return [...out];
+};
+
+async function loadLeadChat(req) {
+  if (!mongoose.isValidObjectId(req.params.leadId)) return null;
+  const lead = await Lead.findOne({ _id: req.params.leadId, organizationId: req.orgId }).select('name phone phone2 whatsapp').lean();
+  if (!lead) return null;
+  const contacts = leadContacts(lead);
+  const messages = contacts.length
+    ? await WaChatMessage.find({ organizationId: req.orgId, contact: { $in: contacts } })
+      .sort({ sentAt: 1, _id: 1 })
+      .limit(3000)
+      .select('waMessageId business contact direction type body mediaId sentAt status source')
+      .lean()
+    : [];
+  return { lead, contacts, messages };
+}
+
+const istStamp = (d) => new Date(d).toLocaleString('en-IN', {
+  timeZone: 'Asia/Kolkata', day: 'numeric', month: 'short', year: 'numeric', hour: 'numeric', minute: '2-digit',
+});
+
+// GET /api/wa-chats/lead/:leadId
+router.get('/lead/:leadId', async (req, res, next) => {
+  try {
+    const found = await loadLeadChat(req);
+    if (!found) return sendError(res, 'Lead not found.', 404);
+    const { lead, messages } = found;
+    const summary = await WaChatSummary.findOne({ organizationId: req.orgId, leadId: lead._id }).lean();
+    const lastAt = messages.at(-1)?.sentAt;
+    res.json({
+      success: true,
+      numbers: [...new Set(messages.map((m) => m.contact))],
+      messages,
+      summary: summary && {
+        text: summary.text,
+        generatedAt: summary.updatedAt,
+        messageCount: summary.messageCount,
+        outdated: Boolean(lastAt && (!summary.lastMessageAt || lastAt > summary.lastMessageAt)),
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// POST /api/wa-chats/lead/:leadId/summary — (re)generate the AI summary
+router.post('/lead/:leadId/summary', async (req, res, next) => {
+  try {
+    if (!process.env.GROQ_API_KEY) return sendError(res, 'AI summary is not configured (missing GROQ_API_KEY).', 503);
+    const found = await loadLeadChat(req);
+    if (!found) return sendError(res, 'Lead not found.', 404);
+    const { lead, messages } = found;
+    const usable = messages.filter((m) => m.status !== 'deleted');
+    if (!usable.length) return sendError(res, 'No WhatsApp messages with this client yet.', 400);
+
+    // Newest messages matter most: keep the latest ones that fit.
+    const lines = [];
+    let size = 0;
+    for (const m of usable.slice(-SUMMARY_MAX_MESSAGES).reverse()) {
+      const line = `[${istStamp(m.sentAt)}] ${m.direction === 'out' ? 'Backero' : 'Customer'}: ${m.body || `[${m.type}]`}`;
+      if (size + line.length > SUMMARY_MAX_CHARS) break;
+      lines.push(line);
+      size += line.length + 1;
+    }
+    const text = await summarizeWhatsAppChat(lines.reverse().join('\n'));
+    if (!text) return sendError(res, 'The AI service returned an empty summary. Try again.', 502);
+
+    const saved = await WaChatSummary.findOneAndUpdate(
+      { organizationId: req.orgId, leadId: lead._id },
+      // newest message of any kind, so a deleted last message doesn't mark it outdated
+      { $set: { text, messageCount: lines.length, lastMessageAt: messages.at(-1).sentAt, generatedBy: req.user._id } },
+      { upsert: true, new: true }
+    ).lean();
+    res.json({ success: true, summary: { text: saved.text, generatedAt: saved.updatedAt, messageCount: saved.messageCount, outdated: false } });
   } catch (error) {
     next(error);
   }

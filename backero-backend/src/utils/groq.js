@@ -67,4 +67,20 @@ async function summarizeTranscript(transcript) {
   return data.choices?.[0]?.message?.content?.trim() || '';
 }
 
-module.exports = { transcribeAudio, extractLeadFieldsFromTranscript, summarizeTranscript };
+// Summarises a client's WhatsApp conversation with our business number for the lead's Q&A tab.
+// `chat` is plain text, one message per line: "[date time] Customer|Backero: text".
+async function summarizeWhatsAppChat(chat) {
+  const prompt = `The following is a WhatsApp conversation between a client and Backero (a cosmetics/skincare manufacturer; brands Treyfa and Kymarie). Messages may be in Tamil, Telugu, Hindi, English, or a mix — translate fully and write ONLY in English.\n\nWrite a short summary for the sales and production team using exactly these four headings, each followed by 1-3 short bullet points:\nClient need:\nQuestions asked:\nWhat Backero promised or sent:\nStatus and next step:\n\nUse only what is in the conversation; write "None" under a heading if nothing applies. Do not invent prices, dates or products.\n\nConversation:\n${chat}`;
+
+  const { data } = await axios.post(`${GROQ_BASE}/chat/completions`, {
+    model: 'openai/gpt-oss-120b',
+    messages: [{ role: 'user', content: prompt }],
+    temperature: 0,
+  }, {
+    headers: { Authorization: `Bearer ${process.env.GROQ_API_KEY}`, 'Content-Type': 'application/json' },
+  });
+
+  return data.choices?.[0]?.message?.content?.trim() || '';
+}
+
+module.exports = { transcribeAudio, extractLeadFieldsFromTranscript, summarizeTranscript, summarizeWhatsAppChat };
