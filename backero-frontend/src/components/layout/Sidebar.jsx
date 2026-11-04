@@ -10,8 +10,9 @@ import {
   Box, Zap, BarChart3, Settings, Megaphone,
   Store, Banknote, UsersRound,
   Wrench, Trophy, Sparkles, X,
-  Fingerprint, ClipboardCheck, Receipt, CalendarOff, Clock, ListTodo,
+  Fingerprint, ClipboardCheck, Receipt, CalendarOff, Clock, ListTodo, MessageCircle,
 } from 'lucide-react';
+import { canSeeWhatsAppChats } from '../../pages/crm/WhatsAppChats';
 
 const { Text } = Typography;
 
@@ -33,11 +34,12 @@ export { SIDER_COLLAPSED_WIDTH };
 
 export default function Sidebar({ variant = 'desktop', onNavigate, onClose }) {
   const { user } = useAuthStore();
+  const permissions = usePermissions();
   const {
     can, isAdmin,
     canCRM, canInventory, canFinance,
     canManagement, canApprovals, canAttendance,
-  } = usePermissions();
+  } = permissions;
 
   // Mobile overlay is always fully expanded (no hover-collapse); desktop
   // rail starts collapsed and expands on hover, mirroring the reference.
@@ -64,6 +66,7 @@ export default function Sidebar({ variant = 'desktop', onNavigate, onClose }) {
     { label: 'My Tasks', to: '/tasks/my', icon: Sparkles },
   ];
   if (canApprovals) workItems.push({ label: 'Approval Queue', to: '/tasks/approvals', icon: ClipboardList });
+  if (canSeeWhatsAppChats(permissions)) workItems.push({ label: 'WhatsApp Chats', to: '/crm/whatsapp-chats', icon: MessageCircle });
   groups.push({ label: 'Work', items: workItems });
 
   const opsItems = [];

@@ -46,6 +46,7 @@ import CalendarView from './pages/tasks/CalendarView';
 // CRM pages
 import LeadDetails from './pages/crm/LeadDetails';
 import TechnicalQueries from './pages/crm/TechnicalQueries';
+import WhatsAppChats from './pages/crm/WhatsAppChats';
 import SampleProduction from './pages/crm/SampleProduction';
 
 // Inventory pages
@@ -203,6 +204,7 @@ export default function App() {
           {/* CRM */}
           <Route path="/crm/leads/:id" element={<PermissionRoute module="crm"><LeadDetails /></PermissionRoute>} />
           <Route path="/crm/queries" element={<TechnicalQueries />} />
+          <Route path="/crm/whatsapp-chats" element={<WhatsAppChats />} />
           <Route path="/samples" element={<PermissionRoute module={['crm', 'inventory']}><SampleProduction /></PermissionRoute>} />
 
           {/* Inventory */}
