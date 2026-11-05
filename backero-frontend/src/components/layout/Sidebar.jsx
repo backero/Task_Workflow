@@ -100,7 +100,6 @@ export default function Sidebar({ variant = 'desktop', onNavigate, onClose }) {
   if (can('dept.sales'))       deptItems.push({ label: 'Sales Dept',  to: '/departments/sales',       icon: ShoppingBag });
   if (canInventory || can('dept.rnd')) deptItems.push({ label: 'Production', icon: Settings, children: [
     { label: 'Dashboard',       to: '/departments/rnd' },
-    { label: 'Record Usage',    to: '/production/usage' },
     { label: 'Raw Materials',   to: '/inventory/rawmaterials' },
     { label: 'Product Catalog', to: '/inventory/catalog' },
     { label: 'Product Development', to: '/samples' },
