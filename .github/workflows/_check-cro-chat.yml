@@ -29,6 +29,31 @@ jobs:
             BE_SECRET=$(grep "^BOUNCE_GUARD_SECRET=" "$BE_ENV" | cut -d= -f2-)
             if [ "$BG_TOKEN" = "$BE_SECRET" ]; then echo "MATCH: yes"; else echo "MATCH: no - MISMATCH"; fi
             echo ""
+            echo "=== pm2 exec cwd / script path for bounce-guard ==="
+            pm2 describe bounce-guard | grep -E "exec cwd|script path|interpreter"
+            echo ""
+            echo "=== all .env files under likely bounce-guard locations ==="
+            find /opt/bounce-guard -maxdepth 3 -iname ".env*" 2>/dev/null
+            find /home -maxdepth 4 -iname ".env*" -path "*bounce*" 2>/dev/null
+            find /root -maxdepth 4 -iname ".env*" -path "*bounce*" 2>/dev/null
+            echo ""
+            echo "=== pm2 jlist raw env snapshot for bounce-guard (SAAS_ keys only) ==="
+            pm2 jlist 2>/dev/null | node -e "
+              let d='';process.stdin.on('data',c=>d+=c);
+              process.stdin.on('end',()=>{
+                try {
+                  const start = d.indexOf('[');
+                  const arr = JSON.parse(d.slice(start));
+                  const p = arr.find(x => x.name === 'bounce-guard');
+                  if (!p) { console.log('not found'); return; }
+                  console.log('cwd:', p.pm2_env.pm_cwd || p.pm2_env.cwd);
+                  console.log('pm_exec_path:', p.pm2_env.pm_exec_path);
+                  console.log('SAAS_WEBHOOK_URL in pm2 env:', JSON.stringify(p.pm2_env.SAAS_WEBHOOK_URL));
+                  console.log('SAAS_WEBHOOK_TOKEN length in pm2 env:', (p.pm2_env.SAAS_WEBHOOK_TOKEN||'').length);
+                } catch(e) { console.log('parse error', e.message); }
+              });
+            "
+            echo ""
             echo "=== bounce-guard log file mtimes vs process start time ==="
             ls -la --time-style=full-iso ~/.pm2/logs/bounce-guard-error.log ~/.pm2/logs/bounce-guard-out.log
             echo ""
