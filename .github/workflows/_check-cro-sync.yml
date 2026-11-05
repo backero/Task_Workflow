@@ -1,0 +1,20 @@
+name: Check CRO WhatsApp sync status (one-off)
+on: workflow_dispatch
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check CRO sync init logs + live debug endpoint
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.DROPLET_HOST }}
+          username: ${{ secrets.DROPLET_USER }}
+          key: ${{ secrets.DROPLET_SSH_KEY }}
+          script: |
+            echo "=== backend logs: WA CRO Sync ==="
+            pm2 logs backero-backend --lines 150 --nostream 2>/dev/null | grep -i "WA CRO Sync" | tail -30 || echo "no matching lines"
+            echo ""
+            echo "=== live debug endpoint ==="
+            curl -s http://127.0.0.1:5000/api/whatsapp/cro/debug
+            echo ""
