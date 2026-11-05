@@ -168,6 +168,15 @@ export default function RawMaterialsPage() {
   const [batchData, setBatchData]     = useState(emptyBatch());
   const [inlineBatches, setInlineBatches] = useState([]);    // for edit drawer
 
+  // Record Usage drawer state (combines Production Usage into this page)
+  const [showUsage, setShowUsage]     = useState(null);      // material object
+  const [usageForm, setUsageForm]     = useState({ quantity: '', purpose: '', notes: '' });
+  const [usageRecords, setUsageRecords] = useState([]);
+  const [usageLoading, setUsageLoading] = useState(false);
+  const [returnTarget, setReturnTarget] = useState(null);    // usage record being returned
+  const [returnQty, setReturnQty]     = useState('');
+  const [returnNotes, setReturnNotes] = useState('');
+
   // HSN / Category autocomplete
   const [hsnSuggestions, setHsnSuggestions] = useState([]);
   const [catSuggestions, setCatSuggestions] = useState([]);
@@ -290,6 +299,71 @@ export default function RawMaterialsPage() {
     onSuccess: (_, { id }) => { invalidate(); toast.success('Batch added'); setShowBatch(null); setBatchData(emptyBatch()); setExpandedId(id); },
     onError: e => toast.error(e?.response?.data?.message || 'Failed to add batch'),
   });
+  const recordUsageMut = useMutation({
+    mutationFn: (d) => api.post('/production-usage', d),
+    onSuccess: (res) => {
+      invalidate();
+      toast.success('Usage recorded');
+      setShowUsage(prev => prev ? { ...prev, ...res.data.material } : prev);
+      setUsageRecords(prev => [res.data.record, ...prev]);
+      setUsageForm({ quantity: '', purpose: '', notes: '' });
+    },
+    onError: e => toast.error(e?.response?.data?.message || 'Failed to record usage'),
+  });
+  const returnUsageMut = useMutation({
+    mutationFn: ({ id, d }) => api.post(`/production-usage/${id}/return`, d),
+    onSuccess: (res) => {
+      invalidate();
+      toast.success('Returned to stock');
+      setShowUsage(prev => prev ? { ...prev, ...res.data.material } : prev);
+      setUsageRecords(prev => [res.data.record, ...prev]);
+      setReturnTarget(null);
+    },
+    onError: e => toast.error(e?.response?.data?.message || 'Failed to record return'),
+  });
+
+  async function openUsage(m) {
+    setShowUsage(m);
+    setUsageForm({ quantity: '', purpose: '', notes: '' });
+    setReturnTarget(null);
+    setUsageLoading(true);
+    try {
+      const res = await api.get(`/production-usage?materialId=${m._id}`);
+      setUsageRecords(res.data.records || []);
+    } catch {
+      toast.error('Failed to load usage history');
+    } finally {
+      setUsageLoading(false);
+    }
+  }
+
+  function submitUsage() {
+    if (!showUsage) return;
+    const qty = parseFloat(usageForm.quantity);
+    const stock = totalStock(showUsage);
+    if (!qty || qty <= 0) { toast.error('Enter a valid quantity'); return; }
+    if (qty > stock) { toast.error(`Only ${stock} ${showUsage.unit} available`); return; }
+    if (!usageForm.purpose.trim()) { toast.error('Purpose / product batch is required'); return; }
+    recordUsageMut.mutate({ materialId: showUsage._id, quantity: qty, purpose: usageForm.purpose.trim(), notes: usageForm.notes.trim() });
+  }
+
+  function returnedQtyFor(recId) {
+    return usageRecords.filter(r => r.type === 'return' && (r.returnOf?._id === recId || r.returnOf === recId)).reduce((s, r) => s + r.quantity, 0);
+  }
+
+  function openReturn(record) {
+    const already = returnedQtyFor(record._id);
+    setReturnTarget({ ...record, maxReturnable: record.quantity - already });
+    setReturnQty(''); setReturnNotes('');
+  }
+
+  function submitReturn() {
+    if (!returnTarget) return;
+    const qty = parseFloat(returnQty);
+    if (!qty || qty <= 0) { toast.error('Enter a valid quantity'); return; }
+    if (qty > returnTarget.maxReturnable) { toast.error(`Max returnable: ${returnTarget.maxReturnable} ${returnTarget.unit}`); return; }
+    returnUsageMut.mutate({ id: returnTarget._id, d: { quantity: qty, notes: returnNotes.trim() } });
+  }
   const deleteMut = useMutation({
     mutationFn: id => api.delete(`/inventory/raw-materials/${id}`),
     onSuccess: () => { invalidate(); toast.success('Deleted'); },
@@ -556,6 +630,7 @@ export default function RawMaterialsPage() {
       render: (_, m) => (
         <Space size={2}>
           <Button type="text" size="small" icon={<TestTube2 size={14} color="#d97706" />} title="Add Batch" onClick={() => { setShowBatch(m); setBatchData(emptyBatch()); }} />
+          <Button type="text" size="small" icon={<ClipboardList size={14} color="#f97316" />} title="Record Usage" onClick={() => openUsage(m)} />
           <Button type="text" size="small" icon={<QrCode size={14} color="#2563eb" />} title="Print QR" onClick={() => setShowQR(m)} />
           <Button type="text" size="small" icon={<Pencil size={14} />} title="Edit" onClick={() => openEdit(m)} />
           <Button type="text" size="small" icon={<Trash2 size={14} color="#ef4444" />} title="Delete" onClick={() => deleteMat(m)} />
@@ -1102,6 +1177,95 @@ export default function RawMaterialsPage() {
             )}
           </Space>
         )}
+      </Drawer>
+
+      {/* ════════════ RECORD USAGE DRAWER ════════════ */}
+      <Drawer
+        open={!!showUsage} onClose={() => { setShowUsage(null); setReturnTarget(null); }} width={460}
+        title={<Space size={8}><ClipboardList size={14} color="#f97316" />Record Usage</Space>}
+      >
+        {showUsage && (() => {
+          const stock = totalStock(showUsage);
+          const isLow = showUsage.enableMinStock && stock > 0 && stock <= (showUsage.minStockLevel || 0);
+          return (
+            <Space direction="vertical" style={{ width: '100%' }} size={16}>
+              <Card size="small" style={{ background: '#f6faff', borderColor: '#e5edf7' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10 }}>
+                  <div style={{ minWidth: 0 }}>
+                    <Text strong style={{ fontSize: 13 }}>{showUsage.name}</Text>
+                    <div><Text type="secondary" style={{ fontSize: 11 }}>{showUsage.code} · {showUsage.category}</Text></div>
+                  </div>
+                  <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                    <div style={{ fontSize: 20, fontWeight: 700, color: stock <= 0 ? '#ef4444' : isLow ? '#eab308' : '#059669' }}>{stock}</div>
+                    <Text type="secondary" style={{ fontSize: 11 }}>{showUsage.unit}</Text>
+                  </div>
+                </div>
+              </Card>
+
+              {stock <= 0 ? (
+                <Text type="danger" style={{ textAlign: 'center', display: 'block', fontSize: 12 }}>This material is out of stock</Text>
+              ) : returnTarget ? (
+                <Card size="small" title={<Space size={6}><Download size={13} color="#10b981" />Return to Stock</Space>}>
+                  <Text type="secondary" style={{ fontSize: 11 }}>Ref: {returnTarget.issueNumber} · {returnTarget.purpose}</Text>
+                  <Space direction="vertical" style={{ width: '100%', marginTop: 10 }} size={10}>
+                    <Field label="Return Quantity" required span={24}>
+                      <Input type="number" min="0.01" step="0.01" max={returnTarget.maxReturnable} value={returnQty} onChange={e => setReturnQty(e.target.value)} placeholder={`Max: ${returnTarget.maxReturnable} ${returnTarget.unit}`} autoFocus />
+                    </Field>
+                    <Field label="Notes (optional)" span={24}>
+                      <Input.TextArea rows={2} value={returnNotes} onChange={e => setReturnNotes(e.target.value)} placeholder="Reason for return..." />
+                    </Field>
+                    <Space style={{ width: '100%' }}>
+                      <Button style={{ flex: 1 }} onClick={() => setReturnTarget(null)}>Cancel</Button>
+                      <Button type="primary" style={{ flex: 1, background: '#059669' }} loading={returnUsageMut.isPending} onClick={submitReturn}>Confirm Return</Button>
+                    </Space>
+                  </Space>
+                </Card>
+              ) : (
+                <Space direction="vertical" style={{ width: '100%' }} size={10}>
+                  <Field label={`Quantity (${showUsage.unit})`} required span={24}>
+                    <Input type="number" min="0.01" step="0.01" max={stock} value={usageForm.quantity} onChange={e => setUsageForm(f => ({ ...f, quantity: e.target.value }))} placeholder={`Max: ${stock} ${showUsage.unit}`} />
+                  </Field>
+                  <Field label="Purpose / Product Batch" required span={24}>
+                    <Input value={usageForm.purpose} onChange={e => setUsageForm(f => ({ ...f, purpose: e.target.value }))} placeholder="e.g. Shampoo Batch #12, Face Cream B-04" />
+                  </Field>
+                  <Field label="Notes (optional)" span={24}>
+                    <Input.TextArea rows={2} value={usageForm.notes} onChange={e => setUsageForm(f => ({ ...f, notes: e.target.value }))} placeholder="Any additional notes about this usage..." />
+                  </Field>
+                  <Button type="primary" block loading={recordUsageMut.isPending} onClick={submitUsage}>Confirm Usage</Button>
+                </Space>
+              )}
+
+              <div>
+                <Text type="secondary" style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase' }}>Usage History {usageRecords.length > 0 && `(${usageRecords.length})`}</Text>
+                <div style={{ marginTop: 8 }}>
+                  {usageLoading ? (
+                    <Text type="secondary" style={{ fontSize: 12 }}>Loading…</Text>
+                  ) : usageRecords.length === 0 ? (
+                    <Text type="secondary" style={{ fontSize: 12 }}>No usage recorded yet for this material.</Text>
+                  ) : (
+                    <Space direction="vertical" style={{ width: '100%' }} size={6}>
+                      {usageRecords.map(r => {
+                        const returned = r.type === 'issue' ? returnedQtyFor(r._id) : 0;
+                        const maxRet = r.type === 'issue' ? r.quantity - returned : 0;
+                        return (
+                          <div key={r._id} style={{ padding: '8px 10px', borderRadius: 8, border: '1px solid #f1f5f9', background: '#fafbfc' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
+                              <Tag color={r.type === 'issue' ? 'orange' : 'green'} style={{ fontSize: 10, margin: 0 }}>{r.type === 'issue' ? 'Used' : 'Returned'}</Tag>
+                              <Text strong style={{ fontSize: 12, color: r.type === 'issue' ? '#f97316' : '#059669', flex: 1 }}>{r.type === 'issue' ? '-' : '+'}{r.quantity} {r.unit}</Text>
+                              {r.type === 'issue' && maxRet > 0 && <Button size="small" type="link" style={{ padding: 0, fontSize: 11 }} onClick={() => openReturn(r)}>Return</Button>}
+                            </div>
+                            <Text type="secondary" style={{ fontSize: 11 }} ellipsis>{r.purpose || '—'}</Text>
+                            {r.type === 'issue' && returned > 0 && <div><Text type="secondary" style={{ fontSize: 10, color: '#059669' }}>{returned} returned</Text></div>}
+                          </div>
+                        );
+                      })}
+                    </Space>
+                  )}
+                </div>
+              </div>
+            </Space>
+          );
+        })()}
       </Drawer>
     </div>
   );
