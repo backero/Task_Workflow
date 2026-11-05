@@ -29,6 +29,10 @@ jobs:
             BE_SECRET=$(grep "^BOUNCE_GUARD_SECRET=" "$BE_ENV" | cut -d= -f2-)
             if [ "$BG_TOKEN" = "$BE_SECRET" ]; then echo "MATCH: yes"; else echo "MATCH: no - MISMATCH"; fi
             echo ""
+            echo "=== force restart with --update-env ==="
+            pm2 restart bounce-guard --update-env
+            sleep 2
+            echo ""
             echo "=== pm2 exec cwd / script path for bounce-guard ==="
             pm2 describe bounce-guard | grep -E "exec cwd|script path|interpreter"
             echo ""
@@ -52,6 +56,13 @@ jobs:
                   console.log('SAAS_WEBHOOK_TOKEN length in pm2 env:', (p.pm2_env.SAAS_WEBHOOK_TOKEN||'').length);
                 } catch(e) { console.log('parse error', e.message); }
               });
+            "
+            echo ""
+            echo "=== sanity check: does dotenv correctly parse /opt/bounce-guard/.env? ==="
+            cd /opt/bounce-guard && node -e "
+              require('dotenv').config();
+              console.log('SAAS_WEBHOOK_URL:', JSON.stringify(process.env.SAAS_WEBHOOK_URL));
+              console.log('SAAS_WEBHOOK_TOKEN length:', (process.env.SAAS_WEBHOOK_TOKEN||'').length);
             "
             echo ""
             echo "=== bounce-guard log file mtimes vs process start time ==="
