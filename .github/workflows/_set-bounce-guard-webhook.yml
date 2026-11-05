@@ -39,18 +39,11 @@ jobs:
             echo "SAAS_WEBHOOK_URL set to: ${SAAS_URL}"
             echo "SAAS_WEBHOOK_TOKEN set, length=${#SAAS_WEBHOOK_TOKEN}"
 
-            echo "=== pm2 processes ==="
-            pm2 jlist | node -e "let d='';process.stdin.on('data',c=>d+=c);process.stdin.on('end',()=>{JSON.parse(d).forEach(p=>console.log(p.pm_id, p.name, p.pm2_env.status))})" 2>/dev/null || pm2 list
-
-            BG_ID=$(pm2 jlist | node -e "let d='';process.stdin.on('data',c=>d+=c);process.stdin.on('end',()=>{const p=JSON.parse(d).find(x=>/bounce/i.test(x.name));if(p)console.log(p.pm_id)})" 2>/dev/null || true)
-
-            if [ -n "$BG_ID" ]; then
-              echo "Restarting pm2 process id $BG_ID (bounce guard)"
-              pm2 restart "$BG_ID"
-              sleep 2
-              pm2 describe "$BG_ID" | grep -E "status|restart time" || true
-            else
-              echo "WARNING: could not auto-detect a pm2 process matching 'bounce' — list above, restart manually if needed"
-            fi
+            echo "Restarting pm2 process: bounce-guard"
+            pm2 restart bounce-guard
+            sleep 2
+            pm2 describe bounce-guard | grep -E "status|restart time" || true
+            echo "=== recent bounce-guard logs ==="
+            pm2 logs bounce-guard --lines 25 --nostream || true
         env:
           SAAS_WEBHOOK_TOKEN: ${{ secrets.BOUNCE_GUARD_SECRET_NEW }}
