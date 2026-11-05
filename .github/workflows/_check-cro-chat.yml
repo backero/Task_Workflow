@@ -30,9 +30,10 @@ jobs:
             if [ "$BG_TOKEN" = "$BE_SECRET" ]; then echo "MATCH: yes"; else echo "MATCH: no - MISMATCH"; fi
             echo ""
             echo "=== export .env into shell, then restart with --update-env ==="
-            set -a
-            source /opt/bounce-guard/.env
-            set +a
+            while IFS='=' read -r key val; do
+              case "$key" in ''|'#'*) continue;; esac
+              export "$key=$val"
+            done < /opt/bounce-guard/.env
             pm2 restart bounce-guard --update-env
             sleep 3
             echo ""
