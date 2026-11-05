@@ -13,7 +13,7 @@ services:
       - key: PORT
         value: 10000
       - key: FRONTEND_URL
-        value: https://task-workflow-liart.vercel.app
+        value: https://workflow.backero.in
       - key: GOOGLE_CALLBACK_URL
         value: https://backero-backend.onrender.com/api/auth/google/callback
       - key: JWT_EXPIRES_IN

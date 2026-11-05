@@ -104,9 +104,9 @@ const allowedOrigins = [
   'http://localhost:3000',
   'https://resplendent-shortbread-91ee46.netlify.app',
   'https://backero-worktaskflow.netlify.app',
-  'https://task-workflow-liart.vercel.app',
   'https://backero-frontend-beta.vercel.app',
   'https://employee.backero.in',
+  'https://workflow.backero.in',
   ...(process.env.FRONTEND_URL ? [process.env.FRONTEND_URL] : []),
 ];
 
