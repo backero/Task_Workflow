@@ -1,7 +1,7 @@
 const ProductionUsage = require('../models/ProductionUsage');
 const Product = require('../models/Product');
 const { asyncHandler, sendSuccess } = require('../utils/helpers');
-const { deductFIFO, recomputeStock, nextUsageNumber: nextNumber } = require('../services/inventory.service');
+const { deductFIFO, recomputeStock, nextUsageNumber: nextNumber, notifyIfLowStockCrossed } = require('../services/inventory.service');
 
 exports.list = asyncHandler(async (req, res) => {
   const orgId = req.user.organizationId;
@@ -19,6 +19,7 @@ exports.list = asyncHandler(async (req, res) => {
 });
 
 exports.recordIssue = asyncHandler(async (req, res) => {
+  const io = req.app.get('io');
   const orgId = req.user.organizationId;
   const { materialId, quantity, purpose, notes } = req.body;
 
@@ -30,6 +31,7 @@ exports.recordIssue = asyncHandler(async (req, res) => {
   if (!product) return res.status(404).json({ success: false, message: 'Raw material not found' });
 
   const qty = Number(quantity);
+  const previousStock = product.currentStock;
   const batchStock = (product.batches || []).reduce((s, b) => s + (b.quantity || 0), 0);
   const useBatches = batchStock >= qty;
 
@@ -52,6 +54,7 @@ exports.recordIssue = asyncHandler(async (req, res) => {
     product.currentStock -= qty;
   }
   await product.save();
+  await notifyIfLowStockCrossed(product, previousStock, orgId, io);
 
   const issueNumber = await nextNumber(orgId, 'issue');
   const record = await ProductionUsage.create({

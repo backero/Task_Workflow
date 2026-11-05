@@ -3,6 +3,7 @@ const StockMovement = require('../models/StockMovement');
 const ActivityLog = require('../models/ActivityLog');
 const { asyncHandler, sendSuccess, sendError, paginate, paginateResponse } = require('../utils/helpers');
 const { STOCK_MOVEMENT_TYPES, SOCKET_EVENTS } = require('../utils/constants');
+const { notifyIfLowStockCrossed } = require('../services/inventory.service');
 
 const PRODUCT_FIELDS = [
   'name','sku','barcode','category','subCategory','unit','description','images',
@@ -166,12 +167,14 @@ exports.stockOut = asyncHandler(async (req, res) => {
       product: { _id: product._id, name: product.name, sku: product.sku, currentStock: product.currentStock, minStockLevel: product.minStockLevel },
     });
   }
+  await notifyIfLowStockCrossed(product, previousStock, req.user.organizationId, io);
 
   sendSuccess(res, { product, movement }, 'Stock deducted successfully');
 });
 
 // POST /api/inventory/adjustment
 exports.stockAdjustment = asyncHandler(async (req, res) => {
+  const io = req.app.get('io');
   const { productId, newStock, notes } = req.body;
 
   const product = await Product.findOne({ _id: productId, organizationId: req.user.organizationId });
@@ -194,6 +197,8 @@ exports.stockAdjustment = asyncHandler(async (req, res) => {
     notes,
     createdBy: req.user._id,
   });
+
+  await notifyIfLowStockCrossed(product, previousStock, req.user.organizationId, io);
 
   sendSuccess(res, { product }, 'Stock adjusted');
 });

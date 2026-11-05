@@ -10,7 +10,7 @@ const { authenticate } = require('../middleware/auth.middleware');
 const { orgIsolation } = require('../middleware/orgIsolation.middleware');
 const { asyncHandler, sendSuccess, sendError, paginate, paginateResponse } = require('../utils/helpers');
 const { PRODUCTION_STATUS, STOCK_MOVEMENT_TYPES, SOCKET_EVENTS, BATCH_STAGE_TO_STATUS, BATCH_PROCESS_STEPS } = require('../utils/constants');
-const { deductFIFO, recomputeStock, nextUsageNumber } = require('../services/inventory.service');
+const { deductFIFO, recomputeStock, nextUsageNumber, notifyIfLowStockCrossed } = require('../services/inventory.service');
 const User = require('../models/User');
 const Lead = require('../models/Lead');
 const Invoice = require('../models/Invoice');
@@ -129,6 +129,7 @@ router.patch('/:id/status', asyncHandler(async (req, res) => {
           reference: { model: 'ProductionOrder', id: order._id, number: order.orderNumber },
           createdBy: req.user._id,
         });
+        await notifyIfLowStockCrossed(product, prevStock, req.user.organizationId, io);
       }
     }
   }
@@ -298,6 +299,7 @@ router.post('/:id/procurement/confirm', asyncHandler(async (req, res) => {
 // POST Stage 3 — record one ingredient as weighed; FIFO-deducts real raw material
 // stock and logs a linked ProductionUsage 'issue' record for audit trail.
 router.post('/:id/weighing', asyncHandler(async (req, res) => {
+  const io = req.app.get('io');
   const { rawMaterialId, actualQty } = req.body;
   const order = await loadOrder(req, res);
   if (!order) return;
@@ -308,6 +310,7 @@ router.post('/:id/weighing', asyncHandler(async (req, res) => {
   if (rawMaterialId && mongoose.Types.ObjectId.isValid(rawMaterialId)) {
     const product = await Product.findOne({ _id: rawMaterialId, organizationId: req.user.organizationId, isRawMaterial: true });
     if (product) {
+      const previousStock = product.currentStock;
       const batchStock = (product.batches || []).reduce((s, b) => s + (b.quantity || 0), 0);
       const useBatches = batchStock >= qty;
       let deductions = [];
@@ -322,6 +325,7 @@ router.post('/:id/weighing', asyncHandler(async (req, res) => {
         product.currentStock -= qty;
       }
       await product.save();
+      await notifyIfLowStockCrossed(product, previousStock, req.user.organizationId, io);
 
       const issueNumber = await nextUsageNumber(req.user.organizationId, 'issue');
       await ProductionUsage.create({
