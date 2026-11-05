@@ -1,0 +1,19 @@
+name: Check CRO chat forwarding status (one-off)
+on: workflow_dispatch
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check bounce-guard forwarding + backend ingest logs
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.DROPLET_HOST }}
+          username: ${{ secrets.DROPLET_USER }}
+          key: ${{ secrets.DROPLET_SSH_KEY }}
+          script: |
+            echo "=== bounce-guard recent logs (last 60 lines) ==="
+            pm2 logs bounce-guard --lines 60 --nostream 2>/dev/null | grep -viE "In-memory PM2|pm2 update|PM2 version" || true
+            echo ""
+            echo "=== backend ingest-related logs ==="
+            pm2 logs backero-backend --lines 100 --nostream 2>/dev/null | grep -iE "wa-chats|ingest|bounce" || echo "no matching lines"
