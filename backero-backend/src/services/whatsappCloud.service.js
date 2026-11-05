@@ -208,6 +208,22 @@ async function sendSampleDispatchedToClient(phone, { name, product, quantity, co
   ]);
 }
 
+// MARKETING template "reorder_offer_reminder" — sent ~7 days after dispatch if
+// the client hasn't placed a new order yet. {{1}} name, {{2}} product. No button
+// — like the other client-facing templates, there's no public (login-free) page
+// to link to, so this just invites a reply.
+async function sendReorderOfferReminder(phone, { name, product }) {
+  return sendTemplate(phone, 'reorder_offer_reminder', [
+    {
+      type: 'body',
+      parameters: [
+        { type: 'text', text: name || 'there' },
+        { type: 'text', text: product || 'your order' },
+      ],
+    },
+  ]);
+}
+
 // UTILITY template "dispatch_feedback_request": {{1}} name, {{2}} product
 async function sendDispatchedFeedbackRequest(phone, { name, product }) {
   return sendTemplate(phone, 'dispatch_feedback_request', [
@@ -436,6 +452,7 @@ module.exports = {
   sendActiveClientStageUpdate,
   sendSampleDispatchedToClient,
   sendDispatchedFeedbackRequest,
+  sendReorderOfferReminder,
   sendOverdueFollowUpRepAlert,
   sendStaleLeadManagerAlert,
   sendTasksDueTodaySummary,

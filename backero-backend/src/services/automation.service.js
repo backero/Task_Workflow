@@ -16,7 +16,7 @@ const { runDocumentExpiryReminders } = require('./documentWallet.service');
 const {
   sendTaskOverdueEmployee, sendTaskOverdueManager, sendInProgressLeadUpdate, sendActiveClientStageUpdate,
   sendOverdueFollowUpRepAlert, sendStaleLeadManagerAlert, sendTasksDueTodaySummary, sendTeamTaskOverdueAlert,
-  sendDailyReportSummary, sendDailyReportMarketplace, sendDailyReportPDF,
+  sendDailyReportSummary, sendDailyReportMarketplace, sendDailyReportPDF, sendReorderOfferReminder,
 } = require('./whatsappCloud.service');
 
 // Individual DMs replace the old WhatsApp-group broadcast (Cloud API can't send to groups at all).
@@ -35,7 +35,7 @@ async function notifyDepartmentMembers(organizationId, departmentName, excludeUs
 }
 const { generateDailyReportPDF } = require('./reportPdf.service');
 const { autoSyncAllOrgs } = require('./googleSheets.service');
-const { TASK_STATUS, ROLES, ROLE_HIERARCHY, SOCKET_EVENTS } = require('../utils/constants');
+const { TASK_STATUS, LEAD_STATUS, ROLES, ROLE_HIERARCHY, SOCKET_EVENTS } = require('../utils/constants');
 const logger = require('../utils/logger');
 
 let io;
@@ -83,6 +83,11 @@ const startAutomationEngine = (socketIo) => {
   // Every day at 10 AM IST: send daily stage updates to all active leads (Sample, In Progress, Ready to Dispatch, Payment Pending)
   cron.schedule('30 4 * * *', () => {  // 10 AM IST = 4:30 AM UTC
     runActiveClientUpdates().catch(logger.error);
+  });
+
+  // Every day at 11 AM IST: nudge clients who were dispatched ~7 days ago and haven't reordered
+  cron.schedule('30 5 * * *', () => {  // 11 AM IST = 5:30 AM UTC
+    runReorderReminderCheck().catch(logger.error);
   });
 
   // Every day at 9 AM IST: send due-today task reminders to department groups
@@ -406,6 +411,41 @@ const runOverdueFollowUpCheck = async () => {
   }
 
   logger.info(`[OverdueFollowUp] ${alerted} overdue follow-ups alerted`);
+};
+
+// Nudges clients 7 days after dispatch if they haven't placed a new order yet
+// (lead is still sitting in 'Dispatched', not progressed to Payment Pending/Won
+// or Lost). Each lead gets exactly one reminder, tracked via reorderReminderSentAt.
+const runReorderReminderCheck = async () => {
+  logger.info('[ReorderReminder] Checking dispatches from ~7 days ago...');
+  const now = new Date();
+  const sevenDaysAgoStart = new Date(now - 8 * 24 * 60 * 60 * 1000);
+  const sevenDaysAgoEnd = new Date(now - 7 * 24 * 60 * 60 * 1000);
+
+  const candidates = await Lead.find({
+    status: LEAD_STATUS.DISPATCHED,
+    'sampleDetails.sentDate': { $gte: sevenDaysAgoStart, $lt: sevenDaysAgoEnd },
+    reorderReminderSentAt: null,
+  });
+
+  let sent = 0;
+  for (const lead of candidates) {
+    const clientPhone = lead.whatsapp || lead.phone;
+    if (!clientPhone) continue;
+
+    const ok = await sendReorderOfferReminder(clientPhone, {
+      name: lead.name,
+      product: lead.sampleDetails?.product || (lead.productInterest?.[0] || ''),
+    }).catch(() => false);
+
+    if (ok) {
+      lead.reorderReminderSentAt = new Date();
+      await lead.save();
+      sent++;
+    }
+  }
+
+  logger.info(`[ReorderReminder] ${sent} reorder reminders sent`);
 };
 
 // Groups low-stock items (both raw materials and finished products live in the
@@ -1113,4 +1153,4 @@ const runAdminRemindersCheck = async () => {
   }
 };
 
-module.exports = { startAutomationEngine, runOverdueTaskCheck, runWeeklyStockDigest, runMonthlyStockDigest, runOverdueInvoiceCheck, runDailyReport, runOverdueFollowUpCheck, runStaleLedCheck, runWeeklyTeamRewardCheck, runAdminRemindersCheck };
+module.exports = { startAutomationEngine, runOverdueTaskCheck, runWeeklyStockDigest, runMonthlyStockDigest, runOverdueInvoiceCheck, runDailyReport, runOverdueFollowUpCheck, runStaleLedCheck, runWeeklyTeamRewardCheck, runAdminRemindersCheck, runReorderReminderCheck };

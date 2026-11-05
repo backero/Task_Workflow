@@ -284,6 +284,7 @@ const leadSchema = new mongoose.Schema({
   followUpReminders: { type: Number, default: 0 },
   lastReminderSent: { type: Date },
   isStale: { type: Boolean, default: false },
+  reorderReminderSentAt: { type: Date },
 
   // Conversion
   convertedToTask: { type: mongoose.Schema.Types.ObjectId, ref: 'Task' },
