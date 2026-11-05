@@ -1,0 +1,56 @@
+name: Set Bounce Guard Webhook (one-off)
+on: workflow_dispatch
+
+jobs:
+  set-webhook:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Point Bounce Guard at our ingest endpoint and restart it
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.DROPLET_HOST }}
+          username: ${{ secrets.DROPLET_USER }}
+          key: ${{ secrets.DROPLET_SSH_KEY }}
+          envs: SAAS_WEBHOOK_TOKEN
+          script: |
+            set -e
+            ENV_FILE=/opt/bounce-guard/.env
+            if [ ! -f "$ENV_FILE" ]; then
+              echo "ERROR: $ENV_FILE not found"
+              ls -la /opt/bounce-guard || true
+              exit 1
+            fi
+            cp "$ENV_FILE" "$ENV_FILE.bak.$(date +%s)"
+
+            SAAS_URL="http://127.0.0.1:5000/api/wa-chats/ingest"
+
+            if grep -q '^SAAS_WEBHOOK_URL=' "$ENV_FILE"; then
+              sed -i "s#^SAAS_WEBHOOK_URL=.*#SAAS_WEBHOOK_URL=${SAAS_URL}#" "$ENV_FILE"
+            else
+              echo "SAAS_WEBHOOK_URL=${SAAS_URL}" >> "$ENV_FILE"
+            fi
+
+            if grep -q '^SAAS_WEBHOOK_TOKEN=' "$ENV_FILE"; then
+              sed -i "s#^SAAS_WEBHOOK_TOKEN=.*#SAAS_WEBHOOK_TOKEN=${SAAS_WEBHOOK_TOKEN}#" "$ENV_FILE"
+            else
+              echo "SAAS_WEBHOOK_TOKEN=${SAAS_WEBHOOK_TOKEN}" >> "$ENV_FILE"
+            fi
+
+            echo "SAAS_WEBHOOK_URL set to: ${SAAS_URL}"
+            echo "SAAS_WEBHOOK_TOKEN set, length=${#SAAS_WEBHOOK_TOKEN}"
+
+            echo "=== pm2 processes ==="
+            pm2 jlist | node -e "let d='';process.stdin.on('data',c=>d+=c);process.stdin.on('end',()=>{JSON.parse(d).forEach(p=>console.log(p.pm_id, p.name, p.pm2_env.status))})" 2>/dev/null || pm2 list
+
+            BG_ID=$(pm2 jlist | node -e "let d='';process.stdin.on('data',c=>d+=c);process.stdin.on('end',()=>{const p=JSON.parse(d).find(x=>/bounce/i.test(x.name));if(p)console.log(p.pm_id)})" 2>/dev/null || true)
+
+            if [ -n "$BG_ID" ]; then
+              echo "Restarting pm2 process id $BG_ID (bounce guard)"
+              pm2 restart "$BG_ID"
+              sleep 2
+              pm2 describe "$BG_ID" | grep -E "status|restart time" || true
+            else
+              echo "WARNING: could not auto-detect a pm2 process matching 'bounce' — list above, restart manually if needed"
+            fi
+        env:
+          SAAS_WEBHOOK_TOKEN: ${{ secrets.BOUNCE_GUARD_SECRET_NEW }}
