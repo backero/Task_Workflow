@@ -1,0 +1,43 @@
+name: Set WhatsApp Cloud Notification Config (one-off)
+on: workflow_dispatch
+
+jobs:
+  set-wa-cloud:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Write WhatsApp Cloud creds, restart backend
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.DROPLET_HOST }}
+          username: ${{ secrets.DROPLET_USER }}
+          key: ${{ secrets.DROPLET_SSH_KEY }}
+          envs: WA_TOKEN,WA_PHONE_ID,WA_WABA_ID
+          script: |
+            set -e
+            ENV_FILE=/var/www/Task_Workflow/backero-backend/.env
+            cp "$ENV_FILE" "$ENV_FILE.bak.$(date +%s)"
+
+            set_kv () {
+              KEY="$1"; VAL="$2"
+              if grep -q "^${KEY}=" "$ENV_FILE"; then
+                sed -i "s#^${KEY}=.*#${KEY}=${VAL}#" "$ENV_FILE"
+              else
+                echo "${KEY}=${VAL}" >> "$ENV_FILE"
+              fi
+            }
+
+            set_kv WHATSAPP_CLOUD_ACCESS_TOKEN "${WA_TOKEN}"
+            set_kv WHATSAPP_CLOUD_PHONE_NUMBER_ID "${WA_PHONE_ID}"
+            set_kv WHATSAPP_CLOUD_BUSINESS_ACCOUNT_ID "${WA_WABA_ID}"
+
+            echo "WHATSAPP_CLOUD_ACCESS_TOKEN set, length=${#WA_TOKEN}"
+            echo "WHATSAPP_CLOUD_PHONE_NUMBER_ID set to: ${WA_PHONE_ID}"
+            echo "WHATSAPP_CLOUD_BUSINESS_ACCOUNT_ID set to: ${WA_WABA_ID}"
+
+            pm2 restart backero-backend
+            sleep 2
+            pm2 describe backero-backend | grep -E "status|restart time" || true
+        env:
+          WA_TOKEN: ${{ secrets.WHATSAPP_CLOUD_ACCESS_TOKEN_NEW }}
+          WA_PHONE_ID: "1248863991634889"
+          WA_WABA_ID: "2529855827427291"
