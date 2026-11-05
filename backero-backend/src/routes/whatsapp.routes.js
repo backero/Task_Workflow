@@ -6,6 +6,7 @@ const { asyncHandler, sendSuccess } = require('../utils/helpers');
 const { getStatus, getQRCode, isConnected, reinitWhatsApp, sendTaskAssigned, getJoinedGroups, joinGroupViaLink, getDebugInfo, sendGroupMessage, sendTaskOverdueGroup } = require('../services/whatsapp.service');
 const { runDailyReport, runOverdueTaskCheck } = require('../services/automation.service');
 const { handleInboundWhatsAppWebhook } = require('../services/whatsappInbound.service');
+const croSync = require('../services/whatsappCroSync.service');
 const Task = require('../models/Task');
 const User = require('../models/User');
 const Department = require('../models/Department');
@@ -126,8 +127,72 @@ router.get('/qr/image', asyncHandler(async (req, res) => {
   res.send(buffer);
 }));
 
+// ── CRO WhatsApp sync (separate linked-device session, backs up CRO's real
+// business chats into WaChatMessage) — public QR/status endpoints, same pattern
+// as the notification bot above, so whoever has the CRO's phone can scan it. ──
+
+// GET /api/whatsapp/cro/setup — server-renders QR inline so it appears instantly
+router.get('/cro/setup', asyncHandler(async (req, res) => {
+  res.setHeader('Content-Type', 'text/html');
+
+  const css = `body{font-family:sans-serif;background:#0f172a;color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;margin:0;gap:20px}
+  h2{margin:0;font-size:1.3rem;color:#93c5fd}
+  p{font-size:.9rem;color:#94a3b8;text-align:center;margin:0}
+  .ok{color:#4ade80}
+  .box{width:280px;height:280px;background:#1e293b;border-radius:12px;display:flex;align-items:center;justify-content:center;overflow:hidden}
+  .box img{width:280px;height:280px}
+  .spin{font-size:2rem;animation:s 1s linear infinite}
+  @keyframes s{to{transform:rotate(360deg)}}
+  a.btn{display:inline-block;margin-top:8px;padding:10px 24px;background:#3b82f6;color:#fff;border-radius:8px;font-size:.9rem;text-decoration:none}
+  a.btn:hover{background:#2563eb}`;
+
+  if (croSync.isConnected()) {
+    return res.send(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Backero — CRO WhatsApp Sync</title><meta name="viewport" content="width=device-width,initial-scale=1"><style>${css}</style></head><body>
+<h2>CRO WhatsApp Sync</h2>
+<p class="ok">✅ Linked! CRO's WhatsApp is now backing up into the SaaS automatically.</p>
+</body></html>`);
+  }
+
+  const qrString = croSync.getQRCode();
+  if (!qrString) {
+    return res.send(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Backero — CRO WhatsApp Sync</title><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="refresh" content="5"><style>${css}</style></head><body>
+<h2>CRO WhatsApp Sync</h2>
+<div class="box"><span class="spin">⟳</span></div>
+<p>Generating QR… page refreshes automatically in 5s</p>
+</body></html>`);
+  }
+
+  const qrDataUrl = await QRCode.toDataURL(qrString, { width: 320, margin: 2 });
+
+  res.send(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Backero — CRO WhatsApp Sync</title><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="refresh" content="30"><style>${css}</style></head><body>
+<h2>CRO WhatsApp Sync</h2>
+<div class="box"><img src="${qrDataUrl}" alt="WhatsApp QR Code"></div>
+<p>On the CRO's phone: WhatsApp → Settings → Linked Devices → Link a Device → scan this</p>
+<p style="color:#64748b;font-size:.75rem">Page auto-refreshes every 30s with a fresh QR</p>
+<a class="btn" href="/api/whatsapp/cro/setup">Refresh QR</a>
+<script>
+setInterval(()=>{
+  fetch('/api/whatsapp/cro/debug',{cache:'no-store'}).then(r=>r.json()).then(d=>{
+    if(d.status==='connected') location.reload();
+  }).catch(()=>{});
+}, 5000);
+</script>
+</body></html>`);
+}));
+
+// GET /api/whatsapp/cro/debug — public; shows connection state (no auth)
+router.get('/cro/debug', (req, res) => {
+  res.json({ ...croSync.getDebugInfo(), timestamp: new Date().toISOString() });
+});
+
 // ── Protected routes ──────────────────────────────────────────────────────────
 router.use(authenticate, authorizeAdminOrAbove);
+
+// POST /api/whatsapp/cro/reconnect — force disconnect + reinit (generates new QR)
+router.post('/cro/reconnect', asyncHandler(async (req, res) => {
+  croSync.reinitCroSync().catch(() => {});
+  sendSuccess(res, {}, 'CRO WhatsApp sync reinitialising — scan new QR at /api/whatsapp/cro/setup in 5 seconds');
+}));
 
 // GET /api/whatsapp/status
 router.get('/status', asyncHandler(async (req, res) => {

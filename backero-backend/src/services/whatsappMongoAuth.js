@@ -16,24 +16,29 @@ const waitForMongoose = () => new Promise((resolve, reject) => {
   mongoose.connection.once('error', (err) => { clearTimeout(timeout); reject(err); });
 });
 
-const useMongoAuthState = async (baileys) => {
+// sessionId namespaces the stored keys so multiple independent Baileys sessions
+// (e.g. the notification bot and a separate CRO-number sync) can share this same
+// collection without colliding. Omit it (or pass 'default') for the original,
+// unprefixed behavior — existing sessions keep working unchanged.
+const useMongoAuthState = async (baileys, sessionId = 'default') => {
   await waitForMongoose();
 
   const { initAuthCreds, BufferJSON } = baileys;
+  const prefix = sessionId && sessionId !== 'default' ? `${sessionId}:` : '';
 
   const writeData = async (key, data) => {
     const serialized = JSON.parse(JSON.stringify(data, BufferJSON.replacer));
-    await WASession.findByIdAndUpdate(key, { data: serialized }, { upsert: true });
+    await WASession.findByIdAndUpdate(`${prefix}${key}`, { data: serialized }, { upsert: true });
   };
 
   const readData = async (key) => {
-    const doc = await WASession.findById(key).lean();
+    const doc = await WASession.findById(`${prefix}${key}`).lean();
     if (!doc?.data) return null;
     return JSON.parse(JSON.stringify(doc.data), BufferJSON.reviver);
   };
 
   const removeData = async (key) => {
-    await WASession.deleteOne({ _id: key });
+    await WASession.deleteOne({ _id: `${prefix}${key}` });
   };
 
   // Use initAuthCreds() on first run so Baileys has properly initialized noise/curve keys
@@ -71,9 +76,16 @@ const useMongoAuthState = async (baileys) => {
   return { state, saveCreds };
 };
 
-const clearMongoSession = async () => {
+const clearMongoSession = async (sessionId = 'default') => {
   await waitForMongoose();
-  await WASession.deleteMany({});
+  if (sessionId && sessionId !== 'default') {
+    const escaped = sessionId.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    await WASession.deleteMany({ _id: { $regex: `^${escaped}:` } });
+  } else {
+    // Default (unprefixed) session — only remove keys that don't belong to a
+    // namespaced session, so clearing this one never wipes another sessionId.
+    await WASession.deleteMany({ _id: { $not: /:/ } });
+  }
 };
 
 module.exports = { useMongoAuthState, clearMongoSession };

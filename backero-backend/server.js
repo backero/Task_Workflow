@@ -253,6 +253,7 @@ if (process.env.NODE_ENV !== 'test') {
   const { startAutomationEngine } = require('./src/services/automation.service');
   const { startAttendanceCron } = require('./src/services/attendanceCron.service');
   const { initWhatsApp } = require('./src/services/whatsapp.service');
+  const { initWhatsAppCroSync } = require('./src/services/whatsappCroSync.service');
   const { setSocketIO } = require('./src/services/workflowEngine.service');
   const { initSyncJob } = require('./src/jobs/syncMarketplaceData.job');
   // Cron jobs send real WhatsApp/in-app notifications against the live database.
@@ -270,6 +271,7 @@ if (process.env.NODE_ENV !== 'test') {
   // with Render over the same MongoDB session (causes 440 disconnect loop on both)
   if (process.env.WHATSAPP_ENABLED !== 'false') {
     initWhatsApp(io);
+    initWhatsAppCroSync(io);
   } else {
     logger.info('[WhatsApp] Disabled via WHATSAPP_ENABLED=false — skipping init');
   }
