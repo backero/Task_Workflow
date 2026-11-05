@@ -29,9 +29,22 @@ jobs:
             BE_SECRET=$(grep "^BOUNCE_GUARD_SECRET=" "$BE_ENV" | cut -d= -f2-)
             if [ "$BG_TOKEN" = "$BE_SECRET" ]; then echo "MATCH: yes"; else echo "MATCH: no - MISMATCH"; fi
             echo ""
-            echo "=== force restart with --update-env ==="
+            echo "=== export .env into shell, then restart with --update-env ==="
+            set -a
+            source /opt/bounce-guard/.env
+            set +a
             pm2 restart bounce-guard --update-env
-            sleep 2
+            sleep 3
+            echo ""
+            echo "=== confirm new process env via /proc ==="
+            BG_PID=$(pm2 jlist | node -e "let d='';process.stdin.on('data',c=>d+=c);process.stdin.on('end',()=>{const s=d.indexOf('[');const a=JSON.parse(d.slice(s));const p=a.find(x=>x.name==='bounce-guard');console.log(p.pid)})" 2>/dev/null)
+            echo "pid: $BG_PID"
+            if [ -n "$BG_PID" ] && [ -r "/proc/$BG_PID/environ" ]; then
+              tr '\0' '\n' < /proc/$BG_PID/environ | grep -E "^SAAS_WEBHOOK_URL=" | sed 's/=.*/=<redacted, present>/'
+              tr '\0' '\n' < /proc/$BG_PID/environ | grep -c "^SAAS_WEBHOOK_TOKEN="
+            else
+              echo "cannot read /proc/$BG_PID/environ"
+            fi
             echo ""
             echo "=== pm2 exec cwd / script path for bounce-guard ==="
             pm2 describe bounce-guard | grep -E "exec cwd|script path|interpreter"
@@ -56,13 +69,6 @@ jobs:
                   console.log('SAAS_WEBHOOK_TOKEN length in pm2 env:', (p.pm2_env.SAAS_WEBHOOK_TOKEN||'').length);
                 } catch(e) { console.log('parse error', e.message); }
               });
-            "
-            echo ""
-            echo "=== sanity check: does dotenv correctly parse /opt/bounce-guard/.env? ==="
-            cd /opt/bounce-guard && node -e "
-              require('dotenv').config();
-              console.log('SAAS_WEBHOOK_URL:', JSON.stringify(process.env.SAAS_WEBHOOK_URL));
-              console.log('SAAS_WEBHOOK_TOKEN length:', (process.env.SAAS_WEBHOOK_TOKEN||'').length);
             "
             echo ""
             echo "=== bounce-guard log file mtimes vs process start time ==="
