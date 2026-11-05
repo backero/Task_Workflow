@@ -12,8 +12,25 @@ jobs:
           username: ${{ secrets.DROPLET_USER }}
           key: ${{ secrets.DROPLET_SSH_KEY }}
           script: |
-            echo "=== bounce-guard recent logs (last 60 lines) ==="
-            pm2 logs bounce-guard --lines 60 --nostream 2>/dev/null | grep -viE "In-memory PM2|pm2 update|PM2 version" || true
+            echo "=== bounce-guard .env SAAS_WEBHOOK_* (lengths only) ==="
+            BG_ENV=/opt/bounce-guard/.env
+            for KEY in SAAS_WEBHOOK_URL SAAS_WEBHOOK_TOKEN; do
+              VAL=$(grep "^${KEY}=" "$BG_ENV" | head -1 | cut -d= -f2-)
+              echo "${KEY}: length=${#VAL}"
+            done
+            echo ""
+            echo "=== backend .env BOUNCE_GUARD_SECRET (length only) ==="
+            BE_ENV=/var/www/Task_Workflow/backero-backend/.env
+            VAL=$(grep "^BOUNCE_GUARD_SECRET=" "$BE_ENV" | head -1 | cut -d= -f2-)
+            echo "BOUNCE_GUARD_SECRET: length=${#VAL}"
+            echo ""
+            echo "=== diff check (both md5'd, not printed) ==="
+            BG_TOKEN=$(grep "^SAAS_WEBHOOK_TOKEN=" "$BG_ENV" | cut -d= -f2-)
+            BE_SECRET=$(grep "^BOUNCE_GUARD_SECRET=" "$BE_ENV" | cut -d= -f2-)
+            if [ "$BG_TOKEN" = "$BE_SECRET" ]; then echo "MATCH: yes"; else echo "MATCH: no - MISMATCH"; fi
+            echo ""
+            echo "=== bounce-guard log with timestamps (last 40 lines) ==="
+            pm2 logs bounce-guard --lines 40 --nostream --timestamp 2>/dev/null | grep -viE "In-memory PM2|pm2 update|PM2 version" || true
             echo ""
             echo "=== backend ingest-related logs ==="
-            pm2 logs backero-backend --lines 100 --nostream 2>/dev/null | grep -iE "wa-chats|ingest|bounce" || echo "no matching lines"
+            pm2 logs backero-backend --lines 150 --nostream --timestamp 2>/dev/null | grep -iE "wa-chats|ingest|bounce" || echo "no matching lines"
