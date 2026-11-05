@@ -29,8 +29,16 @@ jobs:
             BE_SECRET=$(grep "^BOUNCE_GUARD_SECRET=" "$BE_ENV" | cut -d= -f2-)
             if [ "$BG_TOKEN" = "$BE_SECRET" ]; then echo "MATCH: yes"; else echo "MATCH: no - MISMATCH"; fi
             echo ""
-            echo "=== bounce-guard log with timestamps (last 40 lines) ==="
-            pm2 logs bounce-guard --lines 40 --nostream --timestamp 2>/dev/null | grep -viE "In-memory PM2|pm2 update|PM2 version" || true
+            echo "=== bounce-guard log file mtimes vs process start time ==="
+            ls -la --time-style=full-iso ~/.pm2/logs/bounce-guard-error.log ~/.pm2/logs/bounce-guard-out.log
             echo ""
-            echo "=== backend ingest-related logs ==="
-            pm2 logs backero-backend --lines 150 --nostream --timestamp 2>/dev/null | grep -iE "wa-chats|ingest|bounce" || echo "no matching lines"
+            echo "=== pm2 process uptime / pid info ==="
+            pm2 describe bounce-guard | grep -E "pid|uptime|restart time|status"
+            echo ""
+            echo "=== current server time ==="
+            date -u
+            echo ""
+            echo "=== last 5 lines of each log (raw, no grep) ==="
+            tail -5 ~/.pm2/logs/bounce-guard-error.log
+            echo "---out---"
+            tail -5 ~/.pm2/logs/bounce-guard-out.log
