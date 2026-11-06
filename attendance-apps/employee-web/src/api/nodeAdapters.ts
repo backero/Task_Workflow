@@ -44,6 +44,7 @@ interface NodeEmployee {
   designationId: string;
   category: Employee['category'];
   dateOfJoining: string;
+  photo: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -60,6 +61,7 @@ export function mapEmployee(row: NodeEmployee): Employee {
     designation_id: row.designationId,
     category: row.category,
     date_of_joining: row.dateOfJoining,
+    photo: row.photo ?? null,
     created_at: row.createdAt,
     updated_at: row.updatedAt,
   };

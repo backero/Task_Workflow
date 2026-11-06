@@ -1,10 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useForm, Controller } from 'react-hook-form';
-import { Plus, Search, Pencil, IdCard, RefreshCw } from 'lucide-react';
+import { Plus, Search, Pencil, IdCard, RefreshCw, User as UserIcon } from 'lucide-react';
 import api from '../../api/axios';
 import toast from 'react-hot-toast';
-import { Button, Card, Col, Drawer, Empty, Input, Modal, Row, Select, Space, Table, Tag, Typography } from 'antd';
+import { Avatar, Button, Card, Col, Drawer, Empty, Input, Modal, Row, Select, Space, Table, Tag, Typography } from 'antd';
 
 const { Title, Text } = Typography;
 
@@ -53,6 +53,25 @@ function EmployeeDrawer({ open, onClose, editEmployee, departments, users }) {
   });
   const designations = designationsData?.designations || [];
 
+  const fileInputRef = useRef(null);
+  const photoMutation = useMutation({
+    mutationFn: (file) => {
+      const fd = new FormData();
+      fd.append('photo', file);
+      return api.post(`/employees/${editEmployee._id}/photo`, fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['employees'] });
+      toast.success('Photo updated');
+    },
+    onError: (err) => toast.error(err.response?.data?.message || 'Failed to upload photo'),
+  });
+  const onPhotoSelected = (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (file) photoMutation.mutate(file);
+  };
+
   useEffect(() => {
     if (open) {
       reset(editEmployee
@@ -99,6 +118,18 @@ function EmployeeDrawer({ open, onClose, editEmployee, departments, users }) {
     >
       <form onSubmit={handleSubmit(mutation.mutate)}>
         <Space direction="vertical" style={{ width: '100%' }} size={16}>
+          {isEdit && (
+            <Space align="center" size={14}>
+              <Avatar size={56} src={editEmployee.photo || undefined} icon={<UserIcon size={24} />} />
+              <div>
+                <input ref={fileInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={onPhotoSelected} />
+                <Button size="small" loading={photoMutation.isPending} onClick={() => fileInputRef.current?.click()}>
+                  {editEmployee.photo ? 'Change Photo' : 'Add Photo'}
+                </Button>
+              </div>
+            </Space>
+          )}
+
           <Row gutter={12}>
             <Col span={12}>
               <Text strong style={{ display: 'block', marginBottom: 6, fontSize: 12 }}>Employee Code *</Text>
@@ -350,10 +381,13 @@ export default function Employees() {
     {
       title: 'Employee', key: 'employee',
       render: (_, e) => (
-        <div>
-          <Text strong>{e.fullName}</Text>
-          {e.email && <div><Text type="secondary" style={{ fontSize: 12 }}>{e.email}</Text></div>}
-        </div>
+        <Space>
+          <Avatar size={32} src={e.photo || undefined} icon={<UserIcon size={16} />} />
+          <div>
+            <Text strong>{e.fullName}</Text>
+            {e.email && <div><Text type="secondary" style={{ fontSize: 12 }}>{e.email}</Text></div>}
+          </div>
+        </Space>
       ),
     },
     { title: 'Department', key: 'department', render: (_, e) => deptById[e.departmentId]?.name || deptById[e.departmentId?._id]?.name || '—' },

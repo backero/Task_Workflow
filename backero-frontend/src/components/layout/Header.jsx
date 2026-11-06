@@ -3,10 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import { Avatar, AutoComplete, Badge, Button, Dropdown, Input, Popover, Typography } from 'antd';
 import {
   MenuOutlined, BellOutlined, SearchOutlined,
-  LogoutOutlined, MobileOutlined,
+  LogoutOutlined,
 } from '@ant-design/icons';
 import { useAuthStore } from '../../store/useAuthStore';
-import { usePermissions } from '../../store/usePermissions';
 import { useNotificationStore } from '../../store/useNotificationStore';
 import NotificationCenter from '../common/NotificationCenter';
 import { useQuery } from '@tanstack/react-query';
@@ -16,7 +15,6 @@ const { Text } = Typography;
 
 export default function Header({ onMobileMenuToggle }) {
   const { user, logout } = useAuthStore();
-  const { isAdmin } = usePermissions();
   const { unreadCount } = useNotificationStore();
   const [showNotifs, setShowNotifs] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -27,15 +25,6 @@ export default function Header({ onMobileMenuToggle }) {
     const t = setTimeout(() => setDebouncedSearch(searchQuery), 300);
     return () => clearTimeout(t);
   }, [searchQuery]);
-
-  const { data: waStatus } = useQuery({
-    queryKey: ['wa-status-header'],
-    queryFn: () => api.get('/whatsapp/status').then((r) => r.data),
-    refetchInterval: 30000,
-    staleTime: 20000,
-    enabled: isAdmin,
-    retry: false,
-  });
 
   const { data: searchResults, isFetching: searching } = useQuery({
     queryKey: ['global-search', debouncedSearch],
@@ -50,7 +39,6 @@ export default function Header({ onMobileMenuToggle }) {
     navigate('/login');
   };
 
-  const waConnected = waStatus?.connected;
   const initials = `${user?.firstName?.[0] || ''}${user?.lastName?.[0] || ''}`;
 
   const searchOptions = (searchResults?.data || []).map((task) => ({
@@ -123,19 +111,6 @@ export default function Header({ onMobileMenuToggle }) {
       </div>
 
       <div className="flex items-center gap-1 ml-auto">
-        {isAdmin && waStatus !== undefined && (
-          <Button
-            type="text"
-            title={waConnected ? 'WhatsApp connected' : 'WhatsApp disconnected'}
-            onClick={() => navigate('/settings/whatsapp')}
-            icon={
-              <Badge dot color={waConnected ? '#22c55e' : '#ef4444'} offset={[-2, 2]}>
-                <MobileOutlined style={{ fontSize: 17 }} />
-              </Badge>
-            }
-          />
-        )}
-
         <Popover
           open={showNotifs}
           onOpenChange={setShowNotifs}

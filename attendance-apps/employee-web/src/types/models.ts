@@ -31,6 +31,7 @@ export interface Employee {
   designation_id: string;
   category: EmployeeCategory;
   date_of_joining: string;
+  photo: string | null;
   created_at: string;
   updated_at: string;
 }

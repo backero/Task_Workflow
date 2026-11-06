@@ -1,12 +1,12 @@
 import {zodResolver} from '@hookform/resolvers/zod';
-import {EditOutlined} from '@ant-design/icons';
-import {App, Descriptions, Flex, Typography} from 'antd';
-import {useState} from 'react';
+import {EditOutlined, UserOutlined} from '@ant-design/icons';
+import {App, Avatar, Descriptions, Flex, Typography} from 'antd';
+import {useRef, useState} from 'react';
 import type React from 'react';
 import {Controller, useForm} from 'react-hook-form';
 import {z} from 'zod';
 
-import {updateMyEmployeeProfile} from '../api/employees';
+import {updateMyEmployeeProfile, uploadMyPhoto} from '../api/employees';
 import {ApiError} from '../api/httpClient';
 import {useAuth} from '../auth/useAuth';
 import Button from '../components/ui/Button';
@@ -26,6 +26,24 @@ export default function ProfilePage(): React.JSX.Element {
   const {currentUser, employee, setEmployee} = useAuth();
   const [isEditing, setIsEditing] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const onPhotoSelected = async (e: React.ChangeEvent<HTMLInputElement>): Promise<void> => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    setUploadingPhoto(true);
+    try {
+      const updated = await uploadMyPhoto(file);
+      setEmployee(updated);
+      message.success('Photo updated.');
+    } catch (err) {
+      message.error(err instanceof ApiError ? err.message : 'Could not upload photo.');
+    } finally {
+      setUploadingPhoto(false);
+    }
+  };
   const {
     control,
     handleSubmit,
@@ -57,7 +75,28 @@ export default function ProfilePage(): React.JSX.Element {
 
       <Card>
         {employee ? (
-          isEditing ? (
+          <>
+          <Flex align="center" gap={16} style={{marginBottom: 20}}>
+            <Avatar size={72} src={employee.photo ?? undefined} icon={<UserOutlined />} />
+            <div>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                style={{display: 'none'}}
+                onChange={onPhotoSelected}
+              />
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploadingPhoto}
+              >
+                {uploadingPhoto ? 'Uploading…' : employee.photo ? 'Change Photo' : 'Add Photo'}
+              </Button>
+            </div>
+          </Flex>
+          {isEditing ? (
             <form onSubmit={onSubmit}>
               <Descriptions column={1} bordered size="small">
                 <Descriptions.Item label="Full name">{employee.full_name}</Descriptions.Item>
@@ -115,7 +154,8 @@ export default function ProfilePage(): React.JSX.Element {
                 </Button>
               </Flex>
             </>
-          )
+          )}
+          </>
         ) : (
           <EmptyState title="No employee profile is linked to your account yet" description="Contact HR if you believe this is a mistake." />
         )}

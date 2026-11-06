@@ -851,38 +851,6 @@ const HELP = {
     ],
   },
 
-  '/settings/whatsapp': {
-    page: 'WhatsApp Setup',
-    intro: 'Connect a WhatsApp number to send automated task notifications to your team.',
-    sections: [
-      {
-        title: 'Connecting WhatsApp',
-        steps: [
-          'A QR code is displayed on this page.',
-          'Open WhatsApp on your phone → tap the 3 dots (menu) → Linked Devices → Link a Device.',
-          'Scan the QR code shown on the screen.',
-          'Once scanned, the status changes to Connected — notifications are now active.',
-        ],
-      },
-      {
-        title: 'What notifications are sent',
-        steps: [
-          'New task assigned → sent to the assignee.',
-          'Task overdue → sent to the assignee and their manager.',
-          'Approval request → sent to the manager.',
-          'Task approved or reopened → sent to the employee.',
-        ],
-      },
-      {
-        title: 'Disconnecting',
-        steps: [
-          'Click Disconnect on this page, or unlink the device from your WhatsApp phone.',
-          'Notifications stop immediately after disconnecting.',
-        ],
-      },
-    ],
-  },
-
   // ── Auth / Onboarding ─────────────────────────────────────────────────────────
   '/onboarding': {
     page: 'Onboarding',

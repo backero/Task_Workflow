@@ -1,0 +1,35 @@
+{
+  "expo": {
+    "name": "Backero Attendance",
+    "slug": "backero-attendance",
+    "version": "1.0.0",
+    "assetBundlePatterns": ["**/*"],
+    "ios": {
+      "supportsTabletMode": true,
+      "bundleIdentifier": "com.backero.attendance"
+    },
+    "android": {
+      "package": "com.backero.attendance",
+      "versionCode": 1,
+      "permissions": [
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION",
+        "INTERNET"
+      ]
+    },
+    "plugins": [
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Allow Backero to access your location for accurate attendance tracking."
+        }
+      ]
+    ],
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#fbfaf7"
+    },
+    "icon": "./assets/icon.png"
+  }
+}
