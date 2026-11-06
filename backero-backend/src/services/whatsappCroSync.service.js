@@ -6,6 +6,10 @@
 const logger = require('../utils/logger');
 const { useMongoAuthState, clearMongoSession } = require('./whatsappMongoAuth');
 const WaChatMessage = require('../models/WaChatMessage');
+const Lead = require('../models/Lead');
+const ProductionQuery = require('../models/ProductionQuery');
+const WaChatSummary = require('../models/WaChatSummary');
+const { summarizeWhatsAppChat } = require('../utils/groq');
 
 const SESSION_ID = 'cro';
 const CRO_BUSINESS_NUMBER = (process.env.CRO_WHATSAPP_NUMBER || '918903790400').replace(/\D/g, '');
@@ -92,8 +96,87 @@ async function persistMessage(msg) {
       },
       { upsert: true }
     );
+    linkToProductionQA(orgId, contact).catch((err) => logger.error(`[WA CRO Sync] QA link failed: ${err.message}`));
   } catch (err) {
     logger.error(`[WA CRO Sync] Failed to persist message ${msg.key.id}: ${err.message}`);
+  }
+}
+
+async function linkToProductionQA(orgId, contactNumber) {
+  try {
+    let lead = await Lead.findOne({ organizationId: orgId, $or: [{ phone: contactNumber }, { whatsapp: contactNumber }] });
+
+    if (!lead) {
+      lead = await Lead.create({
+        organizationId: orgId,
+        name: `Customer ${contactNumber}`,
+        phone: contactNumber,
+        whatsapp: contactNumber,
+        source: 'WhatsApp CRO',
+        status: 'new',
+      });
+      logger.info(`[WA CRO Sync] Created Lead ${lead._id} for contact ${contactNumber}`);
+    }
+
+    const messages = await WaChatMessage.find({
+      organizationId: orgId,
+      business: CRO_BUSINESS_NUMBER,
+      contact: contactNumber,
+    }).sort({ sentAt: 1 }).lean();
+
+    if (!messages.length) return;
+
+    const chatText = messages
+      .map((m) => {
+        const sender = m.direction === 'out' ? 'Backero' : 'Customer';
+        const time = new Date(m.sentAt).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
+        return `[${time}] ${sender}: ${m.body}`;
+      })
+      .join('\n');
+
+    let prodQuery = await ProductionQuery.findOne({
+      organizationId: orgId,
+      leadId: lead._id,
+      askedVia: 'WhatsApp',
+      deleted: false,
+    }).sort({ createdAt: -1 });
+
+    const summary = await summarizeWhatsAppChat(chatText);
+
+    if (!prodQuery) {
+      const lastInMsg = messages.filter((m) => m.direction === 'in').pop();
+      prodQuery = await ProductionQuery.create({
+        organizationId: orgId,
+        leadId: lead._id,
+        leadName: lead.name,
+        raisedBy: lead.assignedTo || lead.inCharge,
+        title: `Q&A: ${lead.name} - CRO WhatsApp`,
+        description: lastInMsg?.body || 'CRO chat conversation',
+        askedVia: 'WhatsApp',
+        status: 'pending',
+        contactName: lead.name,
+        contactEmail: lead.email,
+      });
+      logger.info(`[WA CRO Sync] Created ProductionQuery ${prodQuery._id} for lead ${lead._id}`);
+    } else {
+      await ProductionQuery.updateOne({ _id: prodQuery._id }, { editedAt: new Date() });
+    }
+
+    await WaChatSummary.updateOne(
+      { organizationId: orgId, leadId: lead._id },
+      {
+        $set: {
+          organizationId: orgId,
+          leadId: lead._id,
+          text: summary,
+          messageCount: messages.length,
+          lastMessageAt: messages[messages.length - 1].sentAt,
+        },
+      },
+      { upsert: true }
+    );
+  } catch (err) {
+    logger.error(`[WA CRO Sync] linkToProductionQA error: ${err.message}`);
   }
 }
 
