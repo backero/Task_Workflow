@@ -101,6 +101,77 @@ function buildComparison(platforms) {
   };
 }
 
+// Normalizes each scraper's real account/payment/return data into a common shape for the
+// Account & Returns view. Deliberately leaves a field null rather than guessing when a
+// platform doesn't expose a clean equivalent (e.g. Flipkart's payouts are postpaid-estimate
+// based, not a simple "received" total) — `raw` carries the platform's own real figures
+// through untouched so the frontend can still show them.
+function buildAccountSummary(platform, data, syncedAt) {
+  if (platform === 'meesho') {
+    const pay = data?.account_metrics?.payments || {};
+    const ret = data?.account_metrics?.returns || {};
+    const disp = data?.account_metrics?.dispatch || {};
+    return {
+      synced_at: syncedAt,
+      revenue_received: pay.completed_total ?? null,
+      revenue_received_period: pay.completed_days ? `${pay.completed_days}d` : null,
+      pending_payment: pay.upcoming_total ?? null,
+      returns_count: ret.returned ?? null,
+      return_rate_pct: ret.return_rate_pct ?? null,
+      rto_count: ret.rto_count ?? null,
+      rto_rate_pct: ret.rto_rate_pct ?? null,
+      dispatch_health_pct: disp.dispatch_health_pct ?? null,
+      settlements: null,
+      raw: { payments: pay, returns: ret, dispatch: disp },
+    };
+  }
+  if (platform === 'snapdeal') {
+    const panel = data?.panel || {};
+    const settlements = data?.settlements || [];
+    const revenueReceived = settlements.reduce((sum, s) => sum + (s.amount || 0), 0);
+    const ordersBooked = panel.orders_booked || 0;
+    const ordersReturned = panel.orders_returned || 0;
+    return {
+      synced_at: syncedAt,
+      revenue_received: settlements.length ? Math.round(revenueReceived * 100) / 100 : null,
+      revenue_received_period: settlements.length ? `last ${settlements.length} settlements` : null,
+      pending_payment: (panel.unsettled_cod ?? null) !== null || (panel.unsettled_ncod ?? null) !== null
+        ? (panel.unsettled_cod || 0) + (panel.unsettled_ncod || 0) : null,
+      returns_count: panel.orders_returned ?? null,
+      return_rate_pct: ordersBooked ? Math.round((ordersReturned / ordersBooked) * 10000) / 100 : null,
+      rto_count: null,
+      rto_rate_pct: null,
+      dispatch_health_pct: null,
+      settlements: settlements.length ? settlements : null,
+      raw: { panel },
+    };
+  }
+  if (platform === 'flipkart') {
+    const pay = data?.account_metrics?.payments || {};
+    const ret = data?.account_metrics?.returns || {};
+    const ords = data?.account_metrics?.orders || {};
+    const bh = data?.account_metrics?.business_health || {};
+    const upcomingTotal = [pay.estimate_0_total, pay.estimate_1_total, pay.estimate_2_total]
+      .filter((v) => typeof v === 'number').reduce((a, b) => a + b, 0);
+    return {
+      synced_at: syncedAt,
+      revenue_received: null, // Flipkart exposes upcoming/postpaid estimates, not a clean "received" total
+      revenue_received_period: null,
+      pending_payment: upcomingTotal || null,
+      outstanding_postpaid: pay.outstanding_amount ?? null,
+      returns_count: (ret.completed || 0) + (ret.in_progress || 0),
+      return_rate_pct: bh.buyer_returns_pct ?? null,
+      rto_count: null,
+      rto_rate_pct: bh.rto_pct ?? null,
+      dispatch_health_pct: null,
+      orders_completed: ords.completed ?? null,
+      settlements: null,
+      raw: { payments: pay, returns: ret, orders: ords },
+    };
+  }
+  return null;
+}
+
 // ── Admin manual sync trigger (testing only) ────────────────────────────────
 router.post('/admin/sync', async (req, res) => {
   const { platform } = req.body;
@@ -350,6 +421,28 @@ router.all('/v1/*', async (req, res) => {
     } catch (e) {
       console.error('Unified dashboard error:', e);
       return res.json({ platforms: {}, total_revenue: 0, total_orders: 0, total_impressions: 0 });
+    }
+  }
+
+  // Account & Returns summary — real settlement/payout and return/RTO figures from each
+  // scraper, not the per-order revenue/orders KPIs the main dashboard already shows.
+  // Only built for meesho/snapdeal/flipkart (our own scrapers); amazon's equivalent already
+  // lives in amazon-server's own account overview.
+  if (req.method === 'GET' && subPath === '/account-summary') {
+    try {
+      const mongoSnapshots = await MarketflowSnapshot.find({
+        endpoint: 'overview',
+        platform: { $in: ['meesho', 'snapdeal', 'flipkart'] },
+      }).lean();
+
+      const platforms = {};
+      for (const snap of mongoSnapshots) {
+        platforms[snap.platform] = buildAccountSummary(snap.platform, snap.data, snap.syncedAt);
+      }
+      return res.json({ platforms });
+    } catch (e) {
+      console.error('Account summary error:', e);
+      return res.json({ platforms: {} });
     }
   }
 

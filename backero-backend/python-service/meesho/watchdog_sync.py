@@ -22,11 +22,26 @@ DB_PATH = os.path.join(DATA_DIR, "saas.db")
 INTERVAL_S = int(sys.argv[1]) if len(sys.argv) > 1 else 60
 
 
+def _latest_panel_area(conn, area):
+    rows = conn.execute(
+        "SELECT key, value, text FROM panel_metrics WHERE area=? AND "
+        "captured_at=(SELECT MAX(captured_at) FROM panel_metrics WHERE area=?)",
+        (area, area),
+    ).fetchall()
+    return {r["key"]: (r["value"] if r["value"] is not None else r["text"]) for r in rows}
+
+
 def sync_once():
     conn = get_conn(DB_PATH)
     try:
         k = dict(kpis(conn) or {})
         top_issues = [dict(r) for r in db_alerts(conn, limit=5)]
+        account_metrics = {
+            "payments": _latest_panel_area(conn, "payments"),
+            "returns": _latest_panel_area(conn, "returns"),
+            "dispatch": _latest_panel_area(conn, "dispatch"),
+            "orders": _latest_panel_area(conn, "orders"),
+        }
         try:
             ai_row = conn.execute(
                 "SELECT ts, summary, model FROM ai_insights ORDER BY id DESC LIMIT 1"
@@ -36,7 +51,7 @@ def sync_once():
             ai_insight = None
     finally:
         conn.close()
-    upsert_overview("meesho", {"kpis": k, "top_issues": top_issues, "ai_insight": ai_insight})
+    upsert_overview("meesho", {"kpis": k, "top_issues": top_issues, "ai_insight": ai_insight, "account_metrics": account_metrics})
     print(f"[watchdog] orders_7d={k.get('orders_7d')} impressions_7d={k.get('impressions_7d')} sales_7d={k.get('sales_7d')}", flush=True)
 
 

@@ -35,6 +35,17 @@ class _AppShim:
         return nullcontext()
 
 
+def _latest_panel_area(conn, area):
+    """Latest key/value pairs captured for one panel_metrics area (e.g. 'payments', 'returns',
+    'dispatch') -- the real account-level figures a seller sees on their own Meesho dashboard."""
+    rows = conn.execute(
+        "SELECT key, value, text FROM panel_metrics WHERE area=? AND "
+        "captured_at=(SELECT MAX(captured_at) FROM panel_metrics WHERE area=?)",
+        (area, area),
+    ).fetchall()
+    return {r["key"]: (r["value"] if r["value"] is not None else r["text"]) for r in rows}
+
+
 def sync_to_mongo():
     from mongo_sync import upsert_overview
 
@@ -42,6 +53,12 @@ def sync_to_mongo():
     try:
         k = dict(kpis(conn) or {})
         top_issues = [dict(r) for r in db_alerts(conn, limit=5)]
+        account_metrics = {
+            "payments": _latest_panel_area(conn, "payments"),
+            "returns": _latest_panel_area(conn, "returns"),
+            "dispatch": _latest_panel_area(conn, "dispatch"),
+            "orders": _latest_panel_area(conn, "orders"),
+        }
         try:
             ai_row = conn.execute(
                 "SELECT ts, summary, model FROM ai_insights ORDER BY id DESC LIMIT 1"
@@ -51,7 +68,7 @@ def sync_to_mongo():
             ai_insight = None  # table not created yet (first run, before the first recompute cycle)
     finally:
         conn.close()
-    upsert_overview("meesho", {"kpis": k, "top_issues": top_issues, "ai_insight": ai_insight})
+    upsert_overview("meesho", {"kpis": k, "top_issues": top_issues, "ai_insight": ai_insight, "account_metrics": account_metrics})
 
 
 def main():

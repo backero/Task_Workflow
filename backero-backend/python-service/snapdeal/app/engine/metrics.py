@@ -67,9 +67,11 @@ def overview():
     # scrape (confirmed: 26 of 72 listings here are stock>0 but status='not_live', including
     # every old 30ml variant Snapdeal has since discontinued). Counting those as "live" inflated
     # the active count from the real 37 to a phantom 63.
+    settlements = db.q("SELECT ref, date, amount, transactions FROM settlements ORDER BY date DESC LIMIT 20")
     return dict(
         listings=len(listings),
         live=sum(1 for l in listings if l["status"] == "live"),
         oos=sum(1 for l in listings if l["status"] != "live"),
         week=tot, scorecard=sc[0] if sc else None, panel=panel,
+        settlements=settlements,
         open_alerts={a["severity"]: a["n"] for a in alerts})

@@ -100,6 +100,7 @@ import UnifiedDashboard from './pages/UnifiedDashboard';
 import Alerts from './pages/Alerts';
 import Analytics from './pages/Analytics';
 import Trends from './pages/Trends';
+import AccountReturns from './pages/AccountReturns';
 
 // Platform pages - Meesho
 import MeeshoAnalytics from './platforms/meesho/Analytics';
@@ -272,6 +273,7 @@ export default function App() {
           <Route path="/marketplace/alerts" element={<Alerts />} />
           <Route path="/marketplace/analytics" element={<Analytics />} />
           <Route path="/marketplace/trends" element={<Trends />} />
+          <Route path="/marketplace/account-returns" element={<AccountReturns />} />
 
           {/* Meesho */}
           <Route path="/meesho/overview" element={<MeeshoOverview />} />

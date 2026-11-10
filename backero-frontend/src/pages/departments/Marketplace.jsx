@@ -9,7 +9,7 @@ import { useSocketStore } from '../../store/useSocketStore';
 import {
   TriangleAlert, CheckCircle2, BarChart3, Download, Zap, RefreshCw,
   Star, ClipboardPaste, X, Sparkles,
-  Lightbulb, GitCompare, LineChart, Package, FileBarChart2, Search, Eye, Boxes, Radar, Bot, HeartPulse,
+  Lightbulb, GitCompare, LineChart, Package, FileBarChart2, Search, Eye, Boxes, Radar, Bot, HeartPulse, Wallet,
 } from 'lucide-react';
 import { Button, Drawer, Space } from 'antd';
 import AIInsights from '../AIInsights.tsx';
@@ -3084,6 +3084,10 @@ export default function MarketplaceDept() {
                   <Zap size={13} className="inline -mt-0.5 mr-1" />Live Automation
                 </button>
               </div>
+              <button onClick={() => navigate('/marketplace/account-returns')}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-white text-gray-600 border border-gray-200 hover:border-gray-400 transition-all">
+                <Wallet size={13} className="inline -mt-0.5 mr-1" />Account & Returns
+              </button>
               {activeTab === 'plan' && (
                 <button
                   onClick={() => setShowReport(s => !s)}
