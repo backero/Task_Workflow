@@ -96,7 +96,19 @@ export default function Sidebar({ variant = 'desktop', onNavigate, onClose }) {
     { label: 'Social Approvals', to: '/marketing/social-approvals' },
     { label: 'Social Automation', to: '/marketing/automation' },
   ]});
-  if (can('dept.marketplace')) deptItems.push({ label: 'Marketplace', to: '/departments/marketplace', icon: Store });
+  // Only the Mongo-sync-backed hub pages are listed here. The per-platform pages
+  // (meesho/*, snapdeal/*, flipkart/*) call standalone Flask/FastAPI apps
+  // (ports 8000 etc.) that this project retired in favor of the sync-to-Mongo
+  // pipeline those services' own run_scheduler.py now uses — those routes 404
+  // in both dev and production and are not linked here until rebuilt or removed.
+  if (can('dept.marketplace')) deptItems.push({ label: 'Marketplace', icon: Store, children: [
+    { label: 'Dashboard', to: '/departments/marketplace' },
+    { label: 'Unified Dashboard', to: '/marketplace/unified' },
+    { label: 'Account & Returns', to: '/marketplace/account-returns' },
+    { label: 'Alerts', to: '/marketplace/alerts' },
+    { label: 'Analytics', to: '/marketplace/analytics' },
+    { label: 'Trends', to: '/marketplace/trends' },
+  ]});
   if (can('dept.sales'))       deptItems.push({ label: 'Sales Dept',  to: '/departments/sales',       icon: ShoppingBag });
   if (canInventory || can('dept.rnd')) deptItems.push({ label: 'Production', icon: Settings, children: [
     { label: 'Dashboard',       to: '/departments/rnd' },
