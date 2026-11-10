@@ -379,6 +379,47 @@ router.all('/v1/*', async (req, res) => {
     }
   }
 
+  // Traffic metrics (Analytics page) for meesho/snapdeal/flipkart — same fake-data problem as
+  // /v1/trends/*: amazon-server has no real per-platform traffic reading for these 3 and was
+  // returning one frozen snapshot (confirmed: the same fabricated 95.5% Meesho CVR appeared
+  // here too). Build the real response from our own synced+normalized data instead.
+  const trafficMatch = subPath === '/profitability/traffic';
+  if (req.method === 'GET' && trafficMatch && ['meesho', 'snapdeal', 'flipkart'].includes(req.query.marketplace)) {
+    const platform = req.query.marketplace;
+    try {
+      const snap = await MarketflowSnapshot.findOne({ platform, endpoint: 'overview' }).lean();
+      const normalized = _withLastGoodFallback(
+        `unified:${platform}`,
+        normalizeScraperSnapshot(platform, snap?.data),
+        (p) => !p.revenue && !p.orders && !p.impressions,
+      );
+      if (!normalized) return res.json({ marketplace: platform, traffic: null, source: 'no_data', period: 'latest' });
+      const clicks = normalized.impressions ? Math.round((normalized.ctr_pct / 100) * normalized.impressions) : 0;
+      return res.json({
+        marketplace: platform,
+        traffic: {
+          impressions: normalized.impressions || 0,
+          clicks,
+          ctr_pct: normalized.ctr_pct || 0,
+          cvr_pct: normalized.cvr_pct || 0,
+          ctr_basis: 'Real synced scraper data (clicks ÷ impressions)',
+          cvr_basis: 'Real synced scraper data (orders ÷ clicks, or platform-reported conversion)',
+          traffic_basis: 'Real synced scraper data',
+          pages_per_session: null,
+          buy_box_pct: null,
+          avg_order_value: normalized.orders ? Math.round(normalized.revenue / normalized.orders) : null,
+          total_sales: normalized.revenue || 0,
+          unique_products: normalized.listings || 0,
+        },
+        source: 'our_own_scraper_sync',
+        period: 'latest_synced_reading',
+      });
+    } catch (e) {
+      console.error('Traffic metrics error:', e);
+      return res.json({ marketplace: platform, traffic: null, source: 'error', period: 'latest' });
+    }
+  }
+
   // Recommendations — amazon-server's engine already reads the same shared Mongo data for
   // every platform and generates cross-platform recommendations (confirmed: amazon_in,
   // flipkart, meesho, snapdeal all present in its response), so this is a straight forward
