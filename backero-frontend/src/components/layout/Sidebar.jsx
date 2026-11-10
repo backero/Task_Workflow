@@ -96,19 +96,41 @@ export default function Sidebar({ variant = 'desktop', onNavigate, onClose }) {
     { label: 'Social Approvals', to: '/marketing/social-approvals' },
     { label: 'Social Automation', to: '/marketing/automation' },
   ]});
-  // Only the Mongo-sync-backed hub pages are listed here. The per-platform pages
-  // (meesho/*, snapdeal/*, flipkart/*) call standalone Flask/FastAPI apps
-  // (ports 8000 etc.) that this project retired in favor of the sync-to-Mongo
-  // pipeline those services' own run_scheduler.py now uses — those routes 404
-  // in both dev and production and are not linked here until rebuilt or removed.
-  if (can('dept.marketplace')) deptItems.push({ label: 'Marketplace', icon: Store, children: [
-    { label: 'Dashboard', to: '/departments/marketplace' },
-    { label: 'Unified Dashboard', to: '/marketplace/unified' },
-    { label: 'Account & Returns', to: '/marketplace/account-returns' },
-    { label: 'Alerts', to: '/marketplace/alerts' },
-    { label: 'Analytics', to: '/marketplace/analytics' },
-    { label: 'Trends', to: '/marketplace/trends' },
-  ]});
+  // All-platforms combined view, plus one dropdown per real, data-connected platform.
+  // Each platform's pages (overview/account-returns/alerts/analytics/trends) reuse the
+  // same Marketplace Hub components, auto-scoped to that platform via the URL's first
+  // path segment (hooks/platformScope.ts) — not separate page builds.
+  if (can('dept.marketplace')) {
+    deptItems.push({ label: 'Marketplace', icon: Store, children: [
+      { label: 'Dashboard', to: '/departments/marketplace' },
+      { label: 'Unified Dashboard (All Platforms)', to: '/marketplace/unified' },
+      { label: 'Account & Returns (All Platforms)', to: '/marketplace/account-returns' },
+      { label: 'Alerts (All Platforms)', to: '/marketplace/alerts' },
+      { label: 'Analytics (All Platforms)', to: '/marketplace/analytics' },
+      { label: 'Trends (All Platforms)', to: '/marketplace/trends' },
+    ]});
+    deptItems.push({ label: 'Meesho', icon: Store, children: [
+      { label: 'Overview', to: '/meesho/overview' },
+      { label: 'Account & Returns', to: '/meesho/account-returns' },
+      { label: 'Alerts', to: '/meesho/alerts' },
+      { label: 'Analytics', to: '/meesho/analytics' },
+      { label: 'Trends', to: '/meesho/trends' },
+    ]});
+    deptItems.push({ label: 'Snapdeal', icon: Store, children: [
+      { label: 'Overview', to: '/snapdeal/overview' },
+      { label: 'Account & Returns', to: '/snapdeal/account-returns' },
+      { label: 'Alerts', to: '/snapdeal/alerts' },
+      { label: 'Analytics', to: '/snapdeal/analytics' },
+      { label: 'Trends', to: '/snapdeal/trends' },
+    ]});
+    deptItems.push({ label: 'Flipkart', icon: Store, children: [
+      { label: 'Overview', to: '/flipkart/overview' },
+      { label: 'Account & Returns', to: '/flipkart/account-returns' },
+      { label: 'Alerts', to: '/flipkart/alerts' },
+      { label: 'Analytics', to: '/flipkart/analytics' },
+      { label: 'Trends', to: '/flipkart/trends' },
+    ]});
+  }
   if (can('dept.sales'))       deptItems.push({ label: 'Sales Dept',  to: '/departments/sales',       icon: ShoppingBag });
   if (canInventory || can('dept.rnd')) deptItems.push({ label: 'Production', icon: Settings, children: [
     { label: 'Dashboard',       to: '/departments/rnd' },

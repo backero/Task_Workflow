@@ -27,6 +27,23 @@ const { sendError } = require('../utils/helpers');
 
 router.use(authenticate);
 
+// Last-known-good cache per platform+view. Confirmed root cause: something other than this
+// backend's own sync processes (watchdog_sync.py, whose own writes have been verified correct
+// on every single cycle) is also upserting the same MarketflowSnapshot documents — almost
+// certainly a separate, unauthenticated instance of the same scraper pointed at this shared
+// MongoDB — intermittently overwriting good data with an empty/zero snapshot. Can't stop that
+// writer from here, so instead: never regress the UI to empty when we've already seen real
+// data for that platform in this process's lifetime.
+const _lastGoodCache = {};
+
+function _withLastGoodFallback(cacheKey, candidate, isEmpty) {
+  if (candidate && !isEmpty(candidate)) {
+    _lastGoodCache[cacheKey] = candidate;
+    return candidate;
+  }
+  return _lastGoodCache[cacheKey] || candidate;
+}
+
 // Flattens each scraper's own nested sync shape (python-service/{meesho,snapdeal,flipkart})
 // into the {revenue, orders, impressions, margin_pct} shape the unified dashboard expects.
 // Only maps fields the scraper actually measured — never fabricates a number it doesn't have.
@@ -395,7 +412,12 @@ router.all('/v1/*', async (req, res) => {
         // single platform's flat stats, so it must never be merged in as its own platform entry.
         if (snap.platform === 'amazon') continue;
         if (['meesho', 'snapdeal', 'flipkart'].includes(snap.platform)) {
-          platforms[snap.platform] = normalizeScraperSnapshot(snap.platform, snap.data) || platforms[snap.platform];
+          const normalized = normalizeScraperSnapshot(snap.platform, snap.data);
+          platforms[snap.platform] = _withLastGoodFallback(
+            `unified:${snap.platform}`,
+            normalized,
+            (p) => !p.revenue && !p.orders && !p.impressions,
+          ) || platforms[snap.platform];
           continue;
         }
         if (platforms[snap.platform]) continue;
@@ -437,7 +459,13 @@ router.all('/v1/*', async (req, res) => {
 
       const platforms = {};
       for (const snap of mongoSnapshots) {
-        platforms[snap.platform] = buildAccountSummary(snap.platform, snap.data, snap.syncedAt);
+        const built = buildAccountSummary(snap.platform, snap.data, snap.syncedAt);
+        platforms[snap.platform] = _withLastGoodFallback(
+          `account-summary:${snap.platform}`,
+          built,
+          (p) => p.revenue_received == null && p.pending_payment == null && p.returns_count == null
+            && p.rto_rate_pct == null && p.orders_completed == null,
+        );
       }
       return res.json({ platforms });
     } catch (e) {

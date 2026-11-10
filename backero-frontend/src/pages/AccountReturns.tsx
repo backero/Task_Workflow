@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react'
+import { useLocation } from 'react-router-dom'
 import Card, { PageHeader } from '../components/Card.tsx'
 import api from '../api/axios.js'
 import { StatTile } from '../components/charts/index.ts'
 import { PLATFORM_LABELS, platformColor } from '../theme/colors.ts'
+import { platformFromPath } from '../hooks/platformScope.ts'
 
 type PlatformAccount = {
   synced_at?: string
@@ -29,6 +31,8 @@ const pct = (v: number | null | undefined) => (v === null || v === undefined ? '
 const count = (v: number | null | undefined) => (v === null || v === undefined ? '—' : v.toLocaleString('en-IN'))
 
 export default function AccountReturnsPage() {
+  const location = useLocation()
+  const scope = platformFromPath(location.pathname)
   const [data, setData] = useState<AccountSummaryResponse | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(false)
@@ -46,19 +50,37 @@ export default function AccountReturnsPage() {
   }, [])
 
   if (loading) return <Card className="text-stone">Loading account &amp; returns data…</Card>
+
+  // Amazon isn't covered by this endpoint — it has no equivalent real scraper sync yet.
+  if (scope === 'amazon') {
+    return (
+      <div className="space-y-5">
+        <PageHeader title="Amazon — Account & Returns" subtitle="Not yet connected to live seller account data." />
+        <Card className="text-stone">
+          Amazon's account/returns data isn't synced here yet — it needs either real SP-API credentials or a manually-imported Business Report. Ask to set this up.
+        </Card>
+      </div>
+    )
+  }
+
   if (error || !data) return <Card className="text-stone">Could not load account &amp; returns data. Try refreshing.</Card>
 
-  const platformKeys = ['meesho', 'snapdeal', 'flipkart'].filter((k) => data.platforms[k])
+  const allKeys = ['meesho', 'snapdeal', 'flipkart'].filter((k) => data.platforms[k])
+  const platformKeys = scope ? allKeys.filter((k) => k === scope) : allKeys
+
+  const platformLabel = scope ? PLATFORM_LABELS?.[scope] || scope : null
 
   return (
     <div className="space-y-5">
       <PageHeader
-        title="Account & Returns"
-        subtitle="Real money received, pending payouts, and return/RTO rates per marketplace — pulled directly from each seller panel."
+        title={platformLabel ? `${platformLabel} — Account & Returns` : 'Account & Returns'}
+        subtitle="Real money received, pending payouts, and return/RTO rates — pulled directly from the seller panel."
       />
 
       {platformKeys.length === 0 && (
-        <Card className="text-stone">No account data synced yet for Meesho, Snapdeal, or Flipkart.</Card>
+        <Card className="text-stone">
+          {platformLabel ? `No account data synced yet for ${platformLabel}.` : 'No account data synced yet for Meesho, Snapdeal, or Flipkart.'}
+        </Card>
       )}
 
       {platformKeys.map((key) => {

@@ -102,24 +102,11 @@ import Analytics from './pages/Analytics';
 import Trends from './pages/Trends';
 import AccountReturns from './pages/AccountReturns';
 
-// Platform pages - Meesho
-import MeeshoAnalytics from './platforms/meesho/Analytics';
-import MeeshoInsights from './platforms/meesho/Insights';
-import MeeshoTrendAnalytics from './platforms/meesho/TrendAnalytics';
-import MeeshoAlerts from './platforms/meesho/Alerts';
-import MeeshoOverview from './platforms/meesho/Overview';
-
-// Platform pages - Snapdeal
-import SnapdealAnalytics from './platforms/snapdeal/Analytics';
-import SnapdealInsights from './platforms/snapdeal/Insights';
-import SnapdealTrendAnalytics from './platforms/snapdeal/TrendAnalytics';
-import SnapdealOverview from './platforms/snapdeal/Overview';
-
-// Platform pages - Flipkart
-import FlipkartAnalytics from './platforms/flipkart/Analytics';
-import FlipkartInsights from './platforms/flipkart/Insights';
-import FlipkartTrendAnalytics from './platforms/flipkart/TrendAnalytics';
-import FlipkartOverview from './platforms/flipkart/Overview';
+// Meesho/Snapdeal/Flipkart per-platform pages reuse the Marketplace Hub components
+// (UnifiedDashboard/Alerts/Analytics/Trends/AccountReturns) scoped via the URL's first
+// path segment (see hooks/platformScope.ts) — the old platforms/{meesho,snapdeal,flipkart}/*
+// page components called standalone Flask/FastAPI apps this project retired long ago and
+// always 404'd; removed rather than left as dead imports.
 
 // Platform pages - Myntra
 import MyntraAnalytics from './platforms/myntra/Analytics';
@@ -275,24 +262,26 @@ export default function App() {
           <Route path="/marketplace/trends" element={<Trends />} />
           <Route path="/marketplace/account-returns" element={<AccountReturns />} />
 
-          {/* Meesho */}
-          <Route path="/meesho/overview" element={<MeeshoOverview />} />
-          <Route path="/meesho/analytics" element={<MeeshoAnalytics />} />
-          <Route path="/meesho/insights" element={<MeeshoInsights />} />
-          <Route path="/meesho/trends" element={<MeeshoTrendAnalytics />} />
-          <Route path="/meesho/alerts" element={<MeeshoAlerts />} />
+          {/* Meesho — scoped views of the same Marketplace Hub pages (platformFromPath) */}
+          <Route path="/meesho/overview" element={<UnifiedDashboard />} />
+          <Route path="/meesho/account-returns" element={<AccountReturns />} />
+          <Route path="/meesho/analytics" element={<Analytics />} />
+          <Route path="/meesho/trends" element={<Trends />} />
+          <Route path="/meesho/alerts" element={<Alerts />} />
 
           {/* Snapdeal */}
-          <Route path="/snapdeal/overview" element={<SnapdealOverview />} />
-          <Route path="/snapdeal/analytics" element={<SnapdealAnalytics />} />
-          <Route path="/snapdeal/insights" element={<SnapdealInsights />} />
-          <Route path="/snapdeal/trends" element={<SnapdealTrendAnalytics />} />
+          <Route path="/snapdeal/overview" element={<UnifiedDashboard />} />
+          <Route path="/snapdeal/account-returns" element={<AccountReturns />} />
+          <Route path="/snapdeal/analytics" element={<Analytics />} />
+          <Route path="/snapdeal/trends" element={<Trends />} />
+          <Route path="/snapdeal/alerts" element={<Alerts />} />
 
           {/* Flipkart */}
-          <Route path="/flipkart/overview" element={<FlipkartOverview />} />
-          <Route path="/flipkart/analytics" element={<FlipkartAnalytics />} />
-          <Route path="/flipkart/insights" element={<FlipkartInsights />} />
-          <Route path="/flipkart/trends" element={<FlipkartTrendAnalytics />} />
+          <Route path="/flipkart/overview" element={<UnifiedDashboard />} />
+          <Route path="/flipkart/account-returns" element={<AccountReturns />} />
+          <Route path="/flipkart/analytics" element={<Analytics />} />
+          <Route path="/flipkart/trends" element={<Trends />} />
+          <Route path="/flipkart/alerts" element={<Alerts />} />
 
           {/* Myntra */}
           <Route path="/myntra/overview" element={<MyntraOverview />} />
