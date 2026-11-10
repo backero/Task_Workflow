@@ -39,7 +39,10 @@ router.delete('/:id', ctrl.softDelete);
 
 router.post('/:id/upload', upload.single('file'), ctrl.uploadFile);
 router.post('/:id/versions', ctrl.addVersion);
+router.put('/:id/versions/:versionId', ctrl.updateVersion);
 router.delete('/:id/versions/:versionId', ctrl.deleteVersion);
+router.put('/:id/versions/:versionId/files/:fileId', ctrl.updateVersionFile);
+router.put('/:id/versions/:versionId/files/:fileId/replace', upload.single('file'), ctrl.replaceVersionFile);
 router.delete('/:id/versions/:versionId/files/:fileId', ctrl.deleteVersionFile);
 
 module.exports = router;

@@ -5,6 +5,7 @@ const Organization = require('../models/Organization');
 const GoogleDriveAuth = require('../models/GoogleDriveAuth');
 const { asyncHandler, sendSuccess, sendError, slugify } = require('../utils/helpers');
 const drive = require('../services/googleDrive.service');
+const localStorage = require('../services/localFileStorage.service');
 const { computeDueDocsForOrg, runDocumentExpiryRemindersForOrg, maybeSeedDocumentWallet, categoryName: resolveCategoryName } = require('../services/documentWallet.service');
 
 // Signed, stateless CSRF state for the Drive OAuth handshake — no server-side
@@ -175,11 +176,17 @@ exports.restoreTrash = asyncHandler(async (req, res) => {
   sendSuccess(res, { document }, 'File restored');
 });
 
+async function deleteStoredFile(driveId) {
+  if (!driveId) return;
+  if (localStorage.exists(driveId)) localStorage.remove(driveId);
+  else await drive.deleteFile(driveId);
+}
+
 exports.purgeTrash = asyncHandler(async (req, res) => {
   const item = await DocumentTrash.findOne({ _id: req.params.trashId, organizationId: req.user.organizationId });
   if (!item) return sendError(res, 'Trash item not found', 404);
 
-  for (const driveId of collectDriveIds(item)) await drive.deleteFile(driveId);
+  for (const driveId of collectDriveIds(item)) await deleteStoredFile(driveId);
   await DocumentTrash.deleteOne({ _id: item._id });
   sendSuccess(res, { purged: true });
 });
@@ -187,7 +194,7 @@ exports.purgeTrash = asyncHandler(async (req, res) => {
 exports.emptyTrash = asyncHandler(async (req, res) => {
   const items = await DocumentTrash.find({ organizationId: req.user.organizationId });
   for (const item of items) {
-    for (const driveId of collectDriveIds(item)) await drive.deleteFile(driveId);
+    for (const driveId of collectDriveIds(item)) await deleteStoredFile(driveId);
   }
   await DocumentTrash.deleteMany({ organizationId: req.user.organizationId });
   sendSuccess(res, { purged: items.length });
@@ -195,23 +202,45 @@ exports.emptyTrash = asyncHandler(async (req, res) => {
 
 // ── Files (Google Drive) ────────────────────────────────────────────────
 
-// Verifies a Drive file id belongs to this org before any Drive operation —
-// the original single-tenant app had no such check since it only had one tenant.
-async function assertDriveIdInOrg(driveId, organizationId) {
-  const owned = await Document.exists({ organizationId, 'versions.files.driveId': driveId });
-  if (owned) return true;
-  const trashed = await DocumentTrash.exists({
+// Looks up the file's own metadata (name/type) scoped to this org, both to
+// verify the driveId belongs to the org before any Drive/storage operation,
+// and to get the Content-Type/filename for the local-storage serve path
+// (Drive carries its own metadata, local files don't).
+async function findFileMetaInOrg(driveId, organizationId) {
+  const doc = await Document.findOne(
+    { organizationId, 'versions.files.driveId': driveId },
+    { 'versions.$': 1 },
+  ).lean();
+  if (doc) {
+    const file = (doc.versions[0]?.files || []).find((f) => f.driveId === driveId);
+    if (file) return file;
+  }
+  const trashed = await DocumentTrash.findOne({
     organizationId,
     $or: [{ type: 'file', 'file.driveId': driveId }, { type: 'doc', 'doc.versions.files.driveId': driveId }],
-  });
-  return !!trashed;
+  }).lean();
+  if (trashed?.type === 'file' && trashed.file?.driveId === driveId) return trashed.file;
+  if (trashed?.type === 'doc') {
+    for (const v of trashed.doc?.versions || []) {
+      const file = (v.files || []).find((f) => f.driveId === driveId);
+      if (file) return file;
+    }
+  }
+  return null;
 }
 
 exports.streamFile = asyncHandler(async (req, res) => {
-  const ok = await assertDriveIdInOrg(req.params.driveId, req.user.organizationId);
-  if (!ok) return sendError(res, 'File not found', 404);
+  const { driveId } = req.params;
+  const fileMeta = await findFileMetaInOrg(driveId, req.user.organizationId);
+  if (!fileMeta) return sendError(res, 'File not found', 404);
+
+  if (localStorage.exists(driveId)) {
+    res.setHeader('Content-Type', fileMeta.type || 'application/octet-stream');
+    res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(fileMeta.name || driveId)}"`);
+    return localStorage.stream(driveId).pipe(res);
+  }
   try {
-    await drive.streamFile(req.params.driveId, res);
+    await drive.streamFile(driveId, res);
   } catch (err) {
     sendError(res, err.message, 502);
   }
@@ -241,8 +270,9 @@ exports.uploadFile = asyncHandler(async (req, res) => {
       return sendError(res, `Upload failed: ${err.message}`, 502);
     }
   } else {
-    // Fallback to local storage when Google Drive is not configured
+    // Fallback to local disk storage when Google Drive is not configured
     const fileId = crypto.randomBytes(12).toString('hex');
+    localStorage.save(req.file.buffer, fileId);
     uploaded = {
       driveId: fileId,
       driveLink: `/api/documents/files/${fileId}/content`,
@@ -296,6 +326,93 @@ exports.deleteVersion = asyncHandler(async (req, res) => {
   document.updatedBy = req.user._id;
   await document.save();
   sendSuccess(res, { document }, 'Version removed');
+});
+
+// Edits a version's own label/date/note — not its files (those are added/removed via
+// upload/deleteVersionFile). Lets a user fix a version that was accidentally created with
+// the uploaded file's name as its label instead of a proper "vX.0" (the auto-fill in the
+// New Version form falls back to the filename when the label field is left blank).
+exports.updateVersion = asyncHandler(async (req, res) => {
+  const document = await Document.findOne({ _id: req.params.id, organizationId: req.user.organizationId });
+  if (!document) return sendError(res, 'Document not found', 404);
+
+  const version = document.versions.id(req.params.versionId);
+  if (!version) return sendError(res, 'Version not found', 404);
+
+  const { v, date, note } = req.body;
+  if (v !== undefined) version.v = v;
+  if (date !== undefined) version.date = date;
+  if (note !== undefined) version.note = note;
+  document.updatedBy = req.user._id;
+  await document.save();
+  sendSuccess(res, { document }, 'Version updated');
+});
+
+// Edits a file's display name (fileSchema.label) without touching the real uploaded
+// filename/storage — so a mis-named upload can be relabeled without re-uploading it.
+exports.updateVersionFile = asyncHandler(async (req, res) => {
+  const document = await Document.findOne({ _id: req.params.id, organizationId: req.user.organizationId });
+  if (!document) return sendError(res, 'Document not found', 404);
+
+  const version = document.versions.id(req.params.versionId);
+  if (!version) return sendError(res, 'Version not found', 404);
+  const file = version.files.id(req.params.fileId);
+  if (!file) return sendError(res, 'File not found', 404);
+
+  const { label } = req.body;
+  if (label !== undefined) file.label = label;
+  document.updatedBy = req.user._id;
+  await document.save();
+  sendSuccess(res, { document }, 'File updated');
+});
+
+// Re-attaches a new file onto an existing file entry — same slot/position and
+// same _id, but new bytes/name/size/type. Used to recover entries whose
+// original upload never actually persisted (see localFileStorage note above)
+// and for ordinary "replace this attachment" edits.
+exports.replaceVersionFile = asyncHandler(async (req, res) => {
+  if (!req.file) return sendError(res, 'No file uploaded', 400);
+  const document = await Document.findOne({ _id: req.params.id, organizationId: req.user.organizationId });
+  if (!document) return sendError(res, 'Document not found', 404);
+
+  const version = document.versions.id(req.params.versionId);
+  if (!version) return sendError(res, 'Version not found', 404);
+  const file = version.files.id(req.params.fileId);
+  if (!file) return sendError(res, 'File not found', 404);
+
+  const org = await Organization.findById(req.user.organizationId).select('name documentCategories').lean();
+  let uploaded;
+
+  if (await drive.hasWriteCredentials()) {
+    try {
+      uploaded = await drive.uploadBuffer(req.file.buffer, {
+        filename: req.file.originalname,
+        mimeType: req.file.mimetype,
+        orgFolderName: org?.name,
+        categoryName: resolveCategoryName(document.category, org?.documentCategories),
+        docName: document.name,
+      });
+    } catch (err) {
+      return sendError(res, `Upload failed: ${err.message}`, 502);
+    }
+  } else {
+    const fileId = crypto.randomBytes(12).toString('hex');
+    localStorage.save(req.file.buffer, fileId);
+    uploaded = { driveId: fileId, driveLink: `/api/documents/files/${fileId}/content` };
+  }
+
+  await deleteStoredFile(file.driveId);
+
+  file.name = req.file.originalname;
+  file.size = req.file.size;
+  file.type = req.file.mimetype;
+  file.url = `/api/documents/files/${uploaded.driveId}/content`;
+  file.driveId = uploaded.driveId;
+  file.driveLink = uploaded.driveLink;
+
+  document.updatedBy = req.user._id;
+  await document.save();
+  sendSuccess(res, { document }, 'File replaced');
 });
 
 exports.deleteVersionFile = asyncHandler(async (req, res) => {

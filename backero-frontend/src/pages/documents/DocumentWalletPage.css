@@ -225,6 +225,9 @@
 .doc-wallet-version:first-of-type::before { background: var(--zone); border-color: var(--zone); }
 .doc-wallet-version-head { display: flex; align-items: center; gap: 8px; font-size: 12.5px; flex-wrap: wrap; color: var(--t-primary); }
 .doc-wallet-version-head .font-semibold { font-weight: 700; }
+.doc-wallet-version-head button { color: var(--t-muted); }
+.doc-wallet-version-head button:hover { color: var(--t-primary); }
+.doc-wallet-version-head button:first-of-type { margin-left: auto; }
 .doc-wallet-version p { font-size: 12px; color: var(--t-sub); margin-top: 3px; }
 .doc-wallet-file-list { margin-top: 6px; display: flex; flex-direction: column; gap: 5px; }
 .doc-wallet-file-list li { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--t-primary); }

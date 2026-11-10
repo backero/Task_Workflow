@@ -25,9 +25,21 @@ const documentsApi = {
     }).then((r) => r.data);
   },
   addVersion: (docId, payload) => api.post(`/documents/${docId}/versions`, payload).then((r) => r.data.document),
+  updateVersion: (docId, versionId, payload) =>
+    api.put(`/documents/${docId}/versions/${versionId}`, payload).then((r) => r.data.document),
   deleteVersion: (docId, versionId) => api.delete(`/documents/${docId}/versions/${versionId}`).then((r) => r.data),
+  updateVersionFile: (docId, versionId, fileId, payload) =>
+    api.put(`/documents/${docId}/versions/${versionId}/files/${fileId}`, payload).then((r) => r.data.document),
   deleteVersionFile: (docId, versionId, fileId) =>
     api.delete(`/documents/${docId}/versions/${versionId}/files/${fileId}`).then((r) => r.data.document),
+  replaceVersionFile: (docId, versionId, fileId, file, onUploadProgress) => {
+    const form = new FormData();
+    form.append('file', file);
+    return api.put(`/documents/${docId}/versions/${versionId}/files/${fileId}/replace`, form, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+      onUploadProgress,
+    }).then((r) => r.data.document);
+  },
 
   fetchFileBlob: (driveId) =>
     api.get(`/documents/files/${driveId}/content`, { responseType: 'blob' }).then((r) => r.data),

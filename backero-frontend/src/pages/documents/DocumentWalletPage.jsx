@@ -44,6 +44,8 @@ export default function DocumentWalletPage() {
   const [addCategoryOpen, setAddCategoryOpen] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState('');
   const [confirmState, setConfirmState] = useState(null); // { title, message, onConfirm }
+  const [editVersionState, setEditVersionState] = useState(null); // { docId, versionId, v, date, note }
+  const [editFileState, setEditFileState] = useState(null); // { docId, versionId, fileId, label }
   const [viewer, setViewer] = useState(null); // { files: [...], index }
   const [remindersPreview, setRemindersPreview] = useState(null);
 
@@ -113,8 +115,36 @@ export default function DocumentWalletPage() {
     mutationFn: ({ docId, versionId, fileId }) => documentsApi.deleteVersionFile(docId, versionId, fileId),
     onSuccess: () => { invalidateDocs(); invalidateTrash(); toast.success('Moved to Recycle Bin'); },
   });
+  const updateVersionMutation = useMutation({
+    mutationFn: ({ docId, versionId, payload }) => documentsApi.updateVersion(docId, versionId, payload),
+    onSuccess: () => { invalidateDocs(); toast.success('Version updated'); },
+    onError: (err) => toast.error(err.response?.data?.message || 'Could not update version'),
+  });
+  const updateVersionFileMutation = useMutation({
+    mutationFn: ({ docId, versionId, fileId, payload }) => documentsApi.updateVersionFile(docId, versionId, fileId, payload),
+    onSuccess: () => { invalidateDocs(); toast.success('File renamed'); },
+    onError: (err) => toast.error(err.response?.data?.message || 'Could not rename file'),
+  });
+  const replaceVersionFileMutation = useMutation({
+    mutationFn: ({ docId, versionId, fileId, file }) => documentsApi.replaceVersionFile(docId, versionId, fileId, file),
+    onSuccess: () => { invalidateDocs(); toast.success('File replaced'); },
+    onError: (err) => toast.error(err.response?.data?.message || 'Could not replace file'),
+  });
+  const deleteVersionMutation = useMutation({
+    mutationFn: ({ docId, versionId }) => documentsApi.deleteVersion(docId, versionId),
+    onSuccess: () => { invalidateDocs(); toast.success('Version removed'); },
+    onError: (err) => toast.error(err.response?.data?.message || 'Could not remove version — it still has files'),
+  });
 
   const openDoc = documents.find((d) => d._id === openDocId) || null;
+
+  // Next proper version label for a document — "vN.0", never the uploaded file's own name
+  // (that was the bug: leaving the label blank auto-filled it with the filename instead,
+  // so a real upload like "Company Pan.pdf" became a version literally labelled "Company Pan").
+  const nextVersionLabel = (docId) => {
+    const doc = documents.find((d) => d._id === docId);
+    return `v${(doc?.versions?.length || 0) + 1}.0`;
+  };
 
   // ── derived: filter + sort (status priority, then name) ─────────────────
   const filtered = useMemo(() => {
@@ -641,19 +671,43 @@ export default function DocumentWalletPage() {
                 <div className="doc-wallet-version-head">
                   <span className="font-semibold">{v.v}</span>
                   <span className="text-[var(--t-sub)]">{v.date || '—'}</span>
+                  <button
+                    title="Edit version"
+                    onClick={() => setEditVersionState({ docId: openDoc._id, versionId: v._id, v: v.v, date: v.date || '', note: v.note || '' })}
+                  >
+                    <Pencil className="w-3.5 h-3.5" />
+                  </button>
+                  {!v.files?.length && (
+                    <button
+                      title="Delete empty version"
+                      onClick={() => setConfirmState({
+                        title: 'Delete version?',
+                        message: `Removes the empty version "${v.v}". This can't be undone.`,
+                        onConfirm: () => { deleteVersionMutation.mutate({ docId: openDoc._id, versionId: v._id }); setConfirmState(null); },
+                      })}
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  )}
                 </div>
                 {v.note && <p className="text-xs text-[var(--t-sub)]">{v.note}</p>}
                 <ul className="doc-wallet-file-list">
                   {(v.files || []).map((f) => (
                     <li key={f._id}>
                       <FileText className="w-4 h-4" />
-                      <span className="flex-1 truncate">{f.name}</span>
+                      <span className="flex-1 truncate">{f.label || f.name}</span>
                       <button title="Preview" onClick={() => openViewerForDoc(openDoc, f)}><Eye className="w-4 h-4" /></button>
+                      <button
+                        title="Edit file name"
+                        onClick={() => setEditFileState({ docId: openDoc._id, versionId: v._id, fileId: f._id, label: f.label || f.name })}
+                      >
+                        <Pencil className="w-4 h-4" />
+                      </button>
                       <button
                         title="Delete file"
                         onClick={() => setConfirmState({
                           title: 'Delete file?',
-                          message: `Moves "${f.name}" to the Recycle Bin.`,
+                          message: `Moves "${f.label || f.name}" to the Recycle Bin.`,
                           onConfirm: () => { deleteVersionFileMutation.mutate({ docId: openDoc._id, versionId: v._id, fileId: f._id }); setConfirmState(null); },
                         })}
                       >
@@ -731,18 +785,13 @@ export default function DocumentWalletPage() {
       >
         <form onSubmit={submitNewVersion}>
           <Space direction="vertical" style={{ width: '100%' }} size={12}>
-            <Input placeholder="Version label (auto-fills from file name, or type your own)" value={newVersionForm.v} onChange={(e) => setNewVersionForm({ ...newVersionForm, v: e.target.value })} />
+            <Input placeholder={`Version label (defaults to ${nextVersionLabel(newVersionDocId)} if left blank)`} value={newVersionForm.v} onChange={(e) => setNewVersionForm({ ...newVersionForm, v: e.target.value })} />
             <Input type="date" value={newVersionForm.date} onChange={(e) => setNewVersionForm({ ...newVersionForm, date: e.target.value })} />
             <TextArea placeholder="Change note" rows={3} value={newVersionForm.note} onChange={(e) => setNewVersionForm({ ...newVersionForm, note: e.target.value })} />
             <label>Updated expiry<Input type="date" value={newVersionForm.expiryDate} onChange={(e) => setNewVersionForm({ ...newVersionForm, expiryDate: e.target.value })} /></label>
             <Upload
               multiple beforeUpload={() => false} fileList={newVersionFiles}
-              onChange={({ fileList }) => {
-                setNewVersionFiles(fileList);
-                if (fileList.length && !newVersionForm.v.trim()) {
-                  setNewVersionForm((f) => ({ ...f, v: fileList[0].name.replace(/\.[^./]+$/, '') }));
-                }
-              }}
+              onChange={({ fileList }) => setNewVersionFiles(fileList)}
             >
               <Button icon={<UploadIcon size={14} />}>Select files</Button>
             </Upload>
@@ -839,6 +888,77 @@ export default function DocumentWalletPage() {
           onCancel={() => setConfirmState(null)}
         />
       )}
+
+      {/* ── Edit version modal ───────────────────────────────────────────── */}
+      <Modal
+        title="Edit version"
+        open={!!editVersionState}
+        onCancel={() => setEditVersionState(null)}
+        onOk={() => {
+          const { docId, versionId, v, date, note } = editVersionState;
+          updateVersionMutation.mutate({ docId, versionId, payload: { v, date, note } });
+          setEditVersionState(null);
+        }}
+        confirmLoading={updateVersionMutation.isPending}
+        okText="Save"
+      >
+        {editVersionState && (
+          <Space direction="vertical" style={{ width: '100%' }} size={12}>
+            <Input
+              placeholder="Version label (e.g. v2.0)"
+              value={editVersionState.v}
+              onChange={(e) => setEditVersionState({ ...editVersionState, v: e.target.value })}
+            />
+            <Input
+              type="date"
+              value={editVersionState.date}
+              onChange={(e) => setEditVersionState({ ...editVersionState, date: e.target.value })}
+            />
+            <TextArea
+              placeholder="Change note"
+              rows={3}
+              value={editVersionState.note}
+              onChange={(e) => setEditVersionState({ ...editVersionState, note: e.target.value })}
+            />
+          </Space>
+        )}
+      </Modal>
+
+      {/* ── Edit file name modal ─────────────────────────────────────────── */}
+      <Modal
+        title="Edit file name"
+        open={!!editFileState}
+        onCancel={() => setEditFileState(null)}
+        onOk={() => {
+          const { docId, versionId, fileId, label } = editFileState;
+          updateVersionFileMutation.mutate({ docId, versionId, fileId, payload: { label } });
+          setEditFileState(null);
+        }}
+        confirmLoading={updateVersionFileMutation.isPending}
+        okText="Save"
+      >
+        {editFileState && (
+          <Space direction="vertical" style={{ width: '100%' }} size={12}>
+            <Input
+              placeholder="Display name"
+              value={editFileState.label}
+              onChange={(e) => setEditFileState({ ...editFileState, label: e.target.value })}
+            />
+            <Upload
+              showUploadList={false}
+              beforeUpload={(file) => {
+                const { docId, versionId, fileId } = editFileState;
+                replaceVersionFileMutation.mutate({ docId, versionId, fileId, file });
+                return false;
+              }}
+            >
+              <Button icon={<UploadIcon size={14} />} loading={replaceVersionFileMutation.isPending}>
+                Replace file
+              </Button>
+            </Upload>
+          </Space>
+        )}
+      </Modal>
     </div>
   );
 }
