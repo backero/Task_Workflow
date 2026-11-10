@@ -54,6 +54,19 @@ const authorizeDepartmentWrite = (req, res, next) => {
   return sendError(res, 'Access denied. Department management permission required.', 403);
 };
 
+// Product Catalog write access: admin+ always; Production/R&D get it at every role level
+// (member/team_lead/manager) since both departments directly own catalog data (formulas,
+// costing, packaging) as part of their daily work — not just managers reviewing it. Every
+// other department still needs manager+, same as before.
+const authorizeCatalogWrite = (req, res, next) => {
+  if (!req.user) return sendError(res, 'Authentication required.', 401);
+  const level = ROLE_HIERARCHY[req.user.role] || 0;
+  if (level >= ROLE_HIERARCHY['admin']) return next();
+  if (['Production', 'R&D'].includes(req.user.department)) return next();
+  if (level >= ROLE_HIERARCHY['manager']) return next();
+  return sendError(res, 'Access denied. Product Catalog write access required.', 403);
+};
+
 // Marketing dept manager+ OR admin+ — gates the social-media approval queue,
 // which is scoped to Marketing only (unlike the general Approval Queue).
 const authorizeMarketingApprover = (req, res, next) => {
@@ -85,6 +98,7 @@ module.exports = {
   authorizeFounderOrAbove,
   authorizeInventoryWrite,
   authorizeCatalogDelete,
+  authorizeCatalogWrite,
   authorizeDepartmentWrite,
   authorizeMarketingApprover,
   requireAttendancePermission,
