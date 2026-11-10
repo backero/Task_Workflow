@@ -49,12 +49,15 @@ def main():
     sched_mod.start()
 
     sync_to_mongo()
-    from apscheduler.schedulers.background import BackgroundScheduler
-    mongo_sched = BackgroundScheduler(daemon=True)
-    mongo_sched.add_job(sync_to_mongo, "interval", minutes=3, id="mongo_sync", max_instances=1, coalesce=True)
-    mongo_sched.start()
+    # The recurring in-process mongo sync (previously every 3 min via its own
+    # BackgroundScheduler job here) has been observed to intermittently push stale/
+    # zeroed data into Mongo even when the underlying SQLite data is correct -- an
+    # unresolved race with the keeper thread's own SQLite access from the same
+    # process. watchdog_sync.py now owns the recurring sync instead, as a fully
+    # separate process reading the same (always-correct-when-read-fresh) data.
+    # Run it alongside this one: `python watchdog_sync.py`.
 
-    print("[snapdeal] scheduler + mongo sync running", flush=True)
+    print("[snapdeal] scheduler running (run watchdog_sync.py separately for mongo sync)", flush=True)
     try:
         while True:
             time.sleep(60)

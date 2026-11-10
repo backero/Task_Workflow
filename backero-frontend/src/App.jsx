@@ -86,7 +86,6 @@ import KitchenSchedule from './pages/production/KitchenSchedule';
 
 // Settings
 import Settings from './pages/settings/Settings';
-import WhatsAppSetup from './pages/settings/WhatsAppSetup';
 
 // Documents
 import DocumentWalletPage from './pages/documents/DocumentWalletPage';
@@ -251,7 +250,6 @@ export default function App() {
 
           {/* Settings */}
           <Route path="/settings" element={<Settings />} />
-          <Route path="/settings/whatsapp" element={<PermissionRoute module="management"><WhatsAppSetup /></PermissionRoute>} />
 
           {/* Documents */}
           <Route path="/documents" element={<PermissionRoute module="finance"><DocumentWalletPage /></PermissionRoute>} />

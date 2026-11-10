@@ -27,6 +27,80 @@ const { sendError } = require('../utils/helpers');
 
 router.use(authenticate);
 
+// Flattens each scraper's own nested sync shape (python-service/{meesho,snapdeal,flipkart})
+// into the {revenue, orders, impressions, margin_pct} shape the unified dashboard expects.
+// Only maps fields the scraper actually measured — never fabricates a number it doesn't have.
+function normalizeScraperSnapshot(platform, data) {
+  if (!data) return null;
+  if (platform === 'meesho') {
+    const k = data.kpis || {};
+    return {
+      revenue: k.sales_7d || 0,
+      orders: k.orders_7d || 0,
+      impressions: k.impressions_7d || 0,
+      margin_pct: 0,
+      listings: k.listings || 0,
+      avg_rating: k.avg_rating || 0,
+      ctr_pct: k.impressions_7d ? (k.clicks_7d / k.impressions_7d) * 100 : 0,
+      cvr_pct: k.conversion_pct_7d || 0,
+    };
+  }
+  if (platform === 'snapdeal') {
+    const w = data.week || {};
+    const p = data.panel || {};
+    // week.* comes from a separate per-SKU metrics scraper module that isn't always populated;
+    // panel.* is the Seller Panel's own dashboard headline (sales_completed/orders_processed),
+    // read by the same scrape that succeeds reliably — prefer it when week.* is empty.
+    return {
+      revenue: w.revenue || p.sales_completed || 0,
+      orders: w.orders || p.orders_processed || 0,
+      impressions: w.impressions || 0,
+      margin_pct: 0,
+      listings: data.listings || 0,
+      avg_rating: p.avg_seller_rating || 0,
+      ctr_pct: w.impressions ? (w.clicks / w.impressions) * 100 : 0,
+      cvr_pct: w.clicks ? (w.orders / w.clicks) * 100 : 0,
+    };
+  }
+  if (platform === 'flipkart') {
+    const bh = data.account_metrics?.business_health || {};
+    return {
+      revenue: bh.sales_7d || 0,
+      orders: bh.units_7d || 0,
+      impressions: bh.impressions_7d || 0,
+      margin_pct: 0,
+      listings: data.listings || 0,
+      avg_rating: data.avg_rating || 0,
+      ctr_pct: 0,
+      cvr_pct: bh.conversion_7d_pct || 0,
+    };
+  }
+  return data;
+}
+
+// Rebuilds the cross-platform "winners" comparison from the final (corrected) platforms
+// object instead of trusting amazon-server's own comparison field, which still ranks using
+// its own embedded (possibly fabricated) per-platform numbers even after normalizeScraperSnapshot
+// has fixed the per-platform figures above it.
+function buildComparison(platforms) {
+  const pick = (metric) => {
+    let best = null;
+    for (const [name, p] of Object.entries(platforms)) {
+      const value = p?.[metric];
+      if (typeof value !== 'number' || value <= 0) continue;
+      if (!best || value > best.value) best = { platform: name, value };
+    }
+    return best;
+  };
+  return {
+    highest_ctr: pick('ctr_pct'),
+    highest_cvr: pick('cvr_pct'),
+    most_orders: pick('orders'),
+    highest_revenue: pick('revenue'),
+    highest_margin: pick('margin_pct'),
+  };
+}
+
 // ── Admin manual sync trigger (testing only) ────────────────────────────────
 router.post('/admin/sync', async (req, res) => {
   const { platform } = req.body;
@@ -234,16 +308,25 @@ router.all('/v1/*', async (req, res) => {
     try {
       const { data: amazonData } = await marketflow.forward('v1', 'GET', '/dashboard/unified', { params: {} }).catch(() => ({ platforms: {}, data: {} }));
 
-      // Fetch all platform data from MongoDB — but only use it to fill in platforms
-      // amazon-server doesn't already know about (myntra, jiomart). amazon-server's own
-      // /dashboard/unified already returns meesho/snapdeal/flipkart with real computed
-      // revenue/orders; the raw Mongo snapshot.data for those is the scraper's nested
-      // sync shape (no flat revenue/orders fields), so overwriting here silently zeroed
-      // out otherwise-correct numbers.
+      // amazon-server's /dashboard/unified bundles its own built-in numbers for every
+      // platform (meesho/snapdeal/flipkart included), but those are not what our own
+      // scrapers (python-service/*, synced into MarketflowSnapshot) actually measured —
+      // real vs amazon-server's embedded values have been observed to disagree sharply
+      // (e.g. a 95%+ CVR that isn't real). For these 3 platforms, our own synced Mongo
+      // data is authoritative and must win; amazon-server's platforms object is only used
+      // as a fallback/for platforms we don't scrape ourselves (myntra, jiomart, amazon_in).
       const mongoSnapshots = await MarketflowSnapshot.find({ endpoint: 'overview' }).lean();
       const platforms = { ...amazonData.platforms };
 
       for (const snap of mongoSnapshots) {
+        // 'amazon' is a legacy duplicate of amazon_in written by marketplaceSync.service.js's
+        // own cron sync — a whole nested {platforms, comparison, ...} dashboard object, not a
+        // single platform's flat stats, so it must never be merged in as its own platform entry.
+        if (snap.platform === 'amazon') continue;
+        if (['meesho', 'snapdeal', 'flipkart'].includes(snap.platform)) {
+          platforms[snap.platform] = normalizeScraperSnapshot(snap.platform, snap.data) || platforms[snap.platform];
+          continue;
+        }
         if (platforms[snap.platform]) continue;
         platforms[snap.platform] = snap.data || { revenue: 0, orders: 0, impressions: 0, margin_pct: 0 };
       }
@@ -262,7 +345,7 @@ router.all('/v1/*', async (req, res) => {
         total_orders: totals.orders,
         total_impressions: totals.impressions,
         avg_margin: amazonData?.avg_margin ?? null,
-        comparison: amazonData?.comparison || {},
+        comparison: buildComparison(platforms),
       });
     } catch (e) {
       console.error('Unified dashboard error:', e);

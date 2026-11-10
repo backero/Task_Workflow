@@ -3,7 +3,7 @@ import { useLocation } from 'react-router-dom'
 import { platformFromPath, marketplaceId } from '../hooks/platformScope.ts'
 import Card, { PageHeader } from '../components/Card.tsx'
 import StatusDot from '../components/StatusDot.tsx'
-import axios from 'axios'
+import api from '../api/axios.js'
 import { useAutoRefresh } from '../hooks/useAutoRefresh.ts'
 import { AlertTriangle, CheckCircle2, Clock, Lightbulb } from 'lucide-react'
 import { StatTile, SeverityBreakdownChart } from '../components/charts/index.ts'
@@ -62,13 +62,13 @@ export default function AlertsPage() {
   useAutoRefresh(() => {
     setLoading(true)
     Promise.all([
-      axios.get(`/v1/alerts?marketplace=${marketplace}`).then(r => {
+      api.get(`/marketflow/v1/alerts?marketplace=${marketplace}`).then(r => {
         setAlerts(r.data.alerts || [])
       }).catch(() => {}),
-      axios.get(`/v1/alerts/stats?marketplace=${marketplace}`).then(r => {
+      api.get(`/marketflow/v1/alerts/stats?marketplace=${marketplace}`).then(r => {
         setStats(r.data.stats)
       }).catch(() => {}),
-      axios.get(`/v1/insights?marketplace=${marketplace}`).then(r => {
+      api.get(`/marketflow/v1/insights?marketplace=${marketplace}`).then(r => {
         if (r.data.insights) {
           setInsights(r.data.insights)
         }
@@ -78,7 +78,7 @@ export default function AlertsPage() {
 
   const handleAcknowledge = async (alertId: string) => {
     try {
-      await axios.patch(`/v1/alerts/${alertId}/acknowledge`)
+      await api.patch(`/marketflow/v1/alerts/${alertId}/acknowledge`)
       setAlerts(alerts.filter(a => a.id !== alertId))
       setSelectedAlert(null)
     } catch (e) {
@@ -88,7 +88,7 @@ export default function AlertsPage() {
 
   const handleResolve = async (alertId: string) => {
     try {
-      await axios.patch(`/v1/alerts/${alertId}/resolve`)
+      await api.patch(`/marketflow/v1/alerts/${alertId}/resolve`)
       setAlerts(alerts.filter(a => a.id !== alertId))
       setSelectedAlert(null)
     } catch (e) {

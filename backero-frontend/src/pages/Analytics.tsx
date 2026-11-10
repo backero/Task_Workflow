@@ -3,7 +3,7 @@ import { useLocation } from 'react-router-dom'
 import { fmtPct } from '../utils/metricFormat.ts'
 import { platformFromPath, marketplaceId } from '../hooks/platformScope.ts'
 import Card, { PageHeader } from '../components/Card.tsx'
-import axios from 'axios'
+import api from '../api/axios.js'
 import { useAutoRefresh } from '../hooks/useAutoRefresh.ts'
 import { StatTile } from '../components/charts/index.ts'
 
@@ -65,10 +65,10 @@ export default function AnalyticsPage() {
   useAutoRefresh(() => {
     setLoading(true)
     Promise.all([
-      axios.get(`/v1/profitability/summary?marketplace=${marketplace}`).then(r => setProfitability(r.data)).catch(() => {}),
-      axios.get(`/v1/profitability/regional?marketplace=${marketplace}`).then(r => setRegional(r.data)).catch(() => {}),
-      axios.get(`/v1/profitability/customer-ltv?marketplace=${marketplace}`).then(r => setLtv(r.data)).catch(() => {}),
-      axios.get(`/v1/profitability/traffic?marketplace=${marketplace}`).then(r => setAds(r.data)).catch(() => {}),
+      api.get(`/marketflow/v1/profitability/summary?marketplace=${marketplace}`).then(r => setProfitability(r.data)).catch(() => {}),
+      api.get(`/marketflow/v1/profitability/regional?marketplace=${marketplace}`).then(r => setRegional(r.data)).catch(() => {}),
+      api.get(`/marketflow/v1/profitability/customer-ltv?marketplace=${marketplace}`).then(r => setLtv(r.data)).catch(() => {}),
+      api.get(`/marketflow/v1/profitability/traffic?marketplace=${marketplace}`).then(r => setAds(r.data)).catch(() => {}),
     ]).finally(() => setLoading(false))
   }, [marketplace], 300_000)
 

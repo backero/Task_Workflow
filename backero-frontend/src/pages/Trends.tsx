@@ -3,7 +3,7 @@ import { useLocation } from 'react-router-dom'
 import { fmtPct } from '../utils/metricFormat.ts'
 import { platformFromPath, marketplaceId } from '../hooks/platformScope.ts'
 import Card, { PageHeader } from '../components/Card.tsx'
-import axios from 'axios'
+import api from '../api/axios.js'
 import { useAutoRefresh } from '../hooks/useAutoRefresh.ts'
 import { TrendingUp, TrendingDown } from 'lucide-react'
 import { StatTile, TrendLineChart } from '../components/charts/index.ts'
@@ -57,8 +57,8 @@ export default function TrendsPage() {
   useAutoRefresh(() => {
     setLoading(true)
     Promise.all([
-      axios.get(`/v1/trends/${marketplace}?days=30`).catch(() => ({ data: null })),
-      axios.get(`/v1/trends/compare/all?days=30`).catch(() => ({ data: { platforms: {} } })),
+      api.get(`/marketflow/v1/trends/${marketplace}?days=30`).catch(() => ({ data: null })),
+      api.get(`/marketflow/v1/trends/compare/all?days=30`).catch(() => ({ data: { platforms: {} } })),
     ])
       .then(([trendRes, compRes]) => {
         setTrendData(trendRes.data)

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import Card, { PageHeader } from '../components/Card.tsx'
-import axios from 'axios'
+import api from '../api/axios.js'
 import { TrendingUp, TrendingDown, AlertCircle, CheckCircle } from 'lucide-react'
 import { useLocation } from 'react-router-dom'
 import { fmtPct } from '../utils/metricFormat.ts'
@@ -33,8 +33,8 @@ export default function UnifiedDashboard() {
       setLoading(true)
       try {
         const [dashboardRes, qualityRes] = await Promise.all([
-          axios.get('/api/marketflow/v1/dashboard/unified'),
-          axios.get('/api/marketflow/v1/data-quality/all'),
+          api.get('/marketflow/v1/dashboard/unified'),
+          api.get('/marketflow/v1/data-quality/all'),
         ])
         setData(dashboardRes.data)
         setDataQuality(qualityRes.data)

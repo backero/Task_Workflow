@@ -11,6 +11,12 @@ const connectDB = async (attempt = 1) => {
       useUnifiedTopology: true,
       serverSelectionTimeoutMS: 10000,
       connectTimeoutMS: 10000,
+      // Without this, reads can intermittently hit a lagging secondary in the Atlas
+      // replica set — confirmed directly: the same query against MarketflowSnapshot
+      // alternated between fresh and stale (seconds-old) data run-to-run until this
+      // was set. Frequently-written collections (like marketplace sync snapshots,
+      // read moments after a Python scraper writes them) are the ones this bites.
+      readPreference: 'primary',
     });
     logger.info(`MongoDB Connected: ${conn.connection.host}`);
 

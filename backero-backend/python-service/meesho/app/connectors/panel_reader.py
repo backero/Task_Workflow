@@ -267,6 +267,10 @@ def read_in_open_browser(ctx, db_path: str) -> dict[str, str]:
             conn.rollback()
             results["pricing"] = f"failed: {str(exc).splitlines()[0][:160]}"
 
+    # "home" reads whatever's already on screen (labels=() skips _open_nav, which is what gives every
+    # other area its extra load-settling waits) right after only the top-of-function 5s wait — not always
+    # enough for the to-do counters widget to finish its own async load. Give it a bit more time first.
+    page.wait_for_timeout(3_000)
     step("home", (), parse_home)
     step("business_overview", (NAV_BUSINESS_DASHBOARD,), parse_business_overview, r"Total Views")
     products()
