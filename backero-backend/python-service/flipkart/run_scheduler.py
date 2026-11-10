@@ -22,7 +22,7 @@ def _sync_to_mongo():
     # Reuses the exact functions the old /api/overview and /api/ai_insights
     # routes called directly -- @app.get(...) only registers them, both are
     # callable plain. ai_insights() already creates its own table if missing.
-    from fkpulse.api import overview, ai_insights
+    from fkpulse.api import overview, ai_insights, recommendations
     from mongo_sync import upsert_overview
     data = overview()
     try:
@@ -30,6 +30,13 @@ def _sync_to_mongo():
         data["ai_insight"] = dict(rows[0]) if rows else None
     except Exception:
         data["ai_insight"] = None
+    try:
+        # overview()'s own open_recommendations is a {high: N, medium: N} count only --
+        # backero-backend's unified Alerts feed needs the actual itemized rows (title/
+        # detail/severity), same as Meesho's top_issues and Snapdeal's alerts.
+        data["recommendations"] = recommendations(status="open")[:20]
+    except Exception:
+        data["recommendations"] = []
     upsert_overview("flipkart", data)
 
 

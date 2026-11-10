@@ -325,7 +325,7 @@ router.all('/v1/*', async (req, res) => {
     try {
       const [amazonRes, mongoSnapshots] = await Promise.all([
         marketflow.forward('v1', 'GET', '/alerts', { params: {} }).catch(() => ({ data: { alerts: [] } })),
-        MarketflowSnapshot.find({ endpoint: 'overview', platform: { $in: ['meesho', 'snapdeal'] } }).lean(),
+        MarketflowSnapshot.find({ endpoint: 'overview', platform: { $in: ['meesho', 'snapdeal', 'flipkart'] } }).lean(),
       ]);
 
       const normalized = [];
@@ -352,6 +352,16 @@ router.all('/v1/*', async (req, res) => {
               id: `snapdeal-${a.id}`, platform: 'snapdeal', title: a.title, message: a.reason,
               severity: ['critical', 'warning'].includes(a.severity) ? a.severity : 'info',
               fired_at: a.ts, suggested_action: a.fix || null,
+            });
+          }
+        } else if (snap.platform === 'flipkart') {
+          // Flipkart's own severities are 'high'/'medium'/'low' (not critical/warning/info).
+          const FK_SEVERITY = { high: 'critical', medium: 'warning', low: 'info' };
+          for (const r of snap.data?.recommendations || []) {
+            normalized.push({
+              id: `flipkart-${r.id}`, platform: 'flipkart', title: r.title, message: r.detail,
+              severity: FK_SEVERITY[r.severity] || 'info',
+              fired_at: r.created_at, suggested_action: null,
             });
           }
         }
