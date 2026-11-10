@@ -22,6 +22,7 @@ const os = require('os');
 const { authenticate } = require('../middleware/auth.middleware');
 const marketflow = require('../services/marketflow.service');
 const MarketflowSnapshot = require('../models/MarketflowSnapshot');
+const MarketflowTrendPoint = require('../models/MarketflowTrendPoint');
 const { v1Allowlist } = require('../utils/marketflowAllowlist');
 const { sendError } = require('../utils/helpers');
 
@@ -42,6 +43,34 @@ function _withLastGoodFallback(cacheKey, candidate, isEmpty) {
     return candidate;
   }
   return _lastGoodCache[cacheKey] || candidate;
+}
+
+// Captures one real daily trend point the first time (per platform) each day a non-empty
+// normalized value is seen — idempotent via the unique {platform, date} index, so calling
+// this on every dashboard load is cheap and safe. This is how /v1/trends/* gets real history
+// going forward instead of proxying amazon-server's flat-lined fake numbers for these 3
+// platforms (see MarketflowTrendPoint.js for why this collection exists at all).
+async function captureTrendPointIfNeeded(platform, normalized) {
+  if (!normalized || (!normalized.revenue && !normalized.orders && !normalized.impressions)) return;
+  const date = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' }); // YYYY-MM-DD
+  try {
+    await MarketflowTrendPoint.updateOne(
+      { platform, date },
+      {
+        $setOnInsert: {
+          platform, date,
+          revenue: normalized.revenue || 0,
+          orders: normalized.orders || 0,
+          impressions: normalized.impressions || 0,
+          ctr_pct: normalized.ctr_pct || 0,
+          cvr_pct: normalized.cvr_pct || 0,
+        },
+      },
+      { upsert: true },
+    );
+  } catch (e) {
+    console.error('captureTrendPointIfNeeded error:', e.message);
+  }
 }
 
 // Flattens each scraper's own nested sync shape (python-service/{meesho,snapdeal,flipkart})
@@ -413,11 +442,16 @@ router.all('/v1/*', async (req, res) => {
         if (snap.platform === 'amazon') continue;
         if (['meesho', 'snapdeal', 'flipkart'].includes(snap.platform)) {
           const normalized = normalizeScraperSnapshot(snap.platform, snap.data);
-          platforms[snap.platform] = _withLastGoodFallback(
+          const resolved = _withLastGoodFallback(
             `unified:${snap.platform}`,
             normalized,
             (p) => !p.revenue && !p.orders && !p.impressions,
-          ) || platforms[snap.platform];
+          );
+          platforms[snap.platform] = resolved || platforms[snap.platform];
+          // Capture from the fallback-resolved value, not the raw read — a momentarily-empty
+          // read (the known other-writer issue) shouldn't cost that platform its trend point
+          // for the day when we already know its real last-good value.
+          captureTrendPointIfNeeded(snap.platform, resolved).catch(() => {});
           continue;
         }
         if (platforms[snap.platform]) continue;
@@ -471,6 +505,68 @@ router.all('/v1/*', async (req, res) => {
     } catch (e) {
       console.error('Account summary error:', e);
       return res.json({ platforms: {} });
+    }
+  }
+
+  // Real trend history for meesho/snapdeal/flipkart — reads MarketflowTrendPoint (captured by
+  // captureTrendPointIfNeeded above) instead of proxying to amazon-server, which has no real
+  // per-day history for these platforms and was repeating one flat snapshot across every date.
+  // amazon_in keeps proxying below (falls through the allowlist) since its own trend data is a
+  // separate, already-tracked issue (not addressed here).
+  if (req.method === 'GET' && subPath === '/trends/compare/all') {
+    try {
+      const days = Math.min(parseInt(req.query.days, 10) || 30, 90);
+      const cutoff = new Date();
+      cutoff.setDate(cutoff.getDate() - days);
+      const cutoffDate = cutoff.toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
+
+      const points = await MarketflowTrendPoint.find({
+        platform: { $in: ['meesho', 'snapdeal', 'flipkart'] },
+        date: { $gte: cutoffDate },
+      }).sort({ date: 1 }).lean();
+
+      const platforms = {};
+      for (const p of points) {
+        if (!platforms[p.platform]) platforms[p.platform] = [];
+        platforms[p.platform].push({ date: p.date, revenue: p.revenue, orders: p.orders, impressions: p.impressions, ctr_pct: p.ctr_pct, cvr_pct: p.cvr_pct });
+      }
+      return res.json({ platforms });
+    } catch (e) {
+      console.error('Trends compare error:', e);
+      return res.json({ platforms: {} });
+    }
+  }
+
+  const trendsMatch = subPath.match(/^\/trends\/([^/]+)$/);
+  if (req.method === 'GET' && trendsMatch && ['meesho', 'snapdeal', 'flipkart'].includes(trendsMatch[1])) {
+    const platform = trendsMatch[1];
+    try {
+      const days = Math.min(parseInt(req.query.days, 10) || 30, 90);
+      const cutoff = new Date();
+      cutoff.setDate(cutoff.getDate() - days);
+      const cutoffDate = cutoff.toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
+
+      const points = await MarketflowTrendPoint.find({ platform, date: { $gte: cutoffDate } }).sort({ date: 1 }).lean();
+      const data = points.map((p) => ({
+        date: p.date, revenue: p.revenue, orders: p.orders, impressions: p.impressions,
+        clicks: p.impressions ? Math.round((p.ctr_pct / 100) * p.impressions) : 0,
+        ctr_pct: p.ctr_pct, cvr_pct: p.cvr_pct, alerts_open: 0, alerts_critical: 0,
+      }));
+      const latest = data.length ? data[data.length - 1] : null;
+      const prev = data.length > 1 ? data[data.length - 2] : null;
+      const change = latest && prev
+        ? {
+            revenue_pct: prev.revenue ? ((latest.revenue - prev.revenue) / prev.revenue) * 100 : null,
+            orders_pct: prev.orders ? ((latest.orders - prev.orders) / prev.orders) * 100 : null,
+          }
+        : null;
+      return res.json({
+        marketplace: platform, period_days: days, data, latest, change,
+        note: data.length < 2 ? 'Real daily tracking just started for this platform — history builds up one real data point per day from here.' : undefined,
+      });
+    } catch (e) {
+      console.error('Trends error:', e);
+      return res.json({ marketplace: platform, period_days: 30, data: [], latest: null, change: null });
     }
   }
 

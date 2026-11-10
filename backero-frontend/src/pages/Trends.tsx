@@ -28,6 +28,7 @@ type TrendResponse = {
   data: TrendData[]
   latest: TrendData | null
   change: any
+  note?: string
 }
 
 export default function TrendsPage() {
@@ -81,6 +82,10 @@ export default function TrendsPage() {
         title="Trends & Timeline"
         subtitle="30-day historical trends showing platform performance, CTR, CVR, orders, and alerts over time"
       />
+
+      {trendData?.note && (
+        <Card className="bg-cream border-l-4 border-clay text-sm text-ink">{trendData.note}</Card>
+      )}
 
       {/* Marketplace Selector */}
       {!scope && (<Card className="bg-cream">
