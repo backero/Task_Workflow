@@ -45,6 +45,23 @@ function _withLastGoodFallback(cacheKey, candidate, isEmpty) {
   return _lastGoodCache[cacheKey] || candidate;
 }
 
+// Field-level variant for objects like buildAccountSummary's output, where different sub-reads
+// (e.g. snapdeal's settlements vs panel) can race independently — one field reading null for a
+// moment while its siblings read fine. Falls back per-field (null/undefined only, real 0 is left
+// alone) instead of all-or-nothing, so a partial race doesn't show a stale sibling next to a
+// wrongly-zeroed field. Fields that are always null by design (e.g. snapdeal's rto_count) just
+// stay null on both sides — no behavior change for those.
+function _withLastGoodFieldFallback(cacheKey, candidate) {
+  if (!candidate) return _lastGoodCache[cacheKey] || candidate;
+  const cached = _lastGoodCache[cacheKey] || {};
+  const merged = { ...candidate };
+  for (const key of Object.keys(candidate)) {
+    if (candidate[key] == null && cached[key] != null) merged[key] = cached[key];
+  }
+  _lastGoodCache[cacheKey] = merged;
+  return merged;
+}
+
 // Captures one real daily trend point the first time (per platform) each day a non-empty
 // normalized value is seen — idempotent via the unique {platform, date} index, so calling
 // this on every dashboard load is cheap and safe. This is how /v1/trends/* gets real history
@@ -565,12 +582,7 @@ router.all('/v1/*', async (req, res) => {
       const platforms = {};
       for (const snap of mongoSnapshots) {
         const built = buildAccountSummary(snap.platform, snap.data, snap.syncedAt);
-        platforms[snap.platform] = _withLastGoodFallback(
-          `account-summary:${snap.platform}`,
-          built,
-          (p) => p.revenue_received == null && p.pending_payment == null && p.returns_count == null
-            && p.rto_rate_pct == null && p.orders_completed == null,
-        );
+        platforms[snap.platform] = _withLastGoodFieldFallback(`account-summary:${snap.platform}`, built);
       }
       return res.json({ platforms });
     } catch (e) {
