@@ -8,6 +8,30 @@ import { platformFromPath, marketplaceId } from '../hooks/platformScope.ts'
 import { StatTile, PlatformBarChart, QualityGaugeBar } from '../components/charts/index.ts'
 import { platformColor, PLATFORM_LABELS } from '../theme/colors.ts'
 
+// Per-platform "today" counters — real fields each scraper already captures, kept as-is
+// rather than reshaped into one common schema since only some platforms have these at all.
+const DAILY_FIELD_LABELS: Record<string, Record<string, string>> = {
+  meesho: {
+    daily_orders: 'Orders Today', daily_views: 'Views Today', daily_views_change_pct: 'Views vs Prev (%)',
+    dispatch_health_pct: 'Dispatch Health', pending_orders: 'Pending Orders', out_of_stock: 'Out of Stock',
+    low_stock: 'Low Stock', catalogs_blocked: 'Catalogs Blocked', catalogs_at_risk: 'Catalogs At Risk',
+  },
+  flipkart: {
+    units_today: 'Units Today', units_yesterday: 'Units Yesterday', sales_today: 'Sales Today',
+    sales_yesterday: 'Sales Yesterday', new_orders: 'New Orders', pending_rtd: 'Pending RTD',
+    returns_today: 'Returns Today', impressions_latest: 'Impressions (latest day)',
+    impressions_previous_day: 'Impressions (prev day)', impressions_drop_30d_pct: 'Impressions Drop (30d %)',
+    upcoming_payment: 'Upcoming Payment',
+  },
+}
+
+function formatDailyValue(key: string, value: any) {
+  if (value == null) return '—'
+  if (key.includes('pct')) return `${value}%`
+  if (key.includes('sales') || key.includes('payment')) return `₹${Number(value).toLocaleString('en-IN', { maximumFractionDigits: 0 })}`
+  return Number(value).toLocaleString('en-IN')
+}
+
 type DashboardData = {
   timestamp: string
   snapshot_date: string
@@ -96,6 +120,23 @@ export default function UnifiedDashboard() {
           </div>
         )
       })()}
+
+      {/* Today's counters — only for platforms whose scraper captures daily (not just 7d) data */}
+      {scope && key && plat?.daily && DAILY_FIELD_LABELS[key] && (
+        <Card>
+          <h2 className="text-sm font-semibold text-ink mb-3">Today</h2>
+          <div className="grid grid-cols-4 gap-3 text-xs">
+            {Object.entries(DAILY_FIELD_LABELS[key])
+              .filter(([field]) => plat.daily[field] !== undefined)
+              .map(([field, label]) => (
+                <div key={field}>
+                  <span className="text-stone">{label}:</span>
+                  <div className="font-bold text-ink">{formatDailyValue(field, plat.daily[field])}</div>
+                </div>
+              ))}
+          </div>
+        </Card>
+      )}
 
       {/* Platform Revenue Comparison */}
       {!scope && (

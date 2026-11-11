@@ -41,6 +41,7 @@ def sync_once():
             "returns": _latest_panel_area(conn, "returns"),
             "dispatch": _latest_panel_area(conn, "dispatch"),
             "orders": _latest_panel_area(conn, "orders"),
+            "home": _latest_panel_area(conn, "home"),
         }
         try:
             ai_row = conn.execute(

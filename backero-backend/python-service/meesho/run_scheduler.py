@@ -58,6 +58,9 @@ def sync_to_mongo():
             "returns": _latest_panel_area(conn, "returns"),
             "dispatch": _latest_panel_area(conn, "dispatch"),
             "orders": _latest_panel_area(conn, "orders"),
+            # Home page's today-counters (daily_orders/daily_views/pending_orders/etc) -- already
+            # scraped every cycle but never synced until now, so it just sat in panel_metrics unused.
+            "home": _latest_panel_area(conn, "home"),
         }
         try:
             ai_row = conn.execute(

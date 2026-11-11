@@ -80,6 +80,10 @@ function normalizeScraperSnapshot(platform, data) {
   if (!data) return null;
   if (platform === 'meesho') {
     const k = data.kpis || {};
+    // Home page's today-counters — real, scraped every cycle, previously synced but never
+    // read by anything. Passed through as-is (daily_orders/daily_views/pending_orders/etc)
+    // rather than reshaped, since only this platform has these exact field names.
+    const home = data.account_metrics?.home || null;
     return {
       revenue: k.sales_7d || 0,
       orders: k.orders_7d || 0,
@@ -89,6 +93,7 @@ function normalizeScraperSnapshot(platform, data) {
       avg_rating: k.avg_rating || 0,
       ctr_pct: k.impressions_7d ? (k.clicks_7d / k.impressions_7d) * 100 : 0,
       cvr_pct: k.conversion_pct_7d || 0,
+      daily: home,
     };
   }
   if (platform === 'snapdeal') {
@@ -110,6 +115,9 @@ function normalizeScraperSnapshot(platform, data) {
   }
   if (platform === 'flipkart') {
     const bh = data.account_metrics?.business_health || {};
+    // Home tab's today/yesterday counters — real, scraped every cycle, previously synced but
+    // never read by anything (units_today/sales_today/new_orders/pending_rtd/returns_today).
+    const home = data.account_metrics?.home || null;
     return {
       revenue: bh.sales_7d || 0,
       orders: bh.units_7d || 0,
@@ -119,6 +127,7 @@ function normalizeScraperSnapshot(platform, data) {
       avg_rating: data.avg_rating || 0,
       ctr_pct: 0,
       cvr_pct: bh.conversion_7d_pct || 0,
+      daily: home,
     };
   }
   return data;
