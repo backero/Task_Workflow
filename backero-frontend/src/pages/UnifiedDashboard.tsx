@@ -12,7 +12,10 @@ import { platformColor, PLATFORM_LABELS } from '../theme/colors.ts'
 // rather than reshaped into one common schema since only some platforms have these at all.
 const DAILY_FIELD_LABELS: Record<string, Record<string, string>> = {
   meesho: {
-    daily_orders: 'Orders Today', daily_views: 'Views Today', daily_views_change_pct: 'Views vs Prev (%)',
+    // Confirmed against the live page text (2026-11-11): the widget reads "Views (10 Nov) ...
+    // Orders (10 Nov) ..." on the 11th — that's yesterday's completed numbers, not an in-progress
+    // same-day count. Meesho's Home page has no true "today" counter; labeled accordingly.
+    daily_orders: 'Orders (Yesterday)', daily_views: 'Views (Yesterday)', daily_views_change_pct: 'Views vs Day Before (%)',
     dispatch_health_pct: 'Dispatch Health', pending_orders: 'Pending Orders', out_of_stock: 'Out of Stock',
     low_stock: 'Low Stock', catalogs_blocked: 'Catalogs Blocked', catalogs_at_risk: 'Catalogs At Risk',
   },
@@ -125,10 +128,12 @@ export default function UnifiedDashboard() {
         )
       })()}
 
-      {/* Today's counters — only for platforms whose scraper captures daily (not just 7d) data */}
+      {/* Daily counters — only for platforms whose scraper captures daily (not just 7d) data.
+          Header stays generic since Meesho's are yesterday-only while Flipkart's include today —
+          each field's own label carries the specific period. */}
       {scope && key && plat?.daily && DAILY_FIELD_LABELS[key] && (
         <Card>
-          <h2 className="text-sm font-semibold text-ink mb-3">Today</h2>
+          <h2 className="text-sm font-semibold text-ink mb-3">Daily Snapshot</h2>
           <div className="grid grid-cols-4 gap-3 text-xs">
             {Object.entries(DAILY_FIELD_LABELS[key])
               .filter(([field]) => plat.daily[field] !== undefined)
