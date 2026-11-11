@@ -62,6 +62,29 @@ function _withLastGoodFieldFallback(cacheKey, candidate) {
   return merged;
 }
 
+// _lastGoodCache starts empty on every process restart (deploy, crash, manual restart) — proven
+// live: the very first request after a restart, if it happens to land during a platform's known
+// raw-data race, has nothing to fall back to yet and passes a real zero straight through, even
+// though the scraper's own persisted history has a perfectly good value sitting right there.
+// Seeds the unified-dashboard cache for meesho/snapdeal/flipkart from each platform's most recent
+// MarketflowTrendPoint (real daily history, not fabricated) so there's always something to fall
+// back to from the very first request, not just after the first good live read.
+async function seedLastGoodCacheOnStartup() {
+  try {
+    for (const platform of ['meesho', 'snapdeal', 'flipkart']) {
+      const latest = await MarketflowTrendPoint.findOne({ platform }).sort({ date: -1 }).lean();
+      if (!latest) continue;
+      _lastGoodCache[`unified:${platform}`] = {
+        revenue: latest.revenue || 0, orders: latest.orders || 0, impressions: latest.impressions || 0,
+        margin_pct: 0, ctr_pct: latest.ctr_pct || 0, cvr_pct: latest.cvr_pct || 0,
+      };
+    }
+  } catch (err) {
+    console.error('seedLastGoodCacheOnStartup error:', err.message);
+  }
+}
+seedLastGoodCacheOnStartup();
+
 // Captures one real daily trend point the first time (per platform) each day a non-empty
 // normalized value is seen — idempotent via the unique {platform, date} index, so calling
 // this on every dashboard load is cheap and safe. This is how /v1/trends/* gets real history
