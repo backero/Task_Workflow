@@ -6,6 +6,29 @@ const GoogleDriveAuth = require('../models/GoogleDriveAuth');
 const { asyncHandler, sendSuccess, sendError, slugify } = require('../utils/helpers');
 const drive = require('../services/googleDrive.service');
 const localStorage = require('../services/localFileStorage.service');
+const { PDFParse } = require('pdf-parse');
+const { extractDocumentExpiryDate } = require('../utils/groq');
+const logger = require('../utils/logger');
+
+// Best-effort: reads a newly-uploaded PDF's embedded text and asks AI for its stated expiry
+// date, filling the document's expiryDate only if it isn't already set (never overwrites a
+// date the user already entered or a previous auto-detection). Never throws — a failure here
+// must not block the upload, which has already succeeded by the time this runs.
+async function autoDetectExpiryDate(document, file) {
+  if (document.expiryDate || file.mimetype !== 'application/pdf' || !process.env.GROQ_API_KEY) return;
+  try {
+    const parser = new PDFParse({ data: file.buffer });
+    const { text } = await parser.getText();
+    if (!text || text.trim().length < 20) return; // scanned/image-only PDF — no extractable text
+    const { expiryDate, reason } = await extractDocumentExpiryDate(text);
+    if (expiryDate) {
+      document.expiryDate = new Date(expiryDate);
+      logger.info(`[DocumentWallet] Auto-detected expiry ${expiryDate} for "${document.name}" (${reason || 'no reason given'})`);
+    }
+  } catch (err) {
+    logger.warn(`[DocumentWallet] Expiry auto-detect failed for "${document.name}": ${err.message}`);
+  }
+}
 const { computeDueDocsForOrg, runDocumentExpiryRemindersForOrg, maybeSeedDocumentWallet, categoryName: resolveCategoryName } = require('../services/documentWallet.service');
 
 // Signed, stateless CSRF state for the Drive OAuth handshake — no server-side
@@ -294,6 +317,7 @@ exports.uploadFile = asyncHandler(async (req, res) => {
     document.versions[document.versions.length - 1].files.push(fileEntry);
   }
   document.updatedBy = req.user._id;
+  await autoDetectExpiryDate(document, req.file);
   await document.save();
   sendSuccess(res, { document, file: fileEntry }, 'File uploaded', 201);
 });
@@ -411,6 +435,7 @@ exports.replaceVersionFile = asyncHandler(async (req, res) => {
   file.driveLink = uploaded.driveLink;
 
   document.updatedBy = req.user._id;
+  await autoDetectExpiryDate(document, req.file);
   await document.save();
   sendSuccess(res, { document }, 'File replaced');
 });

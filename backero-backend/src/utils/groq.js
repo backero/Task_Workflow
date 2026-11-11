@@ -83,4 +83,27 @@ async function summarizeWhatsAppChat(chat) {
   return data.choices?.[0]?.message?.content?.trim() || '';
 }
 
-module.exports = { transcribeAudio, extractLeadFieldsFromTranscript, summarizeTranscript, summarizeWhatsAppChat };
+// Reads a compliance/legal document's extracted text and finds its expiry/valid-until date,
+// if it states one at all — many document types (PAN, incorporation certs) have no expiry and
+// must come back null rather than a guessed date.
+async function extractDocumentExpiryDate(text) {
+  const prompt = `The following is text extracted from a compliance/legal document (e.g. a licence, registration certificate, GST certificate, insurance policy, contract). Find the date this document expires, becomes invalid, or must be renewed by — look for phrases like "valid until", "valid up to", "expiry date", "renewal due", "valid for N years from <date>" (compute the resulting date), etc.\n\nReturn ONLY a compact JSON object: {"expiryDate": "YYYY-MM-DD", "reason": "short quote or phrase from the text this came from"} if you find one, or {"expiryDate": null, "reason": "why not, e.g. no expiry stated"} if the document does not state an expiry date. Never guess or invent a date that is not actually stated or computable from the text.\n\nDocument text:\n${text.slice(0, 12000)}`;
+
+  const { data } = await axios.post(`${GROQ_BASE}/chat/completions`, {
+    model: 'openai/gpt-oss-120b',
+    messages: [{ role: 'user', content: prompt }],
+    response_format: { type: 'json_object' },
+    temperature: 0,
+  }, {
+    headers: { Authorization: `Bearer ${process.env.GROQ_API_KEY}`, 'Content-Type': 'application/json' },
+  });
+
+  const raw = data.choices?.[0]?.message?.content || '{}';
+  let parsed;
+  try { parsed = JSON.parse(raw); } catch { parsed = {}; }
+
+  const isValidDate = typeof parsed.expiryDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(parsed.expiryDate) && !Number.isNaN(new Date(parsed.expiryDate).getTime());
+  return { expiryDate: isValidDate ? parsed.expiryDate : null, reason: parsed.reason || null };
+}
+
+module.exports = { transcribeAudio, extractLeadFieldsFromTranscript, summarizeTranscript, summarizeWhatsAppChat, extractDocumentExpiryDate };
