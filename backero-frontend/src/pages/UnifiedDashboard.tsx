@@ -22,13 +22,17 @@ const DAILY_FIELD_LABELS: Record<string, Record<string, string>> = {
     returns_today: 'Returns Today', impressions_latest: 'Impressions (latest day)',
     impressions_previous_day: 'Impressions (prev day)', impressions_drop_30d_pct: 'Impressions Drop (30d %)',
     upcoming_payment: 'Upcoming Payment',
+    // Real, but ads-attributed (Sponsored Products), not organic — kept distinct from the
+    // organic CTR/CVR shown in Platform Breakdown so the two are never conflated.
+    ads_spend: 'Ads Spend (7d)', ads_roi: 'Ads ROI (7d)', ads_ctr_pct: 'Ads CTR (7d)', ads_cvr_pct: 'Ads CVR (7d)',
   },
 }
 
 function formatDailyValue(key: string, value: any) {
   if (value == null) return '—'
   if (key.includes('pct')) return `${value}%`
-  if (key.includes('sales') || key.includes('payment')) return `₹${Number(value).toLocaleString('en-IN', { maximumFractionDigits: 0 })}`
+  if (key.includes('sales') || key.includes('payment') || key === 'ads_spend') return `₹${Number(value).toLocaleString('en-IN', { maximumFractionDigits: 0 })}`
+  if (key === 'ads_roi') return `${value}x`
   return Number(value).toLocaleString('en-IN')
 }
 
@@ -218,6 +222,14 @@ export default function UnifiedDashboard() {
                 <div>
                   <span className="text-stone">Revenue:</span>
                   <div className="font-bold text-ink">₹{(platform.revenue || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 })}</div>
+                </div>
+                <div>
+                  <span className="text-stone">Listings:</span>
+                  <div className="font-bold text-ink">{(platform.listings || 0).toLocaleString()}</div>
+                </div>
+                <div>
+                  <span className="text-stone">Avg Rating:</span>
+                  <div className="font-bold text-ink">{platform.avg_rating ? platform.avg_rating.toFixed(2) : '—'}</div>
                 </div>
               </div>
               <div className="mt-2 pt-2 border-t border-sand text-xs space-y-1">

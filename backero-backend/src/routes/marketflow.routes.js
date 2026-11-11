@@ -93,6 +93,8 @@ function normalizeScraperSnapshot(platform, data) {
       avg_rating: k.avg_rating || 0,
       ctr_pct: k.impressions_7d ? (k.clicks_7d / k.impressions_7d) * 100 : 0,
       cvr_pct: k.conversion_pct_7d || 0,
+      ctr_basis: 'Real: 7-day clicks ÷ impressions',
+      cvr_basis: 'Real: Meesho Business Dashboard conversion rate',
       daily: home,
     };
   }
@@ -111,22 +113,31 @@ function normalizeScraperSnapshot(platform, data) {
       avg_rating: p.avg_seller_rating || 0,
       ctr_pct: w.impressions ? (w.clicks / w.impressions) * 100 : 0,
       cvr_pct: w.clicks ? (w.orders / w.clicks) * 100 : 0,
+      ctr_basis: w.impressions ? 'Real: per-SKU clicks ÷ impressions' : 'Not available — Snapdeal traffic/impressions aren\'t scraped yet',
+      cvr_basis: w.clicks ? 'Real: per-SKU orders ÷ clicks' : 'Not available — Snapdeal traffic/impressions aren\'t scraped yet',
     };
   }
   if (platform === 'flipkart') {
     const bh = data.account_metrics?.business_health || {};
+    const ads = data.account_metrics?.ads || {};
+    // Real active-listing count lives under listing_states (top-level `listings` is a stale/
+    // unpopulated field from a scrape path that never fires for this account — confirmed it
+    // reads 0 even when listing_states/inventory show real, non-zero numbers).
+    const listingStates = data.account_metrics?.listing_states || {};
     // Home tab's today/yesterday counters — real, scraped every cycle, previously synced but
     // never read by anything (units_today/sales_today/new_orders/pending_rtd/returns_today).
-    const home = data.account_metrics?.home || null;
+    const home = data.account_metrics?.home ? { ...data.account_metrics.home, ads_spend: ads.spend, ads_roi: ads.roi, ads_ctr_pct: ads.ctr_pct, ads_cvr_pct: ads.cvr_pct } : null;
     return {
       revenue: bh.sales_7d || 0,
       orders: bh.units_7d || 0,
       impressions: bh.impressions_7d || 0,
       margin_pct: 0,
-      listings: data.listings || 0,
+      listings: listingStates.active || data.listings || 0,
       avg_rating: data.avg_rating || 0,
       ctr_pct: 0,
       cvr_pct: bh.conversion_7d_pct || 0,
+      ctr_basis: 'Not available — Flipkart only exposes ads-attributed clicks (see Today card), not organic CTR',
+      cvr_basis: 'Real: Business Health conversion rate (organic, 7-day)',
       daily: home,
     };
   }
