@@ -16,6 +16,7 @@ const CRO_BUSINESS_NUMBER = (process.env.CRO_WHATSAPP_NUMBER || '918903790400').
 
 let sock = null;
 let qrCode = null;
+let qrVersion = 0;
 let connectionStatus = 'disconnected';
 let io_ref = null;
 let isInitializing = false;
@@ -45,6 +46,12 @@ const _scheduleReinit = (delayMs = 3000, clearSession = false) => {
 };
 
 // ── Inbound message → WaChatMessage ────────────────────────────────────────────
+// A JID's "user" part can carry a ":<deviceId>" suffix (e.g. "918848575827:0@s.whatsapp.net" for
+// a linked device). Confirmed bug: stripping non-digits from the whole string before dropping
+// that suffix merges the device index straight onto the phone number (918848575827 -> wrongly
+// 9188485758270). Split on ':' first so only the real number's digits remain.
+const jidToDigits = (jid) => String(jid || '').split('@')[0].split(':')[0].replace(/\D/g, '');
+
 const extractText = (message) => {
   if (!message) return '[Unsupported message type]';
   if (message.conversation) return message.conversation;
@@ -58,12 +65,27 @@ const extractText = (message) => {
   return '[Unsupported message type]';
 };
 
-async function persistMessage(msg) {
+async function persistMessage(msg, source = 'live') {
   if (!msg.message) return; // reaction/protocol-only entries carry no content
-  const remoteJid = msg.key?.remoteJid;
+  let remoteJid = msg.key?.remoteJid;
+  // Groups and status broadcasts are never a real 1:1 customer chat — exclude only those.
   if (!remoteJid || remoteJid.endsWith('@g.us') || remoteJid === 'status@broadcast') return;
 
-  const contact = remoteJid.replace('@s.whatsapp.net', '').replace(/\D/g, '');
+  // WhatsApp now addresses many 1:1 chats by @lid (an opaque per-contact privacy ID) instead of
+  // the phone-number JID (@s.whatsapp.net) — confirmed most incoming chats on this account use
+  // it. Stored as-is, a @lid contact can never be matched back to a Lead's phone number, so a
+  // real client's chat (e.g. an international number) would sync in but never show up linked to
+  // them. Baileys keeps its own LID↔phone-number mapping (needed internally for message
+  // decryption) — resolve through it here so `contact` is always the real phone number when
+  // Baileys already knows it.
+  if (remoteJid.endsWith('@lid') && sock?.signalRepository?.lidMapping) {
+    try {
+      const pn = await sock.signalRepository.lidMapping.getPNForLID(remoteJid);
+      if (pn) remoteJid = pn;
+    } catch { /* no mapping yet for this LID — fall back to storing the LID itself below */ }
+  }
+
+  const contact = jidToDigits(remoteJid);
   if (!contact) return;
 
   const orgId = process.env.WA_CHATS_ORG_ID;
@@ -91,7 +113,7 @@ async function persistMessage(msg) {
           type: isMedia ? 'media' : 'text',
           body,
           sentAt,
-          source: 'live',
+          source,
         },
       },
       { upsert: true }
@@ -102,21 +124,55 @@ async function persistMessage(msg) {
   }
 }
 
+// One-time-per-connection backfill: messages persisted before the @lid→phone-number resolution
+// above existed are stuck under an opaque LID as `contact`, which can never match a Lead's phone
+// number. Re-resolves each distinct LID-shaped contact already stored for this business number
+// through the now-live lidMapping and renames it to the real number wherever Baileys has one.
+async function backfillLidContacts(orgId) {
+  if (!sock?.signalRepository?.lidMapping) {
+    logger.warn('[WA CRO Sync] Backfill: no live signalRepository/lidMapping — skipping');
+    return;
+  }
+  try {
+    const contacts = await WaChatMessage.distinct('contact', { organizationId: orgId, business: CRO_BUSINESS_NUMBER });
+    // Real phone numbers (with country code) run up to 13-ish digits in every number seen on
+    // this account (India: 12, the +1 Canada one: 11); every LID seen has been 15+ digits. 13
+    // leaves margin without wrongly treating a genuine longer LID as if it were already real.
+    const candidates = contacts.filter((c) => c.length > 13);
+    logger.info(`[WA CRO Sync] Backfill: ${contacts.length} distinct contact(s), ${candidates.length} LID-shaped candidate(s)`);
+    let resolved = 0;
+    for (const c of candidates) {
+      const pn = await sock.signalRepository.lidMapping.getPNForLID(`${c}@lid`).catch((err) => {
+        logger.warn(`[WA CRO Sync] Backfill: getPNForLID(${c}) failed: ${err.message}`);
+        return null;
+      });
+      if (!pn) continue;
+      const realContact = jidToDigits(pn);
+      if (!realContact || realContact === c) continue;
+      await WaChatMessage.updateMany({ organizationId: orgId, business: CRO_BUSINESS_NUMBER, contact: c }, { $set: { contact: realContact } });
+      logger.info(`[WA CRO Sync] Backfill: ${c} -> ${realContact}`);
+      resolved++;
+      linkToProductionQA(orgId, realContact).catch(() => {});
+    }
+    logger.info(`[WA CRO Sync] Backfill done: resolved ${resolved} of ${candidates.length} LID contact(s)`);
+  } catch (err) {
+    logger.error(`[WA CRO Sync] LID backfill error: ${err.message}`);
+  }
+}
+
 async function linkToProductionQA(orgId, contactNumber) {
   try {
-    let lead = await Lead.findOne({ organizationId: orgId, $or: [{ phone: contactNumber }, { whatsapp: contactNumber }] });
-
-    if (!lead) {
-      lead = await Lead.create({
-        organizationId: orgId,
-        name: `Customer ${contactNumber}`,
-        phone: contactNumber,
-        whatsapp: contactNumber,
-        source: 'WhatsApp CRO',
-        status: 'new',
-      });
-      logger.info(`[WA CRO Sync] Created Lead ${lead._id} for contact ${contactNumber}`);
-    }
+    // Only link to a client that was already uploaded (by their phone/phone2/whatsapp number) —
+    // never create a new Lead/KYC entry from a WhatsApp number alone. Matches against 10-digit
+    // and 91-prefixed variants since a lead's stored number may not be in the exact digit form
+    // WhatsApp's JID uses.
+    const ten = contactNumber.slice(-10);
+    const variants = [...new Set([contactNumber, ten, `91${ten}`])];
+    const lead = await Lead.findOne({
+      organizationId: orgId,
+      $or: [{ phone: { $in: variants } }, { phone2: { $in: variants } }, { whatsapp: { $in: variants } }],
+    });
+    if (!lead) return;
 
     const messages = await WaChatMessage.find({
       organizationId: orgId,
@@ -141,7 +197,14 @@ async function linkToProductionQA(orgId, contactNumber) {
       deleted: false,
     }).sort({ createdAt: -1 });
 
-    const summary = await summarizeWhatsAppChat(chatText);
+    // The AI summary is a nice-to-have on top of the real thing this function exists for
+    // (linking the chat to a Lead + ProductionQuery) — it must never block that on its own
+    // failure (confirmed: a missing/invalid GROQ_API_KEY was throwing here and silently
+    // skipping Lead/ProductionQuery creation entirely for every single incoming message).
+    const summary = await summarizeWhatsAppChat(chatText).catch((err) => {
+      logger.error(`[WA CRO Sync] AI summary failed (continuing without it): ${err.message}`);
+      return null;
+    });
 
     if (!prodQuery) {
       const lastInMsg = messages.filter((m) => m.direction === 'in').pop();
@@ -162,7 +225,7 @@ async function linkToProductionQA(orgId, contactNumber) {
       await ProductionQuery.updateOne({ _id: prodQuery._id }, { editedAt: new Date() });
     }
 
-    await WaChatSummary.updateOne(
+    if (summary) await WaChatSummary.updateOne(
       { organizationId: orgId, leadId: lead._id },
       {
         $set: {
@@ -234,6 +297,7 @@ const initWhatsAppCroSync = async (io) => {
       browser: ['Backero CRO Sync', 'Chrome', '1.0.0'],
       generateHighQualityLinkPreview: false,
       getMessage: async () => undefined,
+      syncFullHistory: true,
       logger: silentLogger,
     });
 
@@ -245,9 +309,21 @@ const initWhatsAppCroSync = async (io) => {
       }
     });
 
+    // One-time bulk delivery of existing chat history after linking (only fires with
+    // syncFullHistory: true above) — without this handler, only messages sent/received
+    // AFTER the connection opens were ever captured; pre-existing conversations never
+    // showed up here even though the "linked device" itself has the full history.
+    sock.ev.on('messaging-history.set', async ({ messages, isLatest }) => {
+      logger.info(`[WA CRO Sync] History sync: ${messages?.length || 0} messages (isLatest=${isLatest})`);
+      for (const msg of messages || []) {
+        await persistMessage(msg, 'history').catch((err) => logger.error(`[WA CRO Sync] history persist: ${err.message}`));
+      }
+    });
+
     sock.ev.on('connection.update', async ({ connection, lastDisconnect, qr }) => {
       if (qr) {
         qrCode = qr;
+        qrVersion += 1;
         connectionStatus = 'qr_ready';
         logger.info('[WA CRO Sync] QR ready — open /api/whatsapp/cro/setup to scan');
         io_ref?.emit('wa_cro_qr', { qr });
@@ -263,6 +339,10 @@ const initWhatsAppCroSync = async (io) => {
         _postConnectRetries = 0;
         logger.info('[WA CRO Sync] ✅ Connected and ready');
         io_ref?.emit('wa_cro_connected', {});
+        // Delayed so it runs after history-sync batches (which can keep arriving for a bit
+        // after "open") have landed, rather than racing them.
+        const orgId = process.env.WA_CHATS_ORG_ID;
+        if (orgId) setTimeout(() => backfillLidContacts(orgId), 60000);
       }
 
       if (connection === 'close') {
@@ -328,7 +408,7 @@ const initWhatsAppCroSync = async (io) => {
 const getStatus = () => connectionStatus;
 const getQRCode = () => qrCode;
 const isConnected = () => connectionStatus === 'connected';
-const getDebugInfo = () => ({ status: connectionStatus, hasSocket: !!sock, lastError, businessNumber: CRO_BUSINESS_NUMBER });
+const getDebugInfo = () => ({ status: connectionStatus, hasSocket: !!sock, lastError, businessNumber: CRO_BUSINESS_NUMBER, qrVersion });
 
 const reinitCroSync = async () => {
   _closeSock();

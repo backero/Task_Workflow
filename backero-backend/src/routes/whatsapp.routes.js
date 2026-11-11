@@ -163,19 +163,26 @@ router.get('/cro/setup', asyncHandler(async (req, res) => {
   }
 
   const qrDataUrl = await QRCode.toDataURL(qrString, { width: 320, margin: 2 });
+  const qrVersion = croSync.getDebugInfo().qrVersion;
 
-  res.send(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Backero — CRO WhatsApp Sync</title><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="refresh" content="30"><style>${css}</style></head><body>
+  // WhatsApp's own QR codes expire after ~20s (a fresh one fires a new 'qr' event from
+  // Baileys automatically). The page used to only refresh itself every 30s on a fixed
+  // timer, so it could easily be showing an already-dead QR by the time someone scanned
+  // it — exactly the "scan it, WhatsApp says try again" symptom. Polling /cro/debug for
+  // qrVersion and reloading the instant it changes keeps the displayed QR always within
+  // a few seconds of the live one, well inside its ~20s window, instead of up to 30s stale.
+  res.send(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Backero — CRO WhatsApp Sync</title><meta name="viewport" content="width=device-width,initial-scale=1"><style>${css}</style></head><body>
 <h2>CRO WhatsApp Sync</h2>
 <div class="box"><img src="${qrDataUrl}" alt="WhatsApp QR Code"></div>
 <p>On the CRO's phone: WhatsApp → Settings → Linked Devices → Link a Device → scan this</p>
-<p style="color:#64748b;font-size:.75rem">Page auto-refreshes every 30s with a fresh QR</p>
+<p style="color:#64748b;font-size:.75rem">This QR refreshes itself automatically the moment WhatsApp issues a new one</p>
 <a class="btn" href="/api/whatsapp/cro/setup">Refresh QR</a>
 <script>
 setInterval(()=>{
   fetch('/api/whatsapp/cro/debug',{cache:'no-store'}).then(r=>r.json()).then(d=>{
-    if(d.status==='connected') location.reload();
+    if(d.status==='connected' || d.qrVersion !== ${qrVersion}) location.reload();
   }).catch(()=>{});
-}, 5000);
+}, 3000);
 </script>
 </body></html>`);
 }));
