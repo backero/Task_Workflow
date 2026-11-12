@@ -43,6 +43,7 @@ export default function EmployeeFormDrawer({ open, onClose, editEmployee, depart
     defaultValues: DEFAULT_FORM_VALUES,
   });
   const departmentId = watch('department_id');
+  const isPartTime = watch('employment_type') === 'PART_TIME';
 
   // Pick an existing User -> auto-fill their known details instead of
   // re-typing them; everything stays editable before submit.
@@ -236,42 +237,64 @@ export default function EmployeeFormDrawer({ open, onClose, editEmployee, depart
             <Text type="secondary" style={{ fontSize: 11, display: 'block', marginTop: 4 }}>Field employees can be GPS-tracked during a work session; Office employees never are.</Text>
           </div>
 
-          <Row gutter={12}>
-            <Col span={12}>
-              <Text strong style={{ display: 'block', marginBottom: 6, fontSize: 12 }}>Employment Type *</Text>
-              <Controller
-                name="employment_type" control={control} rules={{ required: true }}
-                render={({ field }) => <Select {...field} style={{ width: '100%' }} options={EMPLOYMENT_TYPES} />}
-              />
-            </Col>
-            <Col span={12}>
-              <Text strong style={{ display: 'block', marginBottom: 6, fontSize: 12 }}>Half-Day Min Hours</Text>
-              <Controller
-                name="half_day_min_hours" control={control}
-                render={({ field }) => <Input {...field} type="number" step="0.5" placeholder="Org default" />}
-              />
-            </Col>
-          </Row>
+          <div>
+            <Text strong style={{ display: 'block', marginBottom: 6, fontSize: 12 }}>Employment Type *</Text>
+            <Controller
+              name="employment_type" control={control} rules={{ required: true }}
+              render={({ field }) => (
+                <Select
+                  {...field} style={{ width: '100%' }} options={EMPLOYMENT_TYPES}
+                  onChange={(v) => {
+                    field.onChange(v);
+                    // Fixed shift/half-day fields don't apply to flexible-hours
+                    // part-time staff — clear any stale override so it can't be
+                    // silently saved and misapplied later.
+                    if (v === 'PART_TIME') {
+                      setValue('shift_start_time', ''); setValue('shift_end_time', ''); setValue('half_day_min_hours', '');
+                    }
+                  }}
+                />
+              )}
+            />
+          </div>
 
-          <Row gutter={12}>
-            <Col span={12}>
-              <Text strong style={{ display: 'block', marginBottom: 6, fontSize: 12 }}>Shift Start</Text>
-              <Controller
-                name="shift_start_time" control={control}
-                render={({ field }) => <Input {...field} type="time" placeholder="Org default" />}
-              />
-            </Col>
-            <Col span={12}>
-              <Text strong style={{ display: 'block', marginBottom: 6, fontSize: 12 }}>Shift End</Text>
-              <Controller
-                name="shift_end_time" control={control}
-                render={({ field }) => <Input {...field} type="time" placeholder="Org default" />}
-              />
-            </Col>
-          </Row>
-          <Text type="secondary" style={{ fontSize: 11, display: 'block', marginTop: -8 }}>
-            Leave shift times and half-day hours blank to use the org-wide default — set them for a part-time employee working different hours.
-          </Text>
+          {isPartTime ? (
+            <Text type="secondary" style={{ fontSize: 11, display: 'block' }}>
+              Part-time employees work flexible hours — no fixed shift or half-day rule applies. Any day with a complete check-in and check-out counts as present.
+            </Text>
+          ) : (
+            <>
+              <Row gutter={12}>
+                <Col span={12}>
+                  <Text strong style={{ display: 'block', marginBottom: 6, fontSize: 12 }}>Half-Day Min Hours</Text>
+                  <Controller
+                    name="half_day_min_hours" control={control}
+                    render={({ field }) => <Input {...field} type="number" step="0.5" placeholder="Org default" />}
+                  />
+                </Col>
+                <Col span={12} />
+              </Row>
+              <Row gutter={12}>
+                <Col span={12}>
+                  <Text strong style={{ display: 'block', marginBottom: 6, fontSize: 12 }}>Shift Start</Text>
+                  <Controller
+                    name="shift_start_time" control={control}
+                    render={({ field }) => <Input {...field} type="time" placeholder="Org default" />}
+                  />
+                </Col>
+                <Col span={12}>
+                  <Text strong style={{ display: 'block', marginBottom: 6, fontSize: 12 }}>Shift End</Text>
+                  <Controller
+                    name="shift_end_time" control={control}
+                    render={({ field }) => <Input {...field} type="time" placeholder="Org default" />}
+                  />
+                </Col>
+              </Row>
+              <Text type="secondary" style={{ fontSize: 11, display: 'block', marginTop: -8 }}>
+                Leave shift times and half-day hours blank to use the org-wide default.
+              </Text>
+            </>
+          )}
 
           <div>
             <Text strong style={{ display: 'block', marginBottom: 8, fontSize: 12 }}>Bank Details (for payslips)</Text>

@@ -29,13 +29,19 @@ async function getEffectiveRules(organizationId, targetDate) {
   return effective;
 }
 
-function deriveStatus(checkIn, checkOut, targetDate, rules, workedHours) {
+// `isPartTime` bypasses LATE/HALF_DAY/EARLY_LEAVE entirely — part-time staff
+// work flexible hours (no fixed shift to be late against or leave early
+// from, and no half-day concept when the whole shift is only a few hours),
+// so any day with a complete check-in/check-out pair is just PRESENT.
+function deriveStatus(checkIn, checkOut, targetDate, rules, workedHours, isPartTime = false) {
   if (!checkIn) return 'ABSENT';
 
   if (!checkOut) {
     const todayUTC = new Date(Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth(), new Date().getUTCDate()));
     return targetDate.getTime() >= todayUTC.getTime() ? 'INCOMPLETE' : 'MISSING_PUNCH';
   }
+
+  if (isPartTime) return 'PRESENT';
 
   const [shiftHour, shiftMinute] = String(rules.SHIFT_START_TIME).split(':').map(Number);
   const shiftStart = new Date(Date.UTC(
@@ -114,21 +120,6 @@ async function deriveDefaultStatus(organizationId, employeeId, targetDate) {
   return 'ABSENT';
 }
 
-/** Org-wide rules, overridden per-employee where the Employee record sets its
- * own shift hours (common for part-time staff on different hours than the
- * org default) — null fields on the employee fall through to the org rule. */
-async function getRulesForEmployee(organizationId, employeeId, targetDate) {
-  const rules = await getEffectiveRules(organizationId, targetDate);
-  const employee = await Employee.findById(employeeId).select('shiftStartTime shiftEndTime halfDayMinHours').lean();
-  if (!employee) return rules;
-  return {
-    ...rules,
-    SHIFT_START_TIME: employee.shiftStartTime || rules.SHIFT_START_TIME,
-    SHIFT_END_TIME: employee.shiftEndTime || rules.SHIFT_END_TIME,
-    HALF_DAY_MIN_HOURS: employee.halfDayMinHours != null ? employee.halfDayMinHours : rules.HALF_DAY_MIN_HOURS,
-  };
-}
-
 /** Pure computation, no writes. */
 async function derive(organizationId, employeeId, targetDate) {
   const { start, end } = dayBoundsUTC(targetDate);
@@ -146,8 +137,26 @@ async function derive(organizationId, employeeId, targetDate) {
   const checkOut = sessions.length ? sessions[sessions.length - 1].checkOut : null;
   const workedHours = sessions.reduce((sum, s) => sum + (s.checkOut.getTime() - s.checkIn.getTime()) / (1000 * 60 * 60), 0);
 
-  const rules = await getRulesForEmployee(organizationId, employeeId, targetDate);
-  const status = deriveStatus(checkIn, checkOut, targetDate, rules, workedHours);
+  const employee = await Employee.findById(employeeId).select('shiftStartTime shiftEndTime halfDayMinHours employmentType').lean();
+  const isPartTime = employee?.employmentType === 'PART_TIME';
+
+  // Org-wide rules, overridden where the Employee record sets its own shift
+  // hours — skipped entirely for part-time (flexible hours, no fixed shift
+  // to apply them against) rather than wastefully computed and unused.
+  let rules = null;
+  if (!isPartTime) {
+    rules = await getEffectiveRules(organizationId, targetDate);
+    if (employee) {
+      rules = {
+        ...rules,
+        SHIFT_START_TIME: employee.shiftStartTime || rules.SHIFT_START_TIME,
+        SHIFT_END_TIME: employee.shiftEndTime || rules.SHIFT_END_TIME,
+        HALF_DAY_MIN_HOURS: employee.halfDayMinHours != null ? employee.halfDayMinHours : rules.HALF_DAY_MIN_HOURS,
+      };
+    }
+  }
+
+  const status = deriveStatus(checkIn, checkOut, targetDate, rules, workedHours, isPartTime);
   return { status, checkIn, checkOut, sessions, workedHours };
 }
 

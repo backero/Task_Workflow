@@ -8,6 +8,7 @@ const Employee = require('../models/Employee');
 const Department = require('../models/Department');
 const Designation = require('../models/Designation');
 const Organization = require('../models/Organization');
+const Attendance = require('../models/Attendance');
 const { asyncHandler, sendSuccess, sendError, paginateResponse } = require('../utils/helpers');
 const payrollService = require('../services/payroll.service');
 const { importPaidSalaries } = require('../services/payrollImport.service');
@@ -146,15 +147,19 @@ exports.downloadSlip = asyncHandler(async (req, res) => {
   }
 
   const period = await payrollService.getPeriodOr404(orgId, record.payrollPeriodId);
-  const [department, designation, organization] = await Promise.all([
+  const [department, designation, organization, attendanceLog] = await Promise.all([
     Department.findById(employee.departmentId).lean(),
     Designation.findById(employee.designationId).lean(),
     Organization.findById(orgId).lean(),
+    Attendance.find({
+      organizationId: orgId, employeeId: employee._id,
+      attendanceDate: { $gte: period.periodStart, $lte: period.periodEnd },
+    }).sort({ attendanceDate: 1 }).lean(),
   ]);
 
   const pdfBuffer = await generatePayslipPDF({
     organization: organization || {}, employee: employee.toObject(), department, designation,
-    period: period.toObject(), record: record.toObject(),
+    period: period.toObject(), record: record.toObject(), attendanceLog,
   });
 
   const fileName = `Payslip-${employee.employeeCode}-${period.periodStart.toISOString().slice(0, 10)}.pdf`;
