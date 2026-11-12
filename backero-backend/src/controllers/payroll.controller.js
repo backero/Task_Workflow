@@ -37,13 +37,19 @@ exports.finalizePeriod = asyncHandler(async (req, res) => {
   sendSuccess(res, { period }, 'Payroll period finalized');
 });
 
+exports.reopenPeriod = asyncHandler(async (req, res) => {
+  const period = await payrollService.reopenPeriod(req.user.organizationId, req.user._id, req.params.periodId);
+  sendSuccess(res, { period }, 'Payroll period reopened');
+});
+
 exports.getPeriodRecords = asyncHandler(async (req, res) => {
-  const records = await payrollService.listRecordsForPeriod(req.user.organizationId, req.params.periodId);
-  const shaped = records.map((r) => ({
+  const rows = await payrollService.listRecordsForPeriod(req.user.organizationId, req.params.periodId);
+  const shaped = rows.map(({ record: r, pendingCorrection }) => ({
     ...r.toObject(),
     employeeCode: r.employeeId?.employeeCode,
     employeeFullName: r.employeeId?.fullName,
     employeeId: r.employeeId?._id,
+    pendingCorrection,
   }));
   sendSuccess(res, { records: shaped });
 });
@@ -100,4 +106,13 @@ exports.approveCorrection = asyncHandler(async (req, res) => {
     req.user.organizationId, req.user._id, req.params.recordId, req.params.correctionId,
   );
   sendSuccess(res, { record }, 'Correction approved.');
+});
+
+exports.rejectCorrection = asyncHandler(async (req, res) => {
+  const { reason } = req.body;
+  if (!reason || reason.trim().length < 5) return sendError(res, 'reason must be at least 5 characters.', 422);
+  const correction = await payrollService.rejectCorrection(
+    req.user.organizationId, req.user._id, req.params.recordId, req.params.correctionId, reason.trim(),
+  );
+  sendSuccess(res, { correction }, 'Correction rejected.');
 });

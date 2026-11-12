@@ -98,14 +98,12 @@ const EMPLOYEE_CATEGORY = { OFFICE: 'OFFICE', FIELD: 'FIELD' };
 // LeaveRequests respectively — precedence is real punches > ON_LEAVE >
 // HOLIDAY > WEEK_OFF > ABSENT.
 const ATTENDANCE_STATUSES = [
-  'PRESENT', 'ABSENT', 'LATE', 'HALF_DAY', 'ON_LEAVE', 'HOLIDAY', 'WEEK_OFF', 'MISSING_PUNCH', 'INCOMPLETE',
+  'PRESENT', 'ABSENT', 'LATE', 'HALF_DAY', 'EARLY_LEAVE', 'ON_LEAVE', 'HOLIDAY', 'WEEK_OFF', 'MISSING_PUNCH', 'INCOMPLETE',
 ];
 
 const ATTENDANCE_EVENT_TYPES = ['CHECK_IN', 'CHECK_OUT', 'UNKNOWN'];
 const ATTENDANCE_EVENT_SOURCES = ['DEVICE', 'MOCK', 'MANUAL_CORRECTION', 'SELF_SERVICE'];
 
-// REJECTED is defined for schema completeness (mirrors the source) — no
-// endpoint transitions a correction to REJECTED today, only PENDING_APPROVAL -> APPROVED.
 const CORRECTION_STATUSES = ['PENDING_APPROVAL', 'APPROVED', 'REJECTED'];
 
 // CLOSED is defined for schema completeness — no code path sets it; periods
@@ -114,11 +112,12 @@ const ATTENDANCE_PERIOD_STATUSES = ['OPEN', 'CLOSED', 'FINALIZED'];
 
 const DEFAULT_ATTENDANCE_RULES = {
   SHIFT_START_TIME: '09:00',
-  // Stored/configurable alongside the other rule keys; not yet consumed by
-  // deriveStatus for a new status (e.g. early-leave) — reserved for future use.
   SHIFT_END_TIME: '18:00',
   LATE_THRESHOLD_MINUTES: 10,
   HALF_DAY_MIN_HOURS: 4,
+  // Checking out this many minutes (or more) before SHIFT_END_TIME derives
+  // EARLY_LEAVE — see attendanceProcessor.service.js#deriveStatus.
+  EARLY_LEAVE_THRESHOLD_MINUTES: 10,
 };
 
 // The only rule keys writable via POST /attendance/rules — kept as an

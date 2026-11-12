@@ -170,13 +170,23 @@ async function listRecordsForEmployee(organizationId, employeeId) {
   return PayrollRecord.find({ organizationId, employeeId }).sort({ createdAt: -1 });
 }
 
-/** Every record in a period, joined to its Employee for display. */
+/** Every record in a period, joined to its Employee for display, each
+ * paired with its PENDING_APPROVAL correction (if any) — there was
+ * previously no way to see a pending correction anywhere in the UI, so
+ * approveCorrection had no caller; this is what makes approve/reject usable. */
 async function listRecordsForPeriod(organizationId, periodId) {
   await getPeriodOr404(organizationId, periodId);
   const records = await PayrollRecord.find({ organizationId, payrollPeriodId: periodId }).populate('employeeId', 'employeeCode fullName');
+  const recordIds = records.map((r) => r._id);
+  const pendingCorrections = await PayrollRecordCorrection.find({
+    organizationId, payrollRecordId: { $in: recordIds }, status: 'PENDING_APPROVAL',
+  });
+  const correctionByRecordId = new Map(pendingCorrections.map((c) => [String(c.payrollRecordId), c]));
+
   return records
     .slice()
-    .sort((a, b) => (a.employeeId?.fullName || '').localeCompare(b.employeeId?.fullName || ''));
+    .sort((a, b) => (a.employeeId?.fullName || '').localeCompare(b.employeeId?.fullName || ''))
+    .map((record) => ({ record, pendingCorrection: correctionByRecordId.get(String(record._id)) || null }));
 }
 
 async function getRecordOr404(organizationId, recordId) {
@@ -190,6 +200,11 @@ async function requestCorrection(organizationId, actorUserId, recordId, { reason
   if (!record.isFinalized) {
     throw fail(422, 'Only a finalized payroll record can be corrected — re-run generate() on an open period instead.');
   }
+
+  const existingPending = await PayrollRecordCorrection.findOne({
+    organizationId, payrollRecordId: record._id, status: 'PENDING_APPROVAL',
+  });
+  if (existingPending) throw fail(409, 'A correction request is already pending approval for this record.');
 
   const correction = await PayrollRecordCorrection.create({
     organizationId, payrollRecordId: record._id, requestedBy: actorUserId, reason,
@@ -233,6 +248,49 @@ async function approveCorrection(organizationId, actorUserId, recordId, correcti
   return record;
 }
 
+async function rejectCorrection(organizationId, actorUserId, recordId, correctionId, reason) {
+  const correction = await PayrollRecordCorrection.findOne({ _id: correctionId, organizationId });
+  if (!correction || String(correction.payrollRecordId) !== String(recordId)) {
+    throw fail(404, 'Payroll correction request not found.');
+  }
+  if (correction.status !== 'PENDING_APPROVAL') throw fail(409, 'This correction is not pending approval.');
+  if (String(correction.requestedBy) === String(actorUserId)) {
+    throw fail(403, 'A correction must be reviewed by a different SUPER_ADMIN than the one who requested it.');
+  }
+
+  correction.status = 'REJECTED';
+  correction.approvedBy = actorUserId;
+  correction.approvedAt = new Date();
+  await correction.save();
+
+  await recordAuditEvent({
+    organizationId, actorUserId, action: 'payroll_record.correct.reject', entityType: 'PayrollRecord', entityId: correction.payrollRecordId,
+    reason, previousValue: { status: 'PENDING_APPROVAL' }, newValue: { status: 'REJECTED' },
+  });
+  return correction;
+}
+
+async function reopenPeriod(organizationId, actorUserId, periodId) {
+  const period = await getPeriodOr404(organizationId, periodId);
+  if (period.status !== 'FINALIZED') throw fail(409, 'This payroll period is not finalized.');
+
+  await PayrollRecord.updateMany(
+    { organizationId, payrollPeriodId: period._id },
+    { $set: { isFinalized: false, finalizedAt: null } },
+  );
+
+  period.status = 'OPEN';
+  period.finalizedAt = null;
+  period.finalizedBy = null;
+  await period.save();
+
+  await recordAuditEvent({
+    organizationId, actorUserId, action: 'payroll_period.reopen', entityType: 'PayrollPeriod', entityId: period._id,
+    previousValue: { status: 'FINALIZED' }, newValue: { status: 'OPEN' },
+  });
+  return period;
+}
+
 module.exports = {
   computeEarnings,
   createPeriod,
@@ -246,4 +304,6 @@ module.exports = {
   getRecordOr404,
   requestCorrection,
   approveCorrection,
+  rejectCorrection,
+  reopenPeriod,
 };

@@ -15,6 +15,7 @@ router.post('/periods', requireAttendancePermission(P.PAYROLL_MANAGE_CONFIG), ct
 router.get('/periods', requireAttendancePermission(P.PAYROLL_READ), ctrl.listPeriods);
 router.post('/periods/:periodId/generate', requireAttendancePermission(P.PAYROLL_MANAGE_CONFIG), ctrl.generateRecords);
 router.post('/periods/:periodId/finalize', requireAttendancePermission(P.PAYROLL_FINALIZE), ctrl.finalizePeriod);
+router.post('/periods/:periodId/reopen', requireAttendancePermission(P.PAYROLL_FINALIZE), ctrl.reopenPeriod);
 router.get('/periods/:periodId/records', requireAttendancePermission(P.PAYROLL_READ), ctrl.getPeriodRecords);
 
 router.get('/records/me', ctrl.getMyPayrollRecords);
@@ -28,6 +29,11 @@ router.post(
   '/records/:recordId/correct/:correctionId/approve',
   requireAttendancePermission(P.PAYROLL_FINALIZE),
   ctrl.approveCorrection,
+);
+router.post(
+  '/records/:recordId/correct/:correctionId/reject',
+  requireAttendancePermission(P.PAYROLL_FINALIZE),
+  ctrl.rejectCorrection,
 );
 
 module.exports = router;

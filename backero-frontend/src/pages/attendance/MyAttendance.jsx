@@ -12,7 +12,7 @@ const { Title, Text } = Typography;
 const { TextArea } = Input;
 
 const STATUS_COLOR = {
-  PRESENT: 'green', ABSENT: 'red', LATE: 'gold', HALF_DAY: 'orange',
+  PRESENT: 'green', ABSENT: 'red', LATE: 'gold', HALF_DAY: 'orange', EARLY_LEAVE: 'cyan',
   ON_LEAVE: 'blue', HOLIDAY: 'purple', WEEK_OFF: 'default', MISSING_PUNCH: 'red', INCOMPLETE: 'volcano',
 };
 

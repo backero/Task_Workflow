@@ -1,9 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, Landmark, X, Play, Lock } from 'lucide-react';
+import { Plus, Landmark, X, Play, Lock, LockOpen } from 'lucide-react';
 import api from '../../api/axios';
 import toast from 'react-hot-toast';
-import { Button, Card, Col, Drawer, Empty, Input, Row, Select, Space, Table, Tag, Typography } from 'antd';
+import { Button, Card, Col, Drawer, Empty, Input, Modal, Row, Select, Space, Table, Tag, Typography } from 'antd';
 import dayjs from 'dayjs';
 
 const { Title, Text } = Typography;
@@ -147,9 +147,38 @@ function CorrectionDrawer({ record, onClose }) {
   );
 }
 
+function RejectCorrectionModal({ target, onClose }) {
+  const qc = useQueryClient();
+  const [reason, setReason] = useState('');
+
+  useEffect(() => { if (target) setReason(''); }, [target]);
+
+  const mutation = useMutation({
+    mutationFn: () => api.post(`/payroll/records/${target.recordId}/correct/${target.correctionId}/reject`, { reason }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['payroll-records'] });
+      toast.success('Correction rejected');
+      onClose();
+    },
+    onError: (err) => toast.error(err.response?.data?.message || 'Failed to reject'),
+  });
+
+  return (
+    <Modal
+      open={!!target} onCancel={onClose} title="Reject Correction Request"
+      okText="Reject" okButtonProps={{ danger: true, loading: mutation.isPending, disabled: reason.trim().length < 5 }}
+      onOk={() => mutation.mutate()}
+    >
+      <Text type="secondary" style={{ display: 'block', marginBottom: 8 }}>Explain why this correction request is being denied (min 5 characters).</Text>
+      <Input.TextArea rows={3} value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Reason for rejection" />
+    </Modal>
+  );
+}
+
 function PeriodRecords({ periodId, canManage, canFinalize }) {
   const qc = useQueryClient();
   const [correctingRecord, setCorrectingRecord] = useState(null);
+  const [rejectingCorrection, setRejectingCorrection] = useState(null);
 
   const { data, isLoading } = useQuery({
     queryKey: ['payroll-records', periodId],
@@ -172,7 +201,24 @@ function PeriodRecords({ periodId, canManage, canFinalize }) {
     { title: 'Status', dataIndex: 'isFinalized', key: 'isFinalized', align: 'center', render: (v) => <Tag color={v ? 'green' : 'default'}>{v ? 'Finalized' : 'Draft'}</Tag> },
     ...(canManage ? [{
       title: 'Actions', key: 'actions', align: 'right',
-      render: (_, r) => <Button size="small" onClick={() => setCorrectingRecord(r)}>Request Correction</Button>,
+      render: (_, r) => (
+        r.pendingCorrection ? (
+          <Space direction="vertical" size={4} align="end">
+            <Text style={{ fontSize: 11 }} type="secondary">Pending → {INR(r.pendingCorrection.proposedBasicEarnings)} / {INR(r.pendingCorrection.proposedDeductions)}</Text>
+            <Space size={8}>
+              <Button
+                size="small" type="primary" loading={approveMutation.isPending}
+                onClick={() => approveMutation.mutate({ recordId: r._id, correctionId: r.pendingCorrection._id })}
+              >
+                Approve
+              </Button>
+              <Button size="small" danger onClick={() => setRejectingCorrection({ recordId: r._id, correctionId: r.pendingCorrection._id })}>Reject</Button>
+            </Space>
+          </Space>
+        ) : (
+          <Button size="small" onClick={() => setCorrectingRecord(r)}>Request Correction</Button>
+        )
+      ),
     }] : []),
   ];
 
@@ -182,6 +228,7 @@ function PeriodRecords({ periodId, canManage, canFinalize }) {
         <Table rowKey="_id" columns={columns} dataSource={records} loading={isLoading} pagination={false} locale={{ emptyText: <Empty description="No records generated yet" /> }} />
       </Card>
       {canManage && <CorrectionDrawer record={correctingRecord} onClose={() => setCorrectingRecord(null)} />}
+      {canManage && <RejectCorrectionModal target={rejectingCorrection} onClose={() => setRejectingCorrection(null)} />}
     </>
   );
 }
@@ -216,8 +263,22 @@ export default function Payroll() {
 
   const finalizeMutation = useMutation({
     mutationFn: (periodId) => api.post(`/payroll/periods/${periodId}/finalize`),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['payroll-periods'] }); toast.success('Period finalized'); },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['payroll-periods'] });
+      qc.invalidateQueries({ queryKey: ['payroll-records'] });
+      toast.success('Period finalized');
+    },
     onError: (err) => toast.error(err.response?.data?.message || 'Failed to finalize'),
+  });
+
+  const reopenMutation = useMutation({
+    mutationFn: (periodId) => api.post(`/payroll/periods/${periodId}/reopen`),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['payroll-periods'] });
+      qc.invalidateQueries({ queryKey: ['payroll-records'] });
+      toast.success('Period reopened');
+    },
+    onError: (err) => toast.error(err.response?.data?.message || 'Failed to reopen'),
   });
 
   const columns = [
@@ -233,6 +294,9 @@ export default function Payroll() {
           )}
           {p.status !== 'FINALIZED' && (
             <Button size="small" danger icon={<Lock size={12} />} loading={finalizeMutation.isPending} onClick={() => finalizeMutation.mutate(p._id)}>Finalize</Button>
+          )}
+          {p.status === 'FINALIZED' && (
+            <Button size="small" icon={<LockOpen size={12} />} loading={reopenMutation.isPending} onClick={() => reopenMutation.mutate(p._id)}>Reopen</Button>
           )}
         </Space>
       ),

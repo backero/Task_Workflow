@@ -12,7 +12,7 @@ const { Title, Text, Paragraph } = Typography;
 const { TextArea } = Input;
 
 const STATUS_COLOR = {
-  PRESENT: 'green', ABSENT: 'red', LATE: 'gold', HALF_DAY: 'orange',
+  PRESENT: 'green', ABSENT: 'red', LATE: 'gold', HALF_DAY: 'orange', EARLY_LEAVE: 'cyan',
   ON_LEAVE: 'blue', HOLIDAY: 'purple', WEEK_OFF: 'default', MISSING_PUNCH: 'red', INCOMPLETE: 'volcano',
 };
 
@@ -290,7 +290,7 @@ function WorkHoursDrawer({ open, onClose }) {
                 <Select
                   size="small" style={{ width: '100%' }} value={ruleForm.rule_key}
                   onChange={(v) => setRuleForm((f) => ({ ...f, rule_key: v }))}
-                  options={['SHIFT_START_TIME', 'SHIFT_END_TIME', 'LATE_THRESHOLD_MINUTES', 'HALF_DAY_MIN_HOURS'].map((k) => ({ label: k, value: k }))}
+                  options={['SHIFT_START_TIME', 'SHIFT_END_TIME', 'LATE_THRESHOLD_MINUTES', 'HALF_DAY_MIN_HOURS', 'EARLY_LEAVE_THRESHOLD_MINUTES'].map((k) => ({ label: k, value: k }))}
                 />
               </Col>
               <Col span={7}><Input size="small" placeholder="Value" value={ruleForm.value} onChange={(e) => setRuleForm((f) => ({ ...f, value: e.target.value }))} /></Col>
