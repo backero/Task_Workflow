@@ -179,7 +179,9 @@ app.get('/health', (req, res) => {
     env: process.env.NODE_ENV,
     jwt_secret: process.env.JWT_SECRET ? 'set' : 'MISSING',
     jwt_refresh: process.env.JWT_REFRESH_SECRET ? 'set' : 'MISSING',
-    version: 'v4-catalog-rawmaterials',
+    // RENDER_GIT_COMMIT is set automatically by Render at build time — lets
+    // us confirm which commit is actually live without dashboard access.
+    version: process.env.RENDER_GIT_COMMIT || 'v4-catalog-rawmaterials',
     cloudinary: process.env.CLOUDINARY_CLOUD_NAME ? 'configured' : 'MISSING',
   });
 });
