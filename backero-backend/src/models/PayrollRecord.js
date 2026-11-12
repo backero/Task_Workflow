@@ -15,6 +15,20 @@ const payrollRecordSchema = new mongoose.Schema({
   isFinalized: { type: Boolean, default: false },
   finalizedAt: { type: Date, default: null },
   createdAt: { type: Date, default: Date.now },
+
+  // Itemized breakdown for the payslip PDF — default 0 so a plain
+  // computeEarnings()-generated record (no DA/HRA/PF/ESIC concept) still
+  // renders a sensible slip. Populated with real amounts when this record
+  // comes from payrollImport.service.js (already-paid salary Excel).
+  dearnessAllowance: { type: Number, default: 0 },
+  houseRentAllowance: { type: Number, default: 0 },
+  grossEarnings: { type: Number, default: null },
+  pf: { type: Number, default: 0 },
+  esic: { type: Number, default: 0 },
+  loanAdvance: { type: Number, default: 0 },
+  // GENERATED = computed here from attendance (computeEarnings); IMPORTED =
+  // came verbatim from an already-paid salary Excel upload.
+  source: { type: String, enum: ['GENERATED', 'IMPORTED'], default: 'GENERATED' },
 });
 
 payrollRecordSchema.index({ organizationId: 1, payrollPeriodId: 1, employeeId: 1 }, { unique: true });

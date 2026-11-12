@@ -1,13 +1,26 @@
 import React from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Receipt } from 'lucide-react';
+import { Receipt, FileDown } from 'lucide-react';
 import api from '../../api/axios';
-import { Card, Empty, Table, Tag, Typography } from 'antd';
+import toast from 'react-hot-toast';
+import { Button, Card, Empty, Table, Tag, Typography } from 'antd';
 import dayjs from 'dayjs';
 
 const { Title, Text } = Typography;
 
 const INR = (n) => `₹${Number(n || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+async function downloadSlip(recordId) {
+  try {
+    const blob = await api.get(`/payroll/records/${recordId}/slip`, { responseType: 'blob' }).then((r) => r.data);
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = 'Payslip.pdf'; a.click();
+    URL.revokeObjectURL(url);
+  } catch {
+    toast.error('Could not download payslip');
+  }
+}
 
 export default function MyPayroll() {
   const { data, isLoading, isError } = useQuery({
@@ -23,6 +36,10 @@ export default function MyPayroll() {
     { title: 'Net Salary', dataIndex: 'netSalary', key: 'netSalary', align: 'right', render: (v) => <Text strong>{INR(v)}</Text> },
     { title: 'Status', dataIndex: 'isFinalized', key: 'isFinalized', align: 'center', render: (v) => <Tag color={v ? 'green' : 'default'}>{v ? 'Finalized' : 'Draft'}</Tag> },
     { title: 'Generated', dataIndex: 'createdAt', key: 'createdAt', render: (v) => v ? dayjs(v).format('DD MMM YYYY') : '—' },
+    {
+      title: '', key: 'slip', align: 'right',
+      render: (_, r) => <Button size="small" icon={<FileDown size={14} />} onClick={() => downloadSlip(r._id)}>Slip</Button>,
+    },
   ];
 
   return (

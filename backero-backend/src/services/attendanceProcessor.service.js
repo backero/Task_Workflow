@@ -114,6 +114,21 @@ async function deriveDefaultStatus(organizationId, employeeId, targetDate) {
   return 'ABSENT';
 }
 
+/** Org-wide rules, overridden per-employee where the Employee record sets its
+ * own shift hours (common for part-time staff on different hours than the
+ * org default) — null fields on the employee fall through to the org rule. */
+async function getRulesForEmployee(organizationId, employeeId, targetDate) {
+  const rules = await getEffectiveRules(organizationId, targetDate);
+  const employee = await Employee.findById(employeeId).select('shiftStartTime shiftEndTime halfDayMinHours').lean();
+  if (!employee) return rules;
+  return {
+    ...rules,
+    SHIFT_START_TIME: employee.shiftStartTime || rules.SHIFT_START_TIME,
+    SHIFT_END_TIME: employee.shiftEndTime || rules.SHIFT_END_TIME,
+    HALF_DAY_MIN_HOURS: employee.halfDayMinHours != null ? employee.halfDayMinHours : rules.HALF_DAY_MIN_HOURS,
+  };
+}
+
 /** Pure computation, no writes. */
 async function derive(organizationId, employeeId, targetDate) {
   const { start, end } = dayBoundsUTC(targetDate);
@@ -131,7 +146,7 @@ async function derive(organizationId, employeeId, targetDate) {
   const checkOut = sessions.length ? sessions[sessions.length - 1].checkOut : null;
   const workedHours = sessions.reduce((sum, s) => sum + (s.checkOut.getTime() - s.checkIn.getTime()) / (1000 * 60 * 60), 0);
 
-  const rules = await getEffectiveRules(organizationId, targetDate);
+  const rules = await getRulesForEmployee(organizationId, employeeId, targetDate);
   const status = deriveStatus(checkIn, checkOut, targetDate, rules, workedHours);
   return { status, checkIn, checkOut, sessions, workedHours };
 }

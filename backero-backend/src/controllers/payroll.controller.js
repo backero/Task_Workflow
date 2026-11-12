@@ -5,8 +5,13 @@
 // and approving a correction — all gated at the route level (see
 // routes/payroll.routes.js), matching the source's permission tiers.
 const Employee = require('../models/Employee');
+const Department = require('../models/Department');
+const Designation = require('../models/Designation');
+const Organization = require('../models/Organization');
 const { asyncHandler, sendSuccess, sendError, paginateResponse } = require('../utils/helpers');
 const payrollService = require('../services/payroll.service');
+const { importPaidSalaries } = require('../services/payrollImport.service');
+const { generatePayslipPDF } = require('../services/payslipPdf.service');
 const { ROLE_HIERARCHY } = require('../utils/constants');
 const { ATTENDANCE_PERMISSIONS } = require('../utils/attendanceConstants');
 
@@ -40,6 +45,12 @@ exports.finalizePeriod = asyncHandler(async (req, res) => {
 exports.reopenPeriod = asyncHandler(async (req, res) => {
   const period = await payrollService.reopenPeriod(req.user.organizationId, req.user._id, req.params.periodId);
   sendSuccess(res, { period }, 'Payroll period reopened');
+});
+
+exports.importPaidSalaries = asyncHandler(async (req, res) => {
+  if (!req.file) return sendError(res, 'An Excel file is required.', 422);
+  const results = await importPaidSalaries(req.user.organizationId, req.user._id, req.params.periodId, req.file.buffer);
+  sendSuccess(res, results, `Imported ${results.imported} record(s)${results.skipped.length ? `, skipped ${results.skipped.length}` : ''}`);
 });
 
 exports.getPeriodRecords = asyncHandler(async (req, res) => {
@@ -115,4 +126,38 @@ exports.rejectCorrection = asyncHandler(async (req, res) => {
     req.user.organizationId, req.user._id, req.params.recordId, req.params.correctionId, reason.trim(),
   );
   sendSuccess(res, { correction }, 'Correction rejected.');
+});
+
+// Same ownership-or-permission gate as getEmployeePayrollRecords — an
+// employee can always download their own payslip; anyone else needs
+// payroll:read (or admin+).
+exports.downloadSlip = asyncHandler(async (req, res) => {
+  const orgId = req.user.organizationId;
+  const record = await payrollService.getRecordOr404(orgId, req.params.recordId);
+  const employee = await Employee.findOne({ _id: record.employeeId, organizationId: orgId });
+  if (!employee) return sendError(res, 'Payroll record not found.', 404);
+
+  const myEmployee = await Employee.findOne({ organizationId: orgId, userId: req.user._id, deletedAt: null });
+  const isOwnRecord = myEmployee && String(myEmployee._id) === String(employee._id);
+  if (!isOwnRecord) {
+    const level = ROLE_HIERARCHY[req.user.role] || 0;
+    const allowed = level >= ROLE_HIERARCHY['admin'] || (req.user.permissions || []).includes(ATTENDANCE_PERMISSIONS.PAYROLL_READ);
+    if (!allowed) return sendError(res, 'Payroll record not found.', 404);
+  }
+
+  const period = await payrollService.getPeriodOr404(orgId, record.payrollPeriodId);
+  const [department, designation, organization] = await Promise.all([
+    Department.findById(employee.departmentId).lean(),
+    Designation.findById(employee.designationId).lean(),
+    Organization.findById(orgId).lean(),
+  ]);
+
+  const pdfBuffer = await generatePayslipPDF({
+    organization: organization || {}, employee: employee.toObject(), department, designation,
+    period: period.toObject(), record: record.toObject(),
+  });
+
+  const fileName = `Payslip-${employee.employeeCode}-${period.periodStart.toISOString().slice(0, 10)}.pdf`;
+  res.set({ 'Content-Type': 'application/pdf', 'Content-Disposition': `attachment; filename="${fileName}"` });
+  res.send(pdfBuffer);
 });

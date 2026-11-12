@@ -47,7 +47,12 @@ export default function Settings() {
   useEffect(() => {
     if (orgData && activeTab === 'invoice') {
       const b = orgData.bankDetails || {};
+      const addr = orgData.address || {};
       resetInv({
+        companyName: orgData.name || '',
+        gstNumber: orgData.gstNumber || '',
+        addressStreet: addr.street || '', addressCity: addr.city || '',
+        addressState: addr.state || '', addressPincode: addr.pincode || '',
         logo: orgData.logo || '',
         invoicePrefix: orgData.invoicePrefix || 'INV',
         invoiceTerms: orgData.invoiceTerms || '',
@@ -104,6 +109,12 @@ export default function Settings() {
 
   const invoiceMutation = useMutation({
     mutationFn: (data) => api.put('/organizations/me', {
+      name: data.companyName,
+      gstNumber: data.gstNumber,
+      address: {
+        street: data.addressStreet, city: data.addressCity,
+        state: data.addressState, pincode: data.addressPincode,
+      },
       logo: data.logo,
       invoicePrefix: data.invoicePrefix,
       invoiceTerms: data.invoiceTerms,
@@ -250,6 +261,21 @@ export default function Settings() {
         <form onSubmit={submitInv(invoiceMutation.mutate)}>
           <Space direction="vertical" style={{ width: '100%' }} size={16}>
             <Card>
+              <Title level={5} style={{ marginBottom: 4 }}>Company Details</Title>
+              <Text type="secondary" style={{ fontSize: 13, display: 'block', marginBottom: 16 }}>Appears on invoices and payslips (e.g. the salary slip letterhead).</Text>
+              <Space direction="vertical" style={{ width: '100%' }} size={16}>
+                <Field label="Company Name"><Input {...regInv('companyName')} placeholder="Backero" /></Field>
+                <Field label="GST Number"><Input {...regInv('gstNumber')} placeholder="29ABCDE1234F1Z5" /></Field>
+                <Row gutter={[12, 16]}>
+                  <Col span={12}><Field label="Street"><Input {...regInv('addressStreet')} placeholder="123 MG Road" /></Field></Col>
+                  <Col span={12}><Field label="City"><Input {...regInv('addressCity')} placeholder="Bengaluru" /></Field></Col>
+                  <Col span={12}><Field label="State"><Input {...regInv('addressState')} placeholder="Karnataka" /></Field></Col>
+                  <Col span={12}><Field label="Pincode"><Input {...regInv('addressPincode')} placeholder="560001" /></Field></Col>
+                </Row>
+              </Space>
+            </Card>
+
+            <Card>
               <Title level={5} style={{ marginBottom: 16 }}>Invoice General</Title>
               <Space direction="vertical" style={{ width: '100%' }} size={16}>
                 <Field label="Company Logo URL" hint="This logo appears on all invoices and PDFs.">
@@ -294,7 +320,7 @@ export default function Settings() {
 
             <Card>
               <Title level={5} style={{ marginBottom: 4 }}>Authorized Signatory</Title>
-              <Text type="secondary" style={{ fontSize: 13, display: 'block', marginBottom: 16 }}>Paste a publicly accessible URL to your signature image. It will appear at the bottom of every invoice.</Text>
+              <Text type="secondary" style={{ fontSize: 13, display: 'block', marginBottom: 16 }}>Paste a publicly accessible URL to your signature image. It will appear at the bottom of every invoice and payslip.</Text>
               <Field label="Signature Image URL"><Input {...regInv('signatureUrl')} placeholder="https://example.com/signature.png" /></Field>
               {sigPreview && (
                 <div style={{ marginTop: 12 }}>

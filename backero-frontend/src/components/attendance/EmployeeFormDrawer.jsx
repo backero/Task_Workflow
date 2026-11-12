@@ -16,6 +16,17 @@ const CATEGORIES = [
   { value: 'FIELD', label: 'Field' },
 ];
 
+const EMPLOYMENT_TYPES = [
+  { value: 'FULL_TIME', label: 'Full-time' },
+  { value: 'PART_TIME', label: 'Part-time' },
+];
+
+const DEFAULT_FORM_VALUES = {
+  employee_code: '', full_name: '', phone: '', department_id: '', designation_id: '', category: 'OFFICE', date_of_joining: '', user_id: '',
+  employment_type: 'FULL_TIME', shift_start_time: '', shift_end_time: '', half_day_min_hours: '',
+  bank_name: '', bank_ifsc: '', bank_account_number: '', bank_branch: '', bank_account_type: '',
+};
+
 // Best-effort match of a User's free-text department against the relational
 // Department list — used to pre-fill (not auto-create) in the manual form.
 function matchDepartmentId(departmentName, departments) {
@@ -29,7 +40,7 @@ export default function EmployeeFormDrawer({ open, onClose, editEmployee, depart
   const qc = useQueryClient();
   const isEdit = !!editEmployee;
   const { handleSubmit, reset, control, watch, setValue, formState: { errors } } = useForm({
-    defaultValues: { employee_code: '', full_name: '', phone: '', department_id: '', designation_id: '', category: 'OFFICE', date_of_joining: '', user_id: '' },
+    defaultValues: DEFAULT_FORM_VALUES,
   });
   const departmentId = watch('department_id');
 
@@ -79,8 +90,14 @@ export default function EmployeeFormDrawer({ open, onClose, editEmployee, depart
             designation_id: editEmployee.designationId?._id || editEmployee.designationId || '',
             category: editEmployee.category, date_of_joining: editEmployee.dateOfJoining ? editEmployee.dateOfJoining.slice(0, 10) : '',
             user_id: editEmployee.userId?._id || editEmployee.userId || '',
+            employment_type: editEmployee.employmentType || 'FULL_TIME',
+            shift_start_time: editEmployee.shiftStartTime || '', shift_end_time: editEmployee.shiftEndTime || '',
+            half_day_min_hours: editEmployee.halfDayMinHours != null ? String(editEmployee.halfDayMinHours) : '',
+            bank_name: editEmployee.bankName || '', bank_ifsc: editEmployee.bankIfsc || '',
+            bank_account_number: editEmployee.bankAccountNumber || '', bank_branch: editEmployee.bankBranch || '',
+            bank_account_type: editEmployee.bankAccountType || '',
           }
-        : { employee_code: '', full_name: '', phone: '', department_id: '', designation_id: '', category: 'OFFICE', date_of_joining: '', user_id: '' }
+        : DEFAULT_FORM_VALUES
       );
     }
   }, [open, editEmployee]);
@@ -91,6 +108,16 @@ export default function EmployeeFormDrawer({ open, onClose, editEmployee, depart
         full_name: data.full_name, phone: data.phone || undefined,
         department_id: data.department_id, designation_id: data.designation_id,
         category: data.category, user_id: data.user_id || undefined,
+        employment_type: data.employment_type,
+        // Sent as-is (even when '') rather than falling back to undefined —
+        // this form always submits the full record, so an empty string here
+        // means "clear the override back to the org default", which the
+        // backend only does when the key is present at all (undefined = "don't touch").
+        shift_start_time: data.shift_start_time, shift_end_time: data.shift_end_time,
+        half_day_min_hours: data.half_day_min_hours,
+        bank_name: data.bank_name, bank_ifsc: data.bank_ifsc,
+        bank_account_number: data.bank_account_number, bank_branch: data.bank_branch,
+        bank_account_type: data.bank_account_type,
       };
       if (isEdit) return api.patch(`/employees/${editEmployee._id}`, payload);
       return api.post('/employees', { ...payload, employee_code: data.employee_code, date_of_joining: data.date_of_joining });
@@ -207,6 +234,66 @@ export default function EmployeeFormDrawer({ open, onClose, editEmployee, depart
               render={({ field }) => <Select {...field} style={{ width: '100%' }} options={CATEGORIES} />}
             />
             <Text type="secondary" style={{ fontSize: 11, display: 'block', marginTop: 4 }}>Field employees can be GPS-tracked during a work session; Office employees never are.</Text>
+          </div>
+
+          <Row gutter={12}>
+            <Col span={12}>
+              <Text strong style={{ display: 'block', marginBottom: 6, fontSize: 12 }}>Employment Type *</Text>
+              <Controller
+                name="employment_type" control={control} rules={{ required: true }}
+                render={({ field }) => <Select {...field} style={{ width: '100%' }} options={EMPLOYMENT_TYPES} />}
+              />
+            </Col>
+            <Col span={12}>
+              <Text strong style={{ display: 'block', marginBottom: 6, fontSize: 12 }}>Half-Day Min Hours</Text>
+              <Controller
+                name="half_day_min_hours" control={control}
+                render={({ field }) => <Input {...field} type="number" step="0.5" placeholder="Org default" />}
+              />
+            </Col>
+          </Row>
+
+          <Row gutter={12}>
+            <Col span={12}>
+              <Text strong style={{ display: 'block', marginBottom: 6, fontSize: 12 }}>Shift Start</Text>
+              <Controller
+                name="shift_start_time" control={control}
+                render={({ field }) => <Input {...field} type="time" placeholder="Org default" />}
+              />
+            </Col>
+            <Col span={12}>
+              <Text strong style={{ display: 'block', marginBottom: 6, fontSize: 12 }}>Shift End</Text>
+              <Controller
+                name="shift_end_time" control={control}
+                render={({ field }) => <Input {...field} type="time" placeholder="Org default" />}
+              />
+            </Col>
+          </Row>
+          <Text type="secondary" style={{ fontSize: 11, display: 'block', marginTop: -8 }}>
+            Leave shift times and half-day hours blank to use the org-wide default — set them for a part-time employee working different hours.
+          </Text>
+
+          <div>
+            <Text strong style={{ display: 'block', marginBottom: 8, fontSize: 12 }}>Bank Details (for payslips)</Text>
+            <Space direction="vertical" style={{ width: '100%' }} size={10}>
+              <Controller name="bank_name" control={control} render={({ field }) => <Input {...field} placeholder="Bank Name" />} />
+              <Row gutter={12}>
+                <Col span={12}>
+                  <Controller name="bank_account_number" control={control} render={({ field }) => <Input {...field} placeholder="Account Number" />} />
+                </Col>
+                <Col span={12}>
+                  <Controller name="bank_ifsc" control={control} render={({ field }) => <Input {...field} placeholder="IFSC Code" style={{ textTransform: 'uppercase' }} />} />
+                </Col>
+              </Row>
+              <Row gutter={12}>
+                <Col span={12}>
+                  <Controller name="bank_branch" control={control} render={({ field }) => <Input {...field} placeholder="Branch Name" />} />
+                </Col>
+                <Col span={12}>
+                  <Controller name="bank_account_type" control={control} render={({ field }) => <Input {...field} placeholder="Account Type (e.g. Savings)" />} />
+                </Col>
+              </Row>
+            </Space>
           </div>
 
           <div>

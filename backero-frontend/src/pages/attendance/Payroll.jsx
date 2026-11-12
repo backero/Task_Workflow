@@ -1,10 +1,22 @@
 import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, Landmark, X, Play, Lock, LockOpen } from 'lucide-react';
+import { Plus, Landmark, X, Play, Lock, LockOpen, Upload, FileDown } from 'lucide-react';
 import api from '../../api/axios';
 import toast from 'react-hot-toast';
 import { Button, Card, Col, Drawer, Empty, Input, Modal, Row, Select, Space, Table, Tag, Typography } from 'antd';
 import dayjs from 'dayjs';
+
+async function downloadSlip(recordId, fileName) {
+  try {
+    const blob = await api.get(`/payroll/records/${recordId}/slip`, { responseType: 'blob' }).then((r) => r.data);
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = fileName; a.click();
+    URL.revokeObjectURL(url);
+  } catch {
+    toast.error('Could not download payslip');
+  }
+}
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;
@@ -175,6 +187,58 @@ function RejectCorrectionModal({ target, onClose }) {
   );
 }
 
+function ImportSalaryModal({ periodId, onClose }) {
+  const qc = useQueryClient();
+  const [file, setFile] = useState(null);
+
+  useEffect(() => { if (periodId) setFile(null); }, [periodId]);
+
+  const mutation = useMutation({
+    mutationFn: () => {
+      const fd = new FormData();
+      fd.append('file', file);
+      return api.post(`/payroll/periods/${periodId}/import`, fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+    },
+    onSuccess: (res) => {
+      qc.invalidateQueries({ queryKey: ['payroll-periods'] });
+      qc.invalidateQueries({ queryKey: ['payroll-records', periodId] });
+      const { imported, skipped } = res.data;
+      toast.success(`Imported ${imported} record(s)${skipped?.length ? `, skipped ${skipped.length}` : ''}`);
+      if (skipped?.length) {
+        Modal.warning({
+          title: 'Some rows were skipped',
+          content: (
+            <ul style={{ maxHeight: 200, overflow: 'auto', paddingLeft: 18 }}>
+              {skipped.map((s, i) => <li key={i}>Row {s.row}: {s.reason}</li>)}
+            </ul>
+          ),
+        });
+      }
+      onClose();
+    },
+    onError: (err) => toast.error(err.response?.data?.message || 'Import failed'),
+  });
+
+  return (
+    <Modal
+      open={!!periodId} onCancel={onClose} title="Import Paid Salaries"
+      okText="Import" okButtonProps={{ loading: mutation.isPending, disabled: !file }}
+      onOk={() => mutation.mutate()}
+    >
+      <Space direction="vertical" size={10} style={{ width: '100%' }}>
+        <Text type="secondary" style={{ fontSize: 12 }}>
+          Upload the Excel sheet of salaries already paid for this period. Matches employees by their Employee ID column —
+          this marks the period as finalized once imported.
+        </Text>
+        <input
+          ref={fileInputRef} type="file" accept=".xlsx,.csv"
+          onChange={(e) => setFile(e.target.files?.[0] || null)}
+        />
+      </Space>
+    </Modal>
+  );
+}
+
 function PeriodRecords({ periodId, canManage, canFinalize }) {
   const qc = useQueryClient();
   const [correctingRecord, setCorrectingRecord] = useState(null);
@@ -199,6 +263,15 @@ function PeriodRecords({ periodId, canManage, canFinalize }) {
     { title: 'Deductions', dataIndex: 'deductions', key: 'deductions', align: 'right', render: INR },
     { title: 'Net Salary', dataIndex: 'netSalary', key: 'netSalary', align: 'right', render: (v) => <Text strong>{INR(v)}</Text> },
     { title: 'Status', dataIndex: 'isFinalized', key: 'isFinalized', align: 'center', render: (v) => <Tag color={v ? 'green' : 'default'}>{v ? 'Finalized' : 'Draft'}</Tag> },
+    {
+      title: 'Slip', key: 'slip', align: 'center',
+      render: (_, r) => (
+        <Button
+          size="small" type="text" icon={<FileDown size={14} />} title="Download Payslip"
+          onClick={() => downloadSlip(r._id, `Payslip-${r.employeeCode}.pdf`)}
+        />
+      ),
+    },
     ...(canManage ? [{
       title: 'Actions', key: 'actions', align: 'right',
       render: (_, r) => (
@@ -238,6 +311,7 @@ export default function Payroll() {
   const [expandedId, setExpandedId] = useState(null);
   const [newPeriodOpen, setNewPeriodOpen] = useState(false);
   const [salaryOpen, setSalaryOpen] = useState(false);
+  const [importingPeriodId, setImportingPeriodId] = useState(null);
 
   const { data, isLoading } = useQuery({
     queryKey: ['payroll-periods'],
@@ -298,6 +372,7 @@ export default function Payroll() {
           {p.status === 'FINALIZED' && (
             <Button size="small" icon={<LockOpen size={12} />} loading={reopenMutation.isPending} onClick={() => reopenMutation.mutate(p._id)}>Reopen</Button>
           )}
+          <Button size="small" icon={<Upload size={12} />} onClick={() => setImportingPeriodId(p._id)}>Import Paid Salaries</Button>
         </Space>
       ),
     },
@@ -336,6 +411,7 @@ export default function Payroll() {
 
       <NewPeriodDrawer open={newPeriodOpen} onClose={() => setNewPeriodOpen(false)} />
       <SalaryDrawer open={salaryOpen} onClose={() => setSalaryOpen(false)} employees={employees} />
+      <ImportSalaryModal periodId={importingPeriodId} onClose={() => setImportingPeriodId(null)} />
     </div>
   );
 }

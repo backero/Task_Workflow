@@ -103,7 +103,10 @@ exports.getById = asyncHandler(async (req, res) => {
 exports.create = asyncHandler(async (req, res) => {
   const orgId = req.user.organizationId;
   const { employee_code: employeeCode, full_name: fullName, phone, department_id: departmentId,
-    designation_id: designationId, category, date_of_joining: dateOfJoining, user_id: userId } = req.body;
+    designation_id: designationId, category, date_of_joining: dateOfJoining, user_id: userId,
+    employment_type: employmentType, shift_start_time: shiftStartTime, shift_end_time: shiftEndTime,
+    half_day_min_hours: halfDayMinHours, bank_name: bankName, bank_ifsc: bankIfsc,
+    bank_account_number: bankAccountNumber, bank_branch: bankBranch, bank_account_type: bankAccountType } = req.body;
 
   if (!employeeCode || !fullName || !departmentId || !designationId || !category || !dateOfJoining) {
     return sendError(res, 'employee_code, full_name, department_id, designation_id, category, and date_of_joining are required.', 422);
@@ -130,6 +133,15 @@ exports.create = asyncHandler(async (req, res) => {
     category,
     dateOfJoining,
     userId: userId || null,
+    employmentType: employmentType || undefined,
+    shiftStartTime: shiftStartTime || null,
+    shiftEndTime: shiftEndTime || null,
+    halfDayMinHours: halfDayMinHours != null && halfDayMinHours !== '' ? Number(halfDayMinHours) : null,
+    bankName: bankName || null,
+    bankIfsc: bankIfsc || null,
+    bankAccountNumber: bankAccountNumber || null,
+    bankBranch: bankBranch || null,
+    bankAccountType: bankAccountType || null,
     createdBy: req.user._id,
   });
   sendSuccess(res, { employee: await toResponse(employee) }, 'Employee created', 201);
@@ -162,6 +174,17 @@ exports.update = asyncHandler(async (req, res) => {
   if (body.designation_id !== undefined) employee.designationId = body.designation_id;
   if (body.category !== undefined) employee.category = body.category;
   if (body.user_id !== undefined) employee.userId = body.user_id;
+  if (body.employment_type !== undefined) employee.employmentType = body.employment_type;
+  if (body.shift_start_time !== undefined) employee.shiftStartTime = body.shift_start_time || null;
+  if (body.shift_end_time !== undefined) employee.shiftEndTime = body.shift_end_time || null;
+  if (body.half_day_min_hours !== undefined) {
+    employee.halfDayMinHours = body.half_day_min_hours != null && body.half_day_min_hours !== '' ? Number(body.half_day_min_hours) : null;
+  }
+  if (body.bank_name !== undefined) employee.bankName = body.bank_name || null;
+  if (body.bank_ifsc !== undefined) employee.bankIfsc = body.bank_ifsc || null;
+  if (body.bank_account_number !== undefined) employee.bankAccountNumber = body.bank_account_number || null;
+  if (body.bank_branch !== undefined) employee.bankBranch = body.bank_branch || null;
+  if (body.bank_account_type !== undefined) employee.bankAccountType = body.bank_account_type || null;
   employee.updatedBy = req.user._id;
 
   await employee.save();

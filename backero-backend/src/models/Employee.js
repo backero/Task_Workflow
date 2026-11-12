@@ -29,6 +29,26 @@ const employeeSchema = new mongoose.Schema({
   // Mutated only via PUT /attendance/payroll/config/:employeeId
   // (payroll:manage_config), never the general employee update route.
   basicMonthlySalary: { type: Number, default: null },
+
+  // Part-time employees commonly work different hours than the org default
+  // (e.g. a 10:00-14:00 shift vs the standard 09:00-18:00) — these three are
+  // nullable overrides consumed by attendanceProcessor.service.js#derive;
+  // null means "use the org-wide AttendanceStatusRule default" for that key.
+  employmentType: { type: String, enum: ['FULL_TIME', 'PART_TIME'], default: 'FULL_TIME' },
+  shiftStartTime: { type: String, default: null },
+  shiftEndTime: { type: String, default: null },
+  halfDayMinHours: { type: Number, default: null },
+
+  // Bank details for payslip generation (payslipPdf.service.js) — per-employee,
+  // not per-period, since an account doesn't change every pay cycle. Settable
+  // directly or filled in automatically the first time a payroll Excel import
+  // (payrollImport.service.js) includes this employee's bank columns.
+  bankName: { type: String, default: null },
+  bankIfsc: { type: String, default: null },
+  bankAccountNumber: { type: String, default: null },
+  bankBranch: { type: String, default: null },
+  bankAccountType: { type: String, default: null },
+
   photo: { type: String, default: null },
   photoPublicId: { type: String, select: false, default: null },
   deletedAt: { type: Date, default: null },

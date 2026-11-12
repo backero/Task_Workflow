@@ -6,6 +6,7 @@ const ctrl = require('../controllers/payroll.controller');
 const { authenticate } = require('../middleware/auth.middleware');
 const { requireAttendancePermission } = require('../middleware/role.middleware');
 const { ATTENDANCE_PERMISSIONS } = require('../utils/attendanceConstants');
+const upload = require('../middleware/upload.middleware');
 
 router.use(authenticate);
 
@@ -16,9 +17,16 @@ router.get('/periods', requireAttendancePermission(P.PAYROLL_READ), ctrl.listPer
 router.post('/periods/:periodId/generate', requireAttendancePermission(P.PAYROLL_MANAGE_CONFIG), ctrl.generateRecords);
 router.post('/periods/:periodId/finalize', requireAttendancePermission(P.PAYROLL_FINALIZE), ctrl.finalizePeriod);
 router.post('/periods/:periodId/reopen', requireAttendancePermission(P.PAYROLL_FINALIZE), ctrl.reopenPeriod);
+router.post(
+  '/periods/:periodId/import',
+  requireAttendancePermission(P.PAYROLL_MANAGE_CONFIG),
+  upload.single('file'),
+  ctrl.importPaidSalaries,
+);
 router.get('/periods/:periodId/records', requireAttendancePermission(P.PAYROLL_READ), ctrl.getPeriodRecords);
 
 router.get('/records/me', ctrl.getMyPayrollRecords);
+router.get('/records/:recordId/slip', ctrl.downloadSlip);
 router.get('/records/:employeeId', ctrl.getEmployeePayrollRecords);
 
 router.get('/config/:employeeId', requireAttendancePermission(P.PAYROLL_MANAGE_CONFIG), ctrl.getPayrollConfig);
