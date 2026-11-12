@@ -10,7 +10,7 @@ import {
   Box, Zap, BarChart3, Settings, Megaphone,
   Store, Banknote, UsersRound,
   Wrench, Trophy, Sparkles, X,
-  Fingerprint, ClipboardCheck, Receipt, CalendarOff, Clock, ListTodo, MessageCircle,
+  Fingerprint, ClipboardCheck, Receipt, CalendarOff, Clock, ListTodo, MessageCircle, IdCard,
 } from 'lucide-react';
 import { canSeeWhatsAppChats } from '../../pages/crm/WhatsAppChats';
 
@@ -165,6 +165,7 @@ export default function Sidebar({ variant = 'desktop', onNavigate, onClose }) {
       label: 'Management',
       items: [
         { label: 'Team', to: '/management/team', icon: UsersRound },
+        { label: 'Employee Details', to: '/management/employee-details', icon: IdCard },
         { label: 'Team Status', to: '/management/employees', icon: Users },
         { label: 'Dept Analytics', to: '/management/departments', icon: BarChart3 },
         { label: 'Team Rewards', to: '/management/team-rewards', icon: Trophy },
