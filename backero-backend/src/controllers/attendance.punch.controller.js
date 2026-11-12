@@ -1,6 +1,45 @@
 const AttendanceLog = require('../models/AttendanceLog');
 const Employee = require('../models/Employee');
 const { asyncHandler, sendSuccess, sendError } = require('../utils/helpers');
+const { ingestEvent } = require('../services/attendanceIngest.service');
+
+// This self-service punch flow writes to AttendanceLog — the only part of
+// the attendance system actually reachable from the UI — but Today's Board,
+// Holidays/Exceptions, and Payroll's attendance summary all read from the
+// separate AttendanceEvent/Attendance pipeline (attendanceProcessor.service.js),
+// which nothing was feeding. Bridging each punch into that pipeline here
+// so a real check-in shows up everywhere, not just on this punch widget.
+// punch-in/break-end open a session (CHECK_IN); break-start/punch-out
+// close one (CHECK_OUT) — this maps directly onto pairSessions()'s
+// multi-session-per-day model, so breaks fall out of the existing gap
+// calculation for free (see payslipPdf.service.js#dailyBreakHours).
+const PUNCH_TO_EVENT_TYPE = {
+  'punch-in': 'CHECK_IN',
+  'break-end': 'CHECK_IN',
+  'break-start': 'CHECK_OUT',
+  'punch-out': 'CHECK_OUT',
+};
+
+async function bridgeToAttendanceEvent(req, employee, punchType, timestamp) {
+  const eventType = PUNCH_TO_EVENT_TYPE[punchType];
+  if (!eventType) return;
+  try {
+    await ingestEvent(employee.organizationId, {
+      deviceEmployeeRef: employee.employeeCode,
+      eventType,
+      rawEvent: { punchType, source: 'self-service-punch', ...req.body },
+      source: 'SELF_SERVICE',
+      dedupeKey: `self-service:${employee._id}:${punchType}:${timestamp.toISOString()}`,
+      eventTimestamp: timestamp,
+    }, { io: req.app.get('io') });
+  } catch (err) {
+    // Best-effort — the self-service punch (AttendanceLog) is the system of
+    // record for "did this person actually punch"; never fail that because
+    // the secondary derived-status pipeline had a hiccup.
+    // eslint-disable-next-line no-console
+    console.error('[attendance.punch] failed to bridge to AttendanceEvent:', err.message);
+  }
+}
 
 exports.recordPunch = asyncHandler(async (req, res) => {
   const { punchType, latitude, longitude, address } = req.body;
@@ -26,6 +65,8 @@ exports.recordPunch = asyncHandler(async (req, res) => {
     createdAt: { $gte: today, $lt: tomorrow }
   });
 
+  const now = new Date();
+
   if (!attendanceLog) {
     if (punchType !== 'punch-in') {
       return sendError(res, 'Must punch in first', 400);
@@ -38,11 +79,11 @@ exports.recordPunch = asyncHandler(async (req, res) => {
       currentPunchStatus: 'office-in',
       punches: [{
         punchType: 'punch-in',
-        timestamp: new Date(),
+        timestamp: now,
         location: { type: 'Point', coordinates: [longitude, latitude] },
         address
       }],
-      officeCheckInTime: new Date()
+      officeCheckInTime: now
     });
   } else {
     const lastPunch = attendanceLog.punches[attendanceLog.punches.length - 1];
@@ -59,11 +100,10 @@ exports.recordPunch = asyncHandler(async (req, res) => {
 
     // Handle punch-in from not-punched state
     if (attendanceLog.currentPunchStatus === 'not-punched' && punchType === 'punch-in') {
-      attendanceLog.officeCheckInTime = new Date();
+      attendanceLog.officeCheckInTime = now;
       attendanceLog.currentPunchStatus = 'office-in';
     }
 
-    const now = new Date();
     attendanceLog.punches.push({
       punchType,
       timestamp: now,
@@ -96,8 +136,9 @@ exports.recordPunch = asyncHandler(async (req, res) => {
     }
   }
 
-  attendanceLog.updatedAt = new Date();
+  attendanceLog.updatedAt = now;
   await attendanceLog.save();
+  await bridgeToAttendanceEvent(req, employee, punchType, now);
 
   sendSuccess(res, {
     attendance: attendanceLog,
