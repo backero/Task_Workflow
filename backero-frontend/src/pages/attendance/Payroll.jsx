@@ -231,7 +231,7 @@ function ImportSalaryModal({ periodId, onClose }) {
           this marks the period as finalized once imported.
         </Text>
         <input
-          ref={fileInputRef} type="file" accept=".xlsx,.csv"
+          type="file" accept=".xlsx,.csv"
           onChange={(e) => setFile(e.target.files?.[0] || null)}
         />
       </Space>
