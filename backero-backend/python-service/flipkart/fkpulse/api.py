@@ -52,6 +52,16 @@ def overview():
         for row in c.execute("SELECT area, key, value, text FROM hub_metrics WHERE id IN "
                              "(SELECT MAX(id) FROM hub_metrics GROUP BY area, key)"):
             latest.setdefault(row["area"], {})[row["key"]] = row["value"] if row["value"] is not None else row["text"]
+        # The Flipkart Seller API sync that would populate `listings` is disabled in this
+        # deployment (polling.api_enabled: false -- Seller Hub scraping is the real data
+        # source), so that table is permanently empty. Seller Hub's listing_states scrape
+        # already has the real counts; fall back to them instead of reporting a phantom zero.
+        # avg_rating has no Seller Hub equivalent, so it stays null in that case.
+        listing_states = latest.get("listing_states") or {}
+        if not listings and listing_states:
+            active = listing_states.get("active") or 0
+            listings = active + (listing_states.get("blocked") or 0) \
+                + (listing_states.get("inactive") or 0) + (listing_states.get("ready_for_activation") or 0)
         return {"listings": listings, "active": active, "avg_rating": avg_rating,
                 "open_recommendations": {r["severity"]: r["n"] for r in open_recs}, "account_metrics": latest}
 

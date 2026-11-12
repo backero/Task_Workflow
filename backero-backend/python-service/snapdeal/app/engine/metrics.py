@@ -52,6 +52,20 @@ def overview():
     for l in listings:
         m = listing_metrics(l["sku"], 7)
         for k in tot: tot[k] += m[k]
+    # metrics_daily is only ever written by the demo/csv/api connectors' fetch_metrics() --
+    # the real "browser" connector's _browser_sync() never calls it, so `tot` is always zero
+    # in live mode. panel_metrics area='ads' has real scraped traffic for the same account,
+    # but it's ads-only (not total organic+ads), so it's surfaced under week_source rather
+    # than silently relabeled as the broader number.
+    week_source = "total"
+    if not any(tot.values()):
+        ad_rows = db.q("SELECT key, value FROM panel_metrics WHERE area='ads' "
+                       "AND captured_at=(SELECT MAX(captured_at) FROM panel_metrics WHERE area='ads')")
+        ad = {r["key"]: r["value"] for r in ad_rows}
+        if ad:
+            tot = dict(impressions=ad.get("impressions") or 0, clicks=ad.get("clicks") or 0,
+                       orders=ad.get("conversions") or 0, revenue=ad.get("sales") or 0)
+            week_source = "ads_only"
     alerts = db.q("SELECT severity, COUNT(*) n FROM alerts WHERE status='open' GROUP BY severity")
     panel = None
     try:
@@ -72,6 +86,6 @@ def overview():
         listings=len(listings),
         live=sum(1 for l in listings if l["status"] == "live"),
         oos=sum(1 for l in listings if l["status"] != "live"),
-        week=tot, scorecard=sc[0] if sc else None, panel=panel,
+        week=tot, week_source=week_source, scorecard=sc[0] if sc else None, panel=panel,
         settlements=settlements,
         open_alerts={a["severity"]: a["n"] for a in alerts})
