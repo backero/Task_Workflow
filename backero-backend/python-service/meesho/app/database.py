@@ -294,6 +294,12 @@ def kpis(conn):
         "SELECT COUNT(*) AS c FROM recommendations WHERE status='open'"
     ).fetchone()
     k["open_recs"] = row["c"] or 0
+
+    # The scheduler loop can keep ticking (robot_beat) while every panel read fails every cycle
+    # (session dead) -- MAX(captured_at) across every area is the one honest signal of when real
+    # data last actually changed, independent of how recently the scheduler last ran.
+    row = conn.execute("SELECT MAX(captured_at) AS mx FROM panel_metrics").fetchone()
+    k["last_scraped_at"] = row["mx"] if row else None
     return k
 
 

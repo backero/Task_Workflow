@@ -124,6 +124,12 @@ function normalizeScraperSnapshot(platform, data) {
     // read by anything. Passed through as-is (daily_orders/daily_views/pending_orders/etc)
     // rather than reshaped, since only this platform has these exact field names.
     const home = data.account_metrics?.home || null;
+    // database.py's kpis() prefers the Business Dashboard headline (views/clicks/orders) over the
+    // snapshot-summed "true 7-day" figures whenever it's been read — and that headline is scraped
+    // "for whatever date range is selected on screen" (panel_reader.py's own docstring), not a
+    // guaranteed rolling 7 days. account_totals_read_at is only set when that headline path won,
+    // so it's the signal for which figure (and which honest label) we actually have.
+    const headlineSourced = !!k.account_totals_read_at;
     return {
       revenue: k.sales_7d || 0,
       orders: k.orders_7d || 0,
@@ -133,8 +139,13 @@ function normalizeScraperSnapshot(platform, data) {
       avg_rating: k.avg_rating || 0,
       ctr_pct: k.impressions_7d ? (k.clicks_7d / k.impressions_7d) * 100 : 0,
       cvr_pct: k.conversion_pct_7d || 0,
-      ctr_basis: 'Real: 7-day clicks ÷ impressions',
-      cvr_basis: 'Real: Meesho Business Dashboard conversion rate',
+      ctr_basis: headlineSourced
+        ? 'Real: Meesho Business Dashboard headline, clicks ÷ views — whatever date range was selected on screen when scraped, not guaranteed to be a rolling 7 days'
+        : 'Real: 7-day clicks ÷ impressions (summed from per-listing snapshots)',
+      cvr_basis: headlineSourced
+        ? 'Real: Meesho Business Dashboard headline conversion rate — same on-screen-date-range caveat as CTR above'
+        : 'Real: Meesho Business Dashboard conversion rate',
+      last_scraped_at: k.last_scraped_at || null,
       daily: home,
     };
   }
@@ -144,6 +155,17 @@ function normalizeScraperSnapshot(platform, data) {
     // week.* comes from a separate per-SKU metrics scraper module that isn't always populated;
     // panel.* is the Seller Panel's own dashboard headline (sales_completed/orders_processed),
     // read by the same scrape that succeeds reliably — prefer it when week.* is empty.
+    // metrics.py's overview() falls back to the Ads panel (area='ads') when the real per-SKU
+    // totals are empty — which they always are for the live browser connector — and tags that
+    // with week_source: "ads_only" so it isn't silently relabeled as total organic+ads traffic.
+    const adsOnly = data.week_source === 'ads_only';
+    // A real CTR/CVR can never exceed 100% — clicks can't outnumber impressions, nor orders
+    // outnumber the clicks that led to them. The Ads panel's Clicks and Conversions figures
+    // aren't guaranteed to share the same window (confirmed live: 1 click next to 29
+    // conversions, i.e. a 2900% "CVR"), so a ratio over 100% means the inputs don't pair up,
+    // not a real rate — show it as unavailable rather than a wrong number.
+    const ctrReliable = w.impressions > 0 && w.clicks <= w.impressions;
+    const cvrReliable = w.clicks > 0 && w.orders <= w.clicks;
     return {
       revenue: w.revenue || p.sales_completed || 0,
       orders: w.orders || p.orders_processed || 0,
@@ -151,10 +173,23 @@ function normalizeScraperSnapshot(platform, data) {
       margin_pct: 0,
       listings: data.listings || 0,
       avg_rating: p.avg_seller_rating || 0,
-      ctr_pct: w.impressions ? (w.clicks / w.impressions) * 100 : 0,
-      cvr_pct: w.clicks ? (w.orders / w.clicks) * 100 : 0,
-      ctr_basis: w.impressions ? 'Real: per-SKU clicks ÷ impressions' : 'Not available — Snapdeal traffic/impressions aren\'t scraped yet',
-      cvr_basis: w.clicks ? 'Real: per-SKU orders ÷ clicks' : 'Not available — Snapdeal traffic/impressions aren\'t scraped yet',
+      ctr_pct: ctrReliable ? (w.clicks / w.impressions) * 100 : null,
+      cvr_pct: cvrReliable ? (w.orders / w.clicks) * 100 : null,
+      ctr_basis: !w.impressions
+        ? 'Not available — Snapdeal traffic/impressions aren\'t scraped yet'
+        : !ctrReliable
+          ? 'Not available — Ads panel clicks exceed impressions (different windows), so the rate would be impossible'
+          : adsOnly
+            ? 'Real: Ads panel clicks ÷ impressions (ads-only — not total organic+ads traffic)'
+            : 'Real: per-SKU clicks ÷ impressions',
+      cvr_basis: !w.clicks
+        ? 'Not available — Snapdeal traffic/impressions aren\'t scraped yet'
+        : !cvrReliable
+          ? 'Not available — Ads panel clicks/conversions don\'t share the same window, so the rate would be impossible (>100%)'
+          : adsOnly
+            ? 'Real: Ads panel orders ÷ clicks (ads-only — not total organic+ads conversions)'
+            : 'Real: per-SKU orders ÷ clicks',
+      last_scraped_at: data.last_scraped_at || null,
     };
   }
   if (platform === 'flipkart') {
@@ -178,6 +213,7 @@ function normalizeScraperSnapshot(platform, data) {
       cvr_pct: bh.conversion_7d_pct || 0,
       ctr_basis: 'Not available — Flipkart only exposes ads-attributed clicks (see Today card), not organic CTR',
       cvr_basis: 'Real: Business Health conversion rate (organic, 7-day)',
+      last_scraped_at: data.last_scraped_at || null,
       daily: home,
     };
   }
@@ -462,9 +498,10 @@ router.all('/v1/*', async (req, res) => {
           clicks,
           ctr_pct: normalized.ctr_pct || 0,
           cvr_pct: normalized.cvr_pct || 0,
-          ctr_basis: 'Real synced scraper data (clicks ÷ impressions)',
-          cvr_basis: 'Real synced scraper data (orders ÷ clicks, or platform-reported conversion)',
+          ctr_basis: normalized.ctr_basis || 'Real synced scraper data (clicks ÷ impressions)',
+          cvr_basis: normalized.cvr_basis || 'Real synced scraper data (orders ÷ clicks, or platform-reported conversion)',
           traffic_basis: 'Real synced scraper data',
+          last_scraped_at: normalized.last_scraped_at || null,
           pages_per_session: null,
           buy_box_pct: null,
           avg_order_value: normalized.orders ? Math.round(normalized.revenue / normalized.orders) : null,

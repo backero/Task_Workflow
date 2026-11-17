@@ -82,10 +82,15 @@ def overview():
     # every old 30ml variant Snapdeal has since discontinued). Counting those as "live" inflated
     # the active count from the real 37 to a phantom 63.
     settlements = db.q("SELECT ref, date, amount, transactions FROM settlements ORDER BY date DESC LIMIT 20")
+    # The keeper can keep "running" (ticking, no crash) while the actual panel reads fail every cycle
+    # (session dead) -- MAX(captured_at) across every area is the one honest signal of when real data
+    # last actually changed, independent of how recently the scheduler last ran.
+    lsa_row = db.q("SELECT MAX(captured_at) mx FROM panel_metrics")
+    last_scraped_at = lsa_row[0]["mx"] if lsa_row else None
     return dict(
         listings=len(listings),
         live=sum(1 for l in listings if l["status"] == "live"),
         oos=sum(1 for l in listings if l["status"] != "live"),
         week=tot, week_source=week_source, scorecard=sc[0] if sc else None, panel=panel,
-        settlements=settlements,
+        settlements=settlements, last_scraped_at=last_scraped_at,
         open_alerts={a["severity"]: a["n"] for a in alerts})

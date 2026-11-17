@@ -62,8 +62,13 @@ def overview():
             active = listing_states.get("active") or 0
             listings = active + (listing_states.get("blocked") or 0) \
                 + (listing_states.get("inactive") or 0) + (listing_states.get("ready_for_activation") or 0)
+        # When does checks (signed_in: false) that keep the loop alive but produce nothing new, every
+        # area's MAX(id) above just re-reads whatever was last captured -- this is the one honest signal
+        # of when real data last actually changed, independent of how recently the scheduler last ran.
+        last_scraped_at = c.execute("SELECT MAX(captured_at) mx FROM hub_metrics").fetchone()["mx"]
         return {"listings": listings, "active": active, "avg_rating": avg_rating,
-                "open_recommendations": {r["severity"]: r["n"] for r in open_recs}, "account_metrics": latest}
+                "open_recommendations": {r["severity"]: r["n"] for r in open_recs}, "account_metrics": latest,
+                "last_scraped_at": last_scraped_at}
 
 
 @app.get("/api/listings")

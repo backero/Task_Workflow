@@ -3,7 +3,7 @@ import Card, { PageHeader } from '../components/Card.tsx'
 import api from '../api/axios.js'
 import { TrendingUp, TrendingDown, AlertCircle, CheckCircle } from 'lucide-react'
 import { useLocation } from 'react-router-dom'
-import { fmtPct } from '../utils/metricFormat.ts'
+import { fmtPct, scrapeFreshness } from '../utils/metricFormat.ts'
 import { platformFromPath, marketplaceId } from '../hooks/platformScope.ts'
 import { StatTile, PlatformBarChart, QualityGaugeBar } from '../components/charts/index.ts'
 import { platformColor, PLATFORM_LABELS } from '../theme/colors.ts'
@@ -202,7 +202,14 @@ export default function UnifiedDashboard() {
         <div className={`grid gap-4 ${scope ? "grid-cols-1" : "grid-cols-2"}`}>
           {platformEntries.map(([marketplace, platform]: [string, any]) => (
             <div key={marketplace} className="border border-sand rounded p-3">
-              <div className="font-medium text-ink capitalize mb-3">{marketplace.replace('_in', '')}</div>
+              <div className="flex items-center justify-between mb-3">
+                <div className="font-medium text-ink capitalize">{marketplace.replace('_in', '')}</div>
+                {['meesho', 'snapdeal', 'flipkart'].includes(marketplace) && (() => {
+                  const fresh = scrapeFreshness(platform.last_scraped_at, marketplace)
+                  const color = fresh.level === 'fresh' ? 'text-green-600' : fresh.level === 'stale' ? 'text-amber-600' : fresh.level === 'very_stale' ? 'text-brick' : 'text-stone'
+                  return <span className={`text-[11px] font-medium ${color}`} title="When the scraper last captured real, changed data — not just when it last synced">{fresh.label}</span>
+                })()}
+              </div>
               <div className="grid grid-cols-3 gap-2 text-xs">
                 <div>
                   <span className="text-stone">Impressions:</span>

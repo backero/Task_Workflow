@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useLocation } from 'react-router-dom'
-import { fmtPct } from '../utils/metricFormat.ts'
+import { fmtPct, scrapeFreshness } from '../utils/metricFormat.ts'
 import { platformFromPath, marketplaceId } from '../hooks/platformScope.ts'
 import Card, { PageHeader } from '../components/Card.tsx'
 import api from '../api/axios.js'
@@ -125,7 +125,14 @@ export default function AnalyticsPage() {
           {/* Traffic Performance - CTR & CVR */}
           {ads?.traffic && (
             <Card className="bg-sand border-l-4 border-clay">
-              <h2 className="mb-3 text-sm font-semibold text-ink">📊 Traffic Metrics (CTR & CVR)</h2>
+              <div className="mb-3 flex items-center justify-between">
+                <h2 className="text-sm font-semibold text-ink">📊 Traffic Metrics (CTR & CVR)</h2>
+                {ads.traffic.last_scraped_at != null && (() => {
+                  const fresh = scrapeFreshness(ads.traffic.last_scraped_at, ads.marketplace)
+                  const color = fresh.level === 'fresh' ? 'text-green-600' : fresh.level === 'stale' ? 'text-amber-600' : fresh.level === 'very_stale' ? 'text-brick' : 'text-stone'
+                  return <span className={`text-[11px] font-medium ${color}`} title="When the scraper last captured real, changed data — not just when it last synced">{fresh.label}</span>
+                })()}
+              </div>
               <div className="grid grid-cols-5 gap-3">
                 <MetricCard label="Impressions" value={(ads.traffic.impressions || 0).toLocaleString()} />
                 <MetricCard label="Clicks" value={(ads.traffic.clicks || 0).toLocaleString()} />
