@@ -25,10 +25,9 @@ in-process mongo sync has a known race that intermittently pushes zeroed
 KPIs; watchdog_sync.py exists specifically to cover for that but was never
 actually being started by anything in production).
 
-Also force-restarts every platform's whole process group (scheduler +
-watchdog) every RESTART_HOURS, regardless of whether anything crashed --
-a clean periodic restart so a silently-wedged browser session/page state
-doesn't just sit there serving stale data indefinitely between real crashes.
+Healthy seller browsers are kept open: a periodic restart can invalidate a
+saved seller login and unnecessarily ask the owner for another OTP.
+MARKETPLACE_RESTART_HOURS can opt into scheduled restarts; the default is off.
 
 Usage: python main.py
 pm2:   pm2 start main.py --name marketflow-python --interpreter python3
@@ -46,7 +45,7 @@ PLATFORMS = ["meesho", "snapdeal", "flipkart"]
 # see its header comment). flipkart has no such file; its own run_scheduler.py mongo sync has
 # never shown that symptom, so there's nothing to launch a backstop for.
 PLATFORMS_WITH_WATCHDOG = {"meesho", "snapdeal"}
-RESTART_HOURS = 5
+RESTART_HOURS = float(os.environ.get('MARKETPLACE_RESTART_HOURS', '0'))
 
 
 def _venv_python(platform):
@@ -95,7 +94,7 @@ def main():
                     start(name)
                     continue
                 age_hours = (time.time() - entry["started_at"]) / 3600
-                if age_hours >= RESTART_HOURS:
+                if RESTART_HOURS > 0 and age_hours >= RESTART_HOURS:
                     stop(name, f"scheduled {RESTART_HOURS}h restart")
                     start(name)
     except KeyboardInterrupt:

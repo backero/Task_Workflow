@@ -140,7 +140,9 @@ def job_hub_read(config: dict, db_path: str) -> tuple[str, str] | None:
 def finish_hub_read(config: dict, db_path: str, results: dict) -> tuple[str, str]:
     """After a Seller Hub read (scheduled or done by the session keeper): record what was missed, refresh recommendations."""
     log = _log("hub_read")
-    failed = {k: v for k, v in results.items() if v != "ok"}
+    # Optional detail sources report their own coverage in the dashboard. They
+    # must not imply that a successful refresh of the core seller pages failed.
+    failed = {k: v for k, v in results.items() if v != "ok" and not v.startswith('unavailable:')}
     _set_kv(db_path, "sellerhub_error", json.dumps({"at": datetime.now().isoformat(), "kind": "partial",
             "error": "Some Seller Hub pages could not be read: " + "; ".join(f"{k} ({v})" for k, v in failed.items())}) if failed else None)
     _set_kv(db_path, "sellerhub_last_ok", datetime.now().isoformat())
@@ -153,6 +155,9 @@ def finish_hub_read(config: dict, db_path: str, results: dict) -> tuple[str, str
     job_digest(config, db_path)  # new numbers -> fresh recommendations
     if failed:
         return "partial", "Read " + str(len(results) - len(failed)) + f" of {len(results)} Seller Hub areas; missed: " + ", ".join(failed)
+    optional = [key for key, value in results.items() if value.startswith('unavailable:')]
+    if optional:
+        return 'ok', f'Read {len(results) - len(optional)} core Seller Hub areas; optional detail coverage is shown separately.'
     return "ok", f"Read all {len(results)} Seller Hub areas."
 
 

@@ -22,7 +22,7 @@ def _sync_to_mongo():
     # Reuses the exact functions the old /api/overview and /api/ai_insights
     # routes called directly -- @app.get(...) only registers them, both are
     # callable plain. ai_insights() already creates its own table if missing.
-    from fkpulse.api import overview, ai_insights, recommendations
+    from fkpulse.api import overview, ai_insights, recommendations, DB_PATH
     from mongo_sync import upsert_overview
     data = overview()
     try:
@@ -38,6 +38,8 @@ def _sync_to_mongo():
     except Exception:
         data["recommendations"] = []
     upsert_overview("flipkart", data)
+    from fkpulse.mirror import sync_mirror
+    sync_mirror(str(DB_PATH))
 
 
 def main() -> None:

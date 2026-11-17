@@ -20,6 +20,15 @@ class LayoutChanged(Exception):
     """The panel no longer matches what these parsers were built from."""
 
 
+class AdsLoginRequired(Exception):
+    """Seller Panel is signed in, but the separate Ads service is not."""
+
+
+def ads_login_required(text: str) -> bool:
+    text = _flat(text).lower()
+    return 'cpt ads summary' not in text and 'start selling on snapdeal' in text and 'enter mobile no' in text
+
+
 class PartialCatalog(LayoutChanged):
     """Some catalog rows were read but not all - the rows read are real and are still stored, the run is 'partial'."""
 
@@ -146,6 +155,8 @@ CREATE TABLE IF NOT EXISTS settlements(
   ref TEXT PRIMARY KEY, date TEXT, amount REAL, transactions INTEGER, captured_at TEXT);
 CREATE TABLE IF NOT EXISTS listing_panel(
   sku TEXT PRIMARY KEY, pog_id TEXT, product_rating_pct REAL, gross_payable REAL, msp REAL, captured_at TEXT);
+CREATE TABLE IF NOT EXISTS panel_area_status(
+  area TEXT PRIMARY KEY, state TEXT NOT NULL, detail TEXT, checked_at TEXT NOT NULL);
 """
 
 
@@ -274,8 +285,15 @@ def read_in_open_page(page) -> dict[str, str]:
         try:
             fn()
             results[area] = "ok"
+        except AdsLoginRequired:
+            results[area] = "needs_login: Snapdeal Ads needs its own sign-in in the existing seller browser. Seller Panel data is still connected."
         except Exception as exc:  # noqa: BLE001
             results[area] = f"failed: {str(exc).splitlines()[0][:160]}"
+        outcome = results[area]
+        with db.conn() as c:
+            c.execute('INSERT OR REPLACE INTO panel_area_status VALUES(?,?,?,?)',
+                      (area, 'ok' if outcome == 'ok' else 'needs_login' if outcome.startswith('needs_login:') else 'failed',
+                       None if outcome == 'ok' else outcome.split(':', 1)[-1].strip(), datetime.now().isoformat(timespec='seconds')))
         # A pause between areas, same as Flipkart's sellerhub.py (pause_ms=3500, survives 50+ minutes signed in).
         # Snapdeal's session was measured dying 6-7 minutes after sign-in, consistently right after the 9-area read
         # ran back-to-back with no pause between pages - the same shape of problem, so the same fix (2026-09-27).
@@ -370,6 +388,8 @@ def read_in_open_page(page) -> dict[str, str]:
         page.goto(URL_ADS, wait_until="domcontentloaded", timeout=60_000)
         page.wait_for_timeout(6_000)
         text = page.inner_text("body")
+        if ads_login_required(text):
+            raise AdsLoginRequired()
         a = None
         for _ in range(25):
             try:
@@ -392,7 +412,7 @@ def read_in_open_page(page) -> dict[str, str]:
                     fh.write(f"\n--- {datetime.now().isoformat(timespec='seconds')} url={page.url} ---\n{text[:4000]}\n")
                 raise
         with db.conn() as c:
-            store_metrics(c, "ads", {k: v for k, v in a.items() if k not in ("range_from", "range_to")}, now)
+            store_metrics(c, "ads", a, now)
             campaign = f"Sponsored Products (CPT), {a['range_from']} - {a['range_to']}"
             c.execute("DELETE FROM ads_daily")
             c.execute("INSERT INTO ads_daily VALUES(?,?,?,?,?,?,?,?)",

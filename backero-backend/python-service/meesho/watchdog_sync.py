@@ -53,6 +53,8 @@ def sync_once():
     finally:
         conn.close()
     upsert_overview("meesho", {"kpis": k, "top_issues": top_issues, "ai_insight": ai_insight, "account_metrics": account_metrics})
+    from app.mirror import sync_mirror
+    sync_mirror(DB_PATH)
     print(f"[watchdog] orders_7d={k.get('orders_7d')} impressions_7d={k.get('impressions_7d')} sales_7d={k.get('sales_7d')}", flush=True)
 
 

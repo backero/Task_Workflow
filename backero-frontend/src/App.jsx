@@ -98,6 +98,9 @@ import DeptWorkflow from './pages/workflow/DeptWorkflow';
 
 // Marketplace Dashboard pages
 import UnifiedDashboard from './pages/UnifiedDashboard';
+import FlipkartSellerHub from './pages/FlipkartSellerHub';
+import MeeshoSellerHub from './pages/MeeshoSellerHub';
+import SnapdealSellerHub from './pages/SnapdealSellerHub';
 import Alerts from './pages/Alerts';
 import Analytics from './pages/Analytics';
 import Trends from './pages/Trends';
@@ -265,21 +268,21 @@ export default function App() {
           <Route path="/marketplace/account-returns" element={<AccountReturns />} />
 
           {/* Meesho — scoped views of the same Marketplace Hub pages (platformFromPath) */}
-          <Route path="/meesho/overview" element={<UnifiedDashboard />} />
+          <Route path="/meesho/overview" element={<MeeshoSellerHub />} />
           <Route path="/meesho/account-returns" element={<AccountReturns />} />
           <Route path="/meesho/analytics" element={<Analytics />} />
           <Route path="/meesho/trends" element={<Trends />} />
           <Route path="/meesho/alerts" element={<Alerts />} />
 
           {/* Snapdeal */}
-          <Route path="/snapdeal/overview" element={<UnifiedDashboard />} />
+          <Route path="/snapdeal/overview" element={<SnapdealSellerHub />} />
           <Route path="/snapdeal/account-returns" element={<AccountReturns />} />
           <Route path="/snapdeal/analytics" element={<Analytics />} />
           <Route path="/snapdeal/trends" element={<Trends />} />
           <Route path="/snapdeal/alerts" element={<Alerts />} />
 
           {/* Flipkart */}
-          <Route path="/flipkart/overview" element={<UnifiedDashboard />} />
+          <Route path="/flipkart/overview" element={<FlipkartSellerHub />} />
           <Route path="/flipkart/account-returns" element={<AccountReturns />} />
           <Route path="/flipkart/analytics" element={<Analytics />} />
           <Route path="/flipkart/trends" element={<Trends />} />

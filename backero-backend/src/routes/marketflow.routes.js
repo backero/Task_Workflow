@@ -726,6 +726,43 @@ router.all('/v1/*', async (req, res) => {
 
 const marketplaceSync = require('../services/marketplaceSync.service');
 
+router.get('/snapdeal/seller-mirror',
+  require('../middleware/orgIsolation.middleware').orgIsolation,
+  require('../middleware/role.middleware').authorizeAdminOrAbove,
+  async (req, res, next) => {
+    try {
+      const snapshot = await require('../models/SnapdealSellerMirror')
+        .findOne({ organizationId: req.orgId }).lean();
+      if (!snapshot) return sendError(res, 'Snapdeal seller data is not connected to this organization yet.', 404);
+      res.json({ ...snapshot.data, syncedAt: snapshot.syncedAt });
+    } catch (error) { next(error); }
+  });
+
+router.get('/meesho/seller-mirror',
+  require('../middleware/orgIsolation.middleware').orgIsolation,
+  require('../middleware/role.middleware').authorizeAdminOrAbove,
+  async (req, res, next) => {
+    try {
+      const snapshot = await require('../models/MeeshoSellerMirror')
+        .findOne({ organizationId: req.orgId }).lean();
+      if (!snapshot) return sendError(res, 'Meesho seller data is not connected to this organization yet.', 404);
+      res.json({ ...snapshot.data, syncedAt: snapshot.syncedAt });
+    } catch (error) { next(error); }
+  });
+
+// Detailed seller data is explicitly bound to an organization, unlike legacy overview snapshots.
+router.get('/flipkart/seller-mirror',
+  require('../middleware/orgIsolation.middleware').orgIsolation,
+  require('../middleware/role.middleware').authorizeAdminOrAbove,
+  async (req, res, next) => {
+    try {
+      const snapshot = await require('../models/FlipkartSellerMirror')
+        .findOne({ organizationId: req.orgId }).lean();
+      if (!snapshot) return sendError(res, 'Flipkart seller data is not connected to this organization yet.', 404);
+      res.json({ ...snapshot.data, syncedAt: snapshot.syncedAt });
+    } catch (error) { next(error); }
+  });
+
 const mountMongoBacked = (prefix, platform) => {
   router.get(`${prefix}/overview`, async (req, res) => {
     try {

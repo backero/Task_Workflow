@@ -43,6 +43,8 @@ def sync_to_mongo():
     except Exception:
         data["alerts"] = []
     upsert_overview("snapdeal", data)
+    from app.mirror import sync_mirror
+    sync_mirror(db.DB)
 
 
 def main():

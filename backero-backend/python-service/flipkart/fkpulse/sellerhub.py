@@ -645,6 +645,13 @@ def _read_areas(ctx, conn: sqlite3.Connection, now: str, pause_ms: int, results:
                      ("listings", listings), ("inventory", inventory), ("orders", orders), ("payments", payments),
                      ("returns", returns)):
         step(area, fn)
+    from fkpulse.history import read_history
+    try:
+        results.update(read_history(ctx, conn.execute('PRAGMA database_list').fetchone()[2]))
+    except SessionExpired:
+        raise
+    except Exception as exc:
+        results['order_history'] = 'failed: ' + type(exc).__name__
 
 
 def refresh_listings_from_hub(db_path: str) -> int:

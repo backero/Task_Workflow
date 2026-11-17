@@ -39,6 +39,8 @@ def sync_once():
     except Exception:
         data["alerts"] = []
     upsert_overview("snapdeal", data)
+    from app.mirror import sync_mirror
+    sync_mirror(db.DB)
     panel = data.get("panel") or {}
     print(f"[watchdog] listings={data.get('listings')} sales_completed={panel.get('sales_completed')} orders_processed={panel.get('orders_processed')}", flush=True)
 

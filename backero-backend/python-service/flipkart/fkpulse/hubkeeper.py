@@ -161,6 +161,7 @@ class HubKeeper(threading.Thread):
         from fkpulse import sellerhub as sh
         prompted = False
         while not self._halt.is_set():
+            self._capture_requested(ctx)
             now = datetime.now()
             alive = self._alive(page, reload=self.logic.signed_in)
             if page.is_closed():
@@ -201,6 +202,19 @@ class HubKeeper(threading.Thread):
                         pass
                     prompted = True
             self._halt.wait(self.logic.sleep_seconds())
+
+    def _capture_requested(self, ctx) -> None:
+        """Optional local read-only diagnostics, using the existing authenticated session."""
+        request = Path(__file__).resolve().parents[1] / "data" / "capture_requested.json"
+        if not request.exists():
+            return
+        try:
+            import importlib
+            from fkpulse import capture
+            importlib.reload(capture)
+            capture.capture_requested(ctx, request)
+        except Exception as exc:
+            _log("hub_keeper").warning("capture_failed", error=type(exc).__name__)
 
     # ---------------------------------------------------------------- a full read inside the open window
     def _read(self, ctx, sh) -> None:

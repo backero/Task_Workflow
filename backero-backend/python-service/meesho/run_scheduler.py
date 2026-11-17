@@ -72,6 +72,8 @@ def sync_to_mongo():
     finally:
         conn.close()
     upsert_overview("meesho", {"kpis": k, "top_issues": top_issues, "ai_insight": ai_insight, "account_metrics": account_metrics})
+    from app.mirror import sync_mirror
+    sync_mirror(DB_PATH)
 
 
 def main():
