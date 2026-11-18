@@ -132,19 +132,27 @@ class MeeshoKeeper(threading.Thread):
     def _alive(self, page, reload: bool) -> bool:
         """Is the window signed in? ``reload`` = load the panel afresh (activity); otherwise just look at what is there."""
         from app.connectors import panel_reader
-        if reload:
-            page.goto(panel_reader.HOME, wait_until="domcontentloaded", timeout=60_000)
-            page.wait_for_timeout(4_000)
-        return panel_reader._signed_in(page)
+        if reload and panel_reader._signed_in(page):
+            # Visiting the login route can reset or misclassify an active SPA
+            # session. Refresh the authenticated page instead.
+            page.reload(wait_until="domcontentloaded", timeout=60_000)
+        for attempt in range(10 if reload else 1):
+            if panel_reader._signed_in(page):
+                return True
+            if reload and attempt < 9:
+                page.wait_for_timeout(1000)
+        return False
 
     def _loop(self, ctx, page) -> None:
         from app.connectors import panel_reader
         prompted = False
         while not self._halt.is_set():
             now = datetime.now()
+            page = panel_reader.signed_in_page(ctx, page)
             if page.is_closed():
                 raise RuntimeError("the Supplier Panel window was closed")
             alive = self._alive(page, reload=self.logic.signed_in)
+            self._record_session(ctx, page, alive)
             ev = self.logic.observe(alive, now)
             if alive and STEPS_FILE.exists():
                 import importlib
@@ -165,7 +173,7 @@ class MeeshoKeeper(threading.Thread):
                     import importlib
                     importlib.reload(panel_reader)      # pick up reader fixes without a restart
                     self._read(ctx, panel_reader)
-                    page = ctx.pages[0] if ctx.pages else ctx.new_page()
+                    page = panel_reader.signed_in_page(ctx, page)
                     self.logic.read_done(datetime.now())
                 prompted = False
             else:
@@ -178,12 +186,40 @@ class MeeshoKeeper(threading.Thread):
                         self._record("panel_read", now, "needs_you",
                                      "Not signed in to the Meesho Supplier Panel. Sign in in the window that is open (mobile OTP); it stays signed in afterwards.")
                     try:  # show the sign-in page once (never again while signed out: reloading would wipe an OTP being typed)
-                        page.goto(panel_reader.HOME, wait_until="domcontentloaded", timeout=60_000)
+                        # Do not send an existing Supplier Panel tab back through
+                        # login just because its SPA is temporarily loading.
+                        if 'supplier.meesho.com' not in (page.url or ''):
+                            page.goto(panel_reader.HOME, wait_until="domcontentloaded", timeout=60_000)
                         page.bring_to_front()
                     except Exception:  # noqa: BLE001
                         pass
                     prompted = True
             self._halt.wait(self.logic.sleep_seconds())
+
+    def _record_session(self, ctx, page, signed_in):
+        """Local connection diagnostics without copying credentials or page content."""
+        import json
+        from urllib.parse import urlsplit
+        from app.database import get_conn
+        from app.connectors import panel_reader
+        try:
+            tabs = []
+            for candidate in ctx.pages:
+                if candidate.is_closed():
+                    continue
+                parsed = urlsplit(candidate.url)
+                tabs.append({'route': parsed.netloc + parsed.path, 'signedIn': panel_reader._signed_in(candidate)})
+            parsed = urlsplit(page.url)
+            state = {'signedIn': signed_in, 'route': parsed.netloc + parsed.path,
+                     'tabs': tabs, 'checkedAt': datetime.now().isoformat(timespec='seconds')}
+            conn = get_conn(self.db_path)
+            try:
+                conn.execute("INSERT OR REPLACE INTO kv(key,value) VALUES ('seller_session',?)", (json.dumps(state),))
+                conn.commit()
+            finally:
+                conn.close()
+        except Exception:
+            pass  # a diagnostics failure must not interrupt the authenticated browser
 
     # ---------------------------------------------------------------- a full read inside the open window
     def _read(self, ctx, panel_reader) -> None:

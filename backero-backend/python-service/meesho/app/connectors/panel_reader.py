@@ -175,6 +175,18 @@ def _signed_in(page) -> bool:
     return "Start Selling" not in body and len(body.strip()) > 200
 
 
+def signed_in_page(ctx, fallback=None):
+    """A login can finish in another tab; do not keep watching an old login tab."""
+    candidates = ([fallback] if fallback is not None else []) + list(ctx.pages)
+    for page in candidates:
+        try:
+            if not page.is_closed() and _signed_in(page):
+                return page
+        except Exception:
+            continue
+    return fallback or (ctx.pages[0] if ctx.pages else ctx.new_page())
+
+
 def _open_nav(page, *labels: str, expect: str | None = None) -> None:
     """Open a panel page by clicking its menu entries in order (a group such as 'Orders' before 'Manage Orders'),
     then wait until `expect` (a regex) shows in the page text - these pages render client-side."""
@@ -201,9 +213,7 @@ def read_in_open_browser(ctx, db_path: str) -> dict[str, str]:
     conn.row_factory = sqlite3.Row
     init_panel_tables(conn)
     now = datetime.now().isoformat(timespec="seconds")
-    page = ctx.pages[0] if ctx.pages else ctx.new_page()
-    page.goto(URL_LOGIN_CHECK, wait_until="domcontentloaded", timeout=60_000)
-    page.wait_for_timeout(5_000)
+    page = signed_in_page(ctx)
     if not _signed_in(page):
         conn.close()
         raise SessionExpired("Not signed in to the Meesho Supplier Panel.")
@@ -271,7 +281,7 @@ def read_in_open_browser(ctx, db_path: str) -> dict[str, str]:
     # other area its extra load-settling waits) right after only the top-of-function 5s wait — not always
     # enough for the to-do counters widget to finish its own async load. Give it a bit more time first.
     page.wait_for_timeout(3_000)
-    step("home", (), parse_home)
+    step("home", ('Home',), parse_home)
     step("business_overview", (NAV_BUSINESS_DASHBOARD,), parse_business_overview, r"Total Views")
     products()
     pricing()
