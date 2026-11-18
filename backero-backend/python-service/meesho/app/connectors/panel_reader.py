@@ -187,10 +187,20 @@ def signed_in_page(ctx, fallback=None):
     return fallback or (ctx.pages[0] if ctx.pages else ctx.new_page())
 
 
+def authenticated_home(page):
+    home = getattr(page, '_meesho_home_url', None)
+    if home:
+        return home
+    if not _signed_in(page):
+        raise SessionExpired('Supplier Panel has not reached an authenticated page.')
+    page._meesho_home_url = page.url
+    return page.url
+
+
 def _open_nav(page, *labels: str, expect: str | None = None) -> None:
     """Open a panel page by clicking its menu entries in order (a group such as 'Orders' before 'Manage Orders'),
     then wait until `expect` (a regex) shows in the page text - these pages render client-side."""
-    page.goto(HOME, wait_until="domcontentloaded", timeout=60_000)
+    page.goto(authenticated_home(page), wait_until="domcontentloaded", timeout=60_000)
     page.wait_for_timeout(3_000)
     for label in labels:
         page.get_by_text(label, exact=True).first.click(timeout=8_000)
@@ -631,7 +641,7 @@ def explore(page, steps: list[dict]) -> list[str]:
     for st in steps:
         name = st.get("name", "step")
         try:
-            page.goto(HOME, wait_until="domcontentloaded", timeout=60_000)
+            page.goto(authenticated_home(page), wait_until="domcontentloaded", timeout=60_000)
             page.wait_for_timeout(4_000)
             for label in st.get("clicks", []):
                 try:

@@ -77,3 +77,13 @@ def test_real_redirect_to_login_still_reports_expired_session():
     keeper = MeeshoKeeper.__new__(MeeshoKeeper)
     keeper._authenticated_home = page.url
     assert keeper._alive(page, reload=True) is False
+
+
+def test_section_navigation_never_reenters_the_login_route():
+    home = 'https://supplier.meesho.com/panel/v3/new/growth/example/home'
+    page = Page(home, 'Orders Payments ' * 30)
+    page.get_by_text = lambda *args, **kwargs: SimpleNamespace(first=SimpleNamespace(click=lambda **kw: None))
+    panel_reader._open_nav(page, 'Payments')
+    page.url = 'https://supplier.meesho.com/panel/v3/new/cataloging/example/catalogs/bulk'
+    panel_reader._open_nav(page, 'Pricing')
+    assert page.navigations == [home, home]
