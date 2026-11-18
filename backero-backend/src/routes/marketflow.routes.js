@@ -726,6 +726,24 @@ router.all('/v1/*', async (req, res) => {
 
 const marketplaceSync = require('../services/marketplaceSync.service');
 
+// Amazon is collected through the official Selling Partner API. As with the
+// other mirrors, the route exposes only organization-bound captured facts;
+// SP-API OAuth/AWS credentials remain on the collector machine.
+router.get('/amazon/seller-mirror',
+  require('../middleware/orgIsolation.middleware').orgIsolation,
+  require('../middleware/role.middleware').authorizeAdminOrAbove,
+  async (req, res, next) => {
+    try {
+      const snapshot = await require('../models/AmazonSellerMirror')
+        .findOne({ organizationId: req.orgId }).lean();
+      if (!snapshot) return res.status(404).json({
+        message: 'Amazon SP-API is not connected to this organization yet.',
+        connectionRequired: true,
+      });
+      res.json({ ...snapshot.data, syncedAt: snapshot.syncedAt });
+    } catch (error) { next(error); }
+  });
+
 router.get('/snapdeal/seller-mirror',
   require('../middleware/orgIsolation.middleware').orgIsolation,
   require('../middleware/role.middleware').authorizeAdminOrAbove,

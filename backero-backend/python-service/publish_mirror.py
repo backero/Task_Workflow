@@ -14,6 +14,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
 PLATFORMS = {
+    'amazon': ('app.mirror', 'data/capture.json'),
     'flipkart': ('fkpulse.mirror', 'fk_pulse.db'),
     'meesho': ('app.mirror', 'data/saas.db'),
     'snapdeal': ('app.mirror', 'data/sdpulse.db'),

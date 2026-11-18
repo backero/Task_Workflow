@@ -1,0 +1,5 @@
+# Captures can contain business data; API credentials must never be written here.
+data/
+__pycache__/
+*.pyc
+.pytest_cache/

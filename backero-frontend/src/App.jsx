@@ -127,7 +127,7 @@ import JioMartAlerts from './platforms/jiomart/Alerts';
 import JioMartOverview from './platforms/jiomart/Overview';
 
 // Platform pages - Amazon
-import AmazonOverview from './platforms/amazon/Overview';
+import AmazonSellerHub from './pages/AmazonSellerHub';
 
 const SmartDashboard = () => {
   const { user } = useAuthStore();
@@ -303,7 +303,7 @@ export default function App() {
           <Route path="/jiomart/alerts" element={<JioMartAlerts />} />
 
           {/* Amazon */}
-          <Route path="/amazon/overview" element={<AmazonOverview />} />
+          <Route path="/amazon/overview" element={<AmazonSellerHub />} />
         </Route>
 
         {/* workflow-v2 retired and removed: its Tasks-board/my-tasks/approvals
