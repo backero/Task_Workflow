@@ -104,6 +104,9 @@ export default function Sidebar({ variant = 'desktop', onNavigate, onClose }) {
     deptItems.push({ label: 'Marketplace', icon: Store, children: [
       { label: 'Dashboard', to: '/departments/marketplace' },
     ]});
+    deptItems.push({ label: 'Amazon', icon: Store, children: [
+      { label: 'Overview', to: '/amazon/overview' },
+    ]});
     deptItems.push({ label: 'Meesho', icon: Store, children: [
       { label: 'Overview', to: '/meesho/overview' },
     ]});
