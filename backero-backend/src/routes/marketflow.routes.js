@@ -725,13 +725,14 @@ router.all('/v1/*', async (req, res) => {
 });
 
 const marketplaceSync = require('../services/marketplaceSync.service');
+const { authorizeMarketplaceRead } = require('../middleware/role.middleware');
 
 // Amazon is collected through the official Selling Partner API. As with the
 // other mirrors, the route exposes only organization-bound captured facts;
 // SP-API OAuth/AWS credentials remain on the collector machine.
 router.get('/amazon/seller-mirror',
   require('../middleware/orgIsolation.middleware').orgIsolation,
-  require('../middleware/role.middleware').authorizeAdminOrAbove,
+  authorizeMarketplaceRead,
   async (req, res, next) => {
     try {
       const snapshot = await require('../models/AmazonSellerMirror')
@@ -746,7 +747,7 @@ router.get('/amazon/seller-mirror',
 
 router.get('/snapdeal/seller-mirror',
   require('../middleware/orgIsolation.middleware').orgIsolation,
-  require('../middleware/role.middleware').authorizeAdminOrAbove,
+  authorizeMarketplaceRead,
   async (req, res, next) => {
     try {
       const snapshot = await require('../models/SnapdealSellerMirror')
@@ -758,7 +759,7 @@ router.get('/snapdeal/seller-mirror',
 
 router.get('/meesho/seller-mirror',
   require('../middleware/orgIsolation.middleware').orgIsolation,
-  require('../middleware/role.middleware').authorizeAdminOrAbove,
+  authorizeMarketplaceRead,
   async (req, res, next) => {
     try {
       const snapshot = await require('../models/MeeshoSellerMirror')
@@ -771,7 +772,7 @@ router.get('/meesho/seller-mirror',
 // Detailed seller data is explicitly bound to an organization, unlike legacy overview snapshots.
 router.get('/flipkart/seller-mirror',
   require('../middleware/orgIsolation.middleware').orgIsolation,
-  require('../middleware/role.middleware').authorizeAdminOrAbove,
+  authorizeMarketplaceRead,
   async (req, res, next) => {
     try {
       const snapshot = await require('../models/FlipkartSellerMirror')

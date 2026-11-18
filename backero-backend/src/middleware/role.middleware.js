@@ -23,6 +23,18 @@ const authorizeManagerOrAbove = authorizeMinRole('manager');
 const authorizeAdminOrAbove = authorizeMinRole('admin');
 const authorizeFounderOrAbove = authorizeMinRole('founder');
 
+// Marketplace seller mirrors contain operational performance data. Marketplace
+// staff need read access for day-to-day work; managers retain cross-department
+// visibility. Writes and seller-account connections stay behind their existing
+// stricter controls.
+const authorizeMarketplaceRead = (req, res, next) => {
+  if (!req.user) return sendError(res, 'Authentication required.', 401);
+  const level = ROLE_HIERARCHY[req.user.role] || 0;
+  if (level >= ROLE_HIERARCHY.manager || req.user.department === 'Marketplace'
+    || (req.user.permissions || []).includes('marketplace:read')) return next();
+  return sendError(res, 'Access denied. Marketplace team membership or manager access required.', 403);
+};
+
 // manager+ OR explicit inventory:write permission
 const authorizeInventoryWrite = (req, res, next) => {
   if (!req.user) return sendError(res, 'Authentication required.', 401);
@@ -96,6 +108,7 @@ module.exports = {
   authorizeManagerOrAbove,
   authorizeAdminOrAbove,
   authorizeFounderOrAbove,
+  authorizeMarketplaceRead,
   authorizeInventoryWrite,
   authorizeCatalogDelete,
   authorizeCatalogWrite,
