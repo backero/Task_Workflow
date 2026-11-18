@@ -9,7 +9,7 @@ import { useSocketStore } from '../../store/useSocketStore';
 import {
   TriangleAlert, CheckCircle2, BarChart3, Download, Zap, RefreshCw,
   Star, ClipboardPaste, X, Sparkles,
-  Lightbulb, GitCompare, LineChart, Package, FileBarChart2, Search, Eye, Boxes, Radar, Bot, HeartPulse, Wallet,
+  Lightbulb, GitCompare, LineChart, Package, FileBarChart2, Search, Eye, Boxes, Radar, Bot, HeartPulse,
 } from 'lucide-react';
 import { Button, Drawer, Space } from 'antd';
 import AIInsights from '../AIInsights.tsx';
@@ -3079,15 +3079,7 @@ export default function MarketplaceDept() {
                   className={clsx('px-3 py-1.5 rounded-lg text-xs font-bold transition-all', activeTab === 'overview' ? 'bg-white shadow-sm text-orange-600' : 'text-gray-500 hover:text-gray-700')}>
                   <BarChart3 size={13} className="inline -mt-0.5 mr-1" />Overview
                 </button>
-                <button onClick={() => setActiveTab('automation')}
-                  className={clsx('px-3 py-1.5 rounded-lg text-xs font-bold transition-all', activeTab === 'automation' ? 'bg-white shadow-sm text-orange-600' : 'text-gray-500 hover:text-gray-700')}>
-                  <Zap size={13} className="inline -mt-0.5 mr-1" />Live Automation
-                </button>
               </div>
-              <button onClick={() => navigate('/marketplace/account-returns')}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-white text-gray-600 border border-gray-200 hover:border-gray-400 transition-all">
-                <Wallet size={13} className="inline -mt-0.5 mr-1" />Account & Returns
-              </button>
               {activeTab === 'plan' && (
                 <button
                   onClick={() => setShowReport(s => !s)}
