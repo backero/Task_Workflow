@@ -9,6 +9,7 @@ class Page:
         self.url = url
         self.body = body
         self.reloads = 0
+        self.navigations = []
 
     def is_closed(self):
         return False
@@ -20,7 +21,9 @@ class Page:
         self.reloads += 1
 
     def goto(self, *args, **kwargs):
-        raise AssertionError('An authenticated session must not navigate to login')
+        assert '/login' not in args[0], 'An authenticated session must not navigate to login'
+        self.navigations.append(args[0])
+        self.url = args[0]
 
     def wait_for_timeout(self, duration):
         pass
@@ -37,7 +40,7 @@ def test_keepalive_refreshes_the_authenticated_page_without_visiting_login():
     dashboard = Page('https://supplier.meesho.com/panel/v3/new/root/home', 'Orders Payments ' * 30)
     keeper = MeeshoKeeper.__new__(MeeshoKeeper)
     assert keeper._alive(dashboard, reload=True)
-    assert dashboard.reloads == 1
+    assert dashboard.navigations == [dashboard.url]
 
 
 def test_login_in_progress_is_left_untouched():
@@ -45,3 +48,32 @@ def test_login_in_progress_is_left_untouched():
     keeper = MeeshoKeeper.__new__(MeeshoKeeper)
     assert not keeper._alive(login, reload=True)
     assert login.reloads == 0
+    assert login.navigations == []
+
+
+def test_keepalive_returns_to_verified_home_after_a_deep_catalog_read():
+    home = 'https://supplier.meesho.com/panel/v3/new/growth/example/home'
+    page = Page(home, 'Orders Payments ' * 30)
+    keeper = MeeshoKeeper.__new__(MeeshoKeeper)
+    assert keeper._alive(page, reload=False)
+    page.url = 'https://supplier.meesho.com/panel/v3/new/cataloging/example/catalogs/bulk'
+    assert keeper._alive(page, reload=True)
+    assert page.navigations == [home]
+
+
+def test_loading_panel_is_not_reported_as_an_expired_login():
+    page = Page('https://supplier.meesho.com/panel/v3/new/cataloging/example/catalogs/bulk', 'Loading...')
+    keeper = MeeshoKeeper.__new__(MeeshoKeeper)
+    assert keeper._alive(page, reload=True) is None
+    assert page.navigations == []
+
+
+def test_real_redirect_to_login_still_reports_expired_session():
+    class ExpiredPage(Page):
+        def goto(self, *args, **kwargs):
+            self.url = 'https://supplier.meesho.com/panel/v3/new/root/login'
+
+    page = ExpiredPage('https://supplier.meesho.com/panel/v3/new/growth/example/home', 'Loading...')
+    keeper = MeeshoKeeper.__new__(MeeshoKeeper)
+    keeper._authenticated_home = page.url
+    assert keeper._alive(page, reload=True) is False

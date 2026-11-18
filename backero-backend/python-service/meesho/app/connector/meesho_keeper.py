@@ -129,19 +129,28 @@ class MeeshoKeeper(threading.Thread):
         finally:
             lock.__exit__(None, None, None)
 
-    def _alive(self, page, reload: bool) -> bool:
+    def _alive(self, page, reload: bool) -> bool | None:
         """Is the window signed in? ``reload`` = load the panel afresh (activity); otherwise just look at what is there."""
         from app.connectors import panel_reader
-        if reload and panel_reader._signed_in(page):
-            # Visiting the login route can reset or misclassify an active SPA
-            # session. Refresh the authenticated page instead.
-            page.reload(wait_until="domcontentloaded", timeout=60_000)
+        signed_in = panel_reader._signed_in(page)
+        if signed_in and not getattr(self, '_authenticated_home', None):
+            self._authenticated_home = page.url
+        login_route = any(marker in (page.url or '').lower() for marker in ('/login', '/signin', '/sign-in', '/auth/'))
+        if reload and getattr(self, '_authenticated_home', None) and not login_route:
+            # Some deep catalog routes do not survive a full browser reload.
+            # Keep the first verified authenticated landing URL rather than
+            # refreshing whichever heavy table the last scrape left open.
+            page.goto(self._authenticated_home, wait_until="domcontentloaded", timeout=60_000)
         for attempt in range(10 if reload else 1):
             if panel_reader._signed_in(page):
                 return True
             if reload and attempt < 9:
                 page.wait_for_timeout(1000)
-        return False
+        # A blank/loading SPA on an authenticated route is not evidence of
+        # logout. Preserve the last session state and retry rather than asking
+        # the owner to log in again.
+        login_route = any(marker in (page.url or '').lower() for marker in ('/login', '/signin', '/sign-in', '/auth/'))
+        return False if login_route else None
 
     def _loop(self, ctx, page) -> None:
         from app.connectors import panel_reader
@@ -153,6 +162,9 @@ class MeeshoKeeper(threading.Thread):
                 raise RuntimeError("the Supplier Panel window was closed")
             alive = self._alive(page, reload=self.logic.signed_in)
             self._record_session(ctx, page, alive)
+            if alive is None:
+                self._halt.wait(WATCH_EVERY_S)
+                continue
             ev = self.logic.observe(alive, now)
             if alive and STEPS_FILE.exists():
                 import importlib

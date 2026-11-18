@@ -178,7 +178,7 @@ export default function MeeshoSellerHub() {
         </Space>
         <Paragraph type="secondary" style={{ fontSize: 12, margin: '8px 0 0' }}>This page checks saved data every minute. Refresh reloads the latest saved capture; it does not start a new supplier scrape. Each metric shows its own capture time.</Paragraph>
       </Card>
-      {data.status?.state && data.status.state !== 'ok' && <Alert type="warning" showIcon message={data.status.state === 'needs_you' ? 'Sign in to Meesho with mobile OTP' : 'Some supplier data could not be refreshed'} description={<>
+      {data.status?.state && data.status.state !== 'ok' && <Alert type={data.status.state === 'syncing' ? 'info' : 'warning'} showIcon message={data.status.state === 'syncing' ? 'Meesho connected — reading fresh data' : data.status.state === 'needs_you' ? 'Sign in to Meesho with mobile OTP' : 'Some supplier data could not be refreshed'} description={<>
         <Paragraph style={{ marginBottom: data.status.state === 'needs_you' ? 8 : 0 }}>{data.status.detail || 'Check the Supplier Panel connection.'}{data.status.at ? ` Reported ${dateText(data.status.at)}.` : ''} Saved data is still shown below.</Paragraph>
         {data.status.state === 'needs_you' && <Paragraph style={{ marginBottom: 0 }}>Sign in with your mobile number and complete Meesho's OTP verification in the existing Supplier Panel collector browser on the computer running the sync. Meesho requires this verification before new data can sync. Refresh saved data only reloads stored figures; it does not reconnect your seller account.</Paragraph>}
       </>} style={{ marginBottom: 20 }} />}

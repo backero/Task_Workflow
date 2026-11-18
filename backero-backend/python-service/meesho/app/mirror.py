@@ -1,6 +1,24 @@
 """Export captured Supplier Panel facts; never use synthetic listing snapshots."""
 import sqlite3
+import json
+from datetime import datetime
 from pathlib import Path
+
+
+def current_read_status(status, session, now=None):
+    """An old login warning must not override a newer verified signed-in read."""
+    if status.get('state') != 'needs_you' or session.get('signedIn') is not True:
+        return status
+    try:
+        checked = datetime.fromisoformat(session['checkedAt'])
+        previous = datetime.fromisoformat(status['at'])
+        age = ((now or datetime.now()) - checked).total_seconds()
+    except (KeyError, TypeError, ValueError):
+        return status
+    if checked > previous and 0 <= age <= 600:
+        return {'state': 'syncing', 'detail': 'Seller sign-in verified. A fresh Supplier Panel read is in progress.',
+                'at': session['checkedAt']}
+    return status
 
 
 def build_mirror(db_path):
@@ -30,6 +48,12 @@ def build_mirror(db_path):
         run = conn.execute("SELECT status,detail,finished_at FROM robot_runs WHERE job='panel_read' ORDER BY id DESC LIMIT 1").fetchone()
         result['status'] = {'state': run['status'], 'detail': run['detail'], 'at': run['finished_at']} if run else {
             'state': 'needs_you', 'detail': 'No Supplier Panel read has completed yet.', 'at': None}
+        session = conn.execute("SELECT value FROM kv WHERE key='seller_session'").fetchone()
+        if session:
+            try:
+                result['status'] = current_read_status(result['status'], json.loads(session['value']))
+            except (TypeError, ValueError):
+                pass
         result['limitations'] = [
             'Conversion rates are unavailable pending source-column verification; existing captures contain inconsistent values.',
             'Business Dashboard totals use the seller-selected report range; no fixed 7-day period is assumed.',

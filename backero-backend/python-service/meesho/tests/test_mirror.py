@@ -3,6 +3,8 @@ import sqlite3
 from app.database import init_db
 from app.connectors.panel_reader import init_panel_tables, PRODUCT_SCHEMA, PRICING_SCHEMA
 from app.mirror import build_mirror
+from app.mirror import current_read_status
+from datetime import datetime, timedelta
 
 
 def test_only_real_captured_batches_are_exported_and_stale_login_is_preserved(tmp_path):
@@ -27,3 +29,14 @@ def test_only_real_captured_batches_are_exported_and_stale_login_is_preserved(tm
     assert data['pricing'] == []
     assert data['status']['state'] == 'needs_you'
     assert data['coverage']['pricing']['capturedAt'] is None
+
+
+def test_new_verified_session_replaces_only_the_old_login_warning_while_reading():
+    now = datetime(2026, 11, 18, 12, 0)
+    old = {'state': 'needs_you', 'at': (now - timedelta(minutes=5)).isoformat(), 'detail': 'Old login warning'}
+    session = {'signedIn': True, 'checkedAt': now.isoformat()}
+    assert current_read_status(old, session, now)['state'] == 'syncing'
+    assert current_read_status(old, {**session, 'signedIn': False}, now) == old
+    assert current_read_status(old, session, now + timedelta(minutes=11)) == old
+    failure = {**old, 'state': 'failed'}
+    assert current_read_status(failure, session, now) == failure
