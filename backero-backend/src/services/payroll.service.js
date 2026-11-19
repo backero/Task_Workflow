@@ -6,6 +6,8 @@ const PayrollPeriod = require('../models/PayrollPeriod');
 const PayrollRecord = require('../models/PayrollRecord');
 const PayrollRecordCorrection = require('../models/PayrollRecordCorrection');
 const Employee = require('../models/Employee');
+const EmployeeAdvance = require('../models/EmployeeAdvance');
+const EmployeeAdvanceRepayment = require('../models/EmployeeAdvanceRepayment');
 const { getAttendanceSummary } = require('./attendanceSummary.service');
 const { recordAuditEvent } = require('./attendanceAudit.service');
 
@@ -17,6 +19,14 @@ function fail(status, message) {
 
 function round2(n) {
   return Math.round(n * 100) / 100;
+}
+
+async function advanceDeductionsFor(organizationId, employeeId) {
+  const advances = await EmployeeAdvance.find({ organizationId, employeeId, status: 'APPROVED', remainingBalance: { $gt: 0 } }).select('monthlyInstallment remainingBalance');
+  return advances.map((advance) => ({
+    advanceId: advance._id,
+    amount: round2(Math.min(Number(advance.monthlyInstallment || 0), Number(advance.remainingBalance || 0))),
+  })).filter((item) => item.amount > 0);
 }
 
 /** Assumption (no statutory rules, foundation scope): basicEarnings is
@@ -106,13 +116,21 @@ async function generateRecords(organizationId, actorUserId, periodId) {
     const summary = await getAttendanceSummary(organizationId, employee._id, {
       periodStart: period.periodStart, periodEnd: period.periodEnd,
     });
-    const { basicEarnings, deductions, netSalary } = computeEarnings(employee.basicMonthlySalary, summary);
+    const earnings = computeEarnings(employee.basicMonthlySalary, summary);
+    // eslint-disable-next-line no-await-in-loop
+    const advanceDeductions = await advanceDeductionsFor(organizationId, employee._id);
+    const loanAdvance = round2(advanceDeductions.reduce((sum, item) => sum + item.amount, 0));
+    const basicEarnings = earnings.basicEarnings;
+    const deductions = earnings.deductions;
+    const netSalary = round2(Math.max(0, earnings.netSalary - loanAdvance));
 
     const existing = existingByEmployee.get(String(employee._id));
     if (existing) {
       existing.basicEarnings = basicEarnings;
       existing.deductions = deductions;
       existing.netSalary = netSalary;
+      existing.loanAdvance = loanAdvance;
+      existing.advanceDeductions = advanceDeductions;
       existing.attendanceSummarySnapshot = summary;
       // eslint-disable-next-line no-await-in-loop
       await existing.save();
@@ -125,6 +143,8 @@ async function generateRecords(organizationId, actorUserId, periodId) {
         basicEarnings,
         deductions,
         netSalary,
+        loanAdvance,
+        advanceDeductions,
         attendanceSummarySnapshot: summary,
         createdAt: new Date(),
       });
@@ -149,6 +169,29 @@ async function finalizePeriod(organizationId, actorUserId, periodId) {
   }
 
   const now = new Date();
+  for (const record of records) {
+    for (const item of record.advanceDeductions || []) {
+      // The unique index makes finalization idempotent even if a retry lands
+      // after the period status changed but before a response was returned.
+      try {
+        // eslint-disable-next-line no-await-in-loop
+        await EmployeeAdvanceRepayment.create({ organizationId, advanceId: item.advanceId, payrollPeriodId: period._id, payrollRecordId: record._id, amount: item.amount, appliedBy: actorUserId });
+        // eslint-disable-next-line no-await-in-loop
+        const advance = await EmployeeAdvance.findOneAndUpdate(
+          { _id: item.advanceId, organizationId, status: 'APPROVED', remainingBalance: { $gt: 0 } },
+          { $inc: { remainingBalance: -item.amount } }, { new: true },
+        );
+        if (advance && advance.remainingBalance <= 0) {
+          advance.remainingBalance = 0;
+          advance.status = 'CLOSED';
+          // eslint-disable-next-line no-await-in-loop
+          await advance.save();
+        }
+      } catch (error) {
+        if (error?.code !== 11000) throw error;
+      }
+    }
+  }
   await PayrollRecord.updateMany(
     { organizationId, payrollPeriodId: period._id },
     { $set: { isFinalized: true, finalizedAt: now } },

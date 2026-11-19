@@ -10,7 +10,7 @@ import {
   Box, Zap, BarChart3, Settings, Megaphone,
   Store, Banknote, UsersRound,
   Wrench, Trophy, Sparkles, X,
-  Fingerprint, ClipboardCheck, Receipt, CalendarOff, Clock, ListTodo, MessageCircle, IdCard,
+  Fingerprint, ClipboardCheck, Receipt, CalendarOff, Clock, ListTodo, MessageCircle, IdCard, HandCoins,
 } from 'lucide-react';
 import { canSeeWhatsAppChats } from '../../pages/crm/WhatsAppChats';
 
@@ -56,6 +56,7 @@ export default function Sidebar({ variant = 'desktop', onNavigate, onClose }) {
       { label: 'Check-In', to: '/check-in', icon: Clock },
       { label: 'My Attendance', to: '/my-attendance', icon: ClipboardCheck },
       { label: 'My Payroll', to: '/my-payroll', icon: Receipt },
+      { label: 'My Advance', to: '/my-advances', icon: HandCoins },
       { label: 'My Leave', to: '/my-leave', icon: CalendarOff },
       ...(isAdmin ? [{ label: 'Remainder', to: '/remainder', icon: ListTodo }] : []),
     ],
@@ -140,6 +141,7 @@ export default function Sidebar({ variant = 'desktop', onNavigate, onClose }) {
           { label: 'Devices', to: '/attendance/devices' },
           { label: 'Location', to: '/attendance/location' },
           { label: 'Payroll', to: '/attendance/payroll' },
+          { label: 'Advance & Recovery', to: '/attendance/advances' },
           { label: 'Leave', to: '/attendance/leave' },
         ],
       }],

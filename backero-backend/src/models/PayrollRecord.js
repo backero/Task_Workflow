@@ -26,6 +26,12 @@ const payrollRecordSchema = new mongoose.Schema({
   pf: { type: Number, default: 0 },
   esic: { type: Number, default: 0 },
   loanAdvance: { type: Number, default: 0 },
+  // Frozen only when the period is generated. The actual balance reduction
+  // happens exactly once at finalization through EmployeeAdvanceRepayment.
+  advanceDeductions: [{
+    advanceId: { type: mongoose.Schema.Types.ObjectId, ref: 'EmployeeAdvance' },
+    amount: { type: Number, min: 0 },
+  }],
   // GENERATED = computed here from attendance (computeEarnings); IMPORTED =
   // came verbatim from an already-paid salary Excel upload.
   source: { type: String, enum: ['GENERATED', 'IMPORTED'], default: 'GENERATED' },

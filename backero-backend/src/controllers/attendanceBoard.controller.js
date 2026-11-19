@@ -8,6 +8,7 @@ const Attendance = require('../models/Attendance');
 const AttendanceEvent = require('../models/AttendanceEvent');
 const AttendanceCorrection = require('../models/AttendanceCorrection');
 const AttendancePeriod = require('../models/AttendancePeriod');
+const AttendancePolicy = require('../models/AttendancePolicy');
 const { asyncHandler, sendSuccess, sendError, paginate, paginateResponse } = require('../utils/helpers');
 const processor = require('../services/attendanceProcessor.service');
 const { recordAuditEvent } = require('../services/attendanceAudit.service');
@@ -86,18 +87,29 @@ exports.requestCorrection = asyncHandler(async (req, res) => {
   const proposedCheckIn = checkInStr ? new Date(checkInStr) : attendance.checkIn;
   const proposedCheckOut = checkOutStr ? new Date(checkOutStr) : attendance.checkOut;
 
-  const period = await AttendancePeriod.findById(attendance.attendancePeriodId);
-  if (period?.status === 'FINALIZED') {
-    const correction = await AttendanceCorrection.create({
-      organizationId: orgId, attendanceId: attendance._id, requestedBy: req.user._id, reason,
-      proposedCheckIn, proposedCheckOut,
-    });
-    await recordAuditEvent({
-      organizationId: orgId, actorUserId: req.user._id, action: 'attendance.correct.request',
-      entityType: 'Attendance', entityId: attendance._id, reason, newValue: { proposedCheckIn, proposedCheckOut },
-    });
-    return sendSuccess(res, { correction }, 'Correction submitted for approval (period is finalized).');
-  }
+  const policy = await AttendancePolicy.findOne({ organizationId: orgId });
+  const startDay = policy?.payrollStartDay ?? 21;
+  const endDay = policy?.payrollEndDay ?? 20;
+  const now = new Date();
+  const cycleStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - (now.getUTCDate() < startDay ? 1 : 0), startDay));
+  const cycleEnd = new Date(Date.UTC(cycleStart.getUTCFullYear(), cycleStart.getUTCMonth() + 1, endDay + 1));
+  const requestCount = await AttendanceCorrection.countDocuments({
+    organizationId: orgId, requestedBy: req.user._id, createdAt: { $gte: cycleStart, $lt: cycleEnd },
+  });
+  const correctionLimit = policy?.correctionRequestsPerCycle ?? 3;
+  if (requestCount >= correctionLimit) return sendError(res, `You have already used all ${correctionLimit} attendance correction requests for this payroll month.`, 422);
+  const existing = await AttendanceCorrection.findOne({ organizationId: orgId, attendanceId: attendance._id, status: 'PENDING_APPROVAL' });
+  if (existing) return sendError(res, 'A correction request for this attendance date is already pending approval.', 409);
+  const correction = await AttendanceCorrection.create({
+    organizationId: orgId, attendanceId: attendance._id, requestedBy: req.user._id, reason,
+    proposedCheckIn, proposedCheckOut,
+  });
+  await recordAuditEvent({
+    organizationId: orgId, actorUserId: req.user._id, action: 'attendance.correct.request',
+    entityType: 'Attendance', entityId: attendance._id, reason,
+    newValue: { proposedCheckIn, proposedCheckOut, cycleRequestNumber: requestCount + 1 },
+  });
+  return sendSuccess(res, { correction, remainingRequests: Math.max(0, correctionLimit - requestCount - 1), correctionLimit }, 'Correction submitted for admin approval.');
 
   // OPEN period — apply directly. AttendanceEvent is append-only (never
   // edited), so a correction is a NEW event pair, same convention the

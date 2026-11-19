@@ -115,6 +115,10 @@ const DEFAULT_ATTENDANCE_RULES = {
   SHIFT_END_TIME: '18:00',
   LATE_THRESHOLD_MINUTES: 10,
   HALF_DAY_MIN_HOURS: 4,
+  // A very late arrival is treated as a half day even when the employee
+  // later completes a checkout. This is separately configurable from the
+  // minimum-hours rule so policy can reflect payroll practice.
+  HALF_DAY_AFTER_LATE_MINUTES: 240,
   // Checking out this many minutes (or more) before SHIFT_END_TIME derives
   // EARLY_LEAVE — see attendanceProcessor.service.js#deriveStatus.
   EARLY_LEAVE_THRESHOLD_MINUTES: 10,

@@ -7,6 +7,7 @@ const LeaveType = require('../models/LeaveType');
 const LeaveBalance = require('../models/LeaveBalance');
 const LeaveRequest = require('../models/LeaveRequest');
 const Holiday = require('../models/Holiday');
+const AttendancePolicy = require('../models/AttendancePolicy');
 const { dayBoundsUTC, getEffectiveWeekOffDays } = require('./attendanceProcessor.service');
 const { recordAuditEvent } = require('./attendanceAudit.service');
 
@@ -34,21 +35,60 @@ function eachDate(startDate, endDate) {
 /** Working-day count in [startDate, endDate] — excludes the org's current
  * week-off days and holiday-calendar dates, so a leave spanning a weekend
  * doesn't over-deduct balance or double-count with WEEK_OFF/HOLIDAY. */
-async function countWorkingDays(organizationId, startDate, endDate) {
+async function countWorkingDays(organizationId, startDate, endDate, includeSandwich = false) {
   const holidays = await Holiday.find({ organizationId });
   const isHoliday = (date) => holidays.some((h) => {
     if (h.isRecurringAnnually) return h.date.getUTCMonth() === date.getUTCMonth() && h.date.getUTCDate() === date.getUTCDate();
     return h.date.getTime() === date.getTime();
   });
 
+  const isNonWorking = async (date) => {
+    const weekOffDays = await getEffectiveWeekOffDays(organizationId, date);
+    return weekOffDays.includes(date.getUTCDay()) || isHoliday(date);
+  };
   let count = 0;
   for (const date of eachDate(startDate, endDate)) {
-    const weekOffDays = await getEffectiveWeekOffDays(organizationId, date);
-    if (weekOffDays.includes(date.getUTCDay())) continue;
-    if (isHoliday(date)) continue;
+    if (await isNonWorking(date)) continue;
     count += 1;
   }
+  // Company policy: a non-working day immediately following a leave stretch
+  // is chargeable when sandwich leave is enabled (e.g. Fri/Sat leave -> Sun).
+  if (includeSandwich && count >= 2) {
+    const trailing = new Date(endDate);
+    trailing.setUTCDate(trailing.getUTCDate() + 1);
+    let sandwichDays = 0;
+    while (sandwichDays < 14 && await isNonWorking(trailing)) {
+      count += 1;
+      sandwichDays += 1;
+      trailing.setUTCDate(trailing.getUTCDate() + 1);
+    }
+  }
   return count;
+}
+
+function payrollCycleBounds(date, startDay = 21, endDay = 20) {
+  const dateOnly = toUTCDate(date);
+  const startMonth = dateOnly.getUTCDate() < startDay ? dateOnly.getUTCMonth() - 1 : dateOnly.getUTCMonth();
+  const start = new Date(Date.UTC(dateOnly.getUTCFullYear(), startMonth, startDay));
+  const end = new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth() + 1, endDay));
+  return { start, end };
+}
+
+function cycleAllowanceFor(leaveType, policy) {
+  const code = String(leaveType.code || '').toUpperCase();
+  if (code === 'CL') return policy?.casualLeavePerCycle ?? 1;
+  if (code === 'SL') return policy?.sickLeavePerCycle ?? 1;
+  return null;
+}
+
+async function cycleUsage(organizationId, employeeId, leaveTypeId, cycleStart, cycleEnd, statuses, excludeRequestId = null) {
+  const query = {
+    organizationId, employeeId, leaveTypeId, status: { $in: statuses },
+    startDate: { $gte: cycleStart }, endDate: { $lte: cycleEnd },
+  };
+  if (excludeRequestId) query._id = { $ne: excludeRequestId };
+  const requests = await LeaveRequest.find(query).select('workingDays').lean();
+  return requests.reduce((sum, request) => sum + Number(request.workingDays || 0), 0);
 }
 
 async function resolveEmployeeForUser(organizationId, userId) {
@@ -70,7 +110,19 @@ async function createType(organizationId, actorUserId, { name, code, isPaid }) {
 
 // --- Balances ---
 async function listBalances(organizationId, employeeId, year) {
-  return LeaveBalance.find({ organizationId, employeeId, year }).populate('leaveTypeId', 'name code isPaid');
+  const [stored, policy, cycleTypes] = await Promise.all([
+    LeaveBalance.find({ organizationId, employeeId, year }).populate('leaveTypeId', 'name code isPaid'),
+    AttendancePolicy.findOne({ organizationId }).lean(),
+    LeaveType.find({ organizationId, code: { $in: ['CL', 'SL'] }, isActive: true }).lean(),
+  ]);
+  const cycle = payrollCycleBounds(new Date(), policy?.payrollStartDay ?? 21, policy?.payrollEndDay ?? 20);
+  const dynamic = await Promise.all(cycleTypes.map(async (leaveType) => {
+    const allowance = cycleAllowanceFor(leaveType, policy);
+    const usedDays = await cycleUsage(organizationId, employeeId, leaveType._id, cycle.start, cycle.end, ['APPROVED']);
+    return { organizationId, employeeId, leaveTypeId: leaveType, year, totalDays: allowance, usedDays, cycleStart: cycle.start, cycleEnd: cycle.end, isCycleAllowance: true };
+  }));
+  const cycleCodes = new Set(cycleTypes.map((type) => type.code));
+  return [...stored.filter((balance) => !cycleCodes.has(balance.leaveTypeId?.code)), ...dynamic];
 }
 
 async function setBalance(organizationId, actorUserId, { employeeId, leaveTypeId, year, totalDays }) {
@@ -105,12 +157,21 @@ async function applyForLeave(organizationId, userId, { leaveTypeId, startDate, e
   const leaveType = await LeaveType.findOne({ _id: leaveTypeId, organizationId, isActive: true });
   if (!leaveType) throw fail(422, 'invalid_leave_type', 'Unknown leave type.');
 
-  const workingDays = await countWorkingDays(organizationId, start, end);
+  const policy = await AttendancePolicy.findOne({ organizationId }).lean();
+  const workingDays = await countWorkingDays(organizationId, start, end, policy?.sandwichLeaveEnabled !== false);
   if (workingDays === 0) throw fail(422, 'no_working_days', 'The selected range has no working days to apply leave against.');
 
+  const allowance = cycleAllowanceFor(leaveType, policy);
   const year = start.getUTCFullYear();
-  const balance = await LeaveBalance.findOne({ organizationId, employeeId: employee._id, leaveTypeId, year });
-  const available = (balance?.totalDays || 0) - (balance?.usedDays || 0);
+  let available;
+  if (allowance != null) {
+    const { start: cycleStart, end: cycleEnd } = payrollCycleBounds(start, policy?.payrollStartDay ?? 21, policy?.payrollEndDay ?? 20);
+    const reserved = await cycleUsage(organizationId, employee._id, leaveTypeId, cycleStart, cycleEnd, ['PENDING', 'APPROVED']);
+    available = allowance - reserved;
+  } else {
+    const balance = await LeaveBalance.findOne({ organizationId, employeeId: employee._id, leaveTypeId, year });
+    available = (balance?.totalDays || 0) - (balance?.usedDays || 0);
+  }
   if (workingDays > available) {
     throw fail(422, 'insufficient_balance', `Only ${available} day(s) available for ${leaveType.name} in ${year}.`);
   }
@@ -132,7 +193,9 @@ async function cancelRequest(organizationId, userId, requestId) {
   if (!request) throw fail(404, 'not_found', 'Leave request not found.');
   if (!['PENDING', 'APPROVED'].includes(request.status)) throw fail(409, 'not_cancellable', 'Only pending or approved requests can be cancelled.');
 
-  if (request.status === 'APPROVED') {
+  const leaveType = await LeaveType.findById(request.leaveTypeId).select('code');
+  const policy = await AttendancePolicy.findOne({ organizationId }).lean();
+  if (request.status === 'APPROVED' && cycleAllowanceFor(leaveType || {}, policy) == null) {
     await LeaveBalance.updateOne(
       { organizationId, employeeId: request.employeeId, leaveTypeId: request.leaveTypeId, year: request.startDate.getUTCFullYear() },
       { $inc: { usedDays: -request.workingDays } },
@@ -149,14 +212,26 @@ async function decideRequest(organizationId, actorUserId, requestId, decision, n
   if (request.status !== 'PENDING') throw fail(409, 'already_decided', 'This request has already been decided.');
 
   if (decision === 'APPROVED') {
+    const leaveType = await LeaveType.findById(request.leaveTypeId).select('code');
+    const policy = await AttendancePolicy.findOne({ organizationId }).lean();
+    const allowance = cycleAllowanceFor(leaveType || {}, policy);
     const year = request.startDate.getUTCFullYear();
-    const balance = await LeaveBalance.findOne({ organizationId, employeeId: request.employeeId, leaveTypeId: request.leaveTypeId, year });
-    const available = (balance?.totalDays || 0) - (balance?.usedDays || 0);
+    let available;
+    if (allowance != null) {
+      const { start: cycleStart, end: cycleEnd } = payrollCycleBounds(request.startDate, policy?.payrollStartDay ?? 21, policy?.payrollEndDay ?? 20);
+      const used = await cycleUsage(organizationId, request.employeeId, request.leaveTypeId, cycleStart, cycleEnd, ['APPROVED'], request._id);
+      available = allowance - used;
+    } else {
+      const balance = await LeaveBalance.findOne({ organizationId, employeeId: request.employeeId, leaveTypeId: request.leaveTypeId, year });
+      available = (balance?.totalDays || 0) - (balance?.usedDays || 0);
+    }
     if (request.workingDays > available) throw fail(422, 'insufficient_balance', 'Employee no longer has enough balance for this request.');
-    await LeaveBalance.updateOne(
-      { organizationId, employeeId: request.employeeId, leaveTypeId: request.leaveTypeId, year },
-      { $inc: { usedDays: request.workingDays } },
-    );
+    if (allowance == null) {
+      await LeaveBalance.updateOne(
+        { organizationId, employeeId: request.employeeId, leaveTypeId: request.leaveTypeId, year },
+        { $inc: { usedDays: request.workingDays } },
+      );
+    }
   }
 
   request.status = decision;
@@ -173,7 +248,7 @@ async function decideRequest(organizationId, actorUserId, requestId, decision, n
 }
 
 module.exports = {
-  countWorkingDays, resolveEmployeeForUser,
+  countWorkingDays, payrollCycleBounds, resolveEmployeeForUser,
   listTypes, createType,
   listBalances, setBalance,
   listMyRequests, listRequests, applyForLeave, cancelRequest, decideRequest,

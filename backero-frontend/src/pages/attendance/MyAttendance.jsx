@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { ClipboardCheck, Pencil, Check, X } from 'lucide-react';
 import api from '../../api/axios';
 import toast from 'react-hot-toast';
-import { Button, Card, Col, Empty, Input, Modal, Row, Space, Table, Tag, Typography } from 'antd';
+import { Alert, Button, Card, Col, Empty, Input, Modal, Row, Space, Statistic, Table, Tag, Typography } from 'antd';
 import dayjs from 'dayjs';
 import { usePermissions } from '../../store/usePermissions';
 import HolidaysCard from '../../components/attendance/HolidaysCard';
@@ -85,6 +85,11 @@ export default function MyAttendance() {
     retry: false,
   });
   const rows = data?.attendance || [];
+  const today = dayjs().format('YYYY-MM-DD');
+  const todayRow = rows.find((row) => dayjs(row.attendanceDate).format('YYYY-MM-DD') === today);
+  const monthRows = rows.filter((row) => dayjs(row.attendanceDate).isSame(dayjs(), 'month'));
+  const workedDays = monthRows.filter((row) => ['PRESENT', 'LATE', 'EARLY_LEAVE', 'HALF_DAY'].includes(row.status)).length;
+  const exceptionDays = monthRows.filter((row) => ['MISSING_PUNCH', 'INCOMPLETE'].includes(row.status)).length;
 
   const correctMutation = useMutation({
     mutationFn: ({ attendanceId, body }) => api.post(`/attendance/${attendanceId}/correct`, body),
@@ -109,11 +114,21 @@ export default function MyAttendance() {
 
   return (
     <div>
-      <Title level={4} style={{ marginBottom: 0 }}>My Attendance</Title>
-      <Text type="secondary">Your own attendance history</Text>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', gap: 16, flexWrap: 'wrap' }}>
+        <div><Title level={4} style={{ marginBottom: 0 }}>My Attendance</Title><Text type="secondary">Today, your monthly work record, and correction requests</Text></div>
+        <Tag color={todayRow?.status === 'PRESENT' ? 'green' : todayRow?.status === 'LATE' ? 'gold' : 'default'}>{todayRow?.status || 'NO PUNCH TODAY'}</Tag>
+      </div>
+
+      <Row gutter={[12, 12]} style={{ marginTop: 16 }}>
+        <Col xs={24} sm={8}><Card size="small"><Statistic title="Worked this month" value={workedDays} suffix="days" /></Card></Col>
+        <Col xs={24} sm={8}><Card size="small"><Statistic title="Punch exceptions" value={exceptionDays} valueStyle={{ color: exceptionDays ? '#d46b08' : '#3f8600' }} suffix="days" /></Card></Col>
+        <Col xs={24} sm={8}><Card size="small"><Text type="secondary" style={{ fontSize: 12 }}>Correction policy</Text><div style={{ marginTop: 6, fontWeight: 600 }}>Up to 3 requests / month</div><Text type="secondary" style={{ fontSize: 11 }}>Each request needs admin approval.</Text></Card></Col>
+      </Row>
 
       <div style={{ marginTop: 16, marginBottom: 16 }}><ProfileCard /></div>
       <div style={{ marginBottom: 16 }}><HolidaysCard /></div>
+
+      {exceptionDays > 0 && <Alert style={{ marginBottom: 16 }} type="warning" showIcon message={`${exceptionDays} punch exception${exceptionDays > 1 ? 's' : ''} need attention`} description="Select an affected day below and submit a correction request. Approved changes are reflected in payroll." />}
 
       {isError ? (
         <Card><Empty description="No employee profile is linked to your account yet — contact HR." /></Card>

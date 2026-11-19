@@ -29,6 +29,9 @@ import MyPayroll from './pages/attendance/MyPayroll';
 import LeaveManagement from './pages/attendance/LeaveManagement';
 import MyLeave from './pages/attendance/MyLeave';
 import CheckInPage from './pages/attendance/CheckInPage';
+import AttendancePolicy from './pages/attendance/AttendancePolicy';
+import AdvanceManagement from './pages/attendance/AdvanceManagement';
+import MyAdvances from './pages/attendance/MyAdvances';
 import RemainderPage from './pages/crm/RemainderPage';
 
 // Dashboard pages
@@ -254,9 +257,12 @@ export default function App() {
           <Route path="/attendance/location" element={<PermissionRoute permission={['location:view_live', 'location:view_history']}><AttLocation /></PermissionRoute>} />
           <Route path="/attendance/payroll" element={<PermissionRoute permission={['payroll:read', 'payroll:manage_config']}><AttPayroll /></PermissionRoute>} />
           <Route path="/attendance/leave" element={<PermissionRoute permission={['leave:read', 'leave:manage', 'leave:approve']}><LeaveManagement /></PermissionRoute>} />
+          <Route path="/attendance/policy" element={<PermissionRoute permission="rules:configure"><AttendancePolicy /></PermissionRoute>} />
+          <Route path="/attendance/advances" element={<PermissionRoute permission={['payroll:read', 'payroll:manage_config']}><AdvanceManagement /></PermissionRoute>} />
           <Route path="/my-attendance" element={<MyAttendance />} />
           <Route path="/my-payroll" element={<MyPayroll />} />
           <Route path="/my-leave" element={<MyLeave />} />
+          <Route path="/my-advances" element={<MyAdvances />} />
           <Route path="/remainder" element={<PermissionRoute requiredRole="admin"><RemainderPage /></PermissionRoute>} />
           <Route path="/check-in" element={<CheckInPage />} />
 

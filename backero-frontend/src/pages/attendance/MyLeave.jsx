@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { CalendarOff } from 'lucide-react';
 import api from '../../api/axios';
 import toast from 'react-hot-toast';
-import { Button, Card, Col, Empty, Input, Modal, Row, Select, Space, Table, Tag, Typography } from 'antd';
+import { Alert, Button, Card, Col, Empty, Input, Modal, Row, Select, Space, Table, Tag, Typography } from 'antd';
 import dayjs from 'dayjs';
 import HolidaysCard from '../../components/attendance/HolidaysCard';
 
@@ -82,6 +82,11 @@ export default function MyLeave() {
         <Card><Empty description="No employee profile is linked to your account yet — contact HR." /></Card>
       ) : (
         <>
+          <Alert
+            type="info" showIcon style={{ marginBottom: 16 }}
+            message="Leave is confirmed only after admin approval"
+            description="Apply CL or SL with the exact dates and reason. The final paid/unpaid impact is shown after approval according to the company leave policy."
+          />
           <Row gutter={16} style={{ marginBottom: 16 }}>
             {balancesLoading ? <Col span={24}><Card loading size="small" /></Col> : balances.length === 0 ? (
               <Col span={24}><Card size="small"><Text type="secondary">No leave balance set yet — contact HR.</Text></Card></Col>

@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { CalendarCheck, CalendarDays, Search, TriangleAlert, Settings as SettingsIcon, X, Clock, ShieldCheck } from 'lucide-react';
 import api from '../../api/axios';
 import toast from 'react-hot-toast';
-import { Button, Card, Col, DatePicker, Drawer, Empty, Input, Row, Select, Space, Table, Tabs, Tag, Typography } from 'antd';
+import { Button, Card, Col, DatePicker, Drawer, Empty, Input, Row, Select, Space, Statistic, Table, Tabs, Tag, Typography } from 'antd';
 import dayjs from 'dayjs';
 import { usePermissions } from '../../store/usePermissions';
 import HolidaysCard from '../../components/attendance/HolidaysCard';
@@ -394,7 +395,7 @@ function TodayBoard({ hasPermission }) {
   ];
 
   return (
-    <div>
+    <div style={{ maxWidth: 1500, margin: '0 auto' }}>
       <Space style={{ marginBottom: 16, width: '100%' }} wrap>
         <DatePicker value={date} onChange={(d) => setDate(d || dayjs())} allowClear={false} />
         <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search name or code..." prefix={<Search size={14} color="#9ca3af" />} style={{ width: 240 }} />
@@ -404,7 +405,7 @@ function TodayBoard({ hasPermission }) {
 
       <Card styles={{ body: { padding: 0 } }}>
         <Table
-          rowKey="employeeId" columns={columns} dataSource={rows} loading={isLoading} pagination={false}
+          rowKey="employeeId" columns={columns} dataSource={rows} loading={isLoading} pagination={false} scroll={{ x: 760 }}
           onRow={(r) => ({ onClick: () => setSelected(r), style: { cursor: 'pointer' } })}
           locale={{ emptyText: <Empty description="No employees found" /> }}
         />
@@ -438,7 +439,7 @@ function ExceptionsTab() {
   return (
     <Card styles={{ body: { padding: 0 } }}>
       <Table
-        rowKey="_id" columns={columns} dataSource={rows} loading={isLoading} pagination={false}
+        rowKey="_id" columns={columns} dataSource={rows} loading={isLoading} pagination={false} scroll={{ x: 620 }}
         locale={{ emptyText: <Empty description="No unmatched punches — every device event matched a known employee" /> }}
       />
     </Card>
@@ -463,7 +464,7 @@ function AuditLogTab() {
   return (
     <Card styles={{ body: { padding: 0 } }}>
       <Table
-        rowKey="_id" columns={columns} dataSource={rows} loading={isLoading} pagination={false}
+        rowKey="_id" columns={columns} dataSource={rows} loading={isLoading} pagination={false} scroll={{ x: 620 }}
         locale={{ emptyText: <Empty description="No audit events yet" /> }}
       />
     </Card>
@@ -471,10 +472,35 @@ function AuditLogTab() {
 }
 
 // ── Main ───────────────────────────────────────────────────────────────────────
+function OperationsSnapshot() {
+  const today = dayjs().format('YYYY-MM-DD');
+  const { data: attendanceData, isLoading } = useQuery({
+    queryKey: ['attendance-operations-snapshot', today],
+    queryFn: () => api.get('/attendance/today', { params: { attendance_date: today, limit: 200 } }).then((r) => r.data),
+  });
+  const { data: leaveData } = useQuery({ queryKey: ['attendance-pending-leaves'], queryFn: () => api.get('/leave/requests', { params: { status: 'PENDING' } }).then((r) => r.data) });
+  const { data: deviceData } = useQuery({ queryKey: ['attendance-devices-health'], queryFn: () => api.get('/devices').then((r) => r.data) });
+  const { data: exceptionData } = useQuery({ queryKey: ['attendance-exceptions-count'], queryFn: () => api.get('/attendance/exceptions', { params: { limit: 100 } }).then((r) => r.data) });
+  const rows = attendanceData?.data || [];
+  const count = (statuses) => rows.filter((row) => statuses.includes(row.status)).length;
+  const devices = deviceData?.data || deviceData?.devices || [];
+  const online = devices.filter((device) => device.status === 'ONLINE').length;
+  const kpis = [
+    { label: 'Present today', value: count(['PRESENT', 'LATE', 'EARLY_LEAVE', 'HALF_DAY']), accent: '#4b7320' },
+    { label: 'Late arrivals', value: count(['LATE']), accent: '#c47a13' },
+    { label: 'Absent / missing', value: count(['ABSENT', 'MISSING_PUNCH', 'INCOMPLETE']), accent: '#ba3d2f' },
+    { label: 'On approved leave', value: count(['ON_LEAVE']), accent: '#356b9d' },
+  ];
+  const pendingLeaves = leaveData?.requests?.length || 0;
+  const exceptions = exceptionData?.data?.length || 0;
+  return <section aria-label="Attendance operations snapshot" style={{ marginBottom: 22 }}><Card size="small" loading={isLoading} style={{ background: '#f8faf5', borderColor: '#dfe7d6' }}><div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', flexWrap: 'wrap', marginBottom: 14 }}><div><Text strong style={{ letterSpacing: .2 }}>TODAY'S OPERATIONS</Text><Text type="secondary" style={{ marginLeft: 10, fontSize: 12 }}>{dayjs().format('dddd, DD MMMM')}</Text></div><Space size={[12, 6]} wrap><Tag color={online === devices.length && devices.length ? 'green' : 'gold'}>{online}/{devices.length || 0} devices online</Tag><Tag color={pendingLeaves ? 'gold' : 'green'}>{pendingLeaves} leave approvals</Tag><Tag color={exceptions ? 'volcano' : 'green'}>{exceptions} unmatched punches</Tag></Space></div><Row gutter={[10, 10]}>{kpis.map((kpi) => <Col xs={12} sm={6} key={kpi.label}><div style={{ borderLeft: `3px solid ${kpi.accent}`, background: '#fff', padding: '10px 12px', minHeight: 76 }}><Statistic title={kpi.label} value={kpi.value} valueStyle={{ color: kpi.accent, fontSize: 24, lineHeight: 1.1 }} /></div></Col>)}</Row></Card></section>;
+}
+
 export default function AttendanceBoard() {
   const [periodsOpen, setPeriodsOpen] = useState(false);
   const [workHoursOpen, setWorkHoursOpen] = useState(false);
   const { hasPermission } = usePermissions();
+  const navigate = useNavigate();
 
   const tabItems = [
     { key: 'today', label: <Space size={6}><CalendarCheck size={14} />Today's Board</Space>, children: <TodayBoard hasPermission={hasPermission} /> },
@@ -489,10 +515,14 @@ export default function AttendanceBoard() {
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
         <div>
-          <Title level={4} style={{ marginBottom: 0 }}>Attendance Board</Title>
-          <Text type="secondary">Daily attendance, exceptions, and corrections</Text>
+          <Text type="secondary" style={{ fontSize: 11, letterSpacing: 1 }}>PEOPLE OPERATIONS</Text>
+          <Title level={3} style={{ margin: '2px 0 0' }}>Attendance Board</Title>
+          <Text type="secondary">Live daily attendance, approvals, device health, and payroll-cycle controls</Text>
         </div>
         <Space>
+          {hasPermission('rules:configure') && (
+            <Button icon={<SettingsIcon size={14} />} onClick={() => navigate('/attendance/policy')}>Policy Settings</Button>
+          )}
           {hasPermission('rules:configure') && (
             <Button icon={<Clock size={14} />} onClick={() => setWorkHoursOpen(true)}>Work Hours & Holidays</Button>
           )}
@@ -502,6 +532,7 @@ export default function AttendanceBoard() {
         </Space>
       </div>
 
+      <OperationsSnapshot />
       <Tabs items={tabItems} />
 
       <ManagePeriodsDrawer open={periodsOpen} onClose={() => setPeriodsOpen(false)} hasPermission={hasPermission} />

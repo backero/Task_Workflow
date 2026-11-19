@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Plus, Landmark, X, Play, Lock, LockOpen, Upload, FileDown } from 'lucide-react';
 import api from '../../api/axios';
 import toast from 'react-hot-toast';
-import { Button, Card, Col, Drawer, Empty, Input, Modal, Row, Select, Space, Table, Tag, Typography } from 'antd';
+import { Alert, Button, Card, Col, Drawer, Empty, Input, Modal, Row, Select, Space, Table, Tag, Typography } from 'antd';
 import dayjs from 'dayjs';
 
 async function downloadSlip(recordId, fileName) {
@@ -390,6 +390,12 @@ export default function Payroll() {
           <Button type="primary" icon={<Plus size={14} />} onClick={() => setNewPeriodOpen(true)}>New Period</Button>
         </Space>
       </div>
+
+      <Alert
+        type="info" showIcon style={{ marginBottom: 16 }}
+        message="Payroll workflow"
+        description="Create the 21st–20th period, generate records after attendance is reviewed, then finalize. Finalized employees can download their payslip. For previously paid salaries, use Import Paid Salaries on the matching period."
+      />
 
       <Card styles={{ body: { padding: 0 } }}>
         <Table

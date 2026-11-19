@@ -16,6 +16,7 @@ const holidayCtrl = require('../controllers/holiday.controller');
 const workScheduleCtrl = require('../controllers/workSchedule.controller');
 const adminCtrl = require('../controllers/attendanceAdmin.controller');
 const auditCtrl = require('../controllers/attendanceAudit.controller');
+const policyCtrl = require('../controllers/attendancePolicy.controller');
 const { authenticate } = require('../middleware/auth.middleware');
 const { requireAttendancePermission } = require('../middleware/role.middleware');
 const { ATTENDANCE_PERMISSIONS } = require('../utils/attendanceConstants');
@@ -28,6 +29,8 @@ router.get('/today', requireAttendancePermission(P.ATTENDANCE_READ), boardCtrl.g
 router.get('/me', boardCtrl.getMe);
 router.get('/exceptions', requireAttendancePermission(P.ATTENDANCE_REVIEW_EXCEPTIONS), boardCtrl.getExceptions);
 router.get('/audit-logs', requireAttendancePermission(P.AUDIT_READ), auditCtrl.list);
+router.get('/policy', requireAttendancePermission(P.ATTENDANCE_READ), policyCtrl.get);
+router.put('/policy', requireAttendancePermission(P.RULES_CONFIGURE), policyCtrl.update);
 
 router.get('/periods/current', requireAttendancePermission(P.PERIOD_READ), periodsCtrl.getCurrent);
 router.get('/periods/config', requireAttendancePermission(P.PERIOD_READ), periodsCtrl.listConfigs);

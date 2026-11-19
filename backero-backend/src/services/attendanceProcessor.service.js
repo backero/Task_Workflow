@@ -52,6 +52,7 @@ function deriveStatus(checkIn, checkOut, targetDate, rules, workedHours, isPartT
     targetDate.getUTCFullYear(), targetDate.getUTCMonth(), targetDate.getUTCDate(), endHour, endMinute,
   ));
   const lateThresholdMs = Number(rules.LATE_THRESHOLD_MINUTES) * 60 * 1000;
+  const halfDayAfterLateMs = Number(rules.HALF_DAY_AFTER_LATE_MINUTES) * 60 * 1000;
   const earlyLeaveThresholdMs = Number(rules.EARLY_LEAVE_THRESHOLD_MINUTES) * 60 * 1000;
   const halfDayMinHours = Number(rules.HALF_DAY_MIN_HOURS);
 
@@ -59,6 +60,7 @@ function deriveStatus(checkIn, checkOut, targetDate, rules, workedHours, isPartT
   // EARLY_LEAVE (left before shift end, but still cleared HALF_DAY_MIN_HOURS)
   // > PRESENT. A late arrival who also worked short hours is LATE, not
   // HALF_DAY; a half-day is a stronger signal than an early checkout alone.
+  if (halfDayAfterLateMs > 0 && checkIn.getTime() >= shiftStart.getTime() + halfDayAfterLateMs) return 'HALF_DAY';
   if (checkIn.getTime() > shiftStart.getTime() + lateThresholdMs) return 'LATE';
   if (workedHours < halfDayMinHours) return 'HALF_DAY';
   if (checkOut.getTime() < shiftEnd.getTime() - earlyLeaveThresholdMs) return 'EARLY_LEAVE';
