@@ -19,7 +19,7 @@ def build_mirror(capture_path):
     # Explicitly allow only known report fields to prevent credentials or raw
     # response headers being accidentally published with a capture.
     result = {
-        'source': 'amazon_sp_api', 'mode': 'api',
+        'source': data.get('source') or 'amazon_sp_api', 'mode': data.get('mode') or 'api',
         'marketplace': data.get('marketplace'), 'seller': data.get('seller'),
         'lastScrapedAt': data.get('lastScrapedAt'), 'status': data.get('status') or {},
         'metrics': data.get('metrics') or {}, 'listings': data.get('listings') or [],

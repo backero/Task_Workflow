@@ -1,9 +1,19 @@
 # Amazon seller mirror
 
-This connector uses Amazon's official Selling Partner API (SP-API); it does
-not automate Seller Central or retain login credentials.
+This connector supports two read-only sources:
 
-## One-time setup
+- the local authenticated Seller Central browser collector, which reads the
+  visible product/listing dashboard without copying cookies or credentials;
+- Amazon's official Selling Partner API (SP-API), for broader report coverage
+  once the Amazon application authorization is available.
+
+The browser collector is started by `mirrors.ecosystem.config.cjs`. An
+administrator signs in once in its visible `amazon-seller-connect` browser
+session; `browser_collector.cjs --watch` then captures the visible listings
+and listing-status counters every 15 minutes. It never submits changes to
+Seller Central.
+
+## SP-API setup (optional, for expanded coverage)
 
 1. Register or use a Seller Central SP-API application and request the roles
    needed for Orders now. Listing, Reports, Finances and Advertising roles can
