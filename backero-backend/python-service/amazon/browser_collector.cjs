@@ -13,24 +13,39 @@ const capturePath = path.join(root, 'data', 'capture.json');
 const session = process.env.AMAZON_BROWSER_SESSION || 'amazon-seller-connect';
 const pollSeconds = Math.max(120, Number(process.env.AMAZON_BROWSER_POLL_SECONDS || 900));
 const browserBinary = process.env.AGENT_BROWSER_BIN
-  || (process.platform === 'win32' ? path.join(process.env.APPDATA || '', 'npm', 'agent-browser.cmd') : 'agent-browser');
+  || (process.platform === 'win32'
+    ? path.join(process.env.APPDATA || '', 'npm', 'node_modules', 'agent-browser', 'bin', 'agent-browser-win32-x64.exe')
+    : 'agent-browser');
 
 function browser(...args) {
-  // Windows cannot exec a .cmd file directly. All values passed here are
-  // collector-owned constants/element refs, never page content or credentials.
-  // The npm launcher path has no spaces under the managed Windows profile;
-  // these collector-owned arguments contain no spaces, so passing them bare
-  // matches the interactive command and avoids cmd.exe re-quoting them.
-  const command = [browserBinary, '--session', session, ...args].join(' ');
-  return execFileSync(process.env.ComSpec || 'cmd.exe', ['/d', '/c', command], {
-    encoding: 'utf8', timeout: 90_000, windowsHide: true,
-  });
+  // Use agent-browser's native executable rather than its .cmd launcher.
+  // The launcher creates a second cmd process that can lose the local CDP
+  // connection even while interactive PowerShell captures still work.
+  // The local CDP daemon occasionally drops its first request while Chrome is
+  // finishing a Seller Central navigation. A snapshot retry is read-only and
+  // avoids turning a transient browser hiccup into a false "needs login" state.
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    try {
+      return execFileSync(browserBinary, ['--session', session, ...args], {
+        encoding: 'utf8', timeout: 90_000, windowsHide: true,
+      });
+    } catch (error) {
+      if (args[0] !== 'snapshot' || attempt === 1) throw error;
+    }
+  }
+  return '';
 }
 
 function now() { return new Date().toISOString(); }
 function value(number) { return { value: number, capturedAt: now() }; }
 
 function parseMoney(text) {
+  const direct = String(text).match(/\u20b9\s*([\d,]+(?:\.\d+)?)/);
+  if (direct) return Number(direct[1].replace(/,/g, ''));
+  // agent-browser returns the real rupee glyph; older Windows snapshots
+  // sometimes contain its mojibake representation, which the legacy parser
+  // already recognizes. Normalize the glyph before parsing either form.
+  text = String(text).replace(/\u20b9/g, '\u00e2\u201a\u00b9');
   const match = String(text).match(/₹([\d,]+(?:\.\d+)?)/);
   return match ? Number(match[1].replace(/,/g, '')) : null;
 }
@@ -40,6 +55,12 @@ function parseSnapshot(snapshot, capturedAt) {
   const labels = {
     Active: 'active', 'Search suppressed': 'search_suppressed', Inactive: 'inactive',
     'Out of stock': 'out_of_stock', Closed: 'closed',
+    'Improve listing quality': 'improve_listing_quality',
+    'At-risk of search suppression': 'at_risk_of_search_suppression',
+    'Detail page removed': 'detail_page_removed',
+    'Listing removed': 'listing_removed',
+    'Missing offer': 'missing_offer', 'Pricing issue': 'pricing_issue',
+    'Approval required': 'approval_required',
   };
   for (const [label, key] of Object.entries(labels)) {
     const match = snapshot.match(new RegExp(`${label}:\\s*(\\d+)`, 'i'));
@@ -65,16 +86,27 @@ function capture() {
   try {
     // Reuse the active managed Seller Central tab. Reopening it each cycle can
     // interrupt a human handling Amazon's occasional verification prompt.
-    const snapshot = browser('snapshot', '-i');
+    let snapshot = browser('snapshot', '-i');
     // A Seller Central news card can contain the phrase "Sign in" even when
     // the browser session is authenticated, so only recognize actual login UI.
     const atLoginScreen = /^\s*- (?:link|button|heading) "(?:Log in|Sign in)"/mi.test(snapshot);
     if (atLoginScreen || !/Seller Central|Backero India|Listing Status/i.test(snapshot)) {
       throw new Error('Seller Central browser session is not authenticated');
     }
+    // Seller Central keeps its business tabs behind the dashboard shell until
+    // its menu is opened. This only expands UI; it never changes seller data.
+    let productsRef = (snapshot.match(/tab "Products[^"\n]*"[^\n]*\[ref=(e\d+)\]/) || [])[1];
+    if (!productsRef) {
+      const menuRef = (snapshot.match(/button "Menu"[^\n]*\[ref=(e\d+)\]/) || [])[1];
+      if (menuRef) {
+        browser('click', `@${menuRef}`);
+        browser('wait', '700');
+        snapshot = browser('snapshot', '-i');
+        productsRef = (snapshot.match(/tab "Products[^"\n]*"[^\n]*\[ref=(e\d+)\]/) || [])[1];
+      }
+    }
     // The Products dashboard exposes current listing status and visible product
     // rows. Opening it is read-only and does not change Seller Central data.
-    const productsRef = (snapshot.match(/tab "Products[^"\n]*"[^\n]*\[ref=(e\d+)\]/) || [])[1];
     if (productsRef) {
       browser('click', `@${productsRef}`);
       browser('wait', '1500');
