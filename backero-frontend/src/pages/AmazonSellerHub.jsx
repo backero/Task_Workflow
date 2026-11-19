@@ -84,7 +84,7 @@ export default function AmazonSellerHub() {
   const captureLabel = browserCapture ? 'Seller Central browser capture' : 'Amazon SP-API';
   const captureDescription = browserCapture ? 'Backero stores a read-only capture from the authenticated local Seller Central browser. Refresh reloads saved data; it never changes Seller Central.' : 'Backero stores a read-only Amazon SP-API capture. Refresh reloads saved data; it never changes Seller Central.';
   const items = data ? [
-    { key: 'overview', label: 'Overview', children: <><Alert type="info" showIcon style={{ marginBottom: 20 }} message={captureLabel} description={captureDescription} /><MetricSection heading="Order summary" metrics={data.metrics?.orders} /></> },
+    { key: 'overview', label: 'Overview', children: <><Alert type="info" showIcon style={{ marginBottom: 20 }} message={captureLabel} description={captureDescription} /><MetricSection heading="Listing status" metrics={data.metrics?.listing_status} /><MetricSection heading="Order summary" metrics={data.metrics?.orders} /></> },
     { key: 'orders', label: 'Orders', children: <CapturedTable heading="Recent orders" rows={orders} columns={orderColumns} coverage={data.coverage?.orders} searchFields={['order_id', 'status', 'fulfillment_channel']} /> },
     { key: 'listings', label: 'Listings & inventory', children: <CapturedTable heading="Listings" rows={listings} columns={listingColumns} coverage={data.coverage?.listings} searchFields={['sku', 'title', 'asin']} /> },
   ] : [];
