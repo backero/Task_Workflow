@@ -88,7 +88,8 @@ export default function Settings() {
     mutationFn: (file) => {
       const form = new FormData();
       form.append('avatar', file);
-      return api.post('/users/me/avatar', form, { headers: { 'Content-Type': 'multipart/form-data' } });
+      // Let the browser set the multipart boundary for this FormData request.
+      return api.post('/users/me/avatar', form);
     },
     onSuccess: (res) => { setUser(res.data.user); toast.success('Profile photo updated'); },
     onError: (err) => toast.error(err.response?.data?.message || 'Failed to upload photo'),

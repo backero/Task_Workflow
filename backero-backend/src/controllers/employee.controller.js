@@ -199,7 +199,8 @@ exports.updateMyPhoto = asyncHandler(async (req, res) => {
   const { uploadBuffer, deleteByPublicId } = require('../utils/cloudinary');
   const result = await uploadBuffer(req.file.buffer, {
     folder: `backero/employees/${employee._id}`,
-    resource_type: 'auto',
+    resourceType: 'image',
+    transformation: [{ width: 480, height: 480, crop: 'fill', gravity: 'face' }],
   });
 
   if (employee.photoPublicId) await deleteByPublicId(employee.photoPublicId).catch(() => {});
@@ -218,7 +219,8 @@ exports.updateEmployeePhoto = asyncHandler(async (req, res) => {
   const { uploadBuffer, deleteByPublicId } = require('../utils/cloudinary');
   const result = await uploadBuffer(req.file.buffer, {
     folder: `backero/employees/${employee._id}`,
-    resource_type: 'auto',
+    resourceType: 'image',
+    transformation: [{ width: 480, height: 480, crop: 'fill', gravity: 'face' }],
   });
 
   if (employee.photoPublicId) await deleteByPublicId(employee.photoPublicId).catch(() => {});

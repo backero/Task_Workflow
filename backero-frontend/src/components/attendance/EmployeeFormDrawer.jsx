@@ -68,7 +68,10 @@ export default function EmployeeFormDrawer({ open, onClose, editEmployee, depart
     mutationFn: (file) => {
       const fd = new FormData();
       fd.append('photo', file);
-      return api.post(`/employees/${editEmployee._id}/photo`, fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+      // Do not set Content-Type manually: the browser adds the required
+      // multipart boundary for FormData. A bare multipart/form-data header
+      // is rejected intermittently by production upload middleware.
+      return api.post(`/employees/${editEmployee._id}/photo`, fd);
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['employees'] });
