@@ -57,5 +57,10 @@ router.post(
   requireAttendancePermission(P.PERIOD_FINALIZE),
   boardCtrl.approveCorrection,
 );
+router.post(
+  '/:attendanceId/correct/:correctionId/reject',
+  requireAttendancePermission(P.PERIOD_FINALIZE),
+  boardCtrl.rejectCorrection,
+);
 
 module.exports = router;

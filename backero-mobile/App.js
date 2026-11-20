@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
+import { View, ActivityIndicator } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
-import { createNativeStackNavigator } from '@react-navigation/stack';
+import { createStackNavigator } from '@react-navigation/stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import * as SecureStore from 'expo-secure-store';
 import { StatusBar } from 'expo-status-bar';
@@ -14,8 +15,9 @@ import DashboardScreen from './src/screens/DashboardScreen';
 
 import { AuthContext } from './src/context/AuthContext';
 import { Clock, BarChart3, User } from 'lucide-react-native';
+import { API_BASE } from './src/config';
 
-const Stack = createNativeStackNavigator();
+const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
 
 function AttendanceTabNavigator() {
@@ -115,19 +117,19 @@ export default function App() {
     () => ({
       signIn: async (credentials) => {
         try {
-          const response = await fetch('https://backero-backend-7myx.onrender.com/api/auth/login', {
+          const response = await fetch(`${API_BASE}/auth/login`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(credentials),
           });
 
-          if (!response.ok) throw new Error('Login failed');
-
           const data = await response.json();
-          await SecureStore.setItemAsync('userToken', data.token);
+          if (!response.ok) throw new Error(data.message || 'Login failed');
+
+          await SecureStore.setItemAsync('userToken', data.accessToken);
           await SecureStore.setItemAsync('userData', JSON.stringify(data.user));
 
-          dispatch({ type: 'SIGN_IN', token: data.token });
+          dispatch({ type: 'SIGN_IN', token: data.accessToken });
         } catch (error) {
           throw error;
         }
@@ -137,21 +139,24 @@ export default function App() {
         await SecureStore.deleteItemAsync('userData');
         dispatch({ type: 'SIGN_OUT' });
       },
+      // Registers a whole new organization (same as the web app's sign-up), not an
+      // additional employee under an existing one — matches what POST /auth/register
+      // actually does. No screen in this app currently calls this.
       signUp: async (credentials) => {
         try {
-          const response = await fetch('https://backero-backend-7myx.onrender.com/api/auth/register', {
+          const response = await fetch(`${API_BASE}/auth/register`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(credentials),
           });
 
-          if (!response.ok) throw new Error('Registration failed');
-
           const data = await response.json();
-          await SecureStore.setItemAsync('userToken', data.token);
+          if (!response.ok) throw new Error(data.message || 'Registration failed');
+
+          await SecureStore.setItemAsync('userToken', data.accessToken);
           await SecureStore.setItemAsync('userData', JSON.stringify(data.user));
 
-          dispatch({ type: 'SIGN_IN', token: data.token });
+          dispatch({ type: 'SIGN_IN', token: data.accessToken });
         } catch (error) {
           throw error;
         }
@@ -167,7 +172,7 @@ export default function App() {
         <NavigationContainer>
           <Stack.Navigator screenOptions={{ headerShown: false }}>
             {state.isLoading ? (
-              <Stack.Screen name="Splash" component={() => <LoadingScreen />} />
+              <Stack.Screen name="Splash" component={LoadingScreen} />
             ) : state.userToken == null ? (
               <Stack.Screen name="Auth" component={LoginScreen} />
             ) : (

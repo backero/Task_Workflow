@@ -1,7 +1,7 @@
 // Shared add/edit Employee form — used by both Attendance -> Employees and
 // Management -> Employee Details, so the employee_code/department/designation/
 // category/photo/user-linking logic lives in exactly one place.
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useForm, Controller } from 'react-hook-form';
 import { User as UserIcon } from 'lucide-react';
@@ -64,6 +64,11 @@ export default function EmployeeFormDrawer({ open, onClose, editEmployee, depart
   const designations = designationsData?.designations || [];
 
   const fileInputRef = useRef(null);
+  // Set only right after a successful create — a brand-new employee has no _id yet for the
+  // create form to target a photo upload at, so the uploader appears here once one exists,
+  // instead of forcing "save, then reopen in Edit" just to attach a photo.
+  const [createdEmployee, setCreatedEmployee] = useState(null);
+  const photoTarget = editEmployee || createdEmployee;
   const photoMutation = useMutation({
     mutationFn: (file) => {
       const fd = new FormData();
@@ -71,10 +76,11 @@ export default function EmployeeFormDrawer({ open, onClose, editEmployee, depart
       // Do not set Content-Type manually: the browser adds the required
       // multipart boundary for FormData. A bare multipart/form-data header
       // is rejected intermittently by production upload middleware.
-      return api.post(`/employees/${editEmployee._id}/photo`, fd);
+      return api.post(`/employees/${photoTarget._id}/photo`, fd);
     },
-    onSuccess: () => {
+    onSuccess: (res) => {
       qc.invalidateQueries({ queryKey: ['employees'] });
+      if (createdEmployee) setCreatedEmployee(res.data.employee);
       toast.success('Photo updated');
     },
     onError: (err) => toast.error(err.response?.data?.message || 'Failed to upload photo'),
@@ -87,6 +93,7 @@ export default function EmployeeFormDrawer({ open, onClose, editEmployee, depart
 
   useEffect(() => {
     if (open) {
+      setCreatedEmployee(null);
       reset(editEmployee
         ? {
             employee_code: editEmployee.employeeCode, full_name: editEmployee.fullName, phone: editEmployee.phone || '',
@@ -126,10 +133,18 @@ export default function EmployeeFormDrawer({ open, onClose, editEmployee, depart
       if (isEdit) return api.patch(`/employees/${editEmployee._id}`, payload);
       return api.post('/employees', { ...payload, employee_code: data.employee_code, date_of_joining: data.date_of_joining });
     },
-    onSuccess: () => {
+    onSuccess: (res) => {
       qc.invalidateQueries({ queryKey: ['employees'] });
-      toast.success(isEdit ? 'Employee updated' : 'Employee added');
-      onClose();
+      if (isEdit) {
+        toast.success('Employee updated');
+        onClose();
+      } else {
+        // Stay open instead of closing — a new employee has no _id for a photo
+        // upload to target until this save completes, so this is the first
+        // point a photo can be attached without a separate "reopen in Edit" step.
+        toast.success('Employee added — add a photo now, or click Done');
+        setCreatedEmployee(res.data.employee);
+      }
     },
     onError: (err) => toast.error(err.response?.data?.message || 'Failed to save employee'),
   });
@@ -137,28 +152,36 @@ export default function EmployeeFormDrawer({ open, onClose, editEmployee, depart
   return (
     <Drawer
       open={open} onClose={onClose} width={460}
-      title={isEdit ? `Edit — ${editEmployee?.fullName}` : 'Add Employee'}
+      title={isEdit ? `Edit — ${editEmployee?.fullName}` : createdEmployee ? `Added — ${createdEmployee.fullName}` : 'Add Employee'}
       footer={
-        <Space style={{ width: '100%' }}>
-          <Button style={{ flex: 1 }} onClick={onClose}>Cancel</Button>
-          <Button type="primary" style={{ flex: 1 }} loading={mutation.isPending} onClick={handleSubmit(mutation.mutate)}>{isEdit ? 'Save Changes' : 'Add Employee'}</Button>
-        </Space>
+        createdEmployee ? (
+          <Button type="primary" block onClick={onClose}>Done</Button>
+        ) : (
+          <Space style={{ width: '100%' }}>
+            <Button style={{ flex: 1 }} onClick={onClose}>Cancel</Button>
+            <Button type="primary" style={{ flex: 1 }} loading={mutation.isPending} onClick={handleSubmit(mutation.mutate)}>{isEdit ? 'Save Changes' : 'Add Employee'}</Button>
+          </Space>
+        )
       }
     >
       <form onSubmit={handleSubmit(mutation.mutate)}>
         <Space direction="vertical" style={{ width: '100%' }} size={16}>
-          {isEdit && (
+          {photoTarget && (
             <Space align="center" size={14}>
-              <Avatar size={56} src={editEmployee.photo || undefined} icon={<UserIcon size={24} />} />
+              <Avatar size={56} src={photoTarget.photo || undefined} icon={<UserIcon size={24} />} />
               <div>
                 <input ref={fileInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={onPhotoSelected} />
                 <Button size="small" loading={photoMutation.isPending} onClick={() => fileInputRef.current?.click()}>
-                  {editEmployee.photo ? 'Change Photo' : 'Add Photo'}
+                  {photoTarget.photo ? 'Change Photo' : 'Add Photo'}
                 </Button>
               </div>
             </Space>
           )}
 
+          {/* Once a new employee is created, the rest of this form is already saved and
+              submitting it again would POST a duplicate — show only the photo step. */}
+          {!createdEmployee && (
+            <>
           <Row gutter={12}>
             <Col span={12}>
               <Text strong style={{ display: 'block', marginBottom: 6, fontSize: 12 }}>Employee Code *</Text>
@@ -337,6 +360,8 @@ export default function EmployeeFormDrawer({ open, onClose, editEmployee, depart
             />
             <Text type="secondary" style={{ fontSize: 11, display: 'block', marginTop: 4 }}>Lets this person sign in and see their own attendance/payroll.</Text>
           </div>
+            </>
+          )}
         </Space>
       </form>
     </Drawer>

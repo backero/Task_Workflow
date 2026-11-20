@@ -186,6 +186,29 @@ exports.approveCorrection = asyncHandler(async (req, res) => {
   sendSuccess(res, { attendance }, 'Correction approved.');
 });
 
+exports.rejectCorrection = asyncHandler(async (req, res) => {
+  const orgId = req.user.organizationId;
+  const correction = await AttendanceCorrection.findOne({ _id: req.params.correctionId, organizationId: orgId });
+  if (!correction || String(correction.attendanceId) !== String(req.params.attendanceId)) {
+    return sendError(res, 'Attendance correction request not found.', 404);
+  }
+  if (correction.status !== 'PENDING_APPROVAL') return sendError(res, 'This correction is not pending approval.', 409);
+  if (String(correction.requestedBy) === String(req.user._id)) {
+    return sendError(res, 'A correction must be approved by a different admin than the one who requested it.', 403);
+  }
+
+  correction.status = 'REJECTED';
+  correction.approvedBy = req.user._id;
+  correction.approvedAt = new Date();
+  await correction.save();
+
+  await recordAuditEvent({
+    organizationId: orgId, actorUserId: req.user._id, action: 'attendance.correct.reject',
+    entityType: 'Attendance', entityId: correction.attendanceId, reason: correction.reason,
+  });
+  sendSuccess(res, { correction }, 'Correction rejected.');
+});
+
 /** Unmatched device/import events — deviceEmployeeRef didn't resolve to any
  * known employeeCode. These are the rows a CSV/device sync couldn't place. */
 exports.getExceptions = asyncHandler(async (req, res) => {

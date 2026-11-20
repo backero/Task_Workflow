@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, ScrollView, StyleSheet, TouchableOpacity } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as SecureStore from 'expo-secure-store';
 import { BarChart3, Clock, AlertCircle } from 'lucide-react-native';
 import dayjs from 'dayjs';
+import { API_BASE } from '../config';
 
 export default function DashboardScreen() {
   const [stats, setStats] = useState(null);
@@ -14,20 +15,40 @@ export default function DashboardScreen() {
 
   const loadDashboard = async () => {
     try {
-      const userData = await AsyncStorage.getItem('userData');
+      const userData = await SecureStore.getItemAsync('userData');
       const user = JSON.parse(userData);
-      setUserName(user.name);
+      setUserName(`${user.firstName || ''} ${user.lastName || ''}`.trim());
 
-      const token = await AsyncStorage.getItem('userToken');
-      const response = await fetch('https://backero-backend-7myx.onrender.com/api/attendance/stats', {
-        headers: { Authorization: `Bearer ${token}` },
+      const token = await SecureStore.getItemAsync('userToken');
+      // No single "my stats" endpoint exists server-side — built here from the two
+      // real self-service endpoints that do: today's punch status
+      // (attendance.punch.controller.js) and leave balances (leave.controller.js#getMyBalances).
+      const [todayRes, leaveRes] = await Promise.all([
+        fetch(`${API_BASE}/attendance/punch/today`, { headers: { Authorization: `Bearer ${token}` } }),
+        fetch(`${API_BASE}/leave/balances/me`, { headers: { Authorization: `Bearer ${token}` } }),
+      ]);
+      const today = await todayRes.json();
+      const leave = await leaveRes.json();
+      const leaveBalance = (leave.balances || []).reduce(
+        (sum, b) => sum + ((b.totalDays || 0) - (b.usedDays || 0)), 0,
+      );
+
+      setStats({
+        hoursToday: today.totalWorkHours || 0,
+        currentPunchStatus: today.currentPunchStatus || 'not-punched',
+        leaveBalance,
       });
-      const data = await response.json();
-      setStats(data);
     } catch (error) {
       console.error('Failed to load dashboard:', error);
     }
   };
+
+  const statusLabel = {
+    'not-punched': 'Not punched in',
+    'office-in': 'Punched in',
+    'on-break': 'On break',
+    'office-out': 'Punched out',
+  }[stats?.currentPunchStatus] || 'Not punched in';
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
@@ -40,20 +61,20 @@ export default function DashboardScreen() {
         <View style={styles.statsContainer}>
           <StatCard
             icon={Clock}
-            title="Hours This Month"
-            value={`${stats.hoursThisMonth || 0}h`}
+            title="Hours Today"
+            value={`${stats.hoursToday.toFixed(1)}h`}
             color="#669c2c"
           />
           <StatCard
             icon={BarChart3}
-            title="Days Present"
-            value={`${stats.daysPresent || 0}/${stats.workingDays || 0}`}
+            title="Status"
+            value={statusLabel}
             color="#2196F3"
           />
           <StatCard
             icon={AlertCircle}
             title="Leave Balance"
-            value={`${stats.leaveBalance || 0} days`}
+            value={`${stats.leaveBalance} days`}
             color="#FF9800"
           />
         </View>

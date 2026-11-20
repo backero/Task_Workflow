@@ -66,6 +66,17 @@ function EmployeeAttendanceDrawer({ employeeId, employeeLabel, open, onClose, ha
     onError: (err) => toast.error(err.response?.data?.message || 'Failed to approve — a different approver than the requester is required'),
   });
 
+  const rejectMutation = useMutation({
+    mutationFn: ({ attendanceId, correctionId }) => api.post(`/attendance/${attendanceId}/correct/${correctionId}/reject`),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['attendance-history', employeeId] });
+      qc.invalidateQueries({ queryKey: ['attendance-today'] });
+      setPendingCorrection(null);
+      toast.success('Correction rejected');
+    },
+    onError: (err) => toast.error(err.response?.data?.message || 'Failed to reject — a different approver than the requester is required'),
+  });
+
   const latest = rows[0];
 
   return (
@@ -103,8 +114,11 @@ function EmployeeAttendanceDrawer({ employeeId, employeeLabel, open, onClose, ha
                 {pendingCorrection?.attendanceId === latest._id && hasPermission('period:finalize') && (
                   <Card size="small" style={{ background: '#fffbeb', borderColor: '#fde68a' }}>
                     <Space size={6} style={{ marginBottom: 8 }}><Clock size={13} /><Text style={{ fontSize: 12 }}>Pending approval — you just submitted this.</Text></Space>
-                    <Button size="small" type="primary" loading={approveMutation.isPending} onClick={() => approveMutation.mutate(pendingCorrection)}>Approve Correction</Button>
-                    <Text type="secondary" style={{ fontSize: 11, display: 'block', marginTop: 4 }}>A different admin than the requester must approve — self-approval is blocked.</Text>
+                    <Space size={8}>
+                      <Button size="small" type="primary" loading={approveMutation.isPending} onClick={() => approveMutation.mutate(pendingCorrection)}>Approve Correction</Button>
+                      <Button size="small" danger loading={rejectMutation.isPending} onClick={() => rejectMutation.mutate(pendingCorrection)}>Reject</Button>
+                    </Space>
+                    <Text type="secondary" style={{ fontSize: 11, display: 'block', marginTop: 4 }}>A different admin than the requester must approve or reject — self-decision is blocked.</Text>
                   </Card>
                 )}
               </Space>
