@@ -3,6 +3,20 @@ import json
 from pathlib import Path
 
 
+def inventory_summary(listings):
+    """Derive facts only from the rows already captured by the collector."""
+    rows = [row for row in listings if isinstance(row, dict)]
+    prices = [row.get('price') for row in rows if isinstance(row.get('price'), (int, float))]
+    stock = [row.get('stock') for row in rows if isinstance(row.get('stock'), (int, float))]
+    return {
+        'visible_listings': len(rows),
+        'stock_units': sum(max(0, value) for value in stock),
+        'fba_listings': sum(1 for row in rows if row.get('fulfillment') == 'FBA'),
+        'fbm_listings': sum(1 for row in rows if row.get('fulfillment') == 'FBM'),
+        'average_price': (sum(prices) / len(prices)) if prices else None,
+    }
+
+
 def build_mirror(capture_path):
     path = Path(capture_path)
     # A missing capture is a configuration state, not an empty seller account.
@@ -26,4 +40,5 @@ def build_mirror(capture_path):
         'orders': data.get('orders') or [], 'coverage': data.get('coverage') or {},
         'limitations': data.get('limitations') or [],
     }
+    result['inventorySummary'] = inventory_summary(result['listings'])
     return result

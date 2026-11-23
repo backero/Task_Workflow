@@ -10,6 +10,7 @@ import re
 import sys
 import time
 from datetime import datetime, timezone
+from zoneinfo import ZoneInfo
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
@@ -19,6 +20,38 @@ PLATFORMS = {
     'meesho': ('app.mirror', 'data/saas.db'),
     'snapdeal': ('app.mirror', 'data/sdpulse.db'),
 }
+
+
+def flatten_metrics(value, prefix='', result=None):
+    """Extract only numeric seller facts from a safe mirror export."""
+    result = result if result is not None else {}
+    if isinstance(value, dict):
+        if isinstance(value.get('value'), (int, float)):
+            result[prefix] = value['value']
+        else:
+            for key, item in value.items():
+                next_prefix = f'{prefix}.{key}' if prefix else key
+                flatten_metrics(item, next_prefix, result)
+    return result
+
+
+def trend_metrics(data):
+    metrics = flatten_metrics(data.get('metrics') or {})
+    inventory = data.get('inventorySummary') or {}
+    for key, value in inventory.items():
+        if isinstance(value, (int, float)):
+            metrics[f'inventory.{key}'] = value
+    return metrics
+
+
+def capture_day(value):
+    try:
+        parsed = datetime.fromisoformat(str(value).replace('Z', '+00:00'))
+    except (TypeError, ValueError):
+        parsed = datetime.now(timezone.utc)
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=timezone.utc)
+    return parsed.astimezone(ZoneInfo('Asia/Kolkata')).strftime('%Y-%m-%d')
 
 
 def main():
@@ -47,6 +80,8 @@ def main():
         raise RuntimeError('Destination organization does not exist or is inactive.')
     collection = destination[args.platform + 'sellermirrors']
     collection.create_index('organizationId', unique=True)
+    history = destination['marketplacesellersnapshots']
+    history.create_index([('organizationId', 1), ('platform', 1), ('date', 1)], unique=True)
     while True:
         try:
             # Reload export logic without interrupting the seller login browser.
@@ -57,6 +92,20 @@ def main():
             collection.update_one({'organizationId': org_id}, {'$set': {
                 'data': data, 'syncedAt': datetime.now(timezone.utc),
             }}, upsert=True)
+            # A minute-by-minute mirror is useful for the current dashboard but
+            # wasteful for long-term reporting. Keep the latest real reading per
+            # India business day, organization and platform instead.
+            metrics = trend_metrics(data)
+            if metrics:
+                history.update_one(
+                    {'organizationId': org_id, 'platform': args.platform, 'date': capture_day(data.get('lastScrapedAt'))},
+                    {'$set': {
+                        'capturedAt': datetime.now(timezone.utc),
+                        'source': data.get('source') or args.platform,
+                        'metrics': metrics,
+                    }},
+                    upsert=True,
+                )
             print(f'{args.platform} seller mirror published to {args.database}.', flush=True)
         except Exception as exc:
             print(f'{args.platform} publish failed: {type(exc).__name__}', flush=True)

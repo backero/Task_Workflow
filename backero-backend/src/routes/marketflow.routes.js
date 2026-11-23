@@ -23,6 +23,7 @@ const { authenticate } = require('../middleware/auth.middleware');
 const marketflow = require('../services/marketflow.service');
 const MarketflowSnapshot = require('../models/MarketflowSnapshot');
 const MarketflowTrendPoint = require('../models/MarketflowTrendPoint');
+const MarketplaceSellerSnapshot = require('../models/MarketplaceSellerSnapshot');
 const { v1Allowlist } = require('../utils/marketflowAllowlist');
 const { sendError } = require('../utils/helpers');
 
@@ -742,6 +743,41 @@ router.get('/amazon/seller-mirror',
         connectionRequired: true,
       });
       res.json({ ...snapshot.data, syncedAt: snapshot.syncedAt });
+    } catch (error) { next(error); }
+  });
+
+// Historical seller-mirror readings are separate from the latest mirror so a
+// chart never has to infer past values from today's Seller Central screen.
+router.get('/amazon/seller-trends',
+  require('../middleware/orgIsolation.middleware').orgIsolation,
+  authorizeMarketplaceRead,
+  async (req, res, next) => {
+    try {
+      const days = Math.min(Math.max(parseInt(req.query.days, 10) || 30, 7), 365);
+      const cutoff = new Date();
+      cutoff.setDate(cutoff.getDate() - days + 1);
+      const cutoffDate = cutoff.toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
+      const snapshots = await MarketplaceSellerSnapshot.find({
+        organizationId: req.orgId, platform: 'amazon', date: { $gte: cutoffDate },
+      }).sort({ date: 1 }).lean();
+      const metricKeys = [...new Set(snapshots.flatMap((snapshot) => Object.keys(snapshot.metrics || {})))];
+      const friendlyLabels = {
+        'orders.orders_30d': 'Orders — rolling 30 days',
+        'orders.sales_30d': 'Sales — rolling 30 days',
+        'inventory.visible_listings': 'Visible listings',
+        'inventory.stock_units': 'Stock units',
+        'inventory.fba_listings': 'FBA listings',
+        'inventory.fbm_listings': 'FBM listings',
+        'inventory.average_price': 'Average listing price',
+      };
+      const label = (key) => friendlyLabels[key]
+        || key.split('.').map((part) => part.replace(/_/g, ' ').replace(/\b\w/g, (letter) => letter.toUpperCase())).join(' · ');
+      return res.json({
+        platform: 'amazon', periodDays: days,
+        points: snapshots.map((snapshot) => ({ date: snapshot.date, capturedAt: snapshot.capturedAt, metrics: snapshot.metrics || {} })),
+        availableMetrics: metricKeys.map((key) => ({ key, label: label(key) })),
+        ...(snapshots.length < 2 ? { note: 'Historical trends build from real daily Amazon captures. More points will appear after the collector publishes on future days.' } : {}),
+      });
     } catch (error) { next(error); }
   });
 
