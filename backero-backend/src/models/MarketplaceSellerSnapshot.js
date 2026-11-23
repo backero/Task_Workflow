@@ -10,6 +10,7 @@ const schema = new mongoose.Schema({
   capturedAt: { type: Date, required: true },
   source: { type: String, required: true },
   metrics: { type: Map, of: Number, default: {} },
+  data: { type: mongoose.Schema.Types.Mixed, default: {} },
 }, { timestamps: true });
 
 schema.index({ organizationId: 1, platform: 1, date: 1 }, { unique: true });

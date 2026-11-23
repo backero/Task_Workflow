@@ -103,6 +103,7 @@ def main():
                         'capturedAt': datetime.now(timezone.utc),
                         'source': data.get('source') or args.platform,
                         'metrics': metrics,
+                        'data': data,
                     }},
                     upsert=True,
                 )

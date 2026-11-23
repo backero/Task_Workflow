@@ -728,6 +728,64 @@ router.all('/v1/*', async (req, res) => {
 const marketplaceSync = require('../services/marketplaceSync.service');
 const { authorizeMarketplaceRead } = require('../middleware/role.middleware');
 
+const SELLER_MIRROR_PLATFORMS = ['amazon', 'flipkart', 'meesho', 'snapdeal'];
+
+function flattenSellerMetrics(value, prefix = '', result = {}) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return result;
+  if (typeof value.value === 'number' && Number.isFinite(value.value)) {
+    if (prefix) result[prefix] = value.value;
+    return result;
+  }
+  for (const [key, item] of Object.entries(value)) {
+    flattenSellerMetrics(item, prefix ? `${prefix}.${key}` : key, result);
+  }
+  return result;
+}
+
+function compactSellerMetrics(data) {
+  const metrics = flattenSellerMetrics(data?.metrics || {});
+  for (const [key, rows] of Object.entries(data || {})) {
+    if (Array.isArray(rows)) metrics[`rows.${key}`] = rows.length;
+  }
+  for (const [key, amount] of Object.entries(data?.inventorySummary || {})) {
+    if (typeof amount === 'number' && Number.isFinite(amount)) metrics[`inventory.${key}`] = amount;
+  }
+  return metrics;
+}
+
+async function archiveSellerMirror(platform, organizationId, data, syncedAt) {
+  const capturedAt = new Date(data?.lastScrapedAt || syncedAt || Date.now());
+  if (Number.isNaN(capturedAt.getTime())) return;
+  const metrics = compactSellerMetrics(data);
+  if (!Object.keys(metrics).length) return;
+  const date = capturedAt.toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
+  await MarketplaceSellerSnapshot.updateOne(
+    { organizationId, platform, date },
+    { $set: { capturedAt, source: data?.source || platform, metrics, data } },
+    { upsert: true },
+  );
+}
+
+const metricLabel = (key) => key.split('.').map((part) => part.replace(/_/g, ' ').replace(/\b\w/g, (letter) => letter.toUpperCase())).join(' · ');
+
+async function sellerTrendHandler(req, res, next) {
+  try {
+    const platform = req.params.platform;
+    if (!SELLER_MIRROR_PLATFORMS.includes(platform)) return sendError(res, 'Unknown seller platform', 404);
+    const days = Math.min(Math.max(parseInt(req.query.days, 10) || 30, 7), 365);
+    const cutoff = new Date(); cutoff.setDate(cutoff.getDate() - days + 1);
+    const cutoffDate = cutoff.toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
+    const snapshots = await MarketplaceSellerSnapshot.find({ organizationId: req.orgId, platform, date: { $gte: cutoffDate } }).sort({ date: 1 }).lean();
+    const metricKeys = [...new Set(snapshots.flatMap((snapshot) => Object.keys(snapshot.metrics || {})))];
+    return res.json({
+      platform, periodDays: days,
+      points: snapshots.map((snapshot) => ({ date: snapshot.date, capturedAt: snapshot.capturedAt, metrics: snapshot.metrics || {} })),
+      availableMetrics: metricKeys.map((key) => ({ key, label: metricLabel(key) })),
+      ...(snapshots.length < 2 ? { note: 'Historical trends build only from real daily seller captures. Missing dates are not estimated.' } : {}),
+    });
+  } catch (error) { next(error); }
+}
+
 // Amazon is collected through the official Selling Partner API. As with the
 // other mirrors, the route exposes only organization-bound captured facts;
 // SP-API OAuth/AWS credentials remain on the collector machine.
@@ -742,6 +800,7 @@ router.get('/amazon/seller-mirror',
         message: 'Amazon SP-API is not connected to this organization yet.',
         connectionRequired: true,
       });
+      await archiveSellerMirror('amazon', req.orgId, snapshot.data, snapshot.syncedAt).catch((error) => console.error('Amazon history archive failed:', error.message));
       res.json({ ...snapshot.data, syncedAt: snapshot.syncedAt });
     } catch (error) { next(error); }
   });
@@ -781,6 +840,12 @@ router.get('/amazon/seller-trends',
     } catch (error) { next(error); }
   });
 
+// All four seller mirrors share the same organization-bound history store.
+router.get('/:platform/seller-trends',
+  require('../middleware/orgIsolation.middleware').orgIsolation,
+  authorizeMarketplaceRead,
+  sellerTrendHandler);
+
 router.get('/snapdeal/seller-mirror',
   require('../middleware/orgIsolation.middleware').orgIsolation,
   authorizeMarketplaceRead,
@@ -789,6 +854,7 @@ router.get('/snapdeal/seller-mirror',
       const snapshot = await require('../models/SnapdealSellerMirror')
         .findOne({ organizationId: req.orgId }).lean();
       if (!snapshot) return sendError(res, 'Snapdeal seller data is not connected to this organization yet.', 404);
+      await archiveSellerMirror('snapdeal', req.orgId, snapshot.data, snapshot.syncedAt).catch((error) => console.error('Snapdeal history archive failed:', error.message));
       res.json({ ...snapshot.data, syncedAt: snapshot.syncedAt });
     } catch (error) { next(error); }
   });
@@ -801,6 +867,7 @@ router.get('/meesho/seller-mirror',
       const snapshot = await require('../models/MeeshoSellerMirror')
         .findOne({ organizationId: req.orgId }).lean();
       if (!snapshot) return sendError(res, 'Meesho seller data is not connected to this organization yet.', 404);
+      await archiveSellerMirror('meesho', req.orgId, snapshot.data, snapshot.syncedAt).catch((error) => console.error('Meesho history archive failed:', error.message));
       res.json({ ...snapshot.data, syncedAt: snapshot.syncedAt });
     } catch (error) { next(error); }
   });
@@ -814,6 +881,7 @@ router.get('/flipkart/seller-mirror',
       const snapshot = await require('../models/FlipkartSellerMirror')
         .findOne({ organizationId: req.orgId }).lean();
       if (!snapshot) return sendError(res, 'Flipkart seller data is not connected to this organization yet.', 404);
+      await archiveSellerMirror('flipkart', req.orgId, snapshot.data, snapshot.syncedAt).catch((error) => console.error('Flipkart history archive failed:', error.message));
       res.json({ ...snapshot.data, syncedAt: snapshot.syncedAt });
     } catch (error) { next(error); }
   });
