@@ -9,6 +9,12 @@ const HEADERS = [
   'Orders', 'Sales (INR)', 'Impressions', 'Clicks', 'CTR (%)', 'CVR (%)',
   'Active Listings', 'Total Listings', 'Stock Units', 'Raw Metrics (JSON)',
 ];
+const PLATFORM_TABS = {
+  amazon: 'Amazon',
+  flipkart: 'Flipkart',
+  meesho: 'Meesho',
+  snapdeal: 'Snapdeal',
+};
 
 function numeric(metrics, candidates) {
   for (const key of candidates) {
@@ -56,26 +62,33 @@ async function ensureTab(sheets, spreadsheetId, sheetName) {
   });
 }
 
+async function writeTab(sheets, spreadsheetId, sheetName, rows) {
+  await ensureTab(sheets, spreadsheetId, sheetName);
+  await sheets.spreadsheets.values.clear({ spreadsheetId, range: `'${sheetName}'!A2:O` });
+  await sheets.spreadsheets.values.update({
+    spreadsheetId,
+    range: `'${sheetName}'!A1:O${Math.max(rows.length + 1, 1)}`,
+    valueInputOption: 'RAW',
+    requestBody: { values: [HEADERS, ...rows] },
+  });
+}
+
 async function syncMarketplaceSheet(organizationId) {
   const org = await Organization.findById(organizationId).select('marketplaceSheets');
   const config = org?.marketplaceSheets;
   if (!config?.enabled || !config.sheetId) return { skipped: true, reason: 'not_configured' };
   const sheets = await getSheets();
-  const sheetName = config.sheetName || 'Daily Data';
-  await ensureTab(sheets, config.sheetId, sheetName);
   const snapshots = await MarketplaceSellerSnapshot.find({ organizationId })
     .sort({ date: 1, platform: 1 }).lean();
-  const rows = snapshots.map(toRow);
-  // The database is authoritative. Rewriting only this managed tab makes a
-  // re-run idempotent and prevents duplicate date/platform records.
-  await sheets.spreadsheets.values.clear({ spreadsheetId: config.sheetId, range: `'${sheetName}'!A2:O` });
-  await sheets.spreadsheets.values.update({
-    spreadsheetId: config.sheetId,
-    range: `'${sheetName}'!A1:O${Math.max(rows.length + 1, 1)}`,
-    valueInputOption: 'RAW',
-    requestBody: { values: [HEADERS, ...rows] },
-  });
-  const result = { rows: rows.length, sheetName, syncedAt: new Date().toISOString() };
+  const rowsByPlatform = {};
+  for (const [platform, sheetName] of Object.entries(PLATFORM_TABS)) {
+    const rows = snapshots.filter((snapshot) => snapshot.platform === platform).map(toRow);
+    await writeTab(sheets, config.sheetId, sheetName, rows);
+    rowsByPlatform[platform] = rows.length;
+  }
+  // The original combined tab is intentionally retained as a read-only
+  // historical view; all future platform exports are written to their own tabs.
+  const result = { rows: snapshots.length, rowsByPlatform, syncedAt: new Date().toISOString() };
   await Organization.findByIdAndUpdate(organizationId, {
     'marketplaceSheets.lastSyncedAt': new Date(),
     'marketplaceSheets.lastSyncResult': result,
