@@ -170,19 +170,22 @@ function parseSalesTrafficReport(text) {
 
 function refFor(snapshot, label) {
   const escaped = label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  return (snapshot.match(new RegExp(`(?:link|button) "${escaped}"[^\\n]*\\[ref=(e\\d+)\\]`, 'i')) || [])[1];
+  return (snapshot.match(new RegExp(`(?:link|button|generic) "${escaped}"[^\\n]*\\[ref=(e\\d+)\\]`, 'i')) || [])[1];
 }
 
 function collectSalesTrafficReport(capturedAt) {
   let snapshot = browser('snapshot', '-i');
   let body = browser('get', 'text', 'body');
   if (!/Business Reports\s*\|\s*Sales and Traffic/i.test(body)) {
-    const reportsRef = refFor(snapshot, 'Business reports');
-    if (!reportsRef) return [];
-    browser('click', `@${reportsRef}`);
-    browser('wait', '1200');
-    snapshot = browser('snapshot', '-i');
-    const salesTrafficRef = refFor(snapshot, 'Sales and Traffic');
+    let salesTrafficRef = refFor(snapshot, 'Sales and Traffic');
+    if (!salesTrafficRef) {
+      const reportsRef = refFor(snapshot, 'Business reports');
+      if (!reportsRef) return [];
+      browser('click', `@${reportsRef}`);
+      browser('wait', '1200');
+      snapshot = browser('snapshot', '-i');
+      salesTrafficRef = refFor(snapshot, 'Sales and Traffic');
+    }
     if (!salesTrafficRef) return [];
     browser('click', `@${salesTrafficRef}`);
     browser('wait', '1500');
@@ -227,15 +230,6 @@ function capture() {
     const dailySalesTraffic = collectSalesTrafficReport(capturedAt);
     if (!parsed.listings.length && !Object.keys(parsed.metrics.listing_status).length && !dailySalesTraffic.length) {
       throw new Error('Seller Central returned no visible product or Business Reports data');
-    }
-    if (dailySalesTraffic.length) {
-      const latest = dailySalesTraffic.at(-1);
-      parsed.metrics.business_reports = {
-        ordered_product_sales: value(latest.orderedProductSales),
-        units_ordered: value(latest.unitsOrdered),
-        total_order_items: value(latest.totalOrderItems),
-        average_sales_per_order_item: value(latest.averageSalesPerOrderItem),
-      };
     }
     return {
       source: 'seller_central_browser', mode: 'browser',

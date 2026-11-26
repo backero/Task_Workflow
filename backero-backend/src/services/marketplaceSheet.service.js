@@ -8,7 +8,7 @@ const logger = require('../utils/logger');
 // keys that platform actually exposes instead of exporting a universal layout
 // full of misleading blanks.
 const CORE_HEADERS = [
-  'Date', 'Captured At', 'Source', 'Capture Status', 'Orders', 'Sales (INR)',
+  'Date', 'Captured At', 'Source', 'Capture Status', 'Daily Orders', 'Daily Sales (INR)',
   'Impressions', 'Clicks', 'CTR (%)', 'CVR (%)',
 ];
 const PLATFORM_TABS = {
@@ -38,23 +38,24 @@ function firstNumeric(metrics, candidates) {
   return null;
 }
 
-function standardKpis(metrics) {
-  const orders = firstNumeric(metrics, [
-    'business_reports.units_ordered', 'orders.units_ordered_today',
-    'orders.orders_30d', 'orders.open_orders', 'home.daily_orders',
-    'business_overview.orders', 'dashboard.orders_booked',
-  ]);
-  const sales = firstNumeric(metrics, [
-    'business_reports.ordered_product_sales', 'sales.today_global_sales',
-    'sales.ordered_product_sales_today', 'sales.sales_30d',
-    'business_overview.sales', 'dashboard.sales_completed', 'ads.sales',
-  ]);
-  const impressions = firstNumeric(metrics, ['ads.impressions', 'advertising.impressions', 'traffic.impressions']);
+function standardKpis(platform, metrics) {
+  const dailyKeys = {
+    amazon: {
+      orders: ['business_reports.units_ordered', 'orders.units_ordered_today'],
+      sales: ['business_reports.ordered_product_sales', 'sales.ordered_product_sales_today', 'sales.today_global_sales'],
+    },
+    flipkart: { orders: ['home.new_orders', 'home.units_today'], sales: ['home.sales_today'] },
+    meesho: { orders: ['home.daily_orders'], sales: [] },
+    // Snapdeal's visible dashboard figures are rolling totals, not daily facts.
+    snapdeal: { orders: [], sales: [] },
+  }[platform] || { orders: [], sales: [] };
+  const orders = firstNumeric(metrics, dailyKeys.orders);
+  const sales = firstNumeric(metrics, dailyKeys.sales);
+  const impressions = firstNumeric(metrics, ['ads.impressions', 'advertising.impressions']);
   const clicks = firstNumeric(metrics, ['ads.clicks', 'advertising.clicks', 'traffic.clicks']);
   const ctr = firstNumeric(metrics, ['ads.ctr', 'ads.ctr_pct', 'advertising.ctr', 'traffic.ctr']);
   const cvr = firstNumeric(metrics, [
-    'ads.cvr', 'ads.cvr_pct', 'advertising.cvr', 'traffic.cvr',
-    'traffic.conversion_30d_pct', 'business_reports.unit_session_percentage',
+    'ads.cvr', 'ads.cvr_pct', 'advertising.cvr', 'business_reports.unit_session_percentage',
   ]);
   return [
     orders ?? 'N/A', sales ?? 'N/A', impressions ?? 'N/A', clicks ?? 'N/A',
@@ -71,7 +72,7 @@ function toPlatformRow(snapshot, metricKeys) {
     snapshot.capturedAt ? new Date(snapshot.capturedAt).toISOString() : '',
     snapshot.source || '',
     typeof data.status === 'object' ? data.status.state || '' : data.status || '',
-    ...standardKpis(metrics),
+    ...standardKpis(snapshot.platform, metrics),
     ...metricKeys.map((key) => sheetValue(metrics[key])),
     JSON.stringify(metrics),
   ];
