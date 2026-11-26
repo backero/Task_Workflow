@@ -263,6 +263,7 @@ if (process.env.NODE_ENV !== 'test') {
   const { setSocketIO } = require('./src/services/workflowEngine.service');
   const { initSyncJob } = require('./src/jobs/syncMarketplaceData.job');
   const { initSellerHistoryJob } = require('./src/jobs/archiveSellerHistory.job');
+  const { initMarketplaceSheetJob } = require('./src/jobs/syncMarketplaceSheet.job');
   // Cron jobs send real WhatsApp/in-app notifications against the live database.
   // Only auto-start on Render (NODE_ENV=production, set in render.yaml); a local
   // dev run would otherwise fire duplicate real notifications alongside prod.
@@ -271,6 +272,7 @@ if (process.env.NODE_ENV !== 'test') {
     startAttendanceCron(io);
     initSyncJob();
     initSellerHistoryJob();
+    initMarketplaceSheetJob();
   } else {
     logger.info('[Automation] Skipped — not running in production (set FORCE_AUTOMATION=true to override for local testing)');
     logger.info('[Marketplace Sync] Skipped — not running in production (set FORCE_AUTOMATION=true to override for local testing)');

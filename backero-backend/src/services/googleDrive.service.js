@@ -166,5 +166,5 @@ async function completeConnect(code) {
 
 module.exports = {
   hasWriteCredentials, uploadBuffer, streamFile, deleteFile,
-  getConnectUrl, completeConnect, invalidateCache, getConnectionStatus,
+  getConnectUrl, completeConnect, invalidateCache, getConnectionStatus, getAuthorizedClient,
 };

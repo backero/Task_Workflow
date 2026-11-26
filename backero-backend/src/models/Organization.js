@@ -46,6 +46,13 @@ const organizationSchema = new mongoose.Schema({
     writeBackEnabled: { type: Boolean, default: false }, // CRM → Sheet sync
     lastWriteBackAt: { type: Date },
   },
+  marketplaceSheets: {
+    sheetId: { type: String },
+    sheetName: { type: String, default: 'Daily Data' },
+    enabled: { type: Boolean, default: false },
+    lastSyncedAt: { type: Date },
+    lastSyncResult: { type: mongoose.Schema.Types.Mixed },
+  },
   signatureUrl: { type: String },
   bankDetails: {
     bankName: { type: String },
