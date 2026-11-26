@@ -17,7 +17,10 @@ function getRedirectUri() {
   // BACKEND_URL is the portable name (set explicitly on non-Render hosts);
   // RENDER_EXTERNAL_URL is auto-injected by Render for every web service and
   // is what currently makes this work there without any manual config.
-  const base = process.env.BACKEND_URL || process.env.RENDER_EXTERNAL_URL || 'http://localhost:5000';
+  // The production VPS serves the API through the public frontend origin.
+  // Falling back to localhost produces an OAuth URL that Google correctly
+  // rejects outside a developer machine.
+  const base = process.env.BACKEND_URL || process.env.RENDER_EXTERNAL_URL || process.env.FRONTEND_URL || 'http://localhost:5000';
   return `${base}${REDIRECT_PATH}`;
 }
 
