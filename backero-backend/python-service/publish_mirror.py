@@ -54,6 +54,21 @@ def capture_day(value):
     return parsed.astimezone(ZoneInfo('Asia/Kolkata')).strftime('%Y-%m-%d')
 
 
+def capture_timestamp(value):
+    """Keep the seller's real capture timestamp, never the publisher's time."""
+    try:
+        parsed = datetime.fromisoformat(str(value).replace('Z', '+00:00'))
+    except (TypeError, ValueError):
+        return None
+    return parsed.replace(tzinfo=timezone.utc) if parsed.tzinfo is None else parsed.astimezone(timezone.utc)
+
+
+def is_successful_capture(data):
+    status = data.get('status') or {}
+    state = status.get('state') if isinstance(status, dict) else status
+    return state not in {'needs_you', 'needs_connection', 'error', 'failed'}
+
+
 def main():
     from dotenv import load_dotenv
     from pymongo import MongoClient
@@ -96,11 +111,12 @@ def main():
             # wasteful for long-term reporting. Keep the latest real reading per
             # India business day, organization and platform instead.
             metrics = trend_metrics(data)
-            if metrics:
+            captured_at = capture_timestamp(data.get('lastScrapedAt'))
+            if metrics and captured_at and is_successful_capture(data):
                 history.update_one(
                     {'organizationId': org_id, 'platform': args.platform, 'date': capture_day(data.get('lastScrapedAt'))},
                     {'$set': {
-                        'capturedAt': datetime.now(timezone.utc),
+                        'capturedAt': captured_at,
                         'source': data.get('source') or args.platform,
                         'metrics': metrics,
                         'data': data,
