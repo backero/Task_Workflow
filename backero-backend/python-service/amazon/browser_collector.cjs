@@ -228,7 +228,9 @@ function asinTableSlice(scrollLeft) {
       const rect = element.getBoundingClientRect();
       return rect.width > 0 && rect.height > 0 && rect.y > 500 && rect.y < window.innerHeight + 80;
     };
-    const textOf = (element) => element.innerText.replace(/\\s+/g, ' ').trim();
+    // Header sort icons and SVG nodes can be included in a broad DOM query;
+    // unlike normal cells, they have no innerText. Ignore them safely.
+    const textOf = (element) => String(element.innerText || '').replace(/\\s+/g, ' ').trim();
     const nodes = Array.from(container.querySelectorAll('a, div')).filter((element) =>
       visible(element) && element.children.length === 0 && textOf(element)
       && !textOf(element).startsWith('What is this?'));
