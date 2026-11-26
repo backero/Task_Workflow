@@ -257,18 +257,23 @@ function collectAsinPerformance(capturedAt) {
   let snapshot = browser('snapshot', '-i');
   let body = browser('eval', 'document.body.innerText');
   if (!/Business Reports\s*\|\s*Detail Page Sales and Traffic/i.test(body)) {
-    const candidates = [...snapshot.matchAll(/generic "Detail Page Sales and Traffic"[^\n]*\[ref=(e\d+)\]/gi)]
+    // The generic parent only expands the menu; the nested link owns the
+    // report route. Select the second link, which is the By ASIN report.
+    const candidates = [...snapshot.matchAll(/link "Detail Page Sales and Traffic"[^\n]*\[ref=(e\d+)\]/gi)]
       .map((match) => match[1]);
     const byAsinRef = candidates.at(-1);
     if (!byAsinRef) return { range: [], rows: [] };
     browser('click', `@${byAsinRef}`);
-    browser('wait', '1200');
+    // The ASIN report uses a separately mounted virtual grid. Its route is
+    // visible before the cells are, so wait for that grid rather than reading
+    // an empty transition frame.
+    browser('wait', '2500');
     snapshot = browser('snapshot', '-i');
   }
   const applyRef = refFor(snapshot, 'Apply');
   if (applyRef) {
     browser('click', `@${applyRef}`);
-    browser('wait', '900');
+    browser('wait', '1700');
   }
 
   // Seller Central virtualises horizontal columns. Read the identity cells
