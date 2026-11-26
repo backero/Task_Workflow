@@ -51,7 +51,7 @@ function parseMoney(text) {
 }
 
 function parseSnapshot(snapshot, capturedAt) {
-  const metrics = { listing_status: {} };
+  const metrics = { listing_status: {}, product_performance: {} };
   const labels = {
     Active: 'active', 'Search suppressed': 'search_suppressed', Inactive: 'inactive',
     'Out of stock': 'out_of_stock', Closed: 'closed',
@@ -68,6 +68,7 @@ function parseSnapshot(snapshot, capturedAt) {
   }
   const cells = [...snapshot.matchAll(/^\s*- cell "([^"]*)"/gm)].map((match) => match[1]);
   const listings = [];
+  let visibleProductSales = 0;
   for (let index = 0; index < cells.length; index += 1) {
     const identity = cells[index].match(/^(.*)\s+(B0[A-Z0-9]{8})\s+\|\s+([^\s]+)$/);
     if (!identity) continue;
@@ -75,8 +76,15 @@ function parseSnapshot(snapshot, capturedAt) {
     const status = cells[index + 1] || null;
     const inventory = (cells[index + 4] || '').match(/^(\d+)\s+\((FBA|FBM)\)$/i);
     const price = parseMoney(cells[index + 5]);
+    const sales = parseMoney(cells[index + 2]);
+    const pageViews = /^\d[\d,]*$/.test(cells[index + 3] || '') ? Number(cells[index + 3].replace(/,/g, '')) : null;
     if (!status || !inventory || price == null) continue;
-    listings.push({ title, asin, sku, status, price, stock: Number(inventory[1]), fulfillment: inventory[2].toUpperCase() });
+    if (sales != null) visibleProductSales += sales;
+    listings.push({ title, asin, sku, status, price, stock: Number(inventory[1]), fulfillment: inventory[2].toUpperCase(), sales, pageViews });
+  }
+  if (listings.length) {
+    metrics.product_performance.visible_products = value(listings.length);
+    metrics.product_performance.visible_product_sales = value(visibleProductSales);
   }
   return { metrics, listings };
 }
