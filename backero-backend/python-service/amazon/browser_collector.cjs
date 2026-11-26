@@ -200,7 +200,20 @@ function visualRows(cells) {
   return rows.sort((left, right) => left.y - right.y);
 }
 
-function asinTableSlice(scrollLeft) {
+function scrollAsinTable(scrollLeft) {
+  const script = `(() => {
+    const scroller = Array.from(document.querySelectorAll('div')).find((element) =>
+      element.scrollWidth > element.clientWidth + 200
+      && element.innerText.includes('(Parent) ASIN')
+      && element.innerText.includes('Total Order Items'));
+    if (!scroller) return false;
+    scroller.scrollLeft = ${Number(scrollLeft) || 0};
+    return true;
+  })()`;
+  return /true/i.test(browser('eval', script));
+}
+
+function asinTableSlice() {
   const script = `(() => {
     const labels = new Set([
       'Parent) ASIN', '(Parent) ASIN', '(Child) ASIN', 'Title', 'SKU',
@@ -219,11 +232,6 @@ function asinTableSlice(scrollLeft) {
       && element.innerText.includes('(Parent) ASIN')
       && element.innerText.includes('Total Order Items'));
     if (!container) return JSON.stringify({ headers: [], cells: [], range: [] });
-    const scroller = Array.from(document.querySelectorAll('div')).find((element) =>
-      element.scrollWidth > element.clientWidth + 200
-      && element.innerText.includes('(Parent) ASIN')
-      && element.innerText.includes('Total Order Items'));
-    if (scroller) scroller.scrollLeft = ${Number(scrollLeft) || 0};
     const visible = (element) => {
       const rect = element.getBoundingClientRect();
       return rect.width > 0 && rect.height > 0 && rect.y > 500 && rect.y < window.innerHeight + 80;
@@ -281,9 +289,12 @@ function collectAsinPerformance(capturedAt) {
   // Seller Central virtualises horizontal columns. Read the identity cells
   // and the performance cells in two browser-visible positions, then join
   // them by their displayed row. Nothing is inferred when a cell is absent.
-  const identitySlice = asinTableSlice(0);
-  browser('wait', '250');
-  const metricsSlice = asinTableSlice(1600);
+  scrollAsinTable(0);
+  browser('wait', '400');
+  const identitySlice = asinTableSlice();
+  scrollAsinTable(1600);
+  browser('wait', '400');
+  const metricsSlice = asinTableSlice();
   const identities = visualRows(identitySlice.cells);
   const measurements = visualRows(metricsSlice.cells);
   const metricHeaders = [...new Map((metricsSlice.headers || []).map((header) => [header.x, header])).values()]
