@@ -330,7 +330,13 @@ function collectAsinPerformance(capturedAt) {
 
 function refFor(snapshot, label) {
   const escaped = label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  return (snapshot.match(new RegExp(`(?:link|button|generic) "${escaped}"[^\\n]*\\[ref=(e\\d+)\\]`, 'i')) || [])[1];
+  // Seller Central menu wrappers are often "generic" elements which only
+  // expand a section. Prefer the actual link/button route when present.
+  for (const kind of ['link', 'button', 'generic']) {
+    const match = snapshot.match(new RegExp(`${kind} "${escaped}"[^\\n]*\\[ref=(e\\d+)\\]`, 'i'));
+    if (match) return match[1];
+  }
+  return undefined;
 }
 
 function collectSalesTrafficReport(capturedAt) {
@@ -432,7 +438,7 @@ function writeCapture() {
   if (data.status.state !== 'ok' && fs.existsSync(capturePath)) {
     try {
       const previous = JSON.parse(fs.readFileSync(capturePath, 'utf8'));
-      if (previous?.status?.state === 'ok' && previous?.lastScrapedAt) {
+      if (previous?.lastScrapedAt && (previous?.status?.state === 'ok' || previous?.status?.previousCaptureAt)) {
         data = {
           ...previous,
           status: { ...data.status, previousCaptureAt: previous.lastScrapedAt },
