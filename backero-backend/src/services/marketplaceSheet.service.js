@@ -7,7 +7,10 @@ const logger = require('../utils/logger');
 // Marketplace terminology differs. Build each platform tab from the metric
 // keys that platform actually exposes instead of exporting a universal layout
 // full of misleading blanks.
-const CORE_HEADERS = ['Date', 'Captured At', 'Source', 'Capture Status'];
+const CORE_HEADERS = [
+  'Date', 'Captured At', 'Source', 'Capture Status', 'Orders', 'Sales (INR)',
+  'Impressions', 'Clicks', 'CTR (%)', 'CVR (%)',
+];
 const PLATFORM_TABS = {
   amazon: 'Amazon',
   flipkart: 'Flipkart',
@@ -27,6 +30,39 @@ function sheetValue(value) {
   return JSON.stringify(value);
 }
 
+function firstNumeric(metrics, candidates) {
+  for (const key of candidates) {
+    const value = metrics[key];
+    if (typeof value === 'number' && Number.isFinite(value)) return value;
+  }
+  return null;
+}
+
+function standardKpis(metrics) {
+  const orders = firstNumeric(metrics, [
+    'business_reports.units_ordered', 'orders.units_ordered_today',
+    'orders.orders_30d', 'orders.open_orders', 'home.daily_orders',
+    'business_overview.orders', 'dashboard.orders_booked',
+  ]);
+  const sales = firstNumeric(metrics, [
+    'business_reports.ordered_product_sales', 'sales.today_global_sales',
+    'sales.ordered_product_sales_today', 'sales.sales_30d',
+    'business_overview.sales', 'dashboard.sales_completed', 'ads.sales',
+  ]);
+  const impressions = firstNumeric(metrics, ['ads.impressions', 'advertising.impressions', 'traffic.impressions']);
+  const clicks = firstNumeric(metrics, ['ads.clicks', 'advertising.clicks', 'traffic.clicks']);
+  const ctr = firstNumeric(metrics, ['ads.ctr', 'ads.ctr_pct', 'advertising.ctr', 'traffic.ctr']);
+  const cvr = firstNumeric(metrics, [
+    'ads.cvr', 'ads.cvr_pct', 'advertising.cvr', 'traffic.cvr',
+    'traffic.conversion_30d_pct', 'business_reports.unit_session_percentage',
+  ]);
+  return [
+    orders ?? 'N/A', sales ?? 'N/A', impressions ?? 'N/A', clicks ?? 'N/A',
+    ctr ?? (impressions && clicks !== null ? (clicks / impressions) * 100 : 'N/A'),
+    cvr ?? 'N/A',
+  ];
+}
+
 function toPlatformRow(snapshot, metricKeys) {
   const data = snapshot.data || {};
   const metrics = snapshot.metrics || {};
@@ -35,6 +71,7 @@ function toPlatformRow(snapshot, metricKeys) {
     snapshot.capturedAt ? new Date(snapshot.capturedAt).toISOString() : '',
     snapshot.source || '',
     typeof data.status === 'object' ? data.status.state || '' : data.status || '',
+    ...standardKpis(metrics),
     ...metricKeys.map((key) => sheetValue(metrics[key])),
     JSON.stringify(metrics),
   ];
