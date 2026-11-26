@@ -81,12 +81,47 @@ function parseSnapshot(snapshot, capturedAt) {
   return { metrics, listings };
 }
 
+function parseDashboard(snapshot, capturedAt) {
+  const metrics = { sales: {}, orders: {}, finance: {}, inventory: {}, step: {} };
+  const money = (pattern) => {
+    const match = snapshot.match(pattern);
+    return match ? parseMoney(match[1]) : null;
+  };
+  const count = (pattern) => {
+    const match = snapshot.match(pattern);
+    return match ? Number(match[1].replace(/,/g, '')) : null;
+  };
+  const percent = (pattern) => {
+    const match = snapshot.match(pattern);
+    return match ? Number(match[1]) : null;
+  };
+  const put = (group, key, amount) => { if (Number.isFinite(amount)) metrics[group][key] = value(amount); };
+  put('sales', 'today_global_sales', money(/Today's Global Sales\s*([^\n]+)/i));
+  put('sales', 'ordered_product_sales_today', money(/Ordered product sales:\s*([^\n"]+)/i));
+  put('orders', 'units_ordered_today', count(/Units ordered:\s*([\d,]+)/i));
+  put('orders', 'open_orders', count(/Open Orders\s*([\d,]+)/i));
+  put('finance', 'total_balance', money(/Total balance\s*([^\n]+)/i));
+  put('inventory', 'active_shipments', count(/Active Shipments\s*([\d,]+)/i));
+  put('step', 'sqs_score', count(/SQS Score"[^\n]*\n\s*- cell "([\d,]+)/i));
+  put('step', 'plqs_pct', percent(/PLQS"[^\n]*\n\s*- cell "([\d.]+)%/i));
+  put('step', 'prime_gv_pct', percent(/Prime GV%"[^\n]*\n\s*- cell "([\d.]+)%/i));
+  put('step', 'lis_pct', percent(/LIS"[^\n]*\n\s*- cell "([\d.]+)%/i));
+  put('step', 'net_sales', money(/Net Sales"[^\n]*\n\s*- cell "([^\n"]+)/i));
+  const listing = snapshot.match(/Products\s*Active\s*([\d,]+)\/([\d,]+)/i);
+  if (listing) {
+    metrics.inventory.active_listings = value(Number(listing[1].replace(/,/g, '')));
+    metrics.inventory.total_listings = value(Number(listing[2].replace(/,/g, '')));
+  }
+  return Object.fromEntries(Object.entries(metrics).filter(([, entries]) => Object.keys(entries).length));
+}
+
 function capture() {
   const capturedAt = now();
   try {
     // Reuse the active managed Seller Central tab. Reopening it each cycle can
     // interrupt a human handling Amazon's occasional verification prompt.
     let snapshot = browser('snapshot', '-i');
+    const dashboardMetrics = parseDashboard(snapshot, capturedAt);
     // A Seller Central news card can contain the phrase "Sign in" even when
     // the browser session is authenticated, so only recognize actual login UI.
     const atLoginScreen = /^\s*- (?:link|button|heading) "(?:Log in|Sign in)"/mi.test(snapshot);
@@ -112,6 +147,7 @@ function capture() {
       browser('wait', '1500');
     }
     const parsed = parseSnapshot(browser('snapshot', '-i'), capturedAt);
+    parsed.metrics = { ...dashboardMetrics, ...parsed.metrics };
     if (!parsed.listings.length && !Object.keys(parsed.metrics.listing_status).length) {
       throw new Error('Seller Central Products dashboard returned no visible listing data');
     }
