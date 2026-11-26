@@ -4,11 +4,10 @@ const MarketplaceSellerSnapshot = require('../models/MarketplaceSellerSnapshot')
 const { getAuthorizedClient } = require('./googleDrive.service');
 const logger = require('../utils/logger');
 
-const HEADERS = [
-  'Date', 'Platform', 'Captured At', 'Source', 'Capture Status',
-  'Orders', 'Sales (INR)', 'Impressions', 'Clicks', 'CTR (%)', 'CVR (%)',
-  'Active Listings', 'Total Listings', 'Stock Units', 'Raw Metrics (JSON)',
-];
+// Marketplace terminology differs. Build each platform tab from the metric
+// keys that platform actually exposes instead of exporting a universal layout
+// full of misleading blanks.
+const CORE_HEADERS = ['Date', 'Captured At', 'Source', 'Capture Status'];
 const PLATFORM_TABS = {
   amazon: 'Amazon',
   flipkart: 'Flipkart',
@@ -16,32 +15,27 @@ const PLATFORM_TABS = {
   snapdeal: 'Snapdeal',
 };
 
-function numeric(metrics, candidates) {
-  for (const key of candidates) {
-    const value = metrics?.[key];
-    if (typeof value === 'number' && Number.isFinite(value)) return value;
-  }
-  return '';
+function tabHeaders(snapshots) {
+  const metricKeys = [...new Set(snapshots.flatMap((snapshot) => Object.keys(snapshot.metrics || {})))].sort();
+  return [...CORE_HEADERS, ...metricKeys, 'Raw Metrics (JSON)'];
 }
 
-function toRow(snapshot) {
-  const metrics = snapshot.metrics || {};
+function sheetValue(value) {
+  if (value === undefined || value === null) return '';
+  if (typeof value === 'number') return Number.isFinite(value) ? value : '';
+  if (typeof value === 'string' || typeof value === 'boolean') return value;
+  return JSON.stringify(value);
+}
+
+function toPlatformRow(snapshot, metricKeys) {
   const data = snapshot.data || {};
+  const metrics = snapshot.metrics || {};
   return [
     snapshot.date,
-    snapshot.platform,
     snapshot.capturedAt ? new Date(snapshot.capturedAt).toISOString() : '',
     snapshot.source || '',
     typeof data.status === 'object' ? data.status.state || '' : data.status || '',
-    numeric(metrics, ['orders.orders_30d', 'orders.units_ordered_today', 'orders.open_orders']),
-    numeric(metrics, ['sales.sales_30d', 'sales.today_global_sales', 'sales.ordered_product_sales_today', 'product_performance.visible_product_sales']),
-    numeric(metrics, ['ads.impressions', 'advertising.impressions', 'traffic.impressions']),
-    numeric(metrics, ['ads.clicks', 'advertising.clicks', 'traffic.clicks']),
-    numeric(metrics, ['ads.ctr', 'advertising.ctr', 'traffic.ctr']),
-    numeric(metrics, ['ads.cvr', 'advertising.cvr', 'traffic.cvr', 'conversion.cvr']),
-    numeric(metrics, ['inventory.active_listings', 'listing_status.active']),
-    numeric(metrics, ['inventory.total_listings']),
-    numeric(metrics, ['inventory.stock_units', 'inventory.available']),
+    ...metricKeys.map((key) => sheetValue(metrics[key])),
     JSON.stringify(metrics),
   ];
 }
@@ -62,14 +56,13 @@ async function ensureTab(sheets, spreadsheetId, sheetName) {
   });
 }
 
-async function writeTab(sheets, spreadsheetId, sheetName, rows) {
+async function writeTab(sheets, spreadsheetId, sheetName, headers, rows) {
   await ensureTab(sheets, spreadsheetId, sheetName);
-  await sheets.spreadsheets.values.clear({ spreadsheetId, range: `'${sheetName}'!A2:O` });
+  await sheets.spreadsheets.values.clear({ spreadsheetId, range: `'${sheetName}'!A:ZZ` });
   await sheets.spreadsheets.values.update({
-    spreadsheetId,
-    range: `'${sheetName}'!A1:O${Math.max(rows.length + 1, 1)}`,
+    spreadsheetId, range: `'${sheetName}'!A1`,
     valueInputOption: 'RAW',
-    requestBody: { values: [HEADERS, ...rows] },
+    requestBody: { values: [headers, ...rows] },
   });
 }
 
@@ -96,8 +89,11 @@ async function syncMarketplaceSheet(organizationId) {
     .sort({ date: 1, platform: 1 }).lean();
   const rowsByPlatform = {};
   for (const [platform, sheetName] of Object.entries(PLATFORM_TABS)) {
-    const rows = snapshots.filter((snapshot) => snapshot.platform === platform).map(toRow);
-    await writeTab(sheets, config.sheetId, sheetName, rows);
+    const platformSnapshots = snapshots.filter((snapshot) => snapshot.platform === platform);
+    const headers = tabHeaders(platformSnapshots);
+    const metricKeys = headers.slice(CORE_HEADERS.length, -1);
+    const rows = platformSnapshots.map((snapshot) => toPlatformRow(snapshot, metricKeys));
+    await writeTab(sheets, config.sheetId, sheetName, headers, rows);
     rowsByPlatform[platform] = rows.length;
   }
   const today = istDate();
