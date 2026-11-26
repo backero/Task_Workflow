@@ -73,6 +73,20 @@ async function writeTab(sheets, spreadsheetId, sheetName, rows) {
   });
 }
 
+async function writeCustomTab(sheets, spreadsheetId, sheetName, headers, rows) {
+  await ensureTab(sheets, spreadsheetId, sheetName);
+  await sheets.spreadsheets.values.clear({ spreadsheetId, range: `'${sheetName}'!A2:Z` });
+  await sheets.spreadsheets.values.update({
+    spreadsheetId,
+    range: `'${sheetName}'!A1`, valueInputOption: 'RAW',
+    requestBody: { values: [headers, ...rows] },
+  });
+}
+
+function istDate() {
+  return new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
+}
+
 async function syncMarketplaceSheet(organizationId) {
   const org = await Organization.findById(organizationId).select('marketplaceSheets');
   const config = org?.marketplaceSheets;
@@ -86,6 +100,23 @@ async function syncMarketplaceSheet(organizationId) {
     await writeTab(sheets, config.sheetId, sheetName, rows);
     rowsByPlatform[platform] = rows.length;
   }
+  const today = istDate();
+  const healthRows = Object.entries(PLATFORM_TABS).map(([platform]) => {
+    const latest = snapshots.filter((snapshot) => snapshot.platform === platform).at(-1);
+    const data = latest?.data || {};
+    const state = typeof data.status === 'object' ? data.status.state || '' : data.status || '';
+    return [platform, latest?.date || '', latest?.capturedAt ? new Date(latest.capturedAt).toISOString() : '', latest?.source || '', latest?.date === today ? 'Fresh today' : 'Missing today', state];
+  });
+  await writeCustomTab(sheets, config.sheetId, 'Sync Health', ['Platform', 'Last business date', 'Captured at', 'Source', 'Today status', 'Capture state'], healthRows);
+  const months = new Map();
+  for (const snapshot of snapshots) {
+    const key = `${snapshot.platform}:${snapshot.date.slice(0, 7)}`;
+    const group = months.get(key) || { platform: snapshot.platform, month: snapshot.date.slice(0, 7), count: 0, latest: snapshot.date };
+    group.count += 1;
+    if (snapshot.date > group.latest) group.latest = snapshot.date;
+    months.set(key, group);
+  }
+  await writeCustomTab(sheets, config.sheetId, 'Summary', ['Platform', 'Month', 'Saved daily readings', 'Latest business date'], [...months.values()].map((group) => [group.platform, group.month, group.count, group.latest]));
   // The original combined tab is intentionally retained as a read-only
   // historical view; all future platform exports are written to their own tabs.
   const result = { rows: snapshots.length, rowsByPlatform, syncedAt: new Date().toISOString() };
