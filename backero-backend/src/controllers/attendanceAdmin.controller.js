@@ -6,10 +6,11 @@ const mongoose = require('mongoose');
 const AttendanceEvent = require('../models/AttendanceEvent');
 const Attendance = require('../models/Attendance');
 const AttendanceCorrection = require('../models/AttendanceCorrection');
-const { asyncHandler, sendSuccess } = require('../utils/helpers');
+const { asyncHandler, sendSuccess, sendError } = require('../utils/helpers');
 const { getOrCreatePeriodForDate } = require('../services/attendancePeriods.service');
 const processor = require('../services/attendanceProcessor.service');
 const { recordAuditEvent } = require('../services/attendanceAudit.service');
+const { importAttendanceSheet } = require('../services/attendanceImport.service');
 
 exports.reprocess = asyncHandler(async (req, res) => {
   const orgId = req.user.organizationId;
@@ -81,4 +82,17 @@ exports.reprocess = asyncHandler(async (req, res) => {
   });
 
   sendSuccess(res, { processedCount, flaggedForReviewCount: flaggedCount });
+});
+
+exports.importSheet = asyncHandler(async (req, res) => {
+  if (!req.file) return sendError(res, 'An Excel (.xlsx) or .csv file is required.', 422);
+  const results = await importAttendanceSheet(
+    req.user.organizationId, req.user._id, req.file.buffer, req.file.originalname,
+  );
+  const notFoundCount = results.employeesNotFound.length;
+  sendSuccess(
+    res, results,
+    `Imported ${results.daysImported} day(s) for ${results.employeesImported} employee(s)` +
+      (notFoundCount ? `, ${notFoundCount} employee name(s) not matched` : ''),
+  );
 });

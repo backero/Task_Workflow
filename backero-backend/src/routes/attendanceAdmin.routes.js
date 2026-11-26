@@ -20,6 +20,7 @@ const policyCtrl = require('../controllers/attendancePolicy.controller');
 const { authenticate } = require('../middleware/auth.middleware');
 const { requireAttendancePermission } = require('../middleware/role.middleware');
 const { ATTENDANCE_PERMISSIONS } = require('../utils/attendanceConstants');
+const upload = require('../middleware/upload.middleware');
 
 router.use(authenticate);
 
@@ -48,6 +49,12 @@ router.get('/work-schedule', requireAttendancePermission(P.ATTENDANCE_READ), wor
 router.post('/work-schedule', requireAttendancePermission(P.RULES_CONFIGURE), workScheduleCtrl.create);
 
 router.post('/admin/reprocess', requireAttendancePermission(P.ATTENDANCE_REPROCESS), adminCtrl.reprocess);
+router.post(
+  '/admin/import-sheet',
+  requireAttendancePermission(P.ATTENDANCE_REPROCESS),
+  upload.single('file'),
+  adminCtrl.importSheet,
+);
 
 // Generic params last — see header comment on ordering.
 router.get('/:employeeId', requireAttendancePermission(P.ATTENDANCE_READ), boardCtrl.getEmployeeHistory);
