@@ -38,6 +38,10 @@ def build_mirror(capture_path):
         'lastScrapedAt': data.get('lastScrapedAt'), 'status': data.get('status') or {},
         'metrics': data.get('metrics') or {}, 'listings': data.get('listings') or [],
         'orders': data.get('orders') or [], 'coverage': data.get('coverage') or {},
+        # Date-wise facts from Seller Central Business Reports.  They are kept
+        # separate from the current dashboard snapshot so the publisher can
+        # store every report date as a truthful historical reading.
+        'salesTrafficByDate': data.get('salesTrafficByDate') or [],
         'limitations': data.get('limitations') or [],
     }
     result['inventorySummary'] = inventory_summary(result['listings'])

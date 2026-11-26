@@ -69,6 +69,45 @@ def is_successful_capture(data):
     return state not in {'needs_you', 'needs_connection', 'error', 'failed'}
 
 
+def amazon_sales_traffic_metrics(row):
+    """Allowlist numeric facts from Amazon's date-wise Sales & Traffic report."""
+    fields = {
+        'orderedProductSales': 'business_reports.ordered_product_sales',
+        'orderedProductSalesB2b': 'business_reports.ordered_product_sales_b2b',
+        'unitsOrdered': 'business_reports.units_ordered',
+        'unitsOrderedB2b': 'business_reports.units_ordered_b2b',
+        'totalOrderItems': 'business_reports.total_order_items',
+        'totalOrderItemsB2b': 'business_reports.total_order_items_b2b',
+        'averageSalesPerOrderItem': 'business_reports.average_sales_per_order_item',
+        'averageSalesPerOrderItemB2b': 'business_reports.average_sales_per_order_item_b2b',
+    }
+    return {target: row[source] for source, target in fields.items() if isinstance(row.get(source), (int, float))}
+
+
+def publish_amazon_sales_traffic(history, organization_id, data, captured_at):
+    """Persist each real Business Report day, including zero-sale days, once."""
+    rows = data.get('salesTrafficByDate') or []
+    for row in rows:
+        report_date = row.get('date') if isinstance(row, dict) else None
+        if not isinstance(report_date, str) or not re.fullmatch(r'\d{4}-\d{2}-\d{2}', report_date):
+            continue
+        metrics = amazon_sales_traffic_metrics(row)
+        if not metrics:
+            continue
+        report_data = {
+            'status': {'state': 'ok', 'detail': 'Amazon Seller Central Sales and Traffic report.', 'at': captured_at.isoformat()},
+            'reportType': 'sales_and_traffic_by_date',
+        }
+        history.update_one(
+            {'organizationId': organization_id, 'platform': 'amazon', 'date': report_date},
+            {'$set': {
+                'capturedAt': captured_at, 'source': 'seller_central_business_reports',
+                'metrics': metrics, 'data': report_data,
+            }},
+            upsert=True,
+        )
+
+
 def main():
     from dotenv import load_dotenv
     from pymongo import MongoClient
@@ -123,6 +162,8 @@ def main():
                     }},
                     upsert=True,
                 )
+                if args.platform == 'amazon':
+                    publish_amazon_sales_traffic(history, org_id, data, captured_at)
             print(f'{args.platform} seller mirror published to {args.database}.', flush=True)
         except Exception as exc:
             print(f'{args.platform} publish failed: {type(exc).__name__}', flush=True)

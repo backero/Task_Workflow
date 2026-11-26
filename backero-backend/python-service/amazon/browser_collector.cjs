@@ -123,6 +123,74 @@ function parseDashboard(snapshot, capturedAt) {
   return Object.fromEntries(Object.entries(metrics).filter(([, entries]) => Object.keys(entries).length));
 }
 
+function numberFromReport(text) {
+  const clean = String(text).replace(/[₹,]/g, '').replace(/%$/, '').trim();
+  const parsed = Number(clean);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function reportDateToIso(text) {
+  const match = String(text).match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  return match ? `${match[3]}-${match[2]}-${match[1]}` : null;
+}
+
+function parseSalesTrafficReport(text) {
+  // The accessible report is a sequence of daily cells rather than a semantic
+  // table.  Each date row starts with dd/mm/yyyy and currently exposes the
+  // first eight Sales & Traffic columns.  Keep only fully parsed facts.
+  const lines = String(text).split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+  const rows = [];
+  for (let index = 0; index < lines.length; index += 1) {
+    const date = reportDateToIso(lines[index]);
+    if (!date) continue;
+    const cells = [];
+    let cursor = index + 1;
+    while (cursor < lines.length && !reportDateToIso(lines[cursor]) && lines[cursor] !== 'Total') {
+      cells.push(lines[cursor]);
+      cursor += 1;
+    }
+    // Ordered sales, B2B sales, units, B2B units, order items, B2B order
+    // items, average sales/order item, B2B average sales/order item.
+    if (cells.length >= 8) {
+      const values = cells.slice(0, 8).map(numberFromReport);
+      if (values.every((entry) => entry !== null)) {
+        rows.push({
+          date,
+          orderedProductSales: values[0], orderedProductSalesB2b: values[1],
+          unitsOrdered: values[2], unitsOrderedB2b: values[3],
+          totalOrderItems: values[4], totalOrderItemsB2b: values[5],
+          averageSalesPerOrderItem: values[6], averageSalesPerOrderItemB2b: values[7],
+        });
+      }
+    }
+    index = cursor - 1;
+  }
+  return rows;
+}
+
+function refFor(snapshot, label) {
+  const escaped = label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return (snapshot.match(new RegExp(`(?:link|button) "${escaped}"[^\\n]*\\[ref=(e\\d+)\\]`, 'i')) || [])[1];
+}
+
+function collectSalesTrafficReport(capturedAt) {
+  let snapshot = browser('snapshot', '-i');
+  let body = browser('get', 'text', 'body');
+  if (!/Business Reports\s*\|\s*Sales and Traffic/i.test(body)) {
+    const reportsRef = refFor(snapshot, 'Business reports');
+    if (!reportsRef) return [];
+    browser('click', `@${reportsRef}`);
+    browser('wait', '1200');
+    snapshot = browser('snapshot', '-i');
+    const salesTrafficRef = refFor(snapshot, 'Sales and Traffic');
+    if (!salesTrafficRef) return [];
+    browser('click', `@${salesTrafficRef}`);
+    browser('wait', '1500');
+    body = browser('get', 'text', 'body');
+  }
+  return parseSalesTrafficReport(body).map((row) => ({ ...row, capturedAt }));
+}
+
 function capture() {
   const capturedAt = now();
   try {
@@ -156,20 +224,32 @@ function capture() {
     }
     const parsed = parseSnapshot(browser('snapshot', '-i'), capturedAt);
     parsed.metrics = { ...dashboardMetrics, ...parsed.metrics };
-    if (!parsed.listings.length && !Object.keys(parsed.metrics.listing_status).length) {
-      throw new Error('Seller Central Products dashboard returned no visible listing data');
+    const dailySalesTraffic = collectSalesTrafficReport(capturedAt);
+    if (!parsed.listings.length && !Object.keys(parsed.metrics.listing_status).length && !dailySalesTraffic.length) {
+      throw new Error('Seller Central returned no visible product or Business Reports data');
+    }
+    if (dailySalesTraffic.length) {
+      const latest = dailySalesTraffic.at(-1);
+      parsed.metrics.business_reports = {
+        ordered_product_sales: value(latest.orderedProductSales),
+        units_ordered: value(latest.unitsOrdered),
+        total_order_items: value(latest.totalOrderItems),
+        average_sales_per_order_item: value(latest.averageSalesPerOrderItem),
+      };
     }
     return {
       source: 'seller_central_browser', mode: 'browser',
       marketplace: { id: 'A21TJRUUN4KGV', name: 'Amazon India' }, lastScrapedAt: capturedAt,
       status: { state: 'ok', detail: 'Authenticated Seller Central browser read completed.', at: capturedAt },
       metrics: parsed.metrics, listings: parsed.listings, orders: [],
+      salesTrafficByDate: dailySalesTraffic,
       coverage: {
         listings: { capturedAt, count: parsed.listings.length, status: 'partial', detail: 'Visible Seller Central Product Performance rows; listing-status totals are captured separately.' },
         orders: { capturedAt: null, count: 0, status: 'unavailable', detail: 'Orders browser reader is not enabled yet.' },
       },
       limitations: [
         'Read-only data from the authenticated local Seller Central browser; no cookies or credentials are copied.',
+        'Business Reports Sales and Traffic rows are captured read-only from the authenticated Seller Central browser. Sessions and conversion are included when Amazon exposes those columns in the selected report view.',
         'Visible listing rows and listing-status counters are captured automatically. Orders, settlements, returns, ads and search terms will be added as separate readers.',
       ],
     };
