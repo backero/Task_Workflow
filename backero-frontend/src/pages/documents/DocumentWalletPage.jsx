@@ -423,12 +423,12 @@ export default function DocumentWalletPage() {
             <Button icon={<BellRing size={14} />} onClick={loadRemindersPreview}>Reminders</Button>
           )}
           {isManagerOrAbove && (
-            driveStatus?.connected ? (
+            driveStatus?.connected && driveStatus?.healthy ? (
               <Tag icon={<Folder size={12} style={{ marginRight: 4 }} />} color="green" title={`Connected as ${driveStatus.connectedEmail}`}>
                 Drive: {driveStatus.connectedEmail}
               </Tag>
             ) : (
-              <Button icon={<Folder size={14} />} onClick={connectDrive}>Connect Google Drive</Button>
+              <Button danger={driveStatus?.connected} icon={<Folder size={14} />} onClick={connectDrive}>{driveStatus?.connected ? 'Reconnect Google Drive' : 'Connect Google Drive'}</Button>
             )
           )}
           <Button type="primary" icon={<Plus size={14} />} onClick={() => { setEditingDocId(null); setNewDocForm(emptyForm); setNewDocFiles([]); setNewDocOpen(true); }}>

@@ -485,8 +485,8 @@ exports.remindersSendNow = asyncHandler(async (req, res) => {
 // ── Google Drive connection (OAuth, run as a real account) ────────────────
 
 exports.driveStatus = asyncHandler(async (req, res) => {
-  const auth = await GoogleDriveAuth.findOne({}).select('connectedEmail updatedAt');
-  sendSuccess(res, { connected: !!auth, connectedEmail: auth?.connectedEmail || null });
+  const status = await drive.getConnectionStatus();
+  sendSuccess(res, status);
 });
 
 exports.driveConnectUrl = asyncHandler(async (req, res) => {

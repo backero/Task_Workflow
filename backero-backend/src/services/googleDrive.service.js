@@ -123,9 +123,30 @@ function getConnectUrl(state) {
   return client.generateAuthUrl({
     access_type: 'offline',
     prompt: 'consent',
-    scope: ['https://www.googleapis.com/auth/drive', 'https://www.googleapis.com/auth/userinfo.email'],
+    scope: [
+      'https://www.googleapis.com/auth/drive',
+      'https://www.googleapis.com/auth/spreadsheets',
+      'https://www.googleapis.com/auth/userinfo.email',
+    ],
     state,
   });
+}
+
+// A stored refresh token can be revoked outside Backero. Verify it before the
+// UI calls a connection healthy, rather than showing a misleading green badge.
+async function getConnectionStatus() {
+  const doc = await GoogleDriveAuth.findOne({}).select('connectedEmail');
+  if (!doc || !hasClientCredentials()) return { connected: Boolean(doc), healthy: false, connectedEmail: doc?.connectedEmail || null };
+  try {
+    const client = await getAuthorizedClient();
+    if (!client) return { connected: true, healthy: false, connectedEmail: doc.connectedEmail || null };
+    await client.getAccessToken();
+    return { connected: true, healthy: true, connectedEmail: doc.connectedEmail || null };
+  } catch (error) {
+    invalidateCache();
+    logger.warn(`[GoogleDrive] Connected account needs reauthorization: ${error.code || error.name}`);
+    return { connected: true, healthy: false, connectedEmail: doc.connectedEmail || null };
+  }
 }
 
 async function completeConnect(code) {
@@ -142,5 +163,5 @@ async function completeConnect(code) {
 
 module.exports = {
   hasWriteCredentials, uploadBuffer, streamFile, deleteFile,
-  getConnectUrl, completeConnect, invalidateCache,
+  getConnectUrl, completeConnect, invalidateCache, getConnectionStatus,
 };
