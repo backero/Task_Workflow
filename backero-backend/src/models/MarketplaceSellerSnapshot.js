@@ -9,7 +9,10 @@ const schema = new mongoose.Schema({
   date: { type: String, required: true }, // YYYY-MM-DD in India time
   capturedAt: { type: Date, required: true },
   source: { type: String, required: true },
-  metrics: { type: Map, of: Number, default: {} },
+  // Metric keys are dot-qualified paths (for example listing_status.active).
+  // Mongoose Map rejects dots, while a plain JSON object preserves those real
+  // source names for the Trends table and selector.
+  metrics: { type: mongoose.Schema.Types.Mixed, default: {} },
   data: { type: mongoose.Schema.Types.Mixed, default: {} },
 }, { timestamps: true });
 
