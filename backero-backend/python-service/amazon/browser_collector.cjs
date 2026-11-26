@@ -134,6 +134,11 @@ function reportDateToIso(text) {
   return match ? `${match[3]}-${match[2]}-${match[1]}` : null;
 }
 
+function dateRangeFromSnapshot(snapshot) {
+  return [...String(snapshot).matchAll(/textbox[^\n]*:\s*(\d{2}\/\d{2}\/\d{4})/g)]
+    .map((match) => match[1]).slice(0, 2);
+}
+
 function parseSalesTrafficReport(text) {
   // The accessible report is a sequence of daily cells rather than a semantic
   // table.  Each date row starts with dd/mm/yyyy and currently exposes the
@@ -285,6 +290,7 @@ function collectAsinPerformance(capturedAt) {
     browser('click', `@${applyRef}`);
     browser('wait', '1700');
   }
+  const snapshotRange = dateRangeFromSnapshot(browser('snapshot', '-i'));
 
   // Seller Central virtualises horizontal columns. Read the identity cells
   // and the performance cells in two browser-visible positions, then join
@@ -336,7 +342,9 @@ function collectAsinPerformance(capturedAt) {
     if (Object.keys(row).some((key) => metricFields.has(key))) rows.push(row);
   }
   const unique = new Map(rows.map((row) => [row.childAsin || row.sku || row.title, row]));
-  return { range: identitySlice.range || metricsSlice.range || [], rows: [...unique.values()], capturedAt };
+  const range = identitySlice.range?.length ? identitySlice.range
+    : metricsSlice.range?.length ? metricsSlice.range : snapshotRange;
+  return { range, rows: [...unique.values()], capturedAt };
 }
 
 function refFor(snapshot, label) {
