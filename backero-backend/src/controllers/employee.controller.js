@@ -106,7 +106,8 @@ exports.create = asyncHandler(async (req, res) => {
     designation_id: designationId, category, date_of_joining: dateOfJoining, user_id: userId,
     employment_type: employmentType, shift_start_time: shiftStartTime, shift_end_time: shiftEndTime,
     half_day_min_hours: halfDayMinHours, bank_name: bankName, bank_ifsc: bankIfsc,
-    bank_account_number: bankAccountNumber, bank_branch: bankBranch, bank_account_type: bankAccountType } = req.body;
+    bank_account_number: bankAccountNumber, bank_branch: bankBranch, bank_account_type: bankAccountType,
+    pay_type: payType, pan, location } = req.body;
 
   if (!employeeCode || !fullName || !departmentId || !designationId || !category || !dateOfJoining) {
     return sendError(res, 'employee_code, full_name, department_id, designation_id, category, and date_of_joining are required.', 422);
@@ -132,7 +133,9 @@ exports.create = asyncHandler(async (req, res) => {
     designationId,
     category,
     dateOfJoining,
-    userId: userId || null,
+    // undefined, not null — see models/Employee.js's userId comment: the sparse
+    // organizationId+userId index only works if unlinked employees omit the field entirely.
+    userId: userId || undefined,
     employmentType: employmentType || undefined,
     shiftStartTime: shiftStartTime || null,
     shiftEndTime: shiftEndTime || null,
@@ -142,6 +145,9 @@ exports.create = asyncHandler(async (req, res) => {
     bankAccountNumber: bankAccountNumber || null,
     bankBranch: bankBranch || null,
     bankAccountType: bankAccountType || null,
+    payType: payType || undefined,
+    pan: pan || null,
+    location: location || null,
     createdBy: req.user._id,
   });
   sendSuccess(res, { employee: await toResponse(employee) }, 'Employee created', 201);
@@ -185,6 +191,9 @@ exports.update = asyncHandler(async (req, res) => {
   if (body.bank_account_number !== undefined) employee.bankAccountNumber = body.bank_account_number || null;
   if (body.bank_branch !== undefined) employee.bankBranch = body.bank_branch || null;
   if (body.bank_account_type !== undefined) employee.bankAccountType = body.bank_account_type || null;
+  if (body.pay_type !== undefined) employee.payType = body.pay_type;
+  if (body.pan !== undefined) employee.pan = body.pan || null;
+  if (body.location !== undefined) employee.location = body.location || null;
   employee.updatedBy = req.user._id;
 
   await employee.save();
@@ -207,6 +216,9 @@ exports.updateMyPhoto = asyncHandler(async (req, res) => {
   employee.photo = result.secure_url;
   employee.photoPublicId = result.public_id;
   await employee.save();
+  // Employee.photo is the HR-side source of truth; mirror it onto the linked User's
+  // avatar so Team/Team Status/task-assignment UI (all User-based) picks it up too.
+  if (employee.userId) await User.findByIdAndUpdate(employee.userId, { avatar: employee.photo });
   sendSuccess(res, { employee: await toResponse(employee) }, 'Photo uploaded');
 });
 
@@ -228,5 +240,6 @@ exports.updateEmployeePhoto = asyncHandler(async (req, res) => {
   employee.photoPublicId = result.public_id;
   employee.updatedBy = req.user._id;
   await employee.save();
+  if (employee.userId) await User.findByIdAndUpdate(employee.userId, { avatar: employee.photo });
   sendSuccess(res, { employee: await toResponse(employee) }, 'Photo uploaded');
 });

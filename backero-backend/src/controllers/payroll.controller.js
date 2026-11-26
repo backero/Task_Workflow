@@ -8,7 +8,6 @@ const Employee = require('../models/Employee');
 const Department = require('../models/Department');
 const Designation = require('../models/Designation');
 const Organization = require('../models/Organization');
-const Attendance = require('../models/Attendance');
 const { asyncHandler, sendSuccess, sendError, paginateResponse } = require('../utils/helpers');
 const payrollService = require('../services/payroll.service');
 const { importPaidSalaries } = require('../services/payrollImport.service');
@@ -101,6 +100,17 @@ exports.setPayrollConfig = asyncHandler(async (req, res) => {
   sendSuccess(res, { employee_id: employee._id, basic_monthly_salary: employee.basicMonthlySalary });
 });
 
+exports.updateLineItems = asyncHandler(async (req, res) => {
+  const fields = {
+    dearnessAllowance: req.body.dearness_allowance, houseRentAllowance: req.body.house_rent_allowance,
+    bonus: req.body.bonus, lta: req.body.lta, specialAllowance: req.body.special_allowance,
+    telephoneReimbursement: req.body.telephone_reimbursement, pf: req.body.pf, esic: req.body.esic,
+    incomeTax: req.body.income_tax, professionalTax: req.body.professional_tax,
+  };
+  const record = await payrollService.updateLineItems(req.user.organizationId, req.user._id, req.params.recordId, fields);
+  sendSuccess(res, { record }, 'Payslip line items updated.');
+});
+
 exports.requestCorrection = asyncHandler(async (req, res) => {
   const { reason, proposed_basic_earnings: proposedBasicEarnings, proposed_deductions: proposedDeductions } = req.body;
   if (!reason || reason.trim().length < 5) return sendError(res, 'reason must be at least 5 characters.', 422);
@@ -147,19 +157,15 @@ exports.downloadSlip = asyncHandler(async (req, res) => {
   }
 
   const period = await payrollService.getPeriodOr404(orgId, record.payrollPeriodId);
-  const [department, designation, organization, attendanceLog] = await Promise.all([
+  const [department, designation, organization] = await Promise.all([
     Department.findById(employee.departmentId).lean(),
     Designation.findById(employee.designationId).lean(),
     Organization.findById(orgId).lean(),
-    Attendance.find({
-      organizationId: orgId, employeeId: employee._id,
-      attendanceDate: { $gte: period.periodStart, $lte: period.periodEnd },
-    }).sort({ attendanceDate: 1 }).lean(),
   ]);
 
   const pdfBuffer = await generatePayslipPDF({
     organization: organization || {}, employee: employee.toObject(), department, designation,
-    period: period.toObject(), record: record.toObject(), attendanceLog,
+    period: period.toObject(), record: record.toObject(),
   });
 
   const fileName = `Payslip-${employee.employeeCode}-${period.periodStart.toISOString().slice(0, 10)}.pdf`;

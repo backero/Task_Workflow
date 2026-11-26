@@ -16,7 +16,13 @@ const { EMPLOYEE_CATEGORY } = require('../utils/attendanceConstants');
 
 const employeeSchema = new mongoose.Schema({
   organizationId: { type: mongoose.Schema.Types.ObjectId, ref: 'Organization', required: true, index: true },
-  userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+  // No `default: null` — the organizationId+userId index below is sparse specifically so
+  // multiple unlinked employees can coexist, but a sparse index only skips documents where
+  // the field is truly absent, not ones where it's present-but-null. A schema default of
+  // null would make Mongoose write an explicit null on every unlinked employee, defeating
+  // the sparse index and letting only one such employee ever exist per org (confirmed live:
+  // creating a second one threw E11000 on organizationId_1_userId_1).
+  userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   employeeCode: { type: String, required: true, trim: true },
   fullName: { type: String, required: true, trim: true },
   phone: { type: String },
@@ -29,6 +35,14 @@ const employeeSchema = new mongoose.Schema({
   // Mutated only via PUT /attendance/payroll/config/:employeeId
   // (payroll:manage_config), never the general employee update route.
   basicMonthlySalary: { type: Number, default: null },
+  // FIXED = always paid the full basicMonthlySalary regardless of attendance (freelancers/
+  // retainers — e.g. this org's Anu Mithra and Kowsick ram M, confirmed by the owner).
+  // ATTENDANCE_BASED (default) is the existing behavior: payroll.service.js#computeEarnings
+  // deducts for absent/half days. Independent of `category` (FIELD/OFFICE), which only
+  // drives location tracking and has no bearing on how pay is computed.
+  payType: { type: String, enum: ['ATTENDANCE_BASED', 'FIXED'], default: 'ATTENDANCE_BASED' },
+  pan: { type: String, default: null },
+  location: { type: String, default: null },
 
   // Part-time employees commonly work different hours than the org default
   // (e.g. a 10:00-14:00 shift vs the standard 09:00-18:00) — these three are
@@ -57,7 +71,11 @@ const employeeSchema = new mongoose.Schema({
 }, { timestamps: true });
 
 employeeSchema.index({ organizationId: 1, employeeCode: 1 }, { unique: true });
-employeeSchema.index({ organizationId: 1, userId: 1 }, { unique: true, sparse: true });
+// `sparse` on a COMPOUND index only excludes a document if every indexed field is missing —
+// since organizationId is always present, sparse never actually applied here, so two unlinked
+// employees in the same org collided on E11000 (confirmed live). A partial index is the
+// correct tool: it only enforces uniqueness among documents where userId actually exists.
+employeeSchema.index({ organizationId: 1, userId: 1 }, { unique: true, partialFilterExpression: { userId: { $exists: true } } });
 employeeSchema.index({ organizationId: 1, departmentId: 1 });
 
 module.exports = mongoose.model('Employee', employeeSchema);

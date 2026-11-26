@@ -26,6 +26,15 @@ const payrollRecordSchema = new mongoose.Schema({
   pf: { type: Number, default: 0 },
   esic: { type: Number, default: 0 },
   loanAdvance: { type: Number, default: 0 },
+  // Additional payslip line items — manually entered per-record by an admin (no slab/formula
+  // behind these; owner explicitly chose manual entry over building real tax-slab calculation
+  // logic), editable while the record is still a draft (not yet finalized).
+  telephoneReimbursement: { type: Number, default: 0 },
+  bonus: { type: Number, default: 0 },
+  lta: { type: Number, default: 0 },
+  specialAllowance: { type: Number, default: 0 },
+  incomeTax: { type: Number, default: 0 },
+  professionalTax: { type: Number, default: 0 },
   // Frozen only when the period is generated. The actual balance reduction
   // happens exactly once at finalization through EmployeeAdvanceRepayment.
   advanceDeductions: [{

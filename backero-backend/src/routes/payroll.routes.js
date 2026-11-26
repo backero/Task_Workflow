@@ -32,6 +32,7 @@ router.get('/records/:employeeId', ctrl.getEmployeePayrollRecords);
 router.get('/config/:employeeId', requireAttendancePermission(P.PAYROLL_MANAGE_CONFIG), ctrl.getPayrollConfig);
 router.put('/config/:employeeId', requireAttendancePermission(P.PAYROLL_MANAGE_CONFIG), ctrl.setPayrollConfig);
 
+router.put('/records/:recordId/line-items', requireAttendancePermission(P.PAYROLL_MANAGE_CONFIG), ctrl.updateLineItems);
 router.post('/records/:recordId/correct', requireAttendancePermission(P.PAYROLL_MANAGE_CONFIG), ctrl.requestCorrection);
 router.post(
   '/records/:recordId/correct/:correctionId/approve',

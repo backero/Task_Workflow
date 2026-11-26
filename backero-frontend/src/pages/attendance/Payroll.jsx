@@ -159,6 +159,83 @@ function CorrectionDrawer({ record, onClose }) {
   );
 }
 
+const LINE_ITEM_FIELDS = [
+  { key: 'dearness_allowance', label: 'Dearness Allowance' },
+  { key: 'house_rent_allowance', label: 'HRA' },
+  { key: 'telephone_reimbursement', label: 'Telephone Reimbursements' },
+  { key: 'bonus', label: 'Bonus' },
+  { key: 'lta', label: 'LTA' },
+  { key: 'special_allowance', label: 'Special Allowance' },
+  { key: 'income_tax', label: 'Income Tax' },
+  { key: 'pf', label: 'Provident Fund' },
+  { key: 'professional_tax', label: 'Professional Tax' },
+  { key: 'esic', label: 'ESIC' },
+];
+
+const RECORD_KEY_BY_FIELD = {
+  dearness_allowance: 'dearnessAllowance', house_rent_allowance: 'houseRentAllowance',
+  telephone_reimbursement: 'telephoneReimbursement', bonus: 'bonus', lta: 'lta',
+  special_allowance: 'specialAllowance', income_tax: 'incomeTax', pf: 'pf',
+  professional_tax: 'professionalTax', esic: 'esic',
+};
+
+function LineItemsDrawer({ record, onClose }) {
+  const qc = useQueryClient();
+  const [values, setValues] = useState({});
+
+  useEffect(() => {
+    if (record) {
+      const next = {};
+      LINE_ITEM_FIELDS.forEach(({ key }) => { next[key] = String(record[RECORD_KEY_BY_FIELD[key]] ?? 0); });
+      setValues(next);
+    }
+  }, [record]);
+
+  const mutation = useMutation({
+    mutationFn: () => {
+      const body = {};
+      LINE_ITEM_FIELDS.forEach(({ key }) => { body[key] = Number(values[key] || 0); });
+      return api.put(`/payroll/records/${record._id}/line-items`, body);
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['payroll-records'] });
+      toast.success('Payslip line items updated');
+      onClose();
+    },
+    onError: (err) => toast.error(err.response?.data?.message || 'Failed to update line items'),
+  });
+
+  return (
+    <Drawer
+      open={!!record} onClose={onClose} width={380} closeIcon={<X size={18} />} title={record ? `Payslip Line Items — ${record.employeeFullName}` : ''}
+      footer={
+        <Space style={{ width: '100%' }}>
+          <Button style={{ flex: 1 }} onClick={onClose}>Cancel</Button>
+          <Button type="primary" style={{ flex: 1 }} loading={mutation.isPending} onClick={() => mutation.mutate()}>Save</Button>
+        </Space>
+      }
+    >
+      <Space direction="vertical" style={{ width: '100%' }} size={14}>
+        <Text type="secondary" style={{ fontSize: 11 }}>
+          These feed directly into the generated payslip PDF's Earnings/Deductions tables. Basic
+          earnings and attendance-based deductions are computed automatically and not editable here.
+        </Text>
+        <Row gutter={[12, 12]}>
+          {LINE_ITEM_FIELDS.map(({ key, label }) => (
+            <Col span={12} key={key}>
+              <Text strong style={{ display: 'block', marginBottom: 6, fontSize: 12 }}>{label} (₹)</Text>
+              <Input
+                type="number" value={values[key] ?? ''}
+                onChange={(e) => setValues((v) => ({ ...v, [key]: e.target.value }))}
+              />
+            </Col>
+          ))}
+        </Row>
+      </Space>
+    </Drawer>
+  );
+}
+
 function RejectCorrectionModal({ target, onClose }) {
   const qc = useQueryClient();
   const [reason, setReason] = useState('');
@@ -239,10 +316,67 @@ function ImportSalaryModal({ periodId, onClose }) {
   );
 }
 
+function ImportAttendanceModal({ open, onClose }) {
+  const qc = useQueryClient();
+  const [file, setFile] = useState(null);
+
+  useEffect(() => { if (open) setFile(null); }, [open]);
+
+  const mutation = useMutation({
+    mutationFn: () => {
+      const fd = new FormData();
+      fd.append('file', file);
+      return api.post('/attendance/admin/import-sheet', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+    },
+    onSuccess: (res) => {
+      qc.invalidateQueries({ queryKey: ['payroll-records'] });
+      const { employeesImported, daysImported, daysSkipped, employeesNotFound } = res.data;
+      const issues = (daysSkipped?.length || 0) + (employeesNotFound?.length || 0);
+      toast.success(`Imported ${daysImported} day(s) for ${employeesImported} employee(s)${issues ? `, ${issues} issue(s) — see details` : ''}`);
+      if (issues) {
+        Modal.warning({
+          title: 'Some rows were not imported',
+          width: 520,
+          content: (
+            <ul style={{ maxHeight: 300, overflow: 'auto', paddingLeft: 18 }}>
+              {(employeesNotFound || []).map((s, i) => <li key={`nf-${i}`}>Row {s.row}: no employee named "{s.name}"</li>)}
+              {(daysSkipped || []).map((s, i) => <li key={`ds-${i}`}>Row {s.row} ({s.name}), {s.date}: {s.reason}</li>)}
+            </ul>
+          ),
+        });
+      }
+      onClose();
+    },
+    onError: (err) => toast.error(err.response?.data?.message || 'Import failed'),
+  });
+
+  return (
+    <Modal
+      open={open} onCancel={onClose} title="Import Attendance Sheet"
+      okText="Import" okButtonProps={{ loading: mutation.isPending, disabled: !file }}
+      onOk={() => mutation.mutate()}
+    >
+      <Space direction="vertical" size={10} style={{ width: '100%' }}>
+        <Text type="secondary" style={{ fontSize: 12 }}>
+          Upload a monthly attendance sheet (one row per employee, one column per calendar day
+          — the usual Excel format). Employees are matched by name; each day's status (FD/HD/A/
+          WO/H/SL/LWP/C) is written into the matching payroll period automatically. Days that
+          already have real punch data are never overwritten.
+        </Text>
+        <input
+          type="file" accept=".xlsx,.csv"
+          onChange={(e) => setFile(e.target.files?.[0] || null)}
+        />
+      </Space>
+    </Modal>
+  );
+}
+
 function PeriodRecords({ periodId, canManage, canFinalize }) {
   const qc = useQueryClient();
   const [correctingRecord, setCorrectingRecord] = useState(null);
   const [rejectingCorrection, setRejectingCorrection] = useState(null);
+  const [editingLineItems, setEditingLineItems] = useState(null);
 
   const { data, isLoading } = useQuery({
     queryKey: ['payroll-records', periodId],
@@ -289,7 +423,10 @@ function PeriodRecords({ periodId, canManage, canFinalize }) {
             </Space>
           </Space>
         ) : (
-          <Button size="small" onClick={() => setCorrectingRecord(r)}>Request Correction</Button>
+          <Space size={8}>
+            {!r.isFinalized && <Button size="small" onClick={() => setEditingLineItems(r)}>Edit Line Items</Button>}
+            <Button size="small" onClick={() => setCorrectingRecord(r)}>Request Correction</Button>
+          </Space>
         )
       ),
     }] : []),
@@ -302,6 +439,7 @@ function PeriodRecords({ periodId, canManage, canFinalize }) {
       </Card>
       {canManage && <CorrectionDrawer record={correctingRecord} onClose={() => setCorrectingRecord(null)} />}
       {canManage && <RejectCorrectionModal target={rejectingCorrection} onClose={() => setRejectingCorrection(null)} />}
+      {canManage && <LineItemsDrawer record={editingLineItems} onClose={() => setEditingLineItems(null)} />}
     </>
   );
 }
@@ -312,6 +450,7 @@ export default function Payroll() {
   const [newPeriodOpen, setNewPeriodOpen] = useState(false);
   const [salaryOpen, setSalaryOpen] = useState(false);
   const [importingPeriodId, setImportingPeriodId] = useState(null);
+  const [importingAttendance, setImportingAttendance] = useState(false);
 
   const { data, isLoading } = useQuery({
     queryKey: ['payroll-periods'],
@@ -386,6 +525,7 @@ export default function Payroll() {
           <Text type="secondary">Pay periods, records, and salary configuration</Text>
         </div>
         <Space>
+          <Button icon={<Upload size={14} />} onClick={() => setImportingAttendance(true)}>Import Attendance Sheet</Button>
           <Button onClick={() => setSalaryOpen(true)}>Set Employee Salary</Button>
           <Button type="primary" icon={<Plus size={14} />} onClick={() => setNewPeriodOpen(true)}>New Period</Button>
         </Space>
@@ -418,6 +558,7 @@ export default function Payroll() {
       <NewPeriodDrawer open={newPeriodOpen} onClose={() => setNewPeriodOpen(false)} />
       <SalaryDrawer open={salaryOpen} onClose={() => setSalaryOpen(false)} employees={employees} />
       <ImportSalaryModal periodId={importingPeriodId} onClose={() => setImportingPeriodId(null)} />
+      <ImportAttendanceModal open={importingAttendance} onClose={() => setImportingAttendance(false)} />
     </div>
   );
 }

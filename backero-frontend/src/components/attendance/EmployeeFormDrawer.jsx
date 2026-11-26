@@ -21,10 +21,16 @@ const EMPLOYMENT_TYPES = [
   { value: 'PART_TIME', label: 'Part-time' },
 ];
 
+const PAY_TYPES = [
+  { value: 'ATTENDANCE_BASED', label: 'Attendance-based (deducts for absent/half days)' },
+  { value: 'FIXED', label: 'Fixed (always full salary — freelancers/retainers)' },
+];
+
 const DEFAULT_FORM_VALUES = {
   employee_code: '', full_name: '', phone: '', department_id: '', designation_id: '', category: 'OFFICE', date_of_joining: '', user_id: '',
   employment_type: 'FULL_TIME', shift_start_time: '', shift_end_time: '', half_day_min_hours: '',
   bank_name: '', bank_ifsc: '', bank_account_number: '', bank_branch: '', bank_account_type: '',
+  pay_type: 'ATTENDANCE_BASED', pan: '', location: '',
 };
 
 // Best-effort match of a User's free-text department against the relational
@@ -107,6 +113,7 @@ export default function EmployeeFormDrawer({ open, onClose, editEmployee, depart
             bank_name: editEmployee.bankName || '', bank_ifsc: editEmployee.bankIfsc || '',
             bank_account_number: editEmployee.bankAccountNumber || '', bank_branch: editEmployee.bankBranch || '',
             bank_account_type: editEmployee.bankAccountType || '',
+            pay_type: editEmployee.payType || 'ATTENDANCE_BASED', pan: editEmployee.pan || '', location: editEmployee.location || '',
           }
         : DEFAULT_FORM_VALUES
       );
@@ -129,6 +136,7 @@ export default function EmployeeFormDrawer({ open, onClose, editEmployee, depart
         bank_name: data.bank_name, bank_ifsc: data.bank_ifsc,
         bank_account_number: data.bank_account_number, bank_branch: data.bank_branch,
         bank_account_type: data.bank_account_type,
+        pay_type: data.pay_type, pan: data.pan, location: data.location,
       };
       if (isEdit) return api.patch(`/employees/${editEmployee._id}`, payload);
       return api.post('/employees', { ...payload, employee_code: data.employee_code, date_of_joining: data.date_of_joining });
@@ -264,6 +272,14 @@ export default function EmployeeFormDrawer({ open, onClose, editEmployee, depart
           </div>
 
           <div>
+            <Text strong style={{ display: 'block', marginBottom: 6, fontSize: 12 }}>Pay Type *</Text>
+            <Controller
+              name="pay_type" control={control} rules={{ required: true }}
+              render={({ field }) => <Select {...field} style={{ width: '100%' }} options={PAY_TYPES} />}
+            />
+          </div>
+
+          <div>
             <Text strong style={{ display: 'block', marginBottom: 6, fontSize: 12 }}>Employment Type *</Text>
             <Controller
               name="employment_type" control={control} rules={{ required: true }}
@@ -321,6 +337,17 @@ export default function EmployeeFormDrawer({ open, onClose, editEmployee, depart
               </Text>
             </>
           )}
+
+          <Row gutter={12}>
+            <Col span={12}>
+              <Text strong style={{ display: 'block', marginBottom: 6, fontSize: 12 }}>PAN</Text>
+              <Controller name="pan" control={control} render={({ field }) => <Input {...field} placeholder="ABCDE1234F" style={{ textTransform: 'uppercase' }} />} />
+            </Col>
+            <Col span={12}>
+              <Text strong style={{ display: 'block', marginBottom: 6, fontSize: 12 }}>Location</Text>
+              <Controller name="location" control={control} render={({ field }) => <Input {...field} placeholder="Chennai" />} />
+            </Col>
+          </Row>
 
           <div>
             <Text strong style={{ display: 'block', marginBottom: 8, fontSize: 12 }}>Bank Details (for payslips)</Text>
