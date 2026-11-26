@@ -103,6 +103,17 @@ const listingColumns = [
   { title: 'ASIN', dataIndex: 'asin', width: 170, render: value }, { title: 'Status', dataIndex: 'status', width: 130, render: value },
   { title: 'Price', dataIndex: 'price', width: 130, align: 'right', render: money }, { title: 'Stock', dataIndex: 'stock', width: 110, align: 'right', render: value },
 ];
+const asinPerformanceColumns = [
+  { title: 'SKU', dataIndex: 'sku', width: 170, render: value },
+  { title: 'Product', dataIndex: 'title', width: 330, render: value },
+  { title: 'Child ASIN', dataIndex: 'childAsin', width: 150, render: value },
+  { title: 'Sessions', dataIndex: 'sessions', width: 115, align: 'right', render: value },
+  { title: 'Page views', dataIndex: 'pageViews', width: 120, align: 'right', render: value },
+  { title: 'Units ordered', dataIndex: 'unitsOrdered', width: 130, align: 'right', render: value },
+  { title: 'CVR (unit session)', dataIndex: 'unitSessionPercentage', width: 160, align: 'right', render: (item) => item == null ? 'Unavailable' : `${numbers.format(item)}%` },
+  { title: 'Ordered sales', dataIndex: 'orderedProductSales', width: 140, align: 'right', render: money },
+  { title: 'Order items', dataIndex: 'totalOrderItems', width: 120, align: 'right', render: value },
+];
 
 function CapturedTable({ heading, rows, columns, coverage, searchFields }) {
   const [query, setQuery] = useState('');
@@ -161,7 +172,9 @@ export default function AmazonSellerHub() {
     finally { setTrendLoading(false); }
   }, [trendDays]);
   useEffect(() => { if (activeTab === 'trends') loadTrends(trendDays); }, [activeTab, trendDays, loadTrends]);
-  const orders = data?.orders || []; const listings = data?.listings || [];
+  const orders = data?.orders || []; const listings = data?.listings || []; const asinPerformance = data?.asinPerformance || {};
+  const asinRows = asinPerformance.rows || [];
+  const asinPeriod = (asinPerformance.range || []).join(' to ');
   const browserCapture = data?.source === 'seller_central_browser';
   const captureLabel = browserCapture ? 'Seller Central browser capture' : 'Amazon SP-API';
   const captureDescription = browserCapture ? 'Backero stores a read-only capture from the authenticated local Seller Central browser. Refresh reloads saved data; it never changes Seller Central.' : 'Backero stores a read-only Amazon SP-API capture. Refresh reloads saved data; it never changes Seller Central.';
@@ -170,6 +183,7 @@ export default function AmazonSellerHub() {
     { key: 'overview', label: 'Overview', children: <><Alert type="info" showIcon style={{ marginBottom: 20 }} message={captureLabel} description={captureDescription} /><InventorySummary summary={data.inventorySummary} /><MetricSection heading="Account operations" metrics={data.metrics?.account} /><MetricSection heading="Sales" metrics={data.metrics?.sales} /><MetricSection heading="Order summary" metrics={data.metrics?.orders} /><MetricSection heading="Listing status" metrics={data.metrics?.listing_status} /><MetricSection heading="Finance & customer feedback" metrics={{ ...(data.metrics?.finance || {}), ...(data.metrics?.customer || {}) }} /><MetricSection heading="Seller performance (STEP)" metrics={data.metrics?.step} /></> },
     { key: 'orders', label: 'Orders', children: <CapturedTable heading="Recent orders" rows={orders} columns={orderColumns} coverage={data.coverage?.orders} searchFields={['order_id', 'status', 'fulfillment_channel']} /> },
     { key: 'listings', label: 'Listings & inventory', children: <CapturedTable heading="Listings" rows={listings} columns={listingColumns} coverage={data.coverage?.listings} searchFields={['sku', 'title', 'asin']} /> },
+    { key: 'performance', label: 'Product performance', children: <CapturedTable heading="ASIN performance" rows={asinRows} columns={asinPerformanceColumns} coverage={{ capturedAt: asinPerformance.capturedAt, period: asinPeriod || undefined, status: asinRows.length ? 'ok' : 'partial', detail: 'Amazon shows these values for the selected Business Reports date range. They are period totals, not daily figures.' }} searchFields={['sku', 'title', 'childAsin', 'parentAsin']} /> },
     { key: 'trends', label: 'Historical trends', children: <HistoricalTrends result={trendData} loading={trendLoading} error={trendError} days={trendDays} onDaysChange={setTrendDays} metricKeys={trendMetrics} onMetricKeysChange={setSelectedTrendMetrics} onRetry={() => loadTrends(trendDays)} /> },
   ] : [];
   return <main style={{ maxWidth: 1600, margin: '0 auto', minWidth: 0 }}>

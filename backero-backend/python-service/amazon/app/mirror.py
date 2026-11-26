@@ -17,6 +17,32 @@ def inventory_summary(listings):
     }
 
 
+def asin_performance(value):
+    """Keep only the business-report ASIN fields the browser collector owns."""
+    source = value if isinstance(value, dict) else {}
+    allowed = {
+        'parentAsin', 'childAsin', 'sku', 'title',
+        'sessions', 'sessionsB2b', 'pageViews', 'pageViewsB2b',
+        'featuredOfferPercentage', 'featuredOfferPercentageB2b',
+        'unitsOrdered', 'unitsOrderedB2b',
+        'unitSessionPercentage', 'unitSessionPercentageB2b',
+        'orderedProductSales', 'orderedProductSalesB2b',
+        'totalOrderItems', 'totalOrderItemsB2b',
+    }
+    rows = []
+    for item in source.get('rows') or []:
+        if not isinstance(item, dict):
+            continue
+        row = {key: item[key] for key in allowed if key in item and isinstance(item[key], (str, int, float))}
+        if any(key in row for key in ('childAsin', 'sku')):
+            rows.append(row)
+    return {
+        'range': [value for value in (source.get('range') or []) if isinstance(value, str)][:2],
+        'capturedAt': source.get('capturedAt') if isinstance(source.get('capturedAt'), str) else None,
+        'rows': rows,
+    }
+
+
 def build_mirror(capture_path):
     path = Path(capture_path)
     # A missing capture is a configuration state, not an empty seller account.
@@ -42,6 +68,7 @@ def build_mirror(capture_path):
         # separate from the current dashboard snapshot so the publisher can
         # store every report date as a truthful historical reading.
         'salesTrafficByDate': data.get('salesTrafficByDate') or [],
+        'asinPerformance': asin_performance(data.get('asinPerformance')),
         'limitations': data.get('limitations') or [],
     }
     result['inventorySummary'] = inventory_summary(result['listings'])

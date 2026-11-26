@@ -168,6 +168,159 @@ function parseSalesTrafficReport(text) {
   return rows;
 }
 
+function parseBrowserJson(output) {
+  // `agent-browser eval` prints a JSON string when an expression returns
+  // JSON.stringify(...). Unwrap both the CLI envelope and the payload so a
+  // browser rendering hiccup simply results in no ASIN rows, never guessed
+  // figures.
+  try {
+    let parsed = JSON.parse(String(output).trim());
+    if (typeof parsed === 'string') parsed = JSON.parse(parsed);
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+function parseReportNumber(text) {
+  const clean = String(text || '').replace(/[₹,]/g, '').replace(/%$/, '').trim();
+  return /^-?\d+(?:\.\d+)?$/.test(clean) ? Number(clean) : null;
+}
+
+function visualRows(cells) {
+  const rows = [];
+  for (const cell of (cells || []).filter((entry) => entry && entry.text)) {
+    let row = rows.find((entry) => Math.abs(entry.y - cell.y) <= 12);
+    if (!row) {
+      row = { y: cell.y, cells: [] };
+      rows.push(row);
+    }
+    row.cells.push(cell);
+  }
+  return rows.sort((left, right) => left.y - right.y);
+}
+
+function asinTableSlice(scrollLeft) {
+  const script = `(() => {
+    const labels = new Set([
+      'Parent) ASIN', '(Parent) ASIN', '(Child) ASIN', 'Title', 'SKU',
+      'Sessions - Total', 'Sessions - Total - B2B',
+      'Session Percentage - Total', 'Session Percentage - Total - B2B',
+      'Page Views - Total', 'Page Views - Total - B2B',
+      'Page Views Percentage - Total', 'Page Views Percentage - Total - B2B',
+      'Featured Offer Percentage', 'Featured Offer Percentage - B2B',
+      'Units Ordered', 'Units Ordered - B2B',
+      'Unit Session Percentage', 'Unit Session Percentage - B2B',
+      'Ordered Product Sales', 'Ordered Product Sales - B2B',
+      'Total Order Items', 'Total Order Items - B2B'
+    ]);
+    const container = Array.from(document.querySelectorAll('div')).find((element) =>
+      element.children.length === 2
+      && element.innerText.includes('(Parent) ASIN')
+      && element.innerText.includes('Total Order Items'));
+    if (!container) return JSON.stringify({ headers: [], cells: [], range: [] });
+    const scroller = Array.from(document.querySelectorAll('div')).find((element) =>
+      element.scrollWidth > element.clientWidth + 200
+      && element.innerText.includes('(Parent) ASIN')
+      && element.innerText.includes('Total Order Items'));
+    if (scroller) scroller.scrollLeft = ${Number(scrollLeft) || 0};
+    const visible = (element) => {
+      const rect = element.getBoundingClientRect();
+      return rect.width > 0 && rect.height > 0 && rect.y > 500 && rect.y < window.innerHeight + 80;
+    };
+    const textOf = (element) => element.innerText.replace(/\\s+/g, ' ').trim();
+    const nodes = Array.from(container.querySelectorAll('a, div')).filter((element) =>
+      visible(element) && element.children.length === 0 && textOf(element)
+      && !textOf(element).startsWith('What is this?'));
+    const cells = nodes.map((element) => {
+      const rect = element.getBoundingClientRect();
+      return { text: textOf(element), x: Math.round(rect.x), y: Math.round(rect.y) };
+    });
+    // Header cells are rendered in a sibling virtual layer, rather than below
+    // the data container, so find their exact visible labels document-wide.
+    const headers = Array.from(document.querySelectorAll('*')).filter((element) => {
+      const text = textOf(element);
+      return visible(element) && labels.has(text);
+    }).map((element) => {
+      const rect = element.getBoundingClientRect();
+      return { text: textOf(element), x: Math.round(rect.x) };
+    });
+    const range = Array.from(document.querySelectorAll('input')).map((input) => input.value)
+      .filter((value) => /^\\d{2}\\/\\d{2}\\/\\d{4}$/.test(value));
+    return JSON.stringify({ headers, cells, range });
+  })()`;
+  const parsed = parseBrowserJson(browser('eval', script));
+  return parsed && Array.isArray(parsed.cells) ? parsed : { headers: [], cells: [], range: [] };
+}
+
+function collectAsinPerformance(capturedAt) {
+  let snapshot = browser('snapshot', '-i');
+  let body = browser('eval', 'document.body.innerText');
+  if (!/Business Reports\s*\|\s*Detail Page Sales and Traffic/i.test(body)) {
+    const candidates = [...snapshot.matchAll(/generic "Detail Page Sales and Traffic"[^\n]*\[ref=(e\d+)\]/gi)]
+      .map((match) => match[1]);
+    const byAsinRef = candidates.at(-1);
+    if (!byAsinRef) return { range: [], rows: [] };
+    browser('click', `@${byAsinRef}`);
+    browser('wait', '1200');
+    snapshot = browser('snapshot', '-i');
+  }
+  const applyRef = refFor(snapshot, 'Apply');
+  if (applyRef) {
+    browser('click', `@${applyRef}`);
+    browser('wait', '900');
+  }
+
+  // Seller Central virtualises horizontal columns. Read the identity cells
+  // and the performance cells in two browser-visible positions, then join
+  // them by their displayed row. Nothing is inferred when a cell is absent.
+  const identitySlice = asinTableSlice(0);
+  browser('wait', '250');
+  const metricsSlice = asinTableSlice(1600);
+  const identities = visualRows(identitySlice.cells);
+  const measurements = visualRows(metricsSlice.cells);
+  const metricHeaders = [...new Map((metricsSlice.headers || []).map((header) => [header.x, header])).values()]
+    .filter((header) => /Percentage|Units Ordered|Ordered Product Sales|Total Order Items|Sessions|Page Views/i.test(header.text));
+  const fieldNames = {
+    'Sessions - Total': 'sessions',
+    'Sessions - Total - B2B': 'sessionsB2b',
+    'Page Views - Total': 'pageViews',
+    'Page Views - Total - B2B': 'pageViewsB2b',
+    'Featured Offer Percentage': 'featuredOfferPercentage',
+    'Featured Offer Percentage - B2B': 'featuredOfferPercentageB2b',
+    'Units Ordered': 'unitsOrdered',
+    'Units Ordered - B2B': 'unitsOrderedB2b',
+    'Unit Session Percentage': 'unitSessionPercentage',
+    'Unit Session Percentage - B2B': 'unitSessionPercentageB2b',
+    'Ordered Product Sales': 'orderedProductSales',
+    'Ordered Product Sales - B2B': 'orderedProductSalesB2b',
+    'Total Order Items': 'totalOrderItems',
+    'Total Order Items - B2B': 'totalOrderItemsB2b',
+  };
+  const metricFields = new Set(Object.values(fieldNames));
+  const rows = [];
+  for (let index = 0; index < Math.min(identities.length, measurements.length); index += 1) {
+    const identity = identities[index].cells;
+    const sku = identity.find((cell) => /^[A-Z0-9][A-Z0-9_-]{3,}$/i.test(cell.text))?.text;
+    const asins = identity.filter((cell) => /^B0[A-Z0-9]{8}$/i.test(cell.text)).map((cell) => cell.text);
+    const title = identity.find((cell) => cell.text.length > 12 && !/^B0[A-Z0-9]{8}$/i.test(cell.text)
+      && cell.text !== sku)?.text;
+    if (!sku && !asins.length) continue;
+    const row = { parentAsin: asins[0] || null, childAsin: asins.at(-1) || null, sku: sku || null, title: title || null };
+    for (const cell of measurements[index].cells) {
+      const header = metricHeaders.reduce((closest, candidate) =>
+        (!closest || Math.abs(candidate.x - cell.x) < Math.abs(closest.x - cell.x) ? candidate : closest), null);
+      const field = header && fieldNames[header.text];
+      const amount = parseReportNumber(cell.text);
+      if (field && amount !== null) row[field] = amount;
+    }
+    // A product row must contain at least one actual performance number.
+    if (Object.keys(row).some((key) => metricFields.has(key))) rows.push(row);
+  }
+  const unique = new Map(rows.map((row) => [row.childAsin || row.sku || row.title, row]));
+  return { range: identitySlice.range || metricsSlice.range || [], rows: [...unique.values()], capturedAt };
+}
+
 function refFor(snapshot, label) {
   const escaped = label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   return (snapshot.match(new RegExp(`(?:link|button|generic) "${escaped}"[^\\n]*\\[ref=(e\\d+)\\]`, 'i')) || [])[1];
@@ -228,6 +381,7 @@ function capture() {
     const parsed = parseSnapshot(browser('snapshot', '-i'), capturedAt);
     parsed.metrics = { ...dashboardMetrics, ...parsed.metrics };
     const dailySalesTraffic = collectSalesTrafficReport(capturedAt);
+    const asinPerformance = collectAsinPerformance(capturedAt);
     if (!parsed.listings.length && !Object.keys(parsed.metrics.listing_status).length && !dailySalesTraffic.length) {
       throw new Error('Seller Central returned no visible product or Business Reports data');
     }
@@ -237,6 +391,7 @@ function capture() {
       status: { state: 'ok', detail: 'Authenticated Seller Central browser read completed.', at: capturedAt },
       metrics: parsed.metrics, listings: parsed.listings, orders: [],
       salesTrafficByDate: dailySalesTraffic,
+      asinPerformance,
       coverage: {
         listings: { capturedAt, count: parsed.listings.length, status: 'partial', detail: 'Visible Seller Central Product Performance rows; listing-status totals are captured separately.' },
         orders: { capturedAt: null, count: 0, status: 'unavailable', detail: 'Orders browser reader is not enabled yet.' },
@@ -244,6 +399,7 @@ function capture() {
       limitations: [
         'Read-only data from the authenticated local Seller Central browser; no cookies or credentials are copied.',
         'Business Reports Sales and Traffic rows are captured read-only from the authenticated Seller Central browser. Sessions and conversion are included when Amazon exposes those columns in the selected report view.',
+        'ASIN performance is saved only for visible report cells; the selected date range is retained with the captured rows so a reporting-period total is never shown as a daily total.',
         'Visible listing rows and listing-status counters are captured automatically. Orders, settlements, returns, ads and search terms will be added as separate readers.',
       ],
     };
@@ -261,8 +417,25 @@ function capture() {
 }
 
 function writeCapture() {
-  const data = capture();
+  let data = capture();
   fs.mkdirSync(path.dirname(capturePath), { recursive: true });
+  // A transient CDP disconnect must not erase the most recent authenticated
+  // Seller Central reading. Preserve its timestamp and figures, but expose the
+  // failed attempt as a status so the dashboard never represents it as fresh.
+  if (data.status.state !== 'ok' && fs.existsSync(capturePath)) {
+    try {
+      const previous = JSON.parse(fs.readFileSync(capturePath, 'utf8'));
+      if (previous?.status?.state === 'ok' && previous?.lastScrapedAt) {
+        data = {
+          ...previous,
+          status: { ...data.status, previousCaptureAt: previous.lastScrapedAt },
+          lastAttemptAt: now(),
+        };
+      }
+    } catch {
+      // An invalid previous local file is not safe to reuse.
+    }
+  }
   const temporary = `${capturePath}.tmp`;
   fs.writeFileSync(temporary, JSON.stringify(data), 'utf8');
   fs.renameSync(temporary, capturePath);

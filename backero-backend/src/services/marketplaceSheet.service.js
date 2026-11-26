@@ -17,6 +17,12 @@ const PLATFORM_TABS = {
   meesho: 'Meesho',
   snapdeal: 'Snapdeal',
 };
+const AMAZON_ASIN_HEADERS = [
+  'Report Date', 'Captured At', 'Range Start', 'Range End', 'Parent ASIN', 'Child ASIN', 'SKU', 'Title',
+  'Sessions', 'Sessions (B2B)', 'Page Views', 'Page Views (B2B)',
+  'Featured Offer (%)', 'Units Ordered', 'Units Ordered (B2B)', 'CVR / Unit Session (%)',
+  'Ordered Product Sales (INR)', 'Ordered Product Sales B2B (INR)', 'Total Order Items', 'Total Order Items (B2B)',
+];
 
 function tabHeaders(snapshots) {
   const metricKeys = [...new Set(snapshots.flatMap((snapshot) => Object.keys(snapshot.metrics || {})))].sort();
@@ -134,6 +140,21 @@ async function syncMarketplaceSheet(organizationId) {
     await writeTab(sheets, config.sheetId, sheetName, headers, rows);
     rowsByPlatform[platform] = rows.length;
   }
+  // ASIN performance is a selected Business Reports period, not a daily
+  // reading. Keep it out of the Amazon daily tab so it cannot be mistaken for
+  // today's orders or sales.
+  const latestAmazon = snapshots.filter((snapshot) => snapshot.platform === 'amazon').at(-1);
+  const asinPerformance = latestAmazon?.data?.asinPerformance || {};
+  const [rangeStart = '', rangeEnd = ''] = Array.isArray(asinPerformance.range) ? asinPerformance.range : [];
+  const asinRows = (asinPerformance.rows || []).filter((row) => row && typeof row === 'object').map((row) => [
+    latestAmazon?.date || '', asinPerformance.capturedAt || latestAmazon?.capturedAt || '', rangeStart, rangeEnd,
+    row.parentAsin || '', row.childAsin || '', row.sku || '', row.title || '',
+    row.sessions ?? '', row.sessionsB2b ?? '', row.pageViews ?? '', row.pageViewsB2b ?? '',
+    row.featuredOfferPercentage ?? '', row.unitsOrdered ?? '', row.unitsOrderedB2b ?? '', row.unitSessionPercentage ?? '',
+    row.orderedProductSales ?? '', row.orderedProductSalesB2b ?? '', row.totalOrderItems ?? '', row.totalOrderItemsB2b ?? '',
+  ]);
+  await writeTab(sheets, config.sheetId, 'Amazon ASIN Performance', AMAZON_ASIN_HEADERS, asinRows);
+  rowsByPlatform.amazonAsinPerformance = asinRows.length;
   const today = istDate();
   const healthRows = Object.entries(PLATFORM_TABS).map(([platform]) => {
     const latest = snapshots.filter((snapshot) => snapshot.platform === platform).at(-1);
