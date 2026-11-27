@@ -77,7 +77,7 @@ async function writeSiteDataTab(sheets, spreadsheetId, platform, snapshot) {
 
 function firstNumeric(metrics, candidates) {
   for (const key of candidates) {
-    const value = metrics[key];
+    const value = metrics[key] ?? metrics[key.replace(/\./g, '__')];
     if (typeof value === 'number' && Number.isFinite(value)) return value;
   }
   return null;

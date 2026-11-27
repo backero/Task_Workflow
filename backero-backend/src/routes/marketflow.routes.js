@@ -743,7 +743,11 @@ function flattenSellerMetrics(value, prefix = '', result = {}) {
 }
 
 function compactSellerMetrics(data) {
-  const metrics = flattenSellerMetrics(data?.metrics || {});
+  const flattened = flattenSellerMetrics(data?.metrics || {});
+  // Mongo/Mongoose Map fields cannot persist dotted keys. Keep the compact
+  // trend field safe for storage; the unmodified source object remains in
+  // `data`, which is the audit/source-of-truth export for Sheets.
+  const metrics = Object.fromEntries(Object.entries(flattened).map(([key, value]) => [key.replace(/\./g, '__'), value]));
   for (const [key, rows] of Object.entries(data || {})) {
     if (Array.isArray(rows)) metrics[`rows.${key}`] = rows.length;
   }
@@ -766,7 +770,7 @@ async function archiveSellerMirror(platform, organizationId, data, syncedAt) {
   );
 }
 
-const metricLabel = (key) => key.split('.').map((part) => part.replace(/_/g, ' ').replace(/\b\w/g, (letter) => letter.toUpperCase())).join(' · ');
+const metricLabel = (key) => key.replace(/__/g, '.').split('.').map((part) => part.replace(/_/g, ' ').replace(/\b\w/g, (letter) => letter.toUpperCase())).join(' · ');
 
 async function sellerTrendHandler(req, res, next) {
   try {
