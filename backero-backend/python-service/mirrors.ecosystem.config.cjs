@@ -11,7 +11,10 @@ module.exports = {
       script: path.join(__dirname, 'amazon', 'browser_collector.cjs'),
       interpreter: 'node', args: ['--watch'], cwd: __dirname,
       autorestart: true, restart_delay: 5000, max_restarts: 10, min_uptime: '10s',
-      env: { AMAZON_BROWSER_SESSION: 'amazon-seller-connect', AMAZON_BROWSER_POLL_SECONDS: '900' },
+      // This is the visible, user-authenticated Seller Central browser. Keep
+      // the session name explicit so PM2 and the sign-in window use one
+      // shared read-only collector session.
+      env: { AMAZON_BROWSER_SESSION: 'amazon-seller-refresh', AMAZON_BROWSER_POLL_SECONDS: '900' },
     },
     ...publisherPlatforms.map((platform) => ({
     name: `marketplace-mirror-${platform}`,
