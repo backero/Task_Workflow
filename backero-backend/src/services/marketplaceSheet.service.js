@@ -83,29 +83,85 @@ function firstNumeric(metrics, candidates) {
   return null;
 }
 
-function standardKpis(platform, metrics) {
+function valueAtPath(object, path) {
+  return path.split('.').reduce((current, key) => (current && typeof current === 'object' ? current[key] : undefined), object);
+}
+
+// A mirror's compact `metrics` object is intentionally limited to trendable
+// values. The platform screen often contains additional real headline values
+// under `data`, though. Sheets must mirror what the site can show, not turn a
+// present source value into N/A merely because it is outside the compact map.
+function firstSnapshotNumber(snapshot, metricKeys = [], dataPaths = []) {
+  const fromMetrics = firstNumeric(snapshot.metrics || {}, metricKeys);
+  if (fromMetrics !== null) return fromMetrics;
+  for (const path of dataPaths) {
+    const value = valueAtPath(snapshot.data || {}, path);
+    if (typeof value === 'number' && Number.isFinite(value)) return value;
+  }
+  return null;
+}
+
+function standardKpis(platform, snapshot) {
   const dailyKeys = {
     amazon: {
       orders: ['business_reports.units_ordered', 'orders.units_ordered_today'],
       sales: ['business_reports.ordered_product_sales', 'sales.ordered_product_sales_today', 'sales.today_global_sales'],
+      data: {
+        orders: ['platforms.amazon_in.orders', 'amazon_in.orders', 'orders.orders_today'],
+        sales: ['platforms.amazon_in.revenue', 'amazon_in.revenue', 'sales.today_global_sales'],
+        impressions: ['platforms.amazon_in.impressions', 'amazon_in.impressions'],
+        clicks: ['platforms.amazon_in.clicks', 'amazon_in.clicks'],
+        ctr: ['platforms.amazon_in.ctr_pct', 'amazon_in.ctr_pct'],
+        cvr: ['platforms.amazon_in.cvr_pct', 'amazon_in.cvr_pct'],
+      },
     },
-    flipkart: { orders: ['home.new_orders', 'home.units_today'], sales: ['home.sales_today'] },
-    meesho: { orders: ['home.daily_orders'], sales: [] },
-    // Snapdeal's visible dashboard figures are rolling totals, not daily facts.
-    snapdeal: { orders: [], sales: [] },
-  }[platform] || { orders: [], sales: [] };
-  const orders = firstNumeric(metrics, dailyKeys.orders);
-  const sales = firstNumeric(metrics, dailyKeys.sales);
-  const impressions = firstNumeric(metrics, ['ads.impressions', 'advertising.impressions']);
-  const clicks = firstNumeric(metrics, ['ads.clicks', 'advertising.clicks', 'traffic.clicks']);
-  const ctr = firstNumeric(metrics, ['ads.ctr', 'ads.ctr_pct', 'advertising.ctr', 'traffic.ctr']);
-  const cvr = firstNumeric(metrics, [
+    flipkart: {
+      orders: ['home.new_orders', 'home.units_today'], sales: ['home.sales_today'],
+      data: {
+        orders: ['account_metrics.home.new_orders', 'account_metrics.home.units_today', 'account_metrics.business_health.units_7d'],
+        sales: ['account_metrics.home.sales_today', 'account_metrics.business_health.sales_7d'],
+        impressions: ['account_metrics.home.impressions_latest', 'account_metrics.business_health.impressions_7d'],
+        clicks: ['account_metrics.ads.clicks'],
+        ctr: ['account_metrics.ads.ctr_pct'],
+        cvr: ['account_metrics.ads.cvr_pct', 'account_metrics.business_health.conversion_7d_pct'],
+      },
+    },
+    meesho: {
+      orders: ['home.daily_orders'], sales: [],
+      data: {
+        orders: ['account_metrics.home.daily_orders', 'kpis.orders_7d'],
+        sales: ['account_metrics.home.daily_sales', 'kpis.sales_7d'],
+        impressions: ['account_metrics.home.daily_views', 'kpis.impressions_7d'],
+        clicks: ['account_metrics.home.daily_clicks', 'kpis.clicks_7d'],
+        ctr: ['kpis.ctr'],
+        cvr: ['kpis.conversion_pct_7d'],
+      },
+    },
+    snapdeal: {
+      orders: [], sales: [],
+      data: {
+        orders: ['week.orders', 'panel.orders_processed'],
+        sales: ['week.revenue', 'panel.sales_completed'],
+        impressions: ['week.impressions'],
+        clicks: ['week.clicks'],
+        ctr: ['week.ctr'],
+        cvr: ['week.cvr'],
+      },
+    },
+  }[platform] || { orders: [], sales: [], data: {} };
+  const dataPaths = dailyKeys.data || {};
+  const orders = firstSnapshotNumber(snapshot, dailyKeys.orders, dataPaths.orders);
+  const sales = firstSnapshotNumber(snapshot, dailyKeys.sales, dataPaths.sales);
+  const impressions = firstSnapshotNumber(snapshot, ['ads.impressions', 'advertising.impressions'], dataPaths.impressions);
+  const clicks = firstSnapshotNumber(snapshot, ['ads.clicks', 'advertising.clicks', 'traffic.clicks'], dataPaths.clicks);
+  const ctr = firstSnapshotNumber(snapshot, ['ads.ctr', 'ads.ctr_pct', 'advertising.ctr', 'traffic.ctr'], dataPaths.ctr);
+  const cvr = firstSnapshotNumber(snapshot, [
     'ads.cvr', 'ads.cvr_pct', 'advertising.cvr', 'business_reports.unit_session_percentage',
-  ]);
+  ], dataPaths.cvr);
   return [
-    orders ?? 'N/A', sales ?? 'N/A', impressions ?? 'N/A', clicks ?? 'N/A',
-    ctr ?? (impressions && clicks !== null ? (clicks / impressions) * 100 : 'N/A'),
-    cvr ?? 'N/A',
+    orders ?? '', sales ?? '', impressions ?? '', clicks ?? '',
+    ctr ?? (impressions && clicks !== null ? (clicks / impressions) * 100 : ''),
+    cvr ?? '',
   ];
 }
 
@@ -117,7 +173,7 @@ function toPlatformRow(snapshot, metricKeys) {
     snapshot.capturedAt ? new Date(snapshot.capturedAt).toISOString() : '',
     snapshot.source || '',
     typeof data.status === 'object' ? data.status.state || '' : data.status || '',
-    ...standardKpis(snapshot.platform, metrics),
+    ...standardKpis(snapshot.platform, snapshot),
     ...metricKeys.map((key) => sheetValue(metrics[key])),
     JSON.stringify(metrics),
   ];
