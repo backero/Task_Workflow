@@ -42,6 +42,27 @@ function InventorySummary({ summary }) {
   </Card>;
 }
 
+function BusinessReportSummary({ rows }) {
+  const readings = (rows || []).filter((row) => row && /^\d{4}-\d{2}-\d{2}$/.test(row.date || ''));
+  if (!readings.length) return <Card title="Business Reports" style={{ marginBottom: 20 }}><Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="Amazon has not published a Sales and Traffic report reading yet." /></Card>;
+  const total = (key) => readings.reduce((sum, row) => sum + (Number.isFinite(row[key]) ? row[key] : 0), 0);
+  const latest = readings.at(-1);
+  const cards = [
+    ['Reported days', readings.length, false],
+    ['Units ordered', total('unitsOrdered'), false],
+    ['Ordered product sales', total('orderedProductSales'), true],
+    ['Order items', total('totalOrderItems'), false],
+    [`Latest report (${latest.date})`, latest.orderedProductSales, true],
+  ];
+  return <Card title="Business Reports — Sales & Traffic" style={{ marginBottom: 20 }}>
+    <Text type="secondary" style={{ display: 'block', marginBottom: 16, fontSize: 12 }}>Totals use only the report days Amazon has actually published. They are reporting-period totals, not today's live dashboard figures.</Text>
+    <Row gutter={[16, 16]}>{cards.map(([label, metric, isMoney]) => <Col xs={12} sm={8} lg={4} key={label}>
+      <Text type="secondary" style={{ fontSize: 12 }}>{label}</Text>
+      <div style={{ marginTop: 3, fontSize: 20, fontWeight: 650 }}>{isMoney ? money(metric) : value(metric)}</div>
+    </Col>)}</Row>
+  </Card>;
+}
+
 const TREND_COLORS = ['#ff9900', '#3057d5', '#0f9f79', '#b45309'];
 const isMoneyMetric = (key) => /(^|\.)(sales|revenue|amount|price)/i.test(key);
 const asDateKey = (date) => date.toISOString().slice(0, 10);
@@ -180,7 +201,7 @@ export default function AmazonSellerHub() {
   const captureDescription = browserCapture ? 'Backero stores a read-only capture from the authenticated local Seller Central browser. Refresh reloads saved data; it never changes Seller Central.' : 'Backero stores a read-only Amazon SP-API capture. Refresh reloads saved data; it never changes Seller Central.';
   const setSelectedTrendMetrics = (keys) => setTrendMetrics(keys.slice(-2));
   const items = data ? [
-    { key: 'overview', label: 'Overview', children: <><Alert type="info" showIcon style={{ marginBottom: 20 }} message={captureLabel} description={captureDescription} /><InventorySummary summary={data.inventorySummary} /><MetricSection heading="Account operations" metrics={data.metrics?.account} /><MetricSection heading="Sales" metrics={data.metrics?.sales} /><MetricSection heading="Order summary" metrics={data.metrics?.orders} /><MetricSection heading="Listing status" metrics={data.metrics?.listing_status} /><MetricSection heading="Finance & customer feedback" metrics={{ ...(data.metrics?.finance || {}), ...(data.metrics?.customer || {}) }} /><MetricSection heading="Seller performance (STEP)" metrics={data.metrics?.step} /></> },
+    { key: 'overview', label: 'Overview', children: <><Alert type="info" showIcon style={{ marginBottom: 20 }} message={captureLabel} description={captureDescription} /><BusinessReportSummary rows={data.salesTrafficByDate} /><InventorySummary summary={data.inventorySummary} /><MetricSection heading="Account operations" metrics={data.metrics?.account} /><MetricSection heading="Sales" metrics={data.metrics?.sales} /><MetricSection heading="Order summary" metrics={data.metrics?.orders} /><MetricSection heading="Listing status" metrics={data.metrics?.listing_status} /><MetricSection heading="Finance & customer feedback" metrics={{ ...(data.metrics?.finance || {}), ...(data.metrics?.customer || {}) }} /><MetricSection heading="Seller performance (STEP)" metrics={data.metrics?.step} /></> },
     { key: 'orders', label: 'Orders', children: <CapturedTable heading="Recent orders" rows={orders} columns={orderColumns} coverage={data.coverage?.orders} searchFields={['order_id', 'status', 'fulfillment_channel']} /> },
     { key: 'listings', label: 'Listings & inventory', children: <CapturedTable heading="Listings" rows={listings} columns={listingColumns} coverage={data.coverage?.listings} searchFields={['sku', 'title', 'asin']} /> },
     { key: 'performance', label: 'Product performance', children: <CapturedTable heading="ASIN performance" rows={asinRows} columns={asinPerformanceColumns} coverage={{ capturedAt: asinPerformance.capturedAt, period: asinPeriod || undefined, status: asinRows.length ? 'ok' : 'partial', detail: 'Amazon shows these values for the selected Business Reports date range. They are period totals, not daily figures.' }} searchFields={['sku', 'title', 'childAsin', 'parentAsin']} /> },
