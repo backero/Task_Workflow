@@ -36,6 +36,45 @@ function sheetValue(value) {
   return JSON.stringify(value);
 }
 
+function flattenSiteData(value, path = '', rows = []) {
+  if (value === null || value === undefined || typeof value !== 'object') {
+    rows.push([path || '(value)', sheetValue(value)]);
+    return rows;
+  }
+  if (Array.isArray(value)) {
+    if (!value.length) rows.push([path || '(array)', '[]']);
+    value.forEach((item, index) => flattenSiteData(item, `${path}[${index}]`, rows));
+    return rows;
+  }
+  const entries = Object.entries(value);
+  if (!entries.length) rows.push([path || '(object)', '{}']);
+  entries.sort(([left], [right]) => left.localeCompare(right)).forEach(([key, item]) => {
+    flattenSiteData(item, path ? `${path}.${key}` : key, rows);
+  });
+  return rows;
+}
+
+async function writeSiteDataTab(sheets, spreadsheetId, platform, snapshot) {
+  const sheetName = `${PLATFORM_TABS[platform]} Site Data`;
+  if (!snapshot) {
+    await writeTab(sheets, spreadsheetId, sheetName, ['Path', 'Value'], [['status', 'No saved marketplace snapshot yet']]);
+    return 1;
+  }
+  // This is the same latest, organization-scoped mirror object served to the
+  // marketplace UI. Keep it in an auditable field/value layout so no visible
+  // site fact is lost simply because it does not fit the daily KPI schema.
+  const exportData = {
+    snapshotDate: snapshot.date,
+    capturedAt: snapshot.capturedAt,
+    source: snapshot.source,
+    metrics: snapshot.metrics,
+    siteData: snapshot.data,
+  };
+  const rows = flattenSiteData(exportData);
+  await writeTab(sheets, spreadsheetId, sheetName, ['Path', 'Value'], rows);
+  return rows.length;
+}
+
 function firstNumeric(metrics, candidates) {
   for (const key of candidates) {
     const value = metrics[key];
@@ -132,6 +171,7 @@ async function syncMarketplaceSheet(organizationId) {
   const snapshots = await MarketplaceSellerSnapshot.find({ organizationId })
     .sort({ date: 1, platform: 1 }).lean();
   const rowsByPlatform = {};
+  const siteDataRowsByPlatform = {};
   for (const [platform, sheetName] of Object.entries(PLATFORM_TABS)) {
     const platformSnapshots = snapshots.filter((snapshot) => snapshot.platform === platform);
     const headers = tabHeaders(platformSnapshots);
@@ -139,6 +179,8 @@ async function syncMarketplaceSheet(organizationId) {
     const rows = platformSnapshots.map((snapshot) => toPlatformRow(snapshot, metricKeys));
     await writeTab(sheets, config.sheetId, sheetName, headers, rows);
     rowsByPlatform[platform] = rows.length;
+    const latest = platformSnapshots.at(-1);
+    siteDataRowsByPlatform[platform] = await writeSiteDataTab(sheets, config.sheetId, platform, latest);
   }
   // ASIN performance is a selected Business Reports period, not a daily
   // reading. Keep it out of the Amazon daily tab so it cannot be mistaken for
@@ -174,7 +216,7 @@ async function syncMarketplaceSheet(organizationId) {
   await writeCustomTab(sheets, config.sheetId, 'Summary', ['Platform', 'Month', 'Saved daily readings', 'Latest business date'], [...months.values()].map((group) => [group.platform, group.month, group.count, group.latest]));
   // The original combined tab is intentionally retained as a read-only
   // historical view; all future platform exports are written to their own tabs.
-  const result = { rows: snapshots.length, rowsByPlatform, syncedAt: new Date().toISOString() };
+  const result = { rows: snapshots.length, rowsByPlatform, siteDataRowsByPlatform, syncedAt: new Date().toISOString() };
   await Organization.findByIdAndUpdate(organizationId, {
     'marketplaceSheets.lastSyncedAt': new Date(),
     'marketplaceSheets.lastSyncResult': result,
