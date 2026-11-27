@@ -46,6 +46,10 @@ const RemainderSchema = new mongoose.Schema(
       ref: 'User'
     },
     reminderSentDates: [Date],
+    // WhatsApp delivery attempts are tracked separately from the legacy
+    // reminder digest so a failed digest can never suppress a real due-date
+    // WhatsApp notification.
+    whatsappReminderSentDates: [Date],
     timestamp: {
       type: Date,
       default: Date.now,

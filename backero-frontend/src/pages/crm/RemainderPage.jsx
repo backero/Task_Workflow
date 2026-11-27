@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import api from '../../api/axios';
-import { Trash2, Plus, CheckCircle, Clock, AlertCircle } from 'lucide-react';
+import { Trash2, Plus, CheckCircle, Clock, AlertCircle, MessageCircle, RefreshCw, ExternalLink } from 'lucide-react';
 
 export default function RemainderPage() {
   const qc = useQueryClient();
@@ -30,6 +30,23 @@ export default function RemainderPage() {
   });
 
   const reminders = remindersData?.reminders || [];
+
+  const { data: whatsappStatusData, refetch: refetchWhatsAppStatus, isFetching: isRefreshingWhatsApp } = useQuery({
+    queryKey: ['whatsapp-reminder-status'],
+    queryFn: async () => (await api.get('/whatsapp/status')).data,
+    refetchInterval: 15000,
+  });
+  const whatsappStatus = whatsappStatusData?.data || whatsappStatusData || {};
+  const isWhatsAppConnected = Boolean(whatsappStatus.connected);
+
+  const sendDueRemindersMutation = useMutation({
+    mutationFn: () => api.post('/remainders/run-reminders'),
+    onSuccess: ({ data }) => {
+      toast.success(data?.message || 'Due reminders sent');
+      qc.invalidateQueries({ queryKey: ['reminders'] });
+    },
+    onError: (error) => toast.error(error?.response?.data?.message || 'Could not send reminders'),
+  });
 
   // Create/Update mutation
   const saveMutation = useMutation({
@@ -161,6 +178,58 @@ export default function RemainderPage() {
         >
           <Plus size={18} /> New Reminder
         </button>
+      </div>
+
+      <div className={`rounded-xl border p-4 ${
+        isWhatsAppConnected ? 'border-green-200 bg-green-50' : 'border-amber-200 bg-amber-50'
+      }`}>
+        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          <div className="flex gap-3">
+            <div className={`mt-0.5 rounded-full p-2 ${isWhatsAppConnected ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
+              <MessageCircle size={20} />
+            </div>
+            <div>
+              <h2 className="font-semibold text-gray-900">
+                {isWhatsAppConnected ? 'WhatsApp reminders are connected' : 'WhatsApp reminders need setup'}
+              </h2>
+              <p className="mt-1 text-sm text-gray-600">
+                {isWhatsAppConnected
+                  ? 'Due and overdue reminders are sent every day at 9:05 AM IST to the reminder owner.'
+                  : 'Messages cannot be delivered until the Backero WhatsApp QR is scanned from Linked Devices.'}
+              </p>
+            </div>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {!isWhatsAppConnected && (
+              <a
+                href="/api/whatsapp/setup"
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-2 rounded-lg bg-amber-600 px-3 py-2 text-sm font-semibold text-white hover:bg-amber-700"
+              >
+                <ExternalLink size={16} /> Open QR setup
+              </a>
+            )}
+            <button
+              type="button"
+              onClick={() => refetchWhatsAppStatus()}
+              disabled={isRefreshingWhatsApp}
+              className="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+            >
+              <RefreshCw size={16} className={isRefreshingWhatsApp ? 'animate-spin' : ''} /> Refresh status
+            </button>
+            {isWhatsAppConnected && (
+              <button
+                type="button"
+                onClick={() => sendDueRemindersMutation.mutate()}
+                disabled={sendDueRemindersMutation.isPending}
+                className="inline-flex items-center gap-2 rounded-lg bg-green-600 px-3 py-2 text-sm font-semibold text-white hover:bg-green-700 disabled:opacity-50"
+              >
+                <MessageCircle size={16} /> {sendDueRemindersMutation.isPending ? 'Sending...' : 'Send due reminders now'}
+              </button>
+            )}
+          </div>
+        </div>
       </div>
 
       {/* Filters */}
@@ -322,7 +391,7 @@ export default function RemainderPage() {
               </div>
 
               <div className="flex items-center gap-2">
-                {reminder.status === 'Pending' && (
+                {reminder.status !== 'Done' && (
                   <button
                     onClick={() => completeMutation.mutate(reminder._id)}
                     disabled={completeMutation.isPending}
@@ -332,7 +401,7 @@ export default function RemainderPage() {
                     <CheckCircle size={20} />
                   </button>
                 )}
-                {reminder.status === 'Pending' && (
+                {reminder.status !== 'Done' && (
                   <button
                     onClick={() => handleEdit(reminder)}
                     className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition"

@@ -3,8 +3,37 @@ const router = express.Router();
 const Remainder = require('../models/Remainder');
 const { authenticate } = require('../middleware/auth.middleware');
 const { orgIsolation } = require('../middleware/orgIsolation.middleware');
+const { runRemainderCheck } = require('../services/automation.service');
+const { isConnected: isWhatsAppConnected } = require('../services/whatsapp.service');
 
 router.use(authenticate, orgIsolation);
+
+const ADMIN_ROLES = ['admin', 'super_admin', 'founder', 'chairman'];
+
+// Send all reminders that are due now for this organization. This is useful
+// after WhatsApp is linked and also gives an admin a safe, explicit test.
+router.post('/run-reminders', async (req, res) => {
+  try {
+    if (!ADMIN_ROLES.includes(req.user.role)) {
+      return res.status(403).json({ success: false, message: 'Admin access required' });
+    }
+    if (!isWhatsAppConnected()) {
+      return res.status(503).json({ success: false, message: 'WhatsApp is not connected. Scan the QR code first.' });
+    }
+
+    const result = await runRemainderCheck({ organizationId: req.orgId });
+    return res.status(200).json({
+      success: true,
+      result,
+      message: result.sent
+        ? `${result.sent} due reminder${result.sent === 1 ? '' : 's'} sent on WhatsApp`
+        : 'No new due reminders were sent. Check WhatsApp connection and recipient phone numbers.',
+    });
+  } catch (error) {
+    console.error('Error running reminder delivery:', error);
+    return res.status(500).json({ success: false, message: 'Failed to run reminder delivery' });
+  }
+});
 
 // Get all reminders for organization (admin only)
 router.get('/', async (req, res) => {
@@ -12,7 +41,7 @@ router.get('/', async (req, res) => {
     const { status, limit = 50, skip = 0 } = req.query;
 
     // Only admins can view reminders
-    if (!['admin', 'super_admin', 'founder', 'chairman'].includes(req.user.role)) {
+    if (!ADMIN_ROLES.includes(req.user.role)) {
       return res.status(403).json({ success: false, message: 'Admin access required' });
     }
 
@@ -42,7 +71,7 @@ router.post('/', async (req, res) => {
     const { title, description, type, dueDate, priority, notes } = req.body;
 
     // Only admins can create reminders
-    if (!['admin', 'super_admin', 'founder', 'chairman'].includes(req.user.role)) {
+    if (!ADMIN_ROLES.includes(req.user.role)) {
       return res.status(403).json({ success: false, message: 'Admin access required' });
     }
 
@@ -87,7 +116,7 @@ router.put('/:id', async (req, res) => {
     const { title, description, type, dueDate, priority, notes, status, completedAt } = req.body;
 
     // Only admins can update reminders
-    if (!['admin', 'super_admin', 'founder', 'chairman'].includes(req.user.role)) {
+    if (!ADMIN_ROLES.includes(req.user.role)) {
       return res.status(403).json({ success: false, message: 'Admin access required' });
     }
 
@@ -127,7 +156,7 @@ router.delete('/:id', async (req, res) => {
     const { id } = req.params;
 
     // Only admins can delete reminders
-    if (!['admin', 'super_admin', 'founder', 'chairman'].includes(req.user.role)) {
+    if (!ADMIN_ROLES.includes(req.user.role)) {
       return res.status(403).json({ success: false, message: 'Admin access required' });
     }
 

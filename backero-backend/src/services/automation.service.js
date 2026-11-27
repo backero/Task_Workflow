@@ -11,6 +11,7 @@ const MarketplacePlanProgress = require('../models/MarketplacePlanProgress');
 const MarketflowSnapshot = require('../models/MarketflowSnapshot');
 const Invoice = require('../models/Invoice');
 const TeamReward = require('../models/TeamReward');
+const Remainder = require('../models/Remainder');
 const { createNotification, bulkCreateNotifications } = require('./notification.service');
 const { runDocumentExpiryReminders } = require('./documentWallet.service');
 const {
@@ -95,9 +96,10 @@ const startAutomationEngine = (socketIo) => {
     runDueTodayTaskReminder().catch(logger.error);
   });
 
-  // Every day at 9 AM IST: send pending reminders to admins
-  cron.schedule('30 3 * * *', () => {  // 9 AM IST = 3:30 AM UTC
-    runAdminRemindersCheck().catch(logger.error);
+  // Every day at 9:05 AM IST: send the owner's due/overdue reminders. This
+  // runs after the regular task digest so the two messages do not collide.
+  cron.schedule('35 3 * * *', () => {
+    runRemainderCheck().catch(logger.error);
   });
 
   // Every 5 minutes: sync Google Sheets leads for all connected orgs
@@ -594,6 +596,69 @@ const runActiveClientUpdates = async () => {
   }
 
   logger.info(`[ClientUpdates] Daily updates: ${sent} sent, ${skipped} skipped (already updated today)`);
+};
+
+const istDayBounds = (reference = new Date()) => {
+  const date = reference.toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
+  const start = new Date(`${date}T00:00:00+05:30`);
+  const end = new Date(`${date}T23:59:59.999+05:30`);
+  return { date, start, end };
+};
+
+const runRemainderCheck = async ({ organizationId } = {}) => {
+  const { date, start, end } = istDayBounds();
+  const query = {
+    status: { $in: ['Pending', 'Overdue'] },
+    dueDate: { $lte: end },
+  };
+  if (organizationId) query.organizationId = organizationId;
+
+  const reminders = await Remainder.find(query)
+    .populate('createdBy', 'firstName lastName name phone whatsapp settings isActive')
+    .lean();
+
+  let sent = 0; let skipped = 0; let failed = 0;
+  const { sendMessage } = require('./whatsapp.service');
+  for (const reminder of reminders) {
+    const previouslySent = (reminder.whatsappReminderSentDates || []).some((sentAt) =>
+      new Date(sentAt).toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' }) === date);
+    if (previouslySent) { skipped += 1; continue; }
+
+    const owner = reminder.createdBy;
+    const phone = owner?.whatsapp || owner?.phone;
+    const overdue = new Date(reminder.dueDate) < start;
+    const state = overdue ? 'OVERDUE' : 'DUE TODAY';
+    const message = `*${state} · ${reminder.priority} priority*\n\n${reminder.title}`
+      + `${reminder.description ? `\n${reminder.description}` : ''}`
+      + `\n\nDue: ${new Date(reminder.dueDate).toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata' })}`
+      + `\nOpen Backero and mark it Done once completed.`;
+
+    if (overdue && reminder.status !== 'Overdue') {
+      await Remainder.updateOne({ _id: reminder._id, status: 'Pending' }, { $set: { status: 'Overdue' } });
+    }
+    if (!owner?._id || !phone || owner.settings?.notifications?.whatsapp === false) {
+      failed += 1;
+      continue;
+    }
+
+    const delivered = await sendMessage(phone, message);
+    if (!delivered) { failed += 1; continue; }
+    await Remainder.updateOne(
+      { _id: reminder._id, whatsappReminderSentDates: { $not: { $elemMatch: { $gte: start, $lte: end } } } },
+      { $push: { whatsappReminderSentDates: new Date() } },
+    );
+    await createNotification({
+      organizationId: reminder.organizationId,
+      recipient: owner._id,
+      title: `${state}: ${reminder.title}`,
+      message: reminder.description || `Reminder due ${overdue ? 'earlier' : 'today'}.`,
+      type: 'reminder', priority: reminder.priority.toLowerCase(), actionUrl: '/remainder',
+      reference: { model: 'Remainder', id: reminder._id }, channels: { inApp: true, whatsapp: false },
+    }, io);
+    sent += 1;
+  }
+  logger.info(`[Remainders] ${date}: ${sent} WhatsApp sent, ${skipped} already sent, ${failed} awaiting WhatsApp/phone setup`);
+  return { date, total: reminders.length, sent, skipped, failed };
 };
 
 const runDueTodayTaskReminder = async () => {
@@ -1153,4 +1218,4 @@ const runAdminRemindersCheck = async () => {
   }
 };
 
-module.exports = { startAutomationEngine, runOverdueTaskCheck, runWeeklyStockDigest, runMonthlyStockDigest, runOverdueInvoiceCheck, runDailyReport, runOverdueFollowUpCheck, runStaleLedCheck, runWeeklyTeamRewardCheck, runAdminRemindersCheck, runReorderReminderCheck };
+module.exports = { startAutomationEngine, runOverdueTaskCheck, runWeeklyStockDigest, runMonthlyStockDigest, runOverdueInvoiceCheck, runDailyReport, runOverdueFollowUpCheck, runStaleLedCheck, runWeeklyTeamRewardCheck, runAdminRemindersCheck, runReorderReminderCheck, runRemainderCheck };
